@@ -2044,9 +2044,16 @@ class MainWindow(QMainWindow):
             try:
                 import numpy as _np, sounddevice as _sd
             except Exception as e:
-                self._log_sig.emit(f"ERR: kalibrasyon — ses kütüphanesi yok ({e})")
+                # `e`, except bloğu bitince Python tarafından otomatik silinir
+                # (CPython: `del e`) — QTimer.singleShot ile ERTELENEN lambda
+                # çalıştığında `e` artık yok, "free variable" NameError'ı
+                # fırlatıyordu (ölçüldü, pyflakes + manuel tekrar üretim,
+                # 2026-08-11). Mesajı düz bir stringe önceden çevirip lambda'ya
+                # ONU vermek gerekiyor.
+                hata = str(e)
+                self._log_sig.emit(f"ERR: kalibrasyon — ses kütüphanesi yok ({hata})")
                 QTimer.singleShot(0, lambda: _bitti(
-                    "MİKROFON KALİBRASYONU", f"Ses kütüphanesi yüklenemedi: {e}"))
+                    "MİKROFON KALİBRASYONU", f"Ses kütüphanesi yüklenemedi: {hata}"))
                 return
 
             def _olc(sn):
@@ -2064,9 +2071,10 @@ class MainWindow(QMainWindow):
                 self._log_sig.emit("SYS: 2/2 — ŞİMDİ KONUŞUN (5 saniye)")
                 ses, ses_tepe = _olc(5)
             except Exception as e:
-                self._log_sig.emit(f"ERR: kalibrasyon — mikrofon açılamadı ({e})")
+                hata = str(e)          # bkz. yukarıdaki `_calis` — aynı "free variable" nedeni
+                self._log_sig.emit(f"ERR: kalibrasyon — mikrofon açılamadı ({hata})")
                 QTimer.singleShot(0, lambda: _bitti(
-                    "MİKROFON KALİBRASYONU", f"Mikrofon açılamadı: {e}"))
+                    "MİKROFON KALİBRASYONU", f"Mikrofon açılamadı: {hata}"))
                 return
 
             oran = ses / taban if taban > 0 else float("inf")
@@ -2145,8 +2153,9 @@ class MainWindow(QMainWindow):
                     )
                     cikti = (r.stdout or "") + (("\n" + r.stderr) if r.stderr else "")
                 except Exception as e:
-                    self._log_sig.emit(f"ERR: {baslik} — {e}")
-                    QTimer.singleShot(0, lambda: _bitti(f"Çalıştırılamadı: {e}"))
+                    hata = str(e)      # bkz. _kalibre_mikrofon — "free variable" NameError'ı
+                    self._log_sig.emit(f"ERR: {baslik} — {hata}")
+                    QTimer.singleShot(0, lambda: _bitti(f"Çalıştırılamadı: {hata}"))
                     return
                 kisa = "TAMAMLANDI" if r.returncode == 0 else f"HATA (kod {r.returncode})"
                 self._log_sig.emit(f"SYS: {baslik} — {kisa}")
@@ -2215,8 +2224,9 @@ class MainWindow(QMainWindow):
                     )
                     cikti = (r.stdout or "") + (("\n" + r.stderr) if r.stderr else "")
                 except Exception as e:
-                    self._log_sig.emit(f"ERR: {baslik} — {e}")
-                    QTimer.singleShot(0, lambda: _bitti(f"Çalıştırılamadı: {e}"))
+                    hata = str(e)      # bkz. _kalibre_mikrofon — "free variable" NameError'ı
+                    self._log_sig.emit(f"ERR: {baslik} — {hata}")
+                    QTimer.singleShot(0, lambda: _bitti(f"Çalıştırılamadı: {hata}"))
                     return
                 kisa = "TAMAMLANDI" if r.returncode == 0 else f"HATA (kod {r.returncode})"
                 self._log_sig.emit(f"SYS: {baslik} — {kisa}")
