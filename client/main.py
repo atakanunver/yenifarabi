@@ -677,7 +677,6 @@ class FarabiLive:
         await olaylar.yayinla(olaylar.ARAC_BASLADI, ad=name, argumanlar=args)
         self.ui.set_state("THINKING")
 
-        loop   = asyncio.get_event_loop()
         result = "Done."
 
         try:

@@ -29,7 +29,6 @@ kullanılmıyor — bu ayrı, daha basit bir betik).
 import argparse
 import hashlib
 import json
-import sys
 from pathlib import Path
 
 import psycopg2

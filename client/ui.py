@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import platform
 import random
 import shlex
@@ -29,18 +28,16 @@ from core import anahtar
 import psutil
 
 from PyQt6.QtCore import (
-    QEasingCurve, QMimeData, QObject, QPointF, QRectF, QSize, Qt,
-    QTimer, QUrl, pyqtSignal,
+    QPointF, QRectF, Qt, QTimer, pyqtSignal,
 )
 from PyQt6.QtGui import (
-    QBrush, QColor, QDragEnterEvent, QDropEvent, QFont, QFontDatabase,
-    QKeySequence, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap,
-    QRadialGradient, QShortcut,
+    QBrush, QColor, QDragEnterEvent, QDropEvent, QFont,
+    QKeySequence, QPainter, QPen, QPixmap, QShortcut,
 )
 from PyQt6.QtWidgets import (
-    QApplication, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QInputDialog,
-    QLabel, QLineEdit, QMainWindow, QPushButton, QScrollArea, QSizePolicy,
-    QTextEdit, QVBoxLayout, QWidget, QProgressBar,
+    QApplication, QFileDialog, QFrame, QGridLayout, QHBoxLayout,
+    QLabel, QLineEdit, QMainWindow, QPushButton, QSizePolicy,
+    QTextEdit, QVBoxLayout, QWidget,
 )
 
 def _base_dir() -> Path:

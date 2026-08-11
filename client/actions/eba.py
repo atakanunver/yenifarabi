@@ -31,7 +31,7 @@ try:
 except ImportError:
     _REQUESTS_OK = False
 
-from config import is_windows, is_mac, is_linux
+from config import is_mac, is_linux
 
 _IZINLI_ALAN_SONEKI = "eba.gov.tr"
 

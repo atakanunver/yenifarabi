@@ -232,7 +232,7 @@ def main() -> int:
 
     if not a.onayla:
         print("\n(--onayla verilmedi: kuru çalışma, hiçbir API çağrısı yapılmadı.)")
-        print(f"Gerçekten üretmek için: --onayla (ücretlidir, altı sağlayıcı havuzu kullanılır)")
+        print("Gerçekten üretmek için: --onayla (ücretlidir, altı sağlayıcı havuzu kullanılır)")
         return 0
 
     from core import saglayicilar
