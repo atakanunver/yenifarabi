@@ -26,8 +26,9 @@ import requests
 
 from actions.ders_icerigi import _ders_eslesir
 
-SUNUCU_URL  = "http://127.0.0.1:8000"
-ZAMAN_ASIMI = 5.0          # server ölçümde ~1-5sn'de dönüyor
+SUNUCU_URL       = "http://127.0.0.1:8000"
+ZAMAN_ASIMI_GET  = 5.0            # kitap listesi küçük, hızlı
+ZAMAN_ASIMI_POST = 10.0           # ölçüm: soru başına 1-5sn, en kötü 5,3sn görüldü — pay bırakıldı
 
 _SINIRLI_DEVAM = (
     "KISIT: Kitap sorusu sunucusuna ulaşılamadı ya da eşleşen kitap "
@@ -47,7 +48,7 @@ def _kitap_listesi() -> list[dict] | None:
     if _KITAP_ONBELLEK is not None:
         return _KITAP_ONBELLEK
     try:
-        r = requests.get(f"{SUNUCU_URL}/api/egitim/kitaplar", timeout=ZAMAN_ASIMI)
+        r = requests.get(f"{SUNUCU_URL}/api/egitim/kitaplar", timeout=ZAMAN_ASIMI_GET)
         r.raise_for_status()
         _KITAP_ONBELLEK = r.json()
         return _KITAP_ONBELLEK
@@ -56,6 +57,16 @@ def _kitap_listesi() -> list[dict] | None:
 
 
 def _kitap_id_bul(ders: str | None, sinif: str | None) -> int | None:
+    """
+    `ders` verilmeden EŞLEŞME YAPILMAZ. `_ders_eslesir(None, ...)` sorgu boşken
+    her kitabı kabul eder (ders_icerigi.py'de bilinçli bir tasarım — orada
+    "hangi kitaplar var" kataloğunu daraltmak için kullanılıyor). Burada aynı
+    boşluk, sınıf düzeyi tutan İLK kitabı seçip fizik sorusunu biyoloji
+    kitabından kaynaklı gibi yanıtlamak anlamına gelirdi — sessiz bir
+    halüsinasyon. "Yanlış temayı anlatmaktansa hiç anlatma" (ders_icerigi.py).
+    """
+    if not ders:
+        return None
     kitaplar = _kitap_listesi()
     if not kitaplar:
         return None
@@ -96,7 +107,7 @@ def kitap_sorusu(parameters: dict | None = None, player=None, speak=None, **_) -
         r = requests.post(
             f"{SUNUCU_URL}/api/egitim/question",
             json={"kitap_id": kitap_id, "soru": soru},
-            timeout=ZAMAN_ASIMI,
+            timeout=ZAMAN_ASIMI_POST,
         )
         r.raise_for_status()
         veri = r.json()

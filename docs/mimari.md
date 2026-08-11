@@ -296,8 +296,9 @@ GET /version    — sürüm / yüklü model bilgisi
 ### Eğitim
 
 ```
+GET  /api/egitim/kitaplar          — uygulandı, `server/main.py`
+POST /api/egitim/question          — uygulandı, `server/main.py`
 POST /api/egitim/lesson/start
-POST /api/egitim/question
 POST /api/egitim/teacher/command
 WS   /ws/classroom/{tahta_id}
 ```
@@ -351,6 +352,10 @@ Client her `status` için ne göstereceğini bilir; metni ayrıştırmaz.
 **Gerçek sözleşme (uygulandı, `server/main.py`):**
 
 ```
+GET /api/egitim/kitaplar
+  →
+  [{ "id", "dosya_adi", "sinif", "ders" }, ...]
+
 POST /api/egitim/question
   { "kitap_id": <int>, "soru": <string> }
   →
@@ -362,8 +367,20 @@ oturumunu keser (mevcut client davranışı, `client/CLAUDE.md`) — Brain'in
 ayrıca bir iptal mekanizması bilmesi gerekmez, çünkü istek zaten senkron ve
 kısa sürüyor (~1–5 sn, bkz. §5).
 
-Bağlam çözümü (`tahta_id → ... → kitap_id`) ve client'ın bu endpoint'i hangi
-araçla çağıracağı henüz kararlaştırılmadı — bkz. §16.
+**Bağlam çözümü — çözüldü (2026-08-11):** `sinif_kitap` tablosu henüz boş
+(gerçek okul verisi yok) olduğu için `tahta_id → ders_programi → sinif_kitap`
+zinciri ATLANIYOR; client `GET /api/egitim/kitaplar`'ı bir kez çekip
+`(ders, sinif)` çiftiyle eşliyor (`client/actions/kitap_sorusu.py`). `ders`
+verilmeden eşleme YAPILMAZ — boş bırakılırsa aynı sınıf düzeyindeki ilk kitap
+seçilip yanlış dersten kaynaklı bir cevap üretebilirdi; bu yüzden yeni araç
+şemasında `ders` zorunlu alan. Gerçek okul verisi (`sinif_kitap` doldurulunca)
+bu geçici eşleme gerçek bağlam çözümüne geçirilebilir.
+
+Client'ın bu endpoint'i hangi araçla çağıracağı sorusu da çözüldü: yeni
+`kitap_sorusu` aracı (`client/actions/kitap_sorusu.py`, kayıt `actions/
+kayit.py`) — `ders_icerigi`'nin aksine bir konuyu anlatmak için değil,
+kaynaklı bir soruyu yanıtlamak için. Sunucu ulaşılamazsa ya da eşleşme yoksa
+sessizce mevcut araçlara düşer (mimari.md §2).
 
 ---
 
@@ -661,7 +678,7 @@ Retrieval testinden ayrı tutulur — hata ayıklamayı kolaylaştırır.
 | FATİH tahtasında özel CA sertifikası güveniliyor mu | Test | TLS kararı |
 | Tahtalara kalıcı yazılım kurulum izni | İdari süreç | Faz 2 |
 | Devir dokümanı + bilişim öğretmenine eğitim | Atakan | Faz 2 sonrası |
-| ~~`client/`'ın bulut LLM bağımlılığı nasıl yerel Brain'e taşınacak~~ | Atakan | **Kısmen çözüldü 2026-08-11** — SES için çözülmeyecek, kalıcı karar: Gemini Live kalıyor (§14). METİN/İÇERİK (RAG cevabı) için zaten yerel (`server/`, `POST /api/egitim/question` çalışıyor). Açık kalan tek soru: client hangi araçla Brain'i çağırsın (ör. `ders_icerigi`'yi değiştirmek mi, yeni bir araç mı) — bu oturumda çözülmedi. |
+| ~~`client/`'ın bulut LLM bağımlılığı nasıl yerel Brain'e taşınacak~~ | Atakan | **Çözüldü 2026-08-11** — SES için çözülmeyecek, kalıcı karar: Gemini Live kalıyor (§14). METİN/İÇERİK (RAG cevabı) için zaten yerel (`server/`, `POST /api/egitim/question` çalışıyor). Client hangi araçla Brain'i çağırıyor sorusu da çözüldü: yeni `kitap_sorusu` aracı (§10), gerçek sunucuya karşı doğrulandı. |
 | Faz 1 bağlam çözümü: `tahta_id → ders_programi → sinif+sube+ders → sinif_kitap → kitap_id` zinciri nasıl kurulacak, pilot tahtaların `tahta_id`'leri nereden atanacak | Atakan | `server/`'ın API'si şu an `kitap_id`'yi doğrudan istekte alıyor, gerçek bir tahtadan gelen isteği çözemiyor |
 
 "Okul Beyni" / müdür asistanı **ayrı projedir**; aynı sunucuda çalışabilir, aynı kod

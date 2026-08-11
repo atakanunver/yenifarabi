@@ -96,14 +96,14 @@ ARACLAR: list[Arac] = [
             "type": "OBJECT",
             "properties": {
                 "soru":  {"type": "STRING", "description": "The student's/teacher's exact question."},
-                "ders":  {"type": "STRING", "description": "Subject from the timetable, e.g. 'biyoloji'."},
+                "ders":  {"type": "STRING", "description": "Subject from the timetable, e.g. 'biyoloji'. REQUIRED — without it the tool refuses to guess a book (avoids answering a physics question from the biology book)."},
                 "sinif": {"type": "STRING", "description": "Grade, e.g. '9' or '10'."},
             },
-            "required": ["soru"],
+            "required": ["soru", "ders"],
         },
         izin="mufredat.oku",
         maliyet="dusuk",
-        zaman_asimi=8.0,           # server'ın kendi 5sn timeout'u + pay
+        zaman_asimi=16.0,          # server'ın kendi GET(5s)+POST(10s) toplamı + pay
         cikti="metin",
     ),
     Arac(

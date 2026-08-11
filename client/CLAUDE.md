@@ -72,7 +72,7 @@ Farabi.gif               HUD animation (placeholder art; swap freely)
 dersgiriscikis.png       school bell-schedule photo — provenance for zil.json
 
 actions/                 one public function per module — the
-                         registry declares eight tools (`shutdown_farabi`
+                         registry declares nine tools (`shutdown_farabi`
                          runs inline, it has no module). No camera/screen
                          capture anywhere (`screen_processor.py` removed
                          2026-08-09 — unused, and violated the no-camera
@@ -81,6 +81,10 @@ actions/                 one public function per module — the
   kayit.py               TOOL REGISTRY — the single source for declarations,
                          timeouts, permissions, cost class (see below)
   ders_icerigi.py        textbook pages for the teacher's subject + topic
+  kitap_sorusu.py        answers a concrete, source-checked question via the
+                         server's RAG pipeline (`server/rag.py`), added
+                         2026-08-11 — NOT a topic walkthrough, that's
+                         ders_icerigi's job (see below)
   yks_sorulari.py        past YKS exam questions on the topic, keyword-matched
                          against tools/yks_metin.py output — question only, no
                          solution; model must work the solution itself (see below)
