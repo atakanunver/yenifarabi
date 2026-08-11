@@ -357,7 +357,7 @@ GET /api/egitim/kitaplar
   [{ "id", "dosya_adi", "sinif", "ders" }, ...]
 
 POST /api/egitim/question
-  { "kitap_id": <int>, "soru": <string> }
+  { "kitap_id": <int>, "soru": <string, en fazla 500 karakter> }
   →
   { "status", "answer", "sources"[], "latency_ms", "request_id" }
 ```
@@ -366,6 +366,22 @@ Tek istek, tek yanıt. Öğretmen "DURDUR"a basarsa client Gemini Live'ın kendi
 oturumunu keser (mevcut client davranışı, `client/CLAUDE.md`) — Brain'in
 ayrıca bir iptal mekanizması bilmesi gerekmez, çünkü istek zaten senkron ve
 kısa sürüyor (~1–5 sn, bkz. §5).
+
+**`soru` neden 500 karakterle sınırlı (2026-08-11 bulundu):** sınırsız
+uzunlukta bir soru (~6000 karakter) reranker'ı (cuda:0, qwen2.5:14b ile aynı
+kart) CUDA out-of-memory'ye düşürdü — o an embedding/rerank adımları hiç
+sarmalanmamıştı, istisna yakalanmadan çıkıp çıplak 500 döndürdü. İki
+düzeltme yapıldı: (1) `SoruIstek.soru` artık Pydantic `max_length=500` ile
+pahalı bir GPU çağrısı hiç yapılmadan 422 ile reddediyor — doğrulanmış soru
+setinin (`benchmark/sorular.json`) en uzun sorusu 336 karakter, 500 rahat bir
+pay; (2) `rag.py`'de embedding/arama ve rerank adımları da LLM adımıyla aynı
+desene alındı (try/except + `hata` durumu + `metrik` loglaması) — bundan
+sonra bu aşamada ne çıkarsa çıksın sunucu ayakta kalıyor. Kabul edilen kalan
+risk: GPU 0 durağan halde ~11.2/11.63 GiB dolu (Ollama 7.63 + server 3.59),
+reranker'a yalnızca ~400 MiB pay kalıyor — eşzamanlı sınıf yükünde NORMAL
+uzunlukta bir soru bile OOM'a düşebilir, ama artık `hata` durumuna düzgün
+düşüyor, çıplak 500'e değil. GPU paylaşımını yeniden tasarlamak bu turda
+yapılmadı (ölçmeden optimizasyon yapma, Kural 10).
 
 **Bağlam çözümü — çözüldü (2026-08-11):** `sinif_kitap` tablosu henüz boş
 (gerçek okul verisi yok) olduğu için `tahta_id → ders_programi → sinif_kitap`

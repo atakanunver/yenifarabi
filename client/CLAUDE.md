@@ -163,6 +163,8 @@ tests/                   pytest; pure functions only, no network, no model
   test_saglayicilar.py   six-provider chain fallback/skip logic (mocked
                          clients, no network — see "Provider notes" below)
   test_sembol_temizle.py  AI symbol-cleanup page counting and failure handling
+  test_kitap_sorusu.py   book-matching refuses without `ders` (network-free,
+                         monkeypatched cache — see kitap_sorusu section below)
 
 config/
   api_keys.json          gemini_api_key, os_system, ders_kipi, derslik
@@ -697,6 +699,34 @@ by keyword scoring against the konu — see "Page selection" below (no
 semantic/embedding ranking; that subsystem was removed). Output capped at
 6000 chars (~1.5k tokens); if `icerik/ozet/<kitap>.json` exists (see
 "Content pipeline" below), a one-line book summary is prepended.
+
+### `kitap_sorusu` — sourced Q&A via server, not a page fetch
+
+Added 2026-08-11. Calls `server/`'s RAG pipeline (`POST /api/egitim/question`
+— retrieval + rerank + threshold + LLM + number-check, see `docs/mimari.md`
+§8) for a **concrete question**, not a topic to teach. `ders_icerigi` hands
+the model raw pages to narrate from; this tool hands back an already
+source-checked answer string that must be read as given, not elaborated on.
+
+**`ders` is required in the schema and enforced in code** (`_kitap_id_bul`
+returns `None` if `ders` is falsy) — found via live testing 2026-08-11:
+without it, the board's classroom grade (`tahta.sinif_duzeyi()`) alone could
+match the *first* book at that grade level regardless of subject, e.g. a
+physics question answered — with a citation — from the biology book. `ders`
+closes that; `sinif` still defaults from the board if omitted.
+
+The server's book list (`GET /api/egitim/kitaplar`) is fetched once and
+cached in `_KITAP_ONBELLEK` for the process lifetime — same pattern as
+`_METIN_ONBELLEK` in `ders_icerigi.py`.
+
+**Every non-`ok` path returns `_SINIRLI_DEVAM`, never raises.** Server
+unreachable, no matching book, `yetersiz_kaynak`, `sayi_kontrolu_reddi`, and
+the server's own `hata` status (its internal exception text is deliberately
+not exposed over the API — "Brain karar verir" — it's in the server's
+`soru_log` instead) all degrade silently; `main.py`'s `speak_error` alarm is
+never triggered by this tool. Timeouts: `GET` 5 s, `POST` 10 s (measured
+worst case 5.3 s, no headroom before 2026-08-11 — raised from 5 s), registry
+`zaman_asimi=16.0` to cover both.
 
 ### `yks_sorulari` — past exam questions, no solutions attached
 

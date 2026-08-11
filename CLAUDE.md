@@ -29,7 +29,8 @@ farabi/
 ├── docs/mimari.md     — detaylı mimari (server/veri/RAG tasarımı)
 ├── client/            — ÇALIŞAN kod, tahta istemcisi (aşağıya bkz.), server'a BAĞLI DEĞİL
 ├── server/            — ÇALIŞAN prototip (bkz. aşağıdaki "Bilinçli sapma") — FastAPI,
-│                         pgvector arama + rerank + eşik + LLM, /api/egitim/question
+│                         pgvector arama + rerank + eşik + LLM, /api/egitim/question,
+│                         /api/egitim/kitaplar
 └── benchmark/         — Faz 0a retrieval/eşik/katman testleri, 13 kitap pgvector'a indekslendi
 ```
 
@@ -45,6 +46,9 @@ Detaylar `client/CLAUDE.md`'de (82K, koddan doğrulanmış); özet:
   Gemini anahtar havuzu/rotasyon), `transcript.py` (yalnızca metin, KVKK notlu),
   `tahta.py`, `modeller.py`, `logger.py`
 - `actions/` — modelin çağırdığı araçlar, tek kaynak `kayit.py` (registry).
+  `kitap_sorusu.py` (2026-08-11 eklendi) — kaynaklı, somut soru-cevabı
+  `server/`'ın RAG motoruna yönlendirir; `ders_icerigi` (konu anlatımı için
+  ham sayfa getirir) ile karıştırılmamalı, ikisi farklı iş yapar.
   Kamera/ekran yakalama (`screen_processor.py`) 2026-08-09'da tamamen
   kaldırıldı — kullanılmıyor, `Gizlilik` kuralına aykırıydı.
 - `tools/` — çevrimdışı içerik hazırlama (kitap/YKS PDF → JSON), `dogrula.py`
@@ -126,7 +130,8 @@ systemd servisleri. Docker kullanılmaz — okulda sistemi devralacak kişi
 ## API Prensibi
 
 **Brain karar verir, Client görüntüler.** Server ham LLM metni döndürmez;
-`{status, answer, sources[], audio_url, latency_ms}` yapısı döner.
+`{status, answer, sources[], latency_ms, request_id}` yapısı döner (`audio_url`
+2026-08-11'de kaldırıldı — ses Brain'de üretilmiyor, bkz. mimari.md §9/§14).
 Client metni ayrıştırmaz, `status`'a göre davranır.
 
 Client↔Server event listesi bağlayıcıdır — `mimari.md` §10. Protokolü genişletmeden
