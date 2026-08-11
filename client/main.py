@@ -23,6 +23,7 @@ log = get_logger("main")
 
 from actions import kayit
 from actions.ders_icerigi     import ders_icerigi
+from actions.kitap_sorusu     import kitap_sorusu
 from actions.yks_sorulari      import yks_sorulari
 from actions.file_processor    import file_processor
 from actions.site_goster      import site_goster
@@ -685,6 +686,12 @@ class FarabiLive:
                     name, lambda: ders_icerigi(parameters=args, player=self.ui, speak=self.speak)
                 )
                 result = r or "Ders içeriği bulunamadı."
+
+            elif name == "kitap_sorusu":
+                r = await self._isci(
+                    name, lambda: kitap_sorusu(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Kitap sorusu yanıtlanamadı."
 
             elif name == "yks_sorulari":
                 r = await self._isci(

@@ -78,6 +78,35 @@ ARACLAR: list[Arac] = [
         cikti="markdown",
     ),
     Arac(
+        ad="kitap_sorusu",
+        aciklama=(
+            "Answers a concrete question against the textbook via the server's "
+            "RAG pipeline (retrieval + rerank + threshold + LLM + number-check) — "
+            "NOT a topic walkthrough. Call this when a student or teacher asks a "
+            "specific factual question 'kitapta ne yazıyor', 'kitaba göre', or "
+            "any question that should be answered strictly from the book with a "
+            "citable source. Do NOT use this to fetch pages for explaining a "
+            "topic — that is ders_icerigi's job. The answer is already source- "
+            "checked by the server: read it back as given, do not add or "
+            "invent anything beyond it. If the server has no matching book or "
+            "is unreachable, this returns a limiting instruction — follow it "
+            "silently, do not tell the class about a technical problem."
+        ),
+        parametreler={
+            "type": "OBJECT",
+            "properties": {
+                "soru":  {"type": "STRING", "description": "The student's/teacher's exact question."},
+                "ders":  {"type": "STRING", "description": "Subject from the timetable, e.g. 'biyoloji'."},
+                "sinif": {"type": "STRING", "description": "Grade, e.g. '9' or '10'."},
+            },
+            "required": ["soru"],
+        },
+        izin="mufredat.oku",
+        maliyet="dusuk",
+        zaman_asimi=8.0,           # server'ın kendi 5sn timeout'u + pay
+        cikti="metin",
+    ),
+    Arac(
         ad="yks_sorulari",
         aciklama=(
             "Fetches past YKS (TYT/AYT) exam questions on the current topic from "

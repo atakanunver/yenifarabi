@@ -1,8 +1,9 @@
 """server/main.py — Faz 1 API iskeleti (docs/mimari.md §9, §15 [1]).
 
-Şu an yalnızca /health, /ready, /api/egitim/question var. mimari.md §9'da
-listelenen geri kalanı (lesson/start, teacher/command, WS /ws/classroom/{id})
-henüz yok — STT/TTS/ders akışı Faz 1'in sonraki adımları.
+/health, /ready, /api/egitim/question, /api/egitim/kitaplar var. mimari.md
+§9'da listelenen geri kalanı (lesson/start, teacher/command, WS
+/ws/classroom/{id}) henüz yok. Ses YOK ve gelmeyecek — Gemini Live kalıcı
+karar (mimari.md §14), bu server yalnızca metin tabanlı RAG cevabı üretir.
 
 Çalıştırma:
     venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
@@ -66,9 +67,15 @@ class SoruYanit(BaseModel):
     status: str
     answer: str | None = None
     sources: list[Kaynak] = []
-    audio_url: str | None = None
     latency_ms: int
     request_id: str
+
+
+class KitapBilgisi(BaseModel):
+    id: int
+    dosya_adi: str
+    sinif: int
+    ders: str
 
 
 @app.get("/health")
@@ -108,7 +115,25 @@ def soru_sor(istek: SoruIstek):
         status=sonuc["status"],
         answer=sonuc.get("answer"),
         sources=kaynaklar,
-        audio_url=None,  # TTS henüz yok — mimari.md §15 [6]
         latency_ms=sonuc["latency_ms"],
         request_id=request_id,
     )
+
+
+@app.get("/api/egitim/kitaplar", response_model=list[KitapBilgisi])
+def kitaplar_listesi():
+    """Client bir kitabı yalnızca dosya adıyla tanıyor (`icerik/kitaplar.json`),
+    `kitap_id` bilmiyor. `sinif_kitap` tablosu henüz boş (gerçek okul verisi
+    yok) — bu yüzden client, dosya adının basename'ine göre eşleşme yapıyor.
+    Geçici çözüm; `sinif_kitap` doldurulunca gerçek bağlam çözümüne (tahta_id
+    → ders_programi → sinif_kitap) geçilebilir."""
+    if not durum["hazir"]:
+        raise HTTPException(status_code=503, detail="Sunucu henüz hazır değil")
+    with db.baglanti() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, dosya_yolu, sinif, ders FROM kitap ORDER BY id")
+            rows = cur.fetchall()
+    return [
+        KitapBilgisi(id=r[0], dosya_adi=r[1].rsplit("/", 1)[-1], sinif=r[2], ders=r[3])
+        for r in rows
+    ]
