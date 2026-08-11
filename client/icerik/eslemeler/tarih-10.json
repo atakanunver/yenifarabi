@@ -1,0 +1,47 @@
+{
+  "_aciklama": [
+    "ELLE YAZILMIŞ ünite -> sayfa eşlemesi. Otomatik indeksin ÖNÜNE geçer.",
+    "",
+    "Neden gerekli: kitap_index.py bu kitapta HİÇ bölüm çıkaramadı (dogrula.py:",
+    "'hiç bölüm çıkarılamadı'). Sayfa üstbilgisi yalnızca 'Ünite' kelimesini",
+    "taşıyor, ünite adını taşımıyor (fizik-10'daki 'ÖLÇME VE DEĞERLENDİRME'",
+    "sorununun bir başka biçimi — burada üstbilgi ünite adını hiç içermiyor).",
+    "",
+    "Sayfa numaraları PDF sayfasıdır. Kitabın basılı sayfa numarası + 1 = PDF",
+    "sayfası (basılı 8 -> PDF 9; TOC'un kendisi PDF s.8, üstbilgisi '7').",
+    "Üç ünitenin de açılış/kapak sayfaları doğrudan kontrol edilerek",
+    "doğrulanmıştır: PDF s.11 (basılı 10) '1. ÜNİTE — TÜRKİSTAN'DAN",
+    "TÜRKİYE'YE'; PDF s.109 (basılı 108) 'BEYLİKTEN DEVLETE OSMANLI'; PDF",
+    "s.207 (basılı 206) 'CİHAN DEVLETİ OSMANLI'. Son ünite PDF s.310'da",
+    "biter (basılı 309); Sözlük PDF s.311'de (basılı 310) başlar ve ders",
+    "içeriğine dahil edilmemiştir.",
+    "",
+    "İçindekiler (PDF s.8), basılı sayfa numaralarıyla:",
+    "  1. ÜNİTE Türkistan'dan Türkiye'ye (1040-1299) ........ 10",
+    "  2. ÜNİTE Beylikten Devlete Osmanlı (1299-1453) ....... 108",
+    "  3. ÜNİTE Cihan Devleti Osmanlı (1453-1683) ........... 206"
+  ],
+  "kitap": "tarih-10.pdf",
+  "ders": "tarih",
+  "sinif": "10",
+  "bolumler": [
+    {
+      "no": 1, "tur": "Ünite",
+      "ad": "1. Ünite — Türkistan'dan Türkiye'ye (1040-1299)",
+      "temalar": ["TÜRKİSTAN'DAN TÜRKİYE'YE"],
+      "ilk_sayfa": 11, "son_sayfa": 108, "yontem": "metin"
+    },
+    {
+      "no": 2, "tur": "Ünite",
+      "ad": "2. Ünite — Beylikten Devlete Osmanlı (1299-1453)",
+      "temalar": ["BEYLİKTEN DEVLETE OSMANLI"],
+      "ilk_sayfa": 109, "son_sayfa": 206, "yontem": "metin"
+    },
+    {
+      "no": 3, "tur": "Ünite",
+      "ad": "3. Ünite — Cihan Devleti Osmanlı (1453-1683)",
+      "temalar": ["CİHAN DEVLETİ OSMANLI"],
+      "ilk_sayfa": 207, "son_sayfa": 310, "yontem": "metin"
+    }
+  ]
+}

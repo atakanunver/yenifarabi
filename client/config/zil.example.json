@@ -1,0 +1,24 @@
+{
+  "_aciklama": [
+    "Zil çizelgesi. config/zil.json olarak kopyalanır; Farabi 'kaçıncı derste",
+    "olduğumuzu' söylemek ve ders dışı saatleri bilmek için bunu kullanır.",
+    "",
+    "Bu dosyadaki saatler okulun dersgiriscikis.png çizelgesinden alınmıştır.",
+    "Başka bir okulda kullanılacaksa o okulun çizelgesiyle doğrulanmalıdır.",
+    "Ders saatleri her gün aynıdır."
+  ],
+  "ders_suresi_dk": 40,
+  "teneffus_dk": 10,
+  "dersler": [
+    { "no": 1, "baslangic": "08:20", "bitis": "09:00" },
+    { "no": 2, "baslangic": "09:10", "bitis": "09:50" },
+    { "no": 3, "baslangic": "10:00", "bitis": "10:40" },
+    { "no": 4, "baslangic": "10:50", "bitis": "11:30" },
+    { "no": 5, "baslangic": "11:40", "bitis": "12:20" },
+    { "no": 6, "baslangic": "13:00", "bitis": "13:40" },
+    { "no": 7, "baslangic": "13:50", "bitis": "14:30" },
+    { "no": 8, "baslangic": "14:40", "bitis": "15:20" }
+  ],
+  "ogle_arasi": { "baslangic": "12:20", "bitis": "13:00" },
+  "ders_gunleri": [1, 2, 3, 4, 5]
+}

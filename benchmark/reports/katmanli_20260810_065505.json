@@ -1,0 +1,383 @@
+{
+  "zaman": "2026-08-10T06:55:05.247926+00:00",
+  "kaynak_rapor": "reports/20260810_065212.json",
+  "kitap_id": 1,
+  "esik_rerank": 0.5,
+  "model": "qwen2.5:14b",
+  "ozet": {
+    "A": {
+      "n": 15,
+      "katmanli_dogru_tespit_oran": 1.0,
+      "esik_ile_reddedilen": 0,
+      "llm_ile_karar_verilen": 15
+    },
+    "B": {
+      "n": 12,
+      "katmanli_dogru_tespit_oran": 0.8333333333333334,
+      "esik_ile_reddedilen": 0,
+      "llm_ile_karar_verilen": 12
+    },
+    "C": {
+      "n": 5,
+      "katmanli_dogru_tespit_oran": 1.0,
+      "esik_ile_reddedilen": 2,
+      "llm_ile_karar_verilen": 3
+    },
+    "TOPLAM": {
+      "n": 32,
+      "katmanli_dogru_tespit_oran": 0.9375,
+      "esik_ile_reddedilen": 2,
+      "llm_ile_karar_verilen": 30
+    }
+  },
+  "detay": [
+    {
+      "soru": "Hastalık etmenlerinin bulaşma yollarının keşfinde önemli rol oynayan bilim insanı kimdir?",
+      "grup": "A",
+      "dogru_sayfa": 19,
+      "en_iyi_rerank_skoru": 0.9926,
+      "sure_llm_sn": 7.79,
+      "llm_cevap": "Akşemseddin",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "DNA’nın yapı ve işlevlerinin keşfi sürecinde bilim insanları arasında hangi tür biyomolekülün genetik bilgiyi taşıdığı tartışılmıştır?",
+      "grup": "A",
+      "dogru_sayfa": 26,
+      "en_iyi_rerank_skoru": 0.9998,
+      "sure_llm_sn": 2.56,
+      "llm_cevap": "DNA, RNA ve protein gibi farklı biyomoleküllerin genetik bilgiyi taşımak konusunda bilim insanları arasında tartışmalar yaşanmıştır.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Bilimsel araştırmaların bilim etiğine uygunluğu ile ilgili bilgi toplayabilmenin amacı nedir?",
+      "grup": "A",
+      "dogru_sayfa": 33,
+      "en_iyi_rerank_skoru": 0.9976,
+      "sure_llm_sn": 3.55,
+      "llm_cevap": "Amaç, bilimsel araştırmaların etik ilkelerle uyumlu yürütüldüğünü kontrol etmek ve bu sayede bilimin ve toplumun sağlıklı gelişimini sağlamak.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Virüslerin canlı veya cansız olarak sınıflandırılamama nedenleri nedir?",
+      "grup": "A",
+      "dogru_sayfa": 43,
+      "en_iyi_rerank_skoru": 0.9768,
+      "sure_llm_sn": 4.28,
+      "llm_cevap": "Virüsler, önceden yapılmış canlı hücre tanımına tam olarak uymazlar. Virüsler prokaryot ve ökaryot yapılı hücrelere göre çok daha küçüktür ve basit yapılıdırlar. Bu nedenle virüslerin canlı mı cansız mı olduğu konusunda tartışma mevcuttur.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Arkeler ve bu canlılardan elde edilen enzimler; çevresel kirlilikle mücadelede, biyoyakıt üretimi gibi biyoteknolojik ve endüstriyel süreçlerde de kullanılır.",
+      "grup": "A",
+      "dogru_sayfa": 53,
+      "en_iyi_rerank_skoru": 0.8872,
+      "sure_llm_sn": 3.77,
+      "llm_cevap": "Arkelerden elde edilen enzimler, çevresel kirlilikle mücadele etme ve biyoyakıt üretimi gibi alanlarda kullanılırlar.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "İstilacı tür nedir?",
+      "grup": "A",
+      "dogru_sayfa": 61,
+      "en_iyi_rerank_skoru": 0.9912,
+      "sure_llm_sn": 3.98,
+      "llm_cevap": "İstilacı tür, bir bölgeye dışarıdan gelerek yayılış gösteren ve hızla çoğalan, girdiği bölgedeki yerli türleri olumsuz etkileyen yabancı türdür.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Nuh’un Gemisi Ulusal Biyolojik Çeşitlilik Veri Tabanı hangi yıl başlatıldı ve kaç türün envanteri toplanmıştır?",
+      "grup": "A",
+      "dogru_sayfa": 69,
+      "en_iyi_rerank_skoru": 0.9985,
+      "sure_llm_sn": 4.39,
+      "llm_cevap": "Nuh’un Gemisi Ulusal Biyolojik Çeşitlilik Veri Tabanı 2013 yılında başlatılmıştır ve yaklaşık 13.500 bitki ve hayvan türüne ilişkin envanter verisi toplanmıştır.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Biyolojik organizasyon basamakları nedir?",
+      "grup": "A",
+      "dogru_sayfa": 82,
+      "en_iyi_rerank_skoru": 0.9991,
+      "sure_llm_sn": 4.54,
+      "llm_cevap": "Biyolojik organizasyon basamakları şöyledir: atom, moleküller, hücre, doku, organ, sistem ve organizma. Ekosistem, popülasyon ve komünite de bu hiyerarşide daha büyük ölçeklere aittir. Biyosfer en üst seviyedir.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Organik moleküller nelerdir?",
+      "grup": "A",
+      "dogru_sayfa": 92,
+      "en_iyi_rerank_skoru": 0.9987,
+      "sure_llm_sn": 4.54,
+      "llm_cevap": "Organik moleküller, karbon atomlarına bağlı hidrojen, oksijen, azot ve kükürt gibi elementlerle çeşitli fonksiyonel gruplar içeren bileşiklerdir. Karbohidratlar, proteinler, yağlar, nükleik asitler ve vitaminler bu moleküllerin örnekleri olarak verilir.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Amino asitlerin yapı taşı olan iki grupu hangi madde olarak içerir?",
+      "grup": "A",
+      "dogru_sayfa": 99,
+      "en_iyi_rerank_skoru": 0.9893,
+      "sure_llm_sn": 2.55,
+      "llm_cevap": "Amino asitler, amino ve karboksil grubu içerir.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "A vitamini nerede bulunur?",
+      "grup": "A",
+      "dogru_sayfa": 107,
+      "en_iyi_rerank_skoru": 0.9677,
+      "sure_llm_sn": 3.64,
+      "llm_cevap": "A vitamini tereyağı, yumurta sarısı, bal kağıdı, tatlı patates, lahana, havuç, ıspanak ve kuru kayısı gibi besinlerde bulunur.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Katalaz enziminin aktivitesini belirlemeye yönelik deneyde hangi malzemeler kullanılır",
+      "grup": "A",
+      "dogru_sayfa": 116,
+      "en_iyi_rerank_skoru": 0.9962,
+      "sure_llm_sn": 4.83,
+      "llm_cevap": "Deneyde kullanılan malzemeler; hamur mayası ya da kuru hamur mayası, erlen, dereceli silindir, beher, test tüpü, kauçuk boru veya hortum, tıpa, %30 hidrojen peroksit, kronometre, dereceli pipet ve puardır.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Hayvan hücre zarının çift katmanlı yapısı ve kimyasal içeriği nedir?",
+      "grup": "A",
+      "dogru_sayfa": 125,
+      "en_iyi_rerank_skoru": 0.9966,
+      "sure_llm_sn": 8.66,
+      "llm_cevap": "Hayvan hücre zarı, çift katmanlı bir yapıya sahiptir. Bu katmanlar fosfolipit moleküllerinden oluşur ve其间缺少翻译的部分是关于细胞膜的结构和组成，根据提供的资料可以总结如下：\n\n动物细胞膜由两层磷脂分子构成。这两层之间有胆固醇分子，并且嵌入了蛋白质。这些蛋白质帮助维持细胞膜的选择透过性以及各种功能如物质交换、信号传递等。此外，在大型电子显微镜下观察时，由于蛋白质的存在使得细胞膜呈现出流动的马赛克外观。\n\n因此完整的回答是：\n动物细胞膜具有一个由两层磷脂分子组成的双层结构，并且其间嵌入了胆固醇和多种蛋白质。这些成分共同维持着细胞膜的选择透过性以及各种功能如物质交换、信号传递等，使细胞能够正常运作。在电子显微镜下观察时，由于蛋白质的存在使得细胞膜呈现出流动的马赛克外观。",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Hücre zarından madde geçişlerinin niteliklerini belirlemek ve madde geçişlerini molekül büyüklüğü, enerji gereksinimi, geçiş yönü, ortamlar arasındaki yoğunluk farkları gibi ölçütlere göre sınıflandırmak için hangi etkinliği gerçekleştireceksiniz?",
+      "grup": "A",
+      "dogru_sayfa": 134,
+      "en_iyi_rerank_skoru": 0.9999,
+      "sure_llm_sn": 4.88,
+      "llm_cevap": "Hücre Zarından Madde Geçişleri adlı etkinliği gerçekleştiriyorsunuz. Bu etkinlik 80 dk. sürer ve hücre zarından madde geçişlerini molekül büyüklüğü, enerji gereksinimi, geçiş yönü ve yoğunluk farkı gibi niteliklerine göre sınıflandırmanıza yardımcı olur.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Çiğ sütün taşınma ve saklanma koşulları pH değişikliğini etkiler mi?",
+      "grup": "A",
+      "dogru_sayfa": 159,
+      "en_iyi_rerank_skoru": 0.9986,
+      "sure_llm_sn": 4.73,
+      "llm_cevap": "E) Çiğ sütün taşınma ve saklanma koşulları, mikrobiyal aktiviteye ve sütün kimyasal bileşimine etki eder mi? Bu seçenek, çiğ sütün taşınma ve saklanma koşullarının pH değişikliğini etkilediğini soruyor.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Biyoloji alanında dönüm noktası olarak görülen keşif ve çalışmalardan hangileri insanlığa hangi katkıları sunmuştur ve bu katkılar hangi toplumsal sorunlara çözüm üretmiştir?",
+      "grup": "B",
+      "dogru_sayfa": 20,
+      "en_iyi_rerank_skoru": 0.9991,
+      "sure_llm_sn": 11.58,
+      "llm_cevap": "Penisilinin keşfi, antibiyotiklerin ilk örneği olan penisilin sayesinde ölümcül hastalıkların tedavisinde önemli ilerlemelere imza atmıştır. Bu keşif, tıbbi müdahalelerin güvenilirliğini artırarak toplumun sağlık sorunlarıyla mücadele etmesine yardımcı olmuştur.\n\nHücre teorisi, organizmaların temel yapı taşı olan hücreleri tanımlayarak biyolojiye yeni bir bakış açısı getirmiştir. Bu keşif, insan vücudunun yapısını ve işlevlerini anlamamıza önemli katkılar sağlamıştır.\n\nMikroskobun keşfi ise canlıların mikro dünyasına ilk adım atılmasını sağlayarak tıp ve biyoloji alanında çok sayıda keşife yol açmıştır. Bu, hastalıkların nedenleri hakkında daha detaylı bilgi edinme imkanı sunmuştur.\n\nBu katkılar, toplumun sağlık hizmetlerini geliştirmesi ve hastalıklara karşı daha etkili tedaviler bulması konusunda önemli adımlar atmıştır.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Yaşamın temel özelliklerini (anabolizma, katabolizma, ATP, homeostaz vb.) ve bu süreçlerin birleştiği hücre yapısını, ortak özellikler üzerinden sınıflandırarak hastalık tanısı ve tür korunmasında nasıl kullanıldıklarını açıklayınız.",
+      "grup": "B",
+      "dogru_sayfa": 45,
+      "en_iyi_rerank_skoru": 0.8876,
+      "sure_llm_sn": 2.82,
+      "llm_cevap": "YETERSIZ_KAYNAK",
+      "katman": "llm",
+      "karar_yetersiz": true,
+      "katmanli_dogru": false
+    },
+    {
+      "soru": "Hayvanlar âleminde sinir sisteminin görüldüğü ilk grup olan sölenterlerin en belirgin özelliği nedir?",
+      "grup": "B",
+      "dogru_sayfa": 59,
+      "en_iyi_rerank_skoru": 0.988,
+      "sure_llm_sn": 3.05,
+      "llm_cevap": "Sölenterlerin en belirgin özellikleri sinir sistemi ve ağız yapısına sahip olmalarıdır.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Biyoloji öğretmeni öğrencilerden canlıların ortak özelliklerinden birini seçerek o özellikle ilgili bildiklerini yazmalarını istediğinde, öğrencilerin verdikleri cevaplar arasındaki benzerlik ve farklılıklar nelerdir ve bu cevaplar bilimsel bir çalışmada nasıl değerlendirilir?",
+      "grup": "B",
+      "dogru_sayfa": 75,
+      "en_iyi_rerank_skoru": 0.9996,
+      "sure_llm_sn": 14.26,
+      "llm_cevap": "Öğrencilerin cevapları arasında canlıların hücreli olmasının, enerji üretme-tüketim sürecinin, beslenme ihtiyacının ve üreme biçimlerinin tüm canlılar için ortak olduğunu belirtiyor. Farklı之处省略了什么内容？\n\n从给定的背景信息来看，问题要求分析学生关于生物共同特征回答中的相似点和不同点，并说明这些答案在科学研究中如何被评价。根据提供的文本内容，可以总结出以下几点：\n\n1. 学生们的回答都提到了生物的一些基本特性，如细胞结构、能量代谢、营养需求以及繁殖方式。\n2. 具体来说：\n   - Gökhan 强调了所有生物都是由细胞构成的，并且有些是原核细胞而另一些是真核细胞。\n   - Seda 指出所有的生物都需要产生和消耗能量来维持生命活动。\n   - Çetin 认为所有生物都必须通过有性生殖的方式延续生命。\n   - Esra 提到所有生物都需要摄取营养，有些自己制造食物而另一些则从外部获取现成的食物。\n   - İlyas 谈到了适应性（或称作“适应”），即生物为了在特定环境中生存下来所表现出的调整能力。\n\n3. 在科学研究中，这些答案可以被评价为对生物基本特征的理解程度。教师可以根据学生是否准确地描述了这些特性以及他们能否提供具体的例子来评估他们的理解水平。\n4. 例如，如果一个学生能够详细解释细胞结构的不同类型及其功能，则表明他/她对该主题有深入的了解。\n\n综上所述，虽然学生的回答都集中在生物的基本特征上，但他们在具体细节上的表述有所不同。这些答案可以作为教师评价学生对生物学基本概念掌握情况的一个依据。",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Suyun yoğunluk, çözücülük ve yüzey gerilimi gibi özelliklerinin günlük hayattaki örnekleri nelerdir ve bu deneyler hangi özellikleri gözler önüne serer?",
+      "grup": "B",
+      "dogru_sayfa": 85,
+      "en_iyi_rerank_skoru": 0.9551,
+      "sure_llm_sn": 7.39,
+      "llm_cevap": "Deney I ve II suyun kohezyon (aynı tür moleküllerin birbirine çekilebilirliği) ve yüzey gerilimi özelliklerini gösterir. Deney III, buz küplerinin su yüzeyinde durması ve eridiğinde suyun taşmayışı suyun kohezyon özelliğini gözler önüne serer. Deney IV, parmağınızın ıslanmaması suyun yüksek yüzey gerilimini gösterir. Deney V, farklı maddelerin bardaklarda çözünmesi suyun çözücülük özelliğini gösterir. Bu deneyler suyun günlük hayatta nasıl etkileşime girdiğini anlamamızı sağlar.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Lipitlerin biyolojik görevleri nelerdir ve yağ asitleri nasıl sınıflandırılır?",
+      "grup": "B",
+      "dogru_sayfa": 97,
+      "en_iyi_rerank_skoru": 0.984,
+      "sure_llm_sn": 5.16,
+      "llm_cevap": "Lipitler, hücre zarının yapısal bileşenlerini oluştururlar, enerjinin uzun süreli depolanmasını sağlarlar ve hücre ve dokuların birbirleriyle haberleşmesinde önemli rol oynarlar. Yağ asitleri, karbon atomları arasında çift bağ içerip içermediği temel olarak doymuş ya da doymamış yağ asitlerine ayrılır.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Vitaminler ve DNA/RNA arasındaki ilişkiyi açıklayınız, vitaminlerin özellikleri ve fonksiyonları ile DNA/RNA'nın yapısı ve fonksiyonları arasındaki benzerlik ve farklılıkları karşılaştırınız.",
+      "grup": "B",
+      "dogru_sayfa": 106,
+      "en_iyi_rerank_skoru": 0.7131,
+      "sure_llm_sn": 2.56,
+      "llm_cevap": "YETERSIZ_KAYNAK",
+      "katman": "llm",
+      "karar_yetersiz": true,
+      "katmanli_dogru": false
+    },
+    {
+      "soru": "Prokaryot ve ökaryot hücrelerin genel yapısını, hücreyi oluşturan alt birimleri ve bu birimler arasındaki ilişkileri daha iyi kavrayabilmek için hangi etkinlikler gerçekleştirilmelidir?",
+      "grup": "B",
+      "dogru_sayfa": 120,
+      "en_iyi_rerank_skoru": 0.9996,
+      "sure_llm_sn": 5.43,
+      "llm_cevap": "Mikroskop kullanarak prokaryot ve ökaryot hücre preparatlarını inceleyip çizmek, hücre model oluşturmak ve bu modelleri sınıfta paylaşmak gibi etkinlikler gerçekleştirilmelidir. Bu etkinlikler sayesinde hücrenin yapısal bileşenleri ve alt birimler arasındaki ilişkiler daha iyi anlaşılabilir.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Hücre zarından madde geçişleri hangi ölçütler göre sınıflandırılır?",
+      "grup": "B",
+      "dogru_sayfa": 133,
+      "en_iyi_rerank_skoru": 0.9997,
+      "sure_llm_sn": 3.91,
+      "llm_cevap": "Hücre zarından madde geçişleri, molekül büyüklüğü, enerji gereksinimi, geçiş yönü ve ortamlar arasındaki yoğunluk farkı gibi ölçütlere göre sınıflandırılır.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Ateş karıncalarının su üzerinde nasıl kaldıklarının araştırılmasında hangi faktörlerin önemli olduğu ve bu faktörlerin nasıl relacion edildiği açıklanarak, karıncaların oluşturduğu salın yüzey alanının ve su moleküllerinin birbirini çekme kuvvetinin bu olaydaki rolleri nelerdir?",
+      "grup": "B",
+      "dogru_sayfa": 155,
+      "en_iyi_rerank_skoru": 0.9993,
+      "sure_llm_sn": 7.69,
+      "llm_cevap": "Ateş karıncalarının su üzerinde kaldıklarını araştırmak için suyun kaldırma kuvveti, su moleküllerinin birbirini ve diğer maddeleri çekme kuvveti (adezyon) önemli faktörlerdir. Karıncaların oluşturduğu salın yüzey alanı geniş olduğundan, daha fazla su ile temas kurarlar ve bu sayede sal tutunabilir. Su moleküllerinin birbirini çekme gücü ise karıncaların sal üzerinde yer değiştirebilmesine ve salın bütünlüğünü korumasına yardımcı olur. Bu faktörlerin bir arada etkileşimi, karıncaların uzun süre suyun yüzeyinde kalabilmesini sağlar.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Öğrencilerin kendilerini değerlendirmeleri için hangi kriterlere göre puanlama ve öz değerlendirme formları oluşturulmuştur?",
+      "grup": "B",
+      "dogru_sayfa": 169,
+      "en_iyi_rerank_skoru": 0.9071,
+      "sure_llm_sn": 5.33,
+      "llm_cevap": "Öğrenciler, çalışmalara ilişkin doğru ve eksiksiz bilgi toplama, güvenilir kaynak kullanma, düzenli ve anlaşılır bir şekilde bilgi işlemeye, grup çalışmalarında aktif katılım gösterme ve sorumluluk üstlenme gibi kriterlere göre puanlama ve öz değerlendirme yaparlar. Bu kriterler her zaman (3), bazen (2) veya hiçbir zaman (1) olacak şekilde değerlendirilir.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Öğrencilerin biyoloji dersinde yaptıkları bir deneyin planlanması, veri toplama, analiz ve raporlama aşamalarında hangi ölçütler ve alt ölçütler esas alınarak değerlendirme yapılır?",
+      "grup": "B",
+      "dogru_sayfa": 180,
+      "en_iyi_rerank_skoru": 0.8946,
+      "sure_llm_sn": 8.17,
+      "llm_cevap": "Deneyin planlanması, veri toplama, analiz ve raporlama aşamaları için aşağıdaki ölçütler ve alt ölçütler esas alınır:\n\n1. Deney Planlaması: Amaç ve hipotez belirleme, deney tasarım ve yöntemi.\n2. Veri Toplama: Veri toplama süreci, veri doğruluğu ve güvenirliliği.\n3. Veri Analizi: Analiz yöntemleri, sonuçların yorumlanması.\n4. Raporlama: Raporun yapısı ve organizasyonu, dil ve ifade.\n5. Sonuçların Kullanılabilirliği: Bilimsel katkı ve yenilik, pratik uygulanabilirlik.\n\nHer ölçüt 3 (iyi), 2 (orta), 1 (yetersiz) puanlamaları ile değerlendirilir.",
+      "katman": "llm",
+      "karar_yetersiz": false,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Tarım alanlarının yakın veya uzak çevresindeki bitkilerin biyolojik çeşitlilik ve ekosistem sağlığı üzerindeki etkileri nelerdir?",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "en_iyi_rerank_skoru": 0.3395,
+      "katman": "esik",
+      "karar_yetersiz": true,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Tohumlu bitkilerle tohumsuz bitkiler arasındaki evrimsel farklılıkların, bitkilerin yaşam ortamlarına ve adaptasyonlarına nasıl etki ettiği hakkında bir karşılaştırma yapılabilir?",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "en_iyi_rerank_skoru": 0.9574,
+      "sure_llm_sn": 2.33,
+      "llm_cevap": "YETERSIZ_KAYNAK",
+      "katman": "llm",
+      "karar_yetersiz": true,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Canlılar için suyun vazgeçilmez olmasının ve minerallerin canlı yaşamındaki önemlerinin, ekosistemlerin devamlılığı ve biyolojik çeşitlilik üzerindeki etkileri nelerdir?",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "en_iyi_rerank_skoru": 0.9778,
+      "sure_llm_sn": 1.91,
+      "llm_cevap": "YETERSIZ_KAYNAK",
+      "katman": "llm",
+      "karar_yetersiz": true,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Urasilin DNA'da bulunmaması, genômik DNA'nın uzun vadeli mutasyon oranını nasıl düşürerek evolutif avantaj sağlar?",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "en_iyi_rerank_skoru": 0.0195,
+      "katman": "esik",
+      "karar_yetersiz": true,
+      "katmanli_dogru": true
+    },
+    {
+      "soru": "Amip hücresinde kontraktil kofulun ve yalancı ayakların işbirliğinin besin alımı ve hücreyi dış çevreye karşı savunma mekanizmaları açısından evrimsel olarak hangi stratejik avantajları sağladığını, ayrıca bu iki yapının farklı mikroorganizmaların hücre içi bölümlendirmesinde ve konumlandırılmasındaki rolünü sentezleyerek değerlendir.",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "en_iyi_rerank_skoru": 0.7654,
+      "sure_llm_sn": 2.34,
+      "llm_cevap": "YETERSIZ_KAYNAK",
+      "katman": "llm",
+      "karar_yetersiz": true,
+      "katmanli_dogru": true
+    }
+  ]
+}

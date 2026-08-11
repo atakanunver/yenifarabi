@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# Secrets / personal data — never commit
+config/api_keys.json
+config/api_keys.json.zip
+config/apiler
+config/messaging.json
+config/certs/
+memory/long_term.json
+logs/
+
+# Ad-hoc project backups — not build output, not meant to be versioned
+/Farabi.zip
+
+# Ders kitapları — 400+ MB, MEB telifli. Depoya girmez; tahtalara ayrıca
+# dağıtılır. Bunlardan üretilen indeks (JSON) commit edilebilir.
+kitaplar/*
+!kitaplar/BURAYA_NE_KONUR.md
+*.pdf
+
+# Üretilen içerik indeksi — tools/ betikleriyle yeniden üretilir
+icerik/*
+# ...ama elle yazılan tema->sayfa eşlemeleri ÜRETİLMİŞ DEĞİL, insan emeği.
+# Yeniden üretilemezler; depoda dursunlar. (Dizinin kendisi dışlanırsa
+# içindeki negatif kural işlemez; bu yüzden 'icerik/*' + istisna.)
+!icerik/eslemeler/
+
+# Okula özel zil çizelgesi (örneği: config/zil.example.json)
+config/zil.json
+
+# Okula özel ders programı (örneği: config/ders_programi.example.json)
+config/ders_programi.json
+.aider*

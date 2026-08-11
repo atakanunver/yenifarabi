@@ -1,0 +1,46 @@
+# Claude Code'un kendi oturum/ayar dosyaları — proje kaynağı değil
+.claude/
+
+# Sanal ortamlar — büyük, makineye özel
+**/venv/
+**/__pycache__/
+*.pyc
+
+# Sırlar — CLAUDE.md Kural 9: ".env asla commit edilmez. API anahtarı koda yazılmaz."
+.env
+client/config/api_keys.json
+client/config/api_keys.json.zip
+client/config/zil.json
+client/config/ders_programi.json
+# .example.json şablonları YUKARIDAKİ desenlere uymuyor, committed kalır.
+
+# PDF bırakma dizinleri — client/CLAUDE.md: "gitignored", öğretmenin kendi
+# kaynak materyali, koda bağlı değil. Dizinin kendisi izlenir (ileride bir
+# BURAYA_NE_KONUR.md eklenirse görünsün diye), yalnızca PDF'ler hariç.
+client/kitaplar/*.pdf
+client/YKS/*.pdf
+
+# planlar/ — client/CLAUDE.md: "koda BAĞLI DEĞİL, ölü/arşiv" — öğretmenin
+# kendi yıllık plan dosyaları, kod değil. kitaplar/ ile aynı desen: dizin
+# izlenir (BURAYA_NE_KONUR.md görünsün), içeriği hariç.
+client/planlar/*
+!client/planlar/BURAYA_NE_KONUR.md
+
+# Üretilen içerik önbelleği — client/CLAUDE.md: "GITIGNORED, regenerable".
+# eslemeler/ İSTİSNA: elle yazılmış, "the one thing under icerik/ that is
+# NOT generated, and is committed".
+client/icerik/metin/
+client/icerik/ozet/
+client/icerik/onbellek/
+client/icerik/yks_metin/
+client/icerik/kitaplar.json
+client/icerik/plan.json
+
+# Ders kayıtları — KVKK, öğrenci/öğretmen konuşma metni içerir
+client/logs/
+
+# benchmark/ çalışma ortamı içi büyük/üretilen dosyalar
+benchmark/metin/*.json
+benchmark/venv/
+
+# server/ sanal ortamı zaten yukarıdaki **/venv/ ile kapsanıyor

@@ -1,0 +1,808 @@
+{
+  "zaman": "2026-08-09T23:14:02.743890+00:00",
+  "kitap_id": 1,
+  "top_k": 20,
+  "top_n": 4,
+  "esik": 0.55,
+  "esik_rerank": null,
+  "ozet": {
+    "A": {
+      "n": 18,
+      "recall_at_4": 1.0,
+      "rerank_top1_dogru_oran": 0.8888888888888888,
+      "mrr": 0.9351851851851851,
+      "esik_dogru_tespit_oran": 1.0,
+      "esik_rerank_dogru_tespit_oran": null,
+      "ortalama_arama_sn": 0.16583333333333333
+    },
+    "B": {
+      "n": 15,
+      "recall_at_4": 0.7333333333333333,
+      "rerank_top1_dogru_oran": 0.6666666666666666,
+      "mrr": 0.7262962962962962,
+      "esik_dogru_tespit_oran": 1.0,
+      "esik_rerank_dogru_tespit_oran": null,
+      "ortalama_arama_sn": 0.14033333333333334
+    },
+    "C": {
+      "n": 7,
+      "recall_at_4": null,
+      "rerank_top1_dogru_oran": null,
+      "mrr": null,
+      "esik_dogru_tespit_oran": 0.2857142857142857,
+      "esik_rerank_dogru_tespit_oran": null,
+      "ortalama_arama_sn": 0.14542857142857143
+    },
+    "TOPLAM": {
+      "n": 40,
+      "recall_at_4": 0.8787878787878788,
+      "rerank_top1_dogru_oran": 0.7878787878787878,
+      "mrr": 0.8402356902356902,
+      "esik_dogru_tespit_oran": 0.875,
+      "esik_rerank_dogru_tespit_oran": null,
+      "ortalama_arama_sn": 0.1527
+    }
+  },
+  "detay": [
+    {
+      "soru": "Hastalık etmenlerinin bulaşma yollarının keşfinde önemli rol oynayan bilim insanı kimdir?",
+      "grup": "A",
+      "dogru_sayfa": 19,
+      "top_n_sayfalar": [
+        19,
+        19,
+        20,
+        22
+      ],
+      "en_iyi_benzerlik": 0.5626,
+      "en_iyi_rerank_skoru": 0.9926,
+      "sure_arama_sn": 0.8,
+      "sure_rerank_sn": 11.322,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "DNA’nın yapı ve işlevlerinin keşfi sürecinde bilim insanları arasında hangi tür biyomolekülün genetik bilgiyi taşıdığı tartışılmıştır?",
+      "grup": "A",
+      "dogru_sayfa": 26,
+      "top_n_sayfalar": [
+        26,
+        26,
+        19,
+        19
+      ],
+      "en_iyi_benzerlik": 0.7061,
+      "en_iyi_rerank_skoru": 0.9998,
+      "sure_arama_sn": 0.142,
+      "sure_rerank_sn": 10.084,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Bilimsel araştırmaların bilim etiğine uygunluğu ile ilgili bilgi toplayabilmenin amacı nedir?",
+      "grup": "A",
+      "dogru_sayfa": 33,
+      "top_n_sayfalar": [
+        33,
+        173,
+        32,
+        32
+      ],
+      "en_iyi_benzerlik": 0.6868,
+      "en_iyi_rerank_skoru": 0.9976,
+      "sure_arama_sn": 0.136,
+      "sure_rerank_sn": 9.849,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Virüslerin canlı veya cansız olarak sınıflandırılamama nedenleri nedir?",
+      "grup": "A",
+      "dogru_sayfa": 43,
+      "top_n_sayfalar": [
+        43,
+        42,
+        43,
+        76
+      ],
+      "en_iyi_benzerlik": 0.7061,
+      "en_iyi_rerank_skoru": 0.9768,
+      "sure_arama_sn": 0.14,
+      "sure_rerank_sn": 9.742,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Arkeler ve bu canlılardan elde edilen enzimler; çevresel kirlilikle mücadelede, biyoyakıt üretimi gibi biyoteknolojik ve endüstriyel süreçlerde de kullanılır.",
+      "grup": "A",
+      "dogru_sayfa": 53,
+      "top_n_sayfalar": [
+        53,
+        65,
+        66,
+        52
+      ],
+      "en_iyi_benzerlik": 0.6755,
+      "en_iyi_rerank_skoru": 0.8872,
+      "sure_arama_sn": 0.151,
+      "sure_rerank_sn": 10.127,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "İstilacı tür nedir?",
+      "grup": "A",
+      "dogru_sayfa": 61,
+      "top_n_sayfalar": [
+        61,
+        61,
+        46,
+        76
+      ],
+      "en_iyi_benzerlik": 0.5678,
+      "en_iyi_rerank_skoru": 0.9912,
+      "sure_arama_sn": 0.094,
+      "sure_rerank_sn": 9.569,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Nuh’un Gemisi Ulusal Biyolojik Çeşitlilik Veri Tabanı hangi yıl başlatıldı ve kaç türün envanteri toplanmıştır?",
+      "grup": "A",
+      "dogru_sayfa": 69,
+      "top_n_sayfalar": [
+        69,
+        70,
+        176,
+        9
+      ],
+      "en_iyi_benzerlik": 0.5753,
+      "en_iyi_rerank_skoru": 0.9985,
+      "sure_arama_sn": 0.156,
+      "sure_rerank_sn": 10.168,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Biyolojik organizasyon basamakları nedir?",
+      "grup": "A",
+      "dogru_sayfa": 82,
+      "top_n_sayfalar": [
+        152,
+        82,
+        164,
+        150
+      ],
+      "en_iyi_benzerlik": 0.6705,
+      "en_iyi_rerank_skoru": 0.9991,
+      "sure_arama_sn": 0.115,
+      "sure_rerank_sn": 9.687,
+      "recall_at_n": true,
+      "rerank_top1_dogru": false,
+      "mrr": 0.5,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Organik moleküller nelerdir?",
+      "grup": "A",
+      "dogru_sayfa": 92,
+      "top_n_sayfalar": [
+        92,
+        91,
+        92,
+        82
+      ],
+      "en_iyi_benzerlik": 0.6965,
+      "en_iyi_rerank_skoru": 0.9987,
+      "sure_arama_sn": 0.133,
+      "sure_rerank_sn": 9.838,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Amino asitlerin yapı taşı olan iki grupu hangi madde olarak içerir?",
+      "grup": "A",
+      "dogru_sayfa": 99,
+      "top_n_sayfalar": [
+        99,
+        99,
+        105,
+        150
+      ],
+      "en_iyi_benzerlik": 0.6155,
+      "en_iyi_rerank_skoru": 0.9893,
+      "sure_arama_sn": 0.122,
+      "sure_rerank_sn": 9.625,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "A vitamini nerede bulunur?",
+      "grup": "A",
+      "dogru_sayfa": 107,
+      "top_n_sayfalar": [
+        107,
+        107,
+        107,
+        108
+      ],
+      "en_iyi_benzerlik": 0.6699,
+      "en_iyi_rerank_skoru": 0.9677,
+      "sure_arama_sn": 0.08,
+      "sure_rerank_sn": 10.062,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Katalaz enziminin aktivitesini belirlemeye yönelik deneyde hangi malzemeler kullanılır",
+      "grup": "A",
+      "dogru_sayfa": 116,
+      "top_n_sayfalar": [
+        116,
+        117,
+        116,
+        118
+      ],
+      "en_iyi_benzerlik": 0.7314,
+      "en_iyi_rerank_skoru": 0.9962,
+      "sure_arama_sn": 0.119,
+      "sure_rerank_sn": 9.83,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Hayvan hücre zarının çift katmanlı yapısı ve kimyasal içeriği nedir?",
+      "grup": "A",
+      "dogru_sayfa": 125,
+      "top_n_sayfalar": [
+        125,
+        125,
+        127,
+        124
+      ],
+      "en_iyi_benzerlik": 0.6416,
+      "en_iyi_rerank_skoru": 0.9966,
+      "sure_arama_sn": 0.138,
+      "sure_rerank_sn": 9.997,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Hücre zarından madde geçişlerinin niteliklerini belirlemek ve madde geçişlerini molekül büyüklüğü, enerji gereksinimi, geçiş yönü, ortamlar arasındaki yoğunluk farkları gibi ölçütlere göre sınıflandırmak için hangi etkinliği gerçekleştireceksiniz?",
+      "grup": "A",
+      "dogru_sayfa": 134,
+      "top_n_sayfalar": [
+        134,
+        137,
+        136,
+        81
+      ],
+      "en_iyi_benzerlik": 0.7357,
+      "en_iyi_rerank_skoru": 0.9999,
+      "sure_arama_sn": 0.151,
+      "sure_rerank_sn": 11.167,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Percentage of salt water in the environment affects the firmness of the gel: as salt concentration increases, firmness decreases.",
+      "grup": "A",
+      "dogru_sayfa": 145,
+      "top_n_sayfalar": [
+        145,
+        139,
+        86,
+        144
+      ],
+      "en_iyi_benzerlik": 0.6231,
+      "en_iyi_rerank_skoru": 0.0484,
+      "sure_arama_sn": 0.131,
+      "sure_rerank_sn": 10.03,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Çiğ sütün taşınma ve saklanma koşulları pH değişikliğini etkiler mi?",
+      "grup": "A",
+      "dogru_sayfa": 159,
+      "top_n_sayfalar": [
+        159,
+        159,
+        160,
+        118
+      ],
+      "en_iyi_benzerlik": 0.6779,
+      "en_iyi_rerank_skoru": 0.9986,
+      "sure_arama_sn": 0.126,
+      "sure_rerank_sn": 9.948,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Bu öz değerlendirme formundan alınabilecek en yüksek puan 27, en düşük puan ise 9'dur.",
+      "grup": "A",
+      "dogru_sayfa": 170,
+      "top_n_sayfalar": [
+        179,
+        183,
+        170,
+        113
+      ],
+      "en_iyi_benzerlik": 0.755,
+      "en_iyi_rerank_skoru": 0.9993,
+      "sure_arama_sn": 0.143,
+      "sure_rerank_sn": 9.822,
+      "recall_at_n": true,
+      "rerank_top1_dogru": false,
+      "mrr": 0.3333333333333333,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Avrupa'daki Türkler nerede yaşamaktadır",
+      "grup": "A",
+      "dogru_sayfa": 191,
+      "top_n_sayfalar": [
+        191,
+        191,
+        191,
+        191
+      ],
+      "en_iyi_benzerlik": 0.5645,
+      "en_iyi_rerank_skoru": 0.9275,
+      "sure_arama_sn": 0.108,
+      "sure_rerank_sn": 9.853,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Bu metin parçalarında bahsedilen konuları birleştirerek, Türk milletinin bağımsızlık ve cumhuriyetini korumak için hangi değerlere ve ilkelerine önem verilmesi gerektiğini açıklayınız.",
+      "grup": "B",
+      "dogru_sayfa": 4,
+      "top_n_sayfalar": [
+        5,
+        10,
+        191,
+        191
+      ],
+      "en_iyi_benzerlik": 0.615,
+      "en_iyi_rerank_skoru": 0.1346,
+      "sure_arama_sn": 0.156,
+      "sure_rerank_sn": 10.26,
+      "recall_at_n": false,
+      "rerank_top1_dogru": false,
+      "mrr": 0.2,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Biyoloji alanında dönüm noktası olarak görülen keşif ve çalışmalardan hangileri insanlığa hangi katkıları sunmuştur ve bu katkılar hangi toplumsal sorunlara çözüm üretmiştir?",
+      "grup": "B",
+      "dogru_sayfa": 20,
+      "top_n_sayfalar": [
+        20,
+        21,
+        19,
+        18
+      ],
+      "en_iyi_benzerlik": 0.6552,
+      "en_iyi_rerank_skoru": 0.9991,
+      "sure_arama_sn": 0.135,
+      "sure_rerank_sn": 10.15,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Bu projeyi gerçekleştiren bilim insanları mineral girdisi ve çıktısı dengeli olan bir deney ormanında 3 yıl boyunca ekolojik bir araştırma yapılmak amacıyla çalışmışlardır; ağaçsızlaştırılmış alan'da ağaç kesiminin tamamlanması sonrası yağmur suyundaki nitrat derişimi kontrol alanından daha fazla olduğu varsayarak bu hipotezi ileri sürebilirler; bu deneme verileri, ağaçsızlaştırılmış alanın ekosistemdeki mineral girdisi dengeliğini koruyan bir biyoelektronik süreç olduğunu göstererek, ekosistemdeki nitrat dağılımında doğal bir denge sağlandığını ve ekolojik bir dönüşümün yönlendirilmediğini gösteren bir çıkarım yapma imkânını sunmaktadır.",
+      "grup": "B",
+      "dogru_sayfa": 31,
+      "top_n_sayfalar": [
+        31,
+        88,
+        23,
+        90
+      ],
+      "en_iyi_benzerlik": 0.7819,
+      "en_iyi_rerank_skoru": 0.983,
+      "sure_arama_sn": 0.205,
+      "sure_rerank_sn": 12.754,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Yaşamın temel özelliklerini (anabolizma, katabolizma, ATP, homeostaz vb.) ve bu süreçlerin birleştiği hücre yapısını, ortak özellikler üzerinden sınıflandırarak hastalık tanısı ve tür korunmasında nasıl kullanıldıklarını açıklayınız.",
+      "grup": "B",
+      "dogru_sayfa": 45,
+      "top_n_sayfalar": [
+        38,
+        35,
+        48,
+        36
+      ],
+      "en_iyi_benzerlik": 0.7193,
+      "en_iyi_rerank_skoru": 0.8876,
+      "sure_arama_sn": 0.146,
+      "sure_rerank_sn": 10.617,
+      "recall_at_n": false,
+      "rerank_top1_dogru": false,
+      "mrr": 0.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Hayvanlar âleminde sinir sisteminin görüldüğü ilk grup olan sölenterlerin en belirgin özelliği nedir?",
+      "grup": "B",
+      "dogru_sayfa": 59,
+      "top_n_sayfalar": [
+        59,
+        151,
+        59,
+        60
+      ],
+      "en_iyi_benzerlik": 0.614,
+      "en_iyi_rerank_skoru": 0.988,
+      "sure_arama_sn": 0.139,
+      "sure_rerank_sn": 9.972,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Biyoloji öğretmeni öğrencilerden canlıların ortak özelliklerinden birini seçerek o özellikle ilgili bildiklerini yazmalarını istediğinde, öğrencilerin verdikleri cevaplar arasındaki benzerlik ve farklılıklar nelerdir ve bu cevaplar bilimsel bir çalışmada nasıl değerlendirilir?",
+      "grup": "B",
+      "dogru_sayfa": 75,
+      "top_n_sayfalar": [
+        75,
+        35,
+        47,
+        48
+      ],
+      "en_iyi_benzerlik": 0.6783,
+      "en_iyi_rerank_skoru": 0.9996,
+      "sure_arama_sn": 0.138,
+      "sure_rerank_sn": 10.942,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Suyun yoğunluk, çözücülük ve yüzey gerilimi gibi özelliklerinin günlük hayattaki örnekleri nelerdir ve bu deneyler hangi özellikleri gözler önüne serer?",
+      "grup": "B",
+      "dogru_sayfa": 85,
+      "top_n_sayfalar": [
+        88,
+        85,
+        86,
+        87
+      ],
+      "en_iyi_benzerlik": 0.6547,
+      "en_iyi_rerank_skoru": 0.9551,
+      "sure_arama_sn": 0.147,
+      "sure_rerank_sn": 10.198,
+      "recall_at_n": true,
+      "rerank_top1_dogru": false,
+      "mrr": 0.5,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Lipitlerin biyolojik görevleri nelerdir ve yağ asitleri nasıl sınıflandırılır?",
+      "grup": "B",
+      "dogru_sayfa": 97,
+      "top_n_sayfalar": [
+        97,
+        98,
+        97,
+        98
+      ],
+      "en_iyi_benzerlik": 0.7535,
+      "en_iyi_rerank_skoru": 0.984,
+      "sure_arama_sn": 0.109,
+      "sure_rerank_sn": 10.405,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Vitaminler ve DNA/RNA arasındaki ilişkiyi açıklayınız, vitaminlerin özellikleri ve fonksiyonları ile DNA/RNA'nın yapısı ve fonksiyonları arasındaki benzerlik ve farklılıkları karşılaştırınız.",
+      "grup": "B",
+      "dogru_sayfa": 106,
+      "top_n_sayfalar": [
+        106,
+        106,
+        107,
+        105
+      ],
+      "en_iyi_benzerlik": 0.6047,
+      "en_iyi_rerank_skoru": 0.7131,
+      "sure_arama_sn": 0.145,
+      "sure_rerank_sn": 10.411,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Prokaryot ve ökaryot hücrelerin genel yapısını, hücreyi oluşturan alt birimleri ve bu birimler arasındaki ilişkileri daha iyi kavrayabilmek için hangi etkinlikler gerçekleştirilmelidir?",
+      "grup": "B",
+      "dogru_sayfa": 120,
+      "top_n_sayfalar": [
+        120,
+        121,
+        124,
+        123
+      ],
+      "en_iyi_benzerlik": 0.7186,
+      "en_iyi_rerank_skoru": 0.9996,
+      "sure_arama_sn": 0.131,
+      "sure_rerank_sn": 10.518,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Hücre zarından madde geçişleri hangi ölçütler göre sınıflandırılır?",
+      "grup": "B",
+      "dogru_sayfa": 133,
+      "top_n_sayfalar": [
+        134,
+        142,
+        137,
+        136
+      ],
+      "en_iyi_benzerlik": 0.7307,
+      "en_iyi_rerank_skoru": 0.9997,
+      "sure_arama_sn": 0.129,
+      "sure_rerank_sn": 9.86,
+      "recall_at_n": false,
+      "rerank_top1_dogru": false,
+      "mrr": 0.1111111111111111,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Ateş karıncalarının su üzerinde nasıl kaldıklarının araştırılmasında hangi faktörlerin önemli olduğu ve bu faktörlerin nasıl relacion edildiği açıklanarak, karıncaların oluşturduğu salın yüzey alanının ve su moleküllerinin birbirini çekme kuvvetinin bu olaydaki rolleri nelerdir?",
+      "grup": "B",
+      "dogru_sayfa": 155,
+      "top_n_sayfalar": [
+        155,
+        87,
+        88,
+        83
+      ],
+      "en_iyi_benzerlik": 0.665,
+      "en_iyi_rerank_skoru": 0.9993,
+      "sure_arama_sn": 0.129,
+      "sure_rerank_sn": 10.857,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Öğrencilerin kendilerini değerlendirmeleri için hangi kriterlere göre puanlama ve öz değerlendirme formları oluşturulmuştur?",
+      "grup": "B",
+      "dogru_sayfa": 169,
+      "top_n_sayfalar": [
+        179,
+        170,
+        183,
+        168
+      ],
+      "en_iyi_benzerlik": 0.6928,
+      "en_iyi_rerank_skoru": 0.9071,
+      "sure_arama_sn": 0.138,
+      "sure_rerank_sn": 9.569,
+      "recall_at_n": false,
+      "rerank_top1_dogru": false,
+      "mrr": 0.08333333333333333,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Öğrencilerin biyoloji dersinde yaptıkları bir deneyin planlanması, veri toplama, analiz ve raporlama aşamalarında hangi ölçütler ve alt ölçütler esas alınarak değerlendirme yapılır?",
+      "grup": "B",
+      "dogru_sayfa": 180,
+      "top_n_sayfalar": [
+        180,
+        184,
+        176,
+        182
+      ],
+      "en_iyi_benzerlik": 0.6164,
+      "en_iyi_rerank_skoru": 0.8946,
+      "sure_arama_sn": 0.133,
+      "sure_rerank_sn": 10.098,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Türk Cumhuriyetleri ve Türk bölgeleri ile ilgili olarak verilen haritaların hangi sayfalarında Türk topluluklarının ve bağımsız Türk devletlerinin konumları gösterilmektedir?",
+      "grup": "B",
+      "dogru_sayfa": 191,
+      "top_n_sayfalar": [
+        191,
+        191,
+        190,
+        191
+      ],
+      "en_iyi_benzerlik": 0.5758,
+      "en_iyi_rerank_skoru": 0.8807,
+      "sure_arama_sn": 0.125,
+      "sure_rerank_sn": 10.32,
+      "recall_at_n": true,
+      "rerank_top1_dogru": true,
+      "mrr": 1.0,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Mehmet Âkif Ersoy'un bu şiirinin temasını işlediği vatanseverlik ve bağımsızlık duygusunun, biyolojik açıdan bireylerin kendi türlerini ve yaşam alanlarını koruma içgüdüsüne benzerlik gösterdiği söylenebilir. Bu benzerlik ışığında, vatanseverlik duygusunun, türlerin kendi yaşam alanlarını ve kaynaklarını korumak için geliştirdikleri mekanizmalara benzer bir evrimsel avantaj sağlayıp sağlamadığı sorulabilir.",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "top_n_sayfalar": [
+        4,
+        4,
+        16,
+        80
+      ],
+      "en_iyi_benzerlik": 0.5991,
+      "en_iyi_rerank_skoru": 0.2931,
+      "sure_arama_sn": 0.169,
+      "sure_rerank_sn": 11.836,
+      "recall_at_n": null,
+      "rerank_top1_dogru": null,
+      "mrr": null,
+      "esik_dogru_tespit": false
+    },
+    {
+      "soru": "Tarım alanlarının yakın veya uzak çevresindeki bitkilerin biyolojik çeşitlilik ve ekosistem sağlığı üzerindeki etkileri nelerdir?",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "top_n_sayfalar": [
+        80,
+        18,
+        67,
+        66
+      ],
+      "en_iyi_benzerlik": 0.5706,
+      "en_iyi_rerank_skoru": 0.3395,
+      "sure_arama_sn": 0.124,
+      "sure_rerank_sn": 10.175,
+      "recall_at_n": null,
+      "rerank_top1_dogru": null,
+      "mrr": null,
+      "esik_dogru_tespit": false
+    },
+    {
+      "soru": "Tohumlu bitkilerle tohumsuz bitkiler arasındaki evrimsel farklılıkların, bitkilerin yaşam ortamlarına ve adaptasyonlarına nasıl etki ettiği hakkında bir karşılaştırma yapılabilir?",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "top_n_sayfalar": [
+        57,
+        57,
+        65,
+        40
+      ],
+      "en_iyi_benzerlik": 0.6588,
+      "en_iyi_rerank_skoru": 0.9574,
+      "sure_arama_sn": 0.143,
+      "sure_rerank_sn": 10.216,
+      "recall_at_n": null,
+      "rerank_top1_dogru": null,
+      "mrr": null,
+      "esik_dogru_tespit": false
+    },
+    {
+      "soru": "Canlılar için suyun vazgeçilmez olmasının ve minerallerin canlı yaşamındaki önemlerinin, ekosistemlerin devamlılığı ve biyolojik çeşitlilik üzerindeki etkileri nelerdir?",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "top_n_sayfalar": [
+        83,
+        83,
+        88,
+        88
+      ],
+      "en_iyi_benzerlik": 0.6656,
+      "en_iyi_rerank_skoru": 0.9778,
+      "sure_arama_sn": 0.136,
+      "sure_rerank_sn": 9.95,
+      "recall_at_n": null,
+      "rerank_top1_dogru": null,
+      "mrr": null,
+      "esik_dogru_tespit": false
+    },
+    {
+      "soru": "Urasilin DNA'da bulunmaması, genômik DNA'nın uzun vadeli mutasyon oranını nasıl düşürerek evolutif avantaj sağlar?",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "top_n_sayfalar": [
+        106,
+        106,
+        40,
+        26
+      ],
+      "en_iyi_benzerlik": 0.4597,
+      "en_iyi_rerank_skoru": 0.0195,
+      "sure_arama_sn": 0.151,
+      "sure_rerank_sn": 10.172,
+      "recall_at_n": null,
+      "rerank_top1_dogru": null,
+      "mrr": null,
+      "esik_dogru_tespit": true
+    },
+    {
+      "soru": "Amip hücresinde kontraktil kofulun ve yalancı ayakların işbirliğinin besin alımı ve hücreyi dış çevreye karşı savunma mekanizmaları açısından evrimsel olarak hangi stratejik avantajları sağladığını, ayrıca bu iki yapının farklı mikroorganizmaların hücre içi bölümlendirmesinde ve konumlandırılmasındaki rolünü sentezleyerek değerlendir.",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "top_n_sayfalar": [
+        129,
+        129,
+        141,
+        56
+      ],
+      "en_iyi_benzerlik": 0.6691,
+      "en_iyi_rerank_skoru": 0.7654,
+      "sure_arama_sn": 0.166,
+      "sure_rerank_sn": 11.169,
+      "recall_at_n": null,
+      "rerank_top1_dogru": null,
+      "mrr": null,
+      "esik_dogru_tespit": false
+    },
+    {
+      "soru": "**Soru:** Yüksek Patık Hafif Yemin ile Türkiye'nin hangi coğrafi esasını korurmasına yardımcı olabilir?",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "top_n_sayfalar": [
+        80,
+        68,
+        190,
+        191
+      ],
+      "en_iyi_benzerlik": 0.4944,
+      "en_iyi_rerank_skoru": 0.0166,
+      "sure_arama_sn": 0.129,
+      "sure_rerank_sn": 10.105,
+      "recall_at_n": null,
+      "rerank_top1_dogru": null,
+      "mrr": null,
+      "esik_dogru_tespit": true
+    }
+  ]
+}

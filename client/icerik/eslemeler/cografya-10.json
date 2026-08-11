@@ -1,0 +1,57 @@
+{
+  "_aciklama": [
+    "ELLE YAZILMIŞ tema -> sayfa eşlemesi. Otomatik indeksin ÖNÜNE geçer.",
+    "",
+    "Neden gerekli: otomatik indeks bu kitabı TEK bölüm olarak görüyordu",
+    "(s.9-241, yani kitabın tamamı). Sonuç: tek tema eşleşiyor, üstelik",
+    "sayfa seçimi 233 sayfayı tarayarak 55,4 saniye sürüyordu.",
+    "",
+    "Sayfa numaraları PDF sayfasıdır. Kitabın basılı numarası +1 = PDF",
+    "sayfası (basılı 9 -> PDF 10). Aralıklar s.8-9'daki İÇİNDEKİLER'den",
+    "alınmış ve ünite üstbilgileriyle doğrulanmıştır (PDF s.60 'DOĞAL",
+    "SİSTEMLER VE SÜREÇLER', s.180 'AFETLER VE SÜRDÜRÜLEBİLİR ÇEVRE').",
+    "",
+    "Tema adları 10. sınıf coğrafya planındaki yedi temanın birebir",
+    "karşılığıdır."
+  ],
+  "kitap": "cografya-10.pdf",
+  "ders": "cografya",
+  "sinif": "10",
+  "bolumler": [
+    {
+      "no": 1, "tur": "Ünite", "ad": "1. Ünite — Coğrafyanın Doğası",
+      "temalar": ["COĞRAFYANIN DOĞASI"],
+      "ilk_sayfa": 15, "son_sayfa": 28, "yontem": "metin"
+    },
+    {
+      "no": 2, "tur": "Ünite", "ad": "2. Ünite — Mekânsal Bilgi Teknolojileri",
+      "temalar": ["MEKÂNSAL BİLGİ TEKNOLOJİLERİ"],
+      "ilk_sayfa": 29, "son_sayfa": 46, "yontem": "metin"
+    },
+    {
+      "no": 3, "tur": "Ünite", "ad": "3. Ünite — Doğal Sistemler ve Süreçler",
+      "temalar": ["DOĞAL SİSTEMLER VE SÜREÇLER"],
+      "ilk_sayfa": 47, "son_sayfa": 118, "yontem": "metin"
+    },
+    {
+      "no": 4, "tur": "Ünite", "ad": "4. Ünite — Beşerî Sistemler ve Süreçler",
+      "temalar": ["BEŞERÎ SİSTEMLER VE SÜREÇLER"],
+      "ilk_sayfa": 119, "son_sayfa": 142, "yontem": "metin"
+    },
+    {
+      "no": 5, "tur": "Ünite", "ad": "5. Ünite — Ekonomik Faaliyetler ve Etkileri",
+      "temalar": ["EKONOMİK FAALİYETLER VE ETKİLERİ"],
+      "ilk_sayfa": 143, "son_sayfa": 168, "yontem": "metin"
+    },
+    {
+      "no": 6, "tur": "Ünite", "ad": "6. Ünite — Afetler ve Sürdürülebilir Çevre",
+      "temalar": ["AFETLER VE SÜRDÜRÜLEBİLİR ÇEVRE"],
+      "ilk_sayfa": 169, "son_sayfa": 200, "yontem": "metin"
+    },
+    {
+      "no": 7, "tur": "Ünite", "ad": "7. Ünite — Bölgeler, Ülkeler ve Küresel Bağlantılar",
+      "temalar": ["BÖLGELER, ÜLKELER VE KÜRESEL BAĞLANTILAR"],
+      "ilk_sayfa": 201, "son_sayfa": 226, "yontem": "metin"
+    }
+  ]
+}

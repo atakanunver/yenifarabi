@@ -1,0 +1,45 @@
+{
+  "_aciklama": [
+    "ELLE YAZILMIŞ tema -> sayfa eşlemesi. Otomatik indeksin ÖNÜNE geçer.",
+    "",
+    "Neden gerekli: kitap_index.py ünite adını sayfa üstbilgisinden okuyor,",
+    "bu kitapta üstbilgi ünite adı taşımıyor ve dört ünitenin de adı",
+    "'ÖLÇME VE DEĞERLENDİRME' çıkıyor. Plan temaları (KUVVET VE HAREKET,",
+    "ENERJİ, ELEKTRİK, DALGALAR) hiçbiriyle eşleşmiyordu: 10. sınıf fizikte",
+    "kitap bağlanma oranı SIFIRDI.",
+    "",
+    "Sayfa numaraları PDF sayfasıdır (kitabın basılı numarası değil) ve",
+    "ünite açılış sayfalarından doğrulanmıştır: s.15 '1. ÜNİTE', s.16",
+    "'KUVVET VE HAREKET'; s.109/110 ENERJİ; s.199/200 ELEKTRİK; s.273/274",
+    "DALGALAR.",
+    "",
+    "yontem: metin — bu kitapta metin çıkarma temiz çalışıyor (örneklenen",
+    "sayfalarda bozuk sembol işareti bulunmadı), Gemini transkripsiyonu",
+    "gerekmiyor."
+  ],
+  "kitap": "fizik-10.pdf",
+  "ders": "fizik",
+  "sinif": "10",
+  "bolumler": [
+    {
+      "no": 1, "tur": "Ünite", "ad": "1. Ünite — Kuvvet ve Hareket",
+      "temalar": ["KUVVET VE HAREKET"],
+      "ilk_sayfa": 15, "son_sayfa": 108, "yontem": "metin"
+    },
+    {
+      "no": 2, "tur": "Ünite", "ad": "2. Ünite — Enerji",
+      "temalar": ["ENERJİ"],
+      "ilk_sayfa": 109, "son_sayfa": 198, "yontem": "metin"
+    },
+    {
+      "no": 3, "tur": "Ünite", "ad": "3. Ünite — Elektrik",
+      "temalar": ["ELEKTRİK"],
+      "ilk_sayfa": 199, "son_sayfa": 272, "yontem": "metin"
+    },
+    {
+      "no": 4, "tur": "Ünite", "ad": "4. Ünite — Dalgalar",
+      "temalar": ["DALGALAR"],
+      "ilk_sayfa": 273, "son_sayfa": 353, "yontem": "metin"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+# Farabi — tahta istemcisi bağımlılıkları (hedef: Linux, tahtalar politika gereği Linux)
+# Fork'tan miras kalan liste, gerçek import kümesine göre yeniden yazıldı
+# (silinen 15 modülün bağımlılıkları çıkarıldı, eksikler eklendi).
+# Doğrulama: python -c "import main"
+
+# ── Çekirdek: arayüz, ses, model ────────────────────────────────────────────
+PyQt6                      # ui.py — fork listesinde HİÇ YOKTU, temiz kurulum patlıyordu
+sounddevice                # main.py — mikrofon/hoparlör
+google-genai               # Gemini — YALNIZ canlı ses (main.py)
+openai                     # core/saglayicilar.py — Groq/Mistral/DeepSeek/OpenRouter/
+                           # NVIDIA NIM hepsi OpenAI-uyumlu /chat/completions sunuyor,
+                           # tek istemci kütüphanesi beşini de kapsıyor
+numpy
+pillow
+requests
+psutil                     # ui.py sol sütun sistem metrikleri
+
+# ── Web arama ───────────────────────────────────────────────────────────────
+beautifulsoup4
+lxml                       # web_search.py BeautifulSoup(..., "lxml") ile ayrıştırıyor
+ddgs                       # web_search.py'nin BİRİNCİL arama kaynağı — ham sonuçlar
+                           # buradan gelir, sentezi core/saglayicilar.py yapar
+                           # (eski adı duckduckgo-search; kod ikisini de deniyor)
+
+# ── Dosya işleme (file_processor) ───────────────────────────────────────────
+PyPDF2
+pdfplumber
+PyMuPDF                    # tools/kitap_metin.py'nin sayfa metni çıkarıcısı (fitz) —
+                           # pdfplumber'ın yerini aldı: 161 MB'lık tarih-10.pdf'de
+                           # pdfplumber 5+ GB'a çıkıp OOM'a düşerken fitz aynı kitabı
+                           # saniyeler içinde, sabit bellekle bitiriyor (ölçüldü).
+                           # pdfplumber diğer araçlarda (file_processor, ders_icerigi,
+                           # yks_metin) hâlâ kullanımda — kitap_index.py da 02.08.2026'da
+                           # aynı OOM gerekçesiyle fitz'e taşındı, bkz. o dosyanın dokümanı.
+python-docx
+python-pptx
+pandas
+openpyxl                   # file_processor.py'nin .xlsx okuma/yazması için
+# ── YouTube ─────────────────────────────────────────────────────────────────
+youtube-transcript-api
+

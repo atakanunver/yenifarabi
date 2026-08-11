@@ -1,0 +1,77 @@
+{
+  "_aciklama": [
+    "ELLE YAZILMIŞ tema -> sayfa eşlemesi. Otomatik indeksin ÖNÜNE geçer.",
+    "",
+    "Neden gerekli: kitap_index.py bu kitapta HİÇ bölüm çıkaramadı (dogrula.py:",
+    "'hiç bölüm çıkarılamadı') VE dosya adından 'sinif' yanlış çıkarıldı",
+    "('waymark-year-9-b1.1-ders-kitabi2.pdf' adındaki son '2' sınıf sanılıp",
+    "sinif=2 kaydedilmiş — CLAUDE.md'de zaten bilinen bir sınıf: 'kitabi2.pdf'",
+    "gibi bir ad anlamsız sonuç verir). Gerçek sınıf 9'dur; bu dosya ikisini",
+    "de düzeltir.",
+    "",
+    "Sayfa numaraları PDF sayfasıdır. Basılı sayfa numarası + 2 = PDF sayfası",
+    "(İçindekiler PDF s.9, üstbilgisi '7'). Sekiz temanın da açılış sayfaları",
+    "PDF üzerinde doğrudan kontrol edilerek doğrulanmıştır (PDF s.25 'THEME 1",
+    "SCHOOL LIFE', PDF s.123 'THEME 8 LIFE IN THE UNIVERSE & FUTURE').",
+    "REVISION 1/2 (temel tekrar üniteleri, temalardan önce) ve",
+    "DIFFERENTIATION/RUBRICS/GLOSSARY (PDF s.137'den itibaren ek/referans",
+    "bölümleri) bölüm olarak eklenmedi — bunlar ders konusu değil.",
+    "",
+    "CONTENTS (PDF s.9), basılı sayfa numaralarıyla:",
+    "  THEME 1 SCHOOL LIFE ....................................... 23",
+    "  THEME 2 CLASSROOM LIFE .................................... 37",
+    "  THEME 3 PERSONAL LIFE: PHYSICAL APPEARANCE & PERSONALITY .. 51",
+    "  THEME 4 FAMILY LIFE ....................................... 65",
+    "  THEME 5 LIFE IN THE HOUSE & NEIGHBOURHOOD ................. 79",
+    "  THEME 6 LIFE IN THE CITY & COUNTRY ........................ 93",
+    "  THEME 7 LIFE IN THE WORLD & NATURE ....................... 107",
+    "  THEME 8 LIFE IN THE UNIVERSE & FUTURE .................... 121",
+    "  DIFFERENTIATION (ek/referans, ders konusu değil) ......... 135"
+  ],
+  "kitap": "waymark-year-9-b1.1-ders-kitabi2.pdf",
+  "ders": "ingilizce",
+  "sinif": "9",
+  "bolumler": [
+    {
+      "no": 1, "tur": "Tema", "ad": "Theme 1 — School Life",
+      "temalar": ["SCHOOL LIFE"],
+      "ilk_sayfa": 25, "son_sayfa": 38, "yontem": "metin"
+    },
+    {
+      "no": 2, "tur": "Tema", "ad": "Theme 2 — Classroom Life",
+      "temalar": ["CLASSROOM LIFE"],
+      "ilk_sayfa": 39, "son_sayfa": 52, "yontem": "metin"
+    },
+    {
+      "no": 3, "tur": "Tema",
+      "ad": "Theme 3 — Personal Life: Physical Appearance & Personality",
+      "temalar": ["PERSONAL LIFE", "PHYSICAL APPEARANCE", "PERSONALITY"],
+      "ilk_sayfa": 53, "son_sayfa": 66, "yontem": "metin"
+    },
+    {
+      "no": 4, "tur": "Tema", "ad": "Theme 4 — Family Life",
+      "temalar": ["FAMILY LIFE"],
+      "ilk_sayfa": 67, "son_sayfa": 80, "yontem": "metin"
+    },
+    {
+      "no": 5, "tur": "Tema", "ad": "Theme 5 — Life in the House & Neighbourhood",
+      "temalar": ["LIFE IN THE HOUSE", "NEIGHBOURHOOD"],
+      "ilk_sayfa": 81, "son_sayfa": 94, "yontem": "metin"
+    },
+    {
+      "no": 6, "tur": "Tema", "ad": "Theme 6 — Life in the City & Country",
+      "temalar": ["LIFE IN THE CITY", "COUNTRY"],
+      "ilk_sayfa": 95, "son_sayfa": 108, "yontem": "metin"
+    },
+    {
+      "no": 7, "tur": "Tema", "ad": "Theme 7 — Life in the World & Nature",
+      "temalar": ["LIFE IN THE WORLD", "NATURE"],
+      "ilk_sayfa": 109, "son_sayfa": 122, "yontem": "metin"
+    },
+    {
+      "no": 8, "tur": "Tema", "ad": "Theme 8 — Life in the Universe & Future",
+      "temalar": ["LIFE IN THE UNIVERSE", "FUTURE"],
+      "ilk_sayfa": 123, "son_sayfa": 136, "yontem": "metin"
+    }
+  ]
+}

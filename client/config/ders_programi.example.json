@@ -1,0 +1,74 @@
+{
+  "_ornek": true,
+  "_aciklama": [
+    "!! BU BİR ÖRNEKTİR. '_ornek': true olduğu sürece program KULLANILMAZ.",
+    "   Gerçek programı yazdıktan sonra '_ornek' satırını SİLİN.",
+    "OKULUN DERS PROGRAMI — gün × ders saati × sınıf → hangi ders.",
+    "",
+    "Bu dosyayı 'ders_programi.json' olarak kopyalayıp okulun programıyla",
+    "doldurun. Gerçek dosya .gitignore'dadır (okula özeldir).",
+    "",
+    "NEDEN GEREKLİ: yıllık plan bir tarihe aynı anda dokuz ders düşürüyor",
+    "(10. sınıf için biyoloji, coğrafya, felsefe, fizik, kimya, matematik,",
+    "tarih, TDE...). Program olmadan Farabi sınıfa 'bugün hangi dersteyiz?'",
+    "diye sormak zorunda kalır. Program varsa tahta açılır açılmaz bilir:",
+    "'3. ders · 9-A · Matematik · Üslü Sayılar'.",
+    "",
+    "Ders saati anahtarları config/zil.json'daki ders numaralarıyla aynıdır.",
+    "Yazılmayan saat boş demektir; Farabi o saatte çerçeveyi plandan çözmeye",
+    "çalışır.",
+    "",
+    "kip: bir slot 'ogretmensiz' taşıyabilir (etüt, telafi, boş ders).",
+    "Yazılmazsa config/api_keys.json'daki ders_kipi geçerli olur.",
+    "",
+    "Ders adları yıllık plandaki adlarla eşleşmelidir: matematik, fizik,",
+    "biyoloji, kimya, coğrafya, tarih, felsefe, 'türk dili ve edebiyatı'."
+  ],
+  "siniflar": {
+    "9-A": {
+      "pazartesi": {
+        "1": "matematik",
+        "2": "matematik",
+        "3": "türk dili ve edebiyatı",
+        "4": "fizik",
+        "5": "biyoloji",
+        "6": "tarih",
+        "7": {
+          "ders": "matematik",
+          "kip": "ogretmensiz"
+        }
+      },
+      "sali": {
+        "1": "kimya",
+        "2": "kimya",
+        "3": "matematik",
+        "4": "coğrafya",
+        "5": "türk dili ve edebiyatı",
+        "6": "biyoloji"
+      },
+      "carsamba": {
+        "1": "fizik",
+        "2": "matematik",
+        "3": "tarih",
+        "4": "türk dili ve edebiyatı"
+      },
+      "persembe": {
+        "1": "biyoloji",
+        "2": "coğrafya",
+        "3": "matematik",
+        "4": "kimya",
+        "5": "fizik"
+      },
+      "cuma": {
+        "1": "türk dili ve edebiyatı",
+        "2": "matematik",
+        "3": "tarih",
+        "4": "felsefe",
+        "8": {
+          "ders": "matematik",
+          "kip": "ogretmensiz"
+        }
+      }
+    }
+  }
+}
