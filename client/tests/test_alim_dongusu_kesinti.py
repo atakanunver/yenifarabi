@@ -73,6 +73,9 @@ def _farabi_live(olaylar) -> main.FarabiLive:
     f.ui = SimpleNamespace(
         write_log=lambda *_a: None,
         set_state=lambda *_a: None,
+        canli_satir_baslat=lambda *_a: None,
+        canli_satir_guncelle=lambda *_a: None,
+        canli_satir_bitir=lambda *_a: None,
         muted=False,
     )
     return f

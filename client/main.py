@@ -960,14 +960,25 @@ class FarabiLive:
 
                             full_out = _konusma_temizle(" ".join(out_buf))
                             if full_out:
-                                self.ui.write_log(f"Farabi: {full_out} (kesildi)")
+                                self.ui.canli_satir_guncelle(full_out + " (kesildi)")
+                                self.ui.canli_satir_bitir()
                                 transcript.log_line("farabi", full_out + " (kesildi)")
                             out_buf = []
 
+                        # Akan altyazı: metin ekrana SES ÇALINMADAN ÖNCE/EŞZAMANLI
+                        # yazılsın diye her transkripsiyon PARÇASI geldiğinde satır
+                        # güncellenir — eskiden yalnızca turn_complete'te TEK SEFERDE
+                        # yazılıyordu, o noktada ses zaten baştan sona çalınmış
+                        # oluyordu (karar: 2026-08-11, "önce metin sonra ses").
+                        # `response.data` (ses) burada hiç geciktirilmiyor —
+                        # audio_in_queue'ya her zamanki gibi anında düşüyor.
                         if sc.output_transcription and sc.output_transcription.text:
                             txt = _clean_transcript(sc.output_transcription.text)
                             if txt:
+                                if not out_buf:
+                                    self.ui.canli_satir_baslat("Farabi: ")
                                 out_buf.append(txt)
+                                self.ui.canli_satir_guncelle(_konusma_temizle(" ".join(out_buf)))
 
                         if sc.input_transcription and sc.input_transcription.text:
                             txt = _clean_transcript(sc.input_transcription.text)
@@ -987,7 +998,7 @@ class FarabiLive:
 
                             full_out = _konusma_temizle(" ".join(out_buf))
                             if full_out:
-                                self.ui.write_log(f"Farabi: {full_out}")
+                                self.ui.canli_satir_bitir()
                                 transcript.log_line("farabi", full_out)
                                 self.etkinlik_bildir()
                             out_buf = []

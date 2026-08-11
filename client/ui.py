@@ -754,8 +754,64 @@ class LogWidget(QTextEdit):
         self._tmr.timeout.connect(self._step)
         self._sig.connect(self._enqueue)
 
+        # Akan altyazı (Gemini Live output_transcription parça parça gelir):
+        # `_canli_pos`, o turun metninin belgede BAŞLADIĞI konumu tutar; her
+        # güncellemede o konumdan belge sonuna kadarki metin SİLİNİP yeniden
+        # yazılır — yazma-makinesi kuyruğu (`_queue`/`_step`) gibi yeni satır
+        # AÇILMAZ. main.py, transkripsiyon parçası geldikçe bunu çağırır;
+        # sonuç ses çalınmadan ÖNCE ekranda okunabilir olur (bkz. main.py
+        # _receive_audio, 2026-08-11 karar: "önce metin, sonra ses").
+        self._canli_pos    = None
+        self._canli_prefix = ""
+
     def append_log(self, text: str):
         self._sig.emit(text)
+
+    def canli_satir_baslat(self, prefix: str) -> None:
+        """Akan altyazı için yeni, boş bir satır aç. `prefix` ör. 'Farabi: '."""
+        # Yazma-makinesi kuyruğunda bekleyen bir şey varsa önce onu bitir —
+        # aksi hâlde canlı satır, henüz yazılmamış eski bir satırın ortasına
+        # karışır.
+        self._queue.clear()
+        self._typing = False
+        self._tmr.stop()
+
+        cur = self.textCursor()
+        cur.movePosition(cur.MoveOperation.End)
+        if self.toPlainText() and not self.toPlainText().endswith("\n"):
+            cur.insertText("\n")
+        self._canli_prefix = prefix
+        fmt = cur.charFormat()
+        fmt.setForeground(QBrush(qcol(C.PRI)))
+        cur.insertText(prefix, fmt)
+        self._canli_pos = cur.position()
+        self.setTextCursor(cur)
+        self.ensureCursorVisible()
+
+    def canli_satir_guncelle(self, metin_simdiye_kadar: str) -> None:
+        """Akan satırın içeriğini büyüt — `canli_satir_baslat` çağrılmadıysa
+        kendisi başlatır (savunma; main.py normalde önce başlatır)."""
+        if self._canli_pos is None:
+            self.canli_satir_baslat(self._canli_prefix or "Farabi: ")
+        cur = self.textCursor()
+        cur.setPosition(self._canli_pos)
+        cur.movePosition(cur.MoveOperation.End, cur.MoveMode.KeepAnchor)
+        cur.removeSelectedText()
+        fmt = cur.charFormat()
+        fmt.setForeground(QBrush(qcol(C.PRI)))
+        cur.insertText(metin_simdiye_kadar, fmt)
+        self.setTextCursor(cur)
+        self.ensureCursorVisible()
+
+    def canli_satir_bitir(self) -> None:
+        """Turu kapat: sonraki satırın bu akan satıra karışmaması için \\n ekler."""
+        if self._canli_pos is None:
+            return
+        cur = self.textCursor()
+        cur.movePosition(cur.MoveOperation.End)
+        cur.insertText("\n")
+        self.setTextCursor(cur)
+        self._canli_pos = None
 
     def _enqueue(self, text: str):
         self._queue.append(text)
@@ -917,6 +973,9 @@ class MainWindow(QMainWindow):
     _content_sig = pyqtSignal(str, str)   # (title, text) — thread-safe content display
     _mute_sig    = pyqtSignal(bool)       # thread-safe mute toggle (asyncio loop thread → Qt thread)
     _gemini_oturum_sig = pyqtSignal(bool)  # True: Live oturumu açıldı, False: kapandı
+    _live_baslat_sig = pyqtSignal(str)    # akan altyazı: yeni satır başlat (prefix, ör. "Farabi: ")
+    _live_guncelle_sig = pyqtSignal(str)  # akan altyazı: satırın içeriğini büyüt (yeni satır AÇMADAN)
+    _live_bitir_sig = pyqtSignal()        # akan altyazı: turu kapat (asyncio loop thread → Qt thread)
 
     def __init__(self, face_path: str):
         super().__init__()
@@ -1027,6 +1086,9 @@ class MainWindow(QMainWindow):
         self._content_sig.connect(self._show_content)
         self._mute_sig.connect(self._set_muted)
         self._gemini_oturum_sig.connect(self._on_gemini_oturum_degisti)
+        self._live_baslat_sig.connect(self._log.canli_satir_baslat)
+        self._live_guncelle_sig.connect(self._log.canli_satir_guncelle)
+        self._live_bitir_sig.connect(self._log.canli_satir_bitir)
 
         self._ready = self._check_config()
         if not self._ready:
@@ -2311,6 +2373,15 @@ class FarabiUI:
 
     def write_log(self, text: str):
         self._win._log_sig.emit(text)
+
+    def canli_satir_baslat(self, prefix: str = "Farabi: "):
+        self._win._live_baslat_sig.emit(prefix)
+
+    def canli_satir_guncelle(self, metin_simdiye_kadar: str):
+        self._win._live_guncelle_sig.emit(metin_simdiye_kadar)
+
+    def canli_satir_bitir(self):
+        self._win._live_bitir_sig.emit()
 
     def oturum_baslandi(self):
         """Gemini Live oturumu açıldı — HUD'daki BUGÜN sayacı başlasın."""
