@@ -134,5 +134,15 @@ def kitap_sorusu(parameters: dict | None = None, player=None, speak=None, **_) -
         log(f"[Kitap Sorusu] {durum}")
         return "Bu bilgi ders kitabında bu haliyle bulunmuyor."
 
+    if durum == "hata":
+        # Belgelenmiş bir durum (mimari.md §9 status enum'u) — sunucu (ör.
+        # Ollama kapalı) kendi hatasını YAKALAYIP temiz JSON'la bildirdi,
+        # bağlantı/format hatası değil. "beklenmeyen" demek yanıltıcıydı.
+        # Ham hata metni bilerek API'ye hiç çıkmıyor (server/main.py
+        # SoruYanit'te `hata` alanı yok) — sunucu tarafında soru_log'a
+        # yazılıyor, "Brain karar verir, Client görüntüler" ilkesi gereği.
+        log("[Kitap Sorusu] sunucu 'hata' durumu bildirdi (ayrıntı soru_log'da)")
+        return _SINIRLI_DEVAM
+
     log(f"[Kitap Sorusu] beklenmeyen durum: {durum}")
     return _SINIRLI_DEVAM

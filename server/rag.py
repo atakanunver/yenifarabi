@@ -163,9 +163,25 @@ class RagMotoru:
         """Dönen dict: status, answer, sources ([{chunk_id, sayfa}]), latency_ms."""
         t0 = time.perf_counter()
 
-        vektor = self.embed_model.encode(soru, normalize_embeddings=True)
-        adaylar = self._ilk_k_getir(conn, kitap_id, vektor, TOP_K)
-        retrieval_ms = int((time.perf_counter() - t0) * 1000)
+        # ── Embedding + ilk-K arama + rerank — hiçbiri sarmalanmamıştı ──
+        # (2026-08-11 bulundu): çok uzun bir `soru` (~6000 karakter, tekrarlı
+        # metin) reranker'ı (cuda:0, qwen2.5:14b ile aynı kart) CUDA OOM'a
+        # düşürdü — istisna buradan main.py'ye kadar YAKALANMADAN çıkıp çıplak
+        # 500 döndürdü VE `metrik`e hiç yazılmadı ("HER ZAMAN yazılır" iddiası
+        # bu yüzden yanlıştı). LLM adımı zaten aynı desenle sarmalıydı
+        # (aşağıda) — burası da aynı desene alındı: `hata` durumu + loglama.
+        try:
+            vektor = self.embed_model.encode(soru, normalize_embeddings=True)
+            adaylar = self._ilk_k_getir(conn, kitap_id, vektor, TOP_K)
+            retrieval_ms = int((time.perf_counter() - t0) * 1000)
+        except Exception as e:
+            toplam_ms = int((time.perf_counter() - t0) * 1000)
+            self._logla(conn, tahta_id=tahta_id, sinif=sinif, ders=ders, soru=soru,
+                        sonuc="hata", ham_cevap=f"{type(e).__name__}: {e}", toplam_ms=toplam_ms,
+                        retrieval_ms=None, rerank_ms=None, llm_ms=None,
+                        en_iyi_skor=None, chunk_idler=[], skorlar=[])
+            return {"status": "hata", "answer": None, "sources": [], "latency_ms": toplam_ms,
+                    "hata": f"{type(e).__name__}: {e}"}
 
         if not adaylar:
             toplam_ms = int((time.perf_counter() - t0) * 1000)
@@ -176,8 +192,18 @@ class RagMotoru:
             return {"status": "yetersiz_kaynak", "answer": None, "sources": [], "latency_ms": toplam_ms}
 
         t1 = time.perf_counter()
-        ciftler = [(soru, c[2]) for c in adaylar]
-        skorlar_ham = self.reranker.predict(ciftler)
+        try:
+            ciftler = [(soru, c[2]) for c in adaylar]
+            skorlar_ham = self.reranker.predict(ciftler)
+        except Exception as e:
+            rerank_ms = int((time.perf_counter() - t1) * 1000)
+            toplam_ms = int((time.perf_counter() - t0) * 1000)
+            self._logla(conn, tahta_id=tahta_id, sinif=sinif, ders=ders, soru=soru,
+                        sonuc="hata", ham_cevap=f"{type(e).__name__}: {e}", toplam_ms=toplam_ms,
+                        retrieval_ms=retrieval_ms, rerank_ms=rerank_ms, llm_ms=None,
+                        en_iyi_skor=None, chunk_idler=[], skorlar=[])
+            return {"status": "hata", "answer": None, "sources": [], "latency_ms": toplam_ms,
+                    "hata": f"{type(e).__name__}: {e}"}
         siralanmis = sorted(zip(adaylar, skorlar_ham), key=lambda x: x[1], reverse=True)
         rerank_ms = int((time.perf_counter() - t1) * 1000)
         top_n = siralanmis[:TOP_N]

@@ -14,7 +14,7 @@ import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sentence_transformers import CrossEncoder, SentenceTransformer
 
 import db
@@ -54,7 +54,13 @@ app = FastAPI(title="Farabi Brain API", lifespan=lifespan)
 
 class SoruIstek(BaseModel):
     kitap_id: int
-    soru: str
+    # max_length=500: ölçüldü (2026-08-11) — sınırsız uzunlukta bir soru
+    # (~6000 karakter, tekrarlı metin) reranker'ı (cuda:0, qwen2.5:14b ile
+    # aynı kart) CUDA OOM'a düşürdü. rag.py artık bu tür hataları da
+    # yakalayıp `hata` durumu döndürüyor (bkz. rag.py sorgula), ama pahalı
+    # bir GPU çağrısını hiç yapmadan reddetmek daha doğrusu — gerçek bir
+    # sınıf sorusu birkaç cümleyi aşmaz.
+    soru: str = Field(..., max_length=500)
 
 
 class Kaynak(BaseModel):
