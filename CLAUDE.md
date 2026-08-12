@@ -27,10 +27,13 @@ Lint/formatter yapılandırılmamış — `ruff` kurulu değil, komut yok.
 farabi/
 ├── CLAUDE.md          — bu dosya, günlük kurallar
 ├── docs/mimari.md     — detaylı mimari (server/veri/RAG tasarımı)
-├── client/            — ÇALIŞAN kod, tahta istemcisi (aşağıya bkz.), server'a BAĞLI DEĞİL
+├── client/            — ÇALIŞAN kod, tahta istemcisi (aşağıya bkz.) — server'a
+│                         BAĞLI: kitap_sorusu (RAG soru-cevap) ve ders kaydı
+│                         yedeği HTTP ile server'ı çağırıyor (2026-08-11/12);
+│                         SES hâlâ tamamen Gemini Live'da, server'dan bağımsız
 ├── server/            — ÇALIŞAN prototip (bkz. aşağıdaki "Bilinçli sapma") — FastAPI,
 │                         pgvector arama + rerank + eşik + LLM, /api/egitim/question,
-│                         /api/egitim/kitaplar
+│                         /api/egitim/kitaplar, /api/egitim/ders_kaydi_yedek
 └── benchmark/         — Faz 0a retrieval/eşik/katman testleri, 13 kitap pgvector'a indekslendi
 ```
 
@@ -64,8 +67,10 @@ Detaylar `client/CLAUDE.md`'de (82K, koddan doğrulanmış); özet:
 
 **`server/`** — FastAPI prototip, Faz 0a kapısı tam kapanmadan erken başlatıldı
 (bkz. "Bilinçli sapma", aşağıda). `main.py`/`rag.py`/`db.py` — `/health`,
-`/ready`, `POST /api/egitim/question`. Ollama (qwen2.5:14b) + embedding/reranker
-GPU'lu çalışıyor. Client'a hiç bağlı değil.
+`/ready`, `POST /api/egitim/question`, `GET /api/egitim/kitaplar`,
+`POST /api/egitim/ders_kaydi_yedek`. Ollama (qwen2.5:14b) + embedding/reranker
+GPU'lu çalışıyor, her biri kendi kartına sabit (bkz. "Bilinçli sapma").
+Client artık BAĞLI — `client/CLAUDE.md`'de ayrıntı.
 
 ## Temel Kurallar
 

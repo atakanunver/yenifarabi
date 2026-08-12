@@ -72,7 +72,7 @@ Farabi.gif               HUD animation (placeholder art; swap freely)
 dersgiriscikis.png       school bell-schedule photo — provenance for zil.json
 
 actions/                 one public function per module — the
-                         registry declares ten tools (`shutdown_farabi`
+                         registry declares eleven tools (`shutdown_farabi`
                          runs inline, it has no module). No camera/screen
                          capture anywhere (`screen_processor.py` removed
                          2026-08-09 — unused, and violated the no-camera
@@ -110,6 +110,18 @@ actions/                 one public function per module — the
                          automatic, see core/prompt.txt's SESLİ HİTAP/SORU
                          SUNUM PROTOKOLÜ. Question only, no solution; model
                          must work the solution itself (see below)
+  ders_hafizasi.py       recalls what was covered in a PAST lesson on this
+                         board ("geçen ders ne işlemiştik"), added 2026-08-12.
+                         Reads ONLY this board's own local lesson records
+                         (core/transcript.py's `logs/ders/*.txt`, one file per
+                         lesson session) — NOT the textbook, NOT the server
+                         RAG. No separate "summary" storage: the tool fetches
+                         the raw matched past session (bounded/truncated,
+                         same pattern as yks_sorulari), the model paraphrases
+                         it at answer time. Always excludes the CURRENT
+                         session's own file. Not gated by the SORU SUNUM
+                         PROTOKOLÜ silence rules — answers immediately, same
+                         behavior class as kitap_sorusu.
   file_processor.py      documents and images only (narrowed, see below)
   youtube_video.py       lesson videos
   eba.py                 EBA (MEB portal) lesson videos + question PDFs, added
@@ -127,14 +139,34 @@ core/
   olaylar.py             in-process event bus (asyncio, no broker)
   program.py             timetable: day × period × class → subject (see below)
   zil.py                 bell schedule + lesson-period state (shared, see below)
-  tahta.py               which classroom this board stands in (shared, see below)
+  tahta.py               which classroom this board stands in, AND which
+                         Brain server it talks to (`sunucu_url()`, added
+                         2026-08-12 — reads `config/api_keys.json`'s
+                         `sunucu_url`, falls back to `http://127.0.0.1:8000`
+                         for single-machine dev; kitap_sorusu.py and the
+                         `_ders_kaydini_yedekle` backup call in main.py both
+                         use this instead of a hardcoded address, so cloning
+                         this board's config to another board just means
+                         editing one field — see "Ders hafızası" below)
+                         (shared, see below)
   modeller.py            CANLI_MODEL only now — Live model name, one place
   anahtar.py             Gemini API key pool + quota detection (Live only)
   saglayicilar.py        SIX-PROVIDER POOL for everything non-realtime (Groq,
                          Mistral, DeepSeek, OpenRouter, NVIDIA NIM) — see
                          "Provider notes and API quota" below
   logger.py              rotating diagnostic log
-  transcript.py          lesson record (text only, never audio)
+  transcript.py          lesson record (text only, never audio). Changed
+                         2026-08-12: ONE FILE PER LESSON SESSION now
+                         (`logs/ders/<timestamp>_<derslik>.txt`), not one
+                         per calendar day — the file path is computed once
+                         and cached for the process lifetime (`_oturum_yolu`)
+                         so a Gemini Live reconnect mid-lesson doesn't
+                         fragment the record across files. `log_frame(ders,
+                         konu)` appends a `ÇERÇEVE: ...` marker once the
+                         subject/topic becomes known (called from
+                         `ders_icerigi.py`, not main.py — see "Ders hafızası"
+                         below for why). `today_file()` renamed
+                         `session_file()` accordingly.
 
 memory/                  UNUSED at runtime (legacy package; `save_memory` removed).
                          Do not re-wire into `_build_config` or the tool registry
@@ -821,6 +853,80 @@ run — via the HUD's "YKS SORULARINI METNE DÖNÜŞTÜR" button or
 `tools/yks_metin.py` by hand), the tool refuses and tells the model to keep
 teaching from the textbook instead of inventing a question — same "fallback
 text is binding" principle as `ders_icerigi`'s `_SINIRLI_DEVAM`.
+
+### `ders_hafizasi` — recalling a PAST lesson, added 2026-08-12
+
+User request: "geçen ders şöyle yapmıştık" style teacher advisory — Farabi
+should be able to say what a previous lesson on this board covered. Two
+design calls made explicitly (not the obvious defaults):
+
+1. **Not mid-lesson resume.** This is NOT about picking a lesson back up
+   where it left off after a crash/reboot — it's about recalling a
+   *different, earlier* lesson from within a *new* one.
+2. **No separate "summary" storage layer.** `core/transcript.py`'s existing
+   per-lesson files (see above) are the ONLY source — one file, two uses.
+   Summarization happens at answer time, in the model, from the raw fetched
+   text — same "fetch raw, let the model paraphrase" pattern already used by
+   `yks_sorulari`/`kitap_sorusu`, not a new architecture.
+
+**Where the frame gets logged matters.** `transcript.log_frame()` is called
+from `actions/ders_icerigi.py`, not from `main.py`'s
+`_cerceveyi_ogretmenden_guncelle` (the obvious first guess). Reason: that
+main.py function only parses the WRITTEN teacher-panel "ders: X konu: Y"
+syntax. Since this session's SESLİ HİTAP addition, a lesson frame can also
+be set purely by VOICE ("Farabi öğretmen talimatı: ...") — that path never
+touches the regex parser, it goes straight to the model calling
+`ders_icerigi` with resolved `ders`/`konu`. `ders_icerigi()` itself is the
+one point both channels funnel through, so that's where the hook lives.
+
+**Matching**: `_norm`/`_kelimeler` word-overlap, copied a THIRD time (already
+duplicated once between `ders_icerigi.py` and `yks_sorulari.py` before this
+addition) rather than extracted to a shared module — matches this codebase's
+own established precedent for this exact helper pair.
+
+**Always excludes the current session** — compares every candidate file
+against `transcript.session_file()`, Farabi never "recalls" the lesson
+that's still running.
+
+### Server config becomes per-board, not hardcoded (2026-08-12)
+
+Adding this feature's backup call (below) meant a second call site would
+need to know the Brain server's address — `kitap_sorusu.py` already had
+`SUNUCU_URL = "http://127.0.0.1:8000"` hardcoded, fine for one-machine dev,
+not fine once the server moves to the school's server room and boards are
+cloned from a "golden" board image. Fixed by adding `core.tahta.sunucu_url()`
+(reads `config/api_keys.json`'s new `sunucu_url` field, same file `derslik`
+already lives in, falls back to localhost) and switching `kitap_sorusu.py`
+to call it instead of the constant. **Still a landmine for the "clone one
+board's config to N others" plan**: `derslik` and (now) `sunucu_url` both
+live in `config/api_keys.json`, which also holds the Gemini key pool — that
+whole file can't be blindly copied board-to-board, `derslik` at minimum
+needs editing per board after any clone.
+
+### Server backup — `POST /api/egitim/ders_kaydi_yedek`
+
+On session close (`main.py`'s `_temiz_kapan`), the just-closed session's
+transcript file is POSTed once to the server, which writes it to
+`server/yedekler/ders_kaydi/<derslik>/<dosya_adi>` (server-side, not tracked
+by `ders_hafizasi.py` or anything else — write-only backup, protects against
+losing a board's own disk, nothing reads it back yet). Silent-failure
+discipline, same as `kitap_sorusu.py` — a backup failing must never surface
+to the classroom. Runs in an executor thread with a 6 s wrap (`asyncio.
+wait_for`) so a slow/unreachable server can't delay shutdown.
+
+**Path traversal was a real, caught bug, not a theoretical one.** First
+version's containment check compared the resolved target path against
+`hedef_dizin` (the *already-derslik-joined* directory) instead of the fixed
+`YEDEK_DIR` — a `derslik` value of `".."` passed the regex allowlist (all
+characters individually valid) and the check, because by the time the check
+ran, `hedef_dizin` had ALREADY been walked one level up by the traversal it
+was supposed to catch. Live-tested: a request with `derslik=".."` wrote a
+file one directory above `yedekler/ders_kaydi/`, outside the intended tree.
+Fixed by checking containment against the ORIGINAL, unwalked `YEDEK_DIR` at
+both the directory and final-file-path steps. Re-tested clean before
+shipping. The regex allowlist alone (`[A-Za-z0-9ÇĞİÖŞÜçğıöşü_.-]+`, no `/`)
+blocks multi-segment traversal but NOT a bare `".."` value — the
+resolve+containment check is load-bearing, not just defense-in-depth.
 
 ### `site_goster` — deliberately browser-free
 
