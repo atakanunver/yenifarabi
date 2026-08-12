@@ -26,11 +26,17 @@ DB_USER = "farabi"
 
 # CPU'da ölçüldü (2026-08-11): 20 adayı rerank etmek tek başına 4-10sn
 # sürüyor, mimari.md'nin "ilk cevap ≤2sn" hedefini tek başına aşıyor.
-# GPU'ya taşındı — ama tek kartta ikisi birden sığmadı: bge-m3 tek başına
-# ~3.5GB VRAM alıyor (mimari.md §5'in tahmin ettiği ~2GB'dan fazla), her
-# kartta qwen2.5:14b sonrası yalnızca ~4GB boş kalıyor. Bu yüzden ikiye
-# bölündü: embedding GPU 1'de, reranker GPU 0'da.
-EMBED_DEVICE = "cuda:1"
+# GPU'ya taşındı. 2026-08-12'ye kadar tek kartta ikisi birden sığmıyordu
+# çünkü qwen2.5:14b (Ollama) o zaman her iki karta da otomatik yayılıyordu;
+# embedding/reranker bu yüzden ayrı kartlara bölünmüştü. 2026-08-12'de
+# Ollama'nın systemd servisi kendi kartına (CUDA_VISIBLE_DEVICES) sabitlendi
+# — artık bu servisin gördüğü tek kart tamamen boş, ikisi de aynı kartta
+# rahatça sığıyor. CUDA_DEVICE_ORDER=PCI_BUS_ID olmadan CUDA'nın kendi kart
+# numaralandırması nvidia-smi'ninkiyle TERS olabiliyor (bununla debug edildi,
+# bkz. farabi-api.service) — bu yüzden hem burada hem ollama.service'te
+# CUDA_DEVICE_ORDER açıkça PCI_BUS_ID'ye sabitlendi, "cuda:0" ne demek
+# belirsiz kalmasın.
+EMBED_DEVICE = "cuda:0"
 RERANK_DEVICE = "cuda:0"
 
 durum: dict = {"hazir": False, "motor": None}

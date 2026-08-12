@@ -97,12 +97,25 @@ GPU'lu çalışıyor. Client'a hiç bağlı değil.
 > geriye dönük olarak yasaklanmadılar, kararlar burada kayıt altına alınıyor:
 > - **GPU yapılandırması** artık karara bağlandı: makinede 2x NVIDIA RTX 3060
 >   var, `nvidia-driver-595-open` kuruldu (`nvidia-smi` ile doğrulandı, iki kart
->   da görünüyor). "Kaç kart aktif" sorusu bu noktada AÇIK — yalnızca sürücü
->   kuruldu, GPU'ları hangi servisin/kaç tanesinin kullanacağı ayrı bir karar.
+>   da görünüyor). "Kaç kart aktif" sorusu **2026-08-12'de kapatıldı**: her
+>   servis kendi kartına `CUDA_VISIBLE_DEVICES` ile sabitlendi —
+>   `ollama.service` bir kartı (context 32768→8192'ye düşürüldü, tek 12GB
+>   karta sığması için), `farabi-api.service` diğer kartı (embedding+reranker
+>   birlikte) tek başına kullanıyor. `CUDA_DEVICE_ORDER=PCI_BUS_ID` her ikisine
+>   de eklendi — bu olmadan CUDA'nın kendi kart numaralandırması
+>   `nvidia-smi`'ninkiyle TERS çıkabiliyor (canlıda böyle bir çakışma
+>   yaşandı: iki servis aynı fiziksel karta düştü, modelin bir kısmı CPU'ya
+>   taştı — `CUDA_DEVICE_ORDER` eklenince düzeldi). Doğrulama: `ollama ps` →
+>   `100% GPU`, `nvidia-smi` → iki kart ayrı, `POST /api/egitim/question` uçtan
+>   uca test edildi.
 > - **Ollama** kullanıcının açık isteğiyle kuruldu — amaç Faz 1'deki Brain'i
 >   önceden kurmak DEĞİL, `benchmark/soru_taslak.py` gibi çevrimdışı içerik
 >   araçlarının bulut sağlayıcı kotalarına (deepseek/mistral/nvidia kesintileri,
->   bkz. `core/saglayicilar.py`) bağımlılığını azaltmak.
+>   bkz. `core/saglayicilar.py`) bağımlılığını azaltmak. **2026-08-12'de
+>   kapsamı genişledi:** artık yalnızca Farabi'ye özel değil — `OLLAMA_HOST`
+>   ile okul LAN'ına açıldı (`0.0.0.0:11434`, okulun kendi güvenlik duvarı
+>   dış sınırı koruyor), başka projelerin de kullanabileceği kalıcı, paylaşılan
+>   bir yerel LLM servisi olarak düşünülüyor.
 >
 > **İkinci sapma (2026-08-10/11):** Yukarıdaki maddenin "server iskeleti yok"
 > kısmı artık geçerli değil — kullanıcının açık kararıyla `server/` iskeleti

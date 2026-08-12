@@ -123,24 +123,50 @@ Bu makinede aiserver'ın diğer işleri (anime-reels, APK analizi, tesla monitor
 > (`OLLAMA_KEEP_ALIVE=-1`, model sürekli bellekte). Aşağıdaki "önce CPU'da
 > deneyin" önerisi **ölçüldü ve yanlış çıktı** — bkz. not.
 
-### Servis yerleşimi — ÖLÇÜLDÜ (2026-08-11), önceki hipotezin yerine
+> **Güncellendi (2026-08-12):** yukarıdaki "2 karta bölüşük" yerleşim
+> **terk edildi** — okul sunucu odasına taşınma ve Ollama'nın başka
+> projelerce de kullanılacak kalıcı bir LAN servisine dönüşmesi kararıyla
+> birlikte, her servis kendi kartına sabitlendi (bkz. güncel tablo altında).
+
+### Servis yerleşimi — GÜNCELLENDİ (2026-08-12), kart-başına sabitleme
 
 > Bu makinede, bu modellerle ölçülen gerçek yerleşim. Başka donanımda yeniden
 > ölçülmeden kopyalanmamalı (Kural 10).
 
 | Servis | Yerleşim | Ölçülen VRAM |
 |---|---|---|
-| LLM (Ollama, qwen2.5:14b) | 2 kart bölüşük | ~16 GB toplam |
-| Embedding (bge-m3) | GPU 1 | ~3.5 GB |
-| Reranker (bge-reranker-v2-m3) | GPU 0 | ~1–2 GB |
+| LLM (Ollama, qwen2.5:14b, context 8192) | GPU 1 (`ollama.service`, `CUDA_VISIBLE_DEVICES=1`) | ~10 GB, %100 GPU |
+| Embedding (bge-m3) + Reranker (bge-reranker-v2-m3) | GPU 0 (`farabi-api.service`, `CUDA_VISIBLE_DEVICES=0`) | ~4.5 GB birlikte |
 | PostgreSQL + pgvector | CPU/RAM | — |
+
+**Neden değişti:** Ollama önceden `qwen2.5:14b`'yi (context 32768'de ~15 GB)
+otomatik olarak iki karta da bölüyordu, embedding/reranker de bu yüzden ayrı
+kartlara dağıtılmıştı (aynı kartta ikisi birden + Ollama'nın payı sığmıyordu).
+Ollama artık kendi kartına münhasır — context 8192'ye düşürülünce (RAG'ın
+gerçek ihtiyacı ~2-3K token, geniş pay bırakıyor) tek 12 GB karta tam oturuyor
+(`ollama ps` → `100% GPU`, CPU'ya taşma yok). Diğer kart artık tamamen boş
+kaldığı için embedding+reranker ayırmaya gerek kalmadı, ikisi birlikte aynı
+kartta rahatça sığıyor.
+
+**Kritik ayrıntı — `CUDA_DEVICE_ORDER=PCI_BUS_ID` şart:** bu olmadan CUDA'nın
+kendi kart numaralandırması `nvidia-smi`'ninkiyle TERS çıkabiliyor (bu
+makinede tam olarak oldu — `CUDA_VISIBLE_DEVICES=1` ilk denemede Ollama'yı
+embedding'in olduğu kartla ÇAKIŞTIRDI, modelin bir kısmı CPU'ya taştı).
+Hem `ollama.service` hem `farabi-api.service` artık bu değişkeni açıkça
+taşıyor — biri olmadan diğerini eklemek aynı çakışmayı geri getirir.
 
 **"Embedding ve reranker'ı önce CPU'da deneyin" önerisi ölçüldü ve terk edildi.**
 CPU'da reranker tek başına 20 adayı sıralamak için 4–10 sn harcıyordu — bu tek
-adım, "ilk cevap ≤2 sn" hedefini tek başına aşıyordu. GPU'ya taşınınca (embedding
-ve reranker ayrı kartlara, aynı karta ikisi birden sığmadı — bge-m3 tek başına
-~3.5 GB VRAM alıyor, tahmin edilenden fazla) toplam gecikme ~11 sn'den ~1–5 sn'ye
-düştü.
+adım, "ilk cevap ≤2 sn" hedefini tek başına aşıyordu. GPU'ya taşınınca toplam
+gecikme ~11 sn'den ~1–5 sn'ye düştü.
+
+**Ollama artık Farabi'ye özel değil.** `OLLAMA_HOST=0.0.0.0:11434` ile okul
+LAN'ına açıldı — okulun kendi güvenlik duvarı dış sınırı koruyor (bu makinede
+`ufw` zaten kapalı/hiç kullanılmıyor). Kalıcı, paylaşılan bir yerel LLM
+servisi olarak düşünülüyor; başka projeler `http://<bu-makine-lan-ip>:11434`
+üzerinden çağırabilir. `OLLAMA_KEEP_ALIVE=-1` zaten modeli sürekli bellekte
+tutuyor, context sınırı (8192) servis genelinde geçerli — bu port üzerinden
+gelen her istemci bu sınıra tabi.
 
 **Ses (STT/TTS) yerel olarak kurulmuyor — karar (2026-08-11), bkz. §3 ve §14.**
 Gemini Live kalıcı olarak ses tarafını üstleniyor; Brain yalnızca metin
@@ -376,12 +402,15 @@ pahalı bir GPU çağrısı hiç yapılmadan 422 ile reddediyor — doğrulanmı
 setinin (`benchmark/sorular.json`) en uzun sorusu 336 karakter, 500 rahat bir
 pay; (2) `rag.py`'de embedding/arama ve rerank adımları da LLM adımıyla aynı
 desene alındı (try/except + `hata` durumu + `metrik` loglaması) — bundan
-sonra bu aşamada ne çıkarsa çıksın sunucu ayakta kalıyor. Kabul edilen kalan
-risk: GPU 0 durağan halde ~11.2/11.63 GiB dolu (Ollama 7.63 + server 3.59),
-reranker'a yalnızca ~400 MiB pay kalıyor — eşzamanlı sınıf yükünde NORMAL
-uzunlukta bir soru bile OOM'a düşebilir, ama artık `hata` durumuna düzgün
-düşüyor, çıplak 500'e değil. GPU paylaşımını yeniden tasarlamak bu turda
-yapılmadı (ölçmeden optimizasyon yapma, Kural 10).
+sonra bu aşamada ne çıkarsa çıksın sunucu ayakta kalıyor.
+
+> **Kabul edilen risk 2026-08-12'de kapandı.** O tarihte GPU 0, Ollama ile
+> paylaşılıyordu (~11.2/11.63 GiB dolu, reranker'a yalnızca ~400 MiB pay
+> kalıyordu — eşzamanlı yükte NORMAL uzunlukta bir soru bile OOM'a
+> düşebilirdi). §5'teki kart-başına sabitleme sonrası embedding+reranker'ın
+> kartı artık Ollama'dan tamamen bağımsız, ~7.8 GB boş pay var. `max_length`
+> ve try/except savunmaları KALDIRILMADI (savunma katmanları, tek bir kök
+> nedene bağlı değil) ama asıl darboğaz ortadan kalktı.
 
 **Bağlam çözümü — çözüldü (2026-08-11):** `sinif_kitap` tablosu henüz boş
 (gerçek okul verisi yok) olduğu için `tahta_id → ders_programi → sinif_kitap`
