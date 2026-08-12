@@ -38,6 +38,7 @@ client/icerik/plan.json
 
 # Ders kayıtları — KVKK, öğrenci/öğretmen konuşma metni içerir
 client/logs/
+server/yedekler/
 
 # benchmark/ çalışma ortamı içi büyük/üretilen dosyalar
 benchmark/metin/*.json

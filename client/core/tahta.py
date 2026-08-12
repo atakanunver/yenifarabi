@@ -1,5 +1,6 @@
 """
-core/tahta.py — Tahtanın kimliği: hangi derslikte olduğu.
+core/tahta.py — Tahtanın kimliği: hangi derslikte olduğu, hangi sunucuya
+bağlı olduğu.
 
 Her akıllı tahta belirli bir sınıfta durur (10-A, 11-B, 12-C…). Bu bilgi üç
 yerde kullanılır:
@@ -10,6 +11,14 @@ yerde kullanılır:
      olarak varsayar; öğretmenin her seferinde "10. sınıf" demesi gerekmez.
 
 `config/api_keys.json` içindeki `derslik` alanından okunur, elle yazılır.
+
+`sunucu_url()` de aynı dosyadan okunur (`sunucu_url` alanı, boşsa
+`http://127.0.0.1:8000`'e düşer) — tek makinede geliştirirken localhost
+yeterliydi, ama server okul sunucu odasına taşınınca (2026-08-12 kararı)
+her tahtanın hangi sunucuya bağlanacağını bilmesi gerekiyor. Bu modülün
+"tahta kimliği" kapsamına giriyor: derslik "bu tahta neresi" sorusuna
+cevapken, sunucu_url "bu tahta kime bağlı" sorusuna cevap veriyor — ikisi de
+aynı config dosyasında, board-özel ayar.
 """
 
 import json
@@ -55,3 +64,15 @@ def etiket() -> str:
     """Arayüzde gösterilecek etiket. Tanımsızsa uyarı metni döner."""
     d = derslik()
     return d if d else "DERSLİK TANIMSIZ"
+
+
+def sunucu_url() -> str:
+    """Bu tahtanın bağlanacağı Farabi Brain sunucusunun adresi (şema+host+port,
+    sonunda / yok). Config'te `sunucu_url` boş/yoksa localhost'a düşer —
+    tek makinelik geliştirme/test kurulumunda hâlâ çalışsın diye."""
+    try:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            ham = str(json.load(f).get("sunucu_url", "")).strip()
+    except Exception:
+        ham = ""
+    return ham.rstrip("/") or "http://127.0.0.1:8000"

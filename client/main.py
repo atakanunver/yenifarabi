@@ -26,6 +26,7 @@ from actions.ders_icerigi     import ders_icerigi
 from actions.kitap_sorusu     import kitap_sorusu
 from actions.pdf_sayfa         import pdf_sayfa
 from actions.yks_sorulari      import yks_sorulari
+from actions.ders_hafizasi     import ders_hafizasi
 from actions.file_processor    import file_processor
 from actions.site_goster      import site_goster
 from actions.youtube_video     import youtube_video
@@ -705,6 +706,12 @@ class FarabiLive:
                 )
                 result = r or "Çıkmış soru bulunamadı."
 
+            elif name == "ders_hafizasi":
+                r = await self._isci(
+                    name, lambda: ders_hafizasi(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Geçmiş ders kaydı bulunamadı."
+
             elif name == "site_goster":
                 r = await self._isci(
                     name, lambda: site_goster(parameters=args, player=self.ui, speak=self.speak)
@@ -1300,7 +1307,7 @@ class FarabiLive:
         log.info("Farabi başlıyor | model=%s", LIVE_MODEL)
         log.info("Kök dizin: %s", BASE_DIR)
         log.info("Log dosyası: %s", log_path())
-        log.info("Ders kaydı : %s", transcript.today_file())
+        log.info("Ders kaydı : %s", transcript.session_file())
         try:
             log.info("Sistem promptu: %s (%d karakter)",
                      PROMPT_PATH.name, len(_load_system_prompt()))
@@ -1415,6 +1422,32 @@ class FarabiLive:
                 await self._temiz_kapan("boşta kalma")
                 return
 
+    @staticmethod
+    def _ders_kaydini_yedekle() -> None:
+        """Kapanan oturumun ders kaydı dosyasını sunucuya tek seferlik
+        yedekler (server/main.py `POST /api/egitim/ders_kaydi_yedek`).
+        SENKRON/BLOKLAYICI — çağıran bunu bir iş parçacığında çalıştırmalı.
+        Sessizce başarısız olur: bir yedekleme hatası dersi/kapanışı ASLA
+        kesintiye uğratmamalı (kitap_sorusu.py'nin sessiz geri-düşüş
+        disipliniyle aynı ruhta)."""
+        import requests
+
+        from core import tahta
+
+        try:
+            yol = transcript.session_file()
+            if not yol.exists():
+                return
+            icerik = yol.read_text(encoding="utf-8")
+            requests.post(
+                f"{tahta.sunucu_url()}/api/egitim/ders_kaydi_yedek",
+                json={"derslik": tahta.derslik() or "bilinmeyen-derslik",
+                      "dosya_adi": yol.name, "icerik": icerik},
+                timeout=5.0,
+            )
+        except Exception as e:
+            log.info("Ders kaydı yedeklenemedi (sessiz devam): %s", e)
+
     async def _temiz_kapan(self, sebep: str) -> None:
         """
         Ders kaydını kapatıp çık. `os._exit` KULLANMA — o, transkriptin
@@ -1426,6 +1459,13 @@ class FarabiLive:
             transcript.log_session_end()
         except Exception as e:
             log.error("Ders kaydı kapatılamadı: %s", e)
+        try:
+            await asyncio.wait_for(
+                asyncio.get_event_loop().run_in_executor(None, self._ders_kaydini_yedekle),
+                timeout=6.0,
+            )
+        except Exception as e:
+            log.info("Ders kaydı yedekleme adımı atlandı: %s", e)
         log.info("Kapanıyor: %s", sebep)
         self._kapaniyor = True
         self._oturum_izni.clear()

@@ -45,7 +45,7 @@ def test_yazili_talimat_kalici_kayda_duser():
     f = _farabi_live()
     f._on_teacher_command("yazili", "[ÖĞRETMEN KOMUTU] konu: Türev · kazanım: Anlık değişim hızı")
 
-    metin = transcript.today_file().read_text(encoding="utf-8")
+    metin = transcript.session_file().read_text(encoding="utf-8")
     assert "ÖĞRETMEN  konu: Türev · kazanım: Anlık değişim hızı" in metin
     # Etiket öğretmen zaten belirttiği için önek satırda TEKRAR etmemeli.
     assert "[ÖĞRETMEN KOMUTU]" not in metin.splitlines()[-1]
@@ -56,6 +56,6 @@ def test_durdur_devam_da_kayda_duser():
     f._on_teacher_command("durdur", "[ÖĞRETMEN KOMUTU] Dersi burada duraklat.")
     f._on_teacher_command("devam", "[ÖĞRETMEN KOMUTU] Derse devam et.")
 
-    metin = transcript.today_file().read_text(encoding="utf-8")
+    metin = transcript.session_file().read_text(encoding="utf-8")
     assert "ÖĞRETMEN  Dersi burada duraklat." in metin
     assert "ÖĞRETMEN  Derse devam et." in metin

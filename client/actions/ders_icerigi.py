@@ -516,6 +516,18 @@ def ders_icerigi(parameters: dict | None = None, player=None,
     konu  = (p.get("konu")  or "").strip()
     tema  = (p.get("tema")  or "").strip()
 
+    # Ders çerçevesi (ders/konu) burada resolve ediliyor — YAZILI panelden mi
+    # yoksa SESLİ "Farabi, ..." hitabından mı geldiği fark etmez, ikisi de bu
+    # noktaya ders_icerigi çağrısı olarak düşer (main.py'nin kendi regex'i
+    # yalnızca yazılı paneli görür). ders_hafizasi.py bu satırı arayarak
+    # hangi ders kaydının hangi konuyla ilgili olduğunu çözer.
+    if ders or konu:
+        try:
+            from core import transcript
+            transcript.log_frame(ders or "", tema or konu)
+        except Exception:
+            pass
+
     # Katalog kipi: "hangi kitaplar var", "bölümleri söyle"
     if p.get("liste"):
         log("[Ders İçeriği] katalog listeleniyor")

@@ -173,6 +173,36 @@ ARACLAR: list[Arac] = [
         cikti="metin",
     ),
     Arac(
+        ad="ders_hafizasi",
+        aciklama=(
+            "Recalls what was covered in a PAST lesson on this board — 'geçen ders "
+            "ne işlemiştik', 'nereye kadar gelmiştik' style questions. Reads Farabi's "
+            "OWN local lesson records (logs/ders/*.txt on this board), NOT the "
+            "textbook and NOT the server RAG — do not confuse with ders_icerigi "
+            "(textbook topic walkthrough) or kitap_sorusu (sourced Q&A against the "
+            "book). Call with 'konu' (+ optionally 'ders') to find a specific past "
+            "topic; call with NEITHER to recall the most recent past lesson in "
+            "general. Never recalls the CURRENT lesson (excluded automatically). "
+            "Returns the raw past transcript for you to paraphrase into a short, "
+            "conversational 2-3 sentence reminder — do NOT read it verbatim to the "
+            "class. Not a presented question, answer immediately, no waiting/silence "
+            "protocol. If there's no matching (or no) past lesson yet, say so "
+            "plainly — do NOT invent what a past lesson covered."
+        ),
+        parametreler={
+            "type": "OBJECT",
+            "properties": {
+                "konu": {"type": "STRING", "description": "Topic to recall, e.g. 'hücre zarı'. Omit for 'what was our last lesson' in general."},
+                "ders": {"type": "STRING", "description": "Subject, improves matching, e.g. 'biyoloji'. Optional."},
+            },
+            "required": [],
+        },
+        izin="gecmis.oku",
+        maliyet="dusuk",
+        zaman_asimi=10.0,
+        cikti="metin",
+    ),
+    Arac(
         ad="site_goster",
         aciklama=(
             "Shows content from an approved reference website on the board. "

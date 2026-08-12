@@ -25,8 +25,8 @@ edilir (mimari.md §2: "Farabi asla dersi bozmaz") — main.py'nin genel
 import requests
 
 from actions.ders_icerigi import _ders_eslesir
+from core.tahta import sunucu_url as _sunucu_url
 
-SUNUCU_URL       = "http://127.0.0.1:8000"
 ZAMAN_ASIMI_GET  = 5.0            # kitap listesi küçük, hızlı
 ZAMAN_ASIMI_POST = 10.0           # ölçüm: soru başına 1-5sn, en kötü 5,3sn görüldü — pay bırakıldı
 
@@ -48,7 +48,7 @@ def _kitap_listesi() -> list[dict] | None:
     if _KITAP_ONBELLEK is not None:
         return _KITAP_ONBELLEK
     try:
-        r = requests.get(f"{SUNUCU_URL}/api/egitim/kitaplar", timeout=ZAMAN_ASIMI_GET)
+        r = requests.get(f"{_sunucu_url()}/api/egitim/kitaplar", timeout=ZAMAN_ASIMI_GET)
         r.raise_for_status()
         _KITAP_ONBELLEK = r.json()
         return _KITAP_ONBELLEK
@@ -105,7 +105,7 @@ def kitap_sorusu(parameters: dict | None = None, player=None, speak=None, **_) -
 
     try:
         r = requests.post(
-            f"{SUNUCU_URL}/api/egitim/question",
+            f"{_sunucu_url()}/api/egitim/question",
             json={"kitap_id": kitap_id, "soru": soru},
             timeout=ZAMAN_ASIMI_POST,
         )

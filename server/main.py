@@ -1,17 +1,20 @@
 """server/main.py — Faz 1 API iskeleti (docs/mimari.md §9, §15 [1]).
 
-/health, /ready, /api/egitim/question, /api/egitim/kitaplar var. mimari.md
-§9'da listelenen geri kalanı (lesson/start, teacher/command, WS
-/ws/classroom/{id}) henüz yok. Ses YOK ve gelmeyecek — Gemini Live kalıcı
-karar (mimari.md §14), bu server yalnızca metin tabanlı RAG cevabı üretir.
+/health, /ready, /api/egitim/question, /api/egitim/kitaplar,
+/api/egitim/ders_kaydi_yedek var. mimari.md §9'da listelenen geri kalanı
+(lesson/start, teacher/command, WS /ws/classroom/{id}) henüz yok. Ses YOK ve
+gelmeyecek — Gemini Live kalıcı karar (mimari.md §14), bu server yalnızca
+metin tabanlı RAG cevabı üretir.
 
 Çalıştırma:
     venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
 (server/ dizininden, flat import'lar bu yüzden paket değil doğrudan modül.)
 """
 
+import re
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -90,6 +93,22 @@ class KitapBilgisi(BaseModel):
     ders: str
 
 
+class DersKaydiYedek(BaseModel):
+    derslik: str = Field(..., max_length=50)
+    dosya_adi: str = Field(..., max_length=200)
+    # Bir ders kaydı metni birkaç yüz KB'ı geçmez; 2MB geniş bir tavan.
+    icerik: str = Field(..., max_length=2_000_000)
+
+
+YEDEK_DIR = Path(__file__).resolve().parent / "yedekler" / "ders_kaydi"
+# Ağdan gelen derslik/dosya_adi doğrudan dosya yoluna giriyor — path
+# traversal'a karşı sıkı doğrulama şart. "/" bu kümede YOK (çok segmentli
+# traversal engellenir); tek başına ".." gibi bir değer regex'i geçebilir,
+# bu yüzden aşağıda ayrıca is_relative_to ile kapsam dışına çıkmadığı
+# doğrulanıyor (regex TEK BAŞINA yeterli değil).
+_GUVENLI_AD = re.compile(r"^[A-Za-z0-9ÇĞİÖŞÜçğıöşü_.-]+$")
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -149,3 +168,34 @@ def kitaplar_listesi():
         KitapBilgisi(id=r[0], dosya_adi=r[1].rsplit("/", 1)[-1], sinif=r[2], ders=r[3])
         for r in rows
     ]
+
+
+@app.post("/api/egitim/ders_kaydi_yedek")
+def ders_kaydi_yedek(istek: DersKaydiYedek):
+    """Client, oturum kapanışında (`_temiz_kapan`) kendi ders kaydı dosyasının
+    içeriğini buraya tek seferlik yedekler (client/core/transcript.py,
+    `logs/ders/*.txt`) — tahtanın diski kaybolsa bile ders kaydı elde kalsın
+    diye. Yalnızca yedek: hiçbir şey bunu geri OKUMUYOR (client kendi
+    hafızası için kendi yerel dosyalarını kullanıyor, bkz.
+    actions/ders_hafizasi.py). DB'ye gömülmez, düz dosya olarak saklanır —
+    "dosya içeriği DB'ye gömülmez" ilkesiyle aynı ruhta."""
+    if not _GUVENLI_AD.match(istek.derslik) or not _GUVENLI_AD.match(istek.dosya_adi):
+        raise HTTPException(status_code=400, detail="Geçersiz derslik/dosya_adi")
+    if not istek.dosya_adi.endswith(".txt"):
+        raise HTTPException(status_code=400, detail="dosya_adi .txt ile bitmeli")
+
+    # KRİTİK: containment SABİT YEDEK_DIR'e göre kontrol edilmeli — derslik'in
+    # kendisi zaten YEDEK_DIR dışına taşımış olabilir (ör. derslik=".."),
+    # hedef_dizin'e göre kontrol etmek bu durumda traversal'ı KAÇIRIR (bulundu
+    # ve düzeltildi: canlı test ".." ile YEDEK_DIR'in bir üstüne dosya yazdı).
+    yedek_dir_r = YEDEK_DIR.resolve()
+    hedef_dizin = (YEDEK_DIR / istek.derslik).resolve()
+    if not hedef_dizin.is_relative_to(yedek_dir_r):
+        raise HTTPException(status_code=400, detail="Geçersiz derslik")
+    hedef_dizin.mkdir(parents=True, exist_ok=True)
+    hedef_yol = (hedef_dizin / istek.dosya_adi).resolve()
+    if not hedef_yol.is_relative_to(yedek_dir_r):
+        raise HTTPException(status_code=400, detail="Geçersiz dosya yolu")
+
+    hedef_yol.write_text(istek.icerik, encoding="utf-8")
+    return {"status": "ok"}

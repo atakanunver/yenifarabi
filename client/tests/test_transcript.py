@@ -15,7 +15,7 @@ from core import transcript  # noqa: E402
 
 def test_ogretmen_etiketi_ayri_ve_dogru():
     transcript.log_line("ogretmen", "Cevabı göster.")
-    metin = transcript.today_file().read_text(encoding="utf-8")
+    metin = transcript.session_file().read_text(encoding="utf-8")
     assert "ÖĞRETMEN  Cevabı göster." in metin
 
 
@@ -24,7 +24,7 @@ def test_dort_etiket_de_dogru_yazilir():
     transcript.log_line("farabi", "test-farabi-satırı")
     transcript.log_line("ogretmen", "test-öğretmen-satırı")
     transcript.log_line("sistem", "test-sistem-satırı")
-    metin = transcript.today_file().read_text(encoding="utf-8")
+    metin = transcript.session_file().read_text(encoding="utf-8")
     assert "ÖĞRENCİ  test-öğrenci-satırı" in metin
     assert "FARABİ   test-farabi-satırı" in metin
     assert "ÖĞRETMEN  test-öğretmen-satırı" in metin
@@ -32,9 +32,9 @@ def test_dort_etiket_de_dogru_yazilir():
 
 
 def test_bos_metin_yazilmaz():
-    onceki = transcript.today_file().read_text(encoding="utf-8") if transcript.today_file().exists() else ""
+    onceki = transcript.session_file().read_text(encoding="utf-8") if transcript.session_file().exists() else ""
     transcript.log_line("ogretmen", "   ")
-    sonraki = transcript.today_file().read_text(encoding="utf-8") if transcript.today_file().exists() else ""
+    sonraki = transcript.session_file().read_text(encoding="utf-8") if transcript.session_file().exists() else ""
     assert onceki == sonraki
 
 
