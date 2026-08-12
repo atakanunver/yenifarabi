@@ -107,6 +107,33 @@ ARACLAR: list[Arac] = [
         cikti="metin",
     ),
     Arac(
+        ad="pdf_sayfa",
+        aciklama=(
+            "Shows one SPECIFIC page number from the current textbook on "
+            "screen, as an IMAGE — the original PDF layout is preserved "
+            "(diagrams, tables, formulas stay intact, nothing is reflowed "
+            "into text). Call when the teacher or a student asks to see a "
+            "specific page, e.g. '9. sayfayı göster/yansıt', 'kitabın 15. "
+            "sayfasını aç'. No topic/theme matching happens here — this is "
+            "purely a page-number lookup. Do NOT use this for topic "
+            "narration (that's ders_icerigi) or answering a question "
+            "(that's kitap_sorusu)."
+        ),
+        parametreler={
+            "type": "OBJECT",
+            "properties": {
+                "sayfa": {"type": "INTEGER", "description": "The PDF page number to show (1-indexed)."},
+                "ders":  {"type": "STRING",  "description": "Subject from the timetable, e.g. 'biyoloji'. REQUIRED — without it the tool refuses to guess a book."},
+                "sinif": {"type": "STRING",  "description": "Grade, e.g. '9' or '10'."},
+            },
+            "required": ["sayfa", "ders"],
+        },
+        izin="mufredat.oku",
+        maliyet="dusuk",
+        zaman_asimi=10.0,          # yerel PDF render — ölçüm: önbelleksiz ilk çağrı 131,7 ms (biyoloji-9 s.9)
+        cikti="gorsel",
+    ),
+    Arac(
         ad="yks_sorulari",
         aciklama=(
             "Fetches past YKS (TYT/AYT) exam questions on the current topic from "

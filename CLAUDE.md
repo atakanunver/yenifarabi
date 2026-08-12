@@ -49,6 +49,9 @@ Detaylar `client/CLAUDE.md`'de (82K, koddan doğrulanmış); özet:
   `kitap_sorusu.py` (2026-08-11 eklendi) — kaynaklı, somut soru-cevabı
   `server/`'ın RAG motoruna yönlendirir; `ders_icerigi` (konu anlatımı için
   ham sayfa getirir) ile karıştırılmamalı, ikisi farklı iş yapar.
+  `pdf_sayfa.py` (2026-08-12 eklendi) — tek bir sayfa numarasını PyMuPDF ile
+  görüntüye render edip zoom+kaydırma ile ekranda gösterir, konu eşleştirmesi
+  yapmaz.
   Kamera/ekran yakalama (`screen_processor.py`) 2026-08-09'da tamamen
   kaldırıldı — kullanılmıyor, `Gizlilik` kuralına aykırıydı.
 - `tools/` — çevrimdışı içerik hazırlama (kitap/YKS PDF → JSON), `dogrula.py`

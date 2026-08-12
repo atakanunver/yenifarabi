@@ -37,6 +37,12 @@ torch bağımlılığı kaldırıldı).
 Hazırlık (çalışma anında değil, bir kez):
     python tools/kitap_index.py kitaplar/ --json icerik/kitaplar.json
     python tools/kitap_metin.py kitaplar/ --json icerik/metin
+
+NOT (2026-08-11/12): `KITAP_PATH`, `_json_oku`, `_ders_eslesir` artık bu
+dosyanın DIŞINDAN da import ediliyor (`actions/kitap_sorusu.py`,
+`actions/pdf_sayfa.py`) — alt çizgili olmalarına rağmen artık harici
+çağıranları var. Bu üçünü yeniden adlandırmak/imzasını değiştirmek o iki
+aracı da sessizce bozar.
 """
 
 import json

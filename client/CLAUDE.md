@@ -72,7 +72,7 @@ Farabi.gif               HUD animation (placeholder art; swap freely)
 dersgiriscikis.png       school bell-schedule photo — provenance for zil.json
 
 actions/                 one public function per module — the
-                         registry declares nine tools (`shutdown_farabi`
+                         registry declares ten tools (`shutdown_farabi`
                          runs inline, it has no module). No camera/screen
                          capture anywhere (`screen_processor.py` removed
                          2026-08-09 — unused, and violated the no-camera
@@ -80,11 +80,22 @@ actions/                 one public function per module — the
                          again)
   kayit.py               TOOL REGISTRY — the single source for declarations,
                          timeouts, permissions, cost class (see below)
-  ders_icerigi.py        textbook pages for the teacher's subject + topic
+  ders_icerigi.py        textbook pages for the teacher's subject + topic.
+                         `KITAP_PATH`/`_json_oku`/`_ders_eslesir` are now
+                         imported by kitap_sorusu.py AND pdf_sayfa.py too —
+                         renaming them breaks both, even though underscored
   kitap_sorusu.py        answers a concrete, source-checked question via the
                          server's RAG pipeline (`server/rag.py`), added
                          2026-08-11 — NOT a topic walkthrough, that's
                          ders_icerigi's job (see below)
+  pdf_sayfa.py            renders one specific PDF page number as an IMAGE
+                         (PyMuPDF/fitz — already a dependency, no new one
+                         added) with zoom +/- and pan in the content panel,
+                         added 2026-08-12. Foundation the planned YKS
+                         sequential-question display (zoomed page per
+                         question, advance only on command) is meant to
+                         reuse — see kayit.py's `pdf_sayfa` entry and
+                         ui.py's `show_image`/`_olcekle_goruntu`.
   yks_sorulari.py        past YKS exam questions on the topic, keyword-matched
                          against tools/yks_metin.py output — question only, no
                          solution; model must work the solution itself (see below)
@@ -727,6 +738,37 @@ not exposed over the API — "Brain karar verir" — it's in the server's
 never triggered by this tool. Timeouts: `GET` 5 s, `POST` 10 s (measured
 worst case 5.3 s, no headroom before 2026-08-11 — raised from 5 s), registry
 `zaman_asimi=16.0` to cover both.
+
+### `pdf_sayfa` — one page number, rendered as an image, no topic matching
+
+Added 2026-08-12. Renders a single PDF page with PyMuPDF (`fitz.open(...)
+.get_pixmap(matrix=fitz.Matrix(ZOOM, ZOOM))`, `ZOOM=2.0`) to a PNG cached at
+`icerik/onbellek/pdf_sayfa/<kitap>_s<sayfa>.png`, then calls
+`player.show_image(title, path)`. Call for "9. sayfayı göster/yansıt" —
+**no** theme/topic matching happens (unlike `ders_icerigi`), the page number
+is used as-is. Image, not text, deliberately: a page rendered to text loses
+diagrams/tables/formulas exactly the way `tools/kitap_metin.py` warns about
+for `ders_icerigi`.
+
+**Same `ders`-required discipline as `kitap_sorusu`** (`_kitap_bul` returns
+`None` if `ders` is falsy) — same reasoning: without it, the board's grade
+alone could match the wrong subject's book for that grade.
+
+**UI side (`ui.py`):** the content-panel overlay now has two mutually
+exclusive display modes — `_show_content` (text, `QTextEdit`) and
+`_show_image` (this tool, `QLabel` inside a `QScrollArea`). Zoom is
+`self._image_zoom: float | None` — `None` means "fit to panel width",
+recomputed on window resize; a number is a fixed multiplier set by the
+`−`/`⛶ SIĞDIR`/`+` buttons above the image and left alone on resize once the
+teacher has manually zoomed. `QScroller.grabGesture(...,
+LeftMouseButtonGesture)` is attempted for touch/drag panning on the board;
+wrapped in `try/except` since it's a nice-to-have, not load-bearing —
+scrollbars work regardless.
+
+**Reuse note for the planned YKS sequential-question display:** that
+feature (zoomed page per question, wait for an explicit command before
+advancing, never auto-advance) is meant to build on this tool's render path
+and `show_image`, not duplicate them — see `kayit.py`'s `pdf_sayfa` entry.
 
 ### `yks_sorulari` — past exam questions, no solutions attached
 

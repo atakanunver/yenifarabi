@@ -36,7 +36,7 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtWidgets import (
     QApplication, QFileDialog, QFrame, QGridLayout, QHBoxLayout,
-    QLabel, QLineEdit, QMainWindow, QPushButton, QSizePolicy,
+    QLabel, QLineEdit, QMainWindow, QPushButton, QScrollArea, QSizePolicy,
     QTextEdit, QVBoxLayout, QWidget,
 )
 
@@ -968,6 +968,7 @@ class MainWindow(QMainWindow):
     _log_sig     = pyqtSignal(str)
     _state_sig   = pyqtSignal(str)
     _content_sig = pyqtSignal(str, str)   # (title, text) — thread-safe content display
+    _image_content_sig = pyqtSignal(str, str)  # (title, image_path) — thread-safe image display
     _mute_sig    = pyqtSignal(bool)       # thread-safe mute toggle (asyncio loop thread → Qt thread)
     _gemini_oturum_sig = pyqtSignal(bool)  # True: Live oturumu açıldı, False: kapandı
     _live_baslat_sig = pyqtSignal(str)    # akan altyazı: yeni satır başlat (prefix, ör. "Farabi: ")
@@ -1081,6 +1082,7 @@ class MainWindow(QMainWindow):
         self._log_sig.connect(self._log.append_log)
         self._state_sig.connect(self._apply_state)
         self._content_sig.connect(self._show_content)
+        self._image_content_sig.connect(self._show_image)
         self._mute_sig.connect(self._set_muted)
         self._gemini_oturum_sig.connect(self._on_gemini_oturum_degisti)
         self._live_baslat_sig.connect(self._log.canli_satir_baslat)
@@ -1951,6 +1953,71 @@ class MainWindow(QMainWindow):
         """)
         lay.addWidget(self._content_display, stretch=1)
 
+        # ── image display (pdf_sayfa) ────────────────────────────────────────
+        # Aynı overlay'i metinle paylaşır — ikisi asla aynı anda görünmez,
+        # _show_content/_show_image birbirini kapatır. QLabel + setPixmap:
+        # QTextEdit'in aksine görüntüyü olduğu gibi (yeniden akış olmadan)
+        # gösterir — PDF sayfasındaki şekil/tablo bozulmasın diye. QScrollArea
+        # içine alınmış: yakınlaştırılan bir sayfa panelden taşınca kaydırma
+        # çubukları/dokunmatik kaydırmayla gezilebilsin (tahtada bir soruyu
+        # rahat göstermek için — 2026-08-12 istek).
+        zoom_row = QHBoxLayout(); zoom_row.setSpacing(6)
+        self._resim_uzaklastir_btn = QPushButton("−")
+        self._resim_sigdir_btn     = QPushButton("⛶ SIĞDIR")
+        self._resim_yakinlastir_btn = QPushButton("+")
+        for b, genislik in ((self._resim_uzaklastir_btn, 44),
+                            (self._resim_sigdir_btn, 104),
+                            (self._resim_yakinlastir_btn, 44)):
+            b.setFixedSize(genislik, 30)
+            b.setFont(QFont("Courier New", 12, QFont.Weight.Bold))
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.setStyleSheet(f"""
+                QPushButton {{
+                    background: {C.PANEL}; color: {C.TEXT};
+                    border: 1px solid {C.BORDER_B}; border-radius: 4px;
+                }}
+                QPushButton:hover {{ color: {C.PRI}; border-color: {C.PRI_DIM};
+                                     background: {C.PRI_GHO}; }}
+            """)
+            zoom_row.addWidget(b)
+        zoom_row.addStretch()
+        self._image_zoom_row = QWidget()
+        self._image_zoom_row.setLayout(zoom_row)
+        self._image_zoom_row.hide()
+        self._resim_uzaklastir_btn.clicked.connect(self._resim_uzaklastir)
+        self._resim_sigdir_btn.clicked.connect(self._resim_sigdir)
+        self._resim_yakinlastir_btn.clicked.connect(self._resim_yakinlastir)
+        lay.addWidget(self._image_zoom_row)
+
+        self._image_display = QLabel()
+        self._image_display.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._image_scroll = QScrollArea()
+        self._image_scroll.setWidgetResizable(False)
+        self._image_scroll.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._image_scroll.setWidget(self._image_display)
+        self._image_scroll.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self._image_scroll.setStyleSheet(f"""
+            QScrollArea {{ background: {C.PANEL2}; border: 1px solid {C.BORDER}; border-radius: 4px; }}
+            QScrollBar:vertical {{ background: {C.BG}; width: 10px; border: none; }}
+            QScrollBar::handle:vertical {{ background: {C.BORDER_B}; border-radius: 5px; min-height: 24px; }}
+            QScrollBar:horizontal {{ background: {C.BG}; height: 10px; border: none; }}
+            QScrollBar::handle:horizontal {{ background: {C.BORDER_B}; border-radius: 5px; min-width: 24px; }}
+        """)
+        self._image_scroll.hide()
+        try:
+            # Dokunmatik tahtada parmakla sürükleyerek kaydırma — yalnızca
+            # kaydırma çubuğunu tutmak yerine, görüntünün HERHANGİ bir
+            # yerinden sürüklenebilsin.
+            from PyQt6.QtWidgets import QScroller
+            QScroller.grabGesture(self._image_scroll.viewport(),
+                                  QScroller.ScrollerGestureType.LeftMouseButtonGesture)
+        except Exception:
+            pass  # dokunmatik kaydırma olmadan da kaydırma çubukları çalışır
+        self._image_pixmap_ham: QPixmap | None = None
+        self._image_zoom: float | None = None   # None = genişliğe sığdır (varsayılan)
+        lay.addWidget(self._image_scroll, stretch=1)
+
         hint = QLabel("[ESC]  ya da  ✕ KAPAT  ile ekranı kapat")
         hint.setFont(QFont("Courier New", 8))
         hint.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent;")
@@ -1969,11 +2036,19 @@ class MainWindow(QMainWindow):
         super().resizeEvent(e)
         if self._content_panel.isVisible():
             self._position_content_panel()
+            if self._image_scroll.isVisible() and self._image_zoom is None:
+                # Yalnızca hâlâ "sığdır" modundaysa yeniden hesapla — kullanıcı
+                # elle yakınlaştırdıysa (zoom artık None değil) pencere yeniden
+                # boyutlanınca seçtiği zoom seviyesi ELİNDEN ALINMAMALI.
+                self._olcekle_goruntu()
 
     def _show_content(self, title: str, text: str):
         """Slot — runs on Qt main thread. Updates and shows the content panel
         as a full-screen overlay, above the HUD/log panel/sidebars."""
         import time as _time
+        self._image_zoom_row.hide()
+        self._image_scroll.hide()
+        self._content_display.show()
         self._content_title_lbl.setText(title.upper()[:32])
         self._content_ts_lbl.setText(_time.strftime("%H:%M:%S"))
         self._content_display.setPlainText(text)
@@ -1984,6 +2059,75 @@ class MainWindow(QMainWindow):
         self._position_content_panel()
         self._content_panel.raise_()
         self._content_panel.show()
+
+    def _olcekle_goruntu(self):
+        """Ham pixmap'i `self._image_zoom` oranında yeniden çizer.
+
+        `_image_zoom is None` → "sığdır" modu: panel GENİŞLİĞİNE göre oran
+        hesaplanır (yükseklik kaydırmayla gezilir — sayfalar genelde
+        portre). Bir sayı verildiğinde (+/- düğmeleri) o oranda sabit kalır;
+        görüntü panelden taşarsa QScrollArea kaydırma çubuklarını/dokunmatik
+        kaydırmayı kendiliğinden gösterir.
+        """
+        if self._image_pixmap_ham is None:
+            return
+        viewport_genislik = self._image_scroll.viewport().width()
+        if viewport_genislik <= 1:
+            return
+        if self._image_zoom is None:
+            oran = viewport_genislik / self._image_pixmap_ham.width()
+        else:
+            oran = self._image_zoom
+        hedef_genislik = max(50, int(self._image_pixmap_ham.width() * oran))
+        olcekli = self._image_pixmap_ham.scaledToWidth(
+            hedef_genislik, Qt.TransformationMode.SmoothTransformation)
+        self._image_display.setPixmap(olcekli)
+        self._image_display.resize(olcekli.size())
+
+    def _resim_yakinlastir(self):
+        taban = self._image_zoom
+        if taban is None and self._image_pixmap_ham is not None:
+            # "sığdır" modundan çıkarken o anki fiili oranı taban al —
+            # aksi hâlde ilk tıkta genişliğe-sığdırdan değil 1.0'dan
+            # başlayıp beklenmedik bir sıçrama olurdu.
+            vp = self._image_scroll.viewport().width()
+            taban = vp / self._image_pixmap_ham.width() if vp > 1 else 1.0
+        self._image_zoom = min(4.0, (taban or 1.0) * 1.25)
+        self._olcekle_goruntu()
+
+    def _resim_uzaklastir(self):
+        taban = self._image_zoom or 1.0
+        self._image_zoom = max(0.25, taban / 1.25)
+        self._olcekle_goruntu()
+
+    def _resim_sigdir(self):
+        self._image_zoom = None
+        self._olcekle_goruntu()
+
+    def _show_image(self, title: str, image_path: str):
+        """Slot — runs on Qt main thread. `pdf_sayfa` aracının render ettiği
+        PNG'yi aynı tam-ekran overlay'de gösterir (metin panelinin yerine),
+        zoom +/- düğmeleri ve kaydırılabilir bir alan içinde."""
+        import time as _time
+        pixmap = QPixmap(image_path)
+        if pixmap.isNull():
+            self._log_sig.emit(f"ERR: PDF sayfa görüntüsü yüklenemedi — {image_path}")
+            return
+        self._image_pixmap_ham = pixmap
+        self._image_zoom = None  # her yeni sayfa "sığdır" ile başlar
+        self._content_display.hide()
+        self._image_zoom_row.show()
+        self._image_scroll.show()
+        self._content_title_lbl.setText(title.upper()[:32])
+        self._content_ts_lbl.setText(_time.strftime("%H:%M:%S"))
+        self._position_content_panel()
+        self._content_panel.raise_()
+        self._content_panel.show()
+        # setGeometry() sonrası viewport boyutu SENKRON bitmeyebilir — ilk
+        # gösterimde .width() eski/sıfır dönebilir. Olay döngüsüne bir tık
+        # bırakıp öyle ölçekle (diğer ertelenmiş UI güncellemeleriyle aynı
+        # desen, bkz. _kalibre_mikrofon).
+        QTimer.singleShot(0, self._olcekle_goruntu)
 
     def _build_footer(self) -> QWidget:
         w = QWidget()
@@ -2437,6 +2581,11 @@ class FarabiUI:
     def show_content(self, title: str, text: str):
         """Thread-safe: display content in the panel below the HUD."""
         self._win._content_sig.emit(title[:48], text[:4000])
+
+    def show_image(self, title: str, image_path: str):
+        """Thread-safe: display a rendered PDF page (pdf_sayfa) in the same
+        full-screen overlay `show_content` uses, as an image instead of text."""
+        self._win._image_content_sig.emit(title[:48], image_path)
 
     def start_speaking(self):
         self.set_state("SPEAKING")
