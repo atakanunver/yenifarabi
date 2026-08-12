@@ -84,6 +84,9 @@ actions/                 one public function per module — the
                          `KITAP_PATH`/`_json_oku`/`_ders_eslesir` are now
                          imported by kitap_sorusu.py AND pdf_sayfa.py too —
                          renaming them breaks both, even though underscored
+                         (pdf_sayfa.py's own `render_pdf_sayfa()` has the same
+                         fragility in reverse — it's deliberately public and
+                         imported by yks_sorulari.py)
   kitap_sorusu.py        answers a concrete, source-checked question via the
                          server's RAG pipeline (`server/rag.py`), added
                          2026-08-11 — NOT a topic walkthrough, that's
@@ -91,14 +94,22 @@ actions/                 one public function per module — the
   pdf_sayfa.py            renders one specific PDF page number as an IMAGE
                          (PyMuPDF/fitz — already a dependency, no new one
                          added) with zoom +/- and pan in the content panel,
-                         added 2026-08-12. Foundation the planned YKS
-                         sequential-question display (zoomed page per
-                         question, advance only on command) is meant to
-                         reuse — see kayit.py's `pdf_sayfa` entry and
-                         ui.py's `show_image`/`_olcekle_goruntu`.
+                         added 2026-08-12. Exposes `render_pdf_sayfa()` as a
+                         deliberately public/reusable render helper — imported
+                         by yks_sorulari.py too, so the fitz rendering logic
+                         lives in one place. See kayit.py's `pdf_sayfa` entry
+                         and ui.py's `show_image`/`_olcekle_goruntu`.
   yks_sorulari.py        past YKS exam questions on the topic, keyword-matched
-                         against tools/yks_metin.py output — question only, no
-                         solution; model must work the solution itself (see below)
+                         against tools/yks_metin.py output. Shows ONE question
+                         at a time as an actual PDF page IMAGE (via
+                         pdf_sayfa.render_pdf_sayfa — original layout, not
+                         reflowed text), module-level `_OTURUM` dict tracks
+                         which matched question is current for the process
+                         lifetime. Advancing to the next matched question
+                         needs an explicit `sonraki=true` call — never
+                         automatic, see core/prompt.txt's SESLİ HİTAP/SORU
+                         SUNUM PROTOKOLÜ. Question only, no solution; model
+                         must work the solution itself (see below)
   file_processor.py      documents and images only (narrowed, see below)
   youtube_video.py       lesson videos
   eba.py                 EBA (MEB portal) lesson videos + question PDFs, added
@@ -765,36 +776,51 @@ LeftMouseButtonGesture)` is attempted for touch/drag panning on the board;
 wrapped in `try/except` since it's a nice-to-have, not load-bearing —
 scrollbars work regardless.
 
-**Reuse note for the planned YKS sequential-question display:** that
-feature (zoomed page per question, wait for an explicit command before
-advancing, never auto-advance) is meant to build on this tool's render path
-and `show_image`, not duplicate them — see `kayit.py`'s `pdf_sayfa` entry.
+**Reuse:** `render_pdf_sayfa()` is a standalone render helper (raises on
+error, produces no class-facing text itself) that `yks_sorulari.py` imports
+directly for its own page rendering, so the fitz rendering logic lives in
+exactly one place — see `pdf_sayfa.py`'s module docstring.
 
-### `yks_sorulari` — past exam questions, no solutions attached
+### `yks_sorulari` — past exam questions, one at a time, shown as an image
 
 Fetches YKS (TYT/AYT) past exam questions on the current topic from
 `icerik/yks_metin/*.txt` (produced offline by `tools/yks_metin.py`, see
-"Content pipeline" below) and returns the matching page(s) **verbatim** —
-question text only. There is no answer key or worked solution in the source
-PDFs (they're marketed as "tamamı video çözümlü" — solutions are in an
-external video, not the text), so the tool cannot supply one; the `aciklama`
-in `actions/kayit.py` tells the model to read the question to the class and
-work the solution itself, step by step, rather than treating this as a quiz
-to withhold answers on.
+"Content pipeline" below) for **matching only** (word-overlap, per page,
+`===SAYFA <n>===` markers). For **display**, added 2026-08-12: the actual PDF
+page from `client/YKS/<dosya>.pdf` is rendered via `pdf_sayfa.render_pdf_sayfa`
+and shown with `player.show_image` — original layout preserved (diagrams,
+tables, answer choices), not reflowed text. The question text returned to the
+model is still the raw extracted text, for it to read aloud — not the source
+of truth for what's on screen.
 
-Matching is the same word-overlap approach as `ders_icerigi`'s fallback path,
-scored **per page** (pages are marked `===SAYFA <n>===` in the converted
-text) across all files in `icerik/yks_metin/` — there's no book/subject
-filter in the metadata, so a `ders` hint in the call just gets folded into
-the query words to bias matching, it doesn't restrict which file is
-searched. Measured 0.26 s for a full-archive keyword search with all 8 files
-converted (2.8 MB text, ~1,300 pages) — no semantic/embedding ranking exists
-anywhere in this repo anymore, so there's nothing to fall back from. If
-`icerik/yks_metin/` is empty (conversion never run — via the HUD's
-"YKS SORULARINI METNE DÖNÜŞTÜR" button or `tools/yks_metin.py` by hand), the
-tool refuses and tells the model to keep teaching from the textbook instead
-of inventing a question — same "fallback text is binding" principle as
-`ders_icerigi`'s `_SINIRLI_DEVAM`.
+**One question at a time, advance only on command.** A module-level `_OTURUM`
+dict (`{"adaylar": [...], "index": -1}`, process-lifetime, same pattern as
+`_METIN_ONBELLEK`) holds the current matched sequence. Calling with `konu`
+(+ optionally `ders`, `adet`) starts a **new** sequence and shows only the
+first match, even if more matched. Calling again with `sonraki=true` and
+**no** `konu` advances to the next stored match and shows *that* page;
+calling with a new `konu` always restarts the sequence from scratch. This is
+enforced by the tool holding index state, but *when* to call `sonraki` is a
+prompt-level decision — see core/prompt.txt's SESLİ HİTAP/SORU SUNUM
+PROTOKOLÜ — never triggered automatically by the tool itself.
+
+There is no answer key or worked solution in the source PDFs (they're
+marketed as "tamamı video çözümlü" — solutions are in an external video, not
+the text), so the tool cannot supply one; the `aciklama` in `actions/kayit.py`
+tells the model to read the question to the class, then go silent and wait —
+work the solution itself only once asked, step by step, rather than treating
+this as a quiz to withhold answers on.
+
+There's no book/subject filter in the YKS archive's metadata, so a `ders`
+hint just gets folded into the query words to bias matching, it doesn't
+restrict which file is searched. Measured 0.26 s for a full-archive keyword
+search with all 8 files converted (2.8 MB text, ~1,300 pages) — no
+semantic/embedding ranking exists anywhere in this repo anymore, so there's
+nothing to fall back from. If `icerik/yks_metin/` is empty (conversion never
+run — via the HUD's "YKS SORULARINI METNE DÖNÜŞTÜR" button or
+`tools/yks_metin.py` by hand), the tool refuses and tells the model to keep
+teaching from the textbook instead of inventing a question — same "fallback
+text is binding" principle as `ders_icerigi`'s `_SINIRLI_DEVAM`.
 
 ### `site_goster` — deliberately browser-free
 

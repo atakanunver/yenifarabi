@@ -15,6 +15,10 @@ Neden görüntü, metin değil: sayfadaki şekil/tablo/formül PDF'te olduğu gi
 kalmalı — metne çevirmek (tools/kitap_metin.py'nin yaptığı gibi) bunları
 kaybeder ya da bozar. PyMuPDF zaten kurulu bir bağımlılık (tools/kitap_metin.py,
 kitap_index.py) — yeni bağımlılık eklenmedi.
+
+`render_pdf_sayfa()` bilerek genel/paylaşılabilir yazıldı: `yks_sorulari.py`
+(2026-08-12) YKS PDF'lerinden bir soru sayfasını göstermek için aynı
+fonksiyonu import eder — render mantığı iki yerde kopyalanmasın diye.
 """
 
 from pathlib import Path
@@ -29,6 +33,26 @@ ONBELLEK_DIR = BASE_DIR / "icerik" / "onbellek" / "pdf_sayfa"
 # Board'da okunabilir çözünürlük için zoom faktörü — A4 sayfa ~595x842pt,
 # 2x zoom ~1190x1684px, bir akıllı tahtada net okunur.
 ZOOM = 2.0
+
+
+def render_pdf_sayfa(pdf_yolu: Path, sayfa: int, onbellek_dir: Path) -> Path:
+    """Bir PDF'in TEK sayfasını PNG'ye render eder (varsa önbellekten döner).
+
+    Hatada Exception fırlatır (dosya yok, sayfa aralık dışı, fitz hatası) —
+    çağıran karşılar ve kendi sınıf-dostu mesajını üretir; burada sınıfa
+    okunacak bir metin ÜRETİLMEZ, bu fonksiyon salt render katmanıdır.
+    """
+    onbellek_dir.mkdir(parents=True, exist_ok=True)
+    onbellek_yolu = onbellek_dir / f"{pdf_yolu.stem}_s{sayfa}.png"
+    if onbellek_yolu.exists():
+        return onbellek_yolu
+    with fitz.open(str(pdf_yolu)) as pdf:
+        if sayfa > len(pdf):
+            raise ValueError(f"{pdf_yolu.name} yalnızca {len(pdf)} sayfa — {sayfa}. sayfa yok.")
+        sayfa_nesnesi = pdf[sayfa - 1]  # fitz 0-indeksli
+        pix = sayfa_nesnesi.get_pixmap(matrix=fitz.Matrix(ZOOM, ZOOM))
+        pix.save(str(onbellek_yolu))
+    return onbellek_yolu
 
 
 def _kitap_bul(ders: str | None, sinif: str | None) -> dict | None:
@@ -84,19 +108,13 @@ def pdf_sayfa(parameters: dict | None = None, player=None, speak=None, **_) -> s
     if not pdf_yolu.exists():
         return f"Kitap dosyası bulunamadı: {pdf_yolu.name}."
 
-    onbellek_yolu = ONBELLEK_DIR / f"{pdf_yolu.stem}_s{sayfa}.png"
-    if not onbellek_yolu.exists():
-        try:
-            with fitz.open(str(pdf_yolu)) as pdf:
-                if sayfa > len(pdf):
-                    return f"{kitap['dosya']} yalnızca {len(pdf)} sayfa — {sayfa}. sayfa yok."
-                sayfa_nesnesi = pdf[sayfa - 1]  # fitz 0-indeksli
-                pix = sayfa_nesnesi.get_pixmap(matrix=fitz.Matrix(ZOOM, ZOOM))
-                ONBELLEK_DIR.mkdir(parents=True, exist_ok=True)
-                pix.save(str(onbellek_yolu))
-        except Exception as e:
-            log(f"[PDF Sayfa] render hatası: {type(e).__name__}: {e}")
-            return f"Sayfa render edilemedi ({type(e).__name__}: {e})."
+    try:
+        onbellek_yolu = render_pdf_sayfa(pdf_yolu, sayfa, ONBELLEK_DIR)
+    except ValueError as e:
+        return str(e)
+    except Exception as e:
+        log(f"[PDF Sayfa] render hatası: {type(e).__name__}: {e}")
+        return f"Sayfa render edilemedi ({type(e).__name__}: {e})."
 
     log(f"[PDF Sayfa] {kitap['dosya']} · s.{sayfa} gösteriliyor")
     if player is not None and hasattr(player, "show_image"):

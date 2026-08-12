@@ -140,25 +140,32 @@ ARACLAR: list[Arac] = [
             "a local archive of past exam papers (offline-indexed, keyword-matched — "
             "NOT web search). Call when the teacher or a student asks for 'çıkmış "
             "sorular', 'YKS soruları', 'TYT/AYT sorusu' about the topic being taught. "
-            "The returned text is the RAW question only, taken from the exam PDF — "
-            "it contains NO solution and NO answer key. After calling: read the "
-            "question and its answer choices aloud (it is already shown on screen), "
-            "then STOP and wait — ask the class for their answer, or wait for a "
-            "teacher instruction, before explaining anything. Do NOT solve it "
-            "yourself immediately; this is a quiz-style check, not a worked example "
-            "to narrate. Only once a student answers or the teacher gives an "
-            "instruction do you work through the solution step by step. If the "
-            "archive isn't prepared yet or nothing matches, say so plainly and keep "
-            "teaching from the textbook — do NOT invent a question."
+            "Shows the ACTUAL exam page as an IMAGE (original PDF layout preserved, "
+            "not reflowed text) and returns the raw question text for you to read "
+            "aloud — it contains NO solution and NO answer key. "
+            "ONE QUESTION AT A TIME: call with 'konu' (+ideally 'ders') to start a "
+            "new sequence — this shows only the FIRST matching question, even if "
+            "more matched. After calling: read the question and its answer choices "
+            "aloud (it is already shown on screen as an image), then STOP and wait — "
+            "ask the class for their answer, or wait for a teacher instruction, "
+            "before explaining anything. Do NOT solve it yourself immediately. "
+            "NEVER move to the next matched question on your own — only when the "
+            "teacher explicitly says so (aloud with your name, or via the written "
+            "teacher panel, or something like 'sıradaki soru'), call again with "
+            "sonraki=true and NO 'konu' to advance within the SAME sequence. "
+            "Calling with a new 'konu' always starts a fresh sequence. If the "
+            "archive isn't prepared yet or nothing matches, say so plainly and "
+            "keep teaching from the textbook — do NOT invent a question."
         ),
         parametreler={
             "type": "OBJECT",
             "properties": {
-                "konu": {"type": "STRING", "description": "Topic to search for, e.g. 'türev', 'osmanlı-rus savaşları'."},
-                "ders": {"type": "STRING", "description": "Subject, improves matching, e.g. 'matematik'."},
-                "adet": {"type": "INTEGER", "description": "How many question pages to fetch (default 3, max 6)."},
+                "konu":     {"type": "STRING",  "description": "Topic to search for, e.g. 'türev', 'osmanlı-rus savaşları'. Start (or restart) a sequence."},
+                "ders":     {"type": "STRING",  "description": "Subject, improves matching, e.g. 'matematik'."},
+                "adet":     {"type": "INTEGER", "description": "How many questions to match into the sequence (default 3, max 6) — only used when starting a new sequence with 'konu'; ignored on sonraki=true calls."},
+                "sonraki":  {"type": "BOOLEAN", "description": "true = advance to the NEXT question in the current sequence (omit 'konu'). Only on an explicit teacher command — never on your own initiative."},
             },
-            "required": ["konu"],
+            "required": [],
         },
         izin="sinav.oku",
         maliyet="dusuk",
