@@ -1477,6 +1477,15 @@ class FarabiLive:
         self.ui.on_session_start = self.oturum_baslat
         self._log_startup_banner()
 
+        # PİLOT/TEST AŞAMASI (2026-08-15) burada `self.ui.oto_baslat()` ile
+        # tahta açılır açılmaz dersi otomatik başlatıyordu, çift tıkla
+        # beklemiyordu. 2026-08-17: öğretmen isteğiyle geri alındı — DERSİ
+        # BAŞLAT'a çift tıklamak yeniden ZORUNLU, aşağıdaki "öğretmen
+        # başlatana kadar hiçbir bağlantı kurulmaz" davranışı geçerli.
+        # `ui.py`'deki `FarabiUI.oto_baslat`/`MainWindow._oto_baslat_sig`
+        # köprüsü hâlâ duruyor, sadece buradan çağrılmıyor — pilot testi
+        # yeniden gerekirse tek satır eklemek yeterli.
+
         fail_streak = 0          # üst üste başarısız bağlantı sayısı
         last_error  = None       # aynı hata tekrar ediyor mu
 

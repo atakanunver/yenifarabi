@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import platform
 import random
-import shlex
-import shutil
 import subprocess
 import sys
 import threading
@@ -32,7 +31,8 @@ from PyQt6.QtCore import (
 )
 from PyQt6.QtGui import (
     QBrush, QColor, QDragEnterEvent, QDropEvent, QFont,
-    QKeySequence, QPainter, QPen, QPixmap, QShortcut,
+    QKeySequence, QPainter, QPainterPath, QPainterPathStroker, QPen, QPixmap,
+    QShortcut,
 )
 from PyQt6.QtWidgets import (
     QApplication, QFileDialog, QFrame, QGridLayout, QHBoxLayout,
@@ -56,52 +56,10 @@ _RIGHT_W = 300
 
 _OS = platform.system()  # "Windows" | "Darwin" | "Linux"
 
-# Terminal emülatörleri, tercih sırasıyla — ilk bulunan kullanılır.
-_TERMINALLER = ["x-terminal-emulator", "gnome-terminal", "konsole",
-                "xfce4-terminal", "xterm"]
-
-
-def _terminalde_calistir(komut: list[str], baslik: str) -> subprocess.Popen | None:
-    """
-    Verilen komutu görünür bir terminal penceresinde çalıştırır ve süreci
-    döner (bitişini bekleyen taraf `proc.wait()` çağırır).
-
-    Kitap dönüştürme gibi dakikalarca süren işler `subprocess.run(capture_
-    output=True)` ile sessizce çalıştırılınca kullanıcıya "arayüz donmuş"
-    izlenimi veriyordu — ilerleme yok, tamamlanana kadar hiçbir log
-    görünmüyor. Bu yalnız ui.py'nin öğretmen tarafından tetiklenen admin
-    işlemleri için (KİTAPLARI METNE DÖNÜŞTÜR gibi) — CLAUDE.md'deki
-    "Capability boundary — terminal execution yok" kısıtı modelin canlı ders
-    sırasında çağırdığı actions/ araçları için, burada geçerli değil; ui.py
-    zaten subprocess ile kabuk komutu çalıştırıyordu.
-
-    Yalnız Linux hedefleniyor (CLAUDE.md: "standalone Linux smart board
-    client"); uygun bir terminal bulunamazsa None döner, çağıran eski sessiz
-    yola düşer.
-    """
-    kabuk = (
-        f"cd {shlex.quote(str(BASE_DIR))} && "
-        f"{' '.join(shlex.quote(p) for p in komut)}; "
-        f"kod=$?; echo; "
-        f"if [ $kod -eq 0 ]; then echo '--- {baslik}: TAMAMLANDI ---'; "
-        f"else echo '--- {baslik}: HATA (kod '$kod') ---'; fi; "
-        f"read -p 'Kapatmak için Enter... '"
-    )
-    for terminal in _TERMINALLER:
-        yol = shutil.which(terminal)
-        if not yol:
-            continue
-        # gnome-terminal "-e"yi kaldırıyor, "--" bekliyor (ölçüldü: 3.52,
-        # "-e" hâlâ çalışıyor ama kaldırma uyarısı veriyor). x-terminal-
-        # emulator hangi terminale yönlendiği bilinmediği için (Debian
-        # alternatifleri) klasik "-e" ile denenir — bu makinede de
-        # gnome-terminal.wrapper'a çözülüyor ve "-e" orada da çalışıyor.
-        ayirici = ["--"] if terminal == "gnome-terminal" else ["-e"]
-        try:
-            return subprocess.Popen([yol, *ayirici, "bash", "-c", kabuk])
-        except OSError:
-            continue
-    return None
+# NOT (2026-08-14, server-taşıma): `_terminalde_calistir` ve onu çağıran
+# `_TERMINALLER` listesi kaldırıldı — tek kullanım yeri, kaldırılan yerel
+# içerik dönüştürme düğmeleriydi (KİTAPLARI METNE DÖNÜŞTÜR vb., bkz.
+# _mikrofon_kalibre'nin altındaki not). Terminal açma ihtiyacı kalmadı.
 
 
 class C:
@@ -964,6 +922,83 @@ class FileDropZone(QWidget):
         self.file_selected.emit(path)
 
 
+class _CizilebilirGorsel(QLabel):
+    """PDF/YKS sayfası gösteren QLabel — üstüne parmakla/kalemle çizim ve
+    silgi desteği (2026-08-14 eklendi, Faz 11).
+
+    Yalnızca dokunmatik KALEM/SİLGİ/TEMİZLE düğmeleriyle (bkz. MainWindow
+    `_cizim_modu_ayarla`) açılıp kapanır — SESLİ KOMUTLA AÇILMAZ, `actions/
+    kayit.py`'ye bir tool olarak EKLENMEDİ (kullanıcı kararı: yanlış ses
+    tanıma tetiklemesi riski taşımasın). Model bu katmanın varlığından
+    habersizdir, salt öğretmenin dokunmatik etkileşimidir.
+
+    GEÇİCİ: kaydedilmez. `taban_ayarla()` her yeni sayfa/zoom değişiminde
+    (bkz. MainWindow._olcekle_goruntu) çağrılır ve önceki çizimi sıfırlar —
+    bilinçli, kalıcılık istenmedi (kullanıcı kararı). Zoom sırasında çizim
+    kaybolur; bu bir kısıt değil, "geçici" tasarımın doğal sonucu.
+    """
+
+    KALEM_RENK     = QColor("#ff3355")
+    KALEM_KALINLIK = 4
+    SILGI_KALINLIK = 28
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.cizim_modu: str = "kapali"   # "kapali" | "kalem" | "silgi"
+        self._taban_pixmap: QPixmap | None = None
+        self._son_nokta = None
+
+    def taban_ayarla(self, pixmap: QPixmap) -> None:
+        """Yeni/yeniden ölçeklenmiş TEMİZ sayfa görüntüsünü ayarlar — silginin
+        geri döneceği referans budur. Önceki çizim (varsa) burada kaybolur."""
+        self._taban_pixmap = QPixmap(pixmap)
+        self.setPixmap(pixmap)
+        self._son_nokta = None
+
+    def temizle(self) -> None:
+        if self._taban_pixmap is not None:
+            self.setPixmap(QPixmap(self._taban_pixmap))
+
+    def mousePressEvent(self, e):
+        if self.cizim_modu == "kapali" or self.pixmap() is None:
+            super().mousePressEvent(e)
+            return
+        self._son_nokta = e.position().toPoint()
+
+    def mouseMoveEvent(self, e):
+        if self.cizim_modu == "kapali" or self.pixmap() is None or self._son_nokta is None:
+            super().mouseMoveEvent(e)
+            return
+        yeni = e.position().toPoint()
+        pm = QPixmap(self.pixmap())
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        if self.cizim_modu == "kalem":
+            p.setPen(QPen(self.KALEM_RENK, self.KALEM_KALINLIK,
+                          Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+                          Qt.PenJoinStyle.RoundJoin))
+            p.drawLine(self._son_nokta, yeni)
+        elif self._taban_pixmap is not None:
+            # Silgi: iz üzerindeki alanı TEMİZ tabandan geri kopyalar
+            # (saydamlaştırma değil — sayfa görüntüsünün alfa kanalı yok).
+            yol = QPainterPath()
+            yol.moveTo(QPointF(self._son_nokta))
+            yol.lineTo(QPointF(yeni))
+            genisletici = QPainterPathStroker()
+            genisletici.setWidth(self.SILGI_KALINLIK)
+            genisletici.setCapStyle(Qt.PenCapStyle.RoundCap)
+            p.setClipPath(genisletici.createStroke(yol))
+            p.drawPixmap(0, 0, self._taban_pixmap)
+        p.end()
+        self.setPixmap(pm)
+        self._son_nokta = yeni
+
+    def mouseReleaseEvent(self, e):
+        if self.cizim_modu == "kapali":
+            super().mouseReleaseEvent(e)
+        self._son_nokta = None
+
+
 class MainWindow(QMainWindow):
     _log_sig     = pyqtSignal(str)
     _state_sig   = pyqtSignal(str)
@@ -974,6 +1009,7 @@ class MainWindow(QMainWindow):
     _live_baslat_sig = pyqtSignal(str)    # akan altyazı: yeni satır başlat (prefix, ör. "Farabi: ")
     _live_guncelle_sig = pyqtSignal(str)  # akan altyazı: satırın içeriğini büyüt (yeni satır AÇMADAN)
     _live_bitir_sig = pyqtSignal()        # akan altyazı: turu kapat (asyncio loop thread → Qt thread)
+    _oto_baslat_sig = pyqtSignal()        # otomatik başlatma tetiği (asyncio loop thread → Qt thread)
 
     def __init__(self, face_path: str):
         super().__init__()
@@ -1088,6 +1124,7 @@ class MainWindow(QMainWindow):
         self._live_baslat_sig.connect(self._log.canli_satir_baslat)
         self._live_guncelle_sig.connect(self._log.canli_satir_guncelle)
         self._live_bitir_sig.connect(self._log.canli_satir_bitir)
+        self._oto_baslat_sig.connect(self._dersi_baslat)
 
         self._ready = self._check_config()
         if not self._ready:
@@ -1105,116 +1142,36 @@ class MainWindow(QMainWindow):
         sc_close_content = QShortcut(QKeySequence("Escape"), self)
         sc_close_content.activated.connect(self._content_panel.hide)
 
-        self._icerik_hazirlik_kontrolu()
-
-    # ── İçerik hazırlık kontrolü ─────────────────────────────────────────────
-    #
-    # Her açılışta kitaplar/ ve YKS/ klasörlerine bakar: hangi PDF'in metne
-    # çevrilmediğini bulur, yalnız o eksikleri arka planda dönüştürür. Her
-    # kaynağın kendi betiği ve çıktı uzantısı var — YKS eskiden yanlışlıkla
-    # kitap_metin.py'ye gidiyordu (icerik/metin_yks altına JSON yazıyordu),
-    # ama actions/yks_sorulari.py çalışma anında icerik/yks_metin altındaki
-    # DÜZ METNİ (tools/yks_metin.py çıktısı) okuyor — o iki yol hiç
-    # buluşmuyordu. Artık her kaynak kendi aracına gidiyor.
-    #
-    # tools/kitap_metin.py ve tools/yks_metin.py zaten dönüştürülmüş bir
-    # dosyayı atlıyor (--zorla verilmedikçe), bu yüzden burada dosya listesini
-    # elle karşılaştırmaya gerek yok — betiğe klasörün tamamı verilir, o
-    # ucuzca no-op döner. Ders anında ÇALIŞMAZ: bu, oturum (main.py →
-    # FarabiLive) başlamadan önce, pencere kurulurken bir kez tetiklenir.
-    _HAZIRLIK_ADIMLARI = [
-        {"kaynak": "kitaplar", "hedef": "icerik/metin",     "etiket": "kitaplar/",
-         "betik": "kitap_metin.py", "bayrak": "--json", "uzanti": ".json"},
-        {"kaynak": "YKS",      "hedef": "icerik/yks_metin", "etiket": "YKS/",
-         "betik": "yks_metin.py",  "bayrak": "--txt",  "uzanti": ".txt"},
-    ]
-
-    def _icerik_hazirlik_kontrolu(self):
-        def _calis():
-            for adim in self._HAZIRLIK_ADIMLARI:
-                betik  = BASE_DIR / "tools" / adim["betik"]
-                kaynak = BASE_DIR / adim["kaynak"]
-                hedef  = BASE_DIR / adim["hedef"]
-                etiket = adim["etiket"]
-                if not kaynak.exists():
-                    continue
-                pdfler = sorted(kaynak.glob("*.pdf"))
-                if not pdfler:
-                    continue
-                hedef.mkdir(parents=True, exist_ok=True)
-                eksik = [p for p in pdfler if not (hedef / f"{p.stem}{adim['uzanti']}").exists()]
-                if not eksik:
-                    self._log_sig.emit(
-                        f"SYS: İçerik hazır — {etiket} {len(pdfler)}/{len(pdfler)} dönüştürülmüş.")
-                    continue
-                self._log_sig.emit(
-                    f"SYS: {etiket} — {len(eksik)} yeni/eksik dosya bulundu, arka planda dönüştürülüyor…")
-                try:
-                    r = subprocess.run(
-                        [sys.executable, str(betik), str(kaynak), adim["bayrak"], str(hedef)],
-                        capture_output=True, text=True, cwd=str(BASE_DIR), timeout=1800,
-                    )
-                    if r.returncode == 0:
-                        self._log_sig.emit(f"SYS: {etiket} dönüştürme tamamlandı.")
-                    else:
-                        self._log_sig.emit(f"ERR: {etiket} dönüştürme hata kodu {r.returncode}")
-                except Exception as e:
-                    self._log_sig.emit(f"ERR: {etiket} dönüştürme başarısız — {e}")
-
-            self._kitaplar_json_guncelle()
-
-        threading.Thread(target=_calis, daemon=True).start()
-
-    def _kitaplar_json_guncelle(self):
-        """
-        kitaplar/ altındaki PDF listesi icerik/kitaplar.json'daki kayıtlarla
-        eşleşmiyorsa (yeni kitap eklenmiş) tools/kitap_index.py'yi arka
-        planda çalıştırıp indeksi tazeler. Sessiz — terminal açmaz, HUD'u
-        bloklamaz; kitap dönüştürmenin görünür terminal isteyen adımıyla
-        (`_kitaplari_donustur`) karıştırılmasın diye ayrı tutuldu. Ders
-        anında ÇALIŞMAZ, yalnız pencere kurulurken.
-        """
-        kaynak = BASE_DIR / "kitaplar"
-        if not kaynak.exists():
-            return
-        pdfler = {p.name for p in kaynak.glob("*.pdf")}
-        if not pdfler:
-            return
-
-        index_yolu = BASE_DIR / "icerik" / "kitaplar.json"
-        bilinen: set[str] = set()
-        if index_yolu.exists():
-            try:
-                veri = json.loads(index_yolu.read_text(encoding="utf-8"))
-                bilinen = {k.get("dosya") for k in veri.get("kitaplar", [])}
-            except Exception:
-                pass
-
-        if pdfler <= bilinen:
-            self._log_sig.emit(f"SYS: Kitap indeksi güncel — {len(pdfler)} kitap.")
-            return
-
-        yeni = pdfler - bilinen
-        self._log_sig.emit(
-            f"SYS: kitaplar/ içinde {len(yeni)} yeni kitap bulundu, kitaplar.json güncelleniyor…")
-        try:
-            betik = BASE_DIR / "tools" / "kitap_index.py"
-            r = subprocess.run(
-                [sys.executable, str(betik), str(kaynak), "--json", str(index_yolu)],
-                capture_output=True, text=True, cwd=str(BASE_DIR), timeout=300,
-            )
-            if r.returncode == 0:
-                self._log_sig.emit("SYS: kitaplar.json güncellendi.")
-            else:
-                self._log_sig.emit(f"ERR: kitaplar.json güncelleme hata kodu {r.returncode}")
-        except Exception as e:
-            self._log_sig.emit(f"ERR: kitaplar.json güncelleme başarısız — {e}")
+    # NOT (2026-08-14, server-taşıma): İçerik hazırlık kontrolü ve kitaplar.json
+    # tazeleme buradan kaldırıldı — PDF→metin dönüşümü, indeksleme ve kitap
+    # kataloğu artık tamamen server tarafında (`server/icerik.py`,
+    # `/mnt/farabi-data/farabi/`), tek bir yerde, tüm tahtalar için bir kez
+    # yapılıyor. Bu tahtanın kendi `kitaplar/`/`icerik/` dizinleri artık yok
+    # (Kural 1: client ince kalmalı) — burada tekrar taramanın hiçbir faydası
+    # kalmadı.
 
     def _toggle_fullscreen(self):
         if self.isFullScreen():
             self.showNormal()
         else:
             self.showFullScreen()
+
+    def closeEvent(self, event) -> None:
+        """Pencere kapanınca (X, Alt+F4, WM) arka planda main.py'nin asenkron
+        oturum döngüsü ayrı bir iş parçacığında çalışmaya devam ediyordu ve
+        artık var olmayan bu pencereye `set_state`/`write_log` ile dokunmaya
+        çalışıyordu — `RuntimeError: wrapped C/C++ object ... has been
+        deleted`. Bu, o anki TaskGroup'u çökertip yeniden-bağlanma döngüsüne
+        düşüyordu; her deneme aynı ölü pencereye dokunup aynı hatayı tekrar
+        üretiyordu, süreç CPU yakan ama hiçbir log basmayan, öğretmenin hiçbir
+        düğmesinin (DURDUR/DEVAM/DERSİ BAŞLAT dahil, çünkü pencere zaten yok)
+        işe yaramadığı bir hayalet halde askıda kalıyordu (canlı tahtada
+        gözlemlendi, 2026-08-17). Pencere kapanınca süreç de TAMAMEN kapanmalı;
+        `_temiz_kapan`'ın kullandığı `os._exit` kaçınma gerekçesi (transkript
+        yazımını atlar) burada geçerli değil — kullanıcı zaten pencereyi
+        kapatarak oturumu bitiriyor, tamamlanmamış bir transkript kapanışı
+        askıda kalan bir süreçten daha iyi bir sonuç."""
+        os._exit(0)
 
     def _gunluk_kullanim_gunu_kontrol(self):
         """Gün değiştiyse bugünkü toplamı sıfırlar (açık bir oturum varsa
@@ -1237,6 +1194,15 @@ class MainWindow(QMainWindow):
         elif self._oturum_baslangic_ts is not None:
             self._gunluk_kullanim_toplam_sn += time.time() - self._oturum_baslangic_ts
             self._oturum_baslangic_ts = None
+
+        # DERSİ BAŞLAT ısınma göstergesi — yalnız öğretmen düğmeye zaten
+        # basmışsa (düğme kilitliyse) metni günceller; ders hiç
+        # başlatılmadan gelen bir bildirimde (olmaz ama savunma) dokunmaz.
+        if not self._baslat_btn.isEnabled():
+            if acildi:
+                self._baslat_btn.setText("▶▶  DERS BAŞLADI")
+            else:
+                self._baslat_btn.setText("🔄  YENİDEN BAĞLANIYOR…")
 
     def _update_metrics(self):
         snap = _metrics.snapshot()
@@ -1626,17 +1592,11 @@ class MainWindow(QMainWindow):
         self._kalibre_btn = self._arac_dugmesi(lay, "📊  MİKROFONU KALİBRE ET")
         self._kalibre_btn.clicked.connect(self._mikrofon_kalibre)
 
-        self._kitap_btn = self._arac_dugmesi(lay, "📚  KİTAPLARI METNE DÖNÜŞTÜR")
-        self._kitap_btn.clicked.connect(self._kitaplari_donustur)
-
-        self._yks_btn = self._arac_dugmesi(lay, "📝  YKS SORULARINI METNE DÖNÜŞTÜR")
-        self._yks_btn.clicked.connect(self._yks_donustur)
-
-        self._sembol_btn = self._arac_dugmesi(lay, "🧹  ŞÜPHELİ SEMBOLLERİ TEMİZLE (AI)")
-        self._sembol_btn.clicked.connect(self._sembolleri_temizle)
-
-        self._ozet_btn = self._arac_dugmesi(lay, "🗒️  KİTAP ÖZETİ ÇIKAR (AI)")
-        self._ozet_btn.clicked.connect(self._kitap_ozeti_cikar)
+        # NOT (2026-08-14, server-taşıma): "KİTAPLARI METNE DÖNÜŞTÜR", "YKS
+        # SORULARINI METNE DÖNÜŞTÜR", "ŞÜPHELİ SEMBOLLERİ TEMİZLE", "KİTAP
+        # ÖZETİ ÇIKAR" düğmeleri kaldırıldı — bu tahtanın artık kendi
+        # kitaplar/YKS/icerik dizini yok, tüm içerik hazırlama tek noktadan
+        # (server/) yapılıyor, tahta başına tetiklenen bir şey değil.
 
 
         fs_btn = QPushButton("⛶  TAM EKRAN  [F11]")
@@ -1767,7 +1727,16 @@ class MainWindow(QMainWindow):
         self._log.append_log(f"SYS: Ders dili — {gorunen}.")
 
     def _dersi_baslat(self) -> None:
-        """Öğretmen çift tıkladı — oturumu başlat ve düğmeyi kapat."""
+        """Öğretmen çift tıkladı — oturumu başlat ve düğmeyi kapat.
+
+        Düğme metni ANINDA "DERS BAŞLADI" oluyordu, ama Gemini Live bağlantısı
+        o an henüz açılmamış oluyordu (`main.py.run()` bağlantıyı arka plan
+        iş parçacığında kurar, birkaç saniye sürebilir) — öğretmen "başladı"
+        yazısını görüyor, Farabi ise hâlâ sessiz bağlanıyordu. Sınıfta bu
+        "gecikme" gibi hissediliyordu. Şimdi düğme önce ISINIYOR'da bekler;
+        gerçekten "DERS BAŞLADI" yazısı yalnız oturum fiilen açıldığında
+        (`_on_gemini_oturum_degisti`, main.py'nin `oturum_baslandi()`
+        bildirimiyle) görünür."""
         if not self.on_session_start:
             # Sessiz return öğretmeni kör ederdi; log'a yaz ki bağlanmamış
             # callback (FarabiUI köprüsü unutulursa) hemen görünsün.
@@ -1775,10 +1744,10 @@ class MainWindow(QMainWindow):
                 "SYS: DERSİ BAŞLAT tıklandı ama oturum henüz hazır değil.")
             return
         self._baslat_btn.setEnabled(False)
-        self._baslat_btn.setText("▶▶  DERS BAŞLADI")
+        self._baslat_btn.setText("⏳  ISINIYOR…")
         for b in self._dil_btns.values():          # dil artık değişemez, bkz. yukarıdaki not
             b.setEnabled(False)
-        self._log.append_log("SYS: Ders başlatıldı (öğretmen).")
+        self._log.append_log("SYS: Ders başlatılıyor (öğretmen) — bağlanılıyor…")
         threading.Thread(target=self.on_session_start, daemon=True).start()
 
     def _durdur_gorunumu(self) -> None:
@@ -1981,6 +1950,33 @@ class MainWindow(QMainWindow):
             """)
             zoom_row.addWidget(b)
         zoom_row.addStretch()
+
+        # ── Kalem/Silgi/Temizle (2026-08-14, Faz 11) ────────────────────────
+        # Yalnızca dokunmatik buton — sesli komutla açılmaz (kullanıcı kararı).
+        # Basılı olan mod vurgulanır (kendi kendini/diğerini kapatan toggle).
+        def _arac_btn_stili(aktif: bool) -> str:
+            if aktif:
+                return (f"QPushButton {{ background: {C.PRI_GHO}; color: {C.PRI}; "
+                        f"border: 1px solid {C.PRI}; border-radius: 4px; }}")
+            return (f"QPushButton {{ background: {C.PANEL}; color: {C.TEXT}; "
+                    f"border: 1px solid {C.BORDER_B}; border-radius: 4px; }} "
+                    f"QPushButton:hover {{ color: {C.PRI}; border-color: {C.PRI_DIM}; "
+                    f"background: {C.PRI_GHO}; }}")
+        self._cizim_arac_btn_stili = _arac_btn_stili
+
+        self._kalem_btn  = QPushButton("✏  KALEM")
+        self._silgi_btn  = QPushButton("🧹  SİLGİ")
+        self._cizim_temizle_btn = QPushButton("🗑  TEMİZLE")
+        for b in (self._kalem_btn, self._silgi_btn, self._cizim_temizle_btn):
+            b.setFixedSize(88, 30)
+            b.setFont(QFont("Courier New", 9, QFont.Weight.Bold))
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.setStyleSheet(_arac_btn_stili(False))
+            zoom_row.addWidget(b)
+        self._kalem_btn.clicked.connect(lambda: self._cizim_modu_ayarla("kalem"))
+        self._silgi_btn.clicked.connect(lambda: self._cizim_modu_ayarla("silgi"))
+        self._cizim_temizle_btn.clicked.connect(self._cizim_temizle)
+
         self._image_zoom_row = QWidget()
         self._image_zoom_row.setLayout(zoom_row)
         self._image_zoom_row.hide()
@@ -1989,7 +1985,7 @@ class MainWindow(QMainWindow):
         self._resim_yakinlastir_btn.clicked.connect(self._resim_yakinlastir)
         lay.addWidget(self._image_zoom_row)
 
-        self._image_display = QLabel()
+        self._image_display = _CizilebilirGorsel()
         self._image_display.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self._image_scroll = QScrollArea()
@@ -2005,13 +2001,25 @@ class MainWindow(QMainWindow):
             QScrollBar::handle:horizontal {{ background: {C.BORDER_B}; border-radius: 5px; min-width: 24px; }}
         """)
         self._image_scroll.hide()
+        self._scroller_aktif = False
         try:
             # Dokunmatik tahtada parmakla sürükleyerek kaydırma — yalnızca
             # kaydırma çubuğunu tutmak yerine, görüntünün HERHANGİ bir
             # yerinden sürüklenebilsin.
+            #
+            # NOT (2026-08-15, canlı testte bulundu): bu gesture aktifken
+            # KALEM/SİLGİ hiç çalışmıyordu — QScroller viewport üzerindeki
+            # tüm sol-tık sürükleme olaylarını kaydırma jesti için yakalayıp
+            # `_CizilebilirGorsel.mousePressEvent/mouseMoveEvent`'e hiç
+            # ulaştırmıyor. Çözüm: çizim modu açıldığında `ungrabGesture` ile
+            # geçici olarak bırakılıyor, kapatılınca `grabGesture` ile geri
+            # alınıyor — bkz. `_cizim_modu_ayarla`. `_scroller_aktif` bu
+            # ungrab/grab çağrılarının güvenle yapılabileceğini işaretler
+            # (QScroller kurulamadıysa ikisi de atlanır).
             from PyQt6.QtWidgets import QScroller
             QScroller.grabGesture(self._image_scroll.viewport(),
                                   QScroller.ScrollerGestureType.LeftMouseButtonGesture)
+            self._scroller_aktif = True
         except Exception:
             pass  # dokunmatik kaydırma olmadan da kaydırma çubukları çalışır
         self._image_pixmap_ham: QPixmap | None = None
@@ -2048,6 +2056,7 @@ class MainWindow(QMainWindow):
         import time as _time
         self._image_zoom_row.hide()
         self._image_scroll.hide()
+        self._cizim_modu_ayarla("kapali")  # metne geçince çizim modu kapanır
         self._content_display.show()
         self._content_title_lbl.setText(title.upper()[:32])
         self._content_ts_lbl.setText(_time.strftime("%H:%M:%S"))
@@ -2081,7 +2090,10 @@ class MainWindow(QMainWindow):
         hedef_genislik = max(50, int(self._image_pixmap_ham.width() * oran))
         olcekli = self._image_pixmap_ham.scaledToWidth(
             hedef_genislik, Qt.TransformationMode.SmoothTransformation)
-        self._image_display.setPixmap(olcekli)
+        # taban_ayarla (setPixmap değil): silginin geri döneceği TEMİZ
+        # referansı da günceller, önceki çizimi sıfırlar (zoom değiştiyse
+        # eski ölçekteki çizim zaten anlamsız kalırdı — bkz. _CizilebilirGorsel).
+        self._image_display.taban_ayarla(olcekli)
         self._image_display.resize(olcekli.size())
 
     def _resim_yakinlastir(self):
@@ -2103,6 +2115,31 @@ class MainWindow(QMainWindow):
     def _resim_sigdir(self):
         self._image_zoom = None
         self._olcekle_goruntu()
+
+    def _cizim_modu_ayarla(self, mod: str):
+        """KALEM/SİLGİ düğmesine basıldı — aynı moda tekrar basmak KAPATIR
+        (toggle), farklı bir moda basmak geçiş yapar. Yalnızca dokunmatik
+        buton; sesli komutla tetiklenmez (bkz. _CizilebilirGorsel dokümanı)."""
+        yeni_mod = "kapali" if self._image_display.cizim_modu == mod else mod
+        self._image_display.cizim_modu = yeni_mod
+        self._kalem_btn.setStyleSheet(self._cizim_arac_btn_stili(yeni_mod == "kalem"))
+        self._silgi_btn.setStyleSheet(self._cizim_arac_btn_stili(yeni_mod == "silgi"))
+
+        # QScroller'ın sol-tık sürükleme jesti çizimle ÇAKIŞIYOR — aktifken
+        # mouse olayları _image_display'e hiç ulaşmıyordu (2026-08-15, canlı
+        # testte bulundu). Çizim modundayken jest geçici bırakılır, kapanınca
+        # geri alınır.
+        if not self._scroller_aktif:
+            return
+        from PyQt6.QtWidgets import QScroller
+        viewport = self._image_scroll.viewport()
+        if yeni_mod == "kapali":
+            QScroller.grabGesture(viewport, QScroller.ScrollerGestureType.LeftMouseButtonGesture)
+        else:
+            QScroller.ungrabGesture(viewport)
+
+    def _cizim_temizle(self):
+        self._image_display.temizle()
 
     def _show_image(self, title: str, image_path: str):
         """Slot — runs on Qt main thread. `pdf_sayfa` aracının render ettiği
@@ -2251,152 +2288,13 @@ class MainWindow(QMainWindow):
 
         threading.Thread(target=_calis, daemon=True).start()
 
-    def _terminalde_donustur(self, buton: QPushButton, orijinal_metin: str,
-                             betik_adi: str, kaynak_ad: str, hedef_ad: str,
-                             bayrak: str, uzanti: str, baslik: str):
-        """
-        Görünür terminalde çalışan dönüştürme betiklerinin (kitap, YKS) ortak
-        akışı: büyük/görsel ağırlıklı dosyalarda dakikalarca sürebiliyor ve
-        sessizce (`subprocess.run(capture_output=True)`) çalışınca hiçbir
-        ilerleme görünmediği için "arayüz donmuş" izlenimi veriyordu.
-        Terminal, betiğin kendi ilerleme satırlarını canlı gösterir. Terminal
-        emülatörü bulunamazsa eski sessiz yola düşer — arayüz yine donmaz,
-        yalnız ilerleme görünmez.
-        """
-        buton.setEnabled(False)
-        buton.setText("… DÖNÜŞTÜRÜLÜYOR (terminale bakın)")
-        self._log.append_log(f"SYS: {baslik} başladı — bir terminal penceresi açılıyor.")
-
-        def _bitti(metin: str):
-            self._content_sig.emit(baslik, metin)
-            buton.setEnabled(True)
-            buton.setText(orijinal_metin)
-
-        def _calis():
-            betik  = BASE_DIR / "tools" / betik_adi
-            kaynak = BASE_DIR / kaynak_ad
-            hedef  = BASE_DIR / hedef_ad
-            if not kaynak.exists():
-                self._log_sig.emit(f"ERR: {baslik} — {kaynak_ad}/ klasörü yok")
-                QTimer.singleShot(0, lambda: _bitti(f"{kaynak_ad}/ klasörü bulunamadı."))
-                return
-
-            komut = [sys.executable, str(betik), str(kaynak), bayrak, str(hedef)]
-            onceki = {p.stem for p in hedef.glob(f"*{uzanti}")} if hedef.exists() else set()
-
-            proc = _terminalde_calistir(komut, baslik)
-            if proc is None:
-                self._log_sig.emit("SYS: Görünür terminal bulunamadı, sessiz modda çalışıyor.")
-                try:
-                    r = subprocess.run(
-                        komut, capture_output=True, text=True,
-                        cwd=str(BASE_DIR), timeout=3600,
-                    )
-                    cikti = (r.stdout or "") + (("\n" + r.stderr) if r.stderr else "")
-                except Exception as e:
-                    hata = str(e)      # bkz. _kalibre_mikrofon — "free variable" NameError'ı
-                    self._log_sig.emit(f"ERR: {baslik} — {hata}")
-                    QTimer.singleShot(0, lambda: _bitti(f"Çalıştırılamadı: {hata}"))
-                    return
-                kisa = "TAMAMLANDI" if r.returncode == 0 else f"HATA (kod {r.returncode})"
-                self._log_sig.emit(f"SYS: {baslik} — {kisa}")
-                QTimer.singleShot(0, lambda: _bitti(cikti.strip() or kisa))
-                return
-
-            proc.wait()
-            sonraki = {p.stem for p in hedef.glob(f"*{uzanti}")} if hedef.exists() else set()
-            yeni = sorted(sonraki - onceki)
-            self._log_sig.emit(
-                f"SYS: {baslik} penceresi kapandı — {len(yeni)} yeni dosya dönüştürüldü.")
-            ozet = (f"{len(yeni)} yeni dosya dönüştürüldü:\n" + "\n".join(yeni) if yeni
-                    else "Yeni dönüştürülen dosya yok (hepsi güncel olabilir — "
-                         "ayrıntı için terminal penceresindeki log'a bakın).")
-            QTimer.singleShot(0, lambda: _bitti(ozet))
-
-        threading.Thread(target=_calis, daemon=True).start()
-
-    def _kitaplari_donustur(self):
-        """kitaplar/ altındaki PDF'leri icerik/metin/*.json'a çevirir
-        (tools/kitap_metin.py — tamamen yerel, API çağrısı yok)."""
-        self._terminalde_donustur(
-            self._kitap_btn, "📚  KİTAPLARI METNE DÖNÜŞTÜR",
-            "kitap_metin.py", "kitaplar", "icerik/metin", "--json", ".json",
-            "KİTAP DÖNÜŞTÜRME")
-
-    def _yks_donustur(self):
-        """
-        YKS/ altındaki çıkmış soru PDF'lerini icerik/yks_metin/*.txt'e çevirir
-        (tools/yks_metin.py — tamamen yerel, API çağrısı yok). Bu, actions/
-        yks_sorulari.py'nin çalışma anında gerçekten okuduğu yoldur — eskiden
-        _icerik_hazirlik_kontrolu bu klasörü yanlışlıkla kitap_metin.py'ye
-        (icerik/metin_yks altına JSON) yönlendiriyordu, o yol hiç okunmuyordu.
-        """
-        self._terminalde_donustur(
-            self._yks_btn, "📝  YKS SORULARINI METNE DÖNÜŞTÜR",
-            "yks_metin.py", "YKS", "icerik/yks_metin", "--txt", ".txt",
-            "YKS DÖNÜŞTÜRME")
-
-    def _api_calisan_dugmeyi_baslat(self, buton: QPushButton, orijinal_metin: str,
-                                    komut: list[str], baslik: str, calisma_metni: str):
-        """
-        `sembol_temizle.py` / `kitap_ozet.py` için ortak akış — ikisi de
-        gerçek API çağrısı yapıp ücretlendiriliyor, bu yüzden --onayla ile
-        AÇIKÇA burada eklenir (öğretmenin düğmeye basması onaydır) ve görünür
-        terminalde çalışır: dakikalarca sürebilir, sessiz çalışsa "donmuş"
-        izlenimi verir — bkz. _terminalde_donustur.
-        """
-        buton.setEnabled(False)
-        buton.setText(calisma_metni)
-        self._log.append_log(f"SYS: {baslik} başladı — bir terminal penceresi açılıyor.")
-
-        def _bitti(metin: str):
-            self._content_sig.emit(baslik, metin)
-            buton.setEnabled(True)
-            buton.setText(orijinal_metin)
-
-        def _calis():
-            proc = _terminalde_calistir(komut, baslik)
-            if proc is None:
-                self._log_sig.emit("SYS: Görünür terminal bulunamadı, sessiz modda çalışıyor.")
-                try:
-                    r = subprocess.run(
-                        komut, capture_output=True, text=True,
-                        cwd=str(BASE_DIR), timeout=3600,
-                    )
-                    cikti = (r.stdout or "") + (("\n" + r.stderr) if r.stderr else "")
-                except Exception as e:
-                    hata = str(e)      # bkz. _kalibre_mikrofon — "free variable" NameError'ı
-                    self._log_sig.emit(f"ERR: {baslik} — {hata}")
-                    QTimer.singleShot(0, lambda: _bitti(f"Çalıştırılamadı: {hata}"))
-                    return
-                kisa = "TAMAMLANDI" if r.returncode == 0 else f"HATA (kod {r.returncode})"
-                self._log_sig.emit(f"SYS: {baslik} — {kisa}")
-                QTimer.singleShot(0, lambda: _bitti(cikti.strip() or kisa))
-                return
-            proc.wait()
-            self._log_sig.emit(f"SYS: {baslik} penceresi kapandı.")
-            QTimer.singleShot(0, lambda: _bitti(
-                f"{baslik} tamamlandı — ayrıntı için terminal penceresindeki log'a bakın."))
-
-        threading.Thread(target=_calis, daemon=True).start()
-
-    def _sembolleri_temizle(self):
-        """Dönüştürülmüş kitaplardaki şüpheli '#'/'$' sembollerini AI ile
-        temizler (tools/sembol_temizle.py). API çağrısı yapar, ÜCRETLİDİR —
-        öğretmenin düğmeye basması --onayla için yeterli sayılır."""
-        komut = [sys.executable, str(BASE_DIR / "tools" / "sembol_temizle.py"), "--onayla"]
-        self._api_calisan_dugmeyi_baslat(
-            self._sembol_btn, "🧹  ŞÜPHELİ SEMBOLLERİ TEMİZLE (AI)",
-            komut, "SEMBOL TEMİZLEME", "… TEMİZLENİYOR (terminale bakın)")
-
-    def _kitap_ozeti_cikar(self):
-        """Dönüştürülmüş kitaplar için özet + internetten zenginleştirme
-        üretir (tools/kitap_ozet.py). API çağrısı yapar, ÜCRETLİDİR —
-        öğretmenin düğmeye basması --onayla için yeterli sayılır."""
-        komut = [sys.executable, str(BASE_DIR / "tools" / "kitap_ozet.py"), "--onayla"]
-        self._api_calisan_dugmeyi_baslat(
-            self._ozet_btn, "🗒️  KİTAP ÖZETİ ÇIKAR (AI)",
-            komut, "KİTAP ÖZETİ", "… ÖZETLENİYOR (terminale bakın)")
+    # NOT (2026-08-14, server-taşıma): `_terminalde_donustur`,
+    # `_kitaplari_donustur`, `_yks_donustur`, `_api_calisan_dugmeyi_baslat`,
+    # `_sembolleri_temizle`, `_kitap_ozeti_cikar` buradan kaldırıldı — hepsi
+    # bu tahtanın artık var olmayan yerel `kitaplar/`/`YKS/`/`icerik/`
+    # dizinlerine karşı `tools/*.py` script'lerini terminal'de çalıştıran
+    # düğme handler'larıydı. İçerik hazırlama artık tamamen server'da,
+    # tek bir yerde (bkz. docs/mimari.md, server/icerik.py).
 
     def _toggle_mute(self):
         self._muted = not self._muted
@@ -2524,6 +2422,17 @@ class FarabiUI:
 
     def write_log(self, text: str):
         self._win._log_sig.emit(text)
+
+    def oto_baslat(self):
+        """
+        PİLOT/TEST AŞAMASI (2026-08-15): tahta açılır açılmaz dersi otomatik
+        başlatır, öğretmenin DERSİ BAŞLAT'a çift tıklamasını beklemez.
+        Asyncio döngü iş parçacığından çağrılır; Qt widget'larına o
+        iş parçacığından doğrudan dokunulamayacağı için sinyal üzerinden
+        `MainWindow._dersi_baslat`'a (çift tıkla ile AYNI kod yolu — buton/dil
+        kilitleme davranışı korunur) kuyruklanır.
+        """
+        self._win._oto_baslat_sig.emit()
 
     def canli_satir_baslat(self, prefix: str = "Farabi: "):
         self._win._live_baslat_sig.emit(prefix)

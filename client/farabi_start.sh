@@ -1,4 +1,3 @@
 #!/bin/bash
-cd /home/atos/Farabi
-source venv/bin/activate
-python3 main.py
+cd "$(dirname "$(readlink -f "$0")")"
+exec venv/bin/python3 main.py

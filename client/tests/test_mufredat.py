@@ -64,6 +64,12 @@ class TestMetinKaynagi:
     """
     Kitap içeriği artık YALNIZ çevrilmiş metinden gelir; PDF çalışma anında
     açılmaz ve Gemini'ye sayfa okutulmaz.
+
+    NOT (2026-08-14, server-taşıma): asıl içerik çıkarma (_metin_cikar,
+    _METIN_ONBELLEK, METIN_DIZINI) artık client'ta değil server/icerik.py'de
+    — o mantığın testi de oraya taşındı, bkz. server/tests/test_icerik.py.
+    Burada yalnızca client dosyasının eski/kaldırılmış görsel yola geri
+    dönmediğini doğrulayan bekçi test kaldı.
     """
 
     def test_gorsel_yolu_kaldirildi(self):
@@ -72,16 +78,3 @@ class TestMetinKaynagi:
         kaynak = (Path(di.__file__)).read_text(encoding="utf-8")
         assert "pypdfium2" not in kaynak
         assert "base64" not in kaynak
-
-    def test_metin_cikar_supheli_sayisini_dondurur(self, tmp_path, monkeypatch):
-        import actions.ders_icerigi as di
-        import json as _json
-        di._METIN_ONBELLEK.clear()
-        monkeypatch.setattr(di, "METIN_DIZINI", tmp_path)
-        (tmp_path / "kitap.json").write_text(_json.dumps({
-            "sayfalar": {"5": {"metin": "Kesirler konusu", "supheli": 0},
-                         "6": {"metin": "a # b ifadesi",   "supheli": 1}}
-        }, ensure_ascii=False), encoding="utf-8")
-        metin, supheli = di._metin_cikar(Path("kitap.pdf"), [5, 6])
-        assert "Kesirler" in metin and "[s.6]" in metin
-        assert supheli == 1
