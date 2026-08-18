@@ -12,6 +12,7 @@ metin tabanlı RAG cevabı üretir.
 """
 
 import re
+import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -20,7 +21,13 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from sentence_transformers import CrossEncoder, SentenceTransformer
 
+import client_durum
 import db
+import ders_hafizasi
+import dosya
+import icerik
+import proxy
+import yks
 from rag import EMBED_MODEL, RERANK_MODEL, RagMotoru
 
 DB_HOST = "127.0.0.1"
@@ -51,6 +58,25 @@ async def lifespan(app: FastAPI):
     embed_model = SentenceTransformer(EMBED_MODEL, device=EMBED_DEVICE)
     reranker = CrossEncoder(RERANK_MODEL, device=RERANK_DEVICE)
     durum["motor"] = RagMotoru(embed_model, reranker)
+
+    # Isınma sorgusu — ölçüldü (2026-08-13): servis yeniden başladıktan
+    # sonraki İLK gerçek soru ~13.6sn sürüyor (sonrakiler ~0.85sn), muhtemelen
+    # GPU'nun ilk çağrıda CUDA kernellerini derlemesi/ısınması. Client
+    # (kitap_sorusu.py) POST için 10sn timeout kullanıyor, yani soğuk servis
+    # sonrası ilk ders sorusu timeout'a düşüp sessizce _SINIRLI_DEVAM'a
+    # kayabilirdi. Bu maliyeti burada, servis ayağa kalkarken (hiç öğrenci
+    # yokken) ödüyoruz; DB'ye/`metrik` veya `soru_log`'a yazmaması için
+    # RagMotoru.sorgula() yerine embed+rerank doğrudan çağrılıyor — sahte bir
+    # istek gerçek sorgu istatistiklerini kirletmesin diye.
+    try:
+        _t0 = time.perf_counter()
+        print("Isınma sorgusu: embed+rerank modelleri ilk kez GPU'da çalıştırılıyor…")
+        embed_model.encode("ısınma sorgusu", normalize_embeddings=True)
+        reranker.predict([("ısınma sorgusu", "ısınma için örnek kaynak metni.")])
+        print(f"Isınma tamamlandı ({time.perf_counter() - _t0:.1f}sn) — modeller GPU'da hazır.")
+    except Exception as e:
+        print(f"UYARI: ısınma sorgusu başarısız oldu ({type(e).__name__}: {e}) — ilk gerçek istek yavaş olabilir.")
+
     db.baslat(DB_HOST, DB_NAME, DB_USER)
     durum["hazir"] = True
     print("Sunucu hazır.")
@@ -59,6 +85,19 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Farabi Brain API", lifespan=lifespan)
+# Faz 2 (server-taşıma) — ders_icerigi + pdf_sayfa + yks + bulut LLM proxy;
+# durum["hazir"] kontrolüne bağlı değil, her biri kendi dosya/DB/API-anahtar
+# kontrolünü kendi yapar (RAG modeli gerekmez).
+app.include_router(icerik.router)
+app.include_router(yks.router)
+app.include_router(proxy.router)
+app.include_router(dosya.router)
+# 10 tahtaya ölçekleme (analiz raporu §5/§6) — durum["hazir"]'a bağlı değil,
+# yalnızca kendi tablosunu okur/yazar, RAG modeli gerekmez.
+app.include_router(client_durum.router)
+# ders_hafizasi taşıması (2026-08-18) — durum["hazir"]'a bağlı değil, yalnızca
+# yedekler/ders_kaydi/ dosyalarını okur, RAG modeli gerekmez.
+app.include_router(ders_hafizasi.router)
 
 
 class SoruIstek(BaseModel):
