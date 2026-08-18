@@ -1,0 +1,20 @@
+{
+  "_aciklama": [
+    "server/config/api_keys.json şablonu. Gerçek dosya .gitignore'da —",
+    "anahtarlar repoya girmez. Bu dosyayı api_keys.json olarak kopyalayıp",
+    "doldurun (bkz. client/config/api_keys.example.json — aynı 5 alan,",
+    "yalnızca Gemini burada YOK: canlı ses oturumu client'ta kalıyor,",
+    "mimari.md §14 kalıcı kararı).",
+    "",
+    "Bu anahtarlar saglayicilar.py'nin GOREV_ZINCIRLERI'nde kullanılır",
+    "(gorsel, arama_sentez, belge_ozet, video_ozet, kitap_ozet,",
+    "sembol_duzelt, soru_taslak) — proxy.py bunları /api/egitim/metin_uret",
+    "ve /api/egitim/gorsel_uret üzerinden client'a (ve benchmark/ script'lerine)",
+    "sunar. Bir alan boş bırakılırsa o sağlayıcı zincirlerde sessizce atlanır."
+  ],
+  "groq_api_key": "",
+  "mistral_api_key": "",
+  "deepseek_api_key": "",
+  "openrouter_api_key": "",
+  "nvidia_api_key": ""
+}

@@ -12,3 +12,17 @@ pgvector==0.5.0
 sentence-transformers==5.7.0
 transformers==5.14.1
 torch==2.13.0
+
+# icerik.py — Faz 2, ders_icerigi/pdf_sayfa taşıması (client requirements.txt ile aynı sürüm disiplini yok, en güncel kararlı)
+PyMuPDF
+pdfplumber
+openai
+python-multipart
+
+# dosya.py — Faz 2/8, file_processor taşıması
+python-docx
+python-pptx
+pandas
+openpyxl
+Pillow
+PyPDF2

@@ -12,6 +12,7 @@ client/config/api_keys.json
 client/config/api_keys.json.zip
 client/config/zil.json
 client/config/ders_programi.json
+server/config/api_keys.json
 # .example.json şablonları YUKARIDAKİ desenlere uymuyor, committed kalır.
 
 # PDF bırakma dizinleri — client/CLAUDE.md: "gitignored", öğretmenin kendi
@@ -43,5 +44,14 @@ server/yedekler/
 # benchmark/ çalışma ortamı içi büyük/üretilen dosyalar
 benchmark/metin/*.json
 benchmark/venv/
+
+# server/gecici/ — dosya_isle'nin (server/dosya.py) ürettiği dönüşüm
+# dosyaları, 24 saat sonra silinir; regenerable, kalıcı veri değil.
+server/gecici/
+
+# mudur/ — okul idaresinin kendi ders programı/giriş-çıkış belgeleri
+# (PDF/JPEG), planlar/ ile aynı desen: koda BAĞLI DEĞİL, idarenin kaynak
+# materyali. Dizin diskte kalır, git'e girmez.
+mudur/
 
 # server/ sanal ortamı zaten yukarıdaki **/venv/ ile kapsanıyor
