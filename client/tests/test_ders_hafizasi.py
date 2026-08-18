@@ -1,108 +1,76 @@
 """
-actions/ders_hafizasi — geçmiş ders kaydını hatırlama, ağsız/dosya-tabanlı
-test. Her test kendi İZOLE `transcript.LOG_DIR`'ını kullanır (`_izole_dizin`
-fixture'ı) — testler arasında sentetik dosya sızıntısı olmasın diye; aksi
-halde "en son ders" gibi sıralamaya dayalı testler, aynı süreçte çalışan
-başka testlerin bıraktığı dosyalardan yanlış sonuç alabilir.
+actions/ders_hafizasi.py'nin server-proxy davranışı. Ağ yok — `requests`
+mock'lanır.
+
+Eşleştirme mantığının kendisi artık burada değil, `server/ders_hafizasi.py`'de
+(bkz. server/tests/test_ders_hafizasi.py) — bu dosya taşındı, ORADA test
+ediliyor. Burada yalnızca HTTP proxy davranışı (başarı → sunucunun 'metin'
+alanı döner, sunucu hatası/bağlantı hatası → sessizce nazik bir mesaj, asla
+raise) test edilir.
 """
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 KOK = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(KOK))
 
+from actions.ders_hafizasi import ders_hafizasi  # noqa: E402
 from core import transcript                      # noqa: E402
-from actions.ders_hafizasi import ders_hafizasi   # noqa: E402
 
 
 @pytest.fixture
-def izole_dizin(monkeypatch, tmp_path):
-    """Her test kendi boş logs/ders/ dizinini görür; oturum önbelleği de
-    sıfırlanır ki `session_file()` bu yeni dizinde yeniden hesaplansın."""
+def izole_oturum(monkeypatch, tmp_path):
+    """session_file()'ın gerçek diskte bir şey yazmasını engelle."""
     monkeypatch.setattr(transcript, "LOG_DIR", tmp_path)
     monkeypatch.setattr(transcript, "_oturum_yolu", None)
-    return tmp_path
 
 
-def _gecmis_dosya_yaz(dizin: Path, ad: str, icerik: str) -> Path:
-    dizin.mkdir(parents=True, exist_ok=True)
-    yol = dizin / ad
-    yol.write_text(icerik, encoding="utf-8")
-    return yol
+def _sahte_yanit(json_veri: dict, status_ok: bool = True):
+    r = SimpleNamespace()
+    r.json = lambda: json_veri
+    r.raise_for_status = (lambda: None) if status_ok else _patlat
+    return r
 
 
-def test_konu_verilince_dogru_gecmis_ders_eslesir(izole_dizin):
-    _gecmis_dosya_yaz(
-        izole_dizin, "2019-01-01_09-00-00_10-A.txt",
-        "# Farabi ders kaydı — 01.01.2019 09:00\n"
-        "------------------------------------------------------------\n"
-        "09:00:05  SİSTEM   ÇERÇEVE: ders=Biyoloji konu=Hücre zarı\n"
-        "09:00:10  FARABİ   Hücre zarı fosfolipit çift tabakasından oluşur.\n",
+def _patlat():
+    raise RuntimeError("http hata")
+
+
+def test_basarili_yanit_metni_doner(monkeypatch, izole_oturum):
+    monkeypatch.setattr(
+        "requests.post",
+        lambda url, **kw: _sahte_yanit({"metin": "geçmiş ders özeti"}),
     )
-    _gecmis_dosya_yaz(
-        izole_dizin, "2019-01-02_10-00-00_10-A.txt",
-        "# Farabi ders kaydı — 02.01.2019 10:00\n"
-        "------------------------------------------------------------\n"
-        "10:00:05  SİSTEM   ÇERÇEVE: ders=Matematik konu=Türev\n"
-        "10:00:10  FARABİ   Türev anlık değişim hızıdır.\n",
-    )
-    sonuc = ders_hafizasi({"konu": "hücre zarı"})
-    assert "Biyoloji" in sonuc
-    assert "fosfolipit" in sonuc
-    assert "Türev" not in sonuc
+    assert ders_hafizasi({"konu": "hücre zarı"}) == "geçmiş ders özeti"
 
 
-def test_konu_verilmezse_en_son_gecmis_ders_doner(izole_dizin):
-    _gecmis_dosya_yaz(
-        izole_dizin, "2018-01-01_09-00-00_10-A.txt",
-        "# Farabi ders kaydı — 01.01.2018 09:00\n"
-        "------------------------------------------------------------\n"
-        "09:00:05  SİSTEM   ÇERÇEVE: ders=Kimya konu=Asitler\n"
-        "09:00:10  FARABİ   Asitler suda H+ iyonu verir.\n",
-    )
-    _gecmis_dosya_yaz(
-        izole_dizin, "2018-06-01_09-00-00_10-A.txt",
-        "# Farabi ders kaydı — 01.06.2018 09:00\n"
-        "------------------------------------------------------------\n"
-        "09:00:05  SİSTEM   ÇERÇEVE: ders=Fizik konu=Newton yasaları\n"
-        "09:00:10  FARABİ   Cisimler net kuvvet olmadıkça hareketini korur.\n",
-    )
+def test_istek_govdesi_derslik_ve_guncel_dosya_icerir(monkeypatch, izole_oturum):
+    yakalanan = {}
+
+    def _sahte_post(url, json=None, **kw):
+        yakalanan.update(json or {})
+        return _sahte_yanit({"metin": "ok"})
+
+    monkeypatch.setattr("requests.post", _sahte_post)
+    ders_hafizasi({"ders": "Matematik", "konu": "Türev"})
+    assert yakalanan["ders"] == "Matematik"
+    assert yakalanan["konu"] == "Türev"
+    assert yakalanan["guncel_dosya"]  # session_file().name boş olmamalı
+
+
+def test_baglanti_hatasi_sessizce_nazik_mesaj_doner(monkeypatch, izole_oturum):
+    def _patlayan_post(url, **kw):
+        raise ConnectionError("bağlantı reddedildi")
+    monkeypatch.setattr("requests.post", _patlayan_post)
     sonuc = ders_hafizasi({})
-    assert "Fizik" in sonuc
-    assert "Newton" in sonuc
-    assert "Asitler" not in sonuc
+    assert "ulaşamıyorum" in sonuc
 
 
-def test_suren_oturum_kendi_kendini_hatirlamaz(izole_dizin):
-    transcript.log_line("sistem", "gizli-suren-oturum-imi-x7q9")
-    _gecmis_dosya_yaz(
-        izole_dizin, "2017-01-01_09-00-00_10-A.txt",
-        "# Farabi ders kaydı — 01.01.2017 09:00\n"
-        "------------------------------------------------------------\n"
-        "09:00:05  SİSTEM   ÇERÇEVE: ders=Tarih konu=Kurtuluş Savaşı\n"
-        "09:00:10  FARABİ   Kurtuluş Savaşı 1919'da başladı.\n",
-    )
-    guncel = transcript.session_file()
+def test_sunucu_metin_alani_bossa_nazik_mesaj_doner(monkeypatch, izole_oturum):
+    monkeypatch.setattr("requests.post", lambda url, **kw: _sahte_yanit({}))
     sonuc = ders_hafizasi({})
-    assert guncel.name not in sonuc
-    assert "gizli-suren-oturum-imi-x7q9" not in sonuc
-
-
-def test_gecmis_kayit_yokken_uydurmadan_mesaj_doner(izole_dizin):
-    sonuc = ders_hafizasi({"konu": "herhangi bir şey"})
-    assert "bulamadım" in sonuc or "yok" in sonuc
-
-
-def test_eslesmeyen_konu_uydurmadan_mesaj_doner(izole_dizin):
-    _gecmis_dosya_yaz(
-        izole_dizin, "2016-01-01_09-00-00_10-A.txt",
-        "# Farabi ders kaydı — 01.01.2016 09:00\n"
-        "------------------------------------------------------------\n"
-        "09:00:05  SİSTEM   ÇERÇEVE: ders=Biyoloji konu=Hücre zarı\n"
-        "09:00:10  FARABİ   Hücre zarı fosfolipit çift tabakasından oluşur.\n",
-    )
-    sonuc = ders_hafizasi({"konu": "kuantum tünelleme çok garip bir sorgu"})
-    assert "bulamadım" in sonuc
+    assert "okunamadı" in sonuc
