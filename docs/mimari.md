@@ -189,6 +189,18 @@ dışında.
 
 Dosya içeriği DB'ye gömülmez. `hash`, yeniden indeksleme gerekip gerekmediğini belirler.
 
+> ⚠️ **Ara çözüm (2026-08-14):** Ayrı bir NAS (OMV) donanımı henüz kurulmadı.
+> "NAS" katmanı şu an fiilen Brain sunucusuna zaten bağlı ikinci disk üzerinde
+> (`/mnt/farabi-data/farabi/` — §15'te "altyapı hazırlığı" olarak 2026-08-09'da
+> hazırlanmıştı, o zamana kadar boştu). Bu tarihte client'taki `kitaplar/`
+> (1.1GB), `YKS/`, ve türetilmiş içerik (`icerik/metin`, `ozet`, `yks_metin`,
+> `eslemeler`, `onbellek`, `kitaplar.json`) BURAYA taşındı — client'ta artık
+> hiçbiri yok (bkz. CLAUDE.md "Yapı"). `kitap.dosya_yolu` bu mutlak yola
+> güncellendi. Gerçek bir NAS gelirse yalnızca bu yol taşınır, kodun geri
+> kalanı `DATA_DIR` sabitinden habersiz çalışmaya devam eder — bu yüzden ayrı
+> bir NAS donanımı olmaması bugün pratik bir engel değil, yalnızca gelecekte
+> ele alınacak bir donanım kararı.
+
 Qdrant / Elasticsearch / Redis / Kafka / Kubernetes / Prometheus **kurulmaz.**
 
 ### Şema — Faz 1
@@ -323,11 +335,28 @@ GET /version    — sürüm / yüklü model bilgisi
 
 ```
 GET  /api/egitim/kitaplar          — uygulandı, `server/main.py`
-POST /api/egitim/question          — uygulandı, `server/main.py`
+POST /api/egitim/question          — uygulandı, `server/main.py` + `rag.py`
+POST /api/egitim/ders_kaydi_yedek  — uygulandı, `server/main.py`
+POST /api/egitim/ders_icerigi      — uygulandı (2026-08-14), `server/icerik.py`
+GET  /api/egitim/pdf_sayfa         — uygulandı (2026-08-14), `server/icerik.py`
+POST /api/egitim/yks_sorusu        — uygulandı (2026-08-14), `server/yks.py`
+GET  /api/egitim/yks_sayfa         — uygulandı (2026-08-14), `server/yks.py`
+POST /api/egitim/metin_uret        — uygulandı (2026-08-14), `server/proxy.py`
+POST /api/egitim/gorsel_uret       — uygulandı (2026-08-14), `server/proxy.py`
+POST /api/egitim/dosya_isle        — uygulandı (2026-08-14), `server/dosya.py`
+GET  /api/egitim/dosya_indir/{id}/{ad} — uygulandı (2026-08-14), `server/dosya.py`
 POST /api/egitim/lesson/start
 POST /api/egitim/teacher/command
 WS   /ws/classroom/{tahta_id}
 ```
+
+> **2026-08-14 — kapsam genişlemesi:** Son 6 endpoint bu tarihte eklendi;
+> RAG'ın dışındaki tüm client-taraflı ağır iş (kitap sayfa eşleştirme/render,
+> YKS soru arama, bulut LLM çağrıları, dosya işleme) server'a taşındı. Bunlar
+> mimari.md'nin özgün Faz 1→4 yol haritasının bir "adımı" değil, ona paralel
+> bir konsolidasyon — bkz. §15 "Üçüncü sapma". Hiçbiri Docker/Redis/Qdrant/
+> Celery gerektirmedi (CLAUDE.md Kural 8); tek yeni bağımlılık
+> `python-multipart` (FastAPI'nin resmi upload eklentisi).
 
 ### İdari — FAZ 4, ŞU AN OLUŞTURULMAZ
 
@@ -427,6 +456,24 @@ kayit.py`) — `ders_icerigi`'nin aksine bir konuyu anlatmak için değil,
 kaynaklı bir soruyu yanıtlamak için. Sunucu ulaşılamazsa ya da eşleşme yoksa
 sessizce mevcut araçlara düşer (mimari.md §2).
 
+> ⚠️ **Düzeltme (2026-08-14) — "uçtan uca doğrulandı" iddiası YANLIŞTI.**
+> Yukarıdaki ve §15'teki önceki notlar bu sözleşmenin gerçek bir tahtadan
+> doğrulandığını söylüyordu. Gerçekte `farabi-api.service` yalnızca
+> `127.0.0.1:8000`'e bağlıydı — LAN'daki hiçbir tahta server'a hiç
+> ulaşamıyordu (bağlantı reddediliyordu), ölçümler muhtemelen server'ın kendi
+> localhost'undan alınmıştı. `--host 0.0.0.0` yapılıp gerçek bir tahtadan
+> (`192.168.23.245` → `192.168.23.252:8000`, ölçülen gecikme ~0.8ms) test
+> edilerek düzeltildi ve GERÇEKTEN doğrulandı. Ders: bu doküman "doğrulandı"
+> dediğinde bile, önce `ss -tlnp`/gerçek bir istemciden `curl` ile bağlantının
+> KENDİSİNİ doğrulamak gerekir — bir servisin `active (running)` olması,
+> ona ulaşılabildiği anlamına gelmez.
+>
+> **Güvenlik notu:** `0.0.0.0` bağlaması, VLAN/güvenlik duvarı henüz
+> kurulmadığı için tüm okul LAN'ını kimlik doğrulamasız erişime açıyor — bu,
+> `OLLAMA_HOST=0.0.0.0:11434`'ün (§5) zaten kabul ettiği risk modeliyle aynı
+> (okul güvenlik duvarı dış sınır koruması). Kalıcı çözüm §11'deki Caddy/TLS/
+> VLAN planı; bu bilinçli bir ara adım, unutulmuş bir açık değil.
+
 ---
 
 ## 11. Ağ
@@ -518,8 +565,12 @@ Gerekçe: RAG'ı iyileştirmek için gereken şey hatalardır. Başarılı cevap
 saklamaya gerek yoktur. Hash saklamak işe yaramaz — "hangi soru hangi yanlış sayfayı
 getirdi" bilgisi olmadan iyileştirme yapılamaz.
 
-**Kısıtlar:** öğrenci kimliği yok, ses yok, **90 gün sonra otomatik silinir.**
-"Öğretmen durdurdu" kaydı en değerli sinyaldir — Farabi'nin saçmaladığı andır.
+**Kısıtlar:** öğrenci kimliği yok, ses yok. **"90 gün sonra otomatik
+silinir" kaldırıldı (2026-08-18)** — hiçbir zaman uygulanmamıştı (bir kod
+incelemesinde bulundu, crontab/systemd/kodda karşılığı yoktu), kullanıcı bu
+boşluğu bilinçli bir karar olarak onayladı: kimlik tutulmadığı için süresiz
+saklama ek bir KVKK riski taşımıyor, bkz. §14. "Öğretmen durdurdu" kaydı en
+değerli sinyaldir — Farabi'nin saçmaladığı andır.
 
 ### Periyodik
 
@@ -549,7 +600,8 @@ GPU utilization, VRAM, eşzamanlı aktif oturum.
   Gemini Live'ın kendi transkripsiyonu client'ta kalır, Brain'e yalnızca
   metin gider.
 - Öğrenci kimliği tutulmaz; anonim "öğrenci sordu".
-- Soru metni yalnızca hatalı/şüpheli durumlarda, 90 gün saklanır (§13).
+- Soru metni yalnızca hatalı/şüpheli durumlarda saklanır, süre sınırı yok
+  (§13 — "90 gün" kısıtı 2026-08-18'de kaldırıldı, bilinçli karar).
 - **Eğitim İÇERİĞİ (kitap metni, RAG cevabı) dış bulut AI servisine
   gönderilmez — bu hedef hâlâ geçerli ve karşılanıyor.** Brain (Ollama,
   bge-m3, reranker, PostgreSQL/pgvector) tamamen yerel çalışıyor; yalnızca
@@ -611,6 +663,22 @@ bitirebilir (retrieval çalışmıyorsa mimarinin geri kalanının değeri yoktu
 **Neden server iskeleti bekliyor:** Retrieval %50 çıkarsa yazılmış FastAPI'nin
 hiçbir değeri kalmaz.
 
+> ⚠️ **Üçüncü sapma (2026-08-14):** RAG dışındaki client-taraflı ağır iş
+> (kitap/YKS PDF depolama+eşleştirme+render, bulut LLM çağrıları, dosya
+> işleme) server'a taşındı — kullanıcının açık isteğiyle ("çoğu şeyi server
+> tarafına alalım, client'ta minimum dosya bulunsun"), yol haritasının bir
+> adımı olarak değil, ona PARALEL bir konsolidasyon olarak. Yapılanlar: veri
+> `/mnt/farabi-data/farabi/`'ye taşındı (§6), 6 yeni endpoint eklendi (§9),
+> ilgili client `actions/*.py` dosyaları HTTP-çağıran hale getirildi,
+> `core/saglayicilar.py` sağlayıcı havuzundan ince bir proxy istemcisine
+> indirgendi (gerçek havuz `server/saglayicilar.py`'de), 5 bulut anahtarı
+> client'tan server'a taşındı, client'ın `kitaplar/`/`YKS/`/`icerik/` dizinleri
+> ve gereksiz kalan ağır Python paketleri (PyMuPDF, pandas, python-docx/pptx,
+> openai) silindi. Aynı oturumda §10'da belgelenen kritik bir üretim hatası
+> (server LAN'a hiç açık değildi) ve okul ağının SSL-inceleme sertifikasının
+> (MEB-CERT-TTVPN) server'da tanınmaması sorunu da düzeltildi. Docker/Redis/
+> Qdrant/Celery eklenmedi (Kural 8) — tek yeni bağımlılık `python-multipart`.
+>
 > ⚠️ **Bilinçli sapma (2026-08-10/11):** Server iskeleti ([1]), Faz 0a kapısı
 > **tam kapanmadan** kullanıcının açık kararıyla erken başlatıldı — B grubu
 > soru sayısı o sırada 12'ydi (min. 15 altında) ve B grubunun ölçülen
@@ -725,6 +793,9 @@ Retrieval testinden ayrı tutulur — hata ayıklamayı kolaylaştırır.
 | Devir dokümanı + bilişim öğretmenine eğitim | Atakan | Faz 2 sonrası |
 | ~~`client/`'ın bulut LLM bağımlılığı nasıl yerel Brain'e taşınacak~~ | Atakan | **Çözüldü 2026-08-11** — SES için çözülmeyecek, kalıcı karar: Gemini Live kalıyor (§14). METİN/İÇERİK (RAG cevabı) için zaten yerel (`server/`, `POST /api/egitim/question` çalışıyor). Client hangi araçla Brain'i çağırıyor sorusu da çözüldü: yeni `kitap_sorusu` aracı (§10), gerçek sunucuya karşı doğrulandı. |
 | Faz 1 bağlam çözümü: `tahta_id → ders_programi → sinif+sube+ders → sinif_kitap → kitap_id` zinciri nasıl kurulacak, pilot tahtaların `tahta_id`'leri nereden atanacak | Atakan | `server/`'ın API'si şu an `kitap_id`'yi doğrudan istekte alıyor, gerçek bir tahtadan gelen isteği çözemiyor |
+| ~~Client'ın kendi kitaplar/YKS/içerik deposu tekrar mı ediliyor (çoklu tahta)~~ | Atakan | **Çözüldü 2026-08-14** — tamamen kaldırıldı, tek kanonik konum `/mnt/farabi-data/farabi/` (§6) |
+| MEB-CERT-TTVPN (okul ağı SSL-inceleme sertifikası) FATİH tahtasında güveniliyor mu — bkz. §11'deki AYRI soru (Caddy'nin kendi TLS sertifikası) | Test | Server tarafı **çözüldü 2026-08-14** (sistem deposu + her venv'in certifi paketine eklendi); tahta tarafı hâlâ test edilmedi |
+| Caddy reverse proxy + TLS ne zaman kurulacak — server hâlâ kimlik doğrulamasız `0.0.0.0`'a açık (§10, §11) | Atakan | VLAN/switch netleşmeden Faz 1 kurulumu tamamlanamaz |
 
 "Okul Beyni" / müdür asistanı **ayrı projedir**; aynı sunucuda çalışabilir, aynı kod
 tabanında olması gerekmez.
