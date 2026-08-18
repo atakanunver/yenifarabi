@@ -10,29 +10,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Named after Fârâbî, the Turkic-Islamic polymath titled *Muallim-i Sânî*
 ("The Second Teacher", after Aristotle).
 
-**Target:** a standalone Linux smart board client, one board at a time, no
-central server. A school-server architecture (`farabi-server`) was explored and
-then dropped — do not reintroduce a "phase 2 server" framing into new code or
-docs. Every board runs independently: its own config files, its own API keys,
-its own local content index.
+**Target: an INCE (thin) Linux smart board client, backed by a central
+Brain server (`server/`, on `farabi.local`).** The "standalone client, no
+central server" framing below is **HISTORICAL — superseded 2026-08-14**
+(server-taşıma). Every board still has its own `config/api_keys.json`
+(`derslik`, `sunucu_url`, Gemini key pool) but no longer has its own book/
+YKS/content index — that lives on the server now (`/mnt/farabi-data/farabi/`
+on the server machine), fetched over HTTP per lesson.
 
-> ⚠️ **Reconciled 2026-08-09, updated 2026-08-11** with the repo root's
-> `CLAUDE.md`/`docs/mimari.md`: the long-term target is a local "Brain"
-> server (Ollama, RAG/pgvector) with an ideally-thin client. **Voice is the
-> one deliberate, permanent exception (decided 2026-08-11):** local STT/TTS
-> was evaluated and cancelled — Gemini Live's realtime turn-taking/barge-in
-> is hard to replicate with a separate VAD→STT→LLM→TTS pipeline, and that
-> engineering effort was judged not worth it for this project (could be tried
-> in a different project, not this one). So: **student voice permanently goes
-> to Gemini Live (cloud)** — this is accepted, not temporary. Educational
-> *content* (book text, RAG answers) is the part that's local and stays local
-> — that privacy goal is met via `server/` (see `docs/mimari.md` §14). *This*
-> file's "no central server, standalone client" framing still describes the
-> current, working implementation (Gemini Live for voice + five text/vision
-> cloud providers for everything else) — the text/vision provider dependency
-> (`core/saglayicilar.py`) is a separate, still-open question, not resolved
-> by the voice decision. Don't quietly rewrite this file to pretend content
-> already flows through `server/`; the client isn't wired to it yet.
+> ⚠️ **RESOLVED 2026-08-14 (server-taşıma) — supersedes the "Reconciled
+> 2026-08-09/2026-08-11" note that used to be here.** That note said "the
+> text/vision provider dependency is a separate, still-open question, not
+> resolved by the voice decision" and warned not to "pretend content already
+> flows through `server/`" — this is exactly what happened next, on the
+> user's explicit request ("çoğu şeyi server tarafına alalım, client'ta
+> minimum dosya bulunsun"): `ders_icerigi`, `kitap_sorusu`, `pdf_sayfa`,
+> `yks_sorulari`, `file_processor`, and all five non-Gemini text/vision
+> providers (`core/saglayicilar.py`) now go over HTTP to `server/`. **Voice
+> is still the one unchanged, permanent exception** — Gemini Live stays
+> fully client-side, independent of `server/` (same reasoning as before:
+> local STT/TTS was evaluated and cancelled, realtime turn-taking/barge-in
+> isn't worth re-engineering for this project). See the repo root
+> `CLAUDE.md` and `docs/mimari.md` §6/§9/§10/§15 for the authoritative,
+> up-to-date architecture — **this file is the client-only detail layer,
+> the root doc is the source of truth when the two disagree.**
 
 **Two lesson modes.** In a normal lesson a human teacher is present with ~20
 students and Farabi is the assistant: it carries content and questioning while
@@ -151,9 +152,21 @@ core/
                          (shared, see below)
   modeller.py            CANLI_MODEL only now — Live model name, one place
   anahtar.py             Gemini API key pool + quota detection (Live only)
-  saglayicilar.py        SIX-PROVIDER POOL for everything non-realtime (Groq,
-                         Mistral, DeepSeek, OpenRouter, NVIDIA NIM) — see
-                         "Provider notes and API quota" below
+  saglayicilar.py        **CHANGED 2026-08-14 — no longer a provider pool.**
+                         Now an ince HTTP proxy client to `server/`'s
+                         `POST /api/egitim/metin_uret` / `gorsel_uret`; the
+                         real Groq/Mistral/DeepSeek/OpenRouter/NVIDIA NIM
+                         pool + task chains + cooldown logic moved to
+                         `server/saglayicilar.py` (byte-for-byte transplant,
+                         same `GOREV_ZINCIRLERI`). `metin_uret`/`gorsel_uret`
+                         function signatures were kept IDENTICAL on purpose
+                         so every caller (`file_processor.py`,
+                         `web_search.py`, `youtube_video.py`,
+                         `tools/kitap_ozet.py`, `tools/sembol_temizle.py`)
+                         needed zero changes. Still raises `RuntimeError` on
+                         total failure, same as before — see "Provider notes
+                         and API quota" below, now describing the SERVER's
+                         pool, not this file's.
   logger.py              rotating diagnostic log
   transcript.py          lesson record (text only, never audio). Changed
                          2026-08-12: ONE FILE PER LESSON SESSION now
@@ -221,92 +234,97 @@ tests/                   pytest; pure functions only, no network, no model
                          monkeypatched cache — see kitap_sorusu section below)
 
 config/
-  api_keys.json          gemini_api_key, os_system, ders_kipi, derslik
-                         (gitignored — see Config keys below; may still carry
-                         a leftover camera_index key, now dead/ignored)
+  api_keys.json          gemini_api_keys/gemini_api_key, derslik, sunucu_url,
+                         ders_kipi, os_system (gitignored — see Config keys
+                         below). **2026-08-14: the five cloud-provider keys
+                         (groq/mistral/deepseek/openrouter/nvidia) were
+                         REMOVED from this file** — they live in
+                         `server/config/api_keys.json` now (server machine
+                         only), this board no longer holds or needs them.
   api_keys.example.json  same shape, committed as template — hand-copy this,
                          there is no setup wizard that writes api_keys.json
-  zil.json               bell schedule (gitignored)
+  zil.json               bell schedule (gitignored, but school-wide shared —
+                         see the 9-A sync mechanism note below)
   zil.example.json       same values, committed as template
-  ders_programi.json     timetable (gitignored)
+  ders_programi.json     timetable (gitignored, also school-wide shared)
   ders_programi.example.json   same shape, committed as template
 
 planlar/           2.3M  MEB yearly-plan .xlsx — ARCHIVE ONLY, not read by any
                          code path anymore (see below). Left on disk because
                          it's the teacher's source material, not because
-                         anything consumes it; see planlar/BURAYA_NE_KONUR.md
-kitaplar/         ~1.0G  textbook PDFs — DROP DIRECTORY (gitignored except the
-                         note); see kitaplar/BURAYA_NE_KONUR.md. `kitap_metin.py`
-                         and the HUD button both glob `kitaplar/*.pdf` non-
-                         recursively — any scratch PDF dropped at the top level
-                         (a manual split, an OCR intermediate) gets converted
-                         as if it were a textbook. `kitaplar/_manuel_calisma/`
-                         is the parking spot for that kind of leftover; a
-                         subdirectory is invisible to the top-level glob.
-YKS/                     YKS (TYT/AYT) past exam-paper PDFs — DROP DIRECTORY,
-                         same shape as kitaplar/, no marker file yet. One
-                         consumer, offline: tools/yks_metin.py (plain text,
-                         read at runtime by `yks_sorulari`).
-icerik/             15M  generated index + caches (GITIGNORED, regenerable)
-  metin/<kitap>.json     extracted page text — what `ders_icerigi` actually
-                         reads at runtime; produced by tools/kitap_metin.py
-  ozet/<kitap>.json      OPTIONAL book summary + web enrichment, produced by
-                         tools/kitap_ozet.py; `ders_icerigi` prepends the
-                         summary when present, silently skips it otherwise
-  onbellek/              page-selection cache (_sayfa_secimi.json)
-  eslemeler/*.json       HAND-WRITTEN theme→page maps — the one thing under
-                         icerik/ that is NOT generated, and is committed
+                         anything consumes it; see planlar/BURAYA_NE_KONUR.md.
+                         Root CLAUDE.md marks this "don't delete" explicitly.
+
+> ⚠️ **`kitaplar/`, `YKS/`, and everything under `icerik/` except
+> `icerik/onbellek/` are GONE from this board (2026-08-14, server-taşıma) —
+> the paragraphs below describing them as live drop directories are
+> HISTORICAL.** 1.1GB+ of textbook/YKS PDFs and all derived content
+> (`icerik/metin`, `icerik/ozet`, `icerik/eslemeler`, `icerik/yks_metin`,
+> `icerik/kitaplar.json`) moved to the server's own disk
+> (`/mnt/farabi-data/farabi/`, see root `CLAUDE.md`). This board now only
+> keeps `icerik/onbellek/pdf_sayfa/` and `icerik/onbellek/yks_sayfa/` — a
+> small (≤30 files each), disposable local cache of PNG pages already
+> rendered by the server for THIS board's current lesson, not a data store.
+> Nothing in `actions/` reads a local PDF or a local `icerik/metin/*.json`
+> anymore; `ders_icerigi`/`kitap_sorusu`/`pdf_sayfa`/`yks_sorulari` all call
+> `server/` over HTTP instead (see each tool's section further down).
+
 logs/                    ders/*.txt lesson records, farabi.log (GITIGNORED)
 ```
 
-Data flows one way for **books**: `kitaplar/` → `tools/` → `icerik/` →
-`ders_icerigi` at runtime. Nothing in `actions/` opens PDFs without going
-through `icerik/`. `ders_icerigi` prefers `icerik/metin/<kitap>.json` and only
-falls back to opening the PDF for a book that has not been through
-`kitap_metin.py` — the slow path, not the intended one.
-
-**A lesson is driven only by kitaplar/, never by the yearly plan.** Subject
-comes from `config/ders_programi.json` (`program.simdiki_ders()` →
-`_programdan_cerceve`); topic and kazanım come from the teacher (typed or
-spoken) at lesson start; `ders_icerigi` matches that topic straight against
-the book index. The yearly-plan pipeline (`plan_parse.py` → `icerik/plan.json`,
-the `dogrula.py` plan/coverage checks, `gunun_adaylari`/`ders_cercevesi_yap`
-in `ders_icerigi.py`) was **removed entirely**, not merely unused — there is
-no `icerik/plan.json` anymore and no code path reads `planlar/`. Do not
+**A lesson is driven only by the teacher's spoken/typed topic, never by the
+yearly plan.** Subject comes from `config/ders_programi.json`
+(`program.simdiki_ders()` → `_programdan_cerceve`); topic and kazanım come
+from the teacher (typed or spoken) at lesson start; `ders_icerigi` sends that
+topic to the server, which matches it against the book index there. The
+yearly-plan pipeline (`plan_parse.py` → `icerik/plan.json`, the `dogrula.py`
+plan/coverage checks, `gunun_adaylari`/`ders_cercevesi_yap`) was **removed
+entirely** long before the server move and stays removed — do not
 reintroduce a "derive today's topic from the plan" path; topic/kazanım only
 ever come from the teacher.
 
-**`tools/` invariant.** `kitap_index.py`, `kitap_metin.py`, `sembol_temizle.py`
-and `kitap_ozet.py` are content preparation: run **once, offline** (or from a
-UI button — still not during a lesson, see "Content pipeline" below), never
-while a class is waiting. `sembol_temizle.py` and `kitap_ozet.py` additionally
-cost real API calls — they default to a dry run and require `--onayla`.
+**`tools/` invariant — CHANGED 2026-08-14.** `kitap_index.py`, `kitap_metin.py`,
+`sembol_temizle.py` and `kitap_ozet.py` are still content preparation
+scripts and their code is still here, but they **no longer run on this
+board** — the `kitaplar/`/`YKS/`/`icerik/` directories they process don't
+exist here anymore (see the warning box above). The HUD buttons that used to
+trigger them (`📚 KİTAPLARI METNE DÖNÜŞTÜR` etc., see "Content pipeline"
+below) were **removed from `ui.py`** in the same change. Content preparation
+now happens once, centrally, on the server side against
+`/mnt/farabi-data/farabi/` — see root `CLAUDE.md`'s "server/" section. The
+"Content pipeline" subsection further down in this file describes the OLD,
+now-inactive-on-this-board flow; kept for history since the scripts
+themselves weren't deleted, not because a teacher should press those buttons
+here.
 `mikrofon_test.py` is not content — it is board verification, run at install
 time and whenever a board is suspected deaf. The same two-phase measurement is
 also reachable at runtime from a HUD button (`_mikrofon_kalibre` in `ui.py`),
 which is deliberate: whoever is standing at the board is the one who needs the
 answer.
 
-**No semantic/embedding search.** `sentence-transformers` and `torch` were
-removed from `requirements.txt`; page selection is word-overlap only (see
-"Page selection" below). This was a deliberate simplification, not a
-regression to work around — the kept dependency is much lighter for a board
-install, and the word-overlap scorer already had to exist as the fallback.
+**No semantic/embedding search — CLAIM NOW ABOUT `server/`, NOT THIS BOARD.**
+`sentence-transformers`/`torch` were removed from THIS board's
+`requirements.txt` back when page selection still ran here; since
+2026-08-14 page selection (word-overlap, "Page selection" below) runs
+server-side in `server/icerik.py` instead, this board doesn't run either
+kind of search anymore — it just calls `server/` and shows the result.
 
 ### Config keys (`config/api_keys.json`)
+
+**2026-08-14: the five cloud-provider keys were removed from this table**
+(`groq_api_key`, `mistral_api_key`, `deepseek_api_key`, `openrouter_api_key`,
+`nvidia_api_key`) — they no longer exist in this board's config at all, real
+values live in `server/config/api_keys.json` (server machine only, not
+committed, not readable from this board).
 
 | Key | Set by | Missing means |
 |---|---|---|
 | `gemini_api_keys` | hand-edited, list | falls back to the single key |
 | `gemini_api_key` | hand-edited (legacy singular) | client cannot start (blocks the LIVE session only — see below) |
-| `groq_api_key` | hand-edited | that provider skipped in every `core/saglayicilar.py` chain it appears in |
-| `mistral_api_key` | hand-edited | same |
-| `deepseek_api_key` | hand-edited | same |
-| `openrouter_api_key` | hand-edited | same (this one is also the universal text fallback — see "Provider notes" below) |
-| `nvidia_api_key` | hand-edited | same |
+| `sunucu_url` | hand-edited, per board | falls back to `http://127.0.0.1:8000` — only correct if server and client are the SAME machine (dev only); a real board must set the real server address |
 | `os_system` | hand-edited | — |
 | `ders_kipi` | hand-edited | defaults to `ogretmenli` (`_ders_kipi`, `main.py`) |
-| `derslik` | hand-edited, per board | classroom unknown — see below |
+| `derslik` | hand-edited, per board | classroom unknown — see below. Also THE per-board identity used for the 9-A→server sync and (planned) multi-board status tracking, see "9-A ↔ server sync" below |
 | `camera_index` | dead (writer removed 2026-08-09) | ignored — no camera code reads or writes it |
 
 ### API key pool (`core/anahtar.py`)
@@ -671,12 +689,18 @@ boundary, not a hypothetical.
 **This boundary is scoped to `actions/` — the tools the model calls live, during
 a lesson.** It is not a claim that `ui.py` itself never shells out; it already
 did (`subprocess.run` for mic calibration and book conversion) before this line
-was written. `ui.py`'s `_terminalde_calistir` (teacher-triggered, from the
-`KİTAPLARI METNE DÖNÜŞTÜR` button — see "Content pipeline" below) opens a real
-terminal window; that is deliberate, teacher-initiated admin tooling with no
-student-facing surface, not a capability reachable from inside a lesson. If a
-future change makes any `actions/` module call `_terminalde_calistir` or
-anything like it, that *would* cross this boundary — don't do that.
+was written — mic calibration still does. **The book-conversion half is GONE
+(2026-08-14, server-taşıma):** `_terminalde_calistir`, `_terminalde_donustur`,
+`_kitaplari_donustur`, `_yks_donustur`, `_api_calisan_dugmeyi_baslat`,
+`_sembolleri_temizle`, `_kitap_ozeti_cikar`, and the `KİTAPLARI METNE
+DÖNÜŞTÜR`/`YKS SORULARINI METNE DÖNÜŞTÜR`/`ŞÜPHELİ SEMBOLLERİ TEMİZLE`/
+`KİTAP ÖZETİ ÇIKAR` buttons were all removed from `ui.py` — they existed only
+to run `tools/*.py` against this board's own `kitaplar/`/`YKS/`/`icerik/`,
+and those directories don't exist here anymore (see "Project layout" above).
+Content preparation now happens entirely on the server (`docs/mimari.md`,
+`server/icerik.py`) — there is no terminal-opening admin button on this board
+anymore. If a future change makes any `actions/` module shell out or open a
+terminal, that *would* cross this boundary — don't do that.
 
 **`youtube_video` currently breaks this boundary in two reachable ways, not yet
 fixed.** `action: "play"` calls `_open_url` → `subprocess.Popen(["xdg-open", url])`,
@@ -703,11 +727,19 @@ Two actions, deliberately asymmetric:
   instead of a specific video, and the teacher/student picks from there. This
   is the **same capability-boundary violation** `youtube_video` already has
   (see above) — not a new hole, an EBA-scoped instance of the existing one.
-- **`pdf`** — does **not** open a browser. Downloads the PDF server-side
-  (`requests`, whitelisted to `eba.gov.tr` only) and extracts text the same
-  way `actions/file_processor.py::_process_pdf` does (pdfplumber → PyPDF2
-  fallback), then prints it to the content panel via `player.show_content`.
-  No file written to disk, no app launched — this action does **not** cross
+- **`pdf`** — does **not** open a browser. Downloads the PDF (`requests`,
+  whitelisted to `eba.gov.tr` only) and extracts text locally, IN THIS FILE
+  (pdfplumber → PyPDF2 fallback) — **this is genuinely still local, not a
+  server call**, deliberately out of scope for the 2026-08-14 server move
+  (see `requirements.txt`'s comment on why `pdfplumber`/`PyPDF2` are still a
+  client dependency): an EBA question PDF is a live, one-off download, not
+  durable content worth centralizing. `eba.py`'s own docstring still
+  cross-references `file_processor.py::_process_pdf` for "same pattern" —
+  that function moved to `server/dosya.py` in the migration, the docstring
+  wasn't updated; the pattern itself (pdfplumber → PyPDF2) is unchanged,
+  just no longer literally the same function to point at. Then prints to
+  the content panel via `player.show_content`. No file written to disk, no
+  app launched — this action does **not** cross
   the capability boundary.
 
 Both actions refuse any URL whose host isn't `eba.gov.tr` or a subdomain of
@@ -715,44 +747,32 @@ it (`_izinli`, same suffix-match principle as `site_goster._izinli`).
 
 ### `ders_icerigi` — book skeleton, not lesson frame
 
-Call with the **teacher's** `ders` + `konu` (and ideally `sinif`) after the
-frame is known. This tool fetches textbook pages; it must **not** invent
-today's subject or kazanım, and the session opening must not tell the model
-to "learn the outcome from a plan" — there is no yearly plan in this chain at
-all anymore (see "Project layout" above). `tema` is still accepted (it
-matches a chapter name more precisely than a raw topic string) but is
-optional; when it's empty the tool matches `_bolum_bul` against `konu`
-directly. If neither is given, it returns the book catalogue instead of
-guessing.
+**CHANGED 2026-08-14 — matching logic moved to `server/icerik.py`.**
+Everything below this line used to describe THIS file's own algorithm; it
+now describes what the SERVER does after this client just POSTs
+`{ders, konu, sinif, tema}` to `POST /api/egitim/ders_icerigi` and returns
+the text it gets back (or `_SINIRLI_DEVAM` on any failure — same
+fail-silent discipline as `kitap_sorusu` below, unchanged). Kept here
+because the RULES still bind the model's behavior even though the CODE
+moved: call with the **teacher's** `ders` + `konu` (and ideally `sinif`)
+after the frame is known; must **not** invent today's subject or kazanım;
+`tema` optional, matches a chapter name more precisely than a raw topic
+string; no args → book catalogue instead of guessing.
 
-**Failure text is BINDING, not permission to improvise.** Fallback paths return
-`_SINIRLI_DEVAM`: stay inside the known kazanım text, invent nothing, call the
-tool again with a narrower request. If you reword it, keep it restrictive.
+**Failure text is still BINDING, not permission to improvise** — this part
+didn't change just because the fetch is now remote. Server-side fallback
+paths return `_SINIRLI_DEVAM`: stay inside the known kazanım text, invent
+nothing, call the tool again with a narrower request.
 
-**Hand-written mappings win over the index** (`icerik/eslemeler/<kitap>.json`,
-JSON so no new dependency). `_bolum_bul` consults them first. This is the fix
-for indexes the publisher's page headers ruin: `fizik-10.pdf` had all four unit
-names as `ÖLÇME VE DEĞERLENDİRME`; `cografya-10.pdf` was one unit covering the
-whole book. Page numbers are **PDF pages**, not the book's printed numbers.
-
-**The page scan is capped** at `TARAMA_SINIRI` (60) pages, striding over larger
-ranges. Unbounded, a 233-page "unit" took 55.4 s inside a live lesson.
-
-**Grade defaults to the board's classroom.** If the call names no `sinif`, it
-becomes `tahta.sinif_duzeyi()`, so a board configured `"derslik": "10-A"`
-searches 10th-grade books without anyone saying "10. sınıf". The substitution
-logs `sınıf dersliktan alındı: <n>`.
-
-Subject matching is **word-based, not substring**: `"temel matematik"` does not
-appear contiguously inside `"Temel Düzey Matematik"` and used to fail silently.
-`_ders_eslesir()` requires every query word to appear somewhere.
-
-Theme→book match requires ≥50% word overlap; below that it returns what it has
-rather than risk teaching the wrong theme. Pages are narrowed inside the theme
-by keyword scoring against the konu — see "Page selection" below (no
-semantic/embedding ranking; that subsystem was removed). Output capped at
-6000 chars (~1.5k tokens); if `icerik/ozet/<kitap>.json` exists (see
-"Content pipeline" below), a one-line book summary is prepended.
+The rest of the old algorithm notes (hand-written `eslemeler/` mappings
+winning over the index, the `TARAMA_SINIRI` page-scan cap, grade defaulting
+from `tahta.sinif_duzeyi()`, word-based subject matching, ≥50% theme-overlap
+threshold, the 6000-char output cap, the `ozet/` summary prepend) are now
+**server-side facts, not client-side ones** — see `server/icerik.py` and the
+root `docs/mimari.md` for the current, authoritative description. Grade
+still defaults from THIS board's `derslik` before the request is sent
+(`tahta.sinif_duzeyi()`), since that's board-identity information the
+server doesn't have on its own.
 
 ### `kitap_sorusu` — sourced Q&A via server, not a page fetch
 
@@ -784,75 +804,56 @@ worst case 5.3 s, no headroom before 2026-08-11 — raised from 5 s), registry
 
 ### `pdf_sayfa` — one page number, rendered as an image, no topic matching
 
-Added 2026-08-12. Renders a single PDF page with PyMuPDF (`fitz.open(...)
-.get_pixmap(matrix=fitz.Matrix(ZOOM, ZOOM))`, `ZOOM=2.0`) to a PNG cached at
-`icerik/onbellek/pdf_sayfa/<kitap>_s<sayfa>.png`, then calls
-`player.show_image(title, path)`. Call for "9. sayfayı göster/yansıt" —
-**no** theme/topic matching happens (unlike `ders_icerigi`), the page number
-is used as-is. Image, not text, deliberately: a page rendered to text loses
-diagrams/tables/formulas exactly the way `tools/kitap_metin.py` warns about
-for `ders_icerigi`.
+**CHANGED 2026-08-14 — rendering moved to `server/icerik.py`.** PyMuPDF/fitz
+is GONE from this board (not a dependency anymore, see `requirements.txt`).
+This file now does `GET /api/egitim/pdf_sayfa?ders&sinif&sayfa`, writes the
+returned PNG bytes to a small **local, disposable, LRU-capped cache**
+(`icerik/onbellek/pdf_sayfa/<ders>_s<sayfa>.png`, `_CACHE_LIMIT = 30` —
+oldest evicted first), then calls `player.show_image(title, path)`. The
+server holds the real, permanent render cache for ALL boards; this board's
+copy is just "what's currently on screen here," safe to lose entirely.
+`ders` is still required (`pdf_sayfa()` refuses without it) — same reasoning
+as `kitap_sorusu`: without it, the board's grade alone could match the
+wrong subject's book. **No** theme/topic matching happens (unlike
+`ders_icerigi`), the page number is used as-is — that part didn't change.
 
-**Same `ders`-required discipline as `kitap_sorusu`** (`_kitap_bul` returns
-`None` if `ders` is falsy) — same reasoning: without it, the board's grade
-alone could match the wrong subject's book for that grade.
-
-**UI side (`ui.py`):** the content-panel overlay now has two mutually
-exclusive display modes — `_show_content` (text, `QTextEdit`) and
-`_show_image` (this tool, `QLabel` inside a `QScrollArea`). Zoom is
-`self._image_zoom: float | None` — `None` means "fit to panel width",
-recomputed on window resize; a number is a fixed multiplier set by the
-`−`/`⛶ SIĞDIR`/`+` buttons above the image and left alone on resize once the
-teacher has manually zoomed. `QScroller.grabGesture(...,
-LeftMouseButtonGesture)` is attempted for touch/drag panning on the board;
-wrapped in `try/except` since it's a nice-to-have, not load-bearing —
-scrollbars work regardless.
-
-**Reuse:** `render_pdf_sayfa()` is a standalone render helper (raises on
-error, produces no class-facing text itself) that `yks_sorulari.py` imports
-directly for its own page rendering, so the fitz rendering logic lives in
-exactly one place — see `pdf_sayfa.py`'s module docstring.
+**UI side (`ui.py`)** — unchanged by the server move, still accurate: the
+content-panel overlay has two mutually exclusive display modes —
+`_show_content` (text, `QTextEdit`) and `_show_image` (this tool, `QLabel`
+inside a `QScrollArea`). Zoom is `self._image_zoom: float | None` — `None`
+means "fit to panel width", recomputed on window resize; a number is a
+fixed multiplier set by the `−`/`⛶ SIĞDIR`/`+` buttons above the image and
+left alone on resize once the teacher has manually zoomed. `QScroller.
+grabGesture(..., LeftMouseButtonGesture)` is attempted for touch/drag
+panning on the board; wrapped in `try/except` since it's a nice-to-have,
+not load-bearing — scrollbars work regardless.
 
 ### `yks_sorulari` — past exam questions, one at a time, shown as an image
 
-Fetches YKS (TYT/AYT) past exam questions on the current topic from
-`icerik/yks_metin/*.txt` (produced offline by `tools/yks_metin.py`, see
-"Content pipeline" below) for **matching only** (word-overlap, per page,
-`===SAYFA <n>===` markers). For **display**, added 2026-08-12: the actual PDF
-page from `client/YKS/<dosya>.pdf` is rendered via `pdf_sayfa.render_pdf_sayfa`
-and shown with `player.show_image` — original layout preserved (diagrams,
-tables, answer choices), not reflowed text. The question text returned to the
-model is still the raw extracted text, for it to read aloud — not the source
-of truth for what's on screen.
+**CHANGED 2026-08-14 — search + session state moved to `server/yks.py`.**
+This file now only does `POST /api/egitim/yks_sorusu` (question text +
+match metadata) and `GET /api/egitim/yks_sayfa` (the PDF page as a PNG,
+written to a local LRU cache exactly like `pdf_sayfa` above — `icerik/
+onbellek/yks_sayfa/`, `_CACHE_LIMIT = 30`). The word-overlap matching
+against `icerik/yks_metin/*.txt` and the "one question at a time, advance
+only on `sonraki=true`" session state (`_OTURUM` in the old client code)
+both moved server-side — **and had to change shape doing it**: a single
+module-level dict was safe when one client process served one board, but
+`server/` is one process serving every board, so the session dict became
+`derslik`-keyed (`_OTURUMLAR`) there. See `server/yks.py`'s own module
+docstring for the current session-state design, not this file.
 
-**One question at a time, advance only on command.** A module-level `_OTURUM`
-dict (`{"adaylar": [...], "index": -1}`, process-lifetime, same pattern as
-`_METIN_ONBELLEK`) holds the current matched sequence. Calling with `konu`
-(+ optionally `ders`, `adet`) starts a **new** sequence and shows only the
-first match, even if more matched. Calling again with `sonraki=true` and
-**no** `konu` advances to the next stored match and shows *that* page;
-calling with a new `konu` always restarts the sequence from scratch. This is
-enforced by the tool holding index state, but *when* to call `sonraki` is a
-prompt-level decision — see core/prompt.txt's SESLİ HİTAP/SORU SUNUM
-PROTOKOLÜ — never triggered automatically by the tool itself.
-
-There is no answer key or worked solution in the source PDFs (they're
-marketed as "tamamı video çözümlü" — solutions are in an external video, not
-the text), so the tool cannot supply one; the `aciklama` in `actions/kayit.py`
-tells the model to read the question to the class, then go silent and wait —
-work the solution itself only once asked, step by step, rather than treating
-this as a quiz to withhold answers on.
-
-There's no book/subject filter in the YKS archive's metadata, so a `ders`
-hint just gets folded into the query words to bias matching, it doesn't
-restrict which file is searched. Measured 0.26 s for a full-archive keyword
-search with all 8 files converted (2.8 MB text, ~1,300 pages) — no
-semantic/embedding ranking exists anywhere in this repo anymore, so there's
-nothing to fall back from. If `icerik/yks_metin/` is empty (conversion never
-run — via the HUD's "YKS SORULARINI METNE DÖNÜŞTÜR" button or
-`tools/yks_metin.py` by hand), the tool refuses and tells the model to keep
-teaching from the textbook instead of inventing a question — same "fallback
-text is binding" principle as `ders_icerigi`'s `_SINIRLI_DEVAM`.
+What's unchanged: the prompt-level rule that advancing to the next question
+is never automatic (`sonraki=true` must be an explicit, commanded turn — see
+core/prompt.txt's SESLİ HİTAP/SORU SUNUM PROTOKOLÜ); there's still no answer
+key in the source PDFs, so the model works the solution itself once asked,
+step by step, rather than treating this as a quiz to withhold answers on;
+and a `ders` hint still just biases matching rather than restricting which
+file is searched (no book/subject filter exists in the YKS archive's
+metadata). If the server has no matching question, this tool degrades the
+same way `ders_icerigi`/`kitap_sorusu` do — tell the model to keep teaching
+from the textbook instead of inventing a question, never raise into the
+session.
 
 ### `ders_hafizasi` — recalling a PAST lesson, added 2026-08-12
 
@@ -928,6 +929,58 @@ shipping. The regex allowlist alone (`[A-Za-z0-9ÇĞİÖŞÜçğıöşü_.-]+`, 
 blocks multi-segment traversal but NOT a bare `".."` value — the
 resolve+containment check is load-bearing, not just defense-in-depth.
 
+### 9-A ↔ server code sync — NOT part of the git repo, lives only on this board
+
+**This is infrastructure, not a `client/` tool the model calls — added
+2026-08-17/18, documented here because it lives on and controls THIS board's
+copy of the code.** Not in `docs/mimari.md` yet.
+
+This board (9-A) is currently the **pilot**: it is the SOURCE of truth for
+`client/` code, and PUSHES to the server every night — direction is
+deliberately the opposite of what you'd expect for other boards later (see
+below). Nothing here touches `farabi-api.service` or restarts anything on
+either machine; it only copies files and (server-side) records a git commit.
+
+- **`~/farabi/farabi-push.sh`** (this board, NOT inside the `client/` tree
+  that gets synced — a sibling file, edit it here directly) — `rsync`s this
+  board's `~/farabi/client/` to `ata@farabi.local:~/farabi/client/`.
+  Excludes `venv/`, `__pycache__/`, `.pytest_cache/`, `logs/`, `icerik/`,
+  `kitaplar/`, `YKS/`, `config/api_keys.json(.zip)` (board-specific secret,
+  NEVER sent), `*.pdf`. Does **not** exclude `config/zil.json`/
+  `config/ders_programi.json` — those are school-wide shared, sent on
+  purpose so a newly cloned board picks them up automatically. No
+  `--delete` — a file removed from this board doesn't get removed from the
+  server's copy by this script.
+- **`~/farabi/farabi-kurulum.sh`** — the ORIGINAL mechanism, pull-direction
+  (server→board, `--delete`). Currently unused because the pilot period
+  reversed the direction (see `farabi-push.sh`'s own header comment); this
+  is what future non-pilot boards should run as-is once they're added — see
+  root `CLAUDE.md`'s analysis-report note on this, don't rebuild it.
+- **`~/.local/bin/farabiguncelle.sh`** — cron target (`crontab -l`: `0 20 * *
+  * ~/.local/bin/farabiguncelle.sh`, board-local time — i.e. after the 8th
+  lesson ends at 15:50, well outside teaching hours), calls `farabi-push.sh`
+  and logs to `~/.local/share/farabi-sync.log`.
+- **`farabi-simdi-gonder`** — a `.bashrc` alias for `~/farabi/farabi-push.sh`,
+  so a push can be triggered by hand without waiting for 20:00.
+- **Server-side auto-commit (added 2026-08-17):** after a real (non-`--dry-run`)
+  push, `farabi-push.sh` SSHes into `farabi.local` and runs `git add -A --
+  client/ && git commit` if anything under `client/` changed — gives the
+  server's `client/` mirror a real git history of what THIS board pushed,
+  when. **No restart, ever, on either side** — this is deliberate (`FARABİ
+  ASLA DERSİ BOZMAZ`), a code update landing on the server doesn't do
+  anything to a running lesson on any board until someone separately decides
+  to act on it.
+- **Multi-board status (planned, 2026-08-18, IN PROGRESS — check root
+  `CLAUDE.md`/git log for current state before trusting this paragraph):**
+  the goal is a central view of all boards' liveness/version once more
+  boards exist, via a lightweight heartbeat this board would send
+  independently of `main.py` (a separate cron, NOT wired into the Live
+  session — heartbeat failing must never affect a lesson, same principle as
+  the backup above). As of this writing the server side (`tahta_durum`
+  table, `POST /api/client/heartbeat`) exists and is tested; this board's
+  own heartbeat cron may not be set up yet — don't assume it's running
+  without checking `crontab -l` here.
+
 ### `site_goster` — deliberately browser-free
 
 A real browser on a classroom board hands students uncontrolled internet (address
@@ -991,9 +1044,21 @@ three-step rule silently would leave the model pulled both ways mid-quiz.
 
 ### Content pipeline — `tools/`
 
-Prepared **once, offline** (or from a HUD button, see below), never at
-runtime, and never automatically triggering an API call without an explicit
-`--onayla`/button press:
+> ⚠️ **INACTIVE ON THIS BOARD since 2026-08-14 (server-taşıma) — kept as
+> historical/reference only.** The commands and HUD buttons below assumed a
+> local `kitaplar/`/`YKS/`/`icerik/` on this board; none of that exists here
+> anymore (see "Project layout" above), and the HUD buttons themselves were
+> removed from `ui.py`. The scripts (`tools/*.py`) are still physically
+> present in this repo but don't run against this board's data — the same
+> content-prep work now happens once, centrally, against
+> `/mnt/farabi-data/farabi/` (see root `CLAUDE.md`'s "server/" section and
+> `docs/mimari.md`). Read on only to understand the algorithms (symbol
+> repair, OCR fallback, hand-written mappings, etc.) — not as instructions
+> for what to run on this board.
+
+Prepared **once, offline** (or from a HUD button, see below — HISTORICAL,
+see warning above), never at runtime, and never automatically triggering an
+API call without an explicit `--onayla`/button press:
 
 ```bash
 python tools/kitap_index.py kitaplar/ --json icerik/kitaplar.json
@@ -1204,6 +1269,12 @@ warm it before a lesson, not during one.
 a theme is 13–37k. Content belongs behind a tool call.
 
 ### Page selection: hand-written mapping first, word-overlap underneath
+
+> ⚠️ **This algorithm runs in `server/icerik.py` now (2026-08-14), not on
+> this board** — see the `ders_icerigi` section above. Kept here as the
+> current, accurate description of the algorithm itself (nothing about the
+> matching LOGIC changed in the move, only which machine runs it and which
+> `icerik/` it reads).
 
 Where the book index is good, unit-level lookup is deterministic and nothing
 beats it:
@@ -1556,6 +1627,16 @@ input rather than trusting that unchanged code still matches its library's
 current API.
 
 ## Provider notes and API quota
+
+> ⚠️ **2026-08-14: the six-provider pool described below lives in
+> `server/saglayicilar.py` now, not `core/saglayicilar.py` on this board.**
+> This board's `core/saglayicilar.py` is just an HTTP client to it (see
+> "Project layout" above). The task→chain table, cooldown logic, and model
+> names below are unchanged in substance — just physically on the server
+> machine, with `server/config/api_keys.json` holding the real keys instead
+> of this board's `config/api_keys.json`. The Gemini-specific parts of this
+> section (Live voice, key pool) are still 100% about THIS board — that part
+> never moved.
 
 Gemini Live is the only realtime option and **that is now its only job in this
 repo**. **Groq and OpenRouter cannot replace it for the voice path** — neither

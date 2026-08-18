@@ -228,7 +228,10 @@ class FarabiLive:
         self._video_yuzunden_susturuldu = False
         # Oturumu öğretmen başlatır; olay run() içinde kurulur (loop gerekiyor).
         self._oturum_izni: asyncio.Event | None = None
-        self._son_etkinlik = time.monotonic()
+        # time.monotonic() DEĞİL — cihaz uyku/askıya alma modundan uyandığında
+        # CLOCK_MONOTONIC askıda geçen süreyi saymaz, _boşta_gozcusu uzun bir
+        # uykuyu hiç göremezdi (bkz. _boşta_gozcusu docstring'i).
+        self._son_etkinlik = time.time()
         self._kapaniyor    = False
         # O anki ders çerçevesi. Ders ADI programdan gelir; konu ve kazanım
         # öğretmenin yazdığı/söylediği metinden. Yıllık plan (Excel→plan.json)
@@ -763,11 +766,18 @@ class FarabiLive:
             elif name == "shutdown_farabi":
                 self.ui.write_log("SYS: Ders bitirme isteği alındı.")
                 self.speak("Görüşmek üzere, iyi çalışmalar.")
-                def _shutdown():
-                    import time, os
-                    time.sleep(1)
-                    os._exit(0)
-                threading.Thread(target=_shutdown, daemon=True).start()
+                # Bulundu (2026-08-18): eskiden burada doğrudan os._exit(0)
+                # çağıran ayrı bir thread vardı — _temiz_kapan()'ı hiç
+                # çağırmıyordu, o yüzden ders normal "hoşça kal" ile
+                # bittiğinde ne transkriptin kapanış satırı yazılıyordu ne de
+                # server'a ders kaydı yedeği (POST /api/egitim/ders_kaydi_yedek)
+                # gidiyordu — server'daki yedekler/ders_kaydi/ hep boştu.
+                # _temiz_kapan zaten _boşta_gozcusu'nda kullanılan, test
+                # edilmiş coroutine; burada da onu çağırıyoruz.
+                async def _kapat():
+                    await asyncio.sleep(1)  # veda cümlesi çalınsın diye
+                    await self._temiz_kapan("ders bitti")
+                asyncio.create_task(_kapat())
 
             else:
                 result = f"Unknown tool: {name}"
@@ -1396,7 +1406,7 @@ class FarabiLive:
 
     def etkinlik_bildir(self) -> None:
         """Konuşma ya da öğretmen girdisi oldu — boşta sayacını sıfırla."""
-        self._son_etkinlik = time.monotonic()
+        self._son_etkinlik = time.time()
 
     async def _boşta_gozcusu(self) -> None:
         """
@@ -1407,13 +1417,24 @@ class FarabiLive:
         taban gürültüsü hiçbir zaman sıfır değil, "ses var mı" ölçütü hiç
         tetiklenmezdi. Farabi konuşurken de boşta sayılmaz — sınıfın sessizce
         dinlediği bir anlatım boşluk değildir.
+
+        `time.monotonic()` DEĞİL, `time.time()` (duvar saati) kullanılıyor —
+        bulundu (2026-08-18): cihaz uyku/askıya alma moduna girdiğinde
+        `CLOCK_MONOTONIC` askıda geçen süreyi SAYMAZ, bu yüzden 45 dakikalık
+        gerçek bir uyku bu gözcüyü hiç tetiklemiyordu (`farabi.log`'da
+        18:06-18:52 arası tam sessizlik kanıtıyla doğrulandı) — hem
+        `BOSTA_KAPATMA_DK` boşuna işlemiyordu hem de oturum bayat
+        `[CURRENT DATE & TIME]` ile 45 dakika daha sürdü (session_resumption
+        reconnect'i atlıyor, `_build_config` yeniden çağrılmıyor). Duvar
+        saati uyanınca doğru "gecen"i görür, gözcü tetiklenir, `_temiz_kapan`
+        çağrılır — bir sonraki oturum TAZE saatle açılır.
         """
         while True:
             await asyncio.sleep(20)
             if self._is_speaking:
                 self.etkinlik_bildir()
                 continue
-            gecen = time.monotonic() - self._son_etkinlik
+            gecen = time.time() - self._son_etkinlik
             if gecen >= BOSTA_KAPATMA_DK * 60:
                 log.info("%d dakikadır sessizlik — ders kaydı kapatılıp "
                          "çıkılıyor.", BOSTA_KAPATMA_DK)
