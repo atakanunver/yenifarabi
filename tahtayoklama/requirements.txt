@@ -1,0 +1,3 @@
+# tahtayoklama — Farabi'den bağımsız, ayrı bir program (bkz. yoklama.py docstring'i)
+PyQt6
+pdfplumber

@@ -1,0 +1,8 @@
+{
+  "sinif": "9-A",
+  "ogrenciler": [
+    {"no": 1, "ad_soyad": "ÖRNEK Öğrenci 1"},
+    {"no": 2, "ad_soyad": "ÖRNEK Öğrenci 2"},
+    {"no": 3, "ad_soyad": "ÖRNEK Öğrenci 3"}
+  ]
+}

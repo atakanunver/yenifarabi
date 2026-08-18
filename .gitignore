@@ -49,6 +49,15 @@ benchmark/venv/
 # dosyaları, 24 saat sonra silinir; regenerable, kalıcı veri değil.
 server/gecici/
 
+# tahtayoklama/data/ — GERÇEK ÖĞRENCİ KİMLİĞİ içerir (ad-soyad + devam
+# durumu), Farabi'nin "öğrenci kimliği tutmama" ilkesinin dışında ayrı bir
+# sistem — bu yüzden KVKK açısından client/config/api_keys.json ile aynı
+# hassasiyette. .example.json şablonları YUKARIDAKİ genel desenle committed
+# kalır (yalnızca sahte "ÖRNEK Öğrenci" adları).
+tahtayoklama/data/roster/*.json
+!tahtayoklama/data/roster/*.example.json
+tahtayoklama/data/kayitlar/
+
 # mudur/ — okul idaresinin kendi ders programı/giriş-çıkış belgeleri
 # (PDF/JPEG), planlar/ ile aynı desen: koda BAĞLI DEĞİL, idarenin kaynak
 # materyali. Dizin diskte kalır, git'e girmez.
