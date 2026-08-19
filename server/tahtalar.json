@@ -1,0 +1,9 @@
+{
+  "_aciklama": [
+    "Server'ın SSH ile erişebildiği tahtaların kayıt defteri.",
+    "Yeni bir tahta eklemek için: tahta-ssh-kur.sh'ı o tahtada çalıştırın,",
+    "sonra buraya derslik: {ip, kullanici} olarak tek satır ekleyin.",
+    "tahta-ssh.sh bu dosyayı okuyup ip/kullanıcıyı bulur."
+  ],
+  "9-A": { "ip": "192.168.23.245", "kullanici": "ogretmen" }
+}
