@@ -28,7 +28,7 @@ SERVER_PUBLIC_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG5DEY0RF2fY8YPhqU+u1276N
 
 echo "== Farabi SSH kurulumu ($(hostname), $(hostname -I | awk '{print $1}')) =="
 
-echo "[1/4] openssh-server kurulu mu kontrol ediliyor..."
+echo "[1/5] openssh-server kurulu mu kontrol ediliyor..."
 if dpkg -l 2>/dev/null | grep -q '^ii.*openssh-server'; then
     echo "      zaten kurulu."
 else
@@ -37,10 +37,10 @@ else
     sudo apt-get install -y openssh-server
 fi
 
-echo "[2/4] ssh servisi açılışta aktif ediliyor ve başlatılıyor..."
+echo "[2/5] ssh servisi açılışta aktif ediliyor ve başlatılıyor..."
 sudo systemctl enable --now ssh
 
-echo "[3/4] ~/.ssh/authorized_keys'e server'ın public key'i ekleniyor..."
+echo "[3/5] ~/.ssh/authorized_keys'e server'ın public key'i ekleniyor..."
 mkdir -p "$HOME/.ssh"
 chmod 700 "$HOME/.ssh"
 touch "$HOME/.ssh/authorized_keys"
@@ -52,11 +52,31 @@ else
 fi
 chmod 600 "$HOME/.ssh/authorized_keys"
 
-echo "[4/4] doğrulama..."
+echo "[4/5] parolasız sudo (NOPASSWD) kuruluyor — server'dan uzaktan komut"
+echo "      çalıştırırken tekrar parola sorulmasın diye (kullanıcı kararı,"
+echo "      2026-08-19: ALL=NOPASSWD:ALL, sınırsız kapsam)..."
+SUDOERS_DOSYA="/etc/sudoers.d/farabi-nopasswd"
+SUDOERS_SATIR="$(whoami) ALL=(ALL) NOPASSWD: ALL"
+if sudo test -f "$SUDOERS_DOSYA" && sudo grep -qF "$SUDOERS_SATIR" "$SUDOERS_DOSYA" 2>/dev/null; then
+    echo "      zaten kurulu, atlanıyor."
+else
+    GECICI=$(mktemp)
+    echo "$SUDOERS_SATIR" > "$GECICI"
+    if sudo visudo -cf "$GECICI" >/dev/null 2>&1; then
+        sudo install -m 0440 -o root -g root "$GECICI" "$SUDOERS_DOSYA"
+        echo "      kuruldu: $SUDOERS_DOSYA"
+    else
+        echo "      HATA: sudoers satırı visudo doğrulamasından geçemedi, kurulmadı." >&2
+    fi
+    rm -f "$GECICI"
+fi
+
+echo "[5/5] doğrulama..."
 systemctl is-active --quiet ssh && echo "      ssh servisi: aktif" || echo "      UYARI: ssh servisi aktif değil"
 
 echo
 echo "== Tamamlandı =="
+sudo -n true 2>/dev/null && echo "Parolasız sudo : ÇALIŞIYOR" || echo "Parolasız sudo : kontrol edilemedi (kabuk yeniden başlatılmış olabilir, tekrar deneyin)"
 echo "Bu tahtanın IP'si : $(hostname -I | awk '{print $1}')"
 echo "Bu tahtanın adı   : $(hostname)"
 echo "Kullanıcı         : $(whoami)"
