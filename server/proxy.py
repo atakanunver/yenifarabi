@@ -15,7 +15,7 @@ istenirse yalnızca orada tanımlanır, burada değişiklik gerekmez.
 import time
 import uuid
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, UploadFile
 from pydantic import BaseModel, Field
 
 import saglayicilar

@@ -25,7 +25,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from metin_araclari import kelimeler as _kelimeler
-from metin_araclari import norm as _norm
 
 router = APIRouter()
 

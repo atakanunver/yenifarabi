@@ -24,7 +24,6 @@ from pydantic import BaseModel, Field
 
 from icerik import DATA_DIR, ONBELLEK, render_pdf_sayfa
 from metin_araclari import kelimeler as _kelimeler
-from metin_araclari import norm as _norm
 
 router = APIRouter()
 
