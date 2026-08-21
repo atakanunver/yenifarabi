@@ -11,8 +11,19 @@ ediyor, bu yüzden oturum durumu `derslik` anahtarlı bir dict'e taşındı
 (`_OTURUMLAR`) — iki tahta aynı anda YKS sorusu ararsa birbirinin
 "sıradaki soru" ilerlemesini ezmesin diye. Yeni bağımlılık gerekmedi
 (Redis değil, birkaç KB'lık in-memory dict — Kural 8).
+
+GEÇMİŞ-DERS TEKRARI ENGELLEME (2026-08-21 eklendi) — `_OTURUMLAR` yalnızca
+SÜRECİN kendi ömrü boyunca bir "sıradaki soru" imleciydi, geçmiş derslere
+hiç bakmıyordu; gerçek bir derste daha önce çözülmüş bir soru yeni soruymuş
+gibi tekrar sunuldu. `yks_gosterim` tablosu (server/schema_yks_gosterim.sql)
+artık HER `derslik`e GERÇEKTEN sunulan (dosya_adi, sayfa) çiftini kalıcı
+olarak (süreç/gün-aşırı) tutuyor; yeni bir arama bu tabloyu sorgulayıp
+sıralama/kırpmadan ÖNCE dışlıyor (`_daha_once_gosterildi_mi`/
+`_gosterimi_kaydet`, fail-open — DB erişilemezse dedup sessizce atlanır,
+YKS özelliğinin kendisi asla kilitlenmez).
 """
 
+import logging
 import re
 import time
 import uuid
@@ -22,10 +33,12 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+import db
 from icerik import DATA_DIR, ONBELLEK, render_pdf_sayfa
 from metin_araclari import kelimeler as _kelimeler
 
 router = APIRouter()
+log = logging.getLogger("yks")
 
 METIN_DIR = DATA_DIR / "icerik" / "yks_metin"
 YKS_DIR = DATA_DIR / "yks"
@@ -73,6 +86,46 @@ def _dosyadaki_en_iyi_sayfalar(dosya: Path, sorgu_kelimeler: set[str],
     return sonuclar[:adet]
 
 
+def _daha_once_gosterildi_mi(derslik: str) -> set[tuple[str, int]]:
+    """Bu derslike daha önce gösterilmiş (dosya_adi, sayfa) çiftleri —
+    2026-08-21'de gerçek bir derste bildirilen hata: daha önce çözülmüş bir
+    soru yeni soruymuş gibi tekrar sunuldu, çünkü hiçbir şey geçmiş derslere
+    bakmıyordu. FAIL-OPEN: DB'ye erişilemezse boş küme döner, sessizce
+    loglanır — dedup kontrolünün kendisi asla YKS özelliğini kilitleyemez
+    ("Farabi asla dersi bozmaz", client_durum.py::heartbeat ile aynı
+    tolerans)."""
+    try:
+        with db.baglanti() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT dosya_adi, sayfa FROM yks_gosterim WHERE derslik = %s",
+                    (derslik,),
+                )
+                return {(r[0], r[1]) for r in cur.fetchall()}
+    except Exception as e:
+        log.warning("Geçmiş YKS gösterimleri okunamadı (derslik=%s): %s: %s",
+                    derslik, type(e).__name__, e)
+        return set()
+
+
+def _gosterimi_kaydet(derslik: str, dosya_adi: str, sayfa: int, ders: str, konu: str) -> None:
+    """Bir soru GERÇEKTEN sunulduğunda (yalnızca eşleştiğinde değil) çağrılır
+    — kayıt gösterimden SONRA denenir, başarısız olursa sessizce loglanır,
+    sorunun sınıfa gösterilmiş olması hiçbir şekilde etkilenmez."""
+    try:
+        with db.baglanti() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO yks_gosterim (derslik, dosya_adi, sayfa, ders, konu) "
+                    "VALUES (%s, %s, %s, %s, %s)",
+                    (derslik, dosya_adi, sayfa, ders, konu),
+                )
+            conn.commit()
+    except Exception as e:
+        log.warning("YKS gösterimi kaydedilemedi (derslik=%s, dosya=%s, sayfa=%s): %s: %s",
+                    derslik, dosya_adi, sayfa, type(e).__name__, e)
+
+
 def _sunum_metni(dosya_adi: str, sayfa: int, govde: str, sira: int, toplam: int) -> str:
     kirpildi_govde = govde
     if len(kirpildi_govde) > MAX_KARAKTER:
@@ -110,7 +163,7 @@ class YksIstek(BaseModel):
 
 
 class YksYanit(BaseModel):
-    status: str  # "ok" | "oturum_yok" | "konu_yok" | "arsiv_yok" | "bos" | "son"
+    status: str  # "ok" | "oturum_yok" | "konu_yok" | "arsiv_yok" | "bos" | "son" | "tekrar"
     metin: str | None = None
     dosya_adi: str | None = None
     sayfa: int | None = None
@@ -130,7 +183,8 @@ def yks_sorusu_endpoint(istek: YksIstek) -> YksYanit:
                          latency_ms=int((time.perf_counter() - t0) * 1000),
                          request_id=request_id, **kw)
 
-    oturum = _OTURUMLAR.setdefault(istek.derslik, {"adaylar": [], "index": -1})
+    oturum = _OTURUMLAR.setdefault(
+        istek.derslik, {"adaylar": [], "index": -1, "ders": "", "konu": ""})
 
     # ── "sıradaki soru" — YALNIZCA açık komutla ─────────────────────────────
     if istek.sonraki and not istek.konu:
@@ -143,6 +197,7 @@ def yks_sorusu_endpoint(istek: YksIstek) -> YksYanit:
         if idx >= len(adaylar):
             return _bitir("son", metin="Bu konuyla eşleşen başka soru kalmadı, efendim.")
         dosya_adi, sayfa, govde, _puan = adaylar[idx]
+        _gosterimi_kaydet(istek.derslik, dosya_adi, sayfa, oturum["ders"], oturum["konu"])
         return _bitir("ok", dosya_adi=dosya_adi, sayfa=sayfa, sira=idx + 1, toplam=len(adaylar),
                        metin=_sunum_metni(dosya_adi, sayfa, govde, idx + 1, len(adaylar)))
 
@@ -166,15 +221,30 @@ def yks_sorusu_endpoint(istek: YksIstek) -> YksYanit:
         for no, govde, puan in _dosyadaki_en_iyi_sayfalar(dosya, sorgu_kelimeler, istek.adet):
             adaylar.append((dosya.stem, no, govde, puan))
     adaylar.sort(key=lambda x: x[3], reverse=True)
-    secilenler = adaylar[:istek.adet]
 
-    if not secilenler:
+    if not adaylar:
         oturum.update(adaylar=[], index=-1)
         return _bitir("bos", metin=f"'{istek.konu}' konusuyla eşleşen bir çıkmış soru "
                                     f"bulamadım, efendim. Kitaptaki örneklerle devam edelim.")
 
-    oturum.update(adaylar=secilenler, index=0)
+    # 2026-08-21 hatası: daha önce (farklı bir derste bile) gösterilmiş bir
+    # soru yeni soruymuş gibi tekrar sunulmuştu. Sıralama/kırpmadan ÖNCE
+    # dışla — böylece listede daha aşağıda duran YENİ bir aday öne çıkabilir,
+    # yalnızca ilk `adet` tanesini filtrelemekten farklı.
+    gosterilmisler = _daha_once_gosterildi_mi(istek.derslik)
+    yeni_adaylar = [a for a in adaylar if (a[0], a[1]) not in gosterilmisler]
+
+    if not yeni_adaylar:
+        oturum.update(adaylar=[], index=-1)
+        return _bitir("tekrar",
+                       metin=f"'{istek.konu}' konusuyla eşleşen sorular daha önceki bir "
+                             f"derste işlenmişti — tekrar mı göstereyim, yoksa farklı bir "
+                             f"konu mu seçelim, efendim?")
+
+    secilenler = yeni_adaylar[:istek.adet]
+    oturum.update(adaylar=secilenler, index=0, ders=istek.ders, konu=istek.konu)
     dosya_adi, sayfa, govde, _puan = secilenler[0]
+    _gosterimi_kaydet(istek.derslik, dosya_adi, sayfa, istek.ders, istek.konu)
     return _bitir("ok", dosya_adi=dosya_adi, sayfa=sayfa, sira=1, toplam=len(secilenler),
                    metin=_sunum_metni(dosya_adi, sayfa, govde, 1, len(secilenler)))
 

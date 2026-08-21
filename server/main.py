@@ -214,10 +214,11 @@ def ders_kaydi_yedek(istek: DersKaydiYedek):
     """Client, oturum kapanışında (`_temiz_kapan`) kendi ders kaydı dosyasının
     içeriğini buraya tek seferlik yedekler (client/core/transcript.py,
     `logs/ders/*.txt`) — tahtanın diski kaybolsa bile ders kaydı elde kalsın
-    diye. Yalnızca yedek: hiçbir şey bunu geri OKUMUYOR (client kendi
-    hafızası için kendi yerel dosyalarını kullanıyor, bkz.
-    actions/ders_hafizasi.py). DB'ye gömülmez, düz dosya olarak saklanır —
-    "dosya içeriği DB'ye gömülmez" ilkesiyle aynı ruhta."""
+    diye. Bu docstring önceden "hiçbir şey bunu geri OKUMUYOR" diyordu —
+    2026-08-18'de eklenen `server/ders_hafizasi.py` tam olarak bu dizini
+    (`yedekler/ders_kaydi/<derslik>/`) okuyor, o iddia artık YANLIŞ; düzeltme
+    burada kayıtlı. DB'ye gömülmez, düz dosya olarak saklanır — "dosya
+    içeriği DB'ye gömülmez" ilkesiyle aynı ruhta."""
     if not _GUVENLI_AD.match(istek.derslik) or not _GUVENLI_AD.match(istek.dosya_adi):
         raise HTTPException(status_code=400, detail="Geçersiz derslik/dosya_adi")
     if not istek.dosya_adi.endswith(".txt"):
