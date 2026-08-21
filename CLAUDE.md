@@ -3,6 +3,13 @@
 Sınıf akıllı tahtalarında çalışan sesli ders asistanı.
 Detaylı mimari: `@docs/mimari.md` (sadece gerektiğinde oku)
 
+**Donanım (server, hızlı referans):** 2× NVIDIA RTX 3060 12GB (3 DEĞİL —
+dışarıdan gelen bir varsayımda 3 kart sanılmıştı, düzeltme burada kayıtlı).
+İkisi de tam kapasite committed: biri `ollama.service`'e, diğeri
+`farabi-api.service` (embedding+reranker) — ayrıntı ve gerekçe için aşağıdaki
+"Bilinçli sapma (2026-08-09)" notuna bkz. Yeni bir GPU işi (ör. vision model)
+planlanırken bu iki kartın ZATEN dolu olduğu unutulmamalı.
+
 ## Komutlar
 
 Client kodu `client/` altında — detaylı komutlar, kurallar, bilinen sorunlar
