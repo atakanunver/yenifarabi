@@ -10,6 +10,7 @@ dizine yönlendiriyor; burada gerçek ders kaydına yazılmaz.
 """
 
 import sys
+import threading
 from pathlib import Path
 from types import SimpleNamespace
 

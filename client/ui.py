@@ -2,6 +2,7 @@ from __future__ import annotations
 
 # Hazırlayan: MEB Atakan ÜNVER
 
+import json
 import math
 import os
 import platform
@@ -1660,15 +1661,15 @@ class MainWindow(QMainWindow):
         """
         self._ogretmen_btn_stili = stil
         self._ogretmen_btns: dict[str, QPushButton] = {}
-        for i, (etiket, komut_anahtari, _) in enumerate(self.OGRETMEN_KOMUTLARI):
+        for i, (etiket, anahtar, _) in enumerate(self.OGRETMEN_KOMUTLARI):
             b = QPushButton(etiket)
             b.setFixedHeight(26)
             b.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
             b.setCursor(Qt.CursorShape.PointingHandCursor)
             b.setStyleSheet(stil)
-            b.clicked.connect(lambda _=False, a=komut_anahtari: self._ogretmen_komutu(a))
+            b.clicked.connect(lambda _=False, a=anahtar: self._ogretmen_komutu(a))
             izgara.addWidget(b, i // 2, i % 2)
-            self._ogretmen_btns[komut_anahtari] = b
+            self._ogretmen_btns[anahtar] = b
 
         # ── DERSİ BAŞLAT ─────────────────────────────────────────────────────
         # Panelde bilerek yalnızca DURDUR/DEVAM ET vardı; bu üçüncü düğmenin
