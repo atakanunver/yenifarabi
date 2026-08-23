@@ -39,6 +39,7 @@ def config():
     f = main.FarabiLive.__new__(main.FarabiLive)
     f._current_lesson = None
     f._ders_kipi = main.KIP_OGRETMENLI
+    f._ders_kipi_taban = main.KIP_OGRETMENLI
     return f._build_config()
 
 
@@ -47,6 +48,7 @@ def talimat_config():
     f = main.FarabiLive.__new__(main.FarabiLive)
     f._current_lesson = None
     f._ders_kipi = main.KIP_OGRETMENLI       # ui.talimat_modu bunu geçersiz kılmalı
+    f._ders_kipi_taban = main.KIP_OGRETMENLI
     f.ui = _SahteUI(talimat_modu=True)
     return f._build_config()
 
@@ -107,6 +109,7 @@ class TestDersDili:
         f = main.FarabiLive.__new__(main.FarabiLive)
         f._current_lesson = None
         f._ders_kipi = main.KIP_OGRETMENLI
+        f._ders_kipi_taban = main.KIP_OGRETMENLI
         if ders_dili is not None:
             f.ui = _SahteUI(ders_dili)
         return f._build_config()
@@ -178,9 +181,47 @@ class TestTalimatModu:
         adlar = {d.name for d in talimat_config.tools[0].function_declarations}
         beklenen = {d["name"] for d in kayit.bildirimler(main.KIP_TALIMAT)}
         assert adlar == beklenen
-        assert {"web_ac", "uygulama_ac", "dosya_ac", "pdf_sayfa", "yks_sorulari"} <= adlar
+        assert {"web_ac", "uygulama_ac", "dosya_ac", "pencere_kapat",
+                "talimat_modundan_cik", "pdf_sayfa", "yks_sorulari",
+                "kitap_sorusu"} <= adlar
         # Normal ders araçları bu modda görünmemeli.
         assert "ders_icerigi" not in adlar and "web_search" not in adlar
 
     def test_talimat_modu_yoksa_normal_persona_kullanilir(self, config):
         assert config.system_instruction != main._TALIMAT_PERSONASI
+
+    def test_kapatma_araclari_normal_derste_gorunmez(self, config):
+        """
+        Gerçek sınıf testinde (2026-08-23) web_ac/uygulama_ac talimat-dışı
+        hiçbir yerde bildirilmemeli — pencere_kapat/talimat_modundan_cik de
+        aynı şekilde yalnızca talimat kipine özel.
+        """
+        adlar = {d.name for d in config.tools[0].function_declarations}
+        assert not ({"web_ac", "uygulama_ac", "dosya_ac", "pencere_kapat",
+                     "talimat_modundan_cik"} & adlar)
+
+    def test_kip_iki_yonlu_calisir_tek_yonlu_mandal_degil(self):
+        """
+        Regresyon: `_ders_kipi` bir kez KIP_TALIMAT olunca hep öyle
+        kalıyordu (ders_kipi_taban'a değil, kendi eski değerine bakıyordu) —
+        sesle talimat modundan çıkış hiçbir zaman normal moda dönemezdi.
+        Aynı FarabiLive nesnesinde ui.talimat_modu ileri geri değişince
+        `_build_config()` her seferinde doğru kipi üretmeli.
+        """
+        f = main.FarabiLive.__new__(main.FarabiLive)
+        f._current_lesson = None
+        f._ders_kipi = main.KIP_OGRETMENLI
+        f._ders_kipi_taban = main.KIP_OGRETMENLI
+        f.ui = _SahteUI(talimat_modu=True)
+
+        cfg1 = f._build_config()
+        assert cfg1.system_instruction == main._TALIMAT_PERSONASI
+
+        f.ui.talimat_modu = False
+        cfg2 = f._build_config()
+        assert cfg2.system_instruction != main._TALIMAT_PERSONASI
+        assert f._ders_kipi == main.KIP_OGRETMENLI
+
+        f.ui.talimat_modu = True
+        cfg3 = f._build_config()
+        assert cfg3.system_instruction == main._TALIMAT_PERSONASI

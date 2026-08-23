@@ -753,11 +753,14 @@ explicitly forbids for every other tool:
   excluded) for a file by name and `xdg-open`s it. Never searches outside
   `$HOME`.
 
-`pdf_sayfa` and `yks_sorulari` are also open in this kip (`kip=KIP_HEPSI +
-(KIP_TALIMAT,)` in `actions/kayit.py`) — "kitabın 45. sayfasını aç" and "yks
-sorularını göster" are single-page/single-question lookups, not lesson
-narration, so they don't violate "no ders anlatımı" the way `ders_icerigi`
-would.
+`pdf_sayfa`, `yks_sorulari` and `kitap_sorusu` are also open in this kip
+(`kip=KIP_HEPSI + (KIP_TALIMAT,)` in `actions/kayit.py`) — "kitabın 45.
+sayfasını aç", "yks sorularını göster" and "kitaba göre X nedir" are
+single-page/single-question lookups, not lesson narration, so they don't
+violate "no ders anlatımı" the way `ders_icerigi` would. `kitap_sorusu` was
+added a few hours after first shipping this mode (see "First real classroom
+test" below) — the initial version deliberately left it out, a real test
+showed that was too strict.
 
 **Why this was allowed despite the boundary**: explicitly decided by the
 user (2026-08-23) after being shown the exact tension — `site_goster`'s
@@ -787,6 +790,87 @@ Gemini is only ever told about the tools valid for the CURRENT kip; normal
 lessons never see `web_ac`/`uygulama_ac`/`dosya_ac` in their tool list.
 `tests/test_oturum_yapilandirmasi.py::TestTalimatModu` and
 `test_arac_bildirimleri_config_e_giriyor` cover this.
+
+**First real classroom test (2026-08-23, same day as shipping) found four
+real problems**, all from reading `logs/farabi.log` + the actual
+`logs/ders/2026-08-23_14-17-09_9-A.txt` transcript, not from guessing:
+
+1. **No way to CLOSE anything, and the model lied about it.** Only
+   open-tools existed. Asked to close YouTube, the model called
+   `web_ac(hedef='kapat')` — which doesn't close anything, it Google-searched
+   the literal word "kapat" and opened ANOTHER tab — while telling the room
+   "Kapatılıyor." Fixed with `actions/pencere_kapat.py`, a new
+   `kip=("talimat",)` tool. Matches windows by **title substring**
+   (`wmctrl -c <hedef>`), not by tracking the PID `web_ac`/`uygulama_ac`
+   launched — verified this matters: `xdg-open <url>` usually hands the URL
+   to an *already-running* browser via IPC and the `Popen`'d process exits
+   in under a second, so PID-tracking would silently fail to close browser
+   windows specifically. `wmctrl` was not installed on this board; added via
+   `sudo apt install wmctrl` (2026-08-23) — a fresh board needs this too, not
+   yet added to `farabi-kurulum.sh`.
+2. **No way to EXIT talimat modu by voice at all.** "Öğretmen talimat
+   modundan çık" got a confident "Anlaşıldı, çıkıyorum" and then *nothing
+   changed* — no tool existed, so the model just said what sounded right.
+   Real fix needed a way to force the live connection closed and let it
+   reconnect with a fresh (non-talimat) config, since (same constraint as
+   `ders_dili`) a Live connection's `system_instruction`/`tools` can't change
+   mid-connection. New `talimat_modundan_cik` tool (`calisma="satirici"`,
+   same shape as `shutdown_farabi`) sets `self._talimat_cikis_istendi=True`
+   and, after a 1.5s delay so the confirmation sentence is heard, sets
+   `ui.talimat_modu = False` and signals `self._talimat_cikis_event`. A new
+   `_talimat_cikis_gozcusu()` task (registered via `tg.create_task()`,
+   **not** a bare `asyncio.create_task()` — raising from inside
+   `_execute_tool`/`_araclari_calistir` doesn't work, that call chain has its
+   own try/except that swallows the exception, see its docstring) raises
+   `_TalimatCikisi` when the event fires, which unwinds the `TaskGroup` and
+   lands in `run()`'s `except Exception`. That handler now checks
+   `self._talimat_cikis_istendi` **first**, before the generic
+   fail_streak/backoff/quota logic — a deliberate mode exit must never be
+   logged or treated as a connection error, and must reconnect *immediately*,
+   not after a 3-60s backoff. `shutdown_farabi`'s pattern (`_temiz_kapan`,
+   `os._exit(0)`) was **not** reused here — that ends the whole process,
+   this only needs to renew the connection.
+3. **`self._ders_kipi` was a one-way ratchet — genuinely would have broken
+   (2) even after building it.** The original `_build_config()` only ever
+   set `self._ders_kipi = KIP_TALIMAT` when `ui.talimat_modu` was true; it
+   never had a branch to set it back. Once a connection had been in talimat
+   mode, `self._ders_kipi` stayed `"talimat"` forever, so the exit tool's
+   forced reconnect would have rebuilt the *same* talimat config again.
+   Fixed by adding `self._ders_kipi_taban` (the real, `__init__`-time
+   kip from the timetable/config, never mutated) and recomputing
+   `self._ders_kipi` **fresh on every `_build_config()` call**:
+   `KIP_TALIMAT if ui.talimat_modu else self._ders_kipi_taban`. Covered by
+   `TestTalimatModu::test_kip_iki_yonlu_calisir_tek_yonlu_mandal_degil` —
+   asserts the SAME `FarabiLive` instance produces the talimat persona, then
+   the normal one, then the talimat one again as `ui.talimat_modu` flips.
+   Any test fixture that hand-builds a bare `FarabiLive.__new__(...)` and
+   calls `_build_config()` must set `_ders_kipi_taban` too now, not just
+   `_ders_kipi` (three existing fixtures needed this fix).
+4. **The model guessed missing required parameters instead of asking, and
+   confused local files with server-hosted textbook PDFs.** Asked to open
+   "25. sayfa" with no subject named (after a `ders='fizik'` call correctly
+   failed — 9-A is grade 9, only `fizik-10.pdf` exists), the model silently
+   substituted `ders='matematik'` out of nowhere. Separately, "kitabın
+   PDF'ini aç" was routed to `dosya_ac(hedef='matematik.pdf')`, which of
+   course found nothing — textbook PDFs haven't lived on this board's disk
+   since the 2026-08-14 server-taşıma (see the warning box under "Project
+   layout"), `pdf_sayfa`/`kitap_sorusu` are the only way to reach them from
+   here. `_TALIMAT_PERSONASI` was rewritten to say both explicitly: never
+   guess a required tool parameter, ask instead; and textbook content is
+   never a local file, always `pdf_sayfa`/`kitap_sorusu`, never `dosya_ac`.
+   Also tightened: the model must relay what a tool call **actually
+   returned**, not narrate an assumed success — the "Kapatılıyor" lie in
+   (1) was as much a prompt-honesty gap as a missing-tool gap.
+
+The visible-button-vs-actual-mode desync from (2)/(3) is handled the same
+cross-thread-safe way as `muted` (`ui.py`'s `_mute_sig`/`_set_muted`
+pattern): `FarabiUI.talimat_modundan_cik()` writes `self._win.talimat_modu
+= False` **directly and synchronously** (a plain attribute, safe from any
+thread, and `_build_config()`'s next read must see it immediately — no
+queued round-trip) and *separately* emits `_talimat_cikis_sig` (queued,
+Qt-thread-only) purely to update the button's checked/enabled visuals. Don't
+collapse these into one write — the mode switch cannot depend on Qt's event
+queue timing.
 
 ### `eba` (`actions/eba.py`, added 2026-08-09) — EBA video + question PDFs
 

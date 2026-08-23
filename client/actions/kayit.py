@@ -115,6 +115,11 @@ ARACLAR: list[Arac] = [
         izin="mufredat.oku",
         maliyet="dusuk",
         zaman_asimi=16.0,          # server'ın kendi GET(5s)+POST(10s) toplamı + pay
+        # Öğretmen talimat modunda da açık (2026-08-23, gerçek sınıf testi
+        # sonrası eklendi — öğretmen kitaba dayalı tek soru bekliyordu) —
+        # tek soruya kaynaklı tek cevap, ders anlatımı değil; pdf_sayfa/
+        # yks_sorulari ile aynı gerekçe.
+        kip=KIP_HEPSI + (KIP_TALIMAT,),
         cikti="metin",
     ),
     Arac(
@@ -440,6 +445,45 @@ ARACLAR: list[Arac] = [
         izin="sistem.dosya",
         maliyet="yerel",
         zaman_asimi=10.0,
+        kip=(KIP_TALIMAT,),
+        cikti="onay",
+    ),
+    Arac(
+        ad="pencere_kapat",
+        aciklama=(
+            "ÖĞRETMEN TALİMAT MODU ONLY. Closes an open window/app by matching "
+            "its title — 'youtube'u kapat', 'çizim uygulamasını kapat', "
+            "'tarayıcıyı kapat'. Works for anything opened by web_ac/"
+            "uygulama_ac, including browser windows (title match, not process "
+            "tracking — a browser tab usually hands off to an already-running "
+            "browser process, so tracking the launch PID would not work)."
+        ),
+        parametreler={
+            "type": "OBJECT",
+            "properties": {
+                "hedef": {"type": "STRING", "description": "Words expected in the window's title, e.g. 'youtube', 'çizim', 'chrome'."},
+            },
+            "required": ["hedef"],
+        },
+        izin="sistem.pencere",
+        maliyet="yerel",
+        zaman_asimi=8.0,
+        kip=(KIP_TALIMAT,),
+        cikti="onay",
+    ),
+    Arac(
+        ad="talimat_modundan_cik",
+        aciklama=(
+            "ÖĞRETMEN TALİMAT MODU ONLY. Exits command-only mode and returns "
+            "to a normal taught lesson — 'öğretmen talimat modundan çık', "
+            "'normal derse dön'. Call this ONLY on an explicit request to "
+            "leave the mode, never on your own initiative."
+        ),
+        parametreler={"type": "OBJECT", "properties": {}},
+        izin="sistem.mod",
+        maliyet="yerel",
+        zaman_asimi=None,
+        calisma="satirici",
         kip=(KIP_TALIMAT,),
         cikti="onay",
     ),

@@ -35,6 +35,7 @@ from actions.web_search        import web_search as web_search_action
 from actions.web_ac            import web_ac
 from actions.uygulama_ac       import uygulama_ac
 from actions.dosya_ac          import dosya_ac
+from actions.pencere_kapat     import pencere_kapat
 
 
 def get_base_dir():
@@ -77,6 +78,21 @@ KIP_OGRETMENSIZ = "ogretmensiz"
 # "DERSİ BAŞLAT'tan önce seçilir, sonra kilitlenir" deseni).
 KIP_TALIMAT = "talimat"
 
+
+class _TalimatCikisi(Exception):
+    """
+    Talimat modundan sesle çıkış — GERÇEK bir bağlantı hatası DEĞİL.
+
+    `_talimat_cikis_gozcusu()` bunu kasıtlı fırlatarak TaskGroup'u keser;
+    run()'daki `except Exception` bunu `self._talimat_cikis_istendi`
+    bayrağından tanır ve backoff/fail_streak dalına HİÇ girmeden, ders
+    kaydına "hata" yazmadan normal moda yeniden bağlanır. shutdown_farabi'nin
+    aksine (`_temiz_kapan`, `os._exit`) süreç YAŞAMAYA devam eder — yalnızca
+    bağlantı yenilenir, `_build_config()` bir sonraki (yeniden)bağlanışta
+    `ui.talimat_modu`yu tekrar okuyup normal personaya döner.
+    """
+
+
 # Talimat modunun TÜM sistem promptu bu — core/prompt.txt'nin (26K, tam
 # öğretmenlik personası) yerini TAMAMEN alır, eklenmez. Ders çerçevesi,
 # derslik, ders kipi bloğu ve dil yönergesi de BİLEREK yok: bu modda ders
@@ -85,19 +101,37 @@ _TALIMAT_PERSONASI = (
     "Sen Farabi'sin. Şu anda ÖĞRETMEN TALİMAT MODUNDASIN.\n\n"
     "Bu modda DERS ANLATMAZSIN, SORU SORMAZSIN, YOKLAMA ALMAZSIN, sohbet "
     "etmezsin, konuyu açıklamazsın. Tek işin: öğretmenin söylediği TEK "
-    "CÜMLELİK sesli komutu dinleyip en uygun aracı çağırmak. Örnekler: "
-    "'internet aç', 'google aç', 'eba.gov.tr aç', 'youtube aç', "
-    "'9.21.mp3 dosyasını çal', 'atakan.pdf dosyasını aç', 'pardus kalem "
-    "uygulamasını aç', 'çizim uygulamasını aç', 'ev dizinini aç', "
-    "'fizik kitabının 45. sayfasını aç', 'yks ingilizce 2024 sorularını "
-    "göster'.\n\n"
+    "CÜMLELİK sesli komutu dinleyip en uygun aracı çağırmak.\n\n"
+    "AÇMA örnekleri: 'internet aç', 'google aç', 'eba.gov.tr aç', 'youtube "
+    "aç', '9.21.mp3 dosyasını çal', 'pardus kalem uygulamasını aç', 'çizim "
+    "uygulamasını aç', 'ev dizinini aç', 'fizik kitabının 45. sayfasını "
+    "aç'.\n"
+    "KAPAMA örnekleri: 'youtube'u kapat', 'çizim uygulamasını kapat', "
+    "'tarayıcıyı kapat' → pencere_kapat aracını çağır (hedefe pencere "
+    "başlığından bir kelime/kelime öbeği ver, ör. 'youtube', 'çizim', "
+    "'chrome'). AÇMA aracıyla (web_ac/uygulama_ac) 'kapat' kelimesini "
+    "ASLA parametre olarak gönderme — o araçların kapatma diye bir işi "
+    "yok, öyle bir çağrı anlamsız bir sonuç üretir.\n"
+    "ÇIKMA: 'öğretmen talimat modundan çık', 'normal derse dön' → "
+    "talimat_modundan_cik aracını çağır.\n\n"
+    "DERS KİTAPLARI BU TAHTADA YEREL DOSYA DEĞİLDİR — sunucuda tutulur. "
+    "'kitabın X. sayfasını aç/göster' HER ZAMAN pdf_sayfa ile (ders + "
+    "sayfa numarası), 'kitapta/kitaba göre X nedir' gibi somut bir soru "
+    "kitap_sorusu ile (ders + soru) karşılanır. dosya_ac'ı kitap için ASLA "
+    "kullanma — o yalnızca öğretmenin panosundaki genel dosyalar "
+    "(müzik, indirilenler, masaüstü) içindir ve kitap PDF'leri orada "
+    "bulunmaz.\n\n"
     "KURALLAR:\n"
-    "- Bir araç çağırdıktan sonra EN FAZLA tek kısa cümleyle onay ver "
-    "(\"Açılıyor.\", \"Tamam.\") — açıklama yapma, ders anlatmaya başlama.\n"
-    "- Komutu anlamadıysan ya da hangi aracın uygun olduğundan emin "
-    "değilsen, tek cümlelik netleştirme sorusu sor — ASLA tahmin edip "
-    "yanlış bir şey açma.\n"
-    "- Araç çağırıp onaylamak dışında hiçbir şey yapma: ders anlatma, soru "
+    "- Bir araç çağırdıktan sonra aracın DÖNDÜRDÜĞÜ sonuca göre EN FAZLA "
+    "tek kısa cümleyle bildir — başarılıysa \"Açılıyor.\"/\"Kapatıldı.\", "
+    "araç bir hata/bulunamadı dönerse bunu DÜRÜSTÇE söyle (\"'X' bulunamadı.\" "
+    "gibi). Aracın döndürmediği bir başarıyı ASLA anons etme.\n"
+    "- Komutu anlamadıysan, hangi aracın uygun olduğundan emin değilsen, YA "
+    "DA seçtiğin aracın gerekli bir parametresi (ders, sayfa, hedef, "
+    "uygulama...) komutta hiç söylenmediyse: tek cümlelik netleştirme "
+    "sorusu sor. ASLA tahmin edip yanlış bir şey açma/kapatma — eksik bir "
+    "'ders' adını da UYDURMA, sor.\n"
+    "- Araç çağırıp bildirmek dışında hiçbir şey yapma: ders anlatma, soru "
     "sorma, yorum yapma, sohbet etme, konuya giriş yapma.\n"
     "- Her zaman Türkçe konuş.\n"
 )
@@ -266,6 +300,12 @@ class FarabiLive:
         self._video_yuzunden_susturuldu = False
         # Oturumu öğretmen başlatır; olay run() içinde kurulur (loop gerekiyor).
         self._oturum_izni: asyncio.Event | None = None
+        # Talimat modundan sesle çıkış — run() içinde her bağlantıda
+        # yeniden kurulur (bkz. orada). Tetiklenince bağlantı KASITLI
+        # olarak kesilir ve döngü normal moda yeniden bağlanır; run()'ın
+        # genel hata/backoff dalına düşmemesi için bu bayrak ayrıca tutulur.
+        self._talimat_cikis_event: asyncio.Event | None = None
+        self._talimat_cikis_istendi = False
         # time.monotonic() DEĞİL — cihaz uyku/askıya alma modundan uyandığında
         # CLOCK_MONOTONIC askıda geçen süreyi saymaz, _boşta_gozcusu uzun bir
         # uykuyu hiç göremezdi (bkz. _boşta_gozcusu docstring'i).
@@ -286,6 +326,13 @@ class FarabiLive:
 
         # Ders kipi: sınıfta insan öğretmen var mı?
         self._ders_kipi = _ders_kipi()
+        # Programdan/config'ten gelen GERÇEK kip — talimat modu bunun
+        # ÜZERİNE geçici bir katman. _build_config() her bağlantıda
+        # `self._ders_kipi`'yi bundan ya da KIP_TALIMAT'tan yeniden
+        # hesaplar (bkz. orada); `_ders_kipi_taban` hiç değişmez, yoksa
+        # talimat modundan sesle çıkış eski kipe DÖNEMEZ, yalnızca bir kez
+        # KIP_TALIMAT'a geçebilir (tek yönlü mandal olurdu).
+        self._ders_kipi_taban = self._ders_kipi
 
         # Ders motoru GÖZLEMCİ kipinde: adımı, kalan süreyi ve önerileri
         # hesaplar, loglar ve arayüze yazar; oturuma HİÇBİR ŞEY göndermez
@@ -494,11 +541,15 @@ class FarabiLive:
         from datetime import datetime
 
         # Talimat modu DERSİ BAŞLAT'tan önce ui.py'de seçilir; ders_dili ile
-        # aynı desen — bağlantı anında (her (yeniden)bağlanışta) okunur, bu
-        # yüzden self._ders_kipi burada, __init__'teki timetable/config
-        # değerinin ÜZERİNE geçersiz kılınır.
-        if getattr(getattr(self, "ui", None), "talimat_modu", False):
-            self._ders_kipi = KIP_TALIMAT
+        # aynı desen — bağlantı anında (her (yeniden)bağlanışta) okunur.
+        # İKİ YÖNLÜ: her seferinde `_ders_kipi_taban`'dan yeniden hesaplanır
+        # (tek yönlü mandal DEĞİL) — yoksa talimat modundan sesle çıkış
+        # (`_TalimatCikisi` → yeniden bağlan) burada hâlâ KIP_TALIMAT
+        # görür ve normal moda asla dönemez.
+        self._ders_kipi = (
+            KIP_TALIMAT if getattr(getattr(self, "ui", None), "talimat_modu", False)
+            else self._ders_kipi_taban
+        )
         if self._ders_kipi == KIP_TALIMAT:
             return self._build_talimat_config()
 
@@ -852,6 +903,29 @@ class FarabiLive:
                 r = await self._isci(name, lambda: dosya_ac(parameters=args, player=self.ui))
                 result = r or "Done."
 
+            elif name == "pencere_kapat":
+                r = await self._isci(name, lambda: pencere_kapat(parameters=args, player=self.ui))
+                result = r or "Done."
+
+            elif name == "talimat_modundan_cik":
+                if self._ders_kipi != KIP_TALIMAT:
+                    result = "Zaten talimat modunda değilim."
+                else:
+                    self.ui.write_log("SYS: Talimat modundan çıkış istendi — normal ders moduna geçiliyor.")
+                    result = "Talimat modundan çıkılıyor."
+                    self._talimat_cikis_istendi = True
+
+                    async def _cik():
+                        # Onay cümlesi bitsin diye kısa bekle, SONRA bağlantıyı
+                        # kes — anında kesersek "çıkılıyor" hiç duyulmadan susardı
+                        # (shutdown_farabi'deki 1 sn'lik veda bekleyişiyle aynı
+                        # gerekçe).
+                        await asyncio.sleep(1.5)
+                        self.ui.talimat_modundan_cik()
+                        if self._talimat_cikis_event:
+                            self._talimat_cikis_event.set()
+                    asyncio.create_task(_cik())
+
             elif name == "shutdown_farabi":
                 self.ui.write_log("SYS: Ders bitirme isteği alındı.")
                 self.speak("Görüşmek üzere, iyi çalışmalar.")
@@ -1138,6 +1212,22 @@ class FarabiLive:
                 await self.session.send_tool_response(function_responses=yanitlar)
         except Exception as e:
             log.exception("Araç yanıtı gönderilemedi: %s", e)
+
+    async def _talimat_cikis_gozcusu(self) -> None:
+        """
+        `talimat_modundan_cik` aracı `self._talimat_cikis_event`'i set
+        edince TaskGroup'u KASITLI olarak keser (bkz. `_TalimatCikisi`).
+
+        Doğrudan `_execute_tool`'dan fırlatmak İŞE YARAMAZ: onu çağıran
+        `_araclari_calistir` her istisnayı yakalayıp loglayan kendi
+        try/except'ine sahip (araç hatası bütün oturumu düşürmesin diye,
+        bkz. orası) — bu yüzden ayrı, `tg.create_task()` ile TaskGroup'a
+        KAYITLI bir gözcü görevi gerekiyor; yalnız TaskGroup üyesi bir
+        görevin fırlattığı istisna kardeş görevleri iptal edip
+        `async with tg:` bloğunu gerçekten kesiyor.
+        """
+        await self._talimat_cikis_event.wait()
+        raise _TalimatCikisi()
 
     # Oturum kurulduktan sonra ders durumu bildirimi için beklenecek süre.
     # Açılışın sesli olarak bitmesi gerekir: araya giren bir metin turu,
@@ -1660,6 +1750,8 @@ class FarabiLive:
                     self.audio_in_queue   = asyncio.Queue()
                     self.out_queue        = asyncio.Queue(maxsize=200)
                     self._turn_done_event = asyncio.Event()
+                    self._talimat_cikis_event = asyncio.Event()
+                    self._talimat_cikis_istendi = False
 
                     log.info("Oturum açıldı. (anahtar %s)", anahtar.durum())
                     if fail_streak:
@@ -1678,6 +1770,7 @@ class FarabiLive:
                     tg.create_task(self._play_audio())
                     tg.create_task(self._ders_motoru_dongusu())
                     tg.create_task(self._boşta_gozcusu())
+                    tg.create_task(self._talimat_cikis_gozcusu())
 
                     # Oturum yenilendiyse öğretmen müdahalesi bayatlamıştır;
                     # yeni oturuma "duraklat" önerisiyle başlamak yanlış.
@@ -1694,6 +1787,20 @@ class FarabiLive:
                         tg.create_task(self._oturum_devam_notu())
 
             except Exception as e:
+                if self._talimat_cikis_istendi:
+                    # Talimat modundan sesle çıkış — GERÇEK bir bağlantı
+                    # hatası değil (bkz. _TalimatCikisi). fail_streak/backoff
+                    # dalına HİÇ girmeden, ders kaydına "hata" yazmadan
+                    # normal moda hemen yeniden bağlan.
+                    self._talimat_cikis_istendi = False
+                    log.info("Talimat modundan çıkıldı — normal moda yeniden bağlanılıyor.")
+                    self.ui.write_log("SYS: Talimat modundan çıkıldı, yeniden bağlanılıyor…")
+                    self.session = None    # finally de yapar, quota dalıyla aynı üslup
+                    self.set_speaking(False)
+                    self.ui.set_state("SLEEPING")
+                    transcript.log_session_end()
+                    continue
+
                 fail_streak += 1
                 sig = f"{type(e).__name__}: {e}"
                 if sig == last_error:

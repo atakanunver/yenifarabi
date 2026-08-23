@@ -1005,6 +1005,7 @@ class MainWindow(QMainWindow):
     _content_sig = pyqtSignal(str, str)   # (title, text) — thread-safe content display
     _image_content_sig = pyqtSignal(str, str)  # (title, image_path) — thread-safe image display
     _mute_sig    = pyqtSignal(bool)       # thread-safe mute toggle (asyncio loop thread → Qt thread)
+    _talimat_cikis_sig = pyqtSignal()     # talimat modundan sesle çıkış — düğme görünümü (asyncio loop thread → Qt thread)
     _gemini_oturum_sig = pyqtSignal(bool)  # True: Live oturumu açıldı, False: kapandı
     _live_baslat_sig = pyqtSignal(str)    # akan altyazı: yeni satır başlat (prefix, ör. "Farabi: ")
     _live_guncelle_sig = pyqtSignal(str)  # akan altyazı: satırın içeriğini büyüt (yeni satır AÇMADAN)
@@ -1126,6 +1127,7 @@ class MainWindow(QMainWindow):
         self._content_sig.connect(self._show_content)
         self._image_content_sig.connect(self._show_image)
         self._mute_sig.connect(self._set_muted)
+        self._talimat_cikis_sig.connect(self._talimat_modundan_cik_gorunumu)
         self._gemini_oturum_sig.connect(self._on_gemini_oturum_degisti)
         self._live_baslat_sig.connect(self._log.canli_satir_baslat)
         self._live_guncelle_sig.connect(self._log.canli_satir_guncelle)
@@ -2355,6 +2357,15 @@ class MainWindow(QMainWindow):
         if v != self._muted:
             self._toggle_mute()
 
+    def _talimat_modundan_cik_gorunumu(self) -> None:
+        """Slot for `_talimat_cikis_sig` — talimat_modundan_cik aracı
+        (main.py) sesle tetiklendiğinde düğmenin görünümünü Qt iş
+        parçacığında günceller. Yeniden AÇILAMAZ hâle getirilir (kilit
+        DERSİ BAŞLAT'tan sonra zaten yerinde) — bu sürümde yalnızca ÇIKIŞ
+        destekleniyor, aynı oturumda sesle geri DÖNÜŞ yok."""
+        self._talimat_btn.setChecked(False)
+        self._talimat_btn.setEnabled(False)
+
     def _style_mute_btn(self):
         if self._muted:
             self._mute_btn.setText("🔇  MİKROFON KAPALI")
@@ -2529,6 +2540,23 @@ class FarabiUI:
         """Öğretmen talimat modu — DERSİ BAŞLAT'tan önce panelde seçilir
         (varsayılan AÇIK), main.py yalnız _build_config() içinde okur."""
         return self._win.talimat_modu
+
+    def talimat_modundan_cik(self) -> None:
+        """
+        Sesle talimat modundan çıkış (main.py'nin `talimat_modundan_cik`
+        aracı çağırır).
+
+        `self._win.talimat_modu` DÜZ bir Python attribute'u — herhangi bir
+        iş parçacığından güvenle, ANINDA yazılabilir (Qt widget'a dokunmuyor).
+        Bilerek SENKRON: main.py bu satırdan hemen sonra bağlantıyı kesip
+        yeniden bağlanıyor, `_build_config()`'in bir sonraki okuması bu
+        değeri KESİN görmeli — sinyal/slot çağrısı Qt iş parçacığına
+        kuyruklanır (queued connection) ve GECİKEBİLİR, o yüzden düğmenin
+        GÖRSEL senkronu ayrı tutulur (`_talimat_cikis_sig`), asıl mod
+        geçişi buna bağlı değildir.
+        """
+        self._win.talimat_modu = False
+        self._win._talimat_cikis_sig.emit()
 
     def set_ders_adaylari(self, adlar: list[str]) -> None:
         """Öğretmen panelindeki 'dersi değiştir' seçeneklerini doldur."""
