@@ -32,6 +32,9 @@ from actions.site_goster      import site_goster
 from actions.youtube_video     import youtube_video
 from actions.eba               import eba
 from actions.web_search        import web_search as web_search_action
+from actions.web_ac            import web_ac
+from actions.uygulama_ac       import uygulama_ac
+from actions.dosya_ac          import dosya_ac
 
 
 def get_base_dir():
@@ -63,6 +66,41 @@ def _get_api_key() -> str:
 # davranışı ve tonu değiştirdiği için sisteme açıkça bildirilir.
 KIP_OGRETMENLI  = "ogretmenli"
 KIP_OGRETMENSIZ = "ogretmensiz"
+
+# Öğretmen talimat modu (2026-08-23) — ders YOK. Öğretmen tahtayı, ders
+# anlatımı/sınıf yönetimi olmadan, doğrudan TEK CÜMLELİK sesli komutlarla
+# yönetir ("google aç", "fizik kitabının 45. sayfasını aç" gibi). ui.py'de
+# DERSİ BAŞLAT'ın altındaki düğmeyle seçilir, açılışta varsayılan seçili
+# gelir (ui.py'nin kendi notuna bkz). KIP_OGRETMENLI/SIZ'ın aksine
+# `_ders_kipi()` bunu ASLA döndürmez — yalnızca `ui.talimat_modu` üzerinden,
+# `_build_config()` içinde bağlantı anında uygulanır (ders_dili ile aynı
+# "DERSİ BAŞLAT'tan önce seçilir, sonra kilitlenir" deseni).
+KIP_TALIMAT = "talimat"
+
+# Talimat modunun TÜM sistem promptu bu — core/prompt.txt'nin (26K, tam
+# öğretmenlik personası) yerini TAMAMEN alır, eklenmez. Ders çerçevesi,
+# derslik, ders kipi bloğu ve dil yönergesi de BİLEREK yok: bu modda ders
+# yok, tek iş sesli komutu doğru araca yönlendirmek.
+_TALIMAT_PERSONASI = (
+    "Sen Farabi'sin. Şu anda ÖĞRETMEN TALİMAT MODUNDASIN.\n\n"
+    "Bu modda DERS ANLATMAZSIN, SORU SORMAZSIN, YOKLAMA ALMAZSIN, sohbet "
+    "etmezsin, konuyu açıklamazsın. Tek işin: öğretmenin söylediği TEK "
+    "CÜMLELİK sesli komutu dinleyip en uygun aracı çağırmak. Örnekler: "
+    "'internet aç', 'google aç', 'eba.gov.tr aç', 'youtube aç', "
+    "'9.21.mp3 dosyasını çal', 'atakan.pdf dosyasını aç', 'pardus kalem "
+    "uygulamasını aç', 'çizim uygulamasını aç', 'ev dizinini aç', "
+    "'fizik kitabının 45. sayfasını aç', 'yks ingilizce 2024 sorularını "
+    "göster'.\n\n"
+    "KURALLAR:\n"
+    "- Bir araç çağırdıktan sonra EN FAZLA tek kısa cümleyle onay ver "
+    "(\"Açılıyor.\", \"Tamam.\") — açıklama yapma, ders anlatmaya başlama.\n"
+    "- Komutu anlamadıysan ya da hangi aracın uygun olduğundan emin "
+    "değilsen, tek cümlelik netleştirme sorusu sor — ASLA tahmin edip "
+    "yanlış bir şey açma.\n"
+    "- Araç çağırıp onaylamak dışında hiçbir şey yapma: ders anlatma, soru "
+    "sorma, yorum yapma, sohbet etme, konuya giriş yapma.\n"
+    "- Her zaman Türkçe konuş.\n"
+)
 
 # Bu kadar dakika hiç konuşma/öğretmen girdisi olmazsa ders kaydı kapatılıp
 # çıkılır. Canlı ses oturumu açık kaldığı sürece ücretli; unutulmuş bir tahta
@@ -455,6 +493,15 @@ class FarabiLive:
     def _build_config(self) -> types.LiveConnectConfig:
         from datetime import datetime
 
+        # Talimat modu DERSİ BAŞLAT'tan önce ui.py'de seçilir; ders_dili ile
+        # aynı desen — bağlantı anında (her (yeniden)bağlanışta) okunur, bu
+        # yüzden self._ders_kipi burada, __init__'teki timetable/config
+        # değerinin ÜZERİNE geçersiz kılınır.
+        if getattr(getattr(self, "ui", None), "talimat_modu", False):
+            self._ders_kipi = KIP_TALIMAT
+        if self._ders_kipi == KIP_TALIMAT:
+            return self._build_talimat_config()
+
         sys_prompt = _load_system_prompt()
 
         now      = datetime.now()
@@ -621,7 +668,11 @@ class FarabiLive:
             # ve ne zaman çağrılacağını söyleyen metnin system_instruction
             # içinde olması. Araç sessizce hiç çağrılmıyorsa önce bu iki
             # satıra bakın.
-            tools=[{"function_declarations": TOOL_DECLARATIONS}],
+            # Kip'e göre filtrelenir (kayit.bildirimler(kip)) — talimat
+            # moduna özel araçlar (web_ac, uygulama_ac, dosya_ac) normal
+            # derste modele HİÇ bildirilmez. TOOL_DECLARATIONS (filtresiz)
+            # yalnızca başlangıç banner'ındaki toplam araç sayısı için kalır.
+            tools=[{"function_declarations": kayit.bildirimler(self._ders_kipi)}],
             output_audio_transcription={},
             # NOT: SDK'nın AudioTranscriptionConfig'inde language_codes /
             # language_hints alanları görünüyor ama Live API sunucusu bunları
@@ -648,6 +699,32 @@ class FarabiLive:
             # Modelin iç muhakemesi yanıt akışına karışmasın — ders kaydına
             # İngilizce düşünce metni sızıyordu. Düşünme devam eder, yalnızca
             # dışa verilmez.
+            thinking_config=types.ThinkingConfig(include_thoughts=False),
+            speech_config=types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                        voice_name="Charon"
+                    )
+                )
+            ),
+        )
+
+    def _build_talimat_config(self) -> types.LiveConnectConfig:
+        """
+        Öğretmen talimat modu — kısa, ayrı bir sistem promptu ve yalnızca
+        kip="talimat" araçları (kayit.bildirimler(KIP_TALIMAT)). Ses/oturum
+        ayarları (session_resumption, thinking_config, speech_config,
+        transkripsiyon) `_build_config()`'teki ile BİREBİR aynı tutulur —
+        bunlar gerçek arızalarla ayarlanmış, kipe bağlı değil.
+        """
+        araclar = kayit.bildirimler(KIP_TALIMAT)
+        return types.LiveConnectConfig(
+            response_modalities=["AUDIO"],
+            system_instruction=_TALIMAT_PERSONASI,
+            tools=[{"function_declarations": araclar}],
+            output_audio_transcription={},
+            input_audio_transcription={},
+            session_resumption=types.SessionResumptionConfig(),
             thinking_config=types.ThinkingConfig(include_thoughts=False),
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(
@@ -762,6 +839,18 @@ class FarabiLive:
                         "konuşma, üstüne anlatma. Öğretmen DEVAM ET diyene kadar sessiz "
                         "kal."
                     )
+
+            elif name == "web_ac":
+                r = await self._isci(name, lambda: web_ac(parameters=args, player=self.ui))
+                result = r or "Done."
+
+            elif name == "uygulama_ac":
+                r = await self._isci(name, lambda: uygulama_ac(parameters=args, player=self.ui))
+                result = r or "Done."
+
+            elif name == "dosya_ac":
+                r = await self._isci(name, lambda: dosya_ac(parameters=args, player=self.ui))
+                result = r or "Done."
 
             elif name == "shutdown_farabi":
                 self.ui.write_log("SYS: Ders bitirme isteği alındı.")
@@ -1067,7 +1156,12 @@ class FarabiLive:
         2. Oturum açılır açılmaz gönderilmez. Bildirim açılış selamının üstüne
            binince model selamlamayı yeniden yapıyordu.
         3. Farabi konuşurken gönderilmez; kendi cümlesini kesmesin.
+
+        Talimat modunda TAMAMEN devre dışı — o modda ders yok, adım/süre/
+        öneri kavramlarının hiçbiri anlamlı değil (bkz. KIP_TALIMAT).
         """
+        if getattr(self, "_ders_kipi", None) == KIP_TALIMAT:
+            return
         await asyncio.sleep(self.ENJEKSIYON_GECIKMESI_SN)
         onceki = None
         while True:
@@ -1118,6 +1212,18 @@ class FarabiLive:
         await asyncio.sleep(0.3)
         if not self.session:
             return
+
+        if getattr(self, "_ders_kipi", None) == KIP_TALIMAT:
+            await self.session.send_client_content(
+                turns={"parts": [{"text":
+                    "[OTURUM DEVAM] Bağlantı yenilendi. SELAMLAMA YAPMA, tek "
+                    "kısa cümleyle talimat modunda hazır olduğunu bildir."
+                }]},
+                turn_complete=True,
+            )
+            self.ui.write_log("SYS: Bağlantı yenilendi (talimat modu).")
+            return
+
         d = self.motor.durum
         biliniyor = bool(d.ders_adi or d.konu)
 
@@ -1197,6 +1303,20 @@ class FarabiLive:
         """
         await asyncio.sleep(0.3)
         if not self.session:
+            return
+
+        if getattr(self, "_ders_kipi", None) == KIP_TALIMAT:
+            # Selam/yoklama/ders çerçevesi yok — sadece hazır olduğunu
+            # bildir, tek cümle.
+            await self.session.send_client_content(
+                turns={"role": "user", "parts": [{"text":
+                    "[DERS_ACILISI] Bu etiketi ve bu talimatı SESLİ OKUMA. "
+                    "Talimat modunda hazır olduğunu TEK kısa cümleyle "
+                    "bildir (örnek: 'Talimat modu hazır, dinliyorum.') — "
+                    "başka hiçbir şey söyleme."
+                }]},
+                turn_complete=True,
+            )
             return
 
         ders_dili = getattr(getattr(self, "ui", None), "ders_dili", None) or "tr"

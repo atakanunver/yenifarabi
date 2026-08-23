@@ -25,11 +25,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 pytest.importorskip("sounddevice", reason="ses bağımlılıkları olmadan atlanır")
 
 import main                                    # noqa: E402
+from actions import kayit                      # noqa: E402
 
 
 class _SahteUI:
-    def __init__(self, ders_dili="tr"):
+    def __init__(self, ders_dili="tr", talimat_modu=False):
         self.ders_dili = ders_dili
+        self.talimat_modu = talimat_modu
 
 
 @pytest.fixture
@@ -40,16 +42,34 @@ def config():
     return f._build_config()
 
 
+@pytest.fixture
+def talimat_config():
+    f = main.FarabiLive.__new__(main.FarabiLive)
+    f._current_lesson = None
+    f._ders_kipi = main.KIP_OGRETMENLI       # ui.talimat_modu bunu geçersiz kılmalı
+    f.ui = _SahteUI(talimat_modu=True)
+    return f._build_config()
+
+
 def _sistem_metni(cfg) -> str:
     si = cfg.system_instruction
     return si if isinstance(si, str) else "".join(p.text for p in si.parts)
 
 
 def test_arac_bildirimleri_config_e_giriyor(config):
+    """
+    Bildirilen araçlar kipe göre FİLTRELENİR (2026-08-23, talimat modu) —
+    artık main._TOOL_ADLARI (filtresiz TAM liste) ile eşit değil, o listenin
+    KIP_OGRETMENLI'de açık olan ALT KÜMESİYLE eşit olmalı. web_ac/
+    uygulama_ac/dosya_ac gibi kip=("talimat",) araçları normal derste hiç
+    bildirilmemeli.
+    """
     assert config.tools, "tools= verilmemiş: model araçları göremez"
     adlar = [d.name for d in config.tools[0].function_declarations]
-    assert adlar == main._TOOL_ADLARI
+    beklenen = [d["name"] for d in kayit.bildirimler(main.KIP_OGRETMENLI)]
+    assert adlar == beklenen
     assert "save_memory" not in adlar
+    assert "web_ac" not in adlar and "uygulama_ac" not in adlar and "dosya_ac" not in adlar
 
 
 def test_sistem_promptu_config_e_giriyor(config):
@@ -136,3 +156,31 @@ class TestAcilisSelamGun:
         selam, gun = main._acilis_selam_gun("de", simdi)
         assert selam == "Guten Abend"
         assert gun == "Montag"
+
+
+class TestTalimatModu:
+    """
+    Öğretmen talimat modu (2026-08-23) — ders yok, yalnızca sesle sistem
+    komutu. `ui.talimat_modu=True`, __init__'te belirlenen ders kipini
+    bağlantı anında geçersiz kılmalı (ders_dili ile aynı desen).
+    """
+
+    def test_ui_talimat_modu_ders_kipini_gecersiz_kilar(self, talimat_config):
+        assert talimat_config.system_instruction == main._TALIMAT_PERSONASI
+
+    def test_normal_ders_personasi_karismaz(self, talimat_config):
+        # core/prompt.txt, ders çerçevesi, dil kuralı vb. HİÇ girmemeli.
+        assert "DİL KURALI" not in talimat_config.system_instruction
+        assert "FARABİ" not in talimat_config.system_instruction.upper() or \
+            "TALİMAT" in talimat_config.system_instruction.upper()
+
+    def test_yalnizca_talimat_araclari_bildirilir(self, talimat_config):
+        adlar = {d.name for d in talimat_config.tools[0].function_declarations}
+        beklenen = {d["name"] for d in kayit.bildirimler(main.KIP_TALIMAT)}
+        assert adlar == beklenen
+        assert {"web_ac", "uygulama_ac", "dosya_ac", "pdf_sayfa", "yks_sorulari"} <= adlar
+        # Normal ders araçları bu modda görünmemeli.
+        assert "ders_icerigi" not in adlar and "web_search" not in adlar
+
+    def test_talimat_modu_yoksa_normal_persona_kullanilir(self, config):
+        assert config.system_instruction != main._TALIMAT_PERSONASI

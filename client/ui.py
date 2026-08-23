@@ -1044,6 +1044,12 @@ class MainWindow(QMainWindow):
         # (main.py yalnız _build_config() içinde, ilk bağlantıdan önce okur).
         # Varsayılan "tr" — hiçbir dil düğmesine basılmazsa mevcut davranış.
         self.ders_dili: str = "tr"
+        # Öğretmen talimat modu (2026-08-23) — DERSİ BAŞLAT'tan ÖNCE panelde
+        # seçilir, aynı "yalnız ilk bağlantıda okunur, sonra kilitlenir"
+        # deseni (bkz. ders_dili). Varsayılan AÇIK: kullanıcı açılışta bu
+        # düğmenin tıklanmış gelmesini istedi — normal dersi başlatmak için
+        # öğretmenin DERSİ BAŞLAT'tan önce bilerek KAPATMASI gerekir.
+        self.talimat_modu: bool = True
         self._kazanim_metni: str = ""
         self._duraklatildi: bool = False
         # Günün plan adayları — "dersi değiştir" bunlardan seçtirir.
@@ -1690,6 +1696,24 @@ class MainWindow(QMainWindow):
             lambda _e: self._dersi_baslat())
         izgara.addWidget(self._baslat_btn, 1, 0, 1, 2)
 
+        # ── Öğretmen talimat modu ────────────────────────────────────────
+        # DERSİ BAŞLAT'ın hemen altında, ders dili düğmelerinden ÖNCE — bu
+        # da DERSİ BAŞLAT'tan ÖNCE seçilir ve aynı şekilde kilitlenir (bkz.
+        # self.talimat_modu tanımındaki not). Açıkken ders_icerigi/
+        # web_search gibi normal ders araçları hiç bildirilmez, yalnızca
+        # sistem-komutu araçları (web_ac/uygulama_ac/dosya_ac/pdf_sayfa/
+        # yks_sorulari) açık olur ve ders anlatımı/yoklama/motor tamamen
+        # devre dışı kalır (main.py, KIP_TALIMAT). Varsayılan AÇIK.
+        self._talimat_btn = QPushButton("🎙  ÖĞRETMEN TALİMAT MODU")
+        self._talimat_btn.setCheckable(True)
+        self._talimat_btn.setChecked(self.talimat_modu)
+        self._talimat_btn.setFixedHeight(24)
+        self._talimat_btn.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
+        self._talimat_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._talimat_btn.toggled.connect(self._talimat_modu_degistir)
+        izgara.addWidget(self._talimat_btn, 2, 0, 1, 2)
+        self._talimat_modu_dugmesini_boya()
+
         # ── Ders dili ─────────────────────────────────────────────────────
         # DERSİ BAŞLAT'tan ÖNCE seçilir — bkz. self.ders_dili tanımındaki not
         # (system_instruction bağlantı kurulduktan sonra değiştirilemez).
@@ -1704,10 +1728,26 @@ class MainWindow(QMainWindow):
             b.setCursor(Qt.CursorShape.PointingHandCursor)
             b.clicked.connect(lambda _=False, k=kod: self._ders_dili_sec(k))
             self._dil_btns[kod] = b
-        izgara.addWidget(self._dil_btns["en"], 2, 0)
-        izgara.addWidget(self._dil_btns["de"], 2, 1)
+        izgara.addWidget(self._dil_btns["en"], 3, 0)
+        izgara.addWidget(self._dil_btns["de"], 3, 1)
         self._dil_dugmelerini_boya()
         return izgara
+
+    def _talimat_modu_degistir(self, acik: bool) -> None:
+        self.talimat_modu = acik
+        self._talimat_modu_dugmesini_boya()
+        self._log.append_log(
+            "SYS: Öğretmen talimat modu " + ("AÇIK — ders yok, yalnızca "
+            "sesli sistem komutu." if acik else "KAPALI — normal ders."))
+
+    def _talimat_modu_dugmesini_boya(self) -> None:
+        acik_stil = f"""
+            QPushButton {{
+                background: {C.ACC2}; color: {C.DARK};
+                border: none; border-radius: 3px; font-weight: bold;
+            }}
+        """
+        self._talimat_btn.setStyleSheet(acik_stil if self.talimat_modu else self._ogretmen_btn_stili)
 
     def _dil_dugmelerini_boya(self) -> None:
         secili_stil = f"""
@@ -1747,6 +1787,7 @@ class MainWindow(QMainWindow):
         self._baslat_btn.setText("⏳  ISINIYOR…")
         for b in self._dil_btns.values():          # dil artık değişemez, bkz. yukarıdaki not
             b.setEnabled(False)
+        self._talimat_btn.setEnabled(False)         # talimat modu artık değişemez, bkz. yukarıdaki not
         self._log.append_log("SYS: Ders başlatılıyor (öğretmen) — bağlanılıyor…")
         threading.Thread(target=self.on_session_start, daemon=True).start()
 
@@ -2482,6 +2523,12 @@ class FarabiUI:
         """'tr' (varsayılan) | 'en' | 'de' — DERSİ BAŞLAT'tan önce panelde
         seçilir, main.py yalnız ilk bağlantıda (_build_config) okur."""
         return self._win.ders_dili
+
+    @property
+    def talimat_modu(self) -> bool:
+        """Öğretmen talimat modu — DERSİ BAŞLAT'tan önce panelde seçilir
+        (varsayılan AÇIK), main.py yalnız _build_config() içinde okur."""
+        return self._win.talimat_modu
 
     def set_ders_adaylari(self, adlar: list[str]) -> None:
         """Öğretmen panelindeki 'dersi değiştir' seçeneklerini doldur."""

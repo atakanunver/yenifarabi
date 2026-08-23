@@ -678,7 +678,10 @@ Actions are called as `module_function(parameters=args, player=ui, speak=self.sp
 Heavy work runs via `loop.run_in_executor`.
 
 **Capability boundary — do not cross it.** No app launching, terminal execution,
-OS settings, browser automation, messaging, or process management. `reminder` was
+OS settings, browser automation, messaging, or process management. **Scoped to
+`kip=("ogretmenli","ogretmensiz")` tools — a real, DELIBERATE exception exists
+for `kip=("talimat",)` tools, see "Öğretmen talimat modu" below; do not treat
+that as license to relax the boundary for normal-lesson tools too.** `reminder` was
 removed (the bell schedule is the timer; a desktop notification firing over a
 later class is actively harmful). `file_processor` was narrowed to PDF, Word, text,
 spreadsheets, presentations, JSON/XML and images: audio, video, archive and **code**
@@ -713,6 +716,77 @@ Desktop-write-and-open path isn't documented anywhere. No fix is scheduled —
 treat both as open holes, not settled behavior, until someone rewrites
 `youtube_video` to stop shelling out (kiosk-mode playback or dropping the
 save-and-open step).
+
+### Öğretmen talimat modu — a deliberate, separate hole in the capability boundary
+
+Added 2026-08-23. A THIRD lesson kip, `KIP_TALIMAT = "talimat"`
+(`main.py`), for when there is no lesson at all — the teacher controls the
+board directly by voice, single-sentence commands only ("google aç", "fizik
+kitabının 45. sayfasını aç", "pardus kalem uygulamasını aç"). Selected in
+`ui.py` by a checkable button directly under DERSİ BAŞLAT (`_talimat_btn`,
+`ÖĞRETMEN TALİMAT MODU`), **defaults to CHECKED at launch** (user's explicit
+request) — a normal lesson requires the teacher to uncheck it before
+pressing DERSİ BAŞLAT. Same "read once at connect, then locked" pattern as
+`ders_dili`: `main._build_config()` reads `ui.talimat_modu` and overrides
+`self._ders_kipi`, `ui.py` disables the button the moment DERSİ BAŞLAT is
+pressed.
+
+**This mode INTENTIONALLY breaks the capability boundary above — decided,
+not overlooked.** Three new `kip=("talimat",)`-only tools exist purely to
+launch a real browser / real apps / real files, something the boundary
+explicitly forbids for every other tool:
+
+- `actions/web_ac.py` — opens a REAL, unsandboxed browser (`xdg-open`) to
+  any site/URL/search query. **No whitelist** — `site_goster.py`'s whole
+  reason to exist (no address bar for students) is bypassed by design here.
+  Only a hygiene floor blocks `file:`/`javascript:`/`data:` schemes.
+- `actions/uygulama_ac.py` — launches a desktop app from a small, hand-
+  written name→command table (`pardus-pen`, `drawing`/Çizim, `nemo`,
+  `gnome-calculator`, `evince`, `gnome-screenshot` — verified against this
+  board's real `/usr/share/applications/*.desktop`, 2026-08-23). Deliberately
+  NOT every installed app — Ayarlar/Paket Kurucu/Sanal Makine etc. are left
+  out; add to the table by hand if a new one is genuinely needed. No
+  terminal in this table, on purpose — that line was not asked for and
+  stays uncrossed.
+- `actions/dosya_ac.py` — opens a folder (`ev dizini` = `$HOME`, `masaüstü`,
+  ...) or searches `$HOME` (bounded depth, `.git`/`venv`/`__pycache__`/etc.
+  excluded) for a file by name and `xdg-open`s it. Never searches outside
+  `$HOME`.
+
+`pdf_sayfa` and `yks_sorulari` are also open in this kip (`kip=KIP_HEPSI +
+(KIP_TALIMAT,)` in `actions/kayit.py`) — "kitabın 45. sayfasını aç" and "yks
+sorularını göster" are single-page/single-question lookups, not lesson
+narration, so they don't violate "no ders anlatımı" the way `ders_icerigi`
+would.
+
+**Why this was allowed despite the boundary**: explicitly decided by the
+user (2026-08-23) after being shown the exact tension — `site_goster`'s
+"no browser" design and this boundary both exist because the board's mic
+has **no speaker authentication** (see "No auth on the board" above): anyone
+talking while the mode is on is treated as the teacher. The user chose full,
+unrestricted access ("trust the room") over a whitelist or an extra arm-step,
+knowing that risk. Don't quietly narrow it back to a whitelist, and don't
+extend the same trust to the normal lesson kips without asking again.
+
+**Everything else about a normal lesson is OFF in this kip**, on purpose
+("bu modda ders anlatımı yok müdahele yok"):
+- `main._build_talimat_config()` replaces `core/prompt.txt` + lesson frame +
+  `[DERS KİPİ]` block + language directive ENTIRELY with one short,
+  dedicated persona (`main._TALIMAT_PERSONASI`) — command-in, one-sentence-
+  confirmation-out, nothing else.
+- `main._ders_motoru_dongusu()` no-ops immediately (`KIP_TALIMAT` guard) —
+  no step/suggestion/remaining-time injection, `self.motor` is built but
+  never actually drives anything in this mode.
+- `main._send_session_opening()`/`_oturum_devam_notu()` send a one-line
+  "hazırım" instead of the greeting/attendance/lesson-continuation flow.
+
+`kayit.bildirimler(kip)` now takes an optional `kip` filter (`kip is None` =
+unfiltered, used only for the startup-banner tool count) — `main._build_config()`
+and `_build_talimat_config()` both call it with the live `self._ders_kipi` so
+Gemini is only ever told about the tools valid for the CURRENT kip; normal
+lessons never see `web_ac`/`uygulama_ac`/`dosya_ac` in their tool list.
+`tests/test_oturum_yapilandirmasi.py::TestTalimatModu` and
+`test_arac_bildirimleri_config_e_giriyor` cover this.
 
 ### `eba` (`actions/eba.py`, added 2026-08-09) — EBA video + question PDFs
 

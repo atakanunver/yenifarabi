@@ -19,7 +19,13 @@ Kayıttaki üç alan çalışma zamanında gerçekten iş görür:
     calisma       Aracın nasıl koşturulacağı. İki akış var:
                   "isci"     — iş parçacığında, zaman aşımıyla
                   "satirici" — anında, olay döngüsünde (kapanış)
-    kip           Hangi ders kipinde açık. Şimdilik hepsi iki kipte de açık.
+    kip           Hangi ders kipinde açık. "ogretmenli"/"ogretmensiz" araçları
+                  hepsi iki kipte de açık. "talimat" (öğretmen talimat modu,
+                  2026-08-23) AYRI ve dışlayıcı: o kipte YALNIZCA kip'i
+                  "talimat" içeren araçlar model'e bildirilir — normal ders
+                  araçları (ders_icerigi, web_search, ...) o kipte hiç
+                  görünmez, çünkü o modda ders anlatımı YOK. `bildirimler()`
+                  bu yüzden artık bir `kip` argümanı alıyor.
 
 `aciklama` metinleri MODELE gider ve aracın NE ZAMAN çağrılacağını anlatır.
 Bunlar taşınırken tek kelimesi değiştirilmedi: metni kısaltmak, modelin aracı
@@ -31,6 +37,11 @@ from dataclasses import dataclass, field
 
 # Ders kipleri — main.py ile aynı dizeler
 KIP_HEPSI = ("ogretmenli", "ogretmensiz")
+
+# Öğretmen talimat modu (2026-08-23) — ders YOK, öğretmen tahtayı doğrudan
+# sesle yönetir. KIP_HEPSI'ye bilerek DAHİL DEĞİL: bu modda ders_icerigi,
+# web_search vb. hiçbir normal ders aracı görünmemeli.
+KIP_TALIMAT = "talimat"
 
 
 @dataclass(frozen=True)
@@ -131,6 +142,11 @@ ARACLAR: list[Arac] = [
         izin="mufredat.oku",
         maliyet="dusuk",
         zaman_asimi=10.0,          # yerel PDF render — ölçüm: önbelleksiz ilk çağrı 131,7 ms (biyoloji-9 s.9)
+        # Öğretmen talimat modunda da açık ("fizik kitabının 45. sayfasını
+        # aç" birebir bu araç) — ders_icerigi gibi TÜM kitabı gezinme değil,
+        # tek sayfa lookup olduğu için o modun "ders anlatımı yok" kuralını
+        # ihlal etmiyor.
+        kip=KIP_HEPSI + (KIP_TALIMAT,),
         cikti="gorsel",
     ),
     Arac(
@@ -170,6 +186,9 @@ ARACLAR: list[Arac] = [
         izin="sinav.oku",
         maliyet="dusuk",
         zaman_asimi=15.0,
+        # Öğretmen talimat modunda da açık ("yks ingilizce 2024 sorularını
+        # göster" birebir bu araç) — tek soru gösterme, ders anlatımı değil.
+        kip=KIP_HEPSI + (KIP_TALIMAT,),
         cikti="metin",
     ),
     Arac(
@@ -361,6 +380,70 @@ ARACLAR: list[Arac] = [
         cikti="metin",
     ),
     Arac(
+        ad="web_ac",
+        aciklama=(
+            "ÖĞRETMEN TALİMAT MODU ONLY. Opens a REAL web browser to a site "
+            "or URL — 'internet aç', 'google aç', 'eba.gov.tr aç', 'youtube "
+            "aç'. Call once per single-sentence command, then confirm in "
+            "ONE short sentence — do not explain, do not start teaching."
+        ),
+        parametreler={
+            "type": "OBJECT",
+            "properties": {
+                "hedef": {"type": "STRING", "description": "Site name, domain or URL, e.g. 'google', 'eba.gov.tr', 'youtube'."},
+            },
+            "required": ["hedef"],
+        },
+        izin="sistem.tarayici",
+        maliyet="yerel",
+        zaman_asimi=8.0,
+        kip=(KIP_TALIMAT,),
+        cikti="onay",
+    ),
+    Arac(
+        ad="uygulama_ac",
+        aciklama=(
+            "ÖĞRETMEN TALİMAT MODU ONLY. Launches a known desktop app — "
+            "'pardus kalem uygulamasını aç', 'çizim uygulamasını aç', 'dosya "
+            "yöneticisini aç'. Only a small fixed set of apps is recognized; "
+            "if unsure ask the teacher to name one of the known ones rather "
+            "than guessing."
+        ),
+        parametreler={
+            "type": "OBJECT",
+            "properties": {
+                "uygulama": {"type": "STRING", "description": "App name as the teacher said it, e.g. 'kalem', 'çizim', 'dosya yöneticisi'."},
+            },
+            "required": ["uygulama"],
+        },
+        izin="sistem.uygulama",
+        maliyet="yerel",
+        zaman_asimi=8.0,
+        kip=(KIP_TALIMAT,),
+        cikti="onay",
+    ),
+    Arac(
+        ad="dosya_ac",
+        aciklama=(
+            "ÖĞRETMEN TALİMAT MODU ONLY. Opens a folder or a specific file "
+            "by name under the board's home directory — 'ev dizinini aç', "
+            "'atakan.pdf dosyasını aç', '9.21.mp3 dosyasını çal'. xdg-open "
+            "picks the right app (PDF viewer, media player, ...) automatically."
+        ),
+        parametreler={
+            "type": "OBJECT",
+            "properties": {
+                "hedef": {"type": "STRING", "description": "Folder keyword (e.g. 'ev dizini', 'masaüstü') or a file name (e.g. '9.21.mp3', 'atakan.pdf')."},
+            },
+            "required": ["hedef"],
+        },
+        izin="sistem.dosya",
+        maliyet="yerel",
+        zaman_asimi=10.0,
+        kip=(KIP_TALIMAT,),
+        cikti="onay",
+    ),
+    Arac(
         ad="shutdown_farabi",
         aciklama=(
             "Ends the session and closes the assistant completely. "
@@ -379,11 +462,19 @@ ARACLAR: list[Arac] = [
 _HARITA = {a.ad: a for a in ARACLAR}
 
 
-def bildirimler() -> list[dict]:
-    """Gemini'ye giden araç bildirimleri — kayıttan üretilir."""
+def bildirimler(kip: str | None = None) -> list[dict]:
+    """
+    Gemini'ye giden araç bildirimleri — kayıttan üretilir.
+
+    `kip` verilmezse (main.py'nin başlangıç banner'ı / araç sayısı logu gibi
+    bilgilendirme amaçlı çağrılarda) TÜM araçlar döner, filtre uygulanmaz.
+    `kip` verilirse yalnızca `kip in a.kip` olan araçlar döner — oturuma
+    fiilen giden liste bu şekilde hesaplanır (bkz. main.py._build_config).
+    """
     return [
         {"name": a.ad, "description": a.aciklama, "parameters": a.parametreler}
         for a in ARACLAR
+        if kip is None or kip in a.kip
     ]
 
 
