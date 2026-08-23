@@ -156,6 +156,16 @@ def indexle(pdf_yolu: Path) -> dict:
 
 DERS_RE = re.compile(r"^(.*?)[-_]?(\d{1,2})(?:[-_](\d))?$")
 
+# MEB'in "12. Sınıf ..." gibi dosya adının BAŞINDA sınıf taşıyan kitapları:
+# DERS_RE sondan rakam arıyor ama bunlar harfle bitiyor (örn. "...-MEB"),
+# hiç eşleşmiyor ve sinif=None'a düşüyor.
+BASLANGIC_SINIF_RE = re.compile(r"^(\d{1,2})\s*\.\s*S[ıi]n[ıi]f\b", re.IGNORECASE)
+
+# İngilizce (Waymark vb.) kitaplarda sınıf "year-9" gibi ORTADA geçer; dosya
+# adının SONUNDAKİ rakam (ör. "...-ders-kitabi2") cilt/versiyon numarasıdır,
+# sınıf değil — DERS_RE'nin sondan-rakam varsayımını yanıltıp sinif=2 üretir.
+YIL_SINIF_RE = re.compile(r"\byear[-_ ]?(\d{1,2})\b", re.IGNORECASE)
+
 
 def kitap_kimligi(ad: str) -> dict:
     """
@@ -163,8 +173,21 @@ def kitap_kimligi(ad: str) -> dict:
       matematik_9.pdf        -> matematik, 9, cilt 1
       matematik_9_2.pdf      -> matematik, 9, cilt 2
       din-kulturu-...-9.pdf  -> din kulturu ..., 9, cilt 1
+      12. Sınıf ...-MEB.pdf  -> 12. sınıf ...-meb, 12, cilt 1
+      waymark-year-9-...2.pdf -> waymark year 9 ...2, 9, cilt 1
     """
     kok = ad[:-4] if ad.lower().endswith(".pdf") else ad
+
+    m = BASLANGIC_SINIF_RE.match(kok)
+    if m:
+        return {"ders": kok.replace("-", " ").replace("_", " ").strip(),
+                "sinif": int(m.group(1)), "cilt": 1}
+
+    m = YIL_SINIF_RE.search(kok)
+    if m:
+        return {"ders": kok.replace("-", " ").replace("_", " ").strip().lower(),
+                "sinif": int(m.group(1)), "cilt": 1}
+
     m = DERS_RE.match(kok)
     if not m:
         return {"ders": kok.replace("-", " ").replace("_", " ").strip(), "sinif": None, "cilt": 1}
