@@ -10,7 +10,7 @@ modül dokümanı). Bu dosya yalnızca HTTP çağrısı + görüntü indirme yap
 from pathlib import Path
 
 import requests
-
+from core.tahta import auth_headers as _auth_headers
 from core.tahta import sunucu_url as _sunucu_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,7 +39,8 @@ def _sayfayi_goster(player, log, dosya_adi: str, sayfa: int) -> None:
     edilir (bu araç zaten görüntüsüz de anlamlı bir metin döner)."""
     try:
         r = requests.get(f"{_sunucu_url()}/api/egitim/yks_sayfa",
-                          params={"dosya": dosya_adi, "sayfa": sayfa}, timeout=ZAMAN_ASIMI)
+                          params={"dosya": dosya_adi, "sayfa": sayfa},
+                          headers=_auth_headers(), timeout=ZAMAN_ASIMI)
         r.raise_for_status()
     except Exception as e:
         log(f"[YKS] sayfa görüntüsü alınamadı: {type(e).__name__}: {e}")
@@ -68,7 +69,8 @@ def yks_sorulari(parameters: dict | None = None, player=None, speak=None, **_) -
     }
 
     try:
-        r = requests.post(f"{_sunucu_url()}/api/egitim/yks_sorusu", json=istek, timeout=ZAMAN_ASIMI)
+        r = requests.post(f"{_sunucu_url()}/api/egitim/yks_sorusu", json=istek,
+                           headers=_auth_headers(), timeout=ZAMAN_ASIMI)
         r.raise_for_status()
         veri = r.json()
     except Exception as e:

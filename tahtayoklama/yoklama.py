@@ -206,7 +206,7 @@ class YoklamaPenceresi(QWidget):
         ana.addLayout(ust)
 
         self.ozet_etiketi = QLabel()
-        self.ozet_etiketi.setStyleSheet("font-size: 16pt; color: #ccc;")
+        self.ozet_etiketi.setStyleSheet("font-size: 16pt;")
         ana.addWidget(self.ozet_etiketi)
 
         self.izgara = QGridLayout()
@@ -265,9 +265,9 @@ class YoklamaPenceresi(QWidget):
 
     def _baslik_guncelle(self) -> None:
         if self._aktif_ders_no is not None:
-            self.baslik_etiketi.setText(f"YOKLAMA — {self._aktif_ders_no}. Ders")
+            self.baslik_etiketi.setText(f"YOKLAMA — {self._aktif_ders_no}. DERS")
         else:
-            self.baslik_etiketi.setText("YOKLAMA — ders saati dışı")
+            self.baslik_etiketi.setText("YOKLAMA — DERS SAATİ DIŞI")
 
     # ------------------------------------------------------------------
     # Sınıf/ders yükleme
@@ -318,8 +318,13 @@ class YoklamaPenceresi(QWidget):
         var = sum(1 for k in self._kartlar if k.durum == "var")
         yok = sum(1 for k in self._kartlar if k.durum == "yok")
         izinli = sum(1 for k in self._kartlar if k.durum == "izinli")
+        # Özet, tek düz renkte (#ccc) okunaksızdı (açık gri, açık arka plan
+        # üzerinde) — her segment kendi durum rengiyle gösteriliyor artık.
         self.ozet_etiketi.setText(
-            f"Toplam: {toplam} · Var: {var} · Yok: {yok} · İzinli: {izinli}"
+            f'<span style="color:#000;">Toplam: {toplam}</span> · '
+            f'<span style="color:{DURUM_RENK["var"]};">Var: {var}</span> · '
+            f'<span style="color:{DURUM_RENK["yok"]};">Yok: {yok}</span> · '
+            f'<span style="color:{DURUM_RENK["izinli"]};">İzinli: {izinli}</span>'
         )
 
     def _tam_ekrani_degistir(self) -> None:

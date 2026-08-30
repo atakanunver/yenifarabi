@@ -73,12 +73,37 @@ Farabi.gif               HUD animation (placeholder art; swap freely)
 dersgiriscikis.png       school bell-schedule photo — provenance for zil.json
 
 actions/                 one public function per module — the
-                         registry declares eleven tools (`shutdown_farabi`
-                         runs inline, it has no module). No camera/screen
-                         capture anywhere (`screen_processor.py` removed
-                         2026-08-09 — unused, and violated the no-camera
-                         privacy rule; see git history if it's ever needed
-                         again)
+                         registry declares thirteen tools (`shutdown_farabi`
+                         runs inline, it has no module). No camera/webcam
+                         anywhere — this board has no camera hardware at all
+                         (`/dev/video*` doesn't exist, confirmed 2026-08-30),
+                         and none is planned. `screen_processor.py`
+                         (webcam-based, removed 2026-08-09 for the no-camera
+                         privacy rule) stays removed and unrelated to the two
+                         tools below.
+
+> ⚠️ **RESOLVED 2026-08-30 — `ekran_goruntusu_al`/`ekrandaki_soruyu_oku` wired
+> in, by explicit user decision.** These two files were found already on disk
+> (2026-08-30, pulled onto 9-A from the server's `client/` mirror; origin
+> unknown, not in any commit message) but **not** registered in `kayit.py`
+> and missing their capture mechanism (`ui.py::_ekran_goruntusu_yakala`, the
+> GUI-thread slot `_screenshot_sig` fires into, did not exist — the files
+> would have failed every call). The user was told this reintroduces the
+> capability class `screen_processor.py` was removed for (root `CLAUDE.md`'s
+> "Gizlilik" section, "Kamera yok") and explicitly confirmed they want it
+> applied anyway. **What actually ships is narrower than a camera ever
+> was, and categorically different**: `_ekran_goruntusu_yakala` calls
+> `QApplication.primaryScreen().grabWindow(0)` — the board's OWN on-screen
+> display only (whatever `pdf_sayfa`/`show_content` is already showing),
+> never a camera frame, never the physical room or students. Both tools are
+> registered in `kayit.py` (`kip=KIP_HEPSI + (KIP_TALIMAT,)`, matching
+> `pdf_sayfa`/`kitap_sorusu`'s availability), dispatched in `main.py`. Saved
+> to `icerik/onbellek/ekran_goruntusu/` (LRU-capped at 20, same pattern as
+> `pdf_sayfa`'s cache) and logged via `transcript.log_line("SİSTEM", ...)`.
+> `ekrandaki_soruyu_oku` reuses `file_processor`'s existing `"ocr"` action
+> (`server/dosya.py:104`, already supported, no server change needed).
+> Verified end-to-end with an offscreen Qt test (`QT_QPA_PLATFORM=offscreen`)
+> before deploying to 9-A.
   kayit.py               TOOL REGISTRY — the single source for declarations,
                          timeouts, permissions, cost class (see below)
   ders_icerigi.py        textbook pages for the teacher's subject + topic.
@@ -113,16 +138,27 @@ actions/                 one public function per module — the
                          must work the solution itself (see below)
   ders_hafizasi.py       recalls what was covered in a PAST lesson on this
                          board ("geçen ders ne işlemiştik"), added 2026-08-12.
-                         Reads ONLY this board's own local lesson records
-                         (core/transcript.py's `logs/ders/*.txt`, one file per
-                         lesson session) — NOT the textbook, NOT the server
-                         RAG. No separate "summary" storage: the tool fetches
-                         the raw matched past session (bounded/truncated,
-                         same pattern as yks_sorulari), the model paraphrases
-                         it at answer time. Always excludes the CURRENT
-                         session's own file. Not gated by the SORU SUNUM
-                         PROTOKOLÜ silence rules — answers immediately, same
-                         behavior class as kitap_sorusu.
+                         **CHANGED 2026-08-18 — server-taşıma.** No longer
+                         reads local files directly: this file is now a thin
+                         HTTP client to `POST /api/egitim/ders_hafizasi`
+                         (`server/ders_hafizasi.py`), which matches against
+                         this board's own backed-up transcripts under
+                         `server/yedekler/ders_kaydi/<derslik>/` (written by
+                         the `ders_kaydi_yedek` backup call, see below) — NOT
+                         the textbook, NOT the RAG pipeline. No separate
+                         "summary" storage: the server fetches the raw
+                         matched past session (bounded/truncated, same
+                         pattern as yks_sorulari), the model paraphrases it
+                         at answer time. "Exclude the CURRENT session's own
+                         file" is now enforced server-side (this board just
+                         reports its current file name,
+                         `transcript.session_file().name`, in the request).
+                         Not gated by the SORU SUNUM PROTOKOLÜ silence rules
+                         — answers immediately, same behavior class as
+                         kitap_sorusu. (Found stale during a 2026-08-30
+                         doc↔code audit — this paragraph used to describe a
+                         local-file-only implementation that no longer
+                         exists.)
   file_processor.py      documents and images only (narrowed, see below)
   youtube_video.py       lesson videos
   eba.py                 EBA (MEB portal) lesson videos + question PDFs, added
@@ -414,6 +450,46 @@ Two of my own diagnostic mistakes are worth remembering:
 Interpreting levels without knowing *when* the speaker was talking produced two
 wrong diagnoses. The two-phase `--karsilastir` mode exists because of that:
 it measures silence and speech itself and reports the ratio.
+
+## Reported stutter/lag during speech (9-A, 2026-08-30) — investigated, NOT root-caused
+
+Teacher-reported "tekleme ve kasma" (stutter/hitching) while Farabi speaks.
+Investigated from `logs/farabi.log` only (no live session was running —
+Sunday, no school — so nothing below is a confirmed cause, only what the
+static log data supports or rules out):
+
+- **133 `Sözü kesildi` (interrupted) events** across the retained log window
+  (2026-08-23 to 2026-08-29). Distribution of "çalınmamış N ses paketi
+  atıldı" (unplayed packets discarded at interrupt): 72 are `0` (turn had
+  already finished playing — benign, not a mid-speech cutoff), but 61 are
+  non-zero and the tail is heavy — values up to 390. **Roughly half of all
+  interruptions genuinely land mid-speech.** An initial theory (mic
+  picking up Farabi's own voice with no echo cancellation, given 9-A's
+  audio is the internal `ALC662` analog codec with no external mic detected
+  in `arecord -l`/`pactl list sources`) is *plausible* given the packet
+  counts, but was **not verified** — no live session to correlate an
+  interrupt timestamp against an actual FARABİ-speaking window.
+- **Tool-call latency is not the cause** — checked and ruled out. Slowest
+  tool calls in the window: `web_search` at ~20s (expected, has its own
+  budget), everything else (`pdf_sayfa`, `web_ac`, `uygulama_ac`) under 1s.
+  Tool calls run off the receive loop (see "Tool dispatch" above) so
+  wouldn't stutter playback even if slow.
+- **Untested but mechanically plausible, not yet measured:** 9-A's board is
+  an Intel i3-2330M (2011-era dual-core mobile CPU, per the school's own
+  hardware sheet) running four asyncio audio loops, a 15s rolling RMS
+  diagnostic, and Qt repainting a 12.7 MB `Farabi.gif` HUD animation, all on
+  one process. This is the kind of load that produces exactly "az da olsa
+  tekleme ve kasma" if the process occasionally can't keep the audio
+  callback fed. **Not measured this session** — would need, during an
+  actual live lesson: `pidstat -p $(pgrep -f 'python main.py') 2 10` (is the
+  process pegging a core when it stutters), `pw-top` (XRUN count on the
+  PipeWire output stream during a stutter). Do not write a cause into this
+  file from this paragraph alone — it's a hypothesis to test, not a finding.
+
+**Next step, not done:** run the two `pidstat`/`pw-top` checks above on 9-A
+during a real lesson, correlated against a stutter the teacher actually
+hears, before spending effort on either the mic/AEC theory or a CPU/audio-
+underrun fix.
 
 ## ⚠️ Do not re-add VAD / audio-detection config
 
@@ -723,13 +799,20 @@ Added 2026-08-23. A THIRD lesson kip, `KIP_TALIMAT = "talimat"`
 (`main.py`), for when there is no lesson at all — the teacher controls the
 board directly by voice, single-sentence commands only ("google aç", "fizik
 kitabının 45. sayfasını aç", "pardus kalem uygulamasını aç"). Selected in
-`ui.py` by a checkable button directly under DERSİ BAŞLAT (`_talimat_btn`,
-`ÖĞRETMEN TALİMAT MODU`), **defaults to CHECKED at launch** (user's explicit
-request) — a normal lesson requires the teacher to uncheck it before
-pressing DERSİ BAŞLAT. Same "read once at connect, then locked" pattern as
-`ders_dili`: `main._build_config()` reads `ui.talimat_modu` and overrides
-`self._ders_kipi`, `ui.py` disables the button the moment DERSİ BAŞLAT is
-pressed.
+`ui.py` via a two-button pair directly under DERSİ BAŞLAT — `_ogrenci_btn`
+("🎓 ÖĞRENCİ MODU") and `_ogretmen_btn` ("👨‍🏫 ÖĞRETMEN MODU"), **2026-08-30**:
+replaced the old single checkable `_talimat_btn` ("ÖĞRETMEN TALİMAT MODU")
+with this explicit pair on user request — the underlying mechanism is
+UNCHANGED, both buttons just set the same `self.talimat_modu` boolean
+(Öğrenci → `False`, Öğretmen → `True`). "Öğrenci Modu" is not a new
+mechanism — it's the label for the already-existing normal/autonomous
+lesson flow (`ders_motoru` running `enjekte=True`), not a separate student
+identity/tracking system. **Defaults to Öğretmen/CHECKED at launch** (user's
+explicit request, unchanged) — a normal lesson requires the teacher to press
+🎓 ÖĞRENCİ before pressing DERSİ BAŞLAT. Same "read once at connect, then
+locked" pattern as `ders_dili`: `main._build_config()` reads `ui.talimat_modu`
+and overrides `self._ders_kipi`, `ui.py` disables both buttons the moment
+DERSİ BAŞLAT is pressed.
 
 **This mode INTENTIONALLY breaks the capability boundary above — decided,
 not overlooked.** Three new `kip=("talimat",)`-only tools exist purely to
@@ -1093,11 +1176,73 @@ resolve+containment check is load-bearing, not just defense-in-depth.
 2026-08-17/18, documented here because it lives on and controls THIS board's
 copy of the code.** Not in `docs/mimari.md` yet.
 
-This board (9-A) is currently the **pilot**: it is the SOURCE of truth for
-`client/` code, and PUSHES to the server every night — direction is
-deliberately the opposite of what you'd expect for other boards later (see
-below). Nothing here touches `farabi-api.service` or restarts anything on
-either machine; it only copies files and (server-side) records a git commit.
+> ⚠️ **RESOLVED 2026-08-30 — pilot period ended, direction reversed back to
+> pull.** Everything below describing 9-A as "the SOURCE of truth, pushes to
+> the server every night" is now HISTORICAL. The user's explicit instruction:
+> "9-A'dan push olayını kaldır serverdan pull etsin, client artık server
+> merkezli çalışacağız." `client/` on the SERVER (`/home/ata/farabi/client/`)
+> is now the one and only source of truth — edits happen there (by hand or by
+> an agent working on the server), every board (9-A included) pulls from it.
+> This matches what `farabi-kurulum.sh` was already built for — see its own
+> section below, now back in active use for 9-A instead of being the
+> "future boards" fallback it was during the pilot.
+>
+> **What changed on 9-A, concretely:**
+> - `~/.local/bin/farabiguncelle.sh` was rewritten from a push-wrapper
+>   (`farabi-push.sh` + git-commit) to a pull (`rsync -avz --delete` FROM
+>   `ata@farabi.local:~/farabi/client/` TO `~/farabi/client/`). Same cron
+>   line, unchanged (`0 20 * * *`), so nothing needed to change in `crontab`.
+> - **Exclude list is now symmetric and load-bearing in the OPPOSITE
+>   direction than before.** The old pull script generated by
+>   `farabi-kurulum.sh` only excluded `config/api_keys.json(.zip)` — that was
+>   fine as a *template* but would have been actively destructive run for
+>   real here: the server's own `client/` working copy independently has its
+>   own `venv/`, `logs/`, `.pytest_cache/`, `__pycache__/`, `memory/` (from
+>   development directly on the server machine, unrelated to any board) that
+>   don't belong on a board at all. A `--dry-run` caught this BEFORE it ran
+>   for real — without the fix it would have deleted 9-A's own `venv/`
+>   (breaking `python main.py` outright) and `logs/` (losing local lesson
+>   records) on the first pull. The deployed script now excludes the same
+>   full list `farabi-push.sh` used (`venv/`, `__pycache__/`, `*.pyc`,
+>   `.pytest_cache/`, `logs/`, `icerik/`, `kitaplar/`, `YKS/`, `memory/`,
+>   `config/api_keys.json(.zip)`, `okul dosyaları/`, `*.pdf`, `/Farabi.zip`)
+>   — **always dry-run a pull script before trusting it against a real
+>   board's disk**, the asymmetry between "safe to not-send" and "safe to
+>   not-delete-when-absent" is not obvious from the exclude list alone.
+> - `.bashrc`'s `farabi-simdi-gonder` alias (pointed at `farabi-push.sh`) was
+>   replaced with `farabi-simdi-guncelle` (points at
+>   `~/.local/bin/farabiguncelle.sh`, i.e. triggers a pull by hand).
+> - `~/farabi/farabi-push.sh` itself was **left on disk, untouched, but no
+>   longer called by anything** — same "kept for history, not deleted"
+>   convention as `tools/*.py` elsewhere in this repo. Its server-side
+>   auto-commit-on-push (described below) no longer fires for the same
+>   reason: nothing pushes anymore.
+> - Verified end-to-end the same day: `farabiguncelle.sh` run for real once,
+>   confirmed 9-A picked up a genuine server-side fix
+>   (`actions/pdf_sayfa.py`/`ders_icerigi.py`'s new `derslik` field, see root
+>   `CLAUDE.md`'s server/ section) while `venv/`, `logs/`, `icerik/`,
+>   `config/api_keys.json` stayed untouched on 9-A's disk.
+>
+> **Open gap, not yet resolved:** the server-side auto-commit that used to
+> give `client/` a git history (`git add -A -- client/ && git commit`,
+> described below) lived entirely on the PUSH path, inside
+> `farabi-push.sh`. Now that boards pull instead, **nothing commits `client/`
+> changes on the server anymore** — a fix made directly in
+> `/home/ata/farabi/client/` (by hand or by an agent) sits uncommitted until
+> someone runs `git add`/`git commit` themselves. Don't assume the
+> "tahta senkron: ..." auto-commit history is still being kept; it stopped
+> the day push stopped. If continuous history matters going forward, this
+> needs its own mechanism (e.g. a server-side cron committing `client/` on a
+> schedule, or just discipline about committing by hand after edits) — not
+> designed yet, flagged here so the gap isn't silently assumed away.
+
+This board (9-A) was previously the **pilot**: it was the SOURCE of truth for
+`client/` code, and PUSHED to the server every night — direction was
+deliberately the opposite of what you'd expect for other boards (see above
+for why this ended). Nothing here touches `farabi-api.service` or restarts
+anything on either machine; it only copies files and (when push was active)
+recorded a git commit. The rest of this section describes the now-inactive
+push mechanism, kept for history:
 
 - **`~/farabi/farabi-push.sh`** (this board, NOT inside the `client/` tree
   that gets synced — a sibling file, edit it here directly) — `rsync`s this
@@ -1108,26 +1253,34 @@ either machine; it only copies files and (server-side) records a git commit.
   `config/ders_programi.json` — those are school-wide shared, sent on
   purpose so a newly cloned board picks them up automatically. No
   `--delete` — a file removed from this board doesn't get removed from the
-  server's copy by this script.
+  server's copy by this script. **INACTIVE since 2026-08-30** — nothing
+  calls this anymore, see the resolved note above.
 - **`~/farabi/farabi-kurulum.sh`** — the ORIGINAL mechanism, pull-direction
-  (server→board, `--delete`). Currently unused because the pilot period
-  reversed the direction (see `farabi-push.sh`'s own header comment); this
-  is what future non-pilot boards should run as-is once they're added — see
-  root `CLAUDE.md`'s analysis-report note on this, don't rebuild it.
+  (server→board, `--delete`). **This is what 9-A's `farabiguncelle.sh` now
+  runs, in substance** (the deployed script isn't literally re-generated by
+  running this installer — its SSH-key-setup steps 1–2 were skipped since
+  9-A already had a working key — but steps 3–4's script shape is the same
+  pull+delete pattern, with the exclude list expanded per the note above).
+  Still what future new boards should run as-is — see root `CLAUDE.md`'s
+  analysis-report note on this, don't rebuild it.
 - **`~/.local/bin/farabiguncelle.sh`** — cron target (`crontab -l`: `0 20 * *
   * ~/.local/bin/farabiguncelle.sh`, board-local time — i.e. after the 8th
-  lesson ends at 15:50, well outside teaching hours), calls `farabi-push.sh`
-  and logs to `~/.local/share/farabi-sync.log`.
+  lesson ends at 15:50, well outside teaching hours). **Since 2026-08-30
+  this pulls** (see resolved note above); logs to
+  `~/.local/share/farabi-sync.log` same as before.
 - **`farabi-simdi-gonder`** — a `.bashrc` alias for `~/farabi/farabi-push.sh`,
-  so a push can be triggered by hand without waiting for 20:00.
-- **Server-side auto-commit (added 2026-08-17):** after a real (non-`--dry-run`)
-  push, `farabi-push.sh` SSHes into `farabi.local` and runs `git add -A --
-  client/ && git commit` if anything under `client/` changed — gives the
-  server's `client/` mirror a real git history of what THIS board pushed,
-  when. **No restart, ever, on either side** — this is deliberate (`FARABİ
-  ASLA DERSİ BOZMAZ`), a code update landing on the server doesn't do
-  anything to a running lesson on any board until someone separately decides
-  to act on it.
+  so a push could be triggered by hand without waiting for 20:00. **Replaced
+  2026-08-30 by `farabi-simdi-guncelle`** (triggers a pull instead), see
+  resolved note above.
+- **Server-side auto-commit (added 2026-08-17, INACTIVE since 2026-08-30):**
+  after a real (non-`--dry-run`) push, `farabi-push.sh` SSHed into
+  `farabi.local` and ran `git add -A -- client/ && git commit` if anything
+  under `client/` changed — gave the server's `client/` mirror a real git
+  history of what THIS board pushed, when. **No restart, ever, on either
+  side** — this was deliberate (`FARABİ ASLA DERSİ BOZMAZ`), a code update
+  landing on the server didn't do anything to a running lesson on any board
+  until someone separately decided to act on it. See "Open gap" above — this
+  mechanism has no pull-direction equivalent yet.
 - **Multi-board status (planned, 2026-08-18, IN PROGRESS — check root
   `CLAUDE.md`/git log for current state before trusting this paragraph):**
   the goal is a central view of all boards' liveness/version once more

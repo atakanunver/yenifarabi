@@ -1,9 +1,35 @@
 {
   "_aciklama": [
     "Server'ın SSH ile erişebildiği tahtaların kayıt defteri.",
-    "Yeni bir tahta eklemek için: tahta-ssh-kur.sh'ı o tahtada çalıştırın,",
-    "sonra buraya derslik: {ip, kullanici} olarak tek satır ekleyin.",
-    "tahta-ssh.sh bu dosyayı okuyup ip/kullanıcıyı bulur."
+    "Her tahtada İKİ kullanıcı var (2026-08-22, kullanıcı açıklaması):",
+    "  - ogretmen  → Farabi ve Yoklama için VARSAYILAN kullanıcı, sudo YOK",
+    "    (bazı tahtalarda hiç sudoers'ta değil — kasıtlı, öğretmen hesabı).",
+    "  - etapadmin → admin/root hesabı, sudo yetkili. Paket kurulum/sistem",
+    "    değişikliği için BUNU kullan.",
+    "    ⚠️ DÜZELTME (2026-08-22, 5 tahtaya yoklama.py kurulumu sırasında",
+    "    doğrudan test edildi): NOPASSWD her tahtada 'görüntü imajında hazır",
+    "    gelmiyor' — 240/242'de sudo -n çalışıyor (NOPASSWD kurulu), ama",
+    "    9-A/231/233/236'da sudo hâlâ parola istiyor (SSH giriş parolasıyla",
+    "    AYNI parola kabul ediliyor — 'echo $PAROLA | sudo -S -p \"\" <komut>').",
+    "    Yani imaj tutarlı değil, tahtadan tahtaya değişiyor — hangisinde",
+    "    olduğunu varsaymayın, deneyip öğrenin (önce sudo -n true).",
+    "'kullanici' alanı varsayılan (uygulama) erişimi, 'admin' alanı sistem",
+    "erişimini gösterir. tahta-ssh.sh --admin <derslik> ile admin olarak",
+    "bağlanılır. Yeni bir tahta eklemek için: tahta-ssh-kur.sh çalıştırın,",
+    "sonra buraya derslik: {ip, kullanici, admin} olarak tek satır ekleyin.",
+    "'tahta-NNN' adları henüz hangi fiziksel derslik/şube olduğu",
+    "doğrulanmamış tahtalar için geçici IP-tabanlı isim — sınıf",
+    "netleştikçe uygun 'derslik' adına yeniden adlandırılmalı."
   ],
-  "9-A": { "ip": "192.168.23.245", "kullanici": "ogretmen" }
+  "9-A": { "ip": "192.168.23.245", "kullanici": "ogretmen", "admin": "etapadmin" },
+  "9-B": { "ip": "192.168.23.242", "kullanici": "ogretmen", "admin": "etapadmin" },
+  "10-A": { "ip": "192.168.23.233", "kullanici": "ogretmen", "admin": "etapadmin" },
+  "11-A": { "ip": "192.168.23.228", "kullanici": "ogretmen", "admin": "etapadmin" },
+  "12-A": { "ip": "192.168.23.231", "kullanici": "ogretmen", "admin": "etapadmin" },
+  "12-B": { "ip": "192.168.23.240", "kullanici": "ogretmen", "admin": "etapadmin" },
+  "11-B": { "ip": "192.168.23.239", "kullanici": "ogretmen", "admin": "etapadmin" },
+  "tahta-234": { "ip": "192.168.23.234", "kullanici": "ogretmen", "admin": "etapadmin" },
+  "tahta-235": { "ip": "192.168.23.235", "kullanici": "ogretmen", "admin": "etapadmin" },
+  "tahta-244": { "ip": "192.168.23.244", "kullanici": "ogretmen", "admin": "etapadmin" },
+  "tahta-236": { "ip": "192.168.23.236", "kullanici": "ogretmen", "admin": "etapadmin" }
 }

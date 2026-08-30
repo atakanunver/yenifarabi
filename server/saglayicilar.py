@@ -59,6 +59,12 @@ GOREV_ZINCIRLERI: dict[str, list[tuple[str, str]]] = {
         ("deepseek", "deepseek-v4-flash"),
     ],
     "belge_ozet": [
+        # 2026-08-25: Ollama (yerel, ucretsiz) birincil yapildi -- kullanicinin
+        # acik karariyla ("PDF analizlerinde bulut token harcanmasin, yerel
+        # Ollama kullanilsin"). Bulut saglayicilar fallback olarak kaldi --
+        # Ollama servisi cokerse/yanit vermezse zincir otomatik oraya duser
+        # (mimari.md SS2 "Farabi asla dersi bozmaz" ile ayni desen).
+        ("ollama",   "qwen2.5:14b"),
         ("deepseek", "deepseek-v4-flash"),
         ("mistral",  "mistral-large-latest"),
     ],
@@ -110,6 +116,18 @@ def _istemci(saglayici: str):
                   api_key=anahtar, max_retries=0, timeout=30.0)
 
 
+# 2026-08-25: qwen2.5:14b sistem mesajı olmadan çağrıldığında (bulut
+# sağlayıcılarda sorun yaratmayan, ama bu modelde gözlenen bir davranış)
+# yanıtın ortasında dile geçiş yapabiliyor (ör. Türkçe istemde Çince'ye
+# kayma) — canlıda `belge_ozet` görevi Ollama'yı birincil sağlayıcı yapınca
+# bulundu (bkz. raganaliz.txt). Bulut sağlayıcılar zaten örtük olarak
+# isteğin dilinde cevap veriyordu, yalnızca Ollama'ya özel bir varsayılan
+# sistem mesajı ekleniyor — diğer sağlayıcıların davranışı değişmiyor.
+_OLLAMA_VARSAYILAN_SISTEM = (
+    "Sadece Türkçe cevap ver. Başka hiçbir dile geçme. Kısa ve net yaz."
+)
+
+
 def _zinciri_dene(gorev: str, mesajlar: list[dict], evrensel_yedek: bool = True) -> str:
     if gorev not in GOREV_ZINCIRLERI:
         raise RuntimeError(f"Tanımsız görev: '{gorev}'")
@@ -129,8 +147,11 @@ def _zinciri_dene(gorev: str, mesajlar: list[dict], evrensel_yedek: bool = True)
             log.info("%s: config/api_keys.json içinde anahtar yok, atlanıyor", saglayici)
             continue
         try:
+            gonderilecek = mesajlar
+            if saglayici == "ollama" and not any(m.get("role") == "system" for m in mesajlar):
+                gonderilecek = [{"role": "system", "content": _OLLAMA_VARSAYILAN_SISTEM}] + mesajlar
             ekstra = {"temperature": 0.2} if saglayici == "ollama" else {}
-            yanit = istemci.chat.completions.create(model=model, messages=mesajlar, **ekstra)
+            yanit = istemci.chat.completions.create(model=model, messages=gonderilecek, **ekstra)
             metin = (yanit.choices[0].message.content or "").strip()
             if metin:
                 _son_basarisizlik.pop(saglayici, None)

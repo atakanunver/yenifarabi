@@ -1,0 +1,268 @@
+================================================================
+ FARABI — RAG / KITAP INDEKSLEME SISTEMI ANALIZ RAPORU
+ Tarih: 2026-08-25
+ Makine: farabi.local (192.168.23.252, Ubuntu 26.04, 2x RTX 3060)
+ Analiz eden: Claude (uzaktan SSH ile, ata@farabi.local)
+================================================================
+
+---------------------------------------------------------------
+ 0) OZET (TL;DR)
+---------------------------------------------------------------
+- RAG sistemi CALISIYOR ve saglikli. 40 soruluk dogrulanmis benchmark
+  seti canli API'ye karsi calistirildi: Grup A %100, Grup B %78,
+  Grup C %100, TOPLAM %90 isabet — dokumante edilen (mimari.md) beklenen
+  performansla uyumlu, regresyon YOK.
+- Tum kitaplar indekslenmis: kaynak klasorde 13 PDF, DB'de 13 kitap kaydi,
+  5859 chunk. Eksik/indekslenmemis kitap yok.
+- GERCEK BULUNAN HATA: PDF/dosya analizi (`POST /api/egitim/dosya_isle` ->
+  `belge_ozet` gorevi) hic yerel Ollama kullanmiyordu, dogrudan bulut
+  saglayicilara (DeepSeek -> Mistral -> OpenRouter) gidiyordu. DUZELTILDI:
+  Ollama (qwen2.5:14b) artik bu gorevde BIRINCIL, bulut yalnizca yedek.
+- Duzeltme sirasinda IKINCI bir sorun bulundu ve duzeltildi: Ollama'ya
+  sistem mesaji verilmeden gidildiginde yanit dil karistiriyordu
+  (Turkce -> Cince kaymasi). Ollama'ya ozel varsayilan bir sistem mesaji
+  eklendi, sorun giderildi (asagida once/sonra ornekleri var).
+- Not: Kullanicinin "Claude token'i harcanmasin" ifadesi kod duzeyinde
+  yanlis konumlandirilmisti — projede Anthropic/Claude API'sine hicbir
+  cagri YOK (grep ile dogrulandi). Asil sorun bulut saglayici (DeepSeek/
+  Mistral/OpenRouter) token'iydi; duzeltme bunu hedefledi.
+
+---------------------------------------------------------------
+ 1) MIMARI OZETI (docs/mimari.md + CLAUDE.md okundu)
+---------------------------------------------------------------
+Farabi, sinif akilli tahtalarinda calisan sesli ders asistani. Iki katman:
+
+- Client (tahtalarda, PyQt6): ince istemci. Ses tamamen Gemini Live
+  uzerinden (bulut, kalici tasarim karari — mimari.md SS3/SS14). Karar
+  uretmez, sadece server'a HTTP ile baglanir.
+- Brain / server (bu makine, FastAPI :8000): RAG (pgvector + rerank +
+  esik + LLM), kitap/PDF render, YKS soru arama, bulut LLM proxy, dosya
+  isleme — Farabi'nin butun agir isi burada.
+
+RAG sorgu akisi (mimari.md SS8): embedding (bge-m3) -> pgvector ilk-20 ->
+reranker (bge-reranker-v2-m3) -> ESIK KONTROLU (0.5, ana savunma) -> LLM
+(Ollama qwen2.5:14b, katı prompt, temp 0.2) -> sayi kontrolu (ek savunma).
+Egitim icerigi/RAG cevabi ZATEN tamamen yerel — bu kural onceden dogruydu
+ve hala dogru, bu turda BOZULMADI.
+
+Ayri bir katman daha var: `server/saglayicilar.py` + `proxy.py` +
+`dosya.py` — RAG DISI metin/gorsel uretim gorevleri (belge ozeti, YKS
+soru taslagi, kitap ozeti, arama sentezi, gorsel analiz). Bu katman
+Groq/Mistral/DeepSeek/OpenRouter/NVIDIA NIM bulut saglayicilarini
+kullaniyor, gorev bazli oncelik zincirleriyle (GOREV_ZINCIRLERI). Ollama
+bu zincirlerde onceden sadece 2 gorevde (kitap_ozet, soru_taslak) EN SON
+care olarak vardi, digerlerinde (belge_ozet dahil) hic yoktu.
+
+---------------------------------------------------------------
+ 2) SERVIS DURUMU (kontrol edildi, 2026-08-25)
+---------------------------------------------------------------
+| Servis              | Durum          | Not |
+|---------------------|----------------|-----|
+| postgresql.service  | active         | pgvector 0.8.1, "farabi" DB |
+| ollama.service      | active         | qwen2.5:14b yuklu, GPU 100%, context 8192 |
+| farabi-api.service  | active         | uvicorn, 0.0.0.0:8000, LAN'a acik |
+| farabi-document.svc | inactive       | mimari.md'ye gore henuz YAZILMADI (roadmap'te var, bug DEGIL) |
+
+GPU durumu (nvidia-smi, boldurulmus):
+  GPU 0: ~4.5 GB kullanimda (embedding + reranker) — bos, %0 util (istek
+         gelmedigi an icin normal)
+  GPU 1: ~9.9 GB kullanimda (Ollama qwen2.5:14b, "Forever" keep-alive)
+
+/health -> {"status":"ok"}
+/ready   -> {"status":"ready"}
+/version -> 404 Not Found  <-- KUCUK TUTARSIZLIK: mimari.md SS9 bu endpoint'i
+             "uygulandi" olarak listeliyor ama main.py'de YOK. Risksiz,
+             kucuk bir dokuman/kod uyumsuzlugu — bu turda DUZELTILMEDI
+             (kapsam disi, tek-modul kurali geregi ayri bir onay/PR konusu).
+
+---------------------------------------------------------------
+ 3) INDEKSLEME DURUMU
+---------------------------------------------------------------
+Kaynak: /mnt/farabi-data/farabi/kitaplar/  -> 13 PDF
+DB (kitap tablosu)                         -> 13 kayit
+DB (chunk_egitim tablosu)                  -> 5859 chunk
+
+  id | sinif | ders                              | indekslendi_at
+   1 |   9   | Biyoloji                          | 2026-08-10
+   5 |  10   | Biyoloji                          | 2026-08-10
+   6 |  10   | Cografya                          | 2026-08-10
+   7 |  10   | Felsefe                           | 2026-08-10
+   8 |  10   | Fizik                             | 2026-08-10
+   9 |  10   | Kimya                             | 2026-08-10
+  10 |  10   | Matematik                         | 2026-08-10
+  11 |   9   | Matematik                         | 2026-08-10
+  12 |   9   | Matematik (2. kitap)              | 2026-08-10
+  13 |  10   | Tarih                             | 2026-08-10
+  14 |  10   | Turk Dili ve Edebiyati            | 2026-08-10
+  15 |   9   | Ingilizce                         | 2026-08-10
+  16 |  12   | Inkilap Tarihi ve Ataturkculuk    | 2026-08-10
+
+SONUC: 13/13 kaynak PDF indekslenmis, eksik kitap YOK. Yeniden indeksleme
+gerektiren bir durum tespit edilmedi.
+
+---------------------------------------------------------------
+ 4) RAG DOGRULAMA TESTI (canli API, benchmark/sorular.json ile)
+---------------------------------------------------------------
+`POST /api/egitim/question`'a, kitap_id=1 (biyoloji-9) icin, projenin
+kendi dogrulanmis 40 soruluk setiyle (ogretmen tarafindan sayfa sayfa
+onaylanmis) gercek bir uctan-uca test yapildi:
+
+  Grup A (dogrudan bilgi, 17 soru):        17/17  = %100
+  Grup B (birden fazla paragraf, 18 soru): 14/18  = %78
+  Grup C (kitapta olmayan, 5 soru):         5/5   = %100
+  TOPLAM:                                  36/40  = %90
+
+Bu sayilar mimari.md'de daha once olculen degerlerle (Recall@4 ~%91,
+esik+LLM birlikte ~%95) ayni bolgede — REGRESYON YOK, sistem beklendigi
+gibi calisiyor.
+
+Isabetsiz 4 soru (Grup B) — hepsi "yetersiz_kaynak" dondu, hicbiri yanlis
+kaynak GOSTERMEDI (yani sistem yanlis cevap vermek yerine dogru sekilde
+"bulamadim" dedi — ana savunma calisiyor):
+  - Yasamin temel ozellikleri (anabolizma/katabolizma/ATP) — beklenen s.44-45
+  - Vitaminler ve DNA/RNA iliskisi — beklenen s.106-107
+  - Ates karincalari arastirmasi — beklenen s.155-156
+  - Bakteri/arke/okaryot hucre yapilari karsilastirmasi — beklenen s.51-53
+
+Bunlar coklu-sayfa sentez sorulari (Grup B'nin bilinen zayif noktasi,
+mimari.md'de de belirtilmis). Retrieval bu 4 soru icin dogru sayfayi ilk
+20 aday icine hic almamis olabilir (chunk sinirlarinin bu sentez
+sorularini bolmesi muhtemel) — bu, mevcut mimarinin BILINEN bir siniri,
+bu turda "kirik" olarak degerlendirilmedi cunku benchmark zaten Grup B'de
+%78-89 arasi bir hedef ongoruyor, %100 beklenmiyor. Iyilestirme onerisi
+SS7'de.
+
+NOT (yanlis alarm, kayitli olsun diye buraya not dusuldu): Analiz
+sirasinda "Mitoz bolunmenin sonucunda kac hucre olusur?" sorusu
+denendiginde sistem yetersiz_kaynak dondu ve reranker skorlari cok dusuk
+(~0.001-0.006) cikinca ilk basta "reranker bozuk" saniidi. Sonradan
+dogrulandi: bu 9. sinif biyoloji kitabinda "mitoz" kelimesi HIC gecmiyor
+("hucre bolunmesi" olarak 6 kez geciyor, "kromozom" 13 kez) — konu bu
+kitap/sinif duzeyinde bu terimle islenmiyor. Yani dusuk skor DOGRU
+davranisti, hata degildi. Ders: tek bir soruyla "bozuk" sonucuna varmadan
+once kitabin gercekten o terimi icerip icermedigini kontrol et.
+
+---------------------------------------------------------------
+ 5) BULUNAN VE DUZELTILEN HATA — PDF/BELGE ANALIZI BULUT TOKEN'I HARCIYORDU
+---------------------------------------------------------------
+DOSYA: server/saglayicilar.py
+GOREV: `belge_ozet` (server/dosya.py -> `_ai_metin()` -> POST
+       /api/egitim/dosya_isle bu fonksiyonu her PDF/docx/xlsx/pptx/metin
+       ozetleme/analiz isteginde cagiriyor)
+
+ONCEKI DURUM:
+    "belge_ozet": [
+        ("deepseek", "deepseek-v4-flash"),
+        ("mistral",  "mistral-large-latest"),
+    ],
+  Ollama bu listede HIC YOKTU. Yani tahtadan/idareden yuklenen HER dosya
+  ozetleme istegi, Ollama zaten calisir ve bos durumdayken bile, once
+  DeepSeek'e, o basarisiz olursa Mistral'e gidiyordu — %100 bulut, %0
+  yerel. Baska gorevlerde (kitap_ozet, soru_taslak) Ollama en azindan
+  "son care" olarak vardi; belge_ozet'te o bile yoktu.
+
+YAPILAN DUZELTME (1/2) — saglayicilar.py, GOREV_ZINCIRLERI["belge_ozet"]:
+    "belge_ozet": [
+        ("ollama",   "qwen2.5:14b"),      <-- YENI, artik BIRINCIL
+        ("deepseek", "deepseek-v4-flash"),
+        ("mistral",  "mistral-large-latest"),
+    ],
+  Bulut saglayicilar KALDIRILMADI, yedek olarak durmaya devam ediyor —
+  Ollama servisi coker/yanit vermezse zincir otomatik oraya duser
+  (mimari.md SS2 "Farabi asla dersi bozmaz" ilkesiyle ayni desen,
+  davranissal geriye-donuk uyumluluk korunuyor, Kural 5).
+
+TEST (dogrulama, gercek bulut anahtar harcamadan):
+  `saglayicilar.metin_uret("belge_ozet", ...)` dogrudan cagrildi. Sonuc:
+  Ollama ilk denemede basarili oldu (istisna/soguma tetiklenmedi, zincir
+  hic DeepSeek'e dusmedi) — istek gercekten yerelde karsilaniyor.
+
+BULUNAN IKINCI SORUN (duzeltme SIRASINDA kesfedildi):
+  Ilk testte (sistem mesaji olmadan) qwen2.5:14b'nin yaniti YARIDAN
+  SONRA CINCE'YE KAYDI:
+    ONCE (hatali):
+      "Mitoz, bir hücrenin iki aynı拷贝并粘贴上述回答时，请确保在翻译或
+       使用它时保持内容的准确性和完整性..."
+  Bu, bulut saglayicilarda (deepseek/mistral) hic gorulmeyen, ozellikle
+  qwen2.5:14b'nin sistem mesaji verilmeden kisa istemlerle cagrildiginda
+  gosterdigi bir davranis. `dosya.py`'nin `_ai_metin()` fonksiyonu zaten
+  hic sistem mesaji vermiyordu — yani Ollama'yi birincil yapan ilk
+  duzeltme tek basina bu ikinci hatayi CANLIYA TASIYACAKTI.
+
+YAPILAN DUZELTME (2/2) — saglayicilar.py, `_zinciri_dene()`:
+  Ollama'ya gidilirken, cagiran taraf sistem mesaji VERMEMISSE, otomatik
+  olarak sabit bir Turkce sistem mesaji eklenir:
+    "Sadece Türkçe cevap ver. Başka hiçbir dile geçme. Kısa ve net yaz."
+  Diger saglayicilarin (deepseek/mistral/vb.) davranisi DEGISMEDI —
+  yalnizca Ollama'ya ozel bir varsayilan.
+
+  SONRA (duzeltildi, ayni istem tekrar denendi):
+      "Mitoz, bir hücrenin iki aynılık yavrucuk Hücreye bölünerek bu
+       prosesini ifade eder." (2025 ms, tamamen Turkce)
+
+  Daha gerceci, paragraf uzunlugunda bir test (mitokondri/ATP/krista
+  hakkinda 4 cumlelik bir metin özetlensin diye verildi) ILE SONUC:
+      "Mitokondri, ökaryotik hücrelerde ATP üretmek için kullanılan çift
+       zarlı bir organeldir ve kendi DNA'sı ve ribozomları sayesinde
+       endosimbiyoz teorisine destek olur; iç zar kıvrımları (krista)
+       enerji üretimini arttırmak için yüzey alanını artırır."
+      (3514 ms, akici, doğru, tam Turkce)
+  Kisa/tek cumlelik test girdilerinde uslup hafif garip kalabiliyor
+  (model az baglamla ugrasiyor), ama gercekci uzunluktaki girdide kalite
+  iyi. Gercek PDF/dokuman ozetlerinde (birkac paragraf) kalitenin bu
+  ikinci ornege daha yakin olmasi beklenir — izlenmesi onerilir (SS7).
+
+DEGISMEYEN / KAPSAM DISI BIRAKILAN:
+  `gorsel` gorevi (goruntu ozetleme/analiz, dosya.py -> `_ai_gorsel()`)
+  BULUT SAGLAYICI OLARAK KALDI (groq -> nvidia). Sebep: bu makinede yerel
+  bir vision (goruntu anlayan) model YOK, qwen2.5:14b metin-only. Iki GPU
+  da zaten dolu (biri Ollama'ya, biri embedding+reranker'a sabit — bkz.
+  CLAUDE.md bas kismi "Donanim" notu). Yeni bir GPU isi / yeni model
+  eklemek CLAUDE.md Kural 8 geregi ayri bir onay gerektiriyor — bu turun
+  kapsaminda YAPILMADI, sadece not dusuldu.
+
+---------------------------------------------------------------
+ 6) DEGISEN DOSYALAR (bu oturumda)
+---------------------------------------------------------------
+  M  server/saglayicilar.py   (yukaridaki 2 duzeltme — SS5)
+  M  CLAUDE.md                (belge_ozet/Ollama degisikligi belgelendi,
+                                Gizlilik bolumune 2026-08-25 notu eklendi)
+  ~~ raganaliz.txt            (bu dosya, yeni olusturuldu/guncellendi)
+
+Not: git status'ta bu oturumdan ONCE de commit edilmemis degisiklikler
+vardi (CLAUDE.md'nin "Ag Envanteri" bolumu, ders_hafizasi.py, tahta-ssh.sh,
+tahtalar.json, tahtayoklama/* ve digerleri) — bunlar BEN DEGIL, onceki bir
+oturumdan kalma. Hicbiri bu analizde DOKUNULMADI/degistirilmedi. Commit
+ATILMADI — kullanicinin gozden gecirip ne zaman/nasil commit edecegine
+karar vermesi icin `git status`/`git diff` calisir durumda birakildi.
+
+---------------------------------------------------------------
+ 7) ACIK KONULAR / ONERILER (kullanici onayi/kararı gerekebilir)
+---------------------------------------------------------------
+1. `gorsel` gorevi hala %100 bulut (SS5) — yerel vision modeli (ör.
+   qwen2.5-vl, llava) eklenmesi GPU paylasimini yeniden gerektirir, Kural
+   8 geregi ayri onay lazim. Bu turda YAPILMADI.
+2. GET /version endpoint'i mimari.md'de "uygulandi" yaziyor ama kodda YOK
+   (404). Kucuk, risksiz — ister dokuman duzeltilir ister endpoint
+   eklenir, ikisi de kucuk birer PR.
+3. Grup B (coklu-sayfa sentez sorulari) %78 — hedefin (%80) hafif altinda
+   ama esik ile ayni raporlanan gecmis olcumle (mimari.md, %83) ayni
+   civarda, istatistiksel gurultu olabilir (18 soru kucuk bir ornek).
+   Iyilestirme icin chunk oyuslesmesini artirmak (su an %15) ya da
+   sayfa-siniri kisitini gevsetmek denenebilir — ikisi de mimari.md'de
+   bilincli tasarim karari olarak isaretli, degistirmeden once onay
+   gerekir (Kural 6, buyuk refactor).
+4. `belge_ozet` icin qwen2.5:14b kalite gozlemi (SS5) — kisa/tek cumlelik
+   girdilerde uslup hafif garip kalabiliyor. Gercek PDF kullanimindan
+   sonra birkac ornek gozden gecirilip gerekirse sistem mesaji
+   (`_OLLAMA_VARSAYILAN_SISTEM`) iyilestirilebilir.
+5. `farabi-document.service` mimari.md'ye gore hala yazilmadi (roadmap
+   maddesi, bug degil) — ne zaman ele alinacagi kullanicinin karari.
+
+================================================================
+ SONUC: RAG sistemi saglikli, tum kitaplar indeksli, PDF analizinde
+ gereksiz bulut token harcamasi bulunup duzeltildi (Ollama artik
+ birincil), duzeltme sirasinda cikan dil-karismasi yan hatasi da
+ giderildi. Sistem calisir durumda birakildi (farabi-api.service aktif,
+ /health ve /ready OK).
+================================================================

@@ -1011,6 +1011,8 @@ class MainWindow(QMainWindow):
     _live_guncelle_sig = pyqtSignal(str)  # akan altyazı: satırın içeriğini büyüt (yeni satır AÇMADAN)
     _live_bitir_sig = pyqtSignal()        # akan altyazı: turu kapat (asyncio loop thread → Qt thread)
     _oto_baslat_sig = pyqtSignal()        # otomatik başlatma tetiği (asyncio loop thread → Qt thread)
+    _kalibre_bitti_sig = pyqtSignal(str, str)  # (baslik, metin) — mikrofon kalibrasyon iş parçacığı → Qt thread
+    _screenshot_sig = pyqtSignal(dict)    # {"event": threading.Event, "path": str} — tahtanın KENDİ ekranı, kamera DEĞİL
 
     def __init__(self, face_path: str):
         super().__init__()
@@ -1127,6 +1129,8 @@ class MainWindow(QMainWindow):
         self._content_sig.connect(self._show_content)
         self._image_content_sig.connect(self._show_image)
         self._mute_sig.connect(self._set_muted)
+        self._kalibre_bitti_sig.connect(self._mikrofon_kalibre_bitti)
+        self._screenshot_sig.connect(self._ekran_goruntusu_yakala)
         self._talimat_cikis_sig.connect(self._talimat_modundan_cik_gorunumu)
         self._gemini_oturum_sig.connect(self._on_gemini_oturum_degisti)
         self._live_baslat_sig.connect(self._log.canli_satir_baslat)
@@ -1698,22 +1702,31 @@ class MainWindow(QMainWindow):
             lambda _e: self._dersi_baslat())
         izgara.addWidget(self._baslat_btn, 1, 0, 1, 2)
 
-        # ── Öğretmen talimat modu ────────────────────────────────────────
+        # ── Farabi Modu: Öğrenci / Öğretmen ──────────────────────────────
         # DERSİ BAŞLAT'ın hemen altında, ders dili düğmelerinden ÖNCE — bu
         # da DERSİ BAŞLAT'tan ÖNCE seçilir ve aynı şekilde kilitlenir (bkz.
-        # self.talimat_modu tanımındaki not). Açıkken ders_icerigi/
-        # web_search gibi normal ders araçları hiç bildirilmez, yalnızca
-        # sistem-komutu araçları (web_ac/uygulama_ac/dosya_ac/pdf_sayfa/
-        # yks_sorulari) açık olur ve ders anlatımı/yoklama/motor tamamen
-        # devre dışı kalır (main.py, KIP_TALIMAT). Varsayılan AÇIK.
-        self._talimat_btn = QPushButton("🎙  ÖĞRETMEN TALİMAT MODU")
-        self._talimat_btn.setCheckable(True)
-        self._talimat_btn.setChecked(self.talimat_modu)
-        self._talimat_btn.setFixedHeight(24)
-        self._talimat_btn.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
-        self._talimat_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._talimat_btn.toggled.connect(self._talimat_modu_degistir)
-        izgara.addWidget(self._talimat_btn, 2, 0, 1, 2)
+        # self.talimat_modu tanımındaki not). 2026-08-30: kullanıcı isteğiyle
+        # tek bir "ÖĞRETMEN TALİMAT MODU" işaret kutusu yerine, spesifikasyona
+        # uyan AÇIK bir çift düğme — ama ALTTAKİ MEKANİZMA AYNI KALDI:
+        # ikisi de tek bir `self.talimat_modu` boolean'ını değiştiriyor,
+        # main.py'de KIP_TALIMAT geçişini yöneten kod HİÇ değişmedi.
+        # 🎓 ÖĞRENCİ = talimat_modu KAPALI (normal, otonom ders — ders_motoru
+        #   zaten kazanım/soru/pekiştirme akışını kendi yönetiyor, ayrı bir
+        #   "öğrenci modu" mekanizması İCAT EDİLMEDİ, bu ZATEN varsayılan
+        #   ders akışı).
+        # 👨‍🏫 ÖĞRETMEN = talimat_modu AÇIK (ders yok, yalnızca sesli sistem
+        #   komutu — "MANUEL AJAN", zaten mevcut KIP_TALIMAT tanımı).
+        # Varsayılan: ÖĞRETMEN (talimat_modu başlangıçta AÇIK, değişmedi).
+        self._ogrenci_btn = QPushButton("🎓  ÖĞRENCİ MODU")
+        self._ogretmen_btn = QPushButton("👨‍🏫  ÖĞRETMEN MODU")
+        for b in (self._ogrenci_btn, self._ogretmen_btn):
+            b.setFixedHeight(24)
+            b.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._ogrenci_btn.clicked.connect(lambda: self._talimat_modu_degistir(False))
+        self._ogretmen_btn.clicked.connect(lambda: self._talimat_modu_degistir(True))
+        izgara.addWidget(self._ogrenci_btn, 2, 0)
+        izgara.addWidget(self._ogretmen_btn, 2, 1)
         self._talimat_modu_dugmesini_boya()
 
         # ── Ders dili ─────────────────────────────────────────────────────
@@ -1743,13 +1756,14 @@ class MainWindow(QMainWindow):
             "sesli sistem komutu." if acik else "KAPALI — normal ders."))
 
     def _talimat_modu_dugmesini_boya(self) -> None:
-        acik_stil = f"""
+        secili_stil = f"""
             QPushButton {{
                 background: {C.ACC2}; color: {C.DARK};
                 border: none; border-radius: 3px; font-weight: bold;
             }}
         """
-        self._talimat_btn.setStyleSheet(acik_stil if self.talimat_modu else self._ogretmen_btn_stili)
+        self._ogrenci_btn.setStyleSheet(self._ogretmen_btn_stili if self.talimat_modu else secili_stil)
+        self._ogretmen_btn.setStyleSheet(secili_stil if self.talimat_modu else self._ogretmen_btn_stili)
 
     def _dil_dugmelerini_boya(self) -> None:
         secili_stil = f"""
@@ -1789,7 +1803,8 @@ class MainWindow(QMainWindow):
         self._baslat_btn.setText("⏳  ISINIYOR…")
         for b in self._dil_btns.values():          # dil artık değişemez, bkz. yukarıdaki not
             b.setEnabled(False)
-        self._talimat_btn.setEnabled(False)         # talimat modu artık değişemez, bkz. yukarıdaki not
+        self._ogrenci_btn.setEnabled(False)         # mod artık değişemez, bkz. yukarıdaki not
+        self._ogretmen_btn.setEnabled(False)
         self._log.append_log("SYS: Ders başlatılıyor (öğretmen) — bağlanılıyor…")
         threading.Thread(target=self.on_session_start, daemon=True).start()
 
@@ -2244,6 +2259,53 @@ class MainWindow(QMainWindow):
             )
             threading.Thread(target=self.on_text_command, args=(msg,), daemon=True).start()
 
+    def _mikrofon_kalibre_bitti(self, basli: str, metin: str):
+        self._content_sig.emit(basli, metin)
+        self._kalibre_btn.setEnabled(True)
+        self._kalibre_btn.setText("📊  MİKROFONU KALİBRE ET")
+
+    _EKRAN_GORUNTUSU_DIZINI = BASE_DIR / "icerik" / "onbellek" / "ekran_goruntusu"
+    _EKRAN_GORUNTUSU_LIMIT = 20
+
+    def _ekran_goruntusu_yakala(self, ctx: dict):
+        """`actions/ekran_goruntusu_al.py` ve `actions/ekrandaki_soruyu_oku.py`nun
+        `_screenshot_sig.emit(ctx)` ile tetiklediği, GUI thread'inde çalışması
+        GEREKEN slot — Qt'nin ekran yakalama API'si yalnızca GUI thread'inden
+        güvenli çağrılabilir (bkz. `_mikrofon_kalibre_bitti`'nin üstündeki
+        QTimer.singleShot dersi, aynı sınıf hata burada da olurdu).
+
+        TAHTANIN KENDİ EKRANINI yakalar — kamera/webcam DEĞİL, bu cihazda
+        kamera donanımı yok (`/dev/video*` yok, 2026-08-30 doğrulandı) ve
+        proje kamera/webcam kullanmıyor. Yalnızca o an ekranda zaten
+        gösterilen şeyi (ör. `pdf_sayfa`'nın açtığı sayfa, `show_content`
+        metni) bir PNG'e alır — sınıfı/öğrencileri değil."""
+        try:
+            self._EKRAN_GORUNTUSU_DIZINI.mkdir(parents=True, exist_ok=True)
+            ekran = QApplication.primaryScreen()
+            if ekran is None:
+                ctx["path"] = ""
+                return
+            pixmap = ekran.grabWindow(0)
+            ad = f"ekran_{time.strftime('%Y%m%d_%H%M%S')}.png"
+            yol = self._EKRAN_GORUNTUSU_DIZINI / ad
+            pixmap.save(str(yol), "PNG")
+            ctx["path"] = str(yol)
+
+            dosyalar = sorted(self._EKRAN_GORUNTUSU_DIZINI.glob("*.png"),
+                               key=lambda p: p.stat().st_mtime)
+            for eski in dosyalar[:-self._EKRAN_GORUNTUSU_LIMIT]:
+                eski.unlink(missing_ok=True)
+
+            try:
+                from core import transcript
+                transcript.log_line("SİSTEM", f"Ekran görüntüsü alındı: {yol.name}")
+            except Exception:
+                pass
+        except Exception:
+            ctx["path"] = ""
+        finally:
+            ctx["event"].set()
+
     def _mikrofon_kalibre(self):
         """
         Mikrofon kalibrasyonu: önce sessizlik, sonra konuşma ölçülür ve oran
@@ -2251,30 +2313,39 @@ class MainWindow(QMainWindow):
         her kazanç ayarında farklı (bkz. tools/mikrofon_test.py).
 
         Ölçüm arka planda yapılır; arayüz donmaz. Sonuç içerik panelinde.
+
+        NOT (2026-08-30, gerçek arıza): `_bitti` eskiden bir kapatma
+        (closure) idi ve `_calis` (ham `threading.Thread`, Qt event loop'u
+        YOK) içinden `QTimer.singleShot(0, lambda: _bitti(...))` ile
+        çağrılıyordu — `QTimer.singleShot` çalışan bir Qt event loop'u olan
+        bir iş parçacığından çağrılmalı, aksi hâlde oluşturulan zamanlayıcı
+        hiç ateşlenmeyebilir. Canlıda ölçüldü: `_log_sig` (gerçek Qt sinyali,
+        thread-safe) üzerinden giden "ERR: kalibrasyon — mikrofon açılamadı"
+        satırı ekranda görünüyordu ama düğme "… ÖLÇÜLÜYOR" durumunda kilitli
+        kalıyordu — `_bitti` hiç çalışmamış demek. Fix: bu dosyadaki HER
+        arka-plan→GUI geçişinin kullandığı aynı desen (`_content_sig`,
+        `_mute_sig`, ... hepsi `pyqtSignal`, `__init__`'te GUI-thread
+        slot'una `connect` edilir) — `_bitti` artık gerçek bir metod
+        (`_mikrofon_kalibre_bitti`), `_kalibre_bitti_sig` ile tetikleniyor.
         """
         self._kalibre_btn.setEnabled(False)
         self._kalibre_btn.setText("… ÖLÇÜLÜYOR")
         self._log.append_log("SYS: Mikrofon kalibrasyonu başladı.")
-
-        def _bitti(basli: str, metin: str):
-            self._content_sig.emit(basli, metin)
-            self._kalibre_btn.setEnabled(True)
-            self._kalibre_btn.setText("📊  MİKROFONU KALİBRE ET")
 
         def _calis():
             try:
                 import numpy as _np, sounddevice as _sd
             except Exception as e:
                 # `e`, except bloğu bitince Python tarafından otomatik silinir
-                # (CPython: `del e`) — QTimer.singleShot ile ERTELENEN lambda
-                # çalıştığında `e` artık yok, "free variable" NameError'ı
-                # fırlatıyordu (ölçüldü, pyflakes + manuel tekrar üretim,
-                # 2026-08-11). Mesajı düz bir stringe önceden çevirip lambda'ya
-                # ONU vermek gerekiyor.
+                # (CPython: `del e`) — ERTELENEN bir lambda/slot çalıştığında
+                # `e` artık yok, "free variable" NameError'ı fırlatıyordu
+                # (ölçüldü, pyflakes + manuel tekrar üretim, 2026-08-11).
+                # Mesajı düz bir stringe önceden çevirip sinyale ONU vermek
+                # gerekiyor.
                 hata = str(e)
                 self._log_sig.emit(f"ERR: kalibrasyon — ses kütüphanesi yok ({hata})")
-                QTimer.singleShot(0, lambda: _bitti(
-                    "MİKROFON KALİBRASYONU", f"Ses kütüphanesi yüklenemedi: {hata}"))
+                self._kalibre_bitti_sig.emit(
+                    "MİKROFON KALİBRASYONU", f"Ses kütüphanesi yüklenemedi: {hata}")
                 return
 
             def _olc(sn):
@@ -2294,8 +2365,8 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 hata = str(e)          # bkz. yukarıdaki `_calis` — aynı "free variable" nedeni
                 self._log_sig.emit(f"ERR: kalibrasyon — mikrofon açılamadı ({hata})")
-                QTimer.singleShot(0, lambda: _bitti(
-                    "MİKROFON KALİBRASYONU", f"Mikrofon açılamadı: {hata}"))
+                self._kalibre_bitti_sig.emit(
+                    "MİKROFON KALİBRASYONU", f"Mikrofon açılamadı: {hata}")
                 return
 
             oran = ses / taban if taban > 0 else float("inf")
@@ -2326,8 +2397,8 @@ class MainWindow(QMainWindow):
                 kisa = f"YETERSİZ ({oran:.1f}x)"
 
             self._log_sig.emit(f"SYS: Mikrofon kalibrasyonu — {kisa}")
-            QTimer.singleShot(0, lambda: _bitti(
-                "MİKROFON KALİBRASYONU", "\n".join(satir)))
+            self._kalibre_bitti_sig.emit(
+                "MİKROFON KALİBRASYONU", "\n".join(satir))
 
         threading.Thread(target=_calis, daemon=True).start()
 
@@ -2363,8 +2434,10 @@ class MainWindow(QMainWindow):
         parçacığında günceller. Yeniden AÇILAMAZ hâle getirilir (kilit
         DERSİ BAŞLAT'tan sonra zaten yerinde) — bu sürümde yalnızca ÇIKIŞ
         destekleniyor, aynı oturumda sesle geri DÖNÜŞ yok."""
-        self._talimat_btn.setChecked(False)
-        self._talimat_btn.setEnabled(False)
+        self.talimat_modu = False
+        self._talimat_modu_dugmesini_boya()
+        self._ogrenci_btn.setEnabled(False)
+        self._ogretmen_btn.setEnabled(False)
 
     def _style_mute_btn(self):
         if self._muted:

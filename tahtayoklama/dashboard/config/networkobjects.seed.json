@@ -1,0 +1,88 @@
+[
+    {
+        "Type": 1,
+        "Name": "Vestel Akıllı Tahtalar",
+        "ParentUid": "{00000000-0000-0000-0000-000000000000}",
+        "Uid": "{9644ef56-5569-423d-bcaa-0389a67fd277}"
+    },
+    {
+        "Type": 2,
+        "Name": "Tahta-01",
+        "HostAddress": "192.168.23.244",
+        "MacAddress": "00:09:DF:8C:32:8A",
+        "ParentUid": "{9644ef56-5569-423d-bcaa-0389a67fd277}",
+        "Uid": "{2f66ede5-1d65-457f-b4cb-f68070673cb5}"
+    },
+    {
+        "Type": 2,
+        "Name": "Tahta-02",
+        "HostAddress": "192.168.23.242",
+        "MacAddress": "00:09:DF:84:14:1E",
+        "ParentUid": "{9644ef56-5569-423d-bcaa-0389a67fd277}",
+        "Uid": "{a27f34cb-1de2-4f06-9486-79c37747dae1}"
+    },
+    {
+        "Type": 2,
+        "Name": "Tahta-03",
+        "HostAddress": "192.168.23.236",
+        "MacAddress": "00:09:DF:83:F3:8B",
+        "ParentUid": "{9644ef56-5569-423d-bcaa-0389a67fd277}",
+        "Uid": "{43181250-e046-4d0d-84b2-ba0bb0a7789c}"
+    },
+    {
+        "Type": 2,
+        "Name": "Tahta-04",
+        "HostAddress": "192.168.23.233",
+        "MacAddress": "00:09:DF:8B:0C:C4",
+        "ParentUid": "{9644ef56-5569-423d-bcaa-0389a67fd277}",
+        "Uid": "{f27388fa-20aa-489d-9c15-bf6e1ff4587e}"
+    },
+    {
+        "Type": 2,
+        "Name": "Tahta-05",
+        "HostAddress": "192.168.23.231",
+        "MacAddress": "00:09:DF:83:FF:CC",
+        "ParentUid": "{9644ef56-5569-423d-bcaa-0389a67fd277}",
+        "Uid": "{289cb223-33da-4fcd-90c7-3b97a4e4d8d5}"
+    },
+    {
+        "Type": 2,
+        "Name": "Tahta-06",
+        "HostAddress": "192.168.23.234",
+        "MacAddress": "00:09:DF:83:CD:C8",
+        "ParentUid": "{9644ef56-5569-423d-bcaa-0389a67fd277}",
+        "Uid": "{8380dd72-dcb4-4279-b1f9-a2f8b8d9b93b}"
+    },
+    {
+        "Type": 2,
+        "Name": "Tahta-07",
+        "HostAddress": "192.168.23.235",
+        "MacAddress": "00:09:DF:83:5C:45",
+        "ParentUid": "{9644ef56-5569-423d-bcaa-0389a67fd277}",
+        "Uid": "{34f41d02-831b-4c15-b5e5-ec2f42da4ec1}"
+    },
+    {
+        "Type": 2,
+        "Name": "Tahta-08",
+        "HostAddress": "192.168.23.240",
+        "MacAddress": "00:09:DF:8C:1A:E8",
+        "ParentUid": "{9644ef56-5569-423d-bcaa-0389a67fd277}",
+        "Uid": "{e50029ef-6b31-497e-a007-483dec4a4cc7}"
+    },
+    {
+        "Type": 2,
+        "Name": "Tahta-09",
+        "HostAddress": "192.168.23.245",
+        "MacAddress": "00:09:DF:83:55:D1",
+        "ParentUid": "{9644ef56-5569-423d-bcaa-0389a67fd277}",
+        "Uid": "{798a2975-6161-4ef9-9872-520590b7d946}"
+    },
+    {
+        "Type": 2,
+        "Name": "Tahta-10",
+        "HostAddress": "192.168.23.239",
+        "MacAddress": "00:09:DF:83:5C:A9",
+        "ParentUid": "{9644ef56-5569-423d-bcaa-0389a67fd277}",
+        "Uid": "{cb6a0504-3a4c-41ce-93b5-3506d171c49f}"
+    }
+]

@@ -1,5 +1,14 @@
 """
-actions/ekrandaki_soruyu_oku.py — Tahtadaki sorunun görüntüsünü yakalar ve OCR/AI ile çözer/açıklar.
+actions/ekrandaki_soruyu_oku.py — Tahtanın KENDİ ekranındaki sorunun
+görüntüsünü yakalar (kamera DEĞİL — bkz. ekran_goruntusu_al.py) ve
+`file_processor`'ın "ocr" görevi üzerinden (server/dosya.py::_ai_gorsel,
+bulut vision) okur/çözer/açıklar.
+
+2026-08-30: `ui.py::_ekran_goruntusu_yakala` eksikti, bu dosya hiçbir şey
+yakalayamıyordu (bkz. ekran_goruntusu_al.py'nin aynı notu). `file_processor`
+tarafında "ocr" action'ı zaten destekleniyordu (server/dosya.py:104) — bu
+dosyanın kendisi eksik değildi, yalnızca çağırdığı ekran-yakalama sinyali
+yoktu.
 """
 
 import threading

@@ -71,3 +71,32 @@ class TestOturumDevamNotu:
             f = _f(d)
             asyncio.run(f._oturum_devam_notu())
             assert "SELAMLAMA YAPMA" in _metin(f)
+
+
+class TestOturumDevamNotuDurdurulmusDers:
+    """2026-08-30 — DUR konuşma sırasında geldiğinde bağlantı zorla
+    yenileniyor (bkz. main.py::_DurZorlama). Yeniden bağlanan oturum
+    "dersin ortasındasın, sürdür" derse DUR'un amacını baltalar — model
+    hemen konuşmaya devam eder. Duraklatılmışken tamamen sessiz kalmalı."""
+
+    def test_duraklatildiysa_devam_etmeyi_soylemez_sessiz_kalir(self):
+        d = DersDurumu(ders_adi="Tarih", konu="Eski Çağ Medeniyetleri",
+                        duraklatildi=True)
+        f = _f(d)
+        asyncio.run(f._oturum_devam_notu())
+        metin = _metin(f)
+
+        assert "SELAMLAMA YAPMA" in metin
+        assert "sessiz kal" in metin.lower()
+        assert "dersin ortasındasın" not in metin.lower()
+        assert "sürdür" not in metin.lower() or "bağlan ve sürdür" not in metin.lower()
+
+    def test_duraklatilmamissa_normal_devam_notu_gider(self):
+        d = DersDurumu(ders_adi="Tarih", konu="Eski Çağ Medeniyetleri",
+                        duraklatildi=False)
+        f = _f(d)
+        asyncio.run(f._oturum_devam_notu())
+        metin = _metin(f)
+
+        assert "dersin ortasındasın" in metin.lower()
+        assert "sessiz kal" not in metin.lower()

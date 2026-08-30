@@ -13,13 +13,17 @@ sinyallerdir (main.py'nin kendisi bu uca hiç dokunmuyor, bu yüzden
 uygulama kapalıyken de son bilinen heartbeat DB'de kalır).
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel, Field
 
+import auth
 import db
 
-router = APIRouter()
+# FAZ 1 (IMPLEMENT) — bkz. icerik.py'deki aynı değişikliğin notu. Bu,
+# /api/client/durum'u da kapsar — bilinen sınır için FAZ 1 raporuna bkz.
+# ("bir tahtanın anahtarı TÜM tahtaların durumunu görmeye yetiyor").
+router = APIRouter(dependencies=[Depends(auth.dogrula_tahta)])
 
 
 class Heartbeat(BaseModel):

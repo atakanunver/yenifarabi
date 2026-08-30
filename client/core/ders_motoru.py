@@ -17,12 +17,18 @@ diyebilecek bir merci yoktu. Bu modül o merci.
 2. **Öğretmen her zaman kazanır.** `mudahale()` akışı duraklatır, `gec()` adımı
    zorlar. Öğretmenin önüne geçen bir akış motoru, sınıfta zarar verir.
 
-GÖZLEMCİ KİPİ (şu anki varsayılan)
-----------------------------------
+GÖZLEMCİ KİPİ (artık varsayılan DEĞİL — bkz. main.py)
+------------------------------------------------------
 `enjekte=False` iken motor yalnız hesaplar, loglar ve arayüze yazar; oturuma
-hiçbir şey göndermez. Önce gerçek derste izlenmesi, sonra enjeksiyonun
-açılması bilinçli: ders akışına müdahale eden bir değişikliği doğrudan
-sınıfa vermek, hatanın bedelini öğrenciye ödetmek olur.
+hiçbir şey göndermez. Bu, önce gerçek derste izlenip sonra enjeksiyonun
+açılması için bilinçli bir ara adımdı: ders akışına müdahale eden bir
+değişikliği doğrudan sınıfa vermek, hatanın bedelini öğrenciye ödetmek
+olurdu. **O geçiş yapıldı** — `main.py::FarabiLive.__init__` artık
+`enjekte=True` sabit geçiyor, gerçek varsayılan ENJEKSİYON AÇIK (`main.py`
+kendi yorumunda bunu doğru anlatır). Bu docstring 2026-08-30'da bir
+doküman↔kod denetiminde eski hâliyle bulundu, düzeltildi — modülün kendisi
+hâlâ `enjekte` parametresini kabul ediyor (gözlemci kipi hâlâ mümkün,
+yalnızca artık varsayılan değil).
 """
 
 from dataclasses import dataclass, field, asdict

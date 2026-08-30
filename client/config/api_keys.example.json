@@ -36,12 +36,20 @@
     "'http://192.168.1.100:8000' ya da 'http://farabi.local:8000'.",
     "ders_kipi: ogretmenli | ogretmensiz (varsayılan ogretmenli).",
     "camera_index: UYGULAMA YAZAR, elle doldurmayın — kamera ilk",
-    "kullanımda taranıp buraya kaydedilir."
+    "kullanımda taranıp buraya kaydedilir.",
+    "",
+    "tahta_anahtari (FAZ 1): bu tahtanın server/auth.py::dogrula_tahta ile",
+    "eşleşen kimlik anahtarı — server/config/api_keys.json'daki",
+    "board_keys[derslik] değeriyle BİREBİR aynı olmalı. Boşsa istek header'ı",
+    "hiç eklenmez (core/tahta.py::auth_headers()); sunucu",
+    "FARABI_AUTH_REQUIRED=1 iken bu durumda 401 döner ve bu tahtanın TÜM",
+    "/api/egitim/* çağrıları sessizce kısıtlı moda düşer (mimari.md §2)."
   ],
   "gemini_api_keys": ["BURAYA_GEMINI_API_ANAHTARINIZ"],
   "gemini_api_key": "",
   "os_system": "linux",
   "derslik": "10-A",
   "sunucu_url": "http://127.0.0.1:8000",
-  "ders_kipi": "ogretmenli"
+  "ders_kipi": "ogretmenli",
+  "tahta_anahtari": ""
 }

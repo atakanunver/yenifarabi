@@ -15,12 +15,14 @@ istenirse yalnızca orada tanımlanır, burada değişiklik gerekmez.
 import time
 import uuid
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from pydantic import BaseModel, Field
 
+import auth
 import saglayicilar
 
-router = APIRouter()
+# FAZ 1 (IMPLEMENT) — bkz. icerik.py'deki aynı değişikliğin notu.
+router = APIRouter(dependencies=[Depends(auth.dogrula_tahta)])
 
 
 class MetinIstek(BaseModel):

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yoklama Panosu</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/pano.css">
+</head>
+<body>
+<header>
+  <h1>Yoklama Panosu</h1>
+  <div class="ust-cubuk">
+    <label>Tarih:
+      <input type="date" id="tarih-secici" value="{{ tarih }}" max="{{ bugun }}">
+    </label>
+    <span id="son-guncelleme"></span>
+    <nav class="ust-nav">
+      <a href="/admin/tahtalar">Tahtalar</a>
+      <a href="/admin/siniflar">Sınıflar</a>
+      <a href="/admin/rapor">Rapor</a>
+    </nav>
+    <form method="post" action="/cikis" class="cikis-form"><button type="submit">Çıkış</button></form>
+  </div>
+</header>
+
+<main>
+  <div class="tablo-sarici">
+    <table id="pano-tablo">
+      <thead>
+        <tr>
+          <th>Sınıf</th>
+          {% for ders in ders_saatleri %}
+          <th>{{ ders.no }}. ders<br><span class="saat">{{ ders.baslangic }}</span></th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for sinif in siniflar %}
+        <tr>
+          <th class="sinif-adi">{{ sinif.ad }}</th>
+          {% for ders in ders_saatleri %}
+          <td id="hucre-{{ sinif.ad }}-{{ ders.no }}" class="hucre durum-yukleniyor"
+              data-sinif="{{ sinif.ad }}" data-ders-no="{{ ders.no }}"
+              {% if sinif.id in sinif_tahta %}data-tahta-id="{{ sinif_tahta[sinif.id] }}"{% endif %}>
+            <span class="pill">…</span>
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<div id="toast" class="toast gizli"></div>
+
+<script>
+const TARIH_SECICI = document.getElementById('tarih-secici');
+const SON_GUNCELLEME = document.getElementById('son-guncelleme');
+const TOAST = document.getElementById('toast');
+let YENILEME_ZAMANLAYICI = null;
+
+function toastGoster(mesaj, hataMi) {
+  TOAST.textContent = mesaj;
+  TOAST.className = 'toast' + (hataMi ? ' hata' : '');
+  clearTimeout(TOAST._zamanlayici);
+  TOAST._zamanlayici = setTimeout(() => { TOAST.className = 'toast gizli'; }, 4000);
+}
+
+const DURUM_BILGISI = {
+  alindi_tam:       { pill: 'pill-tam', ikon: '✓', metin: 'Tam' },
+  alindi_yok:       { pill: 'pill-yok', ikon: '●', metin: null },
+  alinmadi:         { pill: 'pill-alinmadi', ikon: '⚠', metin: 'Yoklama alınmadı', tiklanabilir: true },
+  henuz_baslamadi:  { bos: true },
+  ders_yok_o_gun:   { bos: true },
+  tahta_ulasilamaz: { pill: 'pill-ulasilamaz', ikon: '⭘', metin: 'Tahta ulaşılamaz' },
+  tahta_atanmamis:  { pill: 'pill-atanmamis', ikon: null, metin: 'Tahta atanmadı' },
+};
+
+function hucreDoldur(hucre, satir) {
+  hucre.classList.remove('durum-yukleniyor');
+  let anahtar = satir.durum;
+  let isimler = [];
+  try { isimler = JSON.parse(satir.yok_isimleri || '[]'); } catch (e) {}
+
+  if (satir.durum === 'alindi') {
+    anahtar = isimler.length > 0 ? 'alindi_yok' : 'alindi_tam';
+  }
+  const bilgi = DURUM_BILGISI[anahtar] || { pill: '', metin: satir.durum };
+
+  hucre.className = 'hucre';
+  if (bilgi.bos) {
+    hucre.innerHTML = '';
+  } else {
+    const metin = anahtar === 'alindi_yok' ? isimler.join(', ') : bilgi.metin;
+    const ikon = bilgi.ikon ? `<span aria-hidden="true">${bilgi.ikon}</span> ` : '';
+    hucre.innerHTML = `<span class="pill ${bilgi.pill}">${ikon}${metin}</span>`;
+  }
+
+  const tiklanabilir = bilgi.tiklanabilir && hucre.dataset.tahtaId;
+  hucre.classList.toggle('tiklanabilir', !!tiklanabilir);
+  hucre.title = tiklanabilir ? 'Tıklayarak tahtada yoklama ekranını başlat' : '';
+  hucre.onclick = tiklanabilir ? () => uzaktanBaslat(hucre) : null;
+}
+
+async function tabloyuGuncelle() {
+  const tarih = TARIH_SECICI.value;
+  const yanit = await fetch(`/api/durum?tarih=${tarih}`);
+  if (!yanit.ok) { toastGoster('Durum alınamadı.', true); return; }
+  const veri = await yanit.json();
+  const bulunanlar = new Set();
+  for (const satir of veri.satirlar) {
+    const hucre = document.getElementById(`hucre-${satir.sinif}-${satir.ders_no}`);
+    if (hucre) { hucreDoldur(hucre, satir); bulunanlar.add(hucre.id); }
+  }
+  document.querySelectorAll('.hucre').forEach(h => {
+    if (!bulunanlar.has(h.id) && h.classList.contains('durum-yukleniyor')) {
+      h.classList.remove('durum-yukleniyor');
+      h.textContent = '';
+    }
+  });
+  SON_GUNCELLEME.textContent = 'Son güncelleme: ' + new Date().toLocaleTimeString('tr-TR');
+}
+
+async function uzaktanBaslat(hucre) {
+  const tahtaId = hucre.dataset.tahtaId;
+  hucre.classList.add('tetikleniyor');
+  try {
+    const yanit = await fetch(`/api/tahta/${tahtaId}/baslat`, { method: 'POST' });
+    const veri = await yanit.json().catch(() => ({}));
+    if (yanit.ok && veri.basarili) {
+      toastGoster(`${hucre.dataset.sinif}: ${veri.durum === 'one_getirildi' ? 'pencere öne getirildi' : 'yoklama ekranı başlatıldı'}.`, false);
+    } else {
+      toastGoster(`${hucre.dataset.sinif}: başlatılamadı — ${veri.detay || yanit.status}`, true);
+    }
+  } catch (e) {
+    toastGoster(`${hucre.dataset.sinif}: bağlantı hatası.`, true);
+  } finally {
+    hucre.classList.remove('tetikleniyor');
+    tabloyuGuncelle();
+  }
+}
+
+TARIH_SECICI.addEventListener('change', () => {
+  const url = new URL(window.location);
+  url.searchParams.set('tarih', TARIH_SECICI.value);
+  window.location = url;
+});
+
+tabloyuGuncelle();
+YENILEME_ZAMANLAYICI = setInterval(tabloyuGuncelle, 60000);
+</script>
+</body>
+</html>

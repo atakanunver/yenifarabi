@@ -20,7 +20,7 @@ import re
 import unicodedata
 
 import requests
-
+from core.tahta import auth_headers as _auth_headers
 from core.tahta import sunucu_url as _sunucu_url
 
 ZAMAN_ASIMI = 20.0  # server-taraflı cache'siz ilk tarama ölçülmedi, pay bırakıldı
@@ -94,6 +94,7 @@ def ders_icerigi(parameters: dict | None = None, player=None, speak=None, **_) -
 
     ders = (p.get("ders") or "").strip()
     sinif = (p.get("sinif") or "").strip()
+    derslik = ""
     if not sinif:
         try:
             from core import tahta
@@ -102,6 +103,11 @@ def ders_icerigi(parameters: dict | None = None, player=None, speak=None, **_) -
                 log(f"[Ders İçeriği] sınıf dersliktan alındı: {sinif}")
         except Exception:
             pass
+    try:
+        from core import tahta
+        derslik = tahta.derslik() or ""
+    except Exception:
+        pass
     konu = (p.get("konu") or "").strip()
     tema = (p.get("tema") or "").strip()
 
@@ -115,10 +121,12 @@ def ders_icerigi(parameters: dict | None = None, player=None, speak=None, **_) -
     istek = {
         "ders": ders, "sinif": sinif or None, "konu": konu, "tema": tema,
         "sayfa_adedi": int(p.get("sayfa_adedi") or 6), "liste": bool(p.get("liste")),
+        "derslik": derslik or None,
     }
 
     try:
-        r = requests.post(f"{_sunucu_url()}/api/egitim/ders_icerigi", json=istek, timeout=ZAMAN_ASIMI)
+        r = requests.post(f"{_sunucu_url()}/api/egitim/ders_icerigi", json=istek,
+                           headers=_auth_headers(), timeout=ZAMAN_ASIMI)
         r.raise_for_status()
         veri = r.json()
     except Exception as e:

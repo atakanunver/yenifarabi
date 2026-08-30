@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sınıflar — Yoklama Panosu</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/pano.css">
+</head>
+<body>
+<header>
+  <h1>Sınıflar</h1>
+  <nav class="ust-nav">
+    <a href="/">Pano</a>
+    <a href="/admin/tahtalar">Tahtalar</a>
+    <a href="/admin/rapor">Rapor</a>
+  </nav>
+</header>
+
+<main>
+  <div class="tablo-sarici">
+    <table class="admin-tablo">
+      <thead><tr><th>Sınıf</th><th>Öğrenci sayısı</th><th></th></tr></thead>
+      <tbody>
+        {% for s in siniflar %}
+        <tr>
+          <td>{{ s.ad }}</td>
+          <td>{{ s.ogrenci_sayisi }}</td>
+          <td><a href="/admin/siniflar/{{ s.id }}/ogrenciler">Öğrencileri düzenle →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Yeni sınıf ekle</h2>
+  <form method="post" action="/admin/siniflar" class="yeni-form">
+    <input type="text" name="ad" placeholder="ad (ör. 10-B)" required pattern="[A-Za-z0-9_-]+">
+    <button type="submit">Ekle</button>
+  </form>
+</main>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rapor — Yoklama Panosu</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/pano.css">
+</head>
+<body>
+<header>
+  <h1>Rapor</h1>
+  <nav class="ust-nav">
+    <a href="/">Pano</a>
+    <a href="/admin/tahtalar">Tahtalar</a>
+    <a href="/admin/siniflar">Sınıflar</a>
+  </nav>
+</header>
+
+<main>
+  <form method="get" action="/admin/rapor" class="yeni-form">
+    <label>Başlangıç: <input type="date" name="baslangic" value="{{ baslangic }}" max="{{ bitis }}"></label>
+    <label>Bitiş: <input type="date" name="bitis" value="{{ bitis }}" max="{{ bitis }}"></label>
+    <label>Sınıf:
+      <select name="sinif_id">
+        <option value="">— tümü —</option>
+        {% for s in siniflar %}
+        <option value="{{ s.id }}" {{ 'selected' if s.id == sinif_id else '' }}>{{ s.ad }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">Filtrele</button>
+  </form>
+
+  {% set csv_kuyruk = '?baslangic=' + baslangic + '&bitis=' + bitis + (('&sinif_id=' + sinif_id|string) if sinif_id else '') %}
+
+  <h2>Öğrenci bazlı devamsızlık özeti</h2>
+  <p class="rapor-aciklama">
+    {{ baslangic }} – {{ bitis }} arası, "yoklama alındı" durumundaki derslerde kaç kez yok/izinli görünmüş.
+    <a href="/admin/rapor/csv?tip=ozet{{ csv_kuyruk }}">CSV indir</a>
+  </p>
+  <div class="tablo-sarici">
+    <table class="admin-tablo">
+      <thead><tr><th>Sınıf</th><th>Öğrenci</th><th>Yok</th><th>İzinli</th></tr></thead>
+      <tbody>
+        {% for d in devamsizlik %}
+        <tr>
+          <td>{{ d.sinif }}</td>
+          <td>{{ d.ad_soyad }}</td>
+          <td>{{ d.yok }}</td>
+          <td>{{ d.izinli }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4">Bu aralıkta kayıt yok.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Tarih/sınıf/ders detayı</h2>
+  <p class="rapor-aciklama">
+    <a href="/admin/rapor/csv?tip=detay{{ csv_kuyruk }}">CSV indir</a>
+  </p>
+  <div class="tablo-sarici">
+    <table class="admin-tablo">
+      <thead><tr><th>Tarih</th><th>Sınıf</th><th>Ders</th><th>Durum</th><th>Yok</th><th>İzinli</th><th>Kaynak tahta</th></tr></thead>
+      <tbody>
+        {% for d in detay %}
+        <tr>
+          <td>{{ d.tarih }}</td>
+          <td>{{ d.sinif }}</td>
+          <td>{{ d.ders_no }}</td>
+          <td>{{ d.durum_etiketi }}</td>
+          <td>{{ d.yok_isimleri|join(', ') }}</td>
+          <td>{{ d.izinli_isimleri|join(', ') }}</td>
+          <td>{{ d.kaynak_tahta or '' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">Bu aralıkta kayıt yok.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+</body>
+</html>

@@ -76,3 +76,30 @@ def sunucu_url() -> str:
     except Exception:
         ham = ""
     return ham.rstrip("/") or "http://127.0.0.1:8000"
+
+
+def tahta_anahtari() -> str:
+    """Bu tahtanın `server/auth.py::dogrula_tahta` ile eşleşen kimlik anahtarı
+    (FAZ 1). Config'teki `tahta_anahtari` alanından okunur — tanımsız/boşsa
+    boş dize döner (server tarafında `board_keys`'e karşılık gelen değer
+    henüz üretilmemiş/dağıtılmamış olabilir; bu fonksiyon fail-closed değil,
+    yalnızca sessizce "anahtar yok" bildirir, `auth_headers()` bunu header
+    eklememe kararına çevirir)."""
+    try:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            ham = str(json.load(f).get("tahta_anahtari", "")).strip()
+    except Exception:
+        return ""
+    return ham
+
+
+def auth_headers() -> dict:
+    """`server/`'a yapılan her istekte eklenecek header sözlüğü. Anahtar
+    tanımsızsa BOŞ sözlük döner (boş değerli bir `X-Farabi-Board-Key` header'ı
+    DEĞİL) — sunucu tarafı `FARABI_AUTH_REQUIRED=0` iken zaten hiç
+    doğrulamıyor, bu geçiş döneminde header'ın hiç gitmemesi de gitmesi de
+    aynı sonucu verir; `FARABI_AUTH_REQUIRED=1` olduğunda ise boş bir header
+    göndermek de eksik header göndermek de aynı 401'i alır — davranış farkı
+    yok, yalnızca gereksiz bir header'dan kaçınıyoruz."""
+    anahtar = tahta_anahtari()
+    return {"X-Farabi-Board-Key": anahtar} if anahtar else {}

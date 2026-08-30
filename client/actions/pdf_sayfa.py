@@ -10,12 +10,25 @@ modül dokümanı (git geçmişi).
 Yerel cache boyut sınırlı LRU: en fazla `_CACHE_LIMIT` dosya tutulur, en eski
 dosyalar silinir — client'ta "minimum dosya" ilkesi (CLAUDE.md Kural 1),
 sunucudaki kalıcı render cache zaten tüm tahtalar için tek doğruluk kaynağı.
+
+**2026-08-30 eklendi — gerçek sınıf hatası:** bu araç eskiden yalnızca PNG
+döndürüyordu, modele hiç METİN vermiyordu. Öğretmen doğrudan bir sayfa
+numarası söylediğinde (`ders_icerigi` hiç çağrılmadan, "Bizim 45. sayfa"
+gibi) Farabi ekranda ne yazdığını bilmeden içerik UYDURUYORDU — gerçek
+transkriptte kendi kendine "Doğru metin bu mu?" diyordu. Şimdi görüntüyü
+gösterdikten sonra `GET /api/egitim/pdf_sayfa_metni` ile AYNI kitap+sayfanın
+gerçek metnini de ayrıca çekip modele dönen metne ekliyor — görüntü
+endpoint'inin kendi sözleşmesi (PNG) bilerek değiştirilmedi, bu ikinci,
+ayrı bir çağrı. Metin gelmezse (taranmış sayfa, kitap dizinde yok, vb.)
+sessizce atlanır ve modele açıkça "içerik uydurma" uyarısı gider — RAG
+Kuralları'ndaki "cevap sadece retrieval sonucundan üretilir" ilkesiyle
+tutarlı, `ders_icerigi`'nin `_SINIRLI_DEVAM` deseniyle aynı ruhta.
 """
 
 from pathlib import Path
 
 import requests
-
+from core.tahta import auth_headers as _auth_headers
 from core.tahta import sunucu_url as _sunucu_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -56,12 +69,14 @@ def pdf_sayfa(parameters: dict | None = None, player=None, speak=None, **_) -> s
 
     ders = (p.get("ders") or "").strip()
     sinif = (p.get("sinif") or "").strip()
-    if not sinif:
-        try:
-            from core import tahta
+    derslik = ""
+    try:
+        from core import tahta
+        if not sinif:
             sinif = tahta.sinif_duzeyi() or ""
-        except Exception:
-            pass
+        derslik = tahta.derslik() or ""
+    except Exception:
+        pass
 
     if not ders:
         log("[PDF Sayfa] ders verilmedi, eşleme yapılmadı")
@@ -69,7 +84,9 @@ def pdf_sayfa(parameters: dict | None = None, player=None, speak=None, **_) -> s
 
     try:
         r = requests.get(f"{_sunucu_url()}/api/egitim/pdf_sayfa",
-                          params={"ders": ders, "sinif": sinif or None, "sayfa": sayfa},
+                          params={"ders": ders, "sinif": sinif or None, "sayfa": sayfa,
+                                   "derslik": derslik or None},
+                          headers=_auth_headers(),
                           timeout=ZAMAN_ASIMI)
         if r.status_code != 200:
             detay = ""
@@ -88,4 +105,26 @@ def pdf_sayfa(parameters: dict | None = None, player=None, speak=None, **_) -> s
     if player is not None and hasattr(player, "show_image"):
         player.show_image(f"{ders.upper()} — s.{sayfa}", str(onbellek_yolu))
 
-    return f"{ders} kitabının {sayfa}. sayfası ekranda gösteriliyor."
+    sonuc = f"{ders} kitabının {sayfa}. sayfası ekranda gösteriliyor."
+
+    try:
+        rm = requests.get(f"{_sunucu_url()}/api/egitim/pdf_sayfa_metni",
+                           params={"ders": ders, "sinif": sinif or None, "sayfa": sayfa,
+                                    "derslik": derslik or None},
+                           headers=_auth_headers(),
+                           timeout=ZAMAN_ASIMI)
+        veri = rm.json() if rm.status_code == 200 else {}
+    except Exception as e:
+        log(f"[PDF Sayfa] metin sunucu hatası: {type(e).__name__}: {e}")
+        veri = {}
+
+    if veri.get("status") == "ok" and veri.get("metin"):
+        sonuc += (f"\n\nSAYFA METNİ (bu sayfada gerçekten yazan, sesli anlatımını "
+                  f"buna dayandır):\n{veri['metin']}")
+    else:
+        sonuc += ("\n\nUYARI: Bu sayfanın metni getirilemedi (taranmış sayfa ya da "
+                  "kitap dizinde yok olabilir). Sayfa içeriğini UYDURMA — "
+                  "öğretmene/sınıfa yalnızca görüntünün ekranda olduğunu söyle, "
+                  "içerik anlatımı gerekiyorsa `ders_icerigi`yi konu adıyla çağır.")
+
+    return sonuc

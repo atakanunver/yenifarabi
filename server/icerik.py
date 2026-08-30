@@ -19,14 +19,18 @@ import uuid
 from pathlib import Path
 
 import fitz  # PyMuPDF
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+import auth
 from metin_araclari import kelimeler as _kelimeler
 from metin_araclari import norm as _norm
 
-router = APIRouter()
+# FAZ 1 (IMPLEMENT) — tek satır: bu router'daki TÜM route'lar artık
+# auth.dogrula_tahta'dan geçer (server/auth.py). Endpoint fonksiyonlarının
+# kendisi değişmedi.
+router = APIRouter(dependencies=[Depends(auth.dogrula_tahta)])
 
 DATA_DIR = Path("/mnt/farabi-data/farabi")
 KITAP_PATH = DATA_DIR / "icerik" / "kitaplar.json"
@@ -206,6 +210,14 @@ def _bolum_bul(kitaplar: dict, tema: str, ders: str | None,
     return en_iyi if en_iyi_puan >= 0.5 else None
 
 
+# derslik -> {ders(norm): dosya} — bir tahtada ders_icerigi'nin konuya göre
+# SEÇTİĞİ kitabı hatırlar, pdf_sayfa aynı ders için birden çok kitap (ör.
+# matematik_9.pdf/matematik_9_2.pdf, cilt 1/cilt 2) varken doğru cildi
+# göstersin diye (bkz. _kitap_bul, aşağıda — 2026-08-30 hata: 9-A'da konu
+# cilt 2'deydi, ders_icerigi doğru cildi okuyordu ama pdf_sayfa hep cilt
+# 1'den sayfa gösteriyordu, aynı sayfa numarası iki kitapta bambaşka içerik).
+_SON_KITAP: dict[str, dict[str, str]] = {}
+
 _METIN_ONBELLEK: dict[str, dict] = {}
 
 
@@ -330,6 +342,12 @@ class KonuIstek(BaseModel):
     tema: str = ""
     sayfa_adedi: int = Field(default=VARSAYILAN_SAYFA, ge=1, le=12)
     liste: bool = False
+    # derslik: pdf_sayfa'nın AYNI ders için doğru kitabı (bkz. _SON_KITAP,
+    # üstte) seçebilmesi için — auth kimliği (server/auth.py) henüz client'a
+    # bağlanmadı (2026-08-30 doğrulandı: client hiç X-Farabi-Board-Key
+    # göndermiyor), bu yüzden yks.py'nin `istek.derslik` deseniyle aynı
+    # şekilde doğrudan client'tan alınır, auth'a bağımlı değil.
+    derslik: str | None = None
 
 
 class KonuYanit(BaseModel):
@@ -377,6 +395,10 @@ def ders_icerigi_endpoint(istek: KonuIstek) -> KonuYanit:
     pdf_yolu = _kitap_yolu_coz(kitap)
     if not pdf_yolu.exists():
         return _bitir("bulunamadi", f"Kitap dosyası bulunamadı: {pdf_yolu.name}.")
+
+    derslik = (istek.derslik or "").strip()
+    if derslik and kitap.get("dosya"):
+        _SON_KITAP.setdefault(derslik, {})[_norm(ders or kitap.get("ders", ""))] = kitap["dosya"]
 
     adet = max(1, min(istek.sayfa_adedi, 12))
     sayfalar = _ilgili_sayfalar(pdf_yolu, bolum["ilk_sayfa"], bolum["son_sayfa"],
@@ -440,19 +462,35 @@ def render_pdf_sayfa(pdf_yolu: Path, sayfa: int, onbellek_dir: Path) -> Path:
     return onbellek_yolu
 
 
-def _kitap_bul(ders: str | None, sinif: str | None) -> dict | None:
+def _kitap_bul(ders: str | None, sinif: str | None, tercih_dosya: str | None = None) -> dict | None:
     if not ders:
         return None
     kitaplar = _json_oku(KITAP_PATH)
     if not kitaplar:
         return None
+    adaylar = []
     for k in kitaplar.get("kitaplar", []):
         if sinif and k.get("sinif") is not None and str(k["sinif"]) != str(sinif).strip():
             continue
         if not _ders_eslesir(ders, k.get("ders", "")):
             continue
-        return k
-    return None
+        adaylar.append(k)
+    if not adaylar:
+        return None
+    if tercih_dosya:
+        for k in adaylar:
+            if k.get("dosya") == tercih_dosya:
+                return k
+    return adaylar[0]
+
+
+def _pdf_sayfa_kitap_coz(ders: str, sinif: str | None, derslik: str | None) -> dict | None:
+    """`pdf_sayfa` ve `pdf_sayfa_metni` AYNI kitabı seçsin diye tek nokta —
+    ikisi ayrı yerlerde bu mantığı tekrarlarsa tam da _kitap_bul/_bolum_bul
+    senkronsuzluğunun (2026-08-30, madde 1, bu dosyanın başındaki not) aynı
+    sınıf hatası burada da olurdu."""
+    tercih_dosya = _SON_KITAP.get((derslik or "").strip(), {}).get(_norm(ders))
+    return _kitap_bul(ders, sinif, tercih_dosya)
 
 
 @router.get("/api/egitim/pdf_sayfa")
@@ -460,8 +498,9 @@ def pdf_sayfa_endpoint(
     sayfa: int = Query(..., ge=1),
     ders: str = Query(...),
     sinif: str | None = Query(default=None),
+    derslik: str | None = Query(default=None),
 ):
-    kitap = _kitap_bul(ders, sinif)
+    kitap = _pdf_sayfa_kitap_coz(ders, sinif, derslik)
     if not kitap:
         raise HTTPException(status_code=404, detail="Bu ders/sınıf için indekslenmiş kitap bulunamadı.")
 
@@ -481,3 +520,58 @@ def pdf_sayfa_endpoint(
     # zaten hangi ders/sınıf istediğini biliyor, ayrıca header'a gerek yok.
     return FileResponse(onbellek_yolu, media_type="image/png",
                          headers={"Cache-Control": "public, max-age=86400"})
+
+
+class SayfaMetniYanit(BaseModel):
+    status: str  # "ok" | "bulunamadi"
+    metin: str | None = None
+
+
+@router.get("/api/egitim/pdf_sayfa_metni", response_model=SayfaMetniYanit)
+def pdf_sayfa_metni_endpoint(
+    sayfa: int = Query(..., ge=1),
+    ders: str = Query(...),
+    sinif: str | None = Query(default=None),
+    derslik: str | None = Query(default=None),
+):
+    """2026-08-30 eklendi — gerçek sınıf hatası: öğretmen doğrudan sayfa
+    numarası söylediğinde (`pdf_sayfa` konu eşleşmesi OLMADAN çıplak
+    çağrılıyor, bkz. `ders_icerigi`'nin aksine) Farabi o sayfanın METNİNİ
+    hiç almıyordu — yalnızca PNG görüyordu, içeriği UYDURUYORDU (gerçek
+    transkript: "Doğru metin bu mu?"). RAG Kuralları'ndaki "cevap sadece
+    retrieval sonucundan üretilir" ilkesi bu yolda hiç uygulanmıyordu.
+    Bu endpoint `pdf_sayfa`nın render ettiği AYNI kitap+sayfa için gerçek
+    metni döner (`_pdf_sayfa_kitap_coz` ile aynı kitap seçimi, `_metin_cikar`
+    ile aynı çıkarma altyapısı — ikisi de zaten vardı, yalnızca `pdf_sayfa`
+    yoluna hiç bağlanmamışlardı). Görüntü endpoint'inin kendi sözleşmesi
+    (PNG, FileResponse) BİLEREK değiştirilmedi — client iki ayrı çağrı yapar,
+    protokolde kırılma yok."""
+    kitap = _pdf_sayfa_kitap_coz(ders, sinif, derslik)
+    if not kitap:
+        return SayfaMetniYanit(status="bulunamadi", metin=None)
+
+    pdf_yolu = _kitap_yolu_coz(kitap)
+    if not pdf_yolu.exists():
+        return SayfaMetniYanit(status="bulunamadi", metin=None)
+
+    try:
+        icerik, _supheli = _metin_cikar(pdf_yolu, [sayfa])
+    except Exception:
+        return SayfaMetniYanit(status="bulunamadi", metin=None)
+
+    if not icerik.strip():
+        return SayfaMetniYanit(status="bulunamadi", metin=None)
+
+    # Kalite kapısı (2026-08-30, canlı test sırasında bulundu): `#`/`$`
+    # şüpheli-sembol sayacı (`supheli`) BU tür bozulmayı YAKALAMAZ —
+    # fizik_9.pdf'in dönüştürülmüş metninde sayfaların %55'i (150/273)
+    # U+FFFD (REPLACEMENT CHARACTER) ile dolu, bazı sayfalarda oran %79'a
+    # çıkıyor (yalnızca bu kitapta — diğer 18 kitabın hiçbirinde tek bir
+    # kirli sayfa yok, ölçüldü). Modele "SAYFA METNİ" diye böyle bir bloğu
+    # vermek, hiç vermemekten daha kötü — kirliyse "bulunamadı"ya düş.
+    if icerik.count("�") / len(icerik) > 0.02:
+        return SayfaMetniYanit(status="bulunamadi", metin=None)
+
+    if len(icerik) > MAX_KARAKTER:
+        icerik = icerik[:MAX_KARAKTER].rsplit("\n", 1)[0] + "\n…(kesildi)"
+    return SayfaMetniYanit(status="ok", metin=icerik)

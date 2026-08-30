@@ -20,13 +20,18 @@ import time
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+import auth
 import saglayicilar
 
-router = APIRouter()
+# FAZ 1 (IMPLEMENT) — bkz. icerik.py'deki aynı değişikliğin notu. Bu,
+# dosya_indir (üretilen dosya indirme) uç noktasını da kapsar — bilinen
+# sınır için FAZ 1 raporuna bkz. ("dosya_indir linki artık header'sız bir
+# tarayıcıdan doğrudan açılamaz").
+router = APIRouter(dependencies=[Depends(auth.dogrula_tahta)])
 
 GECICI_DIR = Path(__file__).resolve().parent / "gecici"
 YUKLEME_LIMIT_MB = 60

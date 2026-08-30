@@ -20,8 +20,8 @@ beklemez.
 """
 
 import requests
-
 from core import transcript
+from core.tahta import auth_headers as _auth_headers
 from core.tahta import derslik as _derslik
 from core.tahta import sunucu_url as _sunucu_url
 
@@ -40,7 +40,7 @@ def ders_hafizasi(parameters: dict | None = None, player=None, speak=None, **_) 
     }
     try:
         r = requests.post(f"{_sunucu_url()}/api/egitim/ders_hafizasi",
-                           json=istek, timeout=ZAMAN_ASIMI)
+                           json=istek, headers=_auth_headers(), timeout=ZAMAN_ASIMI)
         r.raise_for_status()
         veri = r.json()
     except Exception as e:

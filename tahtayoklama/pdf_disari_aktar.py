@@ -21,6 +21,17 @@ işleniyor — okulun aynı PDF'te birden fazla şubeyi tek dosyada dışa
 aktarması normal, her sınıf için AYNI PDF'i farklı `--sinif` değeriyle
 tekrar çalıştırın (`python pdf_disari_aktar.py dosya.pdf --sinif 9-B`).
 
+**İKİNCİ KRİTİK BULGU (2026-08-22): okul-geneli, çok sınıflı bir PDF'te
+(müdüriyetin "şube listesi doğum tarihi yaş.PDF"'i, 7 sayfa: 9-A/9-B/10-A/
+11-A/11-B/12-A/12-B) önceki eşleşme yalnızca şube HARFİNE bakıyordu
+(`_sube_harfi` son karakter) — `--sinif 12-A` çalıştırıldığında 9-A, 10-A,
+11-A ve 12-A sayfalarının HEPSİ "A" ile eşleşip tek roster'a karışıyordu
+(80 öğrenci — yanlış, 20 olmalıydı). Artık başlıktan sınıf NUMARASI da
+okunuyor (`_SUBE_BASLIK_RE` artık sınıf numarasını da yakalıyor,
+`_sinif_parcala`) ve sayım PDF'in kendi "Toplam Öğrenci Sayısı : N"
+satırına karşı doğrulanıyor (tutmazsa `ValueError`, sessizce yanlış roster
+yazılmasın diye).
+
 Başka bir okulun/sistemin PDF'i bu biçimden FARKLI çıkabilir — bu script
 yalnızca Çankırı ili e-Okul çıktısıyla doğrulandı. Ayrıştırma boş dönerse
 (`_SATIR_RE` hiçbir satırı yakalamazsa ya da hiçbir sayfa şube başlığıyla
@@ -58,13 +69,22 @@ _SATIR_RE = re.compile(
     r"^\s*(\d{1,3})\s+(\d{2,10})\s+([A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜ' ]+?)\s+(Erkek|Kız)(?:\s+\S.*)?\s*$"
 )
 
-# "AL - 9. Sınıf / A Şubesi (ALANI YOK) Sınıf Listesi" → şube harfi "A".
-_SUBE_BASLIK_RE = re.compile(r"Sınıf\s*/\s*([A-ZÇĞİÖŞÜ])\s*Şubesi", re.IGNORECASE)
+# "AL - 9. Sınıf / A Şubesi (ALANI YOK) Sınıf Listesi" → sınıf "9", şube harfi "A".
+# 2026-08-22 DÜZELTME: önceki sürüm yalnızca şube harfini yakalıyordu — çok
+# şubeli/çok sayfalı bir PDF'te (ör. 7 sayfalı okul-geneli liste) "--sinif 12-A"
+# hem 9-A hem 10-A hem 11-A hem 12-A sayfalarını eşleştirip hepsini tek
+# roster'a karıştırıyordu (gerçek PDF'te yakalandı, bkz. commit notu). Artık
+# sınıf numarası da eşleşme şartı.
+_SUBE_BASLIK_RE = re.compile(
+    r"(\d{1,2})\.\s*Sınıf\s*/\s*([A-ZÇĞİÖŞÜ])\s*Şubesi", re.IGNORECASE
+)
+_TOPLAM_RE = re.compile(r"Toplam\s*Öğrenci\s*Sayısı\s*:\s*(\d+)")
 
 
-def _sube_harfi(sinif: str) -> str:
-    """'9-A' -> 'A', '10-B' -> 'B' — sınıf adının son harfi şube kabul edilir."""
-    return sinif.strip()[-1:].upper()
+def _sinif_parcala(sinif: str) -> tuple[str, str]:
+    """'9-A' -> ('9', 'A'), '12-B' -> ('12', 'B')."""
+    numara, _, harf = sinif.strip().rpartition("-")
+    return numara.strip(), harf.strip().upper()
 
 # Python'un varsayılan case-fold'u Türkçe İ/I'yı doğru çevirmiyor — elle eşleme.
 _TR_BUYUK_KUCUK = {"İ": "i", "I": "ı"}
@@ -83,26 +103,38 @@ def _ad_bicimlendir(ad_soyad_buyuk: str) -> str:
 
 
 def pdfden_cikar(pdf_yolu: Path, sinif: str) -> list[dict]:
-    """Yalnızca `sinif`in şubesine (son harf) uyan sayfaları işler — bir PDF
-    birden fazla şubeyi birden içerebilir (bkz. modül dokümanı)."""
-    hedef_sube = _sube_harfi(sinif)
+    """Yalnızca `sinif`in numara+şubesine uyan sayfaları işler — bir PDF
+    birden fazla sınıf/şubeyi birden içerebilir (bkz. modül dokümanı).
+    Eşleşen her sayfada PDF'in kendi 'Toplam Öğrenci Sayısı' satırına karşı
+    sayım doğrulanır — tutmazsa ValueError (ayrıştırma/eşleşme hatasını
+    sessizce geçmemek için)."""
+    hedef_numara, hedef_sube = _sinif_parcala(sinif)
     ogrenciler: list[dict] = []
     with pdfplumber.open(pdf_yolu) as pdf:
-        for sayfa in pdf.pages:
+        for sayfa_no, sayfa in enumerate(pdf.pages, start=1):
             metin = sayfa.extract_text() or ""
             sube_m = _SUBE_BASLIK_RE.search(metin)
-            if not sube_m or sube_m.group(1).upper() != hedef_sube:
+            if not sube_m or sube_m.group(1) != hedef_numara or sube_m.group(2).upper() != hedef_sube:
                 continue
+            sayfa_ogrenciler = []
             for satir in metin.splitlines():
                 m = _SATIR_RE.match(satir)
                 if not m:
                     continue
                 _sira_no, ogrenci_no, ad_soyad_buyuk, cinsiyet = m.groups()
-                ogrenciler.append({
+                sayfa_ogrenciler.append({
                     "no": int(ogrenci_no),
                     "ad_soyad": _ad_bicimlendir(ad_soyad_buyuk),
                     "cinsiyet": cinsiyet,
                 })
+            toplam_m = _TOPLAM_RE.search(metin)
+            if toplam_m and int(toplam_m.group(1)) != len(sayfa_ogrenciler):
+                raise ValueError(
+                    f"Sayfa {sayfa_no}: PDF 'Toplam Öğrenci Sayısı : {toplam_m.group(1)}' "
+                    f"diyor ama {len(sayfa_ogrenciler)} satır ayrıştırıldı — "
+                    "desen (_SATIR_RE) bu sayfada eksik/yanlış eşleşiyor olabilir."
+                )
+            ogrenciler.extend(sayfa_ogrenciler)
     return ogrenciler
 
 

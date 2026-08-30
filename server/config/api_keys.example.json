@@ -10,11 +10,25 @@
     "(gorsel, arama_sentez, belge_ozet, video_ozet, kitap_ozet,",
     "sembol_duzelt, soru_taslak) — proxy.py bunları /api/egitim/metin_uret",
     "ve /api/egitim/gorsel_uret üzerinden client'a (ve benchmark/ script'lerine)",
-    "sunar. Bir alan boş bırakılırsa o sağlayıcı zincirlerde sessizce atlanır."
+    "sunar. Bir alan boş bırakılırsa o sağlayıcı zincirlerde sessizce atlanır.",
+    "",
+    "board_keys (FAZ 1, IMPLEMENT — server/auth.py): her tahtanın kendi",
+    "X-Farabi-Board-Key değeri, derslik -> anahtar sözlüğü. Client tarafında",
+    "eşleşen değer client/config/api_keys.json'daki 'tahta_anahtari' alanına",
+    "yazılır (bkz. client/config/api_keys.example.json). Anahtar üretimi",
+    "elle yapılır (ör. `openssl rand -hex 32`) — bu şablon rastgele bir",
+    "örnek DEĞER içermez, her tahta için AYRI, benzersiz bir anahtar üretin.",
+    "Bir derslik burada yoksa/anahtarı boşsa o tahta 401 alır (fail-closed).",
+    "FARABI_AUTH_REQUIRED=0 ortam değişkeni auth'u tamamen kapatır — yalnızca",
+    "acil rollback için, kalıcı bir dağıtım ayarı değil (bkz. docs/ FAZ 1",
+    "raporu)."
   ],
   "groq_api_key": "",
   "mistral_api_key": "",
   "deepseek_api_key": "",
   "openrouter_api_key": "",
-  "nvidia_api_key": ""
+  "nvidia_api_key": "",
+  "board_keys": {
+    "9-A": ""
+  }
 }

@@ -36,6 +36,8 @@ from actions.web_ac            import web_ac
 from actions.uygulama_ac       import uygulama_ac
 from actions.dosya_ac          import dosya_ac
 from actions.pencere_kapat     import pencere_kapat
+from actions.ekran_goruntusu_al    import ekran_goruntusu_al
+from actions.ekrandaki_soruyu_oku  import ekrandaki_soruyu_oku
 
 
 def get_base_dir():
@@ -90,6 +92,29 @@ class _TalimatCikisi(Exception):
     aksine (`_temiz_kapan`, `os._exit`) süreç YAŞAMAYA devam eder — yalnızca
     bağlantı yenilenir, `_build_config()` bir sonraki (yeniden)bağlanışta
     `ui.talimat_modu`yu tekrar okuyup normal personaya döner.
+    """
+
+
+class _DurZorlama(Exception):
+    """
+    DUR düğmesi/komutu KONUŞMA SIRASINDA geldi — _sesi_sustur() yerel
+    `audio_in_queue`'yu boşaltır ama Gemini'nin SUNUCU tarafında hâlâ
+    üretmekte olduğu yanıtı iptal edecek bir çağrı SDK'da yok
+    (`google.genai.live.AsyncSession`: close/receive/send/
+    send_client_content/send_realtime_input/send_tool_response/
+    start_stream — cancel yok). Uzun bir yanıt akarken yerel kuyruk
+    boşaltımı, sunucudan gelmeye devam eden yeni ses parçalarınca anında
+    yeniden doluyor — 2026-08-30, 9-A'da canlı ölçüldü: öğretmen 6 kez
+    "dur" dedikten SONRA Farabi yepyeni bir YKS sorusunu baştan okumaya
+    başladı.
+
+    `_TalimatCikisi` ile BİREBİR aynı mekanizma (bkz. onun docstring'i) —
+    `_durdur_zorla_gozcusu()` bunu kasıtlı fırlatır, run()'daki
+    `except Exception` `self._durdur_zorla_istendi` bayrağından tanıyıp
+    backoff'suz anında yeniden bağlanır. Yalnızca KONUŞMA SIRASINDA
+    (`self._is_speaking`) tetiklenir — sessizken basılan DUR için
+    `_sesi_sustur()` tek başına yeterli, gereksiz yere bağlantı yıkmaya
+    gerek yok.
     """
 
 
@@ -306,6 +331,10 @@ class FarabiLive:
         # genel hata/backoff dalına düşmemesi için bu bayrak ayrıca tutulur.
         self._talimat_cikis_event: asyncio.Event | None = None
         self._talimat_cikis_istendi = False
+        # DUR konuşma sırasında geldiğinde bağlantıyı zorla yenilemek için —
+        # aynı desen, bkz. _DurZorlama.
+        self._durdur_zorla_event: asyncio.Event | None = None
+        self._durdur_zorla_istendi = False
         # time.monotonic() DEĞİL — cihaz uyku/askıya alma modundan uyandığında
         # CLOCK_MONOTONIC askıda geçen süreyi saymaz, _boşta_gozcusu uzun bir
         # uykuyu hiç göremezdi (bkz. _boşta_gozcusu docstring'i).
@@ -385,6 +414,15 @@ class FarabiLive:
                 # konuşmayı sürdürür. Sınıfta bu "düğme çalışmıyor" demek.
                 if self._loop:
                     self._loop.call_soon_threadsafe(self._sesi_sustur)
+                    # Yerel kuyruk boşaltımı KONUŞMA SIRASINDA tek başına
+                    # yetmez (bkz. _DurZorlama docstring'i) — Gemini sunucu
+                    # tarafında üretmeye devam eder, yeni parçalar kuyruğu
+                    # hemen yeniden doldurur. Yalnızca gerçekten konuşuluyorken
+                    # (self._is_speaking) bağlantıyı zorla yenile; sessizken
+                    # gereksiz reconnect'e gerek yok.
+                    if self._is_speaking and self._durdur_zorla_event:
+                        self._durdur_zorla_istendi = True
+                        self._loop.call_soon_threadsafe(self._durdur_zorla_event.set)
                 self.ui.set_state("IDLE")
             elif anahtar == "devam":
                 self.motor.duraklat(False)
@@ -907,6 +945,14 @@ class FarabiLive:
                 r = await self._isci(name, lambda: pencere_kapat(parameters=args, player=self.ui))
                 result = r or "Done."
 
+            elif name == "ekran_goruntusu_al":
+                r = await self._isci(name, lambda: ekran_goruntusu_al(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Done."
+
+            elif name == "ekrandaki_soruyu_oku":
+                r = await self._isci(name, lambda: ekrandaki_soruyu_oku(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Done."
+
             elif name == "talimat_modundan_cik":
                 if self._ders_kipi != KIP_TALIMAT:
                     result = "Zaten talimat modunda değilim."
@@ -1229,6 +1275,19 @@ class FarabiLive:
         await self._talimat_cikis_event.wait()
         raise _TalimatCikisi()
 
+    async def _durdur_zorla_gozcusu(self) -> None:
+        """
+        `_on_teacher_command`'ın "durdur" dalı, DUR konuşma sırasında
+        geldiğinde (`self._is_speaking`) `self._durdur_zorla_event`'i set
+        eder — bu da TaskGroup'u KASITLI keser (bkz. `_DurZorlama`).
+        Aynı gerekçeyle `_talimat_cikis_gozcusu` gibi ayrı, `tg.create_task()`
+        ile KAYITLI bir gözcü görevi — doğrudan `_execute_tool`/
+        `_on_teacher_command`'dan fırlatmak işe yaramaz, TaskGroup üyesi
+        olmayan bir istisna `async with tg:` bloğunu kesmez.
+        """
+        await self._durdur_zorla_event.wait()
+        raise _DurZorlama()
+
     # Oturum kurulduktan sonra ders durumu bildirimi için beklenecek süre.
     # Açılışın sesli olarak bitmesi gerekir: araya giren bir metin turu,
     # modelin selamlamayı yarıda kesip baştan almasına yol açıyordu.
@@ -1312,6 +1371,25 @@ class FarabiLive:
                 turn_complete=True,
             )
             self.ui.write_log("SYS: Bağlantı yenilendi (talimat modu).")
+            return
+
+        if self.motor.durum.duraklatildi:
+            # DUR konuşma sırasında geldi ve bağlantı bu yüzden zorla
+            # yenilendi (bkz. _DurZorlama) — "dersin ortasındasın, sürdür"
+            # dersek DUR'un amacını baltalarız, model hemen konuşmaya
+            # devam eder. Öğretmenin "durdur" talimatı zaten
+            # transcript'e/oturuma [ÖĞRETMEN KOMUTU] olarak gitmişti; burada
+            # yalnızca yeni bağlantının SESSİZ kalmasını pekiştiriyoruz.
+            await self.session.send_client_content(
+                turns={"parts": [{"text":
+                    "[OTURUM DEVAM] Bağlantı teknik bir sebeple yenilendi. "
+                    "Ders şu an ÖĞRETMEN tarafından DURAKLATILDI. SELAMLAMA "
+                    "YAPMA, hiçbir şey anlatma, soru sorma. 'Devam et' "
+                    "komutu gelene kadar tamamen sessiz kal."
+                }]},
+                turn_complete=True,
+            )
+            self.ui.write_log("SYS: Bağlantı yenilendi (ders duraklatılmış, sessiz).")
             return
 
         d = self.motor.durum
@@ -1674,6 +1752,7 @@ class FarabiLive:
                 f"{tahta.sunucu_url()}/api/egitim/ders_kaydi_yedek",
                 json={"derslik": tahta.derslik() or "bilinmeyen-derslik",
                       "dosya_adi": yol.name, "icerik": icerik},
+                headers=tahta.auth_headers(),
                 timeout=5.0,
             )
         except Exception as e:
@@ -1752,6 +1831,8 @@ class FarabiLive:
                     self._turn_done_event = asyncio.Event()
                     self._talimat_cikis_event = asyncio.Event()
                     self._talimat_cikis_istendi = False
+                    self._durdur_zorla_event = asyncio.Event()
+                    self._durdur_zorla_istendi = False
 
                     log.info("Oturum açıldı. (anahtar %s)", anahtar.durum())
                     if fail_streak:
@@ -1771,6 +1852,7 @@ class FarabiLive:
                     tg.create_task(self._ders_motoru_dongusu())
                     tg.create_task(self._boşta_gozcusu())
                     tg.create_task(self._talimat_cikis_gozcusu())
+                    tg.create_task(self._durdur_zorla_gozcusu())
 
                     # Oturum yenilendiyse öğretmen müdahalesi bayatlamıştır;
                     # yeni oturuma "duraklat" önerisiyle başlamak yanlış.
@@ -1798,6 +1880,23 @@ class FarabiLive:
                     self.session = None    # finally de yapar, quota dalıyla aynı üslup
                     self.set_speaking(False)
                     self.ui.set_state("SLEEPING")
+                    transcript.log_session_end()
+                    continue
+
+                if self._durdur_zorla_istendi:
+                    # DUR konuşma sırasında geldi — GERÇEK bir bağlantı
+                    # hatası değil (bkz. _DurZorlama). fail_streak/backoff
+                    # dalına HİÇ girmeden, ders kaydına "hata" yazmadan
+                    # anında yeniden bağlan. motor.duraklat(True) zaten
+                    # çağrılmıştı (_on_teacher_command) — yeniden bağlanan
+                    # oturum DURAKLATILDI durumunu miras alır,
+                    # _oturum_devam_notu() bunu görüp suskun kalır.
+                    self._durdur_zorla_istendi = False
+                    log.info("DUR konuşma sırasında geldi — bağlantı yenilenip duraklatıldı.")
+                    self.ui.write_log("SYS: Konuşma zorla kesildi (DUR) — bağlantı yenilendi.")
+                    self.session = None
+                    self.set_speaking(False)
+                    self.ui.set_state("IDLE")
                     transcript.log_session_end()
                     continue
 

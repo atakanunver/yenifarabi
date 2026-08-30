@@ -12,7 +12,7 @@ Desteklenen türler değişmedi (bkz. server/dosya.py docstring'i).
 from pathlib import Path
 
 import requests
-
+from core.tahta import auth_headers as _auth_headers
 from core.tahta import sunucu_url as _sunucu_url
 
 ZAMAN_ASIMI = 60.0  # eski client zaman_asimi=45sn + ağ/upload payı
@@ -43,6 +43,7 @@ def file_processor(parameters: dict, player=None, speak=None) -> str:
                 f"{_sunucu_url()}/api/egitim/dosya_isle",
                 data={"action": action, "instruction": instruction},
                 files={"dosya": (path.name, f)},
+                headers=_auth_headers(),
                 timeout=ZAMAN_ASIMI,
             )
         r.raise_for_status()

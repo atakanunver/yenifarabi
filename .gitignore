@@ -64,4 +64,15 @@ tahtayoklama/data/kayitlar/
 # materyali. Dizin diskte kalır, git'e girmez.
 mudur/
 
+# network.txt — 10 tahtanın IP/MAC/SSH bilgileri, etapadmin/ogretmen
+# şifrelerini AÇIK METİN içeriyor (2026-08-23) — .env ile aynı hassasiyette,
+# asla commit edilmez (bkz. CLAUDE.md kural 9).
+network.txt
+
+# tahtayoklama/dashboard/ — pano şifre hash'i ve önbellek DB'si. DB, tahta
+# kayıtlarından türetilen öğrenci adı/devamsızlık verisi içerir — data/roster
+# ile aynı KVKK hassasiyeti.
+tahtayoklama/dashboard/config/gizli.json
+tahtayoklama/dashboard/veri/
+
 # server/ sanal ortamı zaten yukarıdaki **/venv/ ile kapsanıyor

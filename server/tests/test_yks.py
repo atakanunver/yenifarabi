@@ -107,6 +107,51 @@ def test_db_erisilemezse_dedup_sessizce_atlanir_akis_bozulmaz(izole_arsiv, monke
     assert yanit.sayfa == 10
 
 
+def test_karma_dosyada_ders_baslikla_filtrelenir(izole_arsiv, sahte_kayit):
+    """2026-08-30, 9-A canlı hatası: 'Tarih' istenince AYT_EA gibi KARMA
+    (Türk Dili + Tarih + Coğrafya tek dosyada) bir kaynaktan Türk Dili
+    sorusu geliyordu — gerçek dosyada doğrulandı, her sayfa kendi bölüm
+    başlığını (ör. 'TARİH-1') ilk satırında tekrarlıyor. `ders` artık bu
+    başlığa göre SERT filtre, yalnızca skor önyargısı değil."""
+    _metin_dosyasi_yaz(izole_arsiv, "karma.txt", {
+        20: "TÜRK DİLİ VE EDEBİYATI\nEski Çağ uygarlıklarının yaratılış "
+            "efsaneleri üzerine bir okuma parçası sorusu",
+        82: "TARİH-1\nEski Çağ Medeniyetlerinde ilk yazılı hukuk metinleri "
+            "üzerine bir soru",
+    })
+
+    yanit = yks.yks_sorusu_endpoint(
+        yks.YksIstek(derslik="9-A", ders="Tarih", konu="Eski Çağ Medeniyetleri")
+    )
+    assert yanit.status == "ok"
+    assert yanit.sayfa == 82   # TARİH-1 başlıklı sayfa, Türk Dili DEĞİL
+
+    # Aynı sorgu, ders verilmeden — eski davranış hâlâ mümkün (bilerek
+    # gevşek), ikisi de aday olabilir; yalnızca REGRESYON olmadığını
+    # doğruluyoruz (en az bir sonuç dönüyor).
+    yks._OTURUMLAR.clear()
+    sahte_kayit["gosterilmisler"].clear()
+    yanit2 = yks.yks_sorusu_endpoint(
+        yks.YksIstek(derslik="9-A", konu="Eski Çağ Medeniyetleri")
+    )
+    assert yanit2.status == "ok"
+
+
+def test_temiz_baslik_yoksa_eski_davranisa_duser(izole_arsiv, sahte_kayit):
+    """TYT gibi dosyalarda temiz bölüm başlığı yok (ölçüldü) — filtre bu
+    durumda hiçbir sayfayı elemeMELİ, eski (yalnızca kelime skoru)
+    davranışa düşmeli."""
+    _metin_dosyasi_yaz(izole_arsiv, "karisik.txt", {
+        5: "başlıksız düz metin — fizik hareket hız zaman grafiği sorusu",
+    })
+
+    yanit = yks.yks_sorusu_endpoint(
+        yks.YksIstek(derslik="9-A", ders="Fizik", konu="hareket hız zaman")
+    )
+    assert yanit.status == "ok"
+    assert yanit.sayfa == 5
+
+
 def test_gosterim_hem_yeni_arama_hem_sonrakinde_kaydedilir(izole_arsiv, sahte_kayit):
     _metin_dosyasi_yaz(izole_arsiv, "arsiv1.txt", {
         10: "matematik türev limit sorusu birinci",

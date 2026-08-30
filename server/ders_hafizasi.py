@@ -21,12 +21,14 @@ hariç tutulur — Farabi kendi kendini "geçmiş ders" saymaz.
 import re
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+import auth
 from metin_araclari import kelimeler as _kelimeler
 
-router = APIRouter()
+# FAZ 1 (IMPLEMENT) — bkz. icerik.py'deki aynı değişikliğin notu.
+router = APIRouter(dependencies=[Depends(auth.dogrula_tahta)])
 
 YEDEK_DIR = Path(__file__).resolve().parent / "yedekler" / "ders_kaydi"
 MAX_KARAKTER = 6000  # ders_icerigi/yks_sorulari ile aynı bütçe
@@ -132,10 +134,19 @@ def ders_hafizasi(istek: HafizaIstek):
                   or "konu belirtilmemiş")
     govde = _govde_kirp(icerik)
 
-    return {"metin": (
-        f"[Geçmiş ders: {_tarih_etiketi(secilen)}] İşlenen konu(lar): {konu_ozeti}\n\n"
-        f"Aşağıdaki metin o dersin HAM kaydıdır (kelimesi kelimesine SINIFA "
-        f"OKUMA) — öğretmene kısa, konuşma diliyle bir hatırlatma yap: "
-        f"'geçen ders (tarih) şunları işlemiştik: …' tarzında, 2-3 cümleyi "
-        f"geçmeyecek şekilde özetle.\n\n{govde}"
-    )}
+    first_ders = ""
+    first_konu = ""
+    if cerceveler:
+        first_ders, first_konu = cerceveler[0]
+
+    return {
+        "metin": (
+            f"[Geçmiş ders: {_tarih_etiketi(secilen)}] İşlenen konu(lar): {konu_ozeti}\n\n"
+            f"Aşağıdaki metin o dersin HAM kaydıdır (kelimesi kelimesine SINIFA "
+            f"OKUMA) — öğretmene kısa, konuşma diliyle bir hatırlatma yap: "
+            f"'geçen ders (tarih) şunları işlemiştik: …' tarzında, 2-3 cümleyi "
+            f"geçmeyecek şekilde özetle.\n\n{govde}"
+        ),
+        "ders": first_ders,
+        "konu": first_konu
+    }

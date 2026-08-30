@@ -22,6 +22,7 @@ eski client-taraflı `_zinciri_dene`'nin "failure text is binding" ilkesiyle
 aynı. Çağıran taraf kendi "sınırlı devam et" mesajını üretir.
 """
 
+from core.tahta import auth_headers as _auth_headers
 from core.tahta import sunucu_url as _sunucu_url
 
 ZAMAN_ASIMI_METIN = 45.0    # bulut LLM zinciri birden fazla sağlayıcı deneyebilir
@@ -35,6 +36,7 @@ def metin_uret(gorev: str, istem: str, sistem: str | None = None) -> str:
         r = requests.post(
             f"{_sunucu_url()}/api/egitim/metin_uret",
             json={"gorev": gorev, "istem": istem, "sistem": sistem},
+            headers=_auth_headers(),
             timeout=ZAMAN_ASIMI_METIN,
         )
         r.raise_for_status()
@@ -55,6 +57,7 @@ def gorsel_uret(gorev: str, istem: str, resim_bytes: bytes, mime: str = "image/j
             f"{_sunucu_url()}/api/egitim/gorsel_uret",
             data={"gorev": gorev, "istem": istem},
             files={"dosya": ("gorsel.jpg", resim_bytes, mime)},
+            headers=_auth_headers(),
             timeout=ZAMAN_ASIMI_GORSEL,
         )
         r.raise_for_status()

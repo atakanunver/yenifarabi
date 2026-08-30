@@ -17,10 +17,11 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from sentence_transformers import CrossEncoder, SentenceTransformer
 
+import auth
 import client_durum
 import db
 import ders_hafizasi
@@ -150,17 +151,24 @@ _GUVENLI_AD = re.compile(r"^[A-Za-z0-9ÇĞİÖŞÜçğıöşü_.-]+$")
 
 @app.get("/health")
 def health():
+    # FAZ 1 (IMPLEMENT) — kasıtlı olarak auth DIŞI: systemd/izleme araçları
+    # (`systemctl status`, gelecekteki bir healthcheck) board anahtarı
+    # taşımaz; bu uç yalnızca "süreç ayakta mı" der, ders/kitap/tahta
+    # içeriği DÖNDÜRMEZ — korunacak bir sır yok. Bkz. FAZ 1 raporu
+    # "AUTH KAPSAMI" bölümü.
     return {"status": "ok"}
 
 
 @app.get("/ready")
 def ready():
+    # Aynı gerekçe — bkz. health() üstündeki not.
     if not durum["hazir"]:
         raise HTTPException(status_code=503, detail="Modeller/DB henüz hazır değil")
     return {"status": "ready"}
 
 
-@app.post("/api/egitim/question", response_model=SoruYanit)
+@app.post("/api/egitim/question", response_model=SoruYanit,
+          dependencies=[Depends(auth.dogrula_tahta)])
 def soru_sor(istek: SoruIstek):
     if not durum["hazir"]:
         raise HTTPException(status_code=503, detail="Sunucu henüz hazır değil")
@@ -190,7 +198,8 @@ def soru_sor(istek: SoruIstek):
     )
 
 
-@app.get("/api/egitim/kitaplar", response_model=list[KitapBilgisi])
+@app.get("/api/egitim/kitaplar", response_model=list[KitapBilgisi],
+         dependencies=[Depends(auth.dogrula_tahta)])
 def kitaplar_listesi():
     """Client bir kitabı yalnızca dosya adıyla tanıyor (`icerik/kitaplar.json`),
     `kitap_id` bilmiyor. `sinif_kitap` tablosu henüz boş (gerçek okul verisi
@@ -209,7 +218,7 @@ def kitaplar_listesi():
     ]
 
 
-@app.post("/api/egitim/ders_kaydi_yedek")
+@app.post("/api/egitim/ders_kaydi_yedek", dependencies=[Depends(auth.dogrula_tahta)])
 def ders_kaydi_yedek(istek: DersKaydiYedek):
     """Client, oturum kapanışında (`_temiz_kapan`) kendi ders kaydı dosyasının
     içeriğini buraya tek seferlik yedekler (client/core/transcript.py,

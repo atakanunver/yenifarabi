@@ -133,7 +133,10 @@ ARACLAR: list[Arac] = [
             "sayfasını aç'. No topic/theme matching happens here — this is "
             "purely a page-number lookup. Do NOT use this for topic "
             "narration (that's ders_icerigi) or answering a question "
-            "(that's kitap_sorusu)."
+            "(that's kitap_sorusu). The tool result now also includes the "
+            "page's real text when available (labeled SAYFA METNİ) — base "
+            "any narration strictly on that text, never invent page content "
+            "if it's missing."
         ),
         parametreler={
             "type": "OBJECT",
@@ -486,6 +489,49 @@ ARACLAR: list[Arac] = [
         calisma="satirici",
         kip=(KIP_TALIMAT,),
         cikti="onay",
+    ),
+    Arac(
+        ad="ekran_goruntusu_al",
+        aciklama=(
+            "Takes a screenshot of the board's OWN screen (whatever is "
+            "currently shown — a book page, content panel text, etc.) and "
+            "adds it to the lesson log. NOT a camera — this board has no "
+            "camera hardware, this only captures the on-screen display "
+            "itself. Call when the teacher explicitly asks to save/log what "
+            "is currently on screen, e.g. 'ekran görüntüsü al', 'bunu "
+            "kaydet'."
+        ),
+        parametreler={"type": "OBJECT", "properties": {}},
+        izin="ekran.yakala",
+        maliyet="yerel",
+        zaman_asimi=8.0,
+        kip=KIP_HEPSI + (KIP_TALIMAT,),
+        cikti="onay",
+    ),
+    Arac(
+        ad="ekrandaki_soruyu_oku",
+        aciklama=(
+            "Captures the board's OWN screen (not a camera — this board has "
+            "none) and reads/solves/explains whatever question or content is "
+            "currently displayed, via cloud OCR. Call when the teacher or a "
+            "student asks about 'ekrandaki soru/yazı/görsel' without it "
+            "coming from ders_icerigi/pdf_sayfa/kitap_sorusu (e.g. something "
+            "manually opened, drawn, or pasted on screen). Prefer "
+            "kitap_sorusu/ders_icerigi for textbook content — this is for "
+            "reading whatever is ACTUALLY on screen right now, sight-unseen."
+        ),
+        parametreler={
+            "type": "OBJECT",
+            "properties": {
+                "talimat": {"type": "STRING", "description": "What to do with what's read, e.g. 'çöz ve açıkla', 'özetle'. Defaults to reading, solving, and explaining."},
+            },
+            "required": [],
+        },
+        izin="ekran.yakala",
+        maliyet="dusuk",
+        zaman_asimi=45.0,
+        kip=KIP_HEPSI + (KIP_TALIMAT,),
+        cikti="metin",
     ),
     Arac(
         ad="shutdown_farabi",

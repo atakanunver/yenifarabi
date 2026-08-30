@@ -23,8 +23,8 @@ edilir (mimari.md §2: "Farabi asla dersi bozmaz") — main.py'nin genel
 """
 
 import requests
-
 from actions.ders_icerigi import _ders_eslesir
+from core.tahta import auth_headers as _auth_headers
 from core.tahta import sunucu_url as _sunucu_url
 
 ZAMAN_ASIMI_GET  = 5.0            # kitap listesi küçük, hızlı
@@ -48,7 +48,8 @@ def _kitap_listesi() -> list[dict] | None:
     if _KITAP_ONBELLEK is not None:
         return _KITAP_ONBELLEK
     try:
-        r = requests.get(f"{_sunucu_url()}/api/egitim/kitaplar", timeout=ZAMAN_ASIMI_GET)
+        r = requests.get(f"{_sunucu_url()}/api/egitim/kitaplar", headers=_auth_headers(),
+                          timeout=ZAMAN_ASIMI_GET)
         r.raise_for_status()
         _KITAP_ONBELLEK = r.json()
         return _KITAP_ONBELLEK
@@ -107,6 +108,7 @@ def kitap_sorusu(parameters: dict | None = None, player=None, speak=None, **_) -
         r = requests.post(
             f"{_sunucu_url()}/api/egitim/question",
             json={"kitap_id": kitap_id, "soru": soru},
+            headers=_auth_headers(),
             timeout=ZAMAN_ASIMI_POST,
         )
         r.raise_for_status()

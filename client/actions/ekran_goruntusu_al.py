@@ -1,9 +1,16 @@
 """
-actions/ekran_goruntusu_al.py — Tahtanın ekran görüntüsünü alır ve loglara ekler.
+actions/ekran_goruntusu_al.py — Tahtanın KENDİ ekranının görüntüsünü alır ve
+ders loglarına ekler. Kamera/webcam DEĞİL — bu tahtada kamera donanımı yok
+(2026-08-30 doğrulandı), yalnızca o an ekranda gösterilen şey yakalanır.
+
+2026-08-30: `ui.py::_ekran_goruntusu_yakala` (GUI-thread slot, `_screenshot_sig`
+ile tetiklenir) eksikti — bu dosya var ama hiçbir şey yakalamıyordu, kayıt da
+BURADAN değil o slot'tan yapılıyor (`transcript.log_line`, GUI thread'inde).
+Ayrıca bu tool `actions/kayit.py::ARACLAR`'a hiç kayıtlı değildi, modele hiç
+sunulmuyordu.
 """
 
 import threading
-from core import transcript
 
 
 def ekran_goruntusu_al(parameters: dict | None = None, player=None, speak=None, **_) -> str:

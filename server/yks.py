@@ -29,15 +29,18 @@ import time
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+import auth
 import db
 from icerik import DATA_DIR, ONBELLEK, render_pdf_sayfa
 from metin_araclari import kelimeler as _kelimeler
+from metin_araclari import norm as _norm
 
-router = APIRouter()
+# FAZ 1 (IMPLEMENT) — bkz. icerik.py'deki aynı değişikliğin notu.
+router = APIRouter(dependencies=[Depends(auth.dogrula_tahta)])
 log = logging.getLogger("yks")
 
 METIN_DIR = DATA_DIR / "icerik" / "yks_metin"
@@ -66,14 +69,49 @@ def _sayfalara_ayir(metin: str) -> list[tuple[int, str]]:
     return sayfalar
 
 
+# 2026-08-30 — gerçek sınıf hatası: "tarih için soru getir" dedi,
+# CIKMIS_SORULAR_...AYT_EA_1.txt gibi KARMA (Eşit Ağırlık: Türk Dili ve
+# Edebiyatı + Tarih + Coğrafya + Felsefe tek dosyada) kaynaklardan Türk Dili
+# sorusu geldi. `ders` o zamana kadar yalnızca kelime torbasına karışan bir
+# skor önyargısıydı — dosya/sayfa hiç FİLTRELENMİYORDU. Bu tür dosyalarda
+# her sayfa, o sayfanın ait olduğu bölümün adını (ör. "TÜRK DİLİ VE
+# EDEBİYATI", "TARİH-1") kendi ilk satırında TEKRARLIYOR (doğrulandı:
+# AYT_EA_1.txt'de "TARİH-1" s.77-98+ arası her sayfanın ilk satırı). Bu
+# başlığı gerçek bir bölüm başlığına benziyorsa (kısa, büyük harf) sabit
+# gerçek olarak alıp `ders` ile eşleşmiyorsa sayfayı TAMAMEN ELE — yalnızca
+# skor önyargısı değil. Başlık belirsiz/yoksa (TYT gibi karışık dosyalarda
+# temiz bölüm başlığı bulunmuyor, ölçüldü) ESKİ davranışa (filtre yok,
+# yalnızca kelime skoru) düşülür — tek-konulu/başlıksız dosyalarda regresyon
+# olmaz.
+_BOLUM_BASLIGI = re.compile(r"^[A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜ0-9 .\-]{3,45}$")
+
+
+def _sayfa_bolum_basligi(govde: str) -> str | None:
+    for satir in govde.strip().splitlines()[:2]:
+        satir = satir.strip()
+        if satir and _BOLUM_BASLIGI.match(satir):
+            return satir
+    return None
+
+
+def _ders_baslikla_eslesir(ders: str, baslik: str) -> bool:
+    if not ders:
+        return True
+    ders_n, baslik_n = _norm(ders), _norm(baslik)
+    return any(k in baslik_n for k in ders_n.split() if k)
+
+
 def _dosyadaki_en_iyi_sayfalar(dosya: Path, sorgu_kelimeler: set[str],
-                                adet: int) -> list[tuple[int, str, float]]:
+                                adet: int, ders: str = "") -> list[tuple[int, str, float]]:
     try:
         metin = dosya.read_text(encoding="utf-8", errors="ignore")
     except OSError:
         return []
     sonuclar = []
     for no, govde in _sayfalara_ayir(metin):
+        baslik = _sayfa_bolum_basligi(govde)
+        if baslik and not _ders_baslikla_eslesir(ders, baslik):
+            continue  # bu sayfa AÇIKÇA başka bir dersin bölümünde — ele
         sayfa_kelimeler = _kelimeler(govde)
         if not sayfa_kelimeler:
             continue
@@ -218,7 +256,8 @@ def yks_sorusu_endpoint(istek: YksIstek) -> YksYanit:
 
     adaylar: list[tuple[str, int, str, float]] = []
     for dosya in sorted(METIN_DIR.glob("*.txt")):
-        for no, govde, puan in _dosyadaki_en_iyi_sayfalar(dosya, sorgu_kelimeler, istek.adet):
+        for no, govde, puan in _dosyadaki_en_iyi_sayfalar(
+                dosya, sorgu_kelimeler, istek.adet, ders=istek.ders):
             adaylar.append((dosya.stem, no, govde, puan))
     adaylar.sort(key=lambda x: x[3], reverse=True)
 

@@ -4,9 +4,9 @@
 -- İKİ TABLO, İKİ AMAÇ, KARIŞTIRILMAZ (CLAUDE.md, "Loglama"):
 --   metrik   -> yalnızca süre + durum + skor. İçerik YOK. Sınırsız saklanır.
 --   soru_log -> soru/cevap metni YALNIZCA düşük skorlu ok / yetersiz_kaynak /
---               sayi_kontrolu_reddi / iptal / hata durumlarında. 90 gün sonra
---               silinir (bkz. aşağıdaki not — otomatik silme mekanizması bu
---               şemaya dahil değil, ayrı bir görev/cron gerektirir).
+--               sayi_kontrolu_reddi / iptal / hata durumlarında. SÜRESİZ
+--               saklanır (bkz. aşağıdaki not — "90 gün sonra silinir" kuralı
+--               2026-08-18'de BİLİNÇLİ kaldırıldı, hiç uygulanmamıştı).
 --
 -- Öğrenci kimliği hiçbir tabloda yok, ses hiçbir tabloda yok (mimari.md §14).
 
@@ -43,7 +43,11 @@ CREATE TABLE IF NOT EXISTS soru_log (
 
 CREATE INDEX IF NOT EXISTS idx_soru_log_ts ON soru_log(ts);
 
--- NOT (2026-08-11): "90 gün sonra otomatik silinir" kuralı burada mekanik
--- olarak kurulmadı — pg_cron ya da harici bir cron betiği gerektirir, bu
--- mimari.md'de yeni bir bağımlılık onayı gerektirebilir (CLAUDE.md Kural 8).
--- Şimdilik elle: DELETE FROM soru_log WHERE ts < now() - interval '90 days';
+-- NOT (2026-08-18, kök CLAUDE.md "Loglama" bölümünde de kayıtlı): "90 gün
+-- sonra silinir" kuralı BİLİNÇLİ olarak kaldırıldı — hiçbir zaman
+-- uygulanmamıştı (crontab'da/kodda buna karşılık gelen bir DELETE hiç
+-- yoktu, bir kod incelemesinde bulundu). Kullanıcı bunu hata olarak değil,
+-- olması gereken durum olarak onayladı: kimlik zaten tutulmadığı için
+-- (§14) süresiz saklamanın ek bir KVKK riski taşımadığı değerlendirmesiyle.
+-- Otomatik silme mekanizması YOK, kasıtlı olarak yok — tekrar istenirse
+-- kök CLAUDE.md'nin "Loglama" notu güncellenmeli.
