@@ -167,6 +167,15 @@ actions/                 one public function per module — the
                          synthesis — no Gemini (see "Provider notes" below)
   site_goster.py         whitelisted reference sites, no browser
 
+> ⚠️ **`yoklama_al.py` REMOVED (2026-08-31).** Found unregistered (not in
+> `kayit.py`, no `ad="yoklama_al"` entry, unreachable from tool dispatch) and
+> shelling out to launch `tahtayoklama/yoklama.py` (a separate, sibling
+> project) via `subprocess.Popen` — dead, half-wired integration code, not a
+> capability Farabi's own actions should have. Deleted from the repo; will
+> disappear from 9-A on its next `farabiguncelle.sh` pull. If yoklama
+> integration is wanted later, it needs a real `Arac(...)` entry and an
+> explicit capability-boundary decision, not a resurrected copy of this file.
+
 core/
   prompt.txt         26K teaching persona (v2.0) — USER-OWNED
   vision_prompt.txt 1.0K vision persona — USER-OWNED, easy to miss
@@ -1224,6 +1233,26 @@ copy of the code.** Not in `docs/mimari.md` yet.
 >   (`actions/pdf_sayfa.py`/`ders_icerigi.py`'s new `derslik` field, see root
 >   `CLAUDE.md`'s server/ section) while `venv/`, `logs/`, `icerik/`,
 >   `config/api_keys.json` stayed untouched on 9-A's disk.
+>
+> **Re-verified 2026-08-31 (SSH, `server/tahta-ssh.sh 9-A`):** `md5sum` over
+> all 61 `.py` files under `~/farabi/client` on 9-A matches this repo's
+> `client/` byte-for-byte, and `~/farabi/client/CLAUDE.md` on the board
+> matched this file too (one line behind — the Ruff-linter correction made
+> the same session, not yet pulled; expected, self-resolves on next
+> `farabiguncelle.sh`). 9-A's real `config/api_keys.json` (not readable by
+> content per this repo's own "Okuma" rule, only checked field-by-field by
+> name) has `derslik=9-A`, `sunucu_url` pointed at the real server,
+> `tahta_anahtari` set, `ders_kipi=ogretmenli`, and none of the five cloud-
+> provider keys (correctly stripped 2026-08-14). **This repo's own local
+> `client/config/api_keys.json` (dated 2026-08-09, `derslik: "10-A"`, no
+> `tahta_anahtari`, still had the five cloud keys) and the equally stale
+> `client/config/api_keys.json.zip` (a zipped backup from 2026-07-31) were
+> deleted (2026-08-09/07-31-dated, both gitignored, neither ever tracked) —
+> confirmed unused first: excluded from `farabiguncelle.sh`'s rsync, no board
+> ever received them.** If you need a working local config again, copy
+> `config/api_keys.example.json` and fill it in by hand — do not treat a
+> stray `api_keys.json` found lying around as ground truth for any board's
+> real config without checking it the way this note did.
 >
 > **Open gap, not yet resolved:** the server-side auto-commit that used to
 > give `client/` a git history (`git add -A -- client/ && git commit`,

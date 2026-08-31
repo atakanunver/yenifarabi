@@ -189,20 +189,32 @@ artık ELLE commit edilmeli.
 çalışıyor. `tahtalar.json`'da listelenen diğer 6 "aktif sınıf" tahtasında
 `~/farabi/client/` dizini bile yok — Farabi hiç kurulmamış.
 
-## 11. Auth — kod hazır, yürürlükte DEĞİL
+## 11. Auth — üründe ZORUNLU (2026-08-30'da tamamlandı, bu satır önceden bayattı)
+
+Bu bölüm önceden "kod hazır, yürürlükte DEĞİL" diyordu — o an doğruydu ama
+aynı gün (2026-08-30) durum değişti ve satır hiç güncellenmedi; 2026-08-31'de
+doğrudan doğrulanarak (401 testi) düzeltildi.
 
 `server/auth.py` (`dogrula_tahta`, tüm router'lara `Depends()` ile bağlı)
-`X-Farabi-Board-Key` header'ını `board_keys`'e karşı doğruluyor. Ama:
-- Client hiçbir zaman bu header'ı göndermiyor (`core.tahta.auth_headers()`
-  diye bir fonksiyon yok).
-- `server/config/api_keys.json`'da `board_keys` boş.
-- `/etc/systemd/system/farabi-api.service.d/override.conf` içinde
-  `FARABI_AUTH_REQUIRED=0` — acil rollback anahtarı, auth'u tamamen
-  kapatıyor.
+`X-Farabi-Board-Key` header'ını `board_keys`'e karşı doğruluyor, ve artık:
+- `core/tahta.py::auth_headers()`/`tahta_anahtari()` yazıldı; `main.py` +
+  6 `actions/*.py` dosyası + `core/saglayicilar.py` bu header'ı GERÇEKTEN
+  gönderiyor (`client/tests/test_board_auth.py` 5/5).
+- **9-A** için gerçek bir `board_keys` anahtarı üretildi, hem
+  `server/config/api_keys.json`'a hem 9-A'nın kendi
+  `client/config/api_keys.json`'ına yazıldı. Diğer 6 kayıtlı tahta
+  (9-B/10-A/11-A/11-B/12-A/12-B) için placeholder anahtar var ama Farabi
+  client onlarda hiç kurulu değil, henüz kullanılmıyor.
+- `/etc/systemd/system/farabi-api.service.d/override.conf`
+  (`FARABI_AUTH_REQUIRED=0`, acil rollback anahtarı) **kaldırıldı**,
+  `farabi-api.service` yeniden başlatıldı.
 
-Bu üçü birlikte: auth kodu var ama devre dışı. Client tarafı bitirilip
-gerçek board key'leri üretilip dağıtılmadan bu override kaldırılmamalı —
-kaldırılırsa TÜM tahtaların TÜM `/api/egitim/*` çağrıları 401 alır.
+**2026-08-31'de canlıda doğrulandı:** header'sız istek → 401
+(`POST /api/egitim/ders_kaydi_yedek` ile test edildi), 9-A'nın gerçek
+anahtarıyla → 200. `FARABI_AUTH_REQUIRED` varsayılanı zaten güvenli tarafta
+(env değişkeni hiç verilmezse auth AÇIK kalır, `server/auth.py`) — acil
+kapatma yalnızca env değişkenini elle `0` yaparak mümkün, şu an hiçbir yerde
+öyle bir ayar yok.
 
 ## 12. Veri katmanı (PostgreSQL + pgvector)
 
@@ -215,6 +227,31 @@ kaldırılırsa TÜM tahtaların TÜM `/api/egitim/*` çağrıları 401 alır.
 | `soru_log` | düşük-skorlu/reddedilen soru-cevap metni, süresiz (2026-08-18'de bilinçli karar) |
 | `tahta_durum` | heartbeat (derslik, commit_hash, son_heartbeat) |
 | `yks_gosterim` | YKS soru gösterim geçmişi (tekrar göstermemek için) |
+| `kazanim` | **2026-08-31 eklendi** — MEB öğretim programı kazanım kod+metni (kod, sinif, ders, unite, metin), `kod` UNIQUE. Henüz yalnızca Fizik/DKAB/İnkılap dolu — bkz. §12.1 |
+| `kazanim_test_soru` | **2026-08-31 eklendi** — MEB ÖDSGM kazanım testi soruları + embedding, `chunk_egitim`'den AYRI, henüz RAG'a bağlı değil — bkz. §12.1 |
+
+### 12.1 Kazanım katmanı — Hedef → Kanıt → Araç tasarımı (2026-08-31)
+
+Kullanıcının belirlediği tasarım ilkesi, `core/prompt.txt`'e de eklendi
+(aynı gün) — üç tablo bu üç rolü karşılıyor, birbirinin yerine geçmiyor:
+
+1. **Hedef** (`kazanim`) — öğrencinin edineceği beceri/kazanım, MEB öğretim
+   programından (`/mnt/farabi-data/farabi/ogretim_program/`). Ders anlatımının
+   ÇERÇEVESİ budur, içerik değildir.
+2. **Kanıt** (`kazanim_test_soru`) — bu kazanımın edinildiğini gösterecek
+   değerlendirme sorusu, MEB ÖDSGM kazanım testlerinden
+   (`/mnt/farabi-data/farabi/kazanim_test/`).
+3. **Araç** (`chunk_egitim`, ders kitabı) — Hedef'e ulaşmak ve Kanıt'ı
+   çözebilecek yetkinliği kazandırmak için kullanılan içerik/etkinlik
+   havuzu — kendi başına amaç değil.
+
+`chunk_egitim.kazanim_kod` kolonu bu üç tabloyu birbirine bağlamak için
+DB'de zaten var ama kod tarafında hâlâ hiçbir sorguda okunmuyor/
+filtrelenmiyor (RAG Kuralları, kök `CLAUDE.md`) — bu üçlü tasarım
+`kazanim_kod` filtresini gerçek bir sonraki adım yapıyor, ama `server/rag.py`
+sorgu mantığını değiştirmek hâlâ ayrı bir onay gerektiriyor (Kural 6).
+Şu an yalnızca veri katmanı (kazanim + kazanim_test_soru dolduruldu) hazır,
+bağlama mantığı yazılmadı.
 
 ## 13. Tablo çıkarma pipeline'ı (FAZ 1, 2026-08-30)
 

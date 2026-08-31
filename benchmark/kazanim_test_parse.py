@@ -40,17 +40,44 @@ def baslik_bilgisi_cikar(ilk_sayfa_metni: str) -> tuple[int | None, str | None]:
     """İlk sayfanın ilk birkaç satırından (sinif, ders) çıkarır — süsleme
     kutusunun çift-karakter kodunu çözerek. Bulunamazsa (None, None) —
     çağıran bunu dosya adı gibi başka bir ipucuyla tamamlayabilir, hiçbir
-    soru bu yüzden atlanmaz."""
-    satirlar = [s for s in ilk_sayfa_metni.splitlines()[:6] if s.strip()]
-    sinif = ders = None
-    for satir in satirlar:
-        cozulmus = _cift_karakter_coz(satir.strip())
-        m = re.match(r"^(\d{1,2})\.\s*[Ss]ınıf$", cozulmus)
+    soru bu yüzden atlanmaz.
+
+    Ders adı TEK kelime olabilir ("Fizik", her satır kendi başına ikişer kez
+    basılı) YA DA birden fazla satıra yayılmış birden fazla kelime olabilir
+    ("Din Kültürü ve" + "Ahlak Bilgisi", her parça yine ikişer kez basılı) —
+    2026-08-31'de gerçek DKAB/edebiyat dosyalarında bulundu: ilk sürüm yalnızca
+    tek-kelimelik dersleri (Fizik/Matematik/Kimya) tanıyordu, çok kelimeli
+    dersleri (Din Kültürü ve Ahlak Bilgisi, Türk Dili ve Edebiyatı) ya hiç
+    çıkaramıyor ya da yarım çıkarıyordu ("Edebiyatı" gibi). Artık "N. Sınıf"
+    satırından sonraki, kurum-adı satırına ("MEB" geçen) kadarki ardışık
+    tekrarsız satırlar birleştirilip ders adı yapılıyor."""
+    ham_satirlar = [s.strip() for s in ilk_sayfa_metni.splitlines()[:12] if s.strip()]
+    sinif = None
+    sinif_indeksi = None
+    for i, satir in enumerate(ham_satirlar):
+        m = re.match(r"^(\d{1,2})\.\s*[Ss]ınıf$", _cift_karakter_coz(satir))
         if m:
             sinif = int(m.group(1))
-            continue
-        if cozulmus.isalpha() and cozulmus[0].isupper() and sinif is not None and ders is None:
-            ders = cozulmus
+            sinif_indeksi = i
+            break
+    if sinif is None:
+        return None, None
+
+    _DERS_PARCA = re.compile(r"^[A-Za-zÇĞİIÖŞÜçğıiöşü ]+$")
+    parcalar: list[str] = []
+    onceki = None
+    for satir in ham_satirlar[sinif_indeksi + 1:]:
+        cozulmus = _cift_karakter_coz(satir)
+        if re.match(r"^(\d{1,2})\.\s*[Ss]ınıf$", cozulmus):
+            continue  # "12. Sınıf" ikinci kopyası
+        if not _DERS_PARCA.match(cozulmus):
+            # rakam/formül/soru gövdesi içeren ilk satır — ders adı bitti
+            break
+        if cozulmus == onceki:
+            continue  # aynı parçanın ikinci (çift basım) kopyası
+        parcalar.append(cozulmus)
+        onceki = cozulmus
+    ders = " ".join(p.rstrip() for p in parcalar).strip() or None
     return sinif, ders
 
 
@@ -70,19 +97,50 @@ def konu_cikar(ilk_sayfa_metni: str) -> str | None:
     return aday
 
 
+def _sayfa_basligini_temizle(tam_metin: str) -> str:
+    """Süsleme kutusu HER SAYFADA tekrarlanıyor ("MEB ● Ölçme..." satırı +
+    "N. Sınıf"/ders adı çift basılmış hâlde) — 2026-08-31'de bulundu:
+    temizlenmeden `sorulari_ayir` "12. Sınıf" gibi satırları soru 12'nin
+    başlangıcı sanıp gerçek soruların üstüne yazıyordu. Kurum satırını
+    ("MEB" geçen) ve ardışık BİREBİR aynı satır çiftlerini (çift-basım
+    artefaktı — ders adı, "N. Sınıf") atar. Konu başlığı (ör. "Çembersel
+    Hareketler – 1", sayfa altında TEK kez basılı) burada YAKALANMAZ —
+    kasıtlı: hangi sorunun sonuna denk geldiği garanti değil, bilinçli
+    olarak son sorunun metnine küçük bir kuyruk gürültü olarak bırakılıyor."""
+    satirlar = tam_metin.splitlines()
+    temiz: list[str] = []
+    i = 0
+    while i < len(satirlar):
+        satir = satirlar[i]
+        if "MEB" in satir:
+            i += 1
+            continue
+        if i + 1 < len(satirlar) and satir.strip() and satir == satirlar[i + 1]:
+            i += 2
+            continue
+        temiz.append(satir)
+        i += 1
+    return "\n".join(temiz)
+
+
 def sorulari_ayir(tam_metin: str) -> list[dict]:
     """Tüm PDF metnini (sayfalar birleştirilmiş) soru listesine ayırır.
     Her öge: {"soru_no": int, "soru_metni": str, "secenekler": dict|None}."""
-    satirlar = tam_metin.splitlines()
+    satirlar = _sayfa_basligini_temizle(tam_metin).splitlines()
     bloklar: list[tuple[int, list[str]]] = []
     guncel_no, guncel_satirlar = None, []
     for satir in satirlar:
-        m = _SORU_BASI.match(satir.strip())
+        # lstrip (rstrip DEĞİL): "N.\t" gibi satırlarda numaranın hemen
+        # ardından TEK içerik satır sonuna kadar sarkan bir tab/boşluk
+        # geliyor (2026-08-31'de mat_1.pdf'de bulundu) — rstrip/strip bunu
+        # silip _SORU_BASI'nin \s+ şartını kırıyor, soru numarası hiç
+        # yakalanmıyordu.
+        m = _SORU_BASI.match(satir.lstrip())
         if m:
             if guncel_no is not None:
                 bloklar.append((guncel_no, guncel_satirlar))
             guncel_no = int(m.group(1))
-            guncel_satirlar = [m.group(2)]
+            guncel_satirlar = [m.group(2).strip()]
         elif guncel_no is not None:
             guncel_satirlar.append(satir.strip())
     if guncel_no is not None:

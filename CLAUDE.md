@@ -222,19 +222,18 @@ TAMAMI burada (Kural 1'in fiilen tamamlanmış hâli):
 >    `tahta.derslik()`'i isteğe ekliyor. Test: `server/tests/test_icerik.py::
 >    TestKitapBul`. Uçtan uca canlıda doğrulandı (aynı derslik ile cilt 2,
 >    derslik olmadan cilt 1 döndüğü curl ile karşılaştırıldı).
-> 2. **Düzeltilmedi, muhtemel asıl neden — flagged, onay bekliyor:**
->    9-A'nın gerçek transkriptinde (`2026-08-29_12-15-05_9-A.txt`) öğretmen
->    doğrudan sayfa numarası söylüyor ("Bizim 45. sayfa") → Farabi `pdf_sayfa`yı
->    ÇIPLAK çağırıyor (önce/sonra hiçbir `ders_icerigi` çağrısı yok) →
->    `pdf_sayfa` yalnızca PNG döndürür, sayfa METNİ döndürmez → Farabi ekranda
->    ne olduğunu bilmeden içerik uyduruyor, hatta kendi transkriptinde "Sanırım
->    bu sayfada..." ve "Doğru metin bu mu?" diyor — kendi de emin değil. Bu,
->    RAG Kuralları'ndaki "Cevap sadece retrieval sonucundan üretilir" ilkesinin
->    `pdf_sayfa` yolunda hiç uygulanmadığı anlamına geliyor. Olası düzeltme:
->    `pdf_sayfa`'nın yanıtına da o sayfanın gerçek metnini eklemek (aynı
->    `_metin_cikar`/`_kitap_metni` altyapısı zaten var) — ama bu görünürde
->    küçük bir tool'un çıktı şeklini/promptunu değiştiren bir karar, Kural 6
->    gereği uygulanmadan önce onay bekliyor.
+> 2. **DÜZELTİLDİ (2026-08-30, aynı gün, `6ab9328` commit'i içinde — bu not
+>    "flagged, onay bekliyor" derken bayat kalmıştı, 2026-08-31'de koddan
+>    doğrulanıp güncellendi).** Kök neden: öğretmen doğrudan sayfa numarası
+>    söylediğinde ("Bizim 45. sayfa") Farabi `pdf_sayfa`yı ÇIPLAK çağırıyordu
+>    (önce/sonra hiçbir `ders_icerigi` çağrısı yok) → `pdf_sayfa` yalnızca PNG
+>    döndürüyordu, sayfa METNİ döndürmüyordu → Farabi ekranda ne olduğunu
+>    bilmeden içerik uyduruyordu. Fix: `server/icerik.py`'a
+>    `GET /api/egitim/pdf_sayfa_metni` eklendi (`SayfaMetniYanit`, `metin`
+>    alanı); `client/actions/pdf_sayfa.py` artık sayfayı gösterdikten sonra bu
+>    endpoint'i çağırıp modele "buna dayandır" diyerek gerçek sayfa metnini
+>    veriyor. 9-A'da SSH ile doğrulandı (2026-08-31): repodaki kod ile 9-A'daki
+>    kod checksum'ları birebir aynı, bu fix üründe canlı.
 
 > ⚠️ **FAZ 1 (server auth) — rapor ile gerçek durum uyuşmuyor (2026-08-30
 > doğrulandı).** `docs/FAZ1_IMPLEMENT_RAPORU.md` (commit edilmemiş,
@@ -302,7 +301,9 @@ TAMAMI burada (Kural 1'in fiilen tamamlanmış hâli):
 
 ## Şu An Yapılmayacaklar
 
-- ⛔ `/api/idari/*` — Faz 4, endpoint yazılmaz. Şu an yalnızca ders içeriği
+- ⛔ **`/api/idari/*` — KALICI OLARAK İPTAL EDİLDİ (2026-08-31), "Faz 4" artık
+  bir sonraki aşama değil, hiç yapılmayacak bir iş.** Endpoint yazılmayacak,
+  idari tablo/chunk tasarımı gündemde değil. Şu an yalnızca ders içeriği
   (Faz 1) çalışıyor: sunucu `farabi.local`, client 9-A'da; testler bitmedi.
 - ⛔ **Yerel STT/TTS (faster-whisper, Piper) — KALICI OLARAK İPTAL EDİLDİ
   (2026-08-11), Faz 0a'da "henüz gerekmez" değil.** Ses kalıcı olarak Gemini
@@ -458,10 +459,10 @@ Dosya içeriği DB'ye gömülmez.
 
 ## Veri İzolasyonu (kritik)
 
-- `chunk_egitim` — tek chunk tablosu, şu an kurulu olan bu. `chunk_idari` hiç
-  oluşturulmadı (Faz 4, "Şu An Yapılmayacaklar"a bkz.) — DB'de, kodda veya
-  promptlarda idari içerikle ilgili hiçbir referans yok, karışacak bir şey
-  yok.
+- `chunk_egitim` — tek chunk tablosu, kurulu olan bu ve olacak olan da bu.
+  `chunk_idari` hiç oluşturulmadı ve oluşturulmayacak (`/api/idari/*` kalıcı
+  iptal, "Şu An Yapılmayacaklar"a bkz.) — DB'de, kodda veya promptlarda idari
+  içerikle ilgili hiçbir referans yok, karışacak bir şey yok.
 - Tahta token'ı yalnızca `/api/egitim/*` çağırabilir.
 
 ## Gizlilik
@@ -528,10 +529,33 @@ Dosya içeriği DB'ye gömülmez.
 > bir karar. İleride tekrar bir silme politikası istenirse bu not
 > güncellenmeli, kod tarafında hâlâ hiçbir otomatik silme mekanizması yok.
 
+### Log dosyalarını okuma ilkesi (karar: 2026-08-31)
+
+**Log dosyaları önemli — hata/bug avında birincil kanıt, varsayımla debug
+etme.**
+
+- Ders transkriptleri (`client/logs/ders/*.txt` — tahtanın kendi diskinde,
+  repoya committed değil, SSH gerekir: `server/tahta-ssh.sh <derslik> "cat
+  ~/farabi/client/logs/ders/<dosya>.txt"`) derste gerçekten ne konuşulduğunu,
+  hangi tool'un ne zaman çağrıldığını, modelin nerede yanlış yaptığını
+  gösterir — bkz. yukarıdaki "9-A'da gerçek sınıf hatası" notu, tam olarak bu
+  şekilde bulundu. Server'a yedeklenen kopyaları
+  `server/yedekler/ders_kaydi/<derslik>/*.txt`'te (bu makinenin kendi diski,
+  doğrudan okunabilir).
+- `client/logs/farabi.log` (tanı/rotating log, tahtanın diskinde) ikincil
+  kanıt — bağlantı/reconnect/hata izleri.
+- **Server'da dosya bazlı log YOK** — `server/main.py` hiçbir yere
+  `FileHandler` yazmıyor, çıktı yalnızca systemd journal'a gidiyor:
+  `journalctl -u farabi-api.service`.
+- **Bir log dosyası büyükse (kabaca >1000 satır ya da >200KB), önce
+  boyutunu bildir; dosyanın TAMAMINI okumadan önce mutlaka sor.** Hedefli
+  arama (`grep`, `tail`, belirli tarih/derslik aralığı) sormadan yapılabilir
+  — onay yalnızca "dosyanın tamamını context'e çek" istendiğinde gerekir.
+
 ## Okuma
 
 Şunları okuma: `*.pdf`, `data/`, `models/`, `*.onnx`, `venv/`, `__pycache__/`,
-`client/logs/`, `client/config/api_keys.json*`, `server/config/api_keys.json*`,
+`client/config/api_keys.json*`, `server/config/api_keys.json*`,
 `/mnt/farabi-data/farabi/` (kitap/YKS PDF'leri ve türetilmiş içerik — telifli/
 büyük, 2026-08-14'te client'tan buraya taşındı; client'ta artık `kitaplar/`,
 `YKS/`, `icerik/metin`/`ozet`/`yks_metin`/`eslemeler`/`kitaplar.json` YOK).
