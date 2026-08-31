@@ -1,7 +1,7 @@
 # Farabi
 
 Sınıf akıllı tahtalarında çalışan sesli ders asistanı.
-Detaylı mimari: `@docs/mimari.md` OLUŞTUR
+Detaylı mimari: `@docs/mimari.md`
 
 **Donanım (server, hızlı referans):** 2× NVIDIA RTX 3060 12GB 
 İkisi de tam kapasite committed: biri `ollama.service`'e, diğeri
@@ -12,7 +12,7 @@ planlanırken bu iki kartın ZATEN dolu olduğu unutulmamalı.
 ## Komutlar
 
 Client kodu `client/` altında — detaylı komutlar, kurallar, bilinen sorunlar
-için `@client/CLAUDE.md` OLUŞTUR (BU CLIENT KLASÖRÜ TAHTALARA SSH ÜZERİNDEN GÖNDERİLECEK GÜNCELLEMELER BÖYLE YAPILACAK)
+için `@client/CLAUDE.md` (BU CLIENT KLASÖRÜ TAHTALARA SSH ÜZERİNDEN GÖNDERİLECEK GÜNCELLEMELER BÖYLE YAPILACAK)
 
 ```bash
 cd client
@@ -20,6 +20,23 @@ python3 -m venv venv && source venv/bin/activate && pip install -r requirements.
 python main.py               # client çalıştır
 venv/bin/python -m pytest tests/ -q   # test (pytest requirements.txt'te YOK, geliştirici makinesine elle kurulur)
 python tools/dogrula.py       # içerik doğrulama kapısı
+```
+
+Server kodu `server/` altında — FastAPI Brain, bu makinede (`farabi.local`)
+`farabi-api.service` olarak systemd altında çalışıyor
+(`WorkingDirectory=/home/ata/farabi/server`,
+`ExecStart=.../server/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000`).
+
+```bash
+cd server
+python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+venv/bin/uvicorn main:app --reload --port 8000   # geliştirmede elle çalıştır
+venv/bin/python -m pytest tests/ -q              # test (pytest requirements.txt'te var)
+venv/bin/python -m pytest tests/test_icerik.py -q          # tek dosya
+venv/bin/python -m pytest "tests/test_icerik.py::TestKitapBul" -q  # tek sınıf
+
+sudo systemctl status farabi-api.service          # üretim servisi durumu
+sudo systemctl restart farabi-api.service         # kod değişikliğinden sonra üretime almak için
 ```
 
 Lint/formatter yapılandırıFarabi Python kodunda lint ve formatter aracı olarak Ruff kullanılır.
@@ -112,7 +129,12 @@ Detaylar `client/CLAUDE.md`'de (koddan doğrulanmış, güncellenmesi gerekebili
   `server/icerik.py`'de (PyMuPDF client'tan kalktı); client yalnızca PNG indirip
   küçük, boyut sınırlı bir yerel önbelleğe (`icerik/onbellek/pdf_sayfa/`, en
   fazla 30 dosya) yazar.
-  ekran yakalama (`screen_processor.py`) lazım mutlaka kurulmalı
+  ekran görüntüsü alma zorunlu bir yetenek — 9-A'da `ekran_goruntusu_al.py`/
+  `ekrandaki_soruyu_oku.py` olarak kurulu (2026-08-30, bkz. `client/CLAUDE.md`);
+  eski `screen_processor.py` (webcam tabanlı) bu ikisinin YERİNE geçmedi, ayrı
+  ve kaldırılmış bir modüldü — karıştırma. Diğer tahtalarda Farabi client hiç
+  kurulu değil, bu yetenek de dolayısıyla oralarda yok; kurulum yapıldığında
+  buraya da gitmesi gerekiyor.
 - `tools/` — çevrimdışı içerik hazırlama script'leri (kitap/YKS PDF → JSON) hâlâ
   burada duruyor (kod olarak sil) ama **artık bu tahtada koşmuyor** —
   işledikleri `kitaplar/`/`YKS/`/`icerik/` dizinleri client'ta yok; aynı
@@ -280,7 +302,8 @@ TAMAMI burada (Kural 1'in fiilen tamamlanmış hâli):
 
 ## Şu An Yapılmayacaklar
 
-- ⛔ `/api/idari/*` — Faz 4, endpoint yazılmaz iptal et bütün bölümlerden çıkar şuan sadece ders içeriği sunucu farabi.local client 9A client üzerinde çalışıyoruz.testler bitmedi.
+- ⛔ `/api/idari/*` — Faz 4, endpoint yazılmaz. Şu an yalnızca ders içeriği
+  (Faz 1) çalışıyor: sunucu `farabi.local`, client 9-A'da; testler bitmedi.
 - ⛔ **Yerel STT/TTS (faster-whisper, Piper) — KALICI OLARAK İPTAL EDİLDİ
   (2026-08-11), Faz 0a'da "henüz gerekmez" değil.** Ses kalıcı olarak Gemini
   Live'da kalıyor —
@@ -435,9 +458,11 @@ Dosya içeriği DB'ye gömülmez.
 
 ## Veri İzolasyonu (kritik)
 
-- `chunk_egitim` ve `chunk_idari`(sil)kaldır **ayrı tablolar**.
+- `chunk_egitim` — tek chunk tablosu, şu an kurulu olan bu. `chunk_idari` hiç
+  oluşturulmadı (Faz 4, "Şu An Yapılmayacaklar"a bkz.) — DB'de, kodda veya
+  promptlarda idari içerikle ilgili hiçbir referans yok, karışacak bir şey
+  yok.
 - Tahta token'ı yalnızca `/api/egitim/*` çağırabilir.
-- `farabi_client` DB kullanıcısının `chunk_idari` üzerinde yetkisi yok.
 
 ## Gizlilik
 
@@ -449,7 +474,14 @@ Dosya içeriği DB'ye gömülmez.
 > bir mühendislik işi; başka bir projede denenebilir, bu projenin kapsamında
 > değil. Detay: `docs/mimari.md` §14.
 
-- Kamera yok.
+- Fiziksel kamera/webcam donanımı yok, bu değişmedi (9-A'da `/dev/video*` yok,
+  2026-08-30 doğrulandı) — ama bu, tahtanın KENDİ ekranının görüntüsünü alma
+  yeteneğini kapsamaz. **2026-08-30 kararıyla ekran görüntüsü zorunlu bir
+  yetenek**: `ekran_goruntusu_al`/`ekrandaki_soruyu_oku` yalnızca
+  `QApplication.primaryScreen().grabWindow(0)` çağırır — tahtanın o an
+  gösterdiği şeyi (pdf_sayfa/show_content) yakalar, kamera karesi/fiziksel
+  sınıf/öğrenciler asla değil. Ayrıntı: `client/CLAUDE.md`, "Project layout"
+  altında `RESOLVED 2026-08-30` notu.
 - Ham ses diske yazılmaz — Gemini Live'ın kendi transkripsiyonu client'ta
   kalır, Brain'e yalnızca metin gider.
 - Öğrenci kimliği tutulmaz. Anonim "öğrenci sordu".

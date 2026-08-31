@@ -544,7 +544,9 @@ than trimming by eye.
 
 ### Verifying a change
 
-There is no linter or formatter configured. What exists:
+Ruff is configured (root `CLAUDE.md`'s "Komutlar" section) and covers this
+directory: `.venv-tools/bin/ruff check client server benchmark tahtayoklama`
+run from the repo root. Otherwise, what exists here:
 
 ```bash
 venv/bin/python -m pytest tests/ -q        # no network, no model
