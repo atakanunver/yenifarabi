@@ -921,9 +921,20 @@ real problems**, all from reading `logs/farabi.log` + the actual
    `self._talimat_cikis_istendi` **first**, before the generic
    fail_streak/backoff/quota logic — a deliberate mode exit must never be
    logged or treated as a connection error, and must reconnect *immediately*,
-   not after a 3-60s backoff. `shutdown_farabi`'s pattern (`_temiz_kapan`,
-   `os._exit(0)`) was **not** reused here — that ends the whole process,
-   this only needs to renew the connection.
+   not after a 3-60s backoff. **RESOLVED 2026-09-01 — `shutdown_farabi`'s
+   pattern now IS the same family.** This paragraph used to say
+   `shutdown_farabi`'s `_temiz_kapan`/`os._exit(0)` ended the whole process
+   and couldn't be reused; that was true until the "programı açıp kapatmak
+   gerekiyor" complaint (teacher had to manually restart the app between
+   every lesson period, since mode/language buttons never re-enabled after
+   `DERSİ BAŞLAT`) got traced to exactly this `os._exit(0)`. `_temiz_kapan`
+   was renamed `_dersi_bitir` and no longer calls `os._exit` — it sets
+   `self._ders_bitti_event` instead, mirroring `_TalimatCikisi` via a new
+   `_DersBitti`/`_ders_bitti_gozcusu()` pair. The one real difference from
+   talimat-exit stays: `_DersBitti` does **not** reconnect immediately, it
+   parks the loop (`self._oturum_izni.clear()`) until the next `DERSİ
+   BAŞLAT` — reconnecting instantly after "lesson ended" would just hold an
+   idle connection open, the exact waste `BOSTA_KAPATMA_DK` exists to avoid.
 3. **`self._ders_kipi` was a one-way ratchet — genuinely would have broken
    (2) even after building it.** The original `_build_config()` only ever
    set `self._ders_kipi = KIP_TALIMAT` when `ui.talimat_modu` was true; it
@@ -1158,7 +1169,9 @@ needs editing per board after any clone.
 
 ### Server backup — `POST /api/egitim/ders_kaydi_yedek`
 
-On session close (`main.py`'s `_temiz_kapan`), the just-closed session's
+On session close (`main.py`'s `_dersi_bitir`, renamed 2026-09-01 from
+`_temiz_kapan` — see the "Öğretmen talimat modu" section above for why),
+the just-closed session's
 transcript file is POSTed once to the server, which writes it to
 `server/yedekler/ders_kaydi/<derslik>/<dosya_adi>` (server-side, not tracked
 by `ders_hafizasi.py` or anything else — write-only backup, protects against

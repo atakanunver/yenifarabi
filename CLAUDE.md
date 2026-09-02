@@ -175,6 +175,23 @@ TAMAMI burada (Kural 1'in fiilen tamamlanmış hâli):
 - `saglayicilar.py` (2026-08-14 eklendi) — client'ın eski `core/saglayicilar.py`
   sağlayıcı havuzunun BİREBİR taşınmış hâli (GOREV_ZINCIRLERI, soğuma mantığı
   değişmedi). Anahtarlar `server/config/api_keys.json`'da.
+  ⚠️ **2026-09-02 — `gorsel` zinciri onarıldı.** Gerçek çağrılarla ölçüldü:
+  eski zincirin İKİ basamağı da ölüydü (groq `llama-4-scout` → 404, model
+  groq hesabının kataloğunda artık yok; nvidia `llama-3.2-90b-vision` →
+  120 sn'de bile yanıt yok) ve `gorsel_uret` `evrensel_yedek=False` ile
+  çağrıldığı için üçüncü basamak yoktu. Yani `ekrandaki_soruyu_oku` ve
+  `file_processor`'ın görsel işi ~31 sn sonra hata dönüyordu. Loglar bu
+  yolun 2026-08-14'ten beri hiç çağrılmadığını gösterdi — arıza gizliydi,
+  ilk gerçek sınıf kullanımında patlayacaktı. Yeni zincir:
+  `mistral/pixtral-12b-2409` → `mistral/mistral-medium-latest` →
+  `nvidia/meta/llama-3.2-11b-vision-instruct`. Uçtan uca doğrulandı
+  (`POST /api/egitim/dosya_isle`, gerçek kitap sayfası: 200 OK, 10,1 sn).
+  Aynı turda `kitap_ozet` ve `soru_taslak` zincirlerindeki ölü
+  `nvidia/meta/llama-3.3-70b-instruct` (410 Gone) da değiştirildi.
+  **nvidia bu ağdan genel olarak güvenilmez** — metin modelleri 410/timeout
+  veriyor, yalnızca 11b-vision çalışıyor (10,4 sn, ama Türkçe istemde
+  İngilizce cevap eğilimli, o yüzden son çare).
+  Durum tespiti ve ölçümlerin tamamı: kökteki `plan.md`.
 - `proxy.py` (2026-08-14 eklendi) — `POST /api/egitim/metin_uret`,
   `POST /api/egitim/gorsel_uret`: `saglayicilar.py`'nin HTTP yüzü.
 - `dosya.py` (2026-08-14 eklendi) — `POST /api/egitim/dosya_isle` (multipart
@@ -184,13 +201,24 @@ TAMAMI burada (Kural 1'in fiilen tamamlanmış hâli):
   `_ai_metin`) artık ÖNCE yerel Ollama'yı (`qwen2.5:14b`) dener, bulut
   (deepseek→mistral) yalnızca Ollama yanıt vermezse devreye girer — kullanıcı
   kararı: "PDF analizinde bulut token'ı harcanmasın". Görsel özetleme
-  (`gorsel_uret`, `_ai_gorsel`) DEĞİŞMEDİ — hâlâ yalnızca bulut
-  (groq→nvidia), çünkü bu makinede yerel bir vision modeli yok ve iki GPU da
-  zaten dolu (Ollama + embedding/reranker, bkz. bu dosyanın başındaki
-  "Donanım" notu); yerel vision modeli eklemek Kural 8 kapsamında ayrı bir
-  onay gerektirir. Ayrıntı ve ölçüm `raganaliz.txt`'te.
-- `config/api_keys.json` (gitignore'lu) — 5 bulut anahtarı (Gemini YOK, o
-  client'ta kalıyor — ses oturumu mimari kısıtı, bkz. §14).
+  (`gorsel_uret`, `_ai_gorsel`) hâlâ yalnızca bulut — bu makinede yerel bir
+  vision modeli yok; yerel vision modeli eklemek Kural 8 kapsamında ayrı bir
+  onay gerektirir. **2026-09-02: zincirin KENDİSİ değişti** (eski
+  groq→nvidia zinciri tamamen ölüydü, bkz. yukarıdaki `saglayicilar.py`
+  notu) — artık mistral/pixtral birincil. Ayrıca aynı tarihte ölçüldü:
+  GPU 0'da yük altında **7.041 MiB boş** var (CLAUDE.md'nin başındaki
+  "iki kart da tam kapasite committed" notu GPU 1 için doğru, GPU 0 için
+  değil) — yerel VLM tartışması bu ölçümle yapılmalı, varsayımla değil.
+  Ayrıntı: `raganaliz.txt` (2026-08-25) ve kökteki `plan.md` (2026-09-02).
+- `config/api_keys.json` (gitignore'lu) — bulut anahtarları (Gemini YOK, o
+  client'ta kalıyor — ses oturumu mimari kısıtı, bkz. §14) + `board_keys`.
+  ⚠️ **2026-09-02:** `.gitignore` kuralları TAM YOL idi
+  (`server/config/api_keys.json`), yanında duran `apikeys.env` ve
+  `api_keys_yeni 30.08.2026.txt` ignore kapsamı DIŞINDAYDI — bir
+  `git add -A` anahtarları commit ederdi (Kural 9 ihlali, denetimde
+  bulundu). Kurallar desen tabanlı yapıldı: `*.env`, `**/api_keys*`,
+  `!**/api_keys.example.json`. Yeni anahtar dosyası bırakılırken bu
+  desenlere uyduğu `git check-ignore` ile doğrulanmalı.
 
 > ⚠️ **Kritik düzeltme (2026-08-14):** `farabi-api.service` önceden yalnızca
 > `127.0.0.1:8000`'e bağlıydı — bu satırın eski hâli "client artık BAĞLI"
@@ -422,9 +450,18 @@ IP              MAC Adresi           Ağ Arayüzü
 - Cevap **sadece** retrieval sonucundan üretilir. Serbest üretim yok.
 - Ana savunma: skor eşiğin altındaysa LLM'e hiç gitme → "Bu konu ders kitabında
   bulunmuyor."
-- Arama **yalnızca kitap filtresiyle** çalışır (`kitap_id` WHERE koşulu,
-  `server/rag.py::_ilk_k_getir`). ⚠️ **Düzeltme (2026-08-30, doc↔kod
-  denetiminde bulundu):** bu satır önceki sürümlerde "iki aşamalı: (1)
+- Arama **yalnızca kitap filtresiyle** çalışır (`kitap_id` WHERE koşulu) —
+  ama **2026-09-02'den beri İKİ kaynaktan**: `chunk_egitim` top-20
+  (`rag.py::_ilk_k_getir`) + `chunk_tablo` top-10 (`rag.py::_tablo_getir`),
+  ikisi de aynı `kitap_id` filtresiyle, ayrı sorgularla. Rerank birleşim
+  üzerinde çalışır, top-4 oradan seçilir; `ESIK_RERANK` (0,5) değişmedi.
+  Ölçüldü (40 soruluk set, 2 kez): 35/40 → **38/40**, Grup A/C bozulmadı,
+  medyan gecikme 5,2 → 5,7 sn. Ayrıntı `docs/mimari.md` §5. Geri dönüş tek
+  satır: `rag.py::TABLO_KAYNAGI = False`. **`chunk_tablo` şu an yalnızca
+  `biyoloji-9` için dolu** — yeni kitap eklendiğinde ölçüm tekrarlanmalı.
+
+  ⚠️ **Daha eski düzeltme (2026-08-30, doc↔kod denetiminde bulundu), hâlâ
+  geçerli:** bu satır o tarihten önceki sürümlerde "iki aşamalı: (1)
   kazanım + kitap filtresi, (2) sonuç yoksa yalnızca kitap" diyordu — bu hiç
   doğru olmamıştı, `chunk_egitim`'in `kazanim_kod` kolonu DB'de var ama kod
   tarafında hiçbir sorguda okunmuyor/filtrelenmiyor. Kazanım bazlı filtre

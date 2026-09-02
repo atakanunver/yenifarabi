@@ -66,10 +66,44 @@ ses client'ta kalıyor, mimari kısıtı (§6).
 ## 5. RAG (`server/rag.py`)
 
 ```
-soru → embed (bge-m3) → pgvector top-20 (kitap_id filtresi) → rerank (bge-reranker-v2-m3)
+soru → embed (bge-m3) → İKİ AYRI pgvector sorgusu (ikisinde de kitap_id filtresi):
+          chunk_egitim top-20  +  chunk_tablo top-10        ← 2026-09-02, FAZ 1
+     → rerank (bge-reranker-v2-m3) BİRLEŞİM üzerinde
+          (tablo adayları rerank'e 1200 karaktere KIRPILARAK girer; LLM'e giden
+           kaynak metin TAM kalır — bkz. aşağıdaki ölçüm notu)
      → top-4 → EŞİK (ESIK_RERANK=0.5, altındaysa LLM'e gitme) → Ollama qwen2.5:14b (temp=0.2)
      → sayı-doğrulama (cevaptaki her sayı kaynak metinde var mı) → {status, answer, sources[]}
 ```
+
+**FAZ 1 (2026-09-02) — `chunk_tablo` retrieval'a bağlandı.** Önceki sürümde
+bu satır "yalnızca `chunk_egitim`" diyordu, o zaman doğruydu. Tasarım kararı:
+tek `UNION` sorgusu DEĞİL, iki ayrı top-K — birleşik sorguda tablo satırları
+metin adaylarını havuzdan iterdi ve yalnızca-metin recall'ı düşerdi.
+`ESIK_RERANK` değiştirilmedi, tablo da aynı kapıdan geçer. `chunk_tablo`
+sorgusu ayrı `try/except` içinde: patlarsa metin yolu hiç etkilenmez (§2).
+Geri dönüş: `rag.py::TABLO_KAYNAGI = False` (tek satır, DB'ye dokunmadan).
+
+Ölçüm (40 soruluk doğrulanmış set, canlı API, her yapılandırma 2 kez):
+
+| Yapılandırma | A | B | C | TOPLAM | medyan | rerank_ms |
+|---|---|---|---|---|---|---|
+| kapalı (taban) | 17/17 | 13/18 | 5/5 | 35/40 %88 | 5,2 sn | 893 |
+| k=10, kırpmasız | 17/17 | 15/18 | 5/5 | 37/40 %92 | 7,9 sn | 3321 |
+| **k=10 + kırpma 1200** | 17/17 | **16/18** | 5/5 | **38/40 %95** | **5,7 sn** | 1439 |
+
+Grup A/C hiç bozulmadı; kazanç tamamen Grup B'de (çoklu-sayfa sentez, bu
+mimarinin bilinen zayıf noktası). **Yan bulgu:** `CrossEncoder` `max_length`
+verilmeden yükleniyor (`main.py`) ve batch en uzun diziye padleniyor — tek
+uzun bir tablo (4571 krk) tüm partinin maliyetini yükseltiyordu. Kırpma hem
+gecikmeyi tabana yaklaştırdı hem doğruluğu artırdı. Aynı etki `chunk_egitim`
+için de geçerli (ort. 1249, en fazla 3122 krk) — oraya da uygulamak muhtemel
+bir kazanç ama AYRI bir değişiklik, kendi 40-soruluk turunu gerektirir.
+**Bilinen sınır:** 1200 karakteri aşan büyük bir tablonun sonraki satırları
+retrieval'ı etkilemez.
+
+**Kapsam notu:** `chunk_tablo` şu an yalnızca `biyoloji-9` için dolu (67
+tablo). Diğer 18 kitap için `tools/tablo_cikar.py` + `benchmark/
+embed_tablo.py` koşturulmadı — koşturulduğunda bu ölçüm TEKRARLANMALI.
 
 Üç katmanlı halüsinasyon savunması: eşik + LLM sıcaklığı + sayı-kontrolü.
 Cevap ≤3 cümle, her cevapta kaynak (`9. Sınıf Biyoloji, s. 84`). Chunk sayfa
@@ -109,12 +143,13 @@ denenebilir, bu projenin kapsamında değil").
 
   | Görev | Zincir |
   |---|---|
-  | `gorsel` | groq `llama-4-scout-17b-vision` → nvidia `llama-3.2-90b-vision` (evrensel yedek YOK) |
+  | `gorsel` | **2026-09-02'de tamamen yenilendi** (eski zincirin İKİ basamağı da ölüydü: groq'ta model artık yok = 404, nvidia 90b-vision zaman aşımı): mistral `pixtral-12b-2409` → mistral `mistral-medium-latest` → nvidia `llama-3.2-11b-vision-instruct`. Evrensel yedek hâlâ YOK (`evrensel_yedek=False`), ama artık üç gerçek basamak var; üçüncüsü bilerek başka sağlayıcıda (ilk ikisi aynı mistral anahtarını paylaşıyor) |
   | `arama_sentez` | deepseek → (evrensel: openrouter/free) |
   | `belge_ozet` | **ollama (yerel, 2026-08-25'ten beri birincil)** → deepseek → mistral |
   | `video_ozet` | deepseek → groq |
-  | `kitap_ozet` | nvidia → deepseek → ollama |
-  | `sembol_duzelt` | deepseek → mistral |
+  | `kitap_ozet` | **groq `openai/gpt-oss-120b`** → deepseek → ollama (2026-09-02: eski 1. basamak `nvidia/meta/llama-3.3-70b-instruct` "410 Gone — end of life" veriyordu, zincir sessizce deepseek'e düşüyordu) |
+  | `sembol_duzelt` | deepseek → mistral → cohere |
+  | `soru_taslak` | deepseek → mistral → **groq `openai/gpt-oss-120b`** → ollama (aynı ölü nvidia modeli buradan da çıkarıldı, 2026-09-02) |
 
   Kota/hata devri: quota-şekilli hata → 4 saat soğuma, diğer her hata →
   sıradaki sağlayıcıya (soğumasız).
@@ -222,7 +257,7 @@ kapatma yalnızca env değişkenini elle `0` yaparak mümkün, şu an hiçbir ye
 |---|---|
 | `kitap` | kitap metadata (sinif, ders, dosya_yolu, hash) |
 | `chunk_egitim` | RAG'ın kullandığı metin chunk'ları + embedding (1024-dim) |
-| `chunk_tablo` | **2026-08-30 eklendi** — tablo verisi (§13), `chunk_egitim`'den AYRI, henüz RAG'a bağlı değil |
+| `chunk_tablo` | **2026-08-30 eklendi, 2026-09-02'de RAG'A BAĞLANDI** (§5) — tablo verisi (§13), `chunk_egitim`'den AYRI tablo ama artık aynı sorguda ikinci kaynak. Şu an yalnızca `biyoloji-9` dolu (67 tablo) |
 | `metrik` | yalnızca süre+durum+skor, içerik yok, süresiz saklanır |
 | `soru_log` | düşük-skorlu/reddedilen soru-cevap metni, süresiz (2026-08-18'de bilinçli karar) |
 | `tahta_durum` | heartbeat (derslik, commit_hash, son_heartbeat) |
@@ -256,9 +291,11 @@ bağlama mantığı yazılmadı.
 ## 13. Tablo çıkarma pipeline'ı (FAZ 1, 2026-08-30)
 
 Kullanıcı isteği: ders kitaplarındaki tabloları (hücre/sütun ilişkisi
-korunarak) RAG'a bağlamak — grafik/şekil anlama (FAZ 2) ve `chunk_tablo`'nun
-retrieval'a dahil edilmesi (FAZ 3) **henüz yapılmadı**, bilinçli olarak
-küçük/güvenli tutuldu:
+korunarak) RAG'a bağlamak. **`chunk_tablo`'nun retrieval'a dahil edilmesi
+(eski "FAZ 3") 2026-09-02'de YAPILDI ve ölçüldü — bkz. §5.** Grafik/şekil
+anlama (eski "FAZ 2") hâlâ yapılmadı; onun mimari önerisi ve ölçümleri
+kökteki `plan.md`'de (2026-09-02 durum tespiti raporu). Çıkarma hattı
+bilinçli olarak küçük/güvenli tutuldu:
 
 ```
 client/tools/tablo_cikar.py  → pdfplumber.find_tables() + kalite filtresi
