@@ -115,7 +115,15 @@ class SoruIstek(BaseModel):
 class Kaynak(BaseModel):
     book: str
     page: int
+    # FAZ 1 (2026-09-02): chunk_egitim.id ile chunk_tablo.id ayrı dizilerden
+    # geliyor — tablo kaynakları NEGATİF chunk_id ile döner (-12 =
+    # chunk_tablo.id 12), bkz. rag.py. Alan tipi değişmedi (int), mevcut
+    # istemciler etkilenmez.
     chunk_id: int
+    # Yeni, VARSAYILANLI alan — geriye dönük uyumlu: eski client'lar bu
+    # alanı hiç okumuyor (client/actions/kitap_sorusu.py yalnızca
+    # `page` ve `book` kullanıyor, koddan doğrulandı).
+    tur: str = "metin"   # "metin" | "tablo"
 
 
 class SoruYanit(BaseModel):
@@ -186,7 +194,8 @@ def soru_sor(istek: SoruIstek):
         sonuc = durum["motor"].sorgula(conn, istek.kitap_id, istek.soru, sinif=sinif, ders=ders)
 
     kaynaklar = [
-        Kaynak(book=kitap_adi, page=k["sayfa"], chunk_id=k["chunk_id"])
+        Kaynak(book=kitap_adi, page=k["sayfa"], chunk_id=k["chunk_id"],
+               tur=k.get("tur", "metin"))
         for k in sonuc["sources"]
     ]
     return SoruYanit(

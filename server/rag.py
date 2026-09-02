@@ -52,6 +52,40 @@ TOP_N = 4
 ESIK_RERANK = 0.5
 DUSUK_SKOR_ESIGI = 0.65
 
+# ── FAZ 1 (2026-09-02): chunk_tablo retrieval'a bağlandı ──────────────────
+# `chunk_tablo` 2026-08-30'da dolduruldu (tools/tablo_cikar.py +
+# benchmark/embed_tablo.py) ama HİÇBİR sorgu onu okumuyordu — 67 gerçek tablo
+# embed edilmiş hâlde boşta duruyordu (plan.md §D.1). "Tablodaki en yüksek
+# değer hangisi?" gibi sorular bu yüzden yalnızca düz sayfa metnine
+# düşüyordu, hücre/sütun ilişkisi kaybolmuş hâline.
+#
+# TASARIM — neden AYRI sorgu, tek birleşik sorgu değil:
+# İki tabloyu tek `UNION` ile çekip top-20 almak, tablo satırlarının metin
+# satırlarını ADAY LİSTESİNDEN DIŞARI İTMESİNE yol açardı; yalnızca-metin
+# sorularında bugünkü recall'ı düşürürdü. Bunun yerine her kaynak KENDİ
+# top-K'sını getirir, rerank BİRLEŞİM üzerinde çalışır, top-4 oradan seçilir.
+# Böylece metin tarafının aday havuzu (TOP_K=20) hiç daralmaz — davranış
+# yalnızca "tablo daha iyi eşleşiyorsa üste çıkabilir" yönünde değişir.
+#
+# ESIK_RERANK (0.5) DEĞİŞTİRİLMEDİ: chunk_egitim düzyazısıyla kalibre
+# edilmişti, `metin_ozet`in ("Tablo: X. hücre — hücre") skor dağılımı
+# ölçülmedi. Ayrı bir eşik icat etmek yerine aynı kapı kullanılıyor —
+# tablo da aynı çıtayı aşmak zorunda.
+TOP_K_TABLO = 10
+# Rerank ADIMI için tablo metni kırpma sınırı (LLM'e giden metin TAM kalır).
+# ÖLÇÜM (2026-09-02): tablo eklenince rerank 893 ms → 3321 ms'ye çıktı —
+# 10 aday için +2,4 sn, yani aday başına ~240 ms (metin adaylarında ~45 ms).
+# Sebep: CrossEncoder'a `max_length` verilmemiş (server/main.py), model
+# 8192 token'a kadar kabul ediyor ve BATCH EN UZUN DİZİYE PADLENİYOR —
+# chunk_tablo.metin_ozet en fazla 4571 karakter (chunk_egitim'de 3122),
+# tek uzun tablo TÜM partinin maliyetini yükseltiyor. Kırpma yalnızca
+# tablo adaylarının rerank görünümüne uygulanır; metin adayları ve LLM'e
+# giden kaynak metin AYNEN korunur (Kural 5, mevcut davranışı bozma).
+RERANK_TABLO_KARAKTER = 1200
+# Tek satırlık geri dönüş anahtarı (plan.md §K): False yapmak sistemi
+# FAZ 1 öncesi davranışa döndürür, DB'ye dokunmadan.
+TABLO_KAYNAGI = True
+
 _SAYI_RE = re.compile(r"\d+(?:[.,]\d+)?")
 
 SISTEM_SABLON = """Sen Farabi'sin, bir ders asistanısın.
@@ -100,6 +134,29 @@ class RagMotoru:
                 (vektor, kitap_id, k),
             )
             return cur.fetchall()  # [(id, sayfa_no, metin, mesafe), ...]
+
+    def _tablo_getir(self, conn, kitap_id: int, vektor, k: int):
+        """chunk_tablo'dan ilk-K aday. `_ilk_k_getir` ile AYNI şekle
+        (id, sayfa_no, metin, mesafe) normalize edilir ki rerank/eşik/LLM
+        yolu tablo ile metni ayırt etmek zorunda kalmasın."""
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, sayfa_no, baslik, metin_ozet, embedding <=> %s AS mesafe
+                FROM chunk_tablo
+                WHERE kitap_id = %s
+                ORDER BY mesafe
+                LIMIT %s
+                """,
+                (vektor, kitap_id, k),
+            )
+            satirlar = cur.fetchall()
+        normal = []
+        for _id, sayfa, baslik, ozet, mesafe in satirlar:
+            bas = (baslik or "").strip()
+            metin = (f"Tablo: {bas}. {ozet}" if bas else f"Tablo. {ozet}")
+            normal.append((_id, sayfa, metin, mesafe))
+        return normal
 
     def _llm_cevap(self, sistem: str, soru: str, timeout: float = 30.0) -> str:
         payload = {
@@ -172,7 +229,23 @@ class RagMotoru:
         # (aşağıda) — burası da aynı desene alındı: `hata` durumu + loglama.
         try:
             vektor = self.embed_model.encode(soru, normalize_embeddings=True)
-            adaylar = self._ilk_k_getir(conn, kitap_id, vektor, TOP_K)
+            # (id, sayfa, metin, mesafe, tur) — `tur` yalnızca kaynak
+            # etiketlemesi/loglama için; rerank ve eşik ikisine de aynı
+            # şekilde uygulanır.
+            # 6. eleman = rerank'e giden metin görünümü (metin adaylarında
+            # tam metnin kendisi, tablo adaylarında kırpılmışı).
+            adaylar = [(*c[:4], "metin", c[2])
+                       for c in self._ilk_k_getir(conn, kitap_id, vektor, TOP_K)]
+            if TABLO_KAYNAGI:
+                # Tablo tarafı BAĞIMSIZ sarmalı: chunk_tablo yoksa/boşsa/
+                # sorgu patlarsa RAG'ın metin yolu HİÇ etkilenmemeli
+                # (mimari.md §2 — "Farabi asla dersi bozmaz"). Bu, aynı
+                # zamanda FAZ 1'in fiilî geri dönüş garantisi.
+                try:
+                    adaylar += [(*c, "tablo", c[2][:RERANK_TABLO_KARAKTER])
+                                for c in self._tablo_getir(conn, kitap_id, vektor, TOP_K_TABLO)]
+                except Exception:
+                    conn.rollback()
             retrieval_ms = int((time.perf_counter() - t0) * 1000)
         except Exception as e:
             toplam_ms = int((time.perf_counter() - t0) * 1000)
@@ -193,7 +266,7 @@ class RagMotoru:
 
         t1 = time.perf_counter()
         try:
-            ciftler = [(soru, c[2]) for c in adaylar]
+            ciftler = [(soru, c[5]) for c in adaylar]
             skorlar_ham = self.reranker.predict(ciftler)
         except Exception as e:
             rerank_ms = int((time.perf_counter() - t1) * 1000)
@@ -208,7 +281,11 @@ class RagMotoru:
         rerank_ms = int((time.perf_counter() - t1) * 1000)
         top_n = siralanmis[:TOP_N]
         en_iyi_skor = float(top_n[0][1])
-        chunk_idler = [int(c[0]) for c, _ in top_n]
+        # chunk_egitim.id ve chunk_tablo.id AYRI bigserial dizileri — aynı
+        # sayı iki farklı satır demek olabilir. `soru_log.donen_chunk_idler`
+        # (integer[]) şemasını değiştirmeden ayırt edebilmek için tablo
+        # kaynakları NEGATİF yazılır: -12 = chunk_tablo.id 12.
+        chunk_idler = [(-int(c[0]) if c[4] == "tablo" else int(c[0])) for c, _ in top_n]
         skor_listesi = [round(float(s), 4) for _, s in top_n]
 
         # ── ANA savunma (mimari.md §8 adım 5) — eşiğin altındaysa LLM'e hiç gitme ──
@@ -220,8 +297,10 @@ class RagMotoru:
                         en_iyi_skor=en_iyi_skor, chunk_idler=chunk_idler, skorlar=skor_listesi)
             return {"status": "yetersiz_kaynak", "answer": None, "sources": [], "latency_ms": toplam_ms}
 
-        kaynaklar = [{"chunk_id": c[0], "sayfa": c[1]} for c, _ in top_n]
-        kaynak_metin = "\n\n".join(f"[chunk] (s. {c[1]}) {c[2]}" for c, _ in top_n)
+        kaynaklar = [{"chunk_id": (-int(c[0]) if c[4] == "tablo" else int(c[0])),
+                      "sayfa": c[1], "tur": c[4]} for c, _ in top_n]
+        kaynak_metin = "\n\n".join(
+            f"[{'tablo' if c[4] == 'tablo' else 'chunk'}] (s. {c[1]}) {c[2]}" for c, _ in top_n)
         sistem = SISTEM_SABLON.format(kaynak=kaynak_metin)
 
         # ── ORTA savunma (mimari.md §8 adım 6) — katı prompt + YETERSIZ_KAYNAK ──
