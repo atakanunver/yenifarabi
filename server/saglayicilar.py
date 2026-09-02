@@ -48,15 +48,47 @@ SAGLAYICI_TANIMLARI = {
     "openrouter": {"base_url": "https://openrouter.ai/api/v1",        "anahtar_alani": "openrouter_api_key"},
     "nvidia":     {"base_url": "https://integrate.api.nvidia.com/v1", "anahtar_alani": "nvidia_api_key"},
     "ollama":     {"base_url": "http://127.0.0.1:11434/v1",           "anahtar_alani": None},
+    # 2026-09-01 eklendi (3 yeni anahtar, müdür PC'sinden): cerebras/sambanova
+    # şu an gerçek çağrıda 402 dönüyor (kredisiz — Cerebras "payment required",
+    # SambaNova "CREDITS_EXHAUSTED"), ama anahtarlar geçerli (models.list OK) ve
+    # 402 zaten _soguma_hakeder_mi'de 4 saatlik soğumayı tetikliyor — bakiye
+    # eklenince kod değişikliği gerekmeden devreye girsinler diye tanımlı
+    # tutuldu, hiçbir GOREV_ZINCIRI'ne henüz eklenmedi. Cohere gerçek bir
+    # chat completion çağrısıyla doğrulandı (BAŞARILI), aktif zincirlere
+    # eklendi (aşağıda).
+    "cerebras":   {"base_url": "https://api.cerebras.ai/v1",          "anahtar_alani": "cerebras_api_key"},
+    "sambanova":  {"base_url": "https://api.sambanova.ai/v1",         "anahtar_alani": "sambanova_api_key"},
+    "cohere":     {"base_url": "https://api.cohere.ai/compatibility/v1", "anahtar_alani": "cohere_api_key"},
 }
 
 GOREV_ZINCIRLERI: dict[str, list[tuple[str, str]]] = {
     "gorsel": [
-        ("groq",   "meta-llama/llama-4-scout-17b-16e-instruct"),
-        ("nvidia", "meta/llama-3.2-90b-vision-instruct"),
+        # 2026-09-02 — ZİNCİR TAMAMEN YENİLENDİ, çünkü ESKİ HÂLİ ÇALIŞMIYORDU.
+        # Ölçüm (gerçek biyoloji-9 s.11 render'ı, tam boy JPEG q85, 277 KB):
+        #   groq/meta-llama/llama-4-scout-17b-16e-instruct → 404, model groq
+        #     hesabının kataloğunda ARTIK YOK (anahtar yenilendi, models.list
+        #     ile doğrulandı: groq'ta hiçbir görsel modeli kalmamış).
+        #   nvidia/meta/llama-3.2-90b-vision-instruct → 30/60/90/120 sn'de de
+        #     yanıt vermiyor (APITimeoutError), fiilen ölü.
+        # Bu iki basamak `gorsel_uret`'in evrensel_yedek=False çağrısıyla
+        # birleşince zincirin tamamı ölüydü: `ekrandaki_soruyu_oku` ve
+        # `file_processor`'ın görsel işi ~31 sn sonra hata döndürüyordu.
+        # Loglar bu yolun 2026-08-14'ten beri hiç çağrılmadığını gösteriyor —
+        # arıza gizliydi, ilk gerçek sınıf kullanımında patlayacaktı.
+        ("mistral", "pixtral-12b-2409"),         # ölçüldü: 8,4–9,4 sn, akıcı Türkçe
+        ("mistral", "mistral-medium-latest"),    # ölçüldü: 12,4–14,5 sn, Türkçe
+        # Üçüncü basamak bilerek BAŞKA bir sağlayıcıda: yukarıdaki ikisi aynı
+        # anahtarı paylaşıyor, tek bir 429/402 ikisini birden soğutur.
+        # Ölçüldü: 10,4 sn, çalışıyor — ama Türkçe istemde İNGİLİZCE cevap
+        # verme eğiliminde, o yüzden son çare.
+        ("nvidia",  "meta/llama-3.2-11b-vision-instruct"),
     ],
     "arama_sentez": [
         ("deepseek", "deepseek-v4-flash"),
+        # 2026-09-01: bu zincirde deepseek dışında hiç sağlayıcı yoktu, tek
+        # başarısızlık doğrudan (universal) openrouter yedeğine düşüyordu —
+        # cohere gerçek çağrıyla doğrulandı, aradaki basamak olarak eklendi.
+        ("cohere",   "command-a-03-2025"),
     ],
     "belge_ozet": [
         # 2026-08-25: Ollama (yerel, ucretsiz) birincil yapildi -- kullanicinin
@@ -66,25 +98,37 @@ GOREV_ZINCIRLERI: dict[str, list[tuple[str, str]]] = {
         # (mimari.md SS2 "Farabi asla dersi bozmaz" ile ayni desen).
         ("ollama",   "qwen2.5:14b"),
         ("deepseek", "deepseek-v4-flash"),
-        ("mistral",  "mistral-large-latest"),
+        ("mistral",  "mistral-medium-latest"),
     ],
     "video_ozet": [
         ("deepseek", "deepseek-v4-flash"),
         ("groq",     "openai/gpt-oss-120b"),
     ],
     "kitap_ozet": [
-        ("nvidia",   "meta/llama-3.3-70b-instruct"),
+        # 2026-09-02: 1. basamak `nvidia/meta/llama-3.3-70b-instruct` ÖLÜ —
+        # gerçek çağrıda "410 Gone: model has reached its end of life".
+        # Zincir sessizce deepseek'e düşüyordu, kimse fark etmemişti. nvidia
+        # bu ağdan genel olarak güvenilmez (gpt-oss-120b de 60 sn'de zaman
+        # aşımına uğradı), bu yüzden metin görevlerinden çıkarıldı; yerine
+        # ölçülmüş çalışan bir basamak kondu (groq, 0,8 sn).
+        ("groq",     "openai/gpt-oss-120b"),
         ("deepseek", "deepseek-v4-flash"),
         ("ollama",   "qwen2.5:14b"),
     ],
     "sembol_duzelt": [
         ("deepseek", "deepseek-v4-flash"),
-        ("mistral",  "mistral-large-latest"),
+        ("mistral",  "mistral-medium-latest"),
+        # 2026-09-01: bu oturumda deepseek tekrar tekrar 30 sn'de zaman aşımına
+        # uğradı, mistral-large 403 veriyordu (yukarıdaki medium'a düşürme de
+        # bu yüzden) — cohere üçüncü, gerçek çağrıyla doğrulanmış bir basamak.
+        ("cohere",   "command-a-03-2025"),
     ],
     "soru_taslak": [
         ("deepseek", "deepseek-v4-flash"),
-        ("mistral",  "mistral-large-latest"),
-        ("nvidia",   "meta/llama-3.3-70b-instruct"),
+        ("mistral",  "mistral-medium-latest"),
+        # 2026-09-02: aynı ölü nvidia modeli (410) burada da vardı — bkz.
+        # kitap_ozet'in yukarıdaki notu. Ölçülmüş çalışan basamakla değişti.
+        ("groq",     "openai/gpt-oss-120b"),
         ("ollama",   "qwen2.5:14b"),
     ],
 }
