@@ -151,8 +151,18 @@ def main() -> int:
 
     ogrenciler = pdfden_cikar(pdf_yolu, a.sinif)
     if not ogrenciler:
+        # 2026-09-02: burada `_sube_harfi(a.sinif)` çağrılıyordu ama o
+        # fonksiyon 2026-08-22 düzeltmesinde KALDIRILMIŞTI (yalnızca şube
+        # harfine bakmak 9-A/10-A/11-A/12-A'yı birbirine karıştırıyordu,
+        # yerine `_sinif_parcala` geldi) — bu satır güncellenmeyi atlamış,
+        # geriye tanımsız bir isim kalmıştı. Sonuç: PDF ayrıştırılamadığında
+        # öğretmen bu yardımcı mesaj yerine ham bir `NameError` görüyordu,
+        # yani tam da en çok yardıma ihtiyaç duyduğu anda. Mesaj artık
+        # eşleşmenin GERÇEKTEN kullandığı iki değeri de gösteriyor.
+        hedef_numara, hedef_sube = _sinif_parcala(a.sinif)
         print(
-            f"UYARI: '{a.sinif}' (şube '{_sube_harfi(a.sinif)}') için hiçbir "
+            f"UYARI: '{a.sinif}' (sınıf '{hedef_numara}', şube "
+            f"'{hedef_sube}') için hiçbir "
             "öğrenci satırı ayrıştırılamadı — ya bu PDF'te o şube yok, ya da "
             "PDF'in biçimi _SATIR_RE/_SUBE_BASLIK_RE'nin varsaydığından "
             "farklı. `python -c \"import pdfplumber; print(pdfplumber.open('"
