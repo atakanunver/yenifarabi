@@ -229,21 +229,40 @@ class TestTabloKaynagi:
         assert motor.sorgula(conn, 1, "soru")["status"] == "ok"
         assert not [s for s, _ in conn.sorgular if "chunk_tablo" in s]
 
-    def test_tablo_rerankte_KIRPILIR_ama_LLM_E_TAM_GIDER(self, motor, monkeypatch):
+    def test_tablo_rerankte_KIRPILIR_metin_KIRPILMAZ(self, motor, monkeypatch):
         """Ölçülmüş performans kararı: uzun tablo metni rerank batch'ini
-        padliyor (893→3321 ms). Kırpma YALNIZCA rerank görünümüne
-        uygulanır; LLM'e giden kaynak metin TAM kalır (Kural 5).
+        padliyor (893→3321 ms, çünkü batch EN UZUN DİZİYE padleniyor).
+        Kırpma YALNIZCA tablo adaylarının rerank görünümüne uygulanır.
 
-        Bu test R-4'ün (metin adaylarını da kırpma) güvenlik ağıdır: aynı
-        ayrımın metin tarafında da korunduğunu doğrulayacak."""
+        BU TEST R-4'ÜN GÜVENLİK AĞIDIR ve bu yüzden aday listesinde
+        MUTLAKA hem tablo hem metin bulunmalı: tek adayla batch'in
+        padlenecek bir şeyi olmaz, yani mekanizma hiç çalışmaz ve test
+        yalnızca "dilimleme oldu" der. Asıl korunan özellik, aynı batch'i
+        paylaşan METİN adayının kırpılmadan geçmesi — R-4 metin tarafına
+        kapak eklerken yanlış yere koyarsa DÜŞMESİ gereken iddia budur."""
         gorulen = []
         monkeypatch.setattr(motor, "_llm_cevap", _llm_sabit("Cevap.", gorulen))
-        uzun = "X" * (rag.RERANK_TABLO_KARAKTER + 500)
-        conn = SahteBaglanti([], [_tablo(1, 5, "Baslik", uzun)])
+        uzun_tablo = "T" * (rag.RERANK_TABLO_KARAKTER + 500)
+        uzun_metin = "M" * (rag.RERANK_TABLO_KARAKTER + 500)
+        conn = SahteBaglanti([_metin(1, 10, uzun_metin)],
+                             [_tablo(2, 5, "Baslik", uzun_tablo)])
         motor.sorgula(conn, 1, "soru")
-        rerank_metni = motor.reranker.gorulen_ciftler[0][1]
-        assert len(rerank_metni) == rag.RERANK_TABLO_KARAKTER
-        assert uzun in gorulen[0][0], "LLM'e giden kaynak metin kırpılmış"
+
+        # rerank'e giden görünümler: (soru, gorunum) çiftlerinin ikinci öğesi.
+        # Tablo görünümü "Tablo: " önekiyle başlar, metin görünümü "M" ile.
+        gorunumler = [c[1] for c in motor.reranker.gorulen_ciftler]
+        tablo_gor = next(g for g in gorunumler if g.startswith("Tablo:"))
+        metin_gor = next(g for g in gorunumler if not g.startswith("Tablo:"))
+
+        # tablo: rerank görünümü kapağa kadar kırpılmış
+        assert len(tablo_gor) == rag.RERANK_TABLO_KARAKTER
+        # metin: AYNI batch'te, kırpılmamış — R-4'ün bozmaması gereken özellik
+        assert metin_gor == uzun_metin, (
+            "metin adayı rerank'te kırpılmış — tablo kapağı yanlışlıkla "
+            "metin tarafına da uygulanıyor")
+        # LLM'e giden kaynak metin her iki türde de TAM (Kural 5)
+        assert uzun_tablo in gorulen[0][0], "LLM'e giden tablo metni kırpılmış"
+        assert uzun_metin in gorulen[0][0], "LLM'e giden sayfa metni kırpılmış"
 
 
 # ══════════════════════════════════════════════════════════════════════

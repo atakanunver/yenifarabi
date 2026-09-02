@@ -206,14 +206,14 @@ tutarlı.
 |---|---|---|---|
 | İnsan onaylı soru | **8 / 40** | **40 / 40** | R-01, insan işi |
 | Değerlendirilen kitap | **1 / 19** | **3 / 19** | R-01 |
-| `server/rag.py` coverage | **%19** | **≥ %70** | T-01, `test_rag.py` |
-| Testi olmayan server modülü | **6** | **≤ 4** | T-01, T-02 |
+| `server/rag.py` coverage | ~~%19~~ → **%96** | ~~≥%70~~ ✅ **AŞILDI** (2026-09-02, `3e93347`) | T-01 tamamlandı |
+| Testi olmayan server modülü | ~~6~~ → **4** | ~~≤4~~ ✅ **KARŞILANDI** (`rag`, `proxy` testlendi; kalan: `dosya`, `db`, `client_durum`, `main`) | T-01/R-2 tamamlandı |
 | `rerank_ms` p99 | **5.220 ms** | **< 4.000 ms** | R-02(a), metin kırpma |
 | Bozuk (`�`) chunk | **13** (Fizik-9) | **0** | R-02(b), **onay gerekir** |
 | Ruff bulgusu | **420** | önce **sabitle** (Q-00) | yapılandırma yoksa hedef anlamsız |
-| Client pinli bağımlılık | **0 / 13** | **13 / 13** | D-01, lockfile |
+| Client pinli bağımlılık | ~~0/13~~ → **13/13** | ✅ **KARŞILANDI** (`bd99d29`, `requirements.lock.txt`) | D-01 tamamlandı |
 | Bandit High | **0** | **0** (koru) | — |
-| Test geçme | **209 / 209** | **209+ / 209+** (koru) | — |
+| Test geçme | ~~209~~ → **248 / 248** | koru | server 65→104, client 144 |
 
 ### Bozulmaması gereken metrikler (§23 takas kuralı)
 
