@@ -17,6 +17,17 @@ burada yalnızca kitap indeksi ve elle eşlemeler doğrulanır.
 Şüpheli sembollerin AI ile temizlenmesi bu betiğin işi DEĞİL — bkz.
 tools/sembol_temizle.py (ayrı, isteğe bağlı, API çağrısı yapan betik).
 
+2026-08-14 server-taşımasından sonra düzeltildi (2026-09-01): eskiden
+`actions.ders_icerigi`den (client'ın kitap-eşleştirme modülü) import
+ediyordu; o modül aynı taşımada ince bir HTTP proxy'ye dönüştürüldü ve
+`KITAP_PATH`/`_elle_eslemeler`/`_json_oku` sildi — bu betik o günden beri
+`ImportError` ile çöküyordu, sessizce. Kanonik veri artık `server/icerik.py`
+DATA_DIR'inde (`/mnt/farabi-data/farabi/`); bu betik `server/`'ı import
+ETMEZ (server'ın FastAPI/pydantic bağımlılıkları client venv'inde kurulu
+değil, `auth.py` da import anında env okuyor) — bunun yerine aynı üç
+yardımcıyı burada, `server/icerik.py`'nin DATA_DIR/KITAP_PATH/ESLEME_DIR
+sabitleriyle birebir eşleşecek şekilde yerel olarak yeniden tanımlar.
+
 Kullanım
 --------
     python tools/dogrula.py                    # kitap indeksi + eşlemeler
@@ -27,13 +38,35 @@ Kullanım
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(BASE_DIR))
+# server/icerik.py'nin DATA_DIR/KITAP_PATH/ESLEME_DIR'iyle birebir aynı —
+# kanonik veri konumu, client'a göreli değil (bkz. yukarıdaki not).
+DATA_DIR = Path("/mnt/farabi-data/farabi")
+KITAP_PATH = DATA_DIR / "icerik" / "kitaplar.json"
+ESLEME_DIR = DATA_DIR / "icerik" / "eslemeler"
 
-from actions.ders_icerigi import _elle_eslemeler, _json_oku, KITAP_PATH  # noqa: E402
+
+def _json_oku(yol: Path):
+    if not yol.exists():
+        return None
+    try:
+        return json.loads(yol.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _elle_eslemeler() -> list[dict]:
+    kayitlar = []
+    try:
+        dosyalar = sorted(ESLEME_DIR.glob("*.json"))
+    except Exception:
+        return kayitlar
+    for yol in dosyalar:
+        veri = _json_oku(yol)
+        if isinstance(veri, dict) and veri.get("bolumler"):
+            kayitlar.append(veri)
+    return kayitlar
 
 # Bir bölüm kitabın bu kadarından fazlasını kaplıyorsa indeks işe yaramaz:
 # sayfa seçimi bütün kitabı taramak zorunda kalır (ölçüm: 233 sayfa = 55,4 sn).
@@ -50,7 +83,8 @@ def kitaplari_dogrula(kitaplar: dict) -> list[dict]:
     sonuc = []
     if not kitaplar:
         return [_satir(RED, "kitaplar.json okunamadı",
-                       "python tools/kitap_index.py kitaplar/ --json icerik/kitaplar.json")]
+                       "python tools/kitap_index.py /mnt/farabi-data/farabi/kitaplar/ "
+                       "--json /mnt/farabi-data/farabi/icerik/kitaplar.json")]
 
     eslenen_kitaplar = {e.get("kitap") for e in _elle_eslemeler()}
 
@@ -75,7 +109,8 @@ def kitaplari_dogrula(kitaplar: dict) -> list[dict]:
                 f"{dosya}: {len(bolumler)} bölümün adı da aynı ({adlar[0][:40]!r})",
                 "Elle eşleme mevcut." if elle_var else
                 "Yayıncı üstbilgisi ünite adı taşımıyor. Konu/tema ile asla "
-                f"eşleşmez. Çözüm: icerik/eslemeler/{Path(dosya).stem}.json"))
+                f"eşleşmez. Çözüm: /mnt/farabi-data/farabi/icerik/eslemeler/"
+                f"{Path(dosya).stem}.json"))
 
         for b in bolumler:
             try:
@@ -135,7 +170,7 @@ def main() -> int:
     print(f"\nÖzet: {len(satirlar)} kontrol · {red} RED · {uyari} UYARI")
     if red:
         print("RED olan kitaplar yayımlanmamalı; elle eşleme yazın "
-              "(icerik/eslemeler/<kitap>.json).")
+              "(/mnt/farabi-data/farabi/icerik/eslemeler/<kitap>.json).")
     return 1 if red else 0
 
 
