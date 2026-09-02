@@ -120,9 +120,12 @@ kopyalarının ayrışması (`RAG_ANALYSIS.md` R-05).
 
 ### 3.5 Bu turda canlı yeniden ölçüm YAPILMADI — gerekçe
 
-1. `recall_test.py` `bge-m3` + `bge-reranker-v2-m3`'ün **ikinci bir kopyasını**
-   yükler; `farabi-api.service` bunları zaten GPU 0'da tutuyor (5.045 MiB boş).
-   Okul günü, servis **aktif** — Kural 2 ("Farabi asla dersi bozmaz").
+1. ~~GPU baskısı~~ — **bu gerekçe 2026-09-02'de ÇÜRÜTÜLDÜ.** `benchmark/venv`
+   `torch 2.13.0+cpu` kullanıyor (server'da `2.13.0`, CUDA). Yani
+   `recall_test.py` modelleri **CPU'ya** yüklüyor, GPU'ya HİÇ dokunmuyor —
+   ders sırasında bile GPU açısından güvenli. Kalan maliyet CPU/RAM.
+   (Aynı bulgunun ikinci sonucu: rapordaki `ortalama_arama_sn` 0,12-0,15 sn
+   bir **CPU** rakamı, üretimi temsil etmiyor — üretim gecikmesi için §4.)
 2. Canlı API yolu (`POST /api/egitim/question`) auth zorunlu; tahta anahtarı
    `server/config/api_keys.json`'da ve **CLAUDE.md o dosyayı okumayı
    yasaklıyor**.
