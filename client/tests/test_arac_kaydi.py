@@ -62,3 +62,20 @@ def test_her_aracin_izni_ve_maliyet_sinifi_var(arac):
 def test_kip_kisiti_sorgulanabilir():
     assert kayit.kipte_acik("ders_icerigi", "ogretmenli")
     assert kayit.kipte_acik("ders_icerigi", "ogretmensiz")
+
+
+def test_shutdown_farabi_aciklamasi_surec_kapaniyor_demiyor():
+    """2026-09-01: shutdown_farabi artık süreci öldürmüyor (bkz. _DersBitti)
+    — yalnızca dersi bitirip DERSİ BAŞLAT öncesi bekleme durumuna dönüyor.
+    Modelin yanlış bir "kapanıyor"/"asistan tamamen kapanıyor" iddiasında
+    bulunması, CLAUDE.md'nin web_ac(hedef='kapat') için belgelediği aynı
+    sınıftan bir hataydı — açıklama metni bunu artık söylememeli."""
+    arac = kayit._HARITA["shutdown_farabi"]
+    assert "closes the assistant completely" not in arac.aciklama
+
+
+def test_yoklama_al_kayitli_ve_normal_derste_acik():
+    assert "yoklama_al" in kayit.adlar()
+    assert kayit.kipte_acik("yoklama_al", "ogretmenli")
+    assert kayit.kipte_acik("yoklama_al", "ogretmensiz")
+    assert not kayit.kipte_acik("yoklama_al", "talimat")

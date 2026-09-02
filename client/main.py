@@ -4,7 +4,6 @@ import asyncio
 import re
 import threading
 import json
-import os
 import sys
 import time
 import traceback
@@ -38,6 +37,7 @@ from actions.dosya_ac          import dosya_ac
 from actions.pencere_kapat     import pencere_kapat
 from actions.ekran_goruntusu_al    import ekran_goruntusu_al
 from actions.ekrandaki_soruyu_oku  import ekrandaki_soruyu_oku
+from actions.yoklama_al        import yoklama_al
 
 
 def get_base_dir():
@@ -88,10 +88,11 @@ class _TalimatCikisi(Exception):
     `_talimat_cikis_gozcusu()` bunu kasıtlı fırlatarak TaskGroup'u keser;
     run()'daki `except Exception` bunu `self._talimat_cikis_istendi`
     bayrağından tanır ve backoff/fail_streak dalına HİÇ girmeden, ders
-    kaydına "hata" yazmadan normal moda yeniden bağlanır. shutdown_farabi'nin
-    aksine (`_temiz_kapan`, `os._exit`) süreç YAŞAMAYA devam eder — yalnızca
-    bağlantı yenilenir, `_build_config()` bir sonraki (yeniden)bağlanışta
-    `ui.talimat_modu`yu tekrar okuyup normal personaya döner.
+    kaydına "hata" yazmadan normal moda yeniden bağlanır. `_dersi_bitir()`
+    (bkz. `_DersBitti`) ile AYNI aileden: ikisi de süreci YAŞATIR, yalnızca
+    bu HEMEN yeniden bağlanır — `_dersi_bitir` ise `DERSİ BAŞLAT` öncesi
+    bekleme durumuna döner. `_build_config()` bir sonraki (yeniden)
+    bağlanışta `ui.talimat_modu`yu tekrar okuyup normal personaya döner.
     """
 
 
@@ -115,6 +116,31 @@ class _DurZorlama(Exception):
     (`self._is_speaking`) tetiklenir — sessizken basılan DUR için
     `_sesi_sustur()` tek başına yeterli, gereksiz yere bağlantı yıkmaya
     gerek yok.
+    """
+
+
+class _DersBitti(Exception):
+    """
+    Ders bitti (zil'in "ders bitti" bildirimi ya da BOSTA_KAPATMA_DK boşta
+    kalma) — GERÇEK bir bağlantı hatası DEĞİL.
+
+    `_TalimatCikisi`/`_DurZorlama` ile AYNI iskelet (bkz. onların
+    docstring'i): `_ders_bitti_gozcusu()` bunu kasıtlı fırlatarak
+    TaskGroup'u keser, run()'daki `except Exception` bunu
+    `self._ders_bitti_istendi` bayrağından tanır ve backoff/fail_streak
+    dalına HİÇ girmeden özel işler. TEK FARK: `_TalimatCikisi` HEMEN
+    yeniden bağlanır, bu İSE bağlanmadan `DERSİ BAŞLAT` öncesi bekleme
+    durumuna döner (`self._oturum_izni.clear()`) — boşta kalan bir ders
+    için bağlantıyı hemen yenilemek gereksiz kota harcardı
+    (`BOSTA_KAPATMA_DK`'nin var oluş nedeniyle aynı mantık).
+
+    Eskiden (`_temiz_kapan`, `os._exit(0)`) bu iki tetikleyici SÜRECİN
+    TAMAMINI kapatıyordu — öğretmen her ders arasında programı elle
+    yeniden başlatmak zorundaydı (mod/dil seçim düğmeleri de bu yüzden bir
+    daha hiç yeniden aktifleşmiyordu). `_dersi_bitir()`/bu mekanizma
+    süreci canlı tutar; `run()`'ın `_oturum_izni.wait()` bloğu ders
+    programı/kip gibi ZAMANA BAĞLI durumu bir sonraki `DERSİ BAŞLAT`
+    anında taze okur (bkz. orası).
     """
 
 
@@ -335,11 +361,17 @@ class FarabiLive:
         # aynı desen, bkz. _DurZorlama.
         self._durdur_zorla_event: asyncio.Event | None = None
         self._durdur_zorla_istendi = False
+        # Ders bitti (zil/boşta kalma) — aynı desen, bkz. _DersBitti.
+        self._ders_bitti_event: asyncio.Event | None = None
+        self._ders_bitti_istendi = False
+        # Konu/kazanım öğretmenden gelince arka planda sessizce ısıtılan
+        # (ders, konu) çifti — aynı çifti tekrar ısıtmamak için (bkz.
+        # _cerceveyi_ogretmenden_guncelle, _isit_ders_icerigini).
+        self._son_isitilan_konu: tuple[str, str] | None = None
         # time.monotonic() DEĞİL — cihaz uyku/askıya alma modundan uyandığında
         # CLOCK_MONOTONIC askıda geçen süreyi saymaz, _boşta_gozcusu uzun bir
         # uykuyu hiç göremezdi (bkz. _boşta_gozcusu docstring'i).
         self._son_etkinlik = time.time()
-        self._kapaniyor    = False
         # O anki ders çerçevesi. Ders ADI programdan gelir; konu ve kazanım
         # öğretmenin yazdığı/söylediği metinden. Yıllık plan (Excel→plan.json)
         # oturum çerçevesini doldurmaz — plandan otomatik kazanım tespiti yok.
@@ -538,6 +570,51 @@ class FarabiLive:
         log.info("Çerçeve öğretmenden güncellendi: ders=%s konu=%s",
                  self._current_lesson.get("subject"),
                  self._current_lesson.get("topic"))
+
+        # Konu VE ders ikisi de biliniyorsa (bu çağrıda ya da öncekilerden)
+        # arka planda sessizce ısıt — modelin kendi ilk ders_icerigi çağrısı
+        # derste soğuk taramaya takılmasın (ölçülmüş örnek: 57,1 sn, bkz.
+        # tools/onbellek_isit.py). Yalnızca YAZILI girişi kapsar — konu SESLİ
+        # söylenirse modelin kendi ilk çağrısı zaten "ilk ve tek" çağrı olur,
+        # önceden ısıtacak ayrı bir an yok.
+        ders_v = (self._current_lesson.get("subject") or "").strip()
+        konu_v = (self._current_lesson.get("topic") or "").strip()
+        if ders_v and konu_v:
+            anahtar_v = (ders_v, konu_v)
+            if anahtar_v != self._son_isitilan_konu:
+                self._son_isitilan_konu = anahtar_v
+                if self._loop:
+                    asyncio.run_coroutine_threadsafe(
+                        self._isit_ders_icerigini(ders_v, konu_v), self._loop)
+
+    async def _isit_ders_icerigini(self, ders: str, konu: str) -> None:
+        """
+        Konu/kazanım öğretmenden gelince arka planda SESSİZCE bir kerelik
+        `ders_icerigi` çağrısı yapar — sunucudaki sayfa-seçimi önbelleğini
+        (`server/icerik.py::SAYFA_ONBELLEK`) ısıtır ki modelin kendi ilk
+        çağrısı önbellekten dönsün (ölçüm: 13,3 sn → 0,03 sn,
+        tools/onbellek_isit.py). `player=None` — ekrana hiçbir şey basılmaz,
+        `_ders_kaydini_yedekle`'nin `_dersi_bitir`'de kullandığı desenle
+        AYNI: `run_in_executor` + `wait_for` + sessiz `except` (bu bir
+        gecikmeyi/duyuruyu ASLA engellemez, ders normal akışına devam eder).
+        """
+        sinif_v = ""
+        try:
+            sinif_v = tahta.sinif_duzeyi() or ""
+        except Exception:
+            pass
+
+        def _cagir():
+            return ders_icerigi(parameters={"ders": ders, "sinif": sinif_v, "konu": konu})
+
+        try:
+            await asyncio.wait_for(
+                asyncio.get_event_loop().run_in_executor(None, _cagir),
+                timeout=25.0,
+            )
+            log.info("Ders içeriği ön ısıtıldı: ders=%s konu=%s", ders, konu)
+        except Exception as e:
+            log.info("Ön ısıtma atlandı (%s): %s", type(e).__name__, e)
 
     def _on_text_command(self, text: str):
         if not self._loop or not self.session:
@@ -953,6 +1030,10 @@ class FarabiLive:
                 r = await self._isci(name, lambda: ekrandaki_soruyu_oku(parameters=args, player=self.ui, speak=self.speak))
                 result = r or "Done."
 
+            elif name == "yoklama_al":
+                r = await self._isci(name, lambda: yoklama_al(parameters=args, player=self.ui))
+                result = r or "Done."
+
             elif name == "talimat_modundan_cik":
                 if self._ders_kipi != KIP_TALIMAT:
                     result = "Zaten talimat modunda değilim."
@@ -976,16 +1057,17 @@ class FarabiLive:
                 self.ui.write_log("SYS: Ders bitirme isteği alındı.")
                 self.speak("Görüşmek üzere, iyi çalışmalar.")
                 # Bulundu (2026-08-18): eskiden burada doğrudan os._exit(0)
-                # çağıran ayrı bir thread vardı — _temiz_kapan()'ı hiç
-                # çağırmıyordu, o yüzden ders normal "hoşça kal" ile
-                # bittiğinde ne transkriptin kapanış satırı yazılıyordu ne de
-                # server'a ders kaydı yedeği (POST /api/egitim/ders_kaydi_yedek)
-                # gidiyordu — server'daki yedekler/ders_kaydi/ hep boştu.
-                # _temiz_kapan zaten _boşta_gozcusu'nda kullanılan, test
-                # edilmiş coroutine; burada da onu çağırıyoruz.
+                # çağıran ayrı bir thread vardı — o zaman transkriptin
+                # kapanış satırı yazılmıyordu, server'a ders kaydı yedeği de
+                # gitmiyordu. _dersi_bitir zaten _boşta_gozcusu'nda kullanılan,
+                # test edilmiş coroutine; burada da onu çağırıyoruz.
+                # 2026-09-01: _dersi_bitir artık SÜRECİ ÖLDÜRMÜYOR (bkz.
+                # _DersBitti) — öğretmen her ders arasında programı elle
+                # yeniden başlatmak zorunda kalmasın diye; tahta DERSİ
+                # BAŞLAT öncesi bekleme durumuna dönüyor.
                 async def _kapat():
                     await asyncio.sleep(1)  # veda cümlesi çalınsın diye
-                    await self._temiz_kapan("ders bitti")
+                    await self._dersi_bitir("ders bitti")
                 asyncio.create_task(_kapat())
 
             else:
@@ -1287,6 +1369,16 @@ class FarabiLive:
         """
         await self._durdur_zorla_event.wait()
         raise _DurZorlama()
+
+    async def _ders_bitti_gozcusu(self) -> None:
+        """
+        `_dersi_bitir()` `self._ders_bitti_event`'i set edince TaskGroup'u
+        KASITLI olarak keser (bkz. `_DersBitti`). Aynı gerekçeyle
+        `_talimat_cikis_gozcusu`/`_durdur_zorla_gozcusu` gibi ayrı,
+        `tg.create_task()` ile KAYITLI bir gözcü görevi.
+        """
+        await self._ders_bitti_event.wait()
+        raise _DersBitti()
 
     # Oturum kurulduktan sonra ders durumu bildirimi için beklenecek süre.
     # Açılışın sesli olarak bitmesi gerekir: araya giren bir metin turu,
@@ -1728,7 +1820,7 @@ class FarabiLive:
                          "çıkılıyor.", BOSTA_KAPATMA_DK)
                 self.ui.write_log(
                     f"SYS: {BOSTA_KAPATMA_DK} dk sessizlik — ders kapatılıyor.")
-                await self._temiz_kapan("boşta kalma")
+                await self._dersi_bitir("boşta kalma")
                 return
 
     @staticmethod
@@ -1758,11 +1850,15 @@ class FarabiLive:
         except Exception as e:
             log.info("Ders kaydı yedeklenemedi (sessiz devam): %s", e)
 
-    async def _temiz_kapan(self, sebep: str) -> None:
+    async def _dersi_bitir(self, sebep: str) -> None:
         """
-        Ders kaydını kapatıp çık. `os._exit` KULLANMA — o, transkriptin
-        kapanış satırını ve dosya boşaltmayı atlar; "kendini hafızaya alıp
-        kapansın" isteğinin tam da kaybettiği şey budur.
+        Ders kaydını kapat, dersi bitir. `os._exit` KULLANMA (eskiden
+        kullanıyordu — bkz. git geçmişi) — süreç YAŞAMAYA devam eder,
+        yalnızca Live bağlantısı/ders sona erer. `self._ders_bitti_event`'i
+        set eder; asıl "bağlantıyı kes ve bekleme durumuna dön" işini
+        `_ders_bitti_gozcusu()`/`run()` yapar (bkz. `_DersBitti`) — burada
+        `self._oturum_izni.clear()` ÇAĞRILMAZ, o `run()`'ın except dalında,
+        state sıfırlamasıyla aynı yerde olmalı (bkz. orası).
         """
         try:
             transcript.log_line("sistem", f"— Oturum kapandı ({sebep}) —")
@@ -1776,10 +1872,10 @@ class FarabiLive:
             )
         except Exception as e:
             log.info("Ders kaydı yedekleme adımı atlandı: %s", e)
-        log.info("Kapanıyor: %s", sebep)
-        self._kapaniyor = True
-        self._oturum_izni.clear()
-        os._exit(0)
+        log.info("Ders bitiyor (süreç açık kalıyor): %s", sebep)
+        self._ders_bitti_istendi = True
+        if self._ders_bitti_event:
+            self._ders_bitti_event.set()
 
     async def run(self):
         self._loop = asyncio.get_event_loop()
@@ -1807,6 +1903,30 @@ class FarabiLive:
                 await self._oturum_izni.wait()
                 self.etkinlik_bildir()
 
+                # ZAMANA BAĞLI durum burada, ŞİMDİ (ders başlarken) taze
+                # okunur — _dersi_bitir()'in çağrıldığı teardown anında
+                # DEĞİL, çünkü o zaman biten dersin/teneffüsün slotunu
+                # yakalardı, bir sonrakini değil. Süreç ilk kez DERSİ
+                # BAŞLAT'a basılıyorsa da zararsızca çalışır (aynı hesabı
+                # __init__'in yaptığından bir kez daha yapar).
+                self._program_slotu = None
+                try:
+                    self._program_slotu = program.simdiki_ders()
+                except Exception as e:
+                    log.error("Ders programı okunamadı: %s", e)
+                self._current_lesson = (
+                    self._programdan_cerceve(self._program_slotu)
+                    if self._program_slotu else None
+                )
+                self._ders_kipi_taban = _ders_kipi()
+                self._ders_kipi = self._ders_kipi_taban
+                self.motor = DersMotoru(
+                    kip=self._ders_kipi_taban,
+                    cerceve=self._current_lesson,
+                    sinif=tahta.derslik(),
+                    enjekte=True,
+                )
+
             try:
                 log.info("Gemini Live oturumu açılıyor... (deneme %d, anahtar %s)",
                          fail_streak + 1, anahtar.durum())
@@ -1833,6 +1953,8 @@ class FarabiLive:
                     self._talimat_cikis_istendi = False
                     self._durdur_zorla_event = asyncio.Event()
                     self._durdur_zorla_istendi = False
+                    self._ders_bitti_event = asyncio.Event()
+                    self._ders_bitti_istendi = False
 
                     log.info("Oturum açıldı. (anahtar %s)", anahtar.durum())
                     if fail_streak:
@@ -1853,6 +1975,7 @@ class FarabiLive:
                     tg.create_task(self._boşta_gozcusu())
                     tg.create_task(self._talimat_cikis_gozcusu())
                     tg.create_task(self._durdur_zorla_gozcusu())
+                    tg.create_task(self._ders_bitti_gozcusu())
 
                     # Oturum yenilendiyse öğretmen müdahalesi bayatlamıştır;
                     # yeni oturuma "duraklat" önerisiyle başlamak yanlış.
@@ -1869,6 +1992,29 @@ class FarabiLive:
                         tg.create_task(self._oturum_devam_notu())
 
             except Exception as e:
+                if self._ders_bitti_istendi:
+                    # Ders bitti (zil/boşta kalma) — GERÇEK bir bağlantı
+                    # hatası değil (bkz. _DersBitti). fail_streak/backoff
+                    # dalına HİÇ girmeden, süreç YAŞAMAYA devam ederek DERSİ
+                    # BAŞLAT öncesi bekleme durumuna dön. `transcript.
+                    # log_session_end()` burada TEKRAR ÇAĞRILMAZ — `_dersi_
+                    # bitir()` zaten yazdı, tekrarı çift kapanış satırı olur.
+                    self._ders_bitti_istendi = False
+                    log.info("Ders bitti — DERSİ BAŞLAT öncesi bekleme durumuna dönülüyor.")
+                    self.ui.write_log(
+                        "SYS: Ders bitti — yeni ders için DERSİ BAŞLAT'a çift tıklayın.")
+                    self.session = None
+                    self.set_speaking(False)
+                    self._video_yuzunden_susturuldu = False
+                    self.ui.muted = False
+                    self._briefing_sent = False
+                    self._son_isitilan_konu = None
+                    self._oturum_izni.clear()
+                    transcript.yeni_oturum_baslat()
+                    self.ui.dersi_sifirla()
+                    self.ui.set_state("SLEEPING")
+                    continue
+
                 if self._talimat_cikis_istendi:
                     # Talimat modundan sesle çıkış — GERÇEK bir bağlantı
                     # hatası değil (bkz. _TalimatCikisi). fail_streak/backoff

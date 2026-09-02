@@ -534,9 +534,27 @@ ARACLAR: list[Arac] = [
         cikti="metin",
     ),
     Arac(
+        ad="yoklama_al",
+        aciklama=(
+            "Opens the board's external, touch-based attendance app "
+            "(tahtayoklama) at the very start of a lesson, alongside the "
+            "spoken roll call. Fire-and-forget — do not wait for or narrate "
+            "a result beyond the confirmation text returned. Call this once, "
+            "right when you begin YOKLAMA (the lesson's first step), not "
+            "later and not more than once per lesson."
+        ),
+        parametreler={"type": "OBJECT", "properties": {}},
+        izin="uygulama.baslat",
+        maliyet="yerel",
+        zaman_asimi=5.0,
+        cikti="onay",
+    ),
+    Arac(
         ad="shutdown_farabi",
         aciklama=(
-            "Ends the session and closes the assistant completely. "
+            "Ends the CURRENT LESSON and returns the board to its "
+            "pre-lesson waiting state — the process itself stays running; "
+            "the teacher presses DERSİ BAŞLAT again for the next lesson. "
             "Call this when the student says goodbye, wants to stop studying, "
             "or asks to close the app. The student can say this in ANY language."
         ),

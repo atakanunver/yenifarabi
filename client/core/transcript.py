@@ -123,3 +123,22 @@ def log_frame(ders: str, konu: str) -> None:
 def session_file() -> Path:
     """Bu oturumun ders kaydı dosyasının yolu."""
     return _oturum_yolunu_al()
+
+
+def yeni_oturum_baslat() -> None:
+    """
+    Önbelleklenen oturum dosya yolunu (`_oturum_yolu`) sıfırlar — bir
+    sonraki `log_line()`/`session_file()` çağrısı YENİ bir dosya adı (yeni
+    zaman damgası) hesaplar.
+
+    2026-09-01: main.py artık ders bitince süreci öldürmüyor (bkz.
+    `_DersBitti`), bir sonraki ders AYNI süreçte başlıyor — bu fonksiyon
+    olmadan `_oturum_yolunu_al()`'ın süreç-ömrü-boyunca-bir-kez önbelleği
+    ikinci dersi de BİRİNCİ dersin dosyasına yazardı. `main.py`'nin
+    `_dersi_bitir()`'i (kapanış satırı + yedekleme) TAMAMLANDIKTAN SONRA
+    çağrılmalı — sıra ters olursa kapanış satırı henüz var olmayan yeni
+    dosyaya kaçar.
+    """
+    global _oturum_yolu
+    with _lock:
+        _oturum_yolu = None

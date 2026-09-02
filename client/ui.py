@@ -1006,6 +1006,7 @@ class MainWindow(QMainWindow):
     _image_content_sig = pyqtSignal(str, str)  # (title, image_path) — thread-safe image display
     _mute_sig    = pyqtSignal(bool)       # thread-safe mute toggle (asyncio loop thread → Qt thread)
     _talimat_cikis_sig = pyqtSignal()     # talimat modundan sesle çıkış — düğme görünümü (asyncio loop thread → Qt thread)
+    _ders_bitti_sig = pyqtSignal()        # ders bitti (zil/shutdown_farabi/boşta) — düğmeleri geri aç (asyncio loop thread → Qt thread)
     _gemini_oturum_sig = pyqtSignal(bool)  # True: Live oturumu açıldı, False: kapandı
     _live_baslat_sig = pyqtSignal(str)    # akan altyazı: yeni satır başlat (prefix, ör. "Farabi: ")
     _live_guncelle_sig = pyqtSignal(str)  # akan altyazı: satırın içeriğini büyüt (yeni satır AÇMADAN)
@@ -1132,6 +1133,7 @@ class MainWindow(QMainWindow):
         self._kalibre_bitti_sig.connect(self._mikrofon_kalibre_bitti)
         self._screenshot_sig.connect(self._ekran_goruntusu_yakala)
         self._talimat_cikis_sig.connect(self._talimat_modundan_cik_gorunumu)
+        self._ders_bitti_sig.connect(self._dersi_sifirla_gorunumu)
         self._gemini_oturum_sig.connect(self._on_gemini_oturum_degisti)
         self._live_baslat_sig.connect(self._log.canli_satir_baslat)
         self._live_guncelle_sig.connect(self._log.canli_satir_guncelle)
@@ -2439,6 +2441,25 @@ class MainWindow(QMainWindow):
         self._ogrenci_btn.setEnabled(False)
         self._ogretmen_btn.setEnabled(False)
 
+    def _dersi_sifirla_gorunumu(self) -> None:
+        """Slot for `_ders_bitti_sig` — main.py'nin `_ders_bitti_istendi`
+        dalı (run()) tetikler: ders bitti, süreç YAŞAMAYA devam ediyor,
+        DERSİ BAŞLAT öncesi bekleme durumuna dönülüyor. `_dersi_baslat()`'ın
+        kilitlediği düğmeleri geri açar — mod/dil seçimi KORUNUR, yalnızca
+        yeniden TIKLANABİLİR hâle getirilir (onaylanan tasarım: bir sonraki
+        ders aynı modda/dilde devam eder). DURDUR/DEVAM latch'ini de
+        temizler: aksi hâlde bir önceki dersin DURDUR'u bir sonraki dersin
+        butonunda "⏸ DURAKLATILDI" olarak asılı kalırdı."""
+        self._baslat_btn.setEnabled(True)
+        self._baslat_btn.setText("▶▶  DERSİ BAŞLAT  (çift tıkla)")
+        for b in self._dil_btns.values():
+            b.setEnabled(True)
+        self._ogrenci_btn.setEnabled(True)
+        self._ogretmen_btn.setEnabled(True)
+        self._duraklatildi = False
+        self._durdur_gorunumu()
+        self._log.append_log("SYS: Ders bitti — yeni ders için hazır.")
+
     def _style_mute_btn(self):
         if self._muted:
             self._mute_btn.setText("🔇  MİKROFON KAPALI")
@@ -2630,6 +2651,14 @@ class FarabiUI:
         """
         self._win.talimat_modu = False
         self._win._talimat_cikis_sig.emit()
+
+    def dersi_sifirla(self) -> None:
+        """main.py'nin `_ders_bitti_istendi` dalı (run()) çağırır — ders
+        bitti, süreç yaşamaya devam ediyor, düğmeleri yeniden aktifleştir.
+        Thread-safe: asyncio döngü iş parçacığından gelir, Qt widget'larına
+        doğrudan dokunmadan sinyal üzerinden kuyruklanır (bkz.
+        `talimat_modundan_cik` ile aynı desen)."""
+        self._win._ders_bitti_sig.emit()
 
     def set_ders_adaylari(self, adlar: list[str]) -> None:
         """Öğretmen panelindeki 'dersi değiştir' seçeneklerini doldur."""
