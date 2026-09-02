@@ -13,7 +13,17 @@ client/config/api_keys.json.zip
 client/config/zil.json
 client/config/ders_programi.json
 server/config/api_keys.json
-# .example.json şablonları YUKARIDAKİ desenlere uymuyor, committed kalır.
+
+# 2026-09-02: yukarıdaki iki satır TAM YOL olduğu için yalnızca o iki dosyayı
+# koruyordu — yan yana duran `api_keys.json.bak`, `api_keys_yeni ….txt`,
+# `apikeys.env` gibi dosyalar ignore KAPSAMI DIŞINDAYDI ve bir `git add -A`
+# onları commit ederdi (canlıda iki tanesi `??` olarak duruyordu, denetimde
+# bulundu). Desen tabanlı, geniş kurallar:
+*.env
+**/api_keys*
+!**/api_keys.example.json
+# .example.json şablonları YUKARIDAKİ desenlere uymuyor, committed kalır
+# (`!` istisnası ile açıkça korunuyor).
 
 # PDF bırakma dizinleri — client/CLAUDE.md: "gitignored", öğretmenin kendi
 # kaynak materyali, koda bağlı değil. Dizinin kendisi izlenir (ileride bir
@@ -76,3 +86,15 @@ tahtayoklama/dashboard/config/gizli.json
 tahtayoklama/dashboard/veri/
 
 # server/ sanal ortamı zaten yukarıdaki **/venv/ ile kapsanıyor
+
+# ── Analiz turu 2026-09-02: commit'e sızmaması gereken artefaktlar ────────
+# coverage veri dosyaları — testlerin yan ürünü, her koşuda değişir.
+.coverage
+**/.coverage
+.coverage.*
+
+# @google/gemini-cli için kurulmuş Node ağacı (100 MB). Farabi'nin Python
+# kod tabanıyla ilgisi yok, ayrı bir aracın yerel kurulumu — depoya girmemeli.
+node_modules/
+package.json
+package-lock.json
