@@ -38,6 +38,7 @@ from actions.pencere_kapat     import pencere_kapat
 from actions.ekran_goruntusu_al    import ekran_goruntusu_al
 from actions.ekrandaki_soruyu_oku  import ekrandaki_soruyu_oku
 from actions.yoklama_al        import yoklama_al
+from actions.gorsel_uret       import gorsel_uret
 
 
 def get_base_dir():
@@ -916,6 +917,19 @@ class FarabiLive:
             return await gorev
         return await asyncio.wait_for(gorev, timeout=sure)
 
+    def _arkaplan(self, islev) -> None:
+        """
+        `_isci`'nin tersi: iş parçacığını BAŞLATIR, SONUCUNU BEKLEMEZ.
+
+        `gorsel_uret` gibi onlarca saniye sürebilecek araçlar için — çağıran
+        (`_execute_tool`) modele hemen bir onay cümlesi döner, ders akmaya
+        devam eder. İş bitince aracın kendisi `speak`/`player.show_image`
+        (ikisi de main.py'nin/ui.py'nin kendi thread-safe mekanizmaları)
+        ile sonucu AYRICA bildirir — bu fonksiyon o bildirime karışmaz,
+        yalnızca iş parçacığını atar.
+        """
+        asyncio.get_event_loop().run_in_executor(None, islev)
+
     async def _execute_tool(self, fc) -> types.FunctionResponse:
         name = fc.name
         args = dict(fc.args or {})
@@ -1033,6 +1047,17 @@ class FarabiLive:
             elif name == "yoklama_al":
                 r = await self._isci(name, lambda: yoklama_al(parameters=args, player=self.ui))
                 result = r or "Done."
+
+            elif name == "gorsel_uret":
+                # arkaplan: ÇAĞRI beklenmiyor — konu boşsa iş parçacığı hiç
+                # başlamadan model hemen doğru hatayı görsün diye kontrol
+                # burada, senkron. `gorsel_uret()`'in kendi içindeki aynı
+                # kontrol yalnızca doğrudan çağrılırsa (ör. testte) savunma.
+                if not (args.get("konu") or "").strip():
+                    result = "Konu belirtilmedi. 'konu' parametresiyle ne çizileceğini söyle."
+                else:
+                    self._arkaplan(lambda: gorsel_uret(parameters=args, player=self.ui, speak=self.speak))
+                    result = "Görsel hazırlanıyor efendim, hazır olduğunda ekranda göstereceğim."
 
             elif name == "talimat_modundan_cik":
                 if self._ders_kipi != KIP_TALIMAT:
@@ -2110,6 +2135,15 @@ def main():
 
     def runner():
         ui.wait_for_api_key()
+        try:
+            surum_uyarisi = tahta.sunucu_surumu_dogrula()
+        except RuntimeError as exc:
+            log.error("Sürüm kontrolü başarısız: %s", exc)
+            ui.write_log(f"SYS: {exc}")
+            return
+        if surum_uyarisi:
+            log.warning("Sürüm uyarısı: %s", surum_uyarisi)
+            ui.write_log(f"SYS: {surum_uyarisi}")
         farabi = FarabiLive(ui)
         try:
             asyncio.run(farabi.run())

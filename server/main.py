@@ -17,7 +17,7 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 from sentence_transformers import CrossEncoder, SentenceTransformer
 
@@ -30,6 +30,7 @@ import icerik
 import proxy
 import yks
 from rag import EMBED_MODEL, RERANK_MODEL, RagMotoru
+from version import VERSION, major_version
 
 DB_HOST = "127.0.0.1"
 DB_NAME = "farabi"
@@ -173,6 +174,49 @@ def ready():
     if not durum["hazir"]:
         raise HTTPException(status_code=503, detail="Modeller/DB henüz hazır değil")
     return {"status": "ready"}
+
+
+@app.get("/api/version", dependencies=[Depends(auth.dogrula_tahta)])
+def version_bilgisi(
+    x_farabi_client_version: str | None = Header(
+        default=None, alias="X-Farabi-Client-Version"
+    ),
+):
+    """Check the calling board's API compatibility before it starts work."""
+    if not x_farabi_client_version:
+        raise HTTPException(
+            status_code=400,
+            detail="X-Farabi-Client-Version header eksik; istemci güncellenmeli.",
+        )
+
+    try:
+        client_major = major_version(x_farabi_client_version)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Geçersiz istemci sürümü: {x_farabi_client_version!r}",
+        )
+
+    if client_major != major_version(VERSION):
+        raise HTTPException(
+            status_code=426,
+            detail={
+                "hata": "MAJOR sürüm uyumsuzluğu",
+                "client_version": x_farabi_client_version,
+                "server_version": VERSION,
+            },
+        )
+
+    return {
+        "status": "ok",
+        "client_version": x_farabi_client_version,
+        "server_version": VERSION,
+        "uyari": (
+            "MINOR/PATCH sürümleri farklı; planlı güncelleme önerilir."
+            if x_farabi_client_version != VERSION
+            else None
+        ),
+    }
 
 
 @app.post("/api/egitim/question", response_model=SoruYanit,

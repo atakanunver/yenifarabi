@@ -25,6 +25,8 @@ import json
 import re
 from pathlib import Path
 
+from core.version import VERSION, major_version
+
 BASE_DIR    = Path(__file__).resolve().parent.parent
 CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
 
@@ -102,4 +104,52 @@ def auth_headers() -> dict:
     göndermek de eksik header göndermek de aynı 401'i alır — davranış farkı
     yok, yalnızca gereksiz bir header'dan kaçınıyoruz."""
     anahtar = tahta_anahtari()
-    return {"X-Farabi-Board-Key": anahtar} if anahtar else {}
+    headers = {"X-Farabi-Client-Version": VERSION}
+    if anahtar:
+        headers["X-Farabi-Board-Key"] = anahtar
+    return headers
+
+
+def sunucu_surumu_dogrula() -> str | None:
+    """Sunucu ile MAJOR sürüm uyumluluğunu istemci başlarken doğrular."""
+    import requests
+
+    try:
+        response = requests.get(
+            f"{sunucu_url()}/api/version", headers=auth_headers(), timeout=10
+        )
+    except requests.RequestException as exc:
+        raise RuntimeError(f"Sürüm kontrolü için sunucuya ulaşılamadı: {exc}") from exc
+
+    if response.status_code == 426:
+        try:
+            detail = response.json()["detail"]
+            server_version = detail["server_version"]
+        except (KeyError, TypeError, ValueError):
+            server_version = "bilinmiyor"
+        raise RuntimeError(
+            "MAJOR sürüm uyumsuzluğu: "
+            f"istemci {VERSION}, sunucu {server_version}. "
+            "İstemci ve sunucu birlikte güncellenmelidir."
+        )
+
+    try:
+        response.raise_for_status()
+        veri = response.json()
+        server_version = veri["server_version"]
+    except (KeyError, ValueError, requests.RequestException) as exc:
+        raise RuntimeError(f"Geçersiz sürüm kontrolü yanıtı: {exc}") from exc
+
+    try:
+        if major_version(server_version) != major_version(VERSION):
+            raise RuntimeError(
+                "MAJOR sürüm uyumsuzluğu: "
+                f"istemci {VERSION}, sunucu {server_version}. "
+                "İstemci ve sunucu birlikte güncellenmelidir."
+            )
+    except ValueError as exc:
+        raise RuntimeError(
+            f"Sunucu geçersiz semantic version bildirdi: {server_version!r}"
+        ) from exc
+
+    return veri.get("uyari")
