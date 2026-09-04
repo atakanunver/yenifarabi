@@ -565,6 +565,31 @@ ARACLAR: list[Arac] = [
         calisma="satirici",
         cikti="onay",
     ),
+    Arac(
+        ad="gorsel_uret",
+        aciklama=(
+            "Generates an educational image/diagram for the given topic and "
+            "shows it on screen. Fire-and-forget — runs in the background "
+            "after this call returns, do not wait for or narrate a result "
+            "beyond the confirmation text; the board announces separately "
+            "when the image is ready. Requires 'konu' (topic); never guess "
+            "it if the teacher/student didn't give one, ask instead. Use "
+            "sparingly — this is a slow, paid generation call, not a "
+            "substitute for pdf_sayfa/ders_icerigi textbook content."
+        ),
+        parametreler={
+            "type": "OBJECT",
+            "properties": {
+                "konu": {"type": "STRING", "description": "What to draw/generate an image about."},
+            },
+            "required": ["konu"],
+        },
+        izin="gorsel.uret",
+        maliyet="yuksek",
+        zaman_asimi=None,
+        calisma="satirici",
+        cikti="onay",
+    ),
 ]
 
 _HARITA = {a.ad: a for a in ARACLAR}
