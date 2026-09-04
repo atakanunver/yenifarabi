@@ -39,7 +39,22 @@ sudo systemctl status farabi-api.service          # üretim servisi durumu
 sudo systemctl restart farabi-api.service         # kod değişikliğinden sonra üretime almak için
 ```
 
-Lint/formatter yapılandırıFarabi Python kodunda lint ve formatter aracı olarak Ruff kullanılır.
+Benchmark kodu `benchmark/` altında — Faz 0a/R-4 retrieval ölçüm harness'ları,
+pytest'e bağlı DEĞİL (`tests/` dizini yok), her script bağımsız çalıştırılan
+bir CLI. `rag_test.py` üretimin gerçek `server/rag.py::RagMotoru`'sunu import
+edip ölçer; `recall_test.py`/`katman_test.py` pipeline'ı kendi başına yeniden
+uygular (bkz. `rag_test.py`'nin kendi docstring'i — üçünün NEDEN ayrı
+tutulduğu orada açıklanıyor, aralarında fark varsa `rag_test.py` esas alınır).
+
+```bash
+cd benchmark
+python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+venv/bin/python rag_test.py          # üretim RAG koduna karşı ölçüm (soru seti argümanla verilir, script docstring'ine bkz.)
+venv/bin/python recall_test.py       # Recall@4/rerank/eşik/MRR, üretimden bağımsız model
+venv/bin/python katman_test.py       # iki katmanlı halüsinasyon savunması simülasyonu
+```
+
+Lint/formatter yapılandırısı — Farabi Python kodunda lint ve formatter aracı olarak Ruff kullanılır.
 
 Ruff ortamı
 Ruff, Farabi'nin çalışma/runtime ortamından ayrı olan geliştirme ortamında kuruludur:
