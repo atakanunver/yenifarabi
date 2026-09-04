@@ -16,9 +16,18 @@ Kayıttaki üç alan çalışma zamanında gerçekten iş görür:
                   ölçülen 55,4 saniyelik bir `ders_icerigi` çağrısı, alım
                   döngüsünün içinde await edildiği için bütün oturumu
                   kilitliyordu (öğrenci sesi de işlenmiyordu).
-    calisma       Aracın nasıl koşturulacağı. İki akış var:
-                  "isci"     — iş parçacığında, zaman aşımıyla
+    calisma       Aracın nasıl koşturulacağı. Üç akış var:
+                  "isci"     — iş parçacığında, ÇAĞRI beklenir (zaman aşımıyla)
                   "satirici" — anında, olay döngüsünde (kapanış)
+                  "arkaplan" — iş parçacığında BAŞLATILIR, SONUCU BEKLENMEZ
+                               (2026-09-04, gorsel_uret): model hemen bir
+                               onay cümlesi alır, ders akmaya devam eder;
+                               iş bitince araç kendi `speak`/`player.
+                               show_image`'ıyla (ikisi de thread-safe)
+                               sonucu AYRICA bildirir. `zaman_asimi` burada
+                               `_isci`'nin `asyncio.wait_for`'ı tarafından
+                               DEĞİL, aracın kendi iç çağrısı tarafından
+                               uygulanır (bkz. gorsel_uret.py).
     kip           Hangi ders kipinde açık. "ogretmenli"/"ogretmensiz" araçları
                   hepsi iki kipte de açık. "talimat" (öğretmen talimat modu,
                   2026-08-23) AYRI ve dışlayıcı: o kipte YALNIZCA kip'i
@@ -534,6 +543,34 @@ ARACLAR: list[Arac] = [
         cikti="metin",
     ),
     Arac(
+        ad="gorsel_uret",
+        aciklama=(
+            "Generates a NEW educational image/diagram with AI when the "
+            "lesson needs a visual that doesn't already exist (e.g. a "
+            "concept better shown than described) and displays it on "
+            "screen. This call returns IMMEDIATELY with a short 'preparing' "
+            "acknowledgement — do NOT wait for it and do NOT say the image "
+            "is on screen yet; keep teaching normally. Generation runs in "
+            "the background and takes time; you will be told separately, "
+            "in a later turn, once it is actually ready and shown — only "
+            "then confirm it to the class. Prefer pdf_sayfa/ders_icerigi "
+            "for existing textbook content; use this only for generating "
+            "something genuinely new that the book doesn't already have."
+        ),
+        parametreler={
+            "type": "OBJECT",
+            "properties": {
+                "konu": {"type": "STRING", "description": "What the image should show, e.g. 'hücre zarının yapısı', 'fotosentez döngüsü'."},
+            },
+            "required": ["konu"],
+        },
+        izin="gorsel.uret",
+        maliyet="yuksek",
+        zaman_asimi=45.0,          # gorsel_uret.py::ZAMAN_ASIMI ile aynı — _isci DEĞİL, aracın kendi çağrısı uygular
+        calisma="arkaplan",
+        cikti="gorsel",
+    ),
+    Arac(
         ad="yoklama_al",
         aciklama=(
             "Opens the board's external, touch-based attendance app "
@@ -561,31 +598,6 @@ ARACLAR: list[Arac] = [
         parametreler={"type": "OBJECT", "properties": {}},
         izin="oturum.kapat",
         maliyet="yerel",
-        zaman_asimi=None,
-        calisma="satirici",
-        cikti="onay",
-    ),
-    Arac(
-        ad="gorsel_uret",
-        aciklama=(
-            "Generates an educational image/diagram for the given topic and "
-            "shows it on screen. Fire-and-forget — runs in the background "
-            "after this call returns, do not wait for or narrate a result "
-            "beyond the confirmation text; the board announces separately "
-            "when the image is ready. Requires 'konu' (topic); never guess "
-            "it if the teacher/student didn't give one, ask instead. Use "
-            "sparingly — this is a slow, paid generation call, not a "
-            "substitute for pdf_sayfa/ders_icerigi textbook content."
-        ),
-        parametreler={
-            "type": "OBJECT",
-            "properties": {
-                "konu": {"type": "STRING", "description": "What to draw/generate an image about."},
-            },
-            "required": ["konu"],
-        },
-        izin="gorsel.uret",
-        maliyet="yuksek",
         zaman_asimi=None,
         calisma="satirici",
         cikti="onay",

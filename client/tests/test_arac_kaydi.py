@@ -45,7 +45,12 @@ def test_agir_araclarin_zaman_asimi_var(arac):
     Zaman aşımı yokken ölçülen 55,4 saniyelik bir çağrı, alım döngüsünün
     içinde await edildiği için bütün oturumu kilitliyordu.
     """
-    if arac.calisma == "isci":
+    if arac.calisma in ("isci", "arkaplan"):
+        # "isci": zaman_asimi `_isci`'nin `asyncio.wait_for`'ı tarafından
+        # uygulanır. "arkaplan" (2026-09-04, gorsel_uret): ÇAĞRI
+        # beklenmediği için `_isci` devrede değil, ama aracın kendi iç
+        # çağrısı hâlâ bir üst sınıra ihtiyaç duyar — yoksa yanıt vermeyen
+        # bir sağlayıcı çağrısı iş parçacığında süresiz asılı kalır.
         assert arac.zaman_asimi and arac.zaman_asimi > 0
     else:
         # satirici (anında) akışında zaman aşımı uygulanmaz; bunu açıkça
