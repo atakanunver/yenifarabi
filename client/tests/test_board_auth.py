@@ -24,21 +24,30 @@ class TestTahtaAnahtari:
     def test_anahtar_yoksa_bos(self, tmp_path, monkeypatch):
         monkeypatch.setattr(tahta, "CONFIG_PATH", tmp_path / "yok.json")
         assert tahta.tahta_anahtari() == ""
-        assert tahta.auth_headers() == {}
+        # X-Farabi-Client-Version KOŞULSUZ gider (server/main.py::/api/version
+        # sürüm uyumluluğunu bu header'la kontrol ediyor, board anahtarından
+        # bağımsız) — yalnızca X-Farabi-Board-Key board anahtarına bağlı.
+        assert tahta.auth_headers() == {"X-Farabi-Client-Version": tahta.VERSION}
 
     def test_anahtar_varsa_okunur(self, tmp_path, monkeypatch):
         (tmp_path / "api_keys.json").write_text(
             '{"tahta_anahtari": "gizli-9a"}', encoding="utf-8")
         monkeypatch.setattr(tahta, "CONFIG_PATH", tmp_path / "api_keys.json")
         assert tahta.tahta_anahtari() == "gizli-9a"
-        assert tahta.auth_headers() == {"X-Farabi-Board-Key": "gizli-9a"}
+        assert tahta.auth_headers() == {
+            "X-Farabi-Client-Version": tahta.VERSION,
+            "X-Farabi-Board-Key": "gizli-9a",
+        }
 
     def test_bos_dize_de_header_uretmez(self, tmp_path, monkeypatch):
         (tmp_path / "api_keys.json").write_text(
             '{"tahta_anahtari": "   "}', encoding="utf-8")
         monkeypatch.setattr(tahta, "CONFIG_PATH", tmp_path / "api_keys.json")
         assert tahta.tahta_anahtari() == ""
-        assert tahta.auth_headers() == {}
+        # "header üretmez" başlığı artık yalnızca X-Farabi-Board-Key için
+        # geçerli — boş/whitespace tahta_anahtari o header'ı eklemiyor, ama
+        # X-Farabi-Client-Version'ı etkilemiyor.
+        assert tahta.auth_headers() == {"X-Farabi-Client-Version": tahta.VERSION}
 
 
 class _Sahte401Yaniti:
