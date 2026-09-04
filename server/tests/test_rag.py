@@ -256,13 +256,47 @@ class TestTabloKaynagi:
 
         # tablo: rerank görünümü kapağa kadar kırpılmış
         assert len(tablo_gor) == rag.RERANK_TABLO_KARAKTER
-        # metin: AYNI batch'te, kırpılmamış — R-4'ün bozmaması gereken özellik
+        # metin: AYNI batch'te, ama TABLO kapağına göre kırpılmamış.
+        # R-4'ten (2026-09-02) sonra metnin KENDİ kapağı var
+        # (RERANK_METIN_KARAKTER=4000); buradaki metin ondan kısa olduğu için
+        # tam geçiyor. Asıl korunan şey: iki kapak BİRBİRİNDEN BAĞIMSIZ,
+        # tablo kapağı metin tarafına sızmıyor.
         assert metin_gor == uzun_metin, (
-            "metin adayı rerank'te kırpılmış — tablo kapağı yanlışlıkla "
-            "metin tarafına da uygulanıyor")
+            "metin adayı tablo kapağına göre kırpılmış — iki kapak "
+            "birbirine karışmış")
         # LLM'e giden kaynak metin her iki türde de TAM (Kural 5)
         assert uzun_tablo in gorulen[0][0], "LLM'e giden tablo metni kırpılmış"
         assert uzun_metin in gorulen[0][0], "LLM'e giden sayfa metni kırpılmış"
+
+    def test_metin_KENDI_kapaginda_kirpilir_LLM_E_TAM_GIDER(self, motor, monkeypatch):
+        """R-4 (2026-09-02): metin adaylarının da kendi rerank kapağı var
+        (RERANK_METIN_KARAKTER=4000), çünkü batch'i padleyen şey adayın
+        TÜRÜ değil UZUNLUĞU — canlı DB'de en uzun metin chunk'ı 21.814
+        karakter (Fizik-9 s.169).
+
+        İki iddia: kapak METİN kapağı kadar (tablo kapağı 1200 DEĞİL), ve
+        LLM'e giden kaynak metin yine TAM (Kural 5)."""
+        gorulen = []
+        monkeypatch.setattr(motor, "_llm_cevap", _llm_sabit("Cevap.", gorulen))
+        cok_uzun = "M" * (rag.RERANK_METIN_KARAKTER + 2000)
+        conn = SahteBaglanti([_metin(1, 10, cok_uzun)])
+        motor.sorgula(conn, 1, "soru")
+
+        gorunum = motor.reranker.gorulen_ciftler[0][1]
+        assert len(gorunum) == rag.RERANK_METIN_KARAKTER
+        assert len(gorunum) != rag.RERANK_TABLO_KARAKTER, (
+            "metin adayına TABLO kapağı uygulanmış")
+        assert cok_uzun in gorulen[0][0], "LLM'e giden kaynak metin kırpılmış"
+
+    def test_metin_kapagi_None_ise_kirpma_YOK(self, motor, monkeypatch):
+        """R-4'ün tek satırlık geri dönüş anahtarı: RERANK_METIN_KARAKTER
+        None yapılınca metin adayları hiç kırpılmamalı."""
+        monkeypatch.setattr(rag, "RERANK_METIN_KARAKTER", None)
+        monkeypatch.setattr(motor, "_llm_cevap", _llm_sabit("Cevap."))
+        cok_uzun = "M" * 9000
+        conn = SahteBaglanti([_metin(1, 10, cok_uzun)])
+        motor.sorgula(conn, 1, "soru")
+        assert motor.reranker.gorulen_ciftler[0][1] == cok_uzun
 
 
 # ══════════════════════════════════════════════════════════════════════

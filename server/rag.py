@@ -82,6 +82,33 @@ TOP_K_TABLO = 10
 # tablo adaylarının rerank görünümüne uygulanır; metin adayları ve LLM'e
 # giden kaynak metin AYNEN korunur (Kural 5, mevcut davranışı bozma).
 RERANK_TABLO_KARAKTER = 1200
+# ── R-4 (2026-09-02): aynı padding cezası METİN adaylarında da var ────────
+# Yukarıdaki kırpma yalnızca tablo adaylarına uygulanıyordu, ama batch'i
+# padleyen şey adayın TÜRÜ değil UZUNLUĞU. Canlı DB ölçümü: chunk_egitim'de
+# 45 chunk 3.122 karakteri, 10'u 6.000'i aşıyor; en uzunu 21.814 karakter
+# (Fizik-9 s.169 — yalnızca 184 kelime, gerisi PyMuPDF'in U+FFFD çöpü).
+# Böyle bir aday top-20'ye girdiğinde TÜM partinin maliyetini yükseltiyor.
+#
+# KAPAK NEDEN 4000 — kabul testinin koştuğu kitapta NO-OP olacak şekilde
+# seçildi. Kitap bazlı dağılım (canlı DB, 2026-09-02):
+#     kitap 19 Fizik-9      p99 9.112   max 21.814   >4000: 10
+#     kitap 17 Coğrafya-9   p99 3.938   max  4.673   >4000:  4
+#     kitap 18 Din Kült.-9  p99 3.606   max  4.212   >4000:  2
+#     kitap 14 Türk Dili-10 p99 2.844   max  4.163   >4000:  1
+#  →  kitap  1 BİYOLOJİ-9   p99 2.392   max  3.122   >4000:  0
+# Recall@4 yalnızca biyoloji-9'da ölçülüyor ve orada 4000'i aşan TEK BİR
+# chunk YOK — yani kapak o kitaba hiç dokunmuyor, kabul testi kendi kendini
+# kirletmiyor. Korpus genelinde etkilenen: 8.726 chunk'ın 17'si (%0,19).
+# (Korpus geneli p95=1.777'den türetmek YANLIŞ olurdu: padding SORGU-BAŞI
+# bir kuyruk özelliği, korpus geneli bir ortalama değil. 2000'lik bir kapak
+# biyoloji-9'un 12 chunk'ını kırpıp gate'i kirletirdi.)
+#
+# TABLO kapağı (1200) DEĞİŞTİRİLMEDİ — o ayrı ölçümle kalibre edildi.
+# Kırpma YALNIZCA rerank görünümüne uygulanır; LLM'e giden kaynak metin
+# TAM kalır (Kural 5). Bunu server/tests/test_rag.py::
+# test_tablo_rerankte_KIRPILIR_metin_KIRPILMAZ garanti eder.
+# Geri dönüş: None yap — kırpma tamamen devre dışı kalır.
+RERANK_METIN_KARAKTER = 4000
 # Tek satırlık geri dönüş anahtarı (plan.md §K): False yapmak sistemi
 # FAZ 1 öncesi davranışa döndürür, DB'ye dokunmadan.
 TABLO_KAYNAGI = True
@@ -234,7 +261,8 @@ class RagMotoru:
             # şekilde uygulanır.
             # 6. eleman = rerank'e giden metin görünümü (metin adaylarında
             # tam metnin kendisi, tablo adaylarında kırpılmışı).
-            adaylar = [(*c[:4], "metin", c[2])
+            adaylar = [(*c[:4], "metin",
+                        c[2][:RERANK_METIN_KARAKTER] if RERANK_METIN_KARAKTER else c[2])
                        for c in self._ilk_k_getir(conn, kitap_id, vektor, TOP_K)]
             if TABLO_KAYNAGI:
                 # Tablo tarafı BAĞIMSIZ sarmalı: chunk_tablo yoksa/boşsa/
