@@ -63,27 +63,46 @@ _OS = platform.system()  # "Windows" | "Darwin" | "Linux"
 
 
 class C:
-    BG        = "#00060a"
-    PANEL     = "#010d14"
-    PANEL2    = "#010f18"
-    BORDER    = "#0d3347"
-    BORDER_B  = "#1a5c7a"
-    BORDER_A  = "#0f4060"
-    PRI       = "#00d4ff"
-    PRI_DIM   = "#007a99"
-    PRI_GHO   = "#001f2e"
-    ACC       = "#ff6b00"
-    ACC2      = "#ffcc00"
-    GREEN     = "#00ff88"
-    GREEN_D   = "#00aa55"
-    RED       = "#ff3355"
-    MUTED_C   = "#ff3366"
-    TEXT      = "#8ffcff"
-    TEXT_DIM  = "#3a8a9a"
-    TEXT_MED  = "#5ab8cc"
-    WHITE     = "#d8f8ff"
-    DARK      = "#000d14"
-    BAR_BG    = "#011520"
+    """
+    "Fârâbî — İlim Işığı" teması (2026-09-04, kullanıcı onayıyla, önceki
+    camgöbeği/siyah temanın yerine). Beş renk, tezhip/minyatür geleneğinin
+    klasik beş pigmentine karşılık gelir — rastgele bir hue kaydırması değil:
+    yaldız (PRI, marka/kimlik), vermiyon (ACC, "ANLATIYOR"), lacivert taşı
+    (ACC2, "DÜŞÜNÜYOR/İŞLİYOR"), patina yeşili (GREEN, "DİNLİYOR"), mürekkep
+    kırmızısı (RED/MUTED_C, hata/susturma). Durumlar arasında hâlâ net bir
+    sıcak/soğuk ayrımı korunuyor (ACC sıcak, ACC2 soğuk) — HUD durumu yalnızca
+    renkle değil metinle de gösterildiği için (ör. "● ANLATIYOR") bu ayrım
+    zorunlu değil ama okunabilirliği bozmamak için bilerek korundu.
+
+    Bu sınıf TEK kaynak: `ui.py`'deki neredeyse her `setStyleSheet`/`QPen`/
+    `QColor` çağrısı buradan f-string ile besleniyor (HudCanvas'ın halka/
+    halo/parçacık çizimi dahil), o yüzden bu bloğu değiştirmek tek başına
+    uygulamanın büyük kısmını yeniden temalıyor. İstisnalar (bilerek
+    DOKUNULMADI): `KALEM_RENK` (öğrenci çizim rengi, marka kimliğinden
+    bağımsız) ve dosya-türü rozet renkleri (image/video/pdf vb. — sabit bir
+    kongre, tema değil).
+    """
+    BG        = "#090b1c"
+    PANEL     = "#10143a"
+    PANEL2    = "#131842"
+    BORDER    = "#282c54"
+    BORDER_B  = "#4a4f82"
+    BORDER_A  = "#38395f"
+    PRI       = "#d4af6a"   # yaldız
+    PRI_DIM   = "#8a7040"
+    PRI_GHO   = "#241d0c"
+    ACC       = "#c8683f"   # vermiyon
+    ACC2      = "#7f8fd4"   # lacivert taşı
+    GREEN     = "#5fae7e"   # patina yeşili
+    GREEN_D   = "#3f7a5c"
+    RED       = "#d1495c"   # mürekkep kırmızısı
+    MUTED_C   = "#d1495c"
+    TEXT      = "#f0e6cf"
+    TEXT_DIM  = "#7a7398"
+    TEXT_MED  = "#b7a988"
+    WHITE     = "#f5ecd8"
+    DARK      = "#0d1030"
+    BAR_BG    = "#171b42"
 
 
 def qcol(h: str, a: int = 255) -> QColor:
@@ -1308,7 +1327,14 @@ class MainWindow(QMainWindow):
         title_row.addWidget(flag)
         title = QLabel("FARABİ")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setFont(QFont("Courier New", 17, QFont.Weight.Bold))
+        # Yalnızca bu rozet italik serif — "İlim Işığı" temasının hattat
+        # karakterini markaya taşıyor. Diğer HER YERDE (saat, yüzdeler,
+        # log) Courier New KASITLI olarak korundu: o metinler tablo gibi
+        # hizalı görüntüleniyor (ör. MetricBar yüzdeleri), orantılı bir
+        # yazı tipi bu hizayı bozardı. Cormorant Garamond bu tahtada kurulu
+        # değilse Qt sessizce sistem serifine düşer — kırılma riski yok,
+        # yalnızca bu tek etikette hattat hissi kaybolur.
+        title.setFont(QFont("Cormorant Garamond", 20, QFont.Weight.DemiBold, italic=True))
         title.setStyleSheet(f"color: {C.PRI}; background: transparent;")
         title_row.addWidget(title)
         title_row.addStretch()
@@ -1377,7 +1403,7 @@ class MainWindow(QMainWindow):
         self._bar_mem = MetricBar("MEM", C.ACC2)
         self._bar_net = MetricBar("NET", C.GREEN)
         self._bar_gpu = MetricBar("GPU", C.ACC)
-        self._bar_tmp = MetricBar("TMP", "#ff6688")
+        self._bar_tmp = MetricBar("TMP", C.RED)
 
         for bar in [self._bar_cpu, self._bar_mem, self._bar_net,
                     self._bar_gpu, self._bar_tmp]:
@@ -1427,7 +1453,7 @@ class MainWindow(QMainWindow):
         derslik_ad = tahta.etiket() if tahta else ""
         self._derslik_lbl = QLabel(derslik_ad)
         self._derslik_lbl.setFont(QFont("Courier New", 17, QFont.Weight.Bold))
-        renk = C.ACC if derslik_ad and "TANIMSIZ" not in derslik_ad else "#ff6688"
+        renk = C.ACC if derslik_ad and "TANIMSIZ" not in derslik_ad else C.RED
         self._derslik_lbl.setStyleSheet(
             f"color: {renk}; background: transparent; border: none;")
         self._derslik_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1858,7 +1884,7 @@ class MainWindow(QMainWindow):
         self._input.setFixedHeight(30)
         self._input.setStyleSheet(f"""
             QLineEdit {{
-                background: #000d14; color: {C.WHITE};
+                background: {C.DARK}; color: {C.WHITE};
                 border: 1px solid {C.BORDER}; border-radius: 3px; padding: 3px 7px;
             }}
             QLineEdit:focus {{ border: 1px solid {C.PRI}; }}
@@ -1943,7 +1969,7 @@ class MainWindow(QMainWindow):
                 background: {C.PANEL}; color: {C.TEXT_MED};
                 border: 1px solid {C.BORDER_B}; border-radius: 4px; padding: 0 12px;
             }}
-            QPushButton:hover {{ color: {C.WHITE}; border-color: {C.RED}; background: #3a0f14; }}
+            QPushButton:hover {{ color: {C.WHITE}; border-color: {C.RED}; background: #2a1219; }}
         """)
         dismiss.clicked.connect(w.hide)
         hdr.addWidget(dismiss)
@@ -2465,7 +2491,7 @@ class MainWindow(QMainWindow):
             self._mute_btn.setText("🔇  MİKROFON KAPALI")
             self._mute_btn.setStyleSheet(f"""
                 QPushButton {{
-                    background: #140006; color: {C.MUTED_C};
+                    background: #241017; color: {C.MUTED_C};
                     border: 1px solid {C.MUTED_C}; border-radius: 3px;
                 }}
             """)
@@ -2473,10 +2499,10 @@ class MainWindow(QMainWindow):
             self._mute_btn.setText("🎙  MİKROFON AÇIK")
             self._mute_btn.setStyleSheet(f"""
                 QPushButton {{
-                    background: #00140a; color: {C.GREEN};
+                    background: #0e2019; color: {C.GREEN};
                     border: 1px solid {C.GREEN}; border-radius: 3px;
                 }}
-                QPushButton:hover {{ background: #001f10; }}
+                QPushButton:hover {{ background: #16352a; }}
             """)
 
     def _send(self):
