@@ -13,7 +13,16 @@ kapatılabilir. **Ama doğrudan TAM EKRAN açılır** (2026-08-19, gerçek tahta
 testi sonrası) — öğretmen elle "Tam Ekran"a basmak zorunda kalmasın diye.
 
 GÜNCELLEME (2026-08-19, gerçek tahta testi sonrası):
-- **4 sütun** ızgara — 20 öğrenci tam ekrana sığıyor (önceden 3'tü).
+- **Izgara sütun sayısı VE kart yüksekliği artık DİNAMİK** (2026-09-06'da
+  sabit "4 sütun / 90px" değerlerinden değiştirildi — 9-A'nın 1360px
+  genişliğinde yatay kaydırmaya, 20 öğrencilik bir sınıfta da dikey
+  kaydırmaya yol açıyordu; kullanıcı: "20 kişi ekrana sığmıyor").
+  `_duzen_hesapla` hem pencere genişliğine HEM yüksekliğine HEM sınıf
+  mevcuduna göre sütun sayısını ve kart boyutunu (gerekirse font boyutunu
+  da, bkz. `OgrenciKarti._guncelle`) hesaplar; hedef, sınıfın tamamının TEK
+  ekranda, kaydırma gerekmeden görünmesidir. Pencere yeniden boyutlandığında
+  (`resizeEvent` → `_izgarayi_yeniden_diz`) kartlar YENİDEN OLUŞTURULMADAN
+  boyutlanır, kaydedilmemiş işaretlemeler KORUNUR.
 - **Ders saatine göre otomatik dönem tespiti**: `data/zil.json` (Farabi'nin
   `client/config/zil.json`'undan BAĞIMSIZ bir kopya — bu tahtalarda Farabi
   hiç kurulu olmayabilir, bkz. o dosyanın açıklaması) okunur, o anki saate
@@ -46,6 +55,7 @@ from datetime import datetime, time as dtime
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QFont, QFontMetrics
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -77,9 +87,20 @@ DURUM_ETIKET = {
 }
 
 # Dokunmatik hedef boyutu — parmakla yanlış tuşa basmayı önlemek için.
-KART_MIN_YUKSEKLIK = 90
+# 2026-09-06: sabit yükseklik/sütun (KART_MIN_YUKSEKLIK=90, SUTUN=4) hem
+# yatayda (9-A, 1360px genişlik) hem dikeyde (20 öğrenci ekrana sığmıyordu,
+# kullanıcı geri bildirimi) taşmaya yol açıyordu. Artık hem sütun sayısı
+# HEM kart yüksekliği, sınıf mevcuduna ve gerçek pencere boyutuna göre
+# hesaplanıyor (bkz. _duzen_hesapla) — hedef, KAYDIRMA GEREKMEDEN tüm
+# sınıfın tek ekrana sığması.
 KART_FONT_PT = 20
-SUTUN = 4
+MAKS_KART_YUKSEKLIK = 90
+MIN_KART_YUKSEKLIK = 56
+KART_HEDEF_GENISLIK = 320
+MIN_KART_GENISLIK = 150
+IZGARA_BOSLUK = 12
+SUTUN_MIN = 2
+SUTUN_MAKS = 5
 
 # Bir ders başladıktan sonra bu kadar dakika geçtiyse ve hâlâ kayıt yoksa
 # pencere öne getirilir.
@@ -138,15 +159,74 @@ def _kayit_yolu(sinif: str, ders_no: int, tarih: str) -> Path:
     return KAYIT_DIR / f"{tarih}_{sinif}_ders{ders_no}.json"
 
 
+def _duzen_hesapla(genislik: int, yukseklik: int, ogrenci_sayisi: int) -> tuple[int, int, int]:
+    """(sütun sayısı, kart genişliği, kart yüksekliği) döner — HEM yatayda
+    HEM dikeyde kaydırma gerekmeden tüm sınıfın tek ekrana sığması hedefiyle.
+    Önce genişliğe göre olabilecek EN FAZLA sütun seçilir (daha çok sütun =
+    daha az satır = dikeyde sığma ihtimali daha yüksek); sonra o sütun
+    sayısıyla kaç satır gerektiği hesaplanıp kart yüksekliği kalan dikey
+    alana göre (MIN_KART_YUKSEKLIK..MAKS_KART_YUKSEKLIK arası) ayarlanır."""
+    if ogrenci_sayisi <= 0 or genislik <= 0:
+        return SUTUN_MIN, KART_HEDEF_GENISLIK, MAKS_KART_YUKSEKLIK
+
+    sutun = genislik // (MIN_KART_GENISLIK + IZGARA_BOSLUK)
+    sutun = max(SUTUN_MIN, min(SUTUN_MAKS, sutun, ogrenci_sayisi))
+    kart_genislik = max(MIN_KART_GENISLIK, genislik // sutun - IZGARA_BOSLUK)
+
+    satir = -(-ogrenci_sayisi // sutun)  # yukarı yuvarlama (ceil)
+    if yukseklik > 0 and satir > 0:
+        kart_yukseklik = (yukseklik - (satir - 1) * IZGARA_BOSLUK) // satir
+        kart_yukseklik = max(MIN_KART_YUKSEKLIK, min(MAKS_KART_YUKSEKLIK, kart_yukseklik))
+    else:
+        kart_yukseklik = MAKS_KART_YUKSEKLIK
+
+    return sutun, kart_genislik, kart_yukseklik
+
+
+def _ad_sarmala(ad: str, kart_genislik: int, font_pt: int) -> str:
+    """Uzun isimleri kart genişliğine göre satırlara böler — aksi halde
+    tek satırlık isim metni kartın (dolayısıyla sütunun) sabit genişliğini
+    taşıp yatay kaydırmaya/kesilmeye yol açıyordu. Karakter sayısı tahmini
+    yerine gerçek font metrikleri kullanılır (kabaca tahmin, uzun isimlerde
+    birkaç piksellik kesilmeye yol açıyordu — 2026-09-06, 9-A testinde
+    görüldü)."""
+    font = QFont()
+    font.setPointSize(font_pt)
+    font.setBold(True)
+    metrikler = QFontMetrics(font)
+    # padding (10px*2) + küçük güvenlik payı
+    maks_genislik = max(40, kart_genislik - 30)
+    if metrikler.horizontalAdvance(ad) <= maks_genislik:
+        return ad
+    kelimeler = ad.split(" ")
+    satirlar: list[str] = []
+    mevcut = ""
+    for kelime in kelimeler:
+        aday = f"{mevcut} {kelime}".strip()
+        if metrikler.horizontalAdvance(aday) <= maks_genislik or not mevcut:
+            mevcut = aday
+        else:
+            satirlar.append(mevcut)
+            mevcut = kelime
+    satirlar.append(mevcut)
+    return "\n".join(satirlar)
+
+
 class OgrenciKarti(QPushButton):
     """Bir öğrencinin dokunmatik yoklama kartı — üç hâl arasında döner."""
 
-    def __init__(self, ogrenci: dict, durum: str = "var"):
+    def __init__(
+        self,
+        ogrenci: dict,
+        durum: str = "var",
+        genislik: int = KART_HEDEF_GENISLIK,
+        yukseklik: int = MAKS_KART_YUKSEKLIK,
+    ):
         super().__init__()
         self.no = ogrenci["no"]
         self.ad_soyad = ogrenci["ad_soyad"]
         self.durum = durum
-        self.setMinimumHeight(KART_MIN_YUKSEKLIK)
+        self.setFixedSize(genislik, yukseklik)
         self.clicked.connect(self._sonraki_duruma_gec)
         self._guncelle()
 
@@ -155,12 +235,25 @@ class OgrenciKarti(QPushButton):
         self.durum = DURUM_SIRASI[(i + 1) % len(DURUM_SIRASI)]
         self._guncelle()
 
+    def boyut_ayarla(self, genislik: int, yukseklik: int) -> None:
+        """Durumu KORUYARAK kart boyutunu günceller (bkz.
+        YoklamaPenceresi._izgarayi_yeniden_diz — pencere yeniden
+        boyutlandığında kayıtsız işaretlemelerin kaybolmaması için kartlar
+        yeniden OLUŞTURULMAZ, sadece yeniden boyutlandırılır)."""
+        self.setFixedSize(genislik, yukseklik)
+        self._guncelle()
+
     def _guncelle(self) -> None:
-        self.setText(f"{self.no}. {self.ad_soyad}\n[ {DURUM_ETIKET[self.durum]} ]")
+        # Kart kısaldığında (kalabalık sınıflarda tüm sınıf dikeyde de
+        # sığsın diye) 20pt metin taşabilir — yüksekliğe göre küçültülür.
+        font_pt = max(10, min(KART_FONT_PT, self.height() // 3))
+        dolgu = 4 if self.height() < MAKS_KART_YUKSEKLIK else 10
+        ad_gosterim = _ad_sarmala(self.ad_soyad, self.width(), font_pt)
+        self.setText(f"{self.no}. {ad_gosterim}\n[ {DURUM_ETIKET[self.durum]} ]")
         self.setStyleSheet(
-            f"font-size: {KART_FONT_PT}pt; font-weight: bold; color: white; "
+            f"font-size: {font_pt}pt; font-weight: bold; color: white; "
             f"background-color: {DURUM_RENK[self.durum]}; "
-            f"border-radius: 12px; padding: 10px;"
+            f"border-radius: 12px; padding: {dolgu}px;"
         )
 
 
@@ -210,13 +303,13 @@ class YoklamaPenceresi(QWidget):
         ana.addWidget(self.ozet_etiketi)
 
         self.izgara = QGridLayout()
-        self.izgara.setSpacing(12)
+        self.izgara.setSpacing(IZGARA_BOSLUK)
         icerik = QWidget()
         icerik.setLayout(self.izgara)
-        kaydirma = QScrollArea()
-        kaydirma.setWidgetResizable(True)
-        kaydirma.setWidget(icerik)
-        ana.addWidget(kaydirma, stretch=1)
+        self._kaydirma = QScrollArea()
+        self._kaydirma.setWidgetResizable(True)
+        self._kaydirma.setWidget(icerik)
+        ana.addWidget(self._kaydirma, stretch=1)
 
         kaydet = QPushButton("YOKLAMAYI KAYDET")
         kaydet.setMinimumHeight(70)
@@ -305,13 +398,38 @@ class YoklamaPenceresi(QWidget):
                     onceki_durumlar = {}
 
         ogrenciler = _roster_yukle(sinif)
+        vp = self._kaydirma.viewport()
+        genislik = vp.width() or self.width() or KART_HEDEF_GENISLIK * SUTUN_MIN
+        yukseklik = vp.height() or self.height()
+        sutun, kart_genislik, kart_yukseklik = _duzen_hesapla(genislik, yukseklik, len(ogrenciler))
+
         for idx, ogrenci in enumerate(ogrenciler):
             durum = onceki_durumlar.get(str(ogrenci["no"]), "var")
-            kart = OgrenciKarti(ogrenci, durum=durum)
+            kart = OgrenciKarti(ogrenci, durum=durum, genislik=kart_genislik, yukseklik=kart_yukseklik)
             kart.clicked.connect(self._ozeti_guncelle)
             self._kartlar.append(kart)
-            self.izgara.addWidget(kart, idx // SUTUN, idx % SUTUN)
+            self.izgara.addWidget(kart, idx // sutun, idx % sutun)
         self._ozeti_guncelle()
+
+    def _izgarayi_yeniden_diz(self) -> None:
+        """Kartları yeniden OLUŞTURMADAN (durumları koruyarak) pencere
+        boyutu değiştiğinde düzeni günceller — bkz. resizeEvent.
+        _ders_grubunu_yukle burada kullanılmaz, çünkü o kayıtlı yoklamayı
+        diskten tekrar okur ve kaydedilmemiş işaretlemeleri sıfırlardı."""
+        if not self._kartlar:
+            return
+        vp = self._kaydirma.viewport()
+        genislik, yukseklik = vp.width(), vp.height()
+        if genislik <= 0 or yukseklik <= 0:
+            return
+        sutun, kart_genislik, kart_yukseklik = _duzen_hesapla(genislik, yukseklik, len(self._kartlar))
+        for idx, kart in enumerate(self._kartlar):
+            kart.boyut_ayarla(kart_genislik, kart_yukseklik)
+            self.izgara.addWidget(kart, idx // sutun, idx % sutun)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        QTimer.singleShot(50, self._izgarayi_yeniden_diz)
 
     def _ozeti_guncelle(self) -> None:
         toplam = len(self._kartlar)
