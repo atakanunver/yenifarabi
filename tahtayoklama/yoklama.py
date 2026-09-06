@@ -93,7 +93,7 @@ DURUM_ETIKET = {
 # HEM kart yüksekliği, sınıf mevcuduna ve gerçek pencere boyutuna göre
 # hesaplanıyor (bkz. _duzen_hesapla) — hedef, KAYDIRMA GEREKMEDEN tüm
 # sınıfın tek ekrana sığması.
-KART_FONT_PT = 20
+KART_FONT_PT = 16
 MAKS_KART_YUKSEKLIK = 90
 MIN_KART_YUKSEKLIK = 56
 KART_HEDEF_GENISLIK = 320
@@ -245,7 +245,7 @@ class OgrenciKarti(QPushButton):
 
     def _guncelle(self) -> None:
         # Kart kısaldığında (kalabalık sınıflarda tüm sınıf dikeyde de
-        # sığsın diye) 20pt metin taşabilir — yüksekliğe göre küçültülür.
+        # sığsın diye) KART_FONT_PT metin taşabilir — yüksekliğe göre küçültülür.
         font_pt = max(10, min(KART_FONT_PT, self.height() // 3))
         dolgu = 4 if self.height() < MAKS_KART_YUKSEKLIK else 10
         ad_gosterim = _ad_sarmala(self.ad_soyad, self.width(), font_pt)
@@ -277,7 +277,7 @@ class YoklamaPenceresi(QWidget):
 
         ust = QHBoxLayout()
         self.baslik_etiketi = QLabel("YOKLAMA")
-        self.baslik_etiketi.setStyleSheet("font-size: 26pt; font-weight: bold;")
+        self.baslik_etiketi.setStyleSheet("font-size: 22pt; font-weight: bold;")
         ust.addWidget(self.baslik_etiketi)
 
         ust.addStretch()
@@ -285,21 +285,21 @@ class YoklamaPenceresi(QWidget):
         ust.addWidget(QLabel("Sınıf:"))
         self.sinif_secici = QComboBox()
         self.sinif_secici.setMinimumHeight(50)
-        self.sinif_secici.setStyleSheet("font-size: 16pt;")
+        self.sinif_secici.setStyleSheet("font-size: 14pt;")
         self.sinif_secici.addItems(_roster_listesi())
         self.sinif_secici.currentTextChanged.connect(self._sinif_degisti)
         ust.addWidget(self.sinif_secici)
 
         self.tam_ekran_dugmesi = QPushButton("⛶ Pencereye Dön")
         self.tam_ekran_dugmesi.setMinimumSize(160, 50)
-        self.tam_ekran_dugmesi.setStyleSheet("font-size: 14pt;")
+        self.tam_ekran_dugmesi.setStyleSheet("font-size: 12pt;")
         self.tam_ekran_dugmesi.clicked.connect(self._tam_ekrani_degistir)
         ust.addWidget(self.tam_ekran_dugmesi)
 
         ana.addLayout(ust)
 
         self.ozet_etiketi = QLabel()
-        self.ozet_etiketi.setStyleSheet("font-size: 16pt;")
+        self.ozet_etiketi.setStyleSheet("font-size: 14pt;")
         ana.addWidget(self.ozet_etiketi)
 
         self.izgara = QGridLayout()
@@ -314,7 +314,7 @@ class YoklamaPenceresi(QWidget):
         kaydet = QPushButton("YOKLAMAYI KAYDET")
         kaydet.setMinimumHeight(70)
         kaydet.setStyleSheet(
-            "font-size: 20pt; font-weight: bold; color: white; "
+            "font-size: 17pt; font-weight: bold; color: white; "
             "background-color: #2980b9; border-radius: 12px;"
         )
         kaydet.clicked.connect(self._kaydet)
