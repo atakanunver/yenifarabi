@@ -20,8 +20,14 @@ Detaylı mimari: `@docs/mimari.md`
 >    `git reset --hard origin/master` (aynı isim, tamamen yeni mekanizma) —
 >    repo public olduğu için SSH-anahtar adımları kaldırıldı. `farabi.local`
 >    yalnızca KENDİ (`server/`) kodu için ayrıca GitHub'dan çeker, bu board
->    dağıtımından bağımsız bir akış. **Henüz gerçek tahtada test edilmedi**
->    (9-A şu an ağda erişilemez durumda) — bkz. `docs/mimari.md` §0 madde 2.
+>    dağıtımından bağımsız bir akış. **Düzeltme (2026-09-06): "9-A ağda
+>    erişilemez" artık geçerli değil — 9-A'ya SSH ile bağlanıldı, server'a
+>    sorunsuz ulaşıyor.** Ama bu YENİ mekanizma (sparse-checkout, kimlik
+>    doğrulama yok) hâlâ 9-A'da hiç çalıştırılmadı — 9-A'nın kendi
+>    `~/.local/bin/farabiguncelle.sh`'ı 2026-09-04'te ayrıca, bağımsız
+>    kurulmuş FARKLI bir git-pull (tüm `~/farabi/repo`'yu `gh` kimlik
+>    doğrulamasıyla pull ediyor, sparse değil) — iki mekanizma birbirini
+>    henüz hiç görmedi. bkz. `docs/mimari.md` §0 madde 2.
 >
 > **Çapraz değişiklik kuralı (yeni):** client+server bağlı değiştiğinde
 > (biri diğerini gerektiriyorsa) ikisi BİRLİKTE ele alınır — Claude her iki

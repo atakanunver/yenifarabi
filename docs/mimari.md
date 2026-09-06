@@ -79,11 +79,19 @@ YAPILMADI — aşağıdaki §6/§10 hâlâ mevcut/gerçek durumu anlatıyor):**
      TRACKED dosyaları etkiler; `config/api_keys.json`, `memory/`,
      `logs/`, `icerik/`, `kitaplar/`, `YKS/` zaten `client/.gitignore`'da
      olduğu için eski rsync `--exclude` listesiyle aynı korumayı otomatik
-     sağlıyor. **Henüz gerçek bir tahtada uçtan uca test edilmedi** — 9-A
-     bu değişikliğin yapıldığı sırada ağda erişilemez durumdaydı (WOL
-     denendi, yanıt yok); §0 madde 3'teki "son kabul testi fiziksel
-     tahtada" kuralı burada da geçerli, tahtaya ilk gerçek `farabiguncelle.sh`
-     çalıştırması bu kuralın parçası.
+     sağlıyor. **Henüz gerçek bir tahtada uçtan uca test edilmedi.**
+     "9-A ağda erişilemez" notu (bu maddenin yazıldığı an, WOL yanıt
+     vermemişti) **2026-09-06'da geçersiz hale geldi** — 9-A'ya SSH ile
+     bağlanıldı, server'a sorunsuz ulaşıyor. Ama asıl eksik hâlâ duruyor:
+     bu YENİ mekanizma (sparse-checkout + kimlik doğrulamasız `git fetch`)
+     9-A'da hiç çalıştırılmadı. 9-A'nın kendi
+     `~/.local/bin/farabiguncelle.sh`'ı 2026-09-04'te ayrıca ve bağımsız
+     kurulmuş, BAŞKA bir mekanizma: `~/farabi/repo`'nun TAMAMINI (sparse
+     değil) `gh`'nin git credential helper'ıyla (kimlik doğrulamalı) pull
+     ediyor — bu ikisi birbirinden habersiz, örtüşmüyor. §0 madde 3'teki
+     "son kabul testi fiziksel tahtada" kuralı burada da geçerli, 9-A'da
+     (veya başka bir tahtada) ilk gerçek `server/farabi-kurulum.sh`
+     çalıştırması ve heartbeat doğrulaması hâlâ yapılmadı.
 
 3. **Çapraz (client+server bağlı) değişiklik iş akışı — yeni kural
    (2026-09-05).** Client ve server kodu birbirine bağlı değiştiğinde
