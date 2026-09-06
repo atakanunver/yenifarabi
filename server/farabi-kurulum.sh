@@ -88,10 +88,19 @@ try:
     print(json.load(open(sys.argv[1])).get('sunucu_url','') or 'http://127.0.0.1:8000')
 except Exception:
     print('http://127.0.0.1:8000')" "\$KEYS" 2>/dev/null)
+ANAHTAR=\$(python3 -c "import json,sys
+try:
+    print(json.load(open(sys.argv[1])).get('tahta_anahtari','') or '')
+except Exception:
+    print('')" "\$KEYS" 2>/dev/null)
 COMMIT=\$(cat "$COMMIT_FILE" 2>/dev/null || echo "")
 [ -z "\$DERSLIK" ] && exit 0   # derslik tanımsızsa raporlanacak kimlik yok, sessizce çık
+# /api/client/heartbeat auth.dogrula_tahta'ya bağlı (server/client_durum.py) —
+# X-Farabi-Board-Key olmadan her zaman 401 alınırdı (2026-09-06'da bulundu,
+# ilk sürümde eksikti).
 curl -s -m 5 -X POST "\${SUNUCU}/api/client/heartbeat" \\
     -H "Content-Type: application/json" \\
+    -H "X-Farabi-Board-Key: \$ANAHTAR" \\
     -d "{\\"derslik\\":\\"\$DERSLIK\\",\\"commit\\":\\"\$COMMIT\\",\\"hostname\\":\\"\$(hostname)\\",\\"ip\\":\\"\$(hostname -I 2>/dev/null | awk '{print \$1}')\\"}" \\
     >> "$HEARTBEAT_LOG" 2>&1
 echo "" >> "$HEARTBEAT_LOG"
