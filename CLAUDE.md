@@ -22,12 +22,27 @@ Detaylı mimari: `@docs/mimari.md`
 >    yalnızca KENDİ (`server/`) kodu için ayrıca GitHub'dan çeker, bu board
 >    dağıtımından bağımsız bir akış. **Düzeltme (2026-09-06): "9-A ağda
 >    erişilemez" artık geçerli değil — 9-A'ya SSH ile bağlanıldı, server'a
->    sorunsuz ulaşıyor.** Ama bu YENİ mekanizma (sparse-checkout, kimlik
->    doğrulama yok) hâlâ 9-A'da hiç çalıştırılmadı — 9-A'nın kendi
->    `~/.local/bin/farabiguncelle.sh`'ı 2026-09-04'te ayrıca, bağımsız
->    kurulmuş FARKLI bir git-pull (tüm `~/farabi/repo`'yu `gh` kimlik
->    doğrulamasıyla pull ediyor, sparse değil) — iki mekanizma birbirini
->    henüz hiç görmedi. bkz. `docs/mimari.md` §0 madde 2.
+>    sorunsuz ulaşıyor.**
+>
+>    **9-A'nın kendi mekanizması da 2026-09-06'da YENİ mekanizmaya
+>    geçirildi — ama bilinçli olarak KLASÖR YAPISI KORUNARAK.** Kanonik
+>    `server/farabi-kurulum.sh` tahtanın `~/farabi`'sinin doğrudan
+>    sparse-checkout (yalnızca `client/`) olmasını varsayıyor; 9-A'da zaten
+>    çalışan farklı bir yapı vardı (`~/farabi/repo` tam klon, gerçek client
+>    `~/farabi/repo/client`'ta, masaüstü kısayolu bu yola sabit) — bu yapı
+>    BOZULMADI (kullanıcı kararı, riskli bir restructure yerine). Değişen
+>    yalnızca MEKANİZMA: `~/.local/bin/farabiguncelle.sh` artık eskisi gibi
+>    `gh` kimlik doğrulamasıyla `git pull` değil, kanonikteki gibi kimlik
+>    doğrulamasız `git fetch` + `git reset --hard origin/master` (repo
+>    public, doğrulandı). Ayrıca `~/.local/bin/farabi-heartbeat.sh` ilk kez
+>    kuruldu ve crontab'a eklendi (15 dk'da bir) — `POST
+>    /api/client/heartbeat`'e commit hash/hostname/ip gönderiyor, canlıda
+>    doğrulandı (`tahta_durum` tablosunda 9-A satırı var). **Bu arada
+>    kanonik script'te de gerçek bir bug bulundu ve düzeltildi:** üretilen
+>    heartbeat script'i `X-Farabi-Board-Key` header'ı göndermiyordu —
+>    `client_durum.py::heartbeat` her router gibi `auth.dogrula_tahta`'ya
+>    bağlı olduğu için her heartbeat sessizce 401 alıyordu (curl -s + log
+>    olduğu için hiç görünmüyordu). Her iki script'te de düzeltildi.
 >
 > **Çapraz değişiklik kuralı (yeni):** client+server bağlı değiştiğinde
 > (biri diğerini gerektiriyorsa) ikisi BİRLİKTE ele alınır — Claude her iki

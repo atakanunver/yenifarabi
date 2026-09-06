@@ -79,19 +79,38 @@ YAPILMADI — aşağıdaki §6/§10 hâlâ mevcut/gerçek durumu anlatıyor):**
      TRACKED dosyaları etkiler; `config/api_keys.json`, `memory/`,
      `logs/`, `icerik/`, `kitaplar/`, `YKS/` zaten `client/.gitignore`'da
      olduğu için eski rsync `--exclude` listesiyle aynı korumayı otomatik
-     sağlıyor. **Henüz gerçek bir tahtada uçtan uca test edilmedi.**
-     "9-A ağda erişilemez" notu (bu maddenin yazıldığı an, WOL yanıt
-     vermemişti) **2026-09-06'da geçersiz hale geldi** — 9-A'ya SSH ile
-     bağlanıldı, server'a sorunsuz ulaşıyor. Ama asıl eksik hâlâ duruyor:
-     bu YENİ mekanizma (sparse-checkout + kimlik doğrulamasız `git fetch`)
-     9-A'da hiç çalıştırılmadı. 9-A'nın kendi
-     `~/.local/bin/farabiguncelle.sh`'ı 2026-09-04'te ayrıca ve bağımsız
-     kurulmuş, BAŞKA bir mekanizma: `~/farabi/repo`'nun TAMAMINI (sparse
-     değil) `gh`'nin git credential helper'ıyla (kimlik doğrulamalı) pull
-     ediyor — bu ikisi birbirinden habersiz, örtüşmüyor. §0 madde 3'teki
-     "son kabul testi fiziksel tahtada" kuralı burada da geçerli, 9-A'da
-     (veya başka bir tahtada) ilk gerçek `server/farabi-kurulum.sh`
-     çalıştırması ve heartbeat doğrulaması hâlâ yapılmadı.
+     sağlıyor. "9-A ağda erişilemez" notu (bu maddenin yazıldığı an, WOL
+     yanıt vermemişti) **2026-09-06'da geçersiz hale geldi** — 9-A'ya SSH
+     ile bağlanıldı, server'a sorunsuz ulaşıyor.
+
+     **2026-09-06 — 9-A'nın kendi mekanizması yeni mekanizmaya
+     geçirildi, ama sparse-checkout DIŞINDA.** Kanonik script'in
+     varsaydığı `~/farabi` = doğrudan sparse-checkout yapısı 9-A'da
+     KURULMADI — 9-A'da zaten çalışan farklı bir klasör düzeni vardı
+     (`~/farabi/repo` tam klon, gerçek client `~/farabi/repo/client`'ta,
+     masaüstü kısayolu bu yola sabit) ve bu, riskli bir restructure yerine
+     bilinçli olarak KORUNDU. `~/.local/bin/farabiguncelle.sh` (2026-09-04'te
+     `gh` kimlik doğrulamasıyla `git pull` yapan, farklı/bağımsız bir
+     script olarak kurulmuştu) artık kanonikle AYNI MEKANİZMAYI (kimlik
+     doğrulamasız `git fetch` + `git reset --hard origin/master`) `~/farabi/repo`
+     üzerinde çalıştırıyor. `~/.local/bin/farabi-heartbeat.sh` de ilk kez
+     kuruldu (crontab, 15 dk'da bir) ve canlıda doğrulandı —
+     `tahta_durum` tablosunda 9-A satırı var (`commit_hash` gerçek
+     `git rev-parse --short HEAD` ile eşleşiyor).
+
+     **Bu doğrulama sırasında kanonik script'te de gerçek bir bug
+     bulundu:** üretilen heartbeat script'i `X-Farabi-Board-Key`
+     header'ı göndermiyordu; `client_durum.py::heartbeat` her router gibi
+     `auth.dogrula_tahta`'ya bağlı olduğu için her çağrı sessizce 401
+     alıyordu (curl `-s` + salt log yazımı olduğu için hata hiç
+     görünmüyordu — 9-A'da bu script hiç çalıştırılmadığından üretimde
+     henüz etkisi yoktu). Hem `server/farabi-kurulum.sh` hem 9-A'nın
+     kendi script'i düzeltildi.
+
+     §0 madde 3'teki "son kabul testi fiziksel tahtada" kuralı hâlâ
+     geçerli — bu, GERÇEK bir tahtada (9-A) yapılan ilk uçtan uca
+     doğrulamaydı, ama kanonik `server/farabi-kurulum.sh`'ın sparse-checkout
+     adımı (madde 1) hiçbir tahtada henüz denenmedi; bu hâlâ açık.
 
 3. **Çapraz (client+server bağlı) değişiklik iş akışı — yeni kural
    (2026-09-05).** Client ve server kodu birbirine bağlı değiştiğinde
