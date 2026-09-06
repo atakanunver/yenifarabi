@@ -5,6 +5,105 @@
 > "temiz başlangıç"). Aşağıdaki her madde bu tarihte gerçek kod okunarak
 > ve/veya canlı sistemde doğrulanarak yazıldı; varsayım değil.
 
+## 0. MİMARİ İLKESİ — KESİN AYRIM (2026-09-05 karar, bağlayıcı)
+
+**Bu bölüm, aşağıdaki bölümlerin (özellikle §6 ve §10) ANLATTIĞI eski
+çerçeveyi geçersiz kılan, yukarıdan bağlayıcı bir karardır.** Aşağıda "eski"
+diye işaretlenen davranış hâlâ koddaki gerçek durumdur (doküman "varsayım
+değil, koddan doğrulanmış" ilkesini korur) — ama bu artık hedef değil,
+göç edilecek bir geçmiş durumdur.
+
+**Kesin ayrım:**
+- **`client/` = yalnızca kullanıcı arayüzü/etkileşim yüzeyi.** Tahtada
+  (Vestel/Pardus) çalışır. Görevi: PyQt6 render, Gemini Live ses oturumunu
+  yürütmek (mikrofon/hoparlör, gerçek-zamanlı ses — bkz. aşağıdaki istisna),
+  modelin çağırdığı araçları (`actions/`) TAHTA ÜZERİNDE yerel olarak
+  yürütmek (ekran görüntüsü alma, uygulama/dosya/pencere açma-kapama gibi
+  fiziksel olarak yalnızca tahtada yapılabilecek işler), ve server'dan
+  HTTP ile gelen içeriği (metin/görsel/PDF sayfası) ekrana basmak. Client
+  kendi başına HİÇBİR iş mantığı, sistem promptu metni veya sağlayıcı
+  seçimi TUTMAZ/KARAR VERMEZ.
+- **`server/` = beyin.** RAG, sistem promptu (bkz. aşağıda), kitap/YKS/PDF
+  içerik mantığı, bulut LLM/vision sağlayıcı routing, auth, filo takibi —
+  Farabi'nin "ne yapacağına" dair her karar burada.
+- **İstisna (değişmedi, iptal edilmedi):** Ses — Gemini Live bağlantısının
+  kendisi (WebSocket, `google-genai` SDK) — client'ta kalır. Bu, "client
+  yalnızca UI" ilkesine aykırı değil, sesin KENDİSİ bu ürünün arayüzüdür;
+  2026-08-11'de ayrıca karara bağlanmış, ayrı bir mimari kısıttır (yerel
+  STT/TTS kalıcı olarak iptal edildi, bkz. §14). Bu karar bunu AÇMIYOR.
+
+**Bu kararla değişen iki somut nokta (durum: PLANLANDI, kod tarafında henüz
+YAPILMADI — aşağıdaki §6/§10 hâlâ mevcut/gerçek durumu anlatıyor):**
+
+1. **Sistem promptu server'a taşınacak.** `client/core/prompt.txt`
+   (+ `prompteski.txt`, `vision_prompt.txt`) şu an client'ta düz dosya
+   olarak duruyor ve `main.py` tarafından yerelden okunuyor — bu, Rule 1
+   ("client ince kalmalı") ile artık tutarsız, zira prompt bir iş
+   mantığı/karar parçasıdır, arayüz değildir. Hedef: server yeni bir
+   endpoint'ten (örn. `GET /api/egitim/sistem_promptu`) güncel prompt
+   metnini döner; client, ders oturumu başında bunu HTTP ile çeker ve
+   Gemini Live oturumunu bu metinle kurar — tıpkı `ders_icerigi`/
+   `pdf_sayfa`'nın zaten çalıştığı "Brain karar verir, client görüntüler"
+   deseniyle aynı (API Prensibi, kök `CLAUDE.md`). Prompt dosyaları git'te
+   `server/` altına taşınmalı, client'taki kopyalar kaldırılmalı.
+2. **Dağıtım/versiyon kontrolü GitHub tabanlı mekanizmaya geçti —
+   KESİNLEŞTİRİLDİ (2026-09-05, üçüncü ve son tur) ve UYGULANDI.**
+
+   - **GitHub (`github.com/atakanunver/yenifarabi`, PUBLIC) = tek doğru
+     kaynak.** Repo'nun tamamı (`client/` + `server/` + geri kalanı)
+     burada versiyonlanır. Değişiklik geçmişi, rollback ve **"hangi
+     tahtada hangi sürüm çalışıyor" takibi** hep buradan yönetilir.
+   - **Tahtalar GitHub'dan DOĞRUDAN çeker — server ARADA DEĞİL.**
+     Önceki iki tur bu noktada YANLIŞTI (önce "her tahta doğrudan
+     GitHub'a bağlanacak" denildi, sonra "hayır, server aradaki
+     build/deploy istasyonu, tahtalar GitHub'a bağlanmıyor" diye
+     düzeltildi) — kullanıcı 2026-09-05'te açıkça netleştirdi: **"tahtalar
+     serverdan kodu github üzerinden çeksin rsync iptal"**. Yani her
+     tahta kendi git checkout'una sahip, doğrudan GitHub'a `git fetch`
+     atar; server'ın (`farabi.local`) çökmesi/kapalı olması tahta
+     güncellemesini ETKİLEMEZ. `farabi.local` yalnızca KENDİ (`server/`)
+     kodu için ayrıca GitHub'dan çeker — bu, board dağıtımından tamamen
+     BAĞIMSIZ, paralel bir akış.
+   - **`farabiguncelle.sh` rsync'ten git'e YENİDEN YAZILDI**
+     (`server/farabi-kurulum.sh`, aynı adı koruyor, mekanizma tamamen
+     değişti): repo public olduğu için tahta tarafında hiç kimlik
+     doğrulama gerekmiyor — eski ssh-keygen/ssh-copy-id adımları (yalnızca
+     rsync'in server'a SSH erişimi içindi) TAMAMEN KALDIRILDI. Tahta ilk
+     kurulumda yalnızca `client/`'ı sparse-checkout+partial-clone ile
+     çeker (`server/`, `docs/`, `benchmark/` diske hiç inmez); günlük
+     cron artık `git fetch` + `git reset --hard origin/master`. Heartbeat
+     scripti DEĞİŞMEDİ, yalnızca okuduğu commit hash artık tahtanın kendi
+     `git rev-parse HEAD`'i — önceki sürümde bu bilgi için server'a SSH
+     ile sorulup server'ın kendi lokal git durumu okunuyordu, o dolaylı
+     bağımlılık da bu göçle ortadan kalktı. `git reset --hard` yalnızca
+     TRACKED dosyaları etkiler; `config/api_keys.json`, `memory/`,
+     `logs/`, `icerik/`, `kitaplar/`, `YKS/` zaten `client/.gitignore`'da
+     olduğu için eski rsync `--exclude` listesiyle aynı korumayı otomatik
+     sağlıyor. **Henüz gerçek bir tahtada uçtan uca test edilmedi** — 9-A
+     bu değişikliğin yapıldığı sırada ağda erişilemez durumdaydı (WOL
+     denendi, yanıt yok); §0 madde 3'teki "son kabul testi fiziksel
+     tahtada" kuralı burada da geçerli, tahtaya ilk gerçek `farabiguncelle.sh`
+     çalıştırması bu kuralın parçası.
+
+3. **Çapraz (client+server bağlı) değişiklik iş akışı — yeni kural
+   (2026-09-05).** Client ve server kodu birbirine bağlı değiştiğinde
+   (ör. server'da yeni bir endpoint, client'ın onu çağırması gerektiriyor)
+   iki taraf da AYRI AYRI değil BİRLİKTE ele alınır:
+   1. Değişiklik GitHub'a push edilir.
+   2. **Claude her iki tarafı da inceler ve mevcut test paketlerini
+      çalıştırır** (`server/tests/`, `client/tests/`) — yalnızca
+      değişen tarafı değil, etkileşimin ikisini de.
+   3. `farabi.local` build/deploy adımını yapar (yukarıdaki madde 2).
+   4. **Son kabul testi her zaman insan tarafından, fiziksel tahtada
+      yapılır** (Atakan bizzat tahta başına geçer) — bu adım
+      otomatikleştirilmez veya atlanmaz, ne kadar test yeşil olursa
+      olsun gerçek ses/donanım/PyQt6 davranışını yalnızca tahtanın
+      kendisi doğrular.
+
+Bu üçü bir sonraki uygulama turunda ele alınacak; bu bölüm o işin
+gerekçesini ve hedef durumunu sabitler, aşağıdaki §6/§10 o tura kadar
+mevcut (eski) davranışı doğru şekilde anlatmaya devam eder.
+
 ## 1. Ne — kısaca
 
 Farabi, sınıf akıllı tahtalarında (Vestel, Pardus ETAP GNU/Linux) çalışan,
@@ -96,10 +195,25 @@ mimarinin bilinen zayıf noktası). **Yan bulgu:** `CrossEncoder` `max_length`
 verilmeden yükleniyor (`main.py`) ve batch en uzun diziye padleniyor — tek
 uzun bir tablo (4571 krk) tüm partinin maliyetini yükseltiyordu. Kırpma hem
 gecikmeyi tabana yaklaştırdı hem doğruluğu artırdı. Aynı etki `chunk_egitim`
-için de geçerli (ort. 1249, en fazla 3122 krk) — oraya da uygulamak muhtemel
-bir kazanç ama AYRI bir değişiklik, kendi 40-soruluk turunu gerektirir.
-**Bilinen sınır:** 1200 karakteri aşan büyük bir tablonun sonraki satırları
-retrieval'ı etkilemez.
+için de geçerli olacağı öngörülmüştü (ort. 1249, en fazla 3122 krk) — bu
+öngörü **R-4 (2026-09-04, commit `96293f5`) ile doğrulandı ve düzeltildi**:
+canlı DB'de `chunk_egitim`'de 45 chunk 3.122 karakteri aşıyor, en uzunu
+21.814 karakter (Fizik-9 s.169, çoğu PyMuPDF `U+FFFD` çöpü) — top-20'ye
+giren böyle bir aday tüm rerank batch'inin maliyetini yükseltiyordu.
+`RERANK_METIN_KARAKTER=4000` eklendi; kapak, kabul testinin koştuğu
+biyoloji-9'da NO-OP olacak şekilde kalibre edildi (p99=2.392, max=3.122 —
+4000'i aşan hiç chunk yok), korpus genelinde etkilenen yalnızca 8.726
+chunk'ın 17'si (%0,19). Tablo kapağı (1200, `RERANK_TABLO_KARAKTER`)
+AYRI kaldı, değiştirilmedi — ikisi bağımsız sabitler. Kırpma yine yalnızca
+rerank görünümüne uygulanır, LLM'e giden kaynak metin tam kalır
+(`server/tests/test_rag.py`'deki iki test bunu garanti eder). Aynı commit'te
+`benchmark/rag_test.py` eklendi: `recall_test.py`/`katman_test.py`
+pipeline'ı kendi başına yeniden yazdığı için `rag.py`'deki bir değişikliği
+yakalamıyordu — `rag_test.py` üretimin gerçek `RagMotoru`'sunu doğrudan
+import edip ölçer (metrik/soru_log INSERT'lerini yutarak üretim
+telemetrisini kirletmeden). Server testleri: 108 geçti, 0 hata.
+**Bilinen sınır:** her iki kapak da kırpma sınırını aşan içeriğin
+sonraki kısmını retrieval'da görünmez bırakır (1200 tablo / 4000 metin).
 
 **Kapsam notu:** `chunk_tablo` şu an yalnızca `biyoloji-9` için dolu (67
 tablo). Diğer 18 kitap için `tools/tablo_cikar.py` + `benchmark/
@@ -116,6 +230,10 @@ Test kapsamı: **`rag.py`'nin otomatik testi yok** — yalnızca
 doğrulama sağlıyor.
 
 ## 6. `client/` — tahta istemcisi
+
+> ⚠️ Bu bölümdeki `core/prompt.txt` client'ta duruyor olması **§0'daki
+> 2026-09-05 kararıyla değişecek** (server'a taşınacak, henüz taşınmadı) —
+> aşağıdaki anlatım şu anki (eski) gerçek durumdur.
 
 PyQt6 tabanlı, Vestel akıllı tahtalarda çalışıyor. İnce: kendi kitap/YKS/
 içerik deposu yok, ağır iş server'a HTTP ile gidiyor. **Ses tamamen
@@ -203,6 +321,10 @@ görmez. Bu, önceden (2026-08-09) kaldırılmış `screen_processor.py`
    demek). **Henüz düzeltilmedi**, prompt-dürüstlük sınıfı bir sorun.
 
 ## 10. Senkronizasyon — server-merkezli, pull yönü
+
+> ⚠️ Aşağıdaki rsync mekanizması **§0'daki 2026-09-05 kararıyla GitHub
+> tabanlı bir mekanizmayla değiştirilecek** (henüz değiştirilmedi) —
+> aşağıdaki anlatım şu anki (eski) gerçek durumdur.
 
 **2026-08-30'da tersine çevrildi** (9-A pilot dönemi bitti): `client/` kodu
 artık SERVER'da (`/home/ata/farabi/client/`) düzenlenir, tek doğruluk

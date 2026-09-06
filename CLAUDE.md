@@ -3,6 +3,38 @@
 Sınıf akıllı tahtalarında çalışan sesli ders asistanı.
 Detaylı mimari: `@docs/mimari.md`
 
+> ⚠️ **KESİN MİMARİ KARARI (2026-09-05) — `docs/mimari.md` §0'a bak, her
+> şeyden önce.** Client = yalnızca tahtadaki arayüz/etkileşim yüzeyi (ses
+> oturumu dahil), server = beyin (RAG + **sistem promptu** + iş mantığı +
+> sağlayıcı routing). Bu, aşağıdaki "Temel Kurallar"daki Kural 1'in
+> ("client ince kalmalı") doğal uzantısıdır. İki somut göç PLANLANDI, henüz
+> YAPILMADI:
+> 1. `client/core/prompt.txt` server'a taşınacak, client onu oturum başında
+>    HTTP ile çekecek.
+> 2. **Dağıtım: GitHub tek doğru kaynak — UYGULANDI (2026-09-05).**
+>    Tahtalar GitHub'dan (`github.com/atakanunver/yenifarabi`, PUBLIC)
+>    **doğrudan** çeker, server ARADA DEĞİL (kullanıcı netleştirdi: "tahtalar
+>    serverdan kodu github üzerinden çeksin rsync iptal"). `server/
+>    farabi-kurulum.sh` rsync'ten git'e yeniden yazıldı: tahta `client/`'ı
+>    sparse-checkout ile klonlar, `farabiguncelle.sh` artık `git fetch` +
+>    `git reset --hard origin/master` (aynı isim, tamamen yeni mekanizma) —
+>    repo public olduğu için SSH-anahtar adımları kaldırıldı. `farabi.local`
+>    yalnızca KENDİ (`server/`) kodu için ayrıca GitHub'dan çeker, bu board
+>    dağıtımından bağımsız bir akış. **Henüz gerçek tahtada test edilmedi**
+>    (9-A şu an ağda erişilemez durumda) — bkz. `docs/mimari.md` §0 madde 2.
+>
+> **Çapraz değişiklik kuralı (yeni):** client+server bağlı değiştiğinde
+> (biri diğerini gerektiriyorsa) ikisi BİRLİKTE ele alınır — Claude her iki
+> tarafı da inceler ve ilgili test paketlerini (`server/tests/`,
+> `client/tests/`) çalıştırır, sonra `farabi.local` deploy eder. **Son kabul
+> testi her zaman Atakan tarafından fiziksel tahtada yapılır** — bu adım
+> otomatikleştirilmez/atlanmaz.
+>
+> `client/core/prompt.txt`'in server'a taşınması hâlâ PLANLANDI, henüz
+> YAPILMADI — bu dosyanın geri kalanındaki "client'ta prompt.txt var"
+> anlatımı hâlâ koddaki gerçek durumdur; dağıtım kısmı ise artık YUKARIDAKİ
+> yeni akışı yansıtır, "rsync ile senkron" ifadeleri geçmiş durumu anlatır.
+
 **Donanım (server, hızlı referans):** 2× NVIDIA RTX 3060 12GB 
 İkisi de tam kapasite committed: biri `ollama.service`'e, diğeri
 `farabi-api.service` (embedding+reranker) — ayrıntı ve gerekçe için aşağıdaki

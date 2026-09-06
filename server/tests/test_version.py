@@ -1,7 +1,7 @@
-from fastapi.testclient import TestClient
-
 import auth
 import main
+from fastapi.testclient import TestClient
+from version import VERSION
 
 
 def _client(config_path, monkeypatch):
@@ -25,7 +25,7 @@ def test_version_ayni_major_uyumlu(tmp_path, monkeypatch):
     )
 
     assert response.status_code == 200
-    assert response.json()["server_version"] == "0.1.0"
+    assert response.json()["server_version"] == VERSION
     assert response.json()["uyari"]
 
 
@@ -41,4 +41,4 @@ def test_version_farkli_major_reddedilir(tmp_path, monkeypatch):
     )
 
     assert response.status_code == 426
-    assert response.json()["detail"]["server_version"] == "0.1.0"
+    assert response.json()["detail"]["server_version"] == VERSION

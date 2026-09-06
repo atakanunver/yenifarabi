@@ -1,3 +1,20 @@
 ## 2026-09-04 - HTTP sürüm el sıkışması
 - İstemci başlangıcında kimliği doğrulanmış `GET /api/version` çağrısıyla iki tarafın semantic sürümü karşılaştırılır.
 - İletişim zaten HTTP/REST olduğundan kalıcı bağlantı protokolü eklenmeden MAJOR uyumsuzluğu ders başlamadan engellenir; MINOR/PATCH farkı uyarı olarak kalır.
+
+## 2026-09-05 - Kesin client/server ayrımı: prompt server'a, dağıtım GitHub'a
+- Client artık kesin olarak yalnızca UI/etkileşim yüzeyi (tahtada render, Gemini Live ses oturumu, yerel araç yürütme); server RAG + sistem promptu + tüm iş mantığının tutulduğu tek yer. Ayrıntı: `docs/mimari.md` §0 (yeni eklendi, bağlayıcı).
+- İki somut göç PLANLANDI (henüz uygulanmadı): (1) `client/core/prompt.txt` server'a taşınacak, client oturum başında HTTP ile çekecek — mevcut "Brain karar verir, client görüntüler" desenine (ders_icerigi/pdf_sayfa) uydurmak için; (2) tahta dağıtımı rsync-pull (`farabiguncelle.sh`) yerine GitHub tabanlı, `git diff`/`git log` ile izlenen bir mekanizmaya geçecek.
+- Neden: Rule 1 ("client ince kalmalı") zaten 2026-08-14'te büyük ölçüde uygulanmıştı (kitap/YKS/PDF/dosya/sağlayıcı işi server'da) — sistem promptu bu konsolidasyonun dışında unutulmuş tek parça olarak client'ta kalmıştı. Dağıtımın rsync olması ise sürüm geçmişi/rollback sağlamıyor; GitHub'a geçiş bunu çözer.
+- Ses (Gemini Live bağlantısının kendisi) bu kararın KAPSAMI DIŞINDA — 2026-08-11 kararıyla client'ta kalmaya devam ediyor, ayrı bir mimari kısıt.
+
+## 2026-09-05 - Dağıtım modeli netleştirildi: GitHub kaynak, farabi.local build/deploy noktası
+- Yukarıdaki kararın dağıtım ayağı ilk yazımda yanlış anlatılmıştı ("her tahta doğrudan GitHub'a bağlı git checkout olacak") — düzeltildi. Gerçek model: GitHub = tek doğru kaynak (client+server, versiyon/rollback/tahta-sürüm takibi buradan); `farabi.local` = build/deploy noktası, GitHub'dan çeker ve derler/paketler; tahtalar GitHub'a doğrudan bağlanmaz, dağıtım server üzerinden devam eder (rsync'in yerini alacak kesin mekanizma ayrı bir uygulama kararı).
+- Yeni çapraz-değişiklik kuralı: client+server bağlı değiştiğinde ikisi birlikte ele alınır — Claude her iki tarafı da inceler, ilgili test paketlerini çalıştırır; son kabul testi HER ZAMAN Atakan tarafından fiziksel tahtada yapılır, otomatikleştirilmez.
+- Neden: Kullanıcı GitHub'ı "tek doğru kopya + rollback + hangi tahtada ne çalışıyor" takibi için, farabi.local'i ise mevcut build/deploy rolünü koruyan bir ara istasyon olarak tanımladı — tahtaların GitHub'a doğrudan bağlanması bu modelin parçası değil.
+
+## 2026-09-05 - Dağıtım modeli KESİNLEŞTİ (3. ve son düzeltme): tahtalar GitHub'a DOĞRUDAN bağlanır
+- Bir önceki karar ("tahtalar GitHub'a doğrudan bağlanmaz, dağıtım server üzerinden devam eder") kullanıcı tarafından tersine çevrildi: **"tahtalar serverdan kodu github üzerinden çeksin rsync iptal."** Yani doğru model, ilk yazılan (ve sonra yanlışlıkla düzeltilen) modeldi: her tahta kendi git checkout'una sahip, doğrudan GitHub'dan `git fetch` eder; `farabi.local` board dağıtımının İÇİNDE DEĞİL, yalnızca kendi `server/` kodu için paralel ve bağımsız bir şekilde GitHub'dan çeker.
+- `farabiguncelle.sh` SİLİNDİ değil, rsync'ten git'e YENİDEN YAZILDI (`server/farabi-kurulum.sh` içinde, aynı isim/cron/heartbeat korunarak) — kullanıcının "farabiguncelle.sh sil" talimatı, "rsync mekanizmasını kaldır" olarak yorumlandı; script'in kendisi (tahtanın güncelleme mekanizması) hâlâ gerekli olduğu için git-tabanlı olarak yeniden üretildi. Kurulum script'indeki ssh-keygen/ssh-copy-id adımları da kaldırıldı — repo public olduğu için (`github.com/atakanunver/yenifarabi`) tahtanın server'a SSH erişimine artık hiç ihtiyacı yok.
+- Doğrulanan ön koşul: repo GitHub'da PUBLIC (`git ls-remote` anonim çalıştı) — tahta tarafında kimlik doğrulama/token gerekmiyor.
+- **Uygulanmadı/test edilmedi:** 9-A şu an ağda erişilemez (WOL denendi, yanıt yok) — yeni `farabiguncelle.sh` gerçek bir tahtada hiç çalıştırılmadı. Bir sonraki 9-A erişiminde ilk çalıştırma ve `client_durum.py` heartbeat'inin gerçek GitHub commit hash'i raporladığının doğrulanması gerekiyor.
