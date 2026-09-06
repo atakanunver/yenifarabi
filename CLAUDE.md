@@ -468,15 +468,15 @@ Sudo          : şifresiz (NOPASSWD) (veya aynı şifre)
    client'ının (`client/`) VE `tahtayoklama/`'nın (Farabi'den bağımsız,
    ayrı proje) koştuğu fiziksel donanım. 11 tahta (2026-08-24 itibarıyla):
 
-   | Sınıf/Ad  | IP             | Yoklama kurulu mu |
-   |-----------|----------------|--------------------|
-   | 9-A       | 192.168.23.245 | evet (Farabi client venv'ini paylaşır) |
-   | 9-B       | 192.168.23.242 | evet |
-   | 10-A      | 192.168.23.233 | evet |
-   | 11-A      | 192.168.23.228 | evet (2026-08-24'te kuruldu — önceki 11-A/236 ataması yanlıştı, düzeltildi) |
-   | 11-B      | 192.168.23.239 | evet |
-   | 12-A      | 192.168.23.231 | evet |
-   | 12-B      | 192.168.23.240 | evet |
+   | Sınıf/Ad  | IP             | Yoklama kurulu mu | Farabi client kurulu mu |
+   |-----------|----------------|--------------------|--------------------------|
+   | 9-A       | 192.168.23.245 | evet (Farabi client venv'ini paylaşır) | evet (pilot, 2026-08-12'den beri) |
+   | 9-B       | 192.168.23.242 | evet | hayır |
+   | 10-A      | 192.168.23.233 | evet | hayır |
+   | 11-A      | 192.168.23.228 | evet (2026-08-24'te kuruldu — önceki 11-A/236 ataması yanlıştı, düzeltildi) | hayır |
+   | 11-B      | 192.168.23.239 | evet | hayır |
+   | 12-A      | 192.168.23.231 | evet | **evet (2026-09-06'da kuruldu — kanonik `server/farabi-kurulum.sh` sparse-checkout mekanizmasının ilk gerçek uçtan uca testi, bkz. DECISIONS.md).** Gemini API anahtarı hâlâ boş, ilk sesli ders öncesi elle girilmeli. |
+   | 12-B      | 192.168.23.240 | evet | hayır |
 VESTEL AKILLI TAHTALAR (Pardus ETAP GNU/Linux 23) - 11 adet 7 si aktif sınıf olarak kullanılıyor (Intel i3-2330M,eski mobil işlemci)
 --------------------------------------------------------------
 Kullanıcı adı : etapadmin
