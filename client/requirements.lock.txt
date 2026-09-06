@@ -1,4 +1,4 @@
-# client/requirements.lock.txt — 2026-09-02 üretilen SÜRÜM KİLİDİ
+# client/requirements.lock.txt — 2026-09-06'da düzeltilerek yeniden üretilen SÜRÜM KİLİDİ
 # (docs/REFACTORING_PLAN.md R-3, docs/DEPENDENCY_ANALYSIS.md D-01/D-02)
 #
 # Neden: requirements.txt okunabilir bir ÜST SEVİYE listedir ve yorumları
@@ -7,80 +7,74 @@
 # sürümler kurardı. google-genai (Gemini Live = sesin tamamı) hızlı gelişen
 # bir SDK; kırıcı bir sürüm sınıfta SESSİZ bir ses arızası demektir.
 #
+# ⚠️ 2026-09-06 DÜZELTME — önceki sürüm (2026-09-02) İKİ AYRI hatalıydı,
+# 12-A'ya ilk kurulum denemesinde bulundu:
+#   1. "Kaynak ortam: Python 3.14.4" idi — ama tahtaların GERÇEK sistem
+#      Python'u 3.11.2 (9-A VE 12-A'da doğrulandı). numpy==2.5.2 (Python
+#      >=3.12 gerektiriyor) temiz bir 3.11 kurulumunda ANINDA patlıyordu.
+#   2. requirements.txt'teki 13 paketin kapanışı DEĞİL, ~40 fazladan paket
+#      içeriyordu — openai/pandas/pymupdf/python-docx/python-pptx/openpyxl
+#      (2026-08-14'te server'a taşınıp client'tan KALDIRILMIŞ bağımlılıklar,
+#      bkz. requirements.txt'in "EBA PDF metni" yorumu) VE pytest/coverage/
+#      pyflakes/Pygments gibi dev-only test araçları (bkz. client/CLAUDE.md
+#      "pytest is a dev-only dependency and is deliberately NOT in
+#      requirements.txt") — muhtemelen karışık/eski bir dev venv'den
+#      `pip freeze` alınmıştı, temiz bir board kurulumundan değil.
+# Bu sürüm 12-A'da SIFIRDAN, yalnızca `pip install -r requirements.txt`
+# ile kurulup doğrulandı (`python -c "import main"` temiz, `pytest` 151/151)
+# ve 9-A'nın GERÇEKTEN ÇALIŞAN venv'iyle karşılaştırıldı (tek fark: 9-A'da
+# ayrıca dev-only pytest/pluggy/iniconfig/packaging/Pygments kurulu, board
+# runtime'ının parçası değil — bkz. yukarıdaki not).
+#
 # KURULUM bu dosyayı kullanmalı:
 #     pip install -r client/requirements.lock.txt
 # Bağımlılık EKLERKEN önce requirements.txt'e (gerekçesiyle) yaz, kur,
-# sonra bu dosyayı yeniden üret:
+# sonra bu dosyayı TEMİZ bir venv'den (yalnızca requirements.txt kurulu,
+# pytest DAHİL değil) yeniden üret:
 #     client/venv/bin/pip freeze > client/requirements.lock.txt
 #
-# Kaynak ortam: Python 3.14.4, client/venv, 2026-09-02.
+# Kaynak ortam: Python 3.11.2, 12-A client/venv (temiz kurulum), 2026-09-06.
 annotated-types==0.8.0
-anyio==4.14.2
+anyio==4.15.1
 beautifulsoup4==4.15.0
-brotli==1.2.0
 certifi==2026.7.22
 cffi==2.1.1
-charset-normalizer==3.4.9
-click==8.4.2
-coverage==7.16.0
-cryptography==50.0.0
-ddgs==9.14.4
+charset-normalizer==3.5.1
+click==8.5.0
+cryptography==50.0.1
+ddgs==9.16.0
 defusedxml==0.7.1
 distro==1.9.0
-et_xmlfile==2.0.0
-fake-useragent==2.2.0
-google-auth==2.56.3
-google-genai==2.17.0
+google-auth==2.57.1
+google-genai==2.22.0
 h11==0.16.0
-h2==4.4.1
-hpack==4.2.0
 httpcore==1.0.9
 httpx==0.28.1
-hyperframe==6.1.0
-idna==3.18
-iniconfig==2.3.0
-jiter==0.16.0
-lxml==6.1.1
-numpy==2.5.2
-openai==2.53.0
-openpyxl==3.1.5
-packaging==26.3
-pandas==3.0.5
+idna==3.19
+lxml==6.1.3
+numpy==2.4.6
 pdfminer.six==20260107
 pdfplumber==0.11.10
 pillow==12.3.0
-pluggy==1.6.0
-primp==1.3.1
+primp==2.0.0
 psutil==7.2.2
 pyasn1==0.6.4
 pyasn1_modules==0.4.2
 pycparser==3.0
-pydantic==2.13.4
-pydantic_core==2.46.4
-pyflakes==3.4.0
-Pygments==2.20.0
-pymupdf==1.28.2
+pydantic==2.13.5
+pydantic_core==2.46.5
 PyPDF2==3.0.1
-pypdfium2==5.12.1
+pypdfium2==5.13.0
 PyQt6==6.11.0
-PyQt6-Qt6==6.11.1
+PyQt6-Qt6==6.11.2
 PyQt6_sip==13.12.0
-pytest==9.1.1
-pytest-cov==7.1.0
-python-dateutil==2.9.0.post0
-python-docx==1.2.0
-python-pptx==1.0.2
 requests==2.34.2
-six==1.17.0
 sniffio==1.3.1
-socksio==1.0.0
-sounddevice==0.5.5
+sounddevice==0.5.6
 soupsieve==2.9.2
 tenacity==9.1.4
-tqdm==4.70.0
-typing-inspection==0.4.2
+typing-inspection==0.4.4
 typing_extensions==4.16.0
 urllib3==2.7.0
 websockets==16.1.1
-xlsxwriter==3.2.9
 youtube-transcript-api==1.2.4
