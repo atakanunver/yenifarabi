@@ -74,9 +74,12 @@ tahtayoklama/data/roster/*.PDF
 tahtayoklama/data/kayitlar/
 
 # mudur/ — okul idaresinin kendi ders programı/giriş-çıkış belgeleri
-# (PDF/JPEG), planlar/ ile aynı desen: koda BAĞLI DEĞİL, idarenin kaynak
-# materyali. Dizin diskte kalır, git'e girmez.
-mudur/
+# (PDF/JPEG/JSON/MD), planlar/ ile aynı desen: koda BAĞLI DEĞİL, idarenin
+# kaynak materyali. Dizin diskte kalır, git'e girmez.
+# İSTİSNA (2026-09-13): .py script'leri (ör. ders_programi_yukle.py) VERİ
+# değil, gerçek kod — bunlar takip edilir, ürettikleri PDF/JSON/MD hâlâ hariç.
+mudur/*
+!mudur/*.py
 
 # network.txt — 10 tahtanın IP/MAC/SSH bilgileri, etapadmin/ogretmen
 # şifrelerini AÇIK METİN içeriyor (2026-08-23) — .env ile aynı hassasiyette,
