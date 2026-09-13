@@ -1,0 +1,118 @@
+{
+  "zaman": "2026-09-08T20:04:26.065367+00:00",
+  "etiket": "",
+  "harness": "model_karsilastir.py (GERÇEK server/rag.py, yalnızca LLM modeli değişiyor)",
+  "kitap_id": 1,
+  "soru_sayisi": 2,
+  "yutulan_insert": 5,
+  "modeller": {
+    "qwen2.5:14b": {
+      "ozet": {
+        "A": {
+          "n": 2,
+          "ok_orani": 1.0,
+          "yetersiz_kaynak_orani": 0.0,
+          "sayi_kontrolu_reddi_orani": 0.0,
+          "hata_orani": 0.0,
+          "think_sizinti_orani": 0.0,
+          "cumle_asimi_orani": 0.0,
+          "medyan_llm_ms": 5541.0,
+          "medyan_toplam_ms": 20453.0
+        },
+        "TOPLAM": {
+          "n": 2,
+          "ok_orani": 1.0,
+          "yetersiz_kaynak_orani": 0.0,
+          "sayi_kontrolu_reddi_orani": 0.0,
+          "hata_orani": 0.0,
+          "think_sizinti_orani": 0.0,
+          "cumle_asimi_orani": 0.0,
+          "medyan_llm_ms": 5541.0,
+          "medyan_toplam_ms": 20453.0
+        }
+      },
+      "kayitlar": [
+        {
+          "soru": "Hastalık etmenlerinin bulaşma yollarının keşfinde önemli rol oynayan bilim insanı kimdir?",
+          "grup": "A",
+          "durum": "ok",
+          "ham_cevap": "Akşemseddin hastalığın etmenlerinin bulaşma yollarını keşfedecek ilk öncülerden biridir.",
+          "cevap": "Akşemseddin hastalığın etmenlerinin bulaşma yollarını keşfedecek ilk öncülerden biridir.",
+          "think_sizinti": false,
+          "cumle_sayisi": 1,
+          "cumle_asimi": false,
+          "llm_ms": 7430,
+          "toplam_ms": 22277,
+          "hata": null
+        },
+        {
+          "soru": "DNA’nın yapı ve işlevlerinin keşfi sürecinde bilim insanları arasında hangi tür biyomolekülün genetik bilgiyi taşıdığı t",
+          "grup": "A",
+          "durum": "ok",
+          "ham_cevap": "DNA, protein ve RNA gibi farklı biyomoleküllerin genetik bilgiyi taşımak konusunda bilim insanları arasında tartışmalar yaşanmıştır.",
+          "cevap": "DNA, protein ve RNA gibi farklı biyomoleküllerin genetik bilgiyi taşımak konusunda bilim insanları arasında tartışmalar yaşanmıştır.",
+          "think_sizinti": false,
+          "cumle_sayisi": 1,
+          "cumle_asimi": false,
+          "llm_ms": 3652,
+          "toplam_ms": 18629,
+          "hata": null
+        }
+      ]
+    },
+    "hf.co/umutkkgz/Kaira-Turkish-Gemma-9B-T1-GGUF:Q4_K_M": {
+      "ozet": {
+        "A": {
+          "n": 2,
+          "ok_orani": 0.5,
+          "yetersiz_kaynak_orani": 0.5,
+          "sayi_kontrolu_reddi_orani": 0.0,
+          "hata_orani": 0.0,
+          "think_sizinti_orani": 1.0,
+          "cumle_asimi_orani": 1.0,
+          "medyan_llm_ms": 14960.0,
+          "medyan_toplam_ms": 29571.5
+        },
+        "TOPLAM": {
+          "n": 2,
+          "ok_orani": 0.5,
+          "yetersiz_kaynak_orani": 0.5,
+          "sayi_kontrolu_reddi_orani": 0.0,
+          "hata_orani": 0.0,
+          "think_sizinti_orani": 1.0,
+          "cumle_asimi_orani": 1.0,
+          "medyan_llm_ms": 14960.0,
+          "medyan_toplam_ms": 29571.5
+        }
+      },
+      "kayitlar": [
+        {
+          "soru": "Hastalık etmenlerinin bulaşma yollarının keşfinde önemli rol oynayan bilim insanı kimdir?",
+          "grup": "A",
+          "durum": "yetersiz_kaynak",
+          "ham_cevap": "<think>\nHmm, kullanıcı bana bir ders asistanı olarak hareket etmemi ve sadece verilen kaynak metne dayanarak cevap vermemi istiyor. Soru \"Hastalık etmenlerinin bulaşma yollarının keşfinde önemli rol oynayan bilim insanı kimdir?\" şeklinde.\n\nKaynak metni dikkatlice inceliyorum. Metinde 1389-1459 yılları arasında Akşemseddin'in mikroorganizmaların hastalıklardaki rolünü ortaya koyan ve bulaşma fikrini öne süren ilk tabip olarak kabul edildiği belirtiliyor. Bu bilgi doğrudan soruyla eşleşiyor.\n\nDiğer bölümlere bakıyorum: Robert Hooke mikroskopla ilgili, Schleiden ve Schwann hücre teorisiyle, Fleming antibiyotikle, Mendel kalıtımla ilgili. DNA kısmında Watson, Crick ve Franklin var ama bulaşma yollarıyla doğrudan bağlantılı değil.\n\nKullanıcının sorusu çok spesifik - sadece \"hastalık etmenlerinin bulaşma yolları\"nı soruyor. Kaynakta başka isim yok, o yüzden Akşemseddin dışında cevap veremem. \n\nKurallara tam uymalıyım: Sadece kaynaktaki bilgiyi aktaracağım, yorum eklemeyeceğim. Cevap en fazla üç cümle olacak ve lise seviyesinde anlaşılır olmalı. \"YETERSIZ_KAYNAK\" dememek için de elimde yeterli bilgi var.\n\nSon kontrol: Kaynakta Akşemseddin'in bu keşifte rol aldığı açıkça yazıyor, başka isim geçmiyor. O halde cevabım net.\n</think>\nKaynak metne göre:  \n**Akşemseddin**, hastalık etmenlerinin bulaşma yollarının keşfinde önemli rol oynayan bilim insanıdır. Metinde şu ifade yer alır:  \n*\"Akşemseddin, tıp tarihinde mikroorganizmaların rolünü ilk defa ortaya koyan ve hastalıkların mikroorganizmalar yoluyla bulaşabileceği fikrini öne süren ilk tabip olarak kabul edilmektedir.\"*",
+          "cevap": "",
+          "think_sizinti": true,
+          "cumle_sayisi": null,
+          "cumle_asimi": false,
+          "llm_ms": 20467,
+          "toplam_ms": 34850,
+          "hata": null
+        },
+        {
+          "soru": "DNA’nın yapı ve işlevlerinin keşfi sürecinde bilim insanları arasında hangi tür biyomolekülün genetik bilgiyi taşıdığı t",
+          "grup": "A",
+          "durum": "ok",
+          "ham_cevap": "<think>\nHmm, kullanıcı DNA'nın keşif sürecini sorguluyor. Kaynak metne bakıyorum: \"DNA’nın yapı ve işlevlerinin keşfi sürecinde hangi tür biyomolekülün (protein, RNA, DNA) genetik bilgiyi taşıdığı bilim insanları arasında tartışmaya açık bir konudur.\" ifadesi doğrudan cevabı veriyor. \n\nKullanıcının sorusu çok spesifik ve kaynakta net şekilde belirtilmiş. Diğer kısımlar Watson-Crick'in çalışmaları veya Rosalind Franklin'in katkılarından bahsetse de, asıl odak tartışmanın konusu olan molekül türü. \n\nKurallara göre sadece bu cümleyi alıntılamak yeterli olacak. Ek bilgi eklememem gerekiyor - mesela protein/RNA seçeneklerinin neden elendiği gibi detaylar kaynakta yok. \n\nKullanıcı muhtemelen lise düzeyinde biyoloji ödevi için soruyor. Cevabın kısa ve direkt olması en iyisi, zaten metin de bunu sağlıyor. \"Protein, RNA, DNA\" karşılaştırmasını yapmaya gerek yok çünkü soru sadece tartışılan molekülleri sormuş.\n</think>\nKaynak metne göre:  \nDNA’nın yapı ve işlevlerinin keşfi sürecinde bilim insanları arasında **hangi tür biyomolekülün (protein, RNA, DNA) genetik bilgiyi taşıdığı** tartışmaya açıktı.",
+          "cevap": "<think>\nHmm, kullanıcı DNA'nın keşif sürecini sorguluyor. Kaynak metne bakıyorum: \"DNA’nın yapı ve işlevlerinin keşfi sürecinde hangi tür biyomolekülün (protein, RNA, DNA) genetik bilgiyi taşıdığı bilim insanları arasında tartışmaya açık bir konudur.\" ifadesi doğrudan cevabı veriyor. \n\nKullanıcının sorusu çok spesifik ve kaynakta net şekilde belirtilmiş. Diğer kısımlar Watson-Crick'in çalışmaları veya Rosalind Franklin'in katkılarından bahsetse de, asıl odak tartışmanın konusu olan molekül türü. \n\nKurallara göre sadece bu cümleyi alıntılamak yeterli olacak. Ek bilgi eklememem gerekiyor - mesela protein/RNA seçeneklerinin neden elendiği gibi detaylar kaynakta yok. \n\nKullanıcı muhtemelen lise düzeyinde biyoloji ödevi için soruyor. Cevabın kısa ve direkt olması en iyisi, zaten metin de bunu sağlıyor. \"Protein, RNA, DNA\" karşılaştırmasını yapmaya gerek yok çünkü soru sadece tartışılan molekülleri sormuş.\n</think>\nKaynak metne göre:  \nDNA’nın yapı ve işlevlerinin keşfi sürecinde bilim insanları arasında **hangi tür biyomolekülün (protein, RNA, DNA) genetik bilgiyi taşıdığı** tartışmaya açıktı.",
+          "think_sizinti": true,
+          "cumle_sayisi": 10,
+          "cumle_asimi": true,
+          "llm_ms": 9453,
+          "toplam_ms": 24293,
+          "hata": null
+        }
+      ]
+    }
+  }
+}

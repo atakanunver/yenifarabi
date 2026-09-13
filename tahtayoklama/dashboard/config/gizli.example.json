@@ -1,3 +1,0 @@
-{
-  "sifre_hash": "scripts/sifre_belirle.py çalıştırıp gerçek hash'i config/gizli.json'a yazın — bu dosya yalnızca şablon, gitignore'lu gerçek dosyayla karıştırılmasın diye committed"
-}

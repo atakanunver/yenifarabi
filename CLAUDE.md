@@ -468,15 +468,27 @@ Sudo          : şifresiz (NOPASSWD) (veya aynı şifre)
    client'ının (`client/`) VE `tahtayoklama/`'nın (Farabi'den bağımsız,
    ayrı proje) koştuğu fiziksel donanım. 11 tahta (2026-08-24 itibarıyla):
 
-   | Sınıf/Ad  | IP             | Yoklama kurulu mu | Farabi client kurulu mu |
-   |-----------|----------------|--------------------|--------------------------|
-   | 9-A       | 192.168.23.245 | evet (Farabi client venv'ini paylaşır) | evet (pilot, 2026-08-12'den beri) |
-   | 9-B       | 192.168.23.242 | evet | hayır |
-   | 10-A      | 192.168.23.233 | evet | hayır |
-   | 11-A      | 192.168.23.228 | evet (2026-08-24'te kuruldu — önceki 11-A/236 ataması yanlıştı, düzeltildi) | hayır |
-   | 11-B      | 192.168.23.239 | evet | hayır |
-   | 12-A      | 192.168.23.231 | evet | **evet (2026-09-06'da kuruldu — kanonik `server/farabi-kurulum.sh` sparse-checkout mekanizmasının ilk gerçek uçtan uca testi, bkz. DECISIONS.md).** Gemini API anahtarı hâlâ boş, ilk sesli ders öncesi elle girilmeli. |
-   | 12-B      | 192.168.23.240 | evet | hayır |
+   | Sınıf/Ad  | IP             | Hostname (gerçek) | Yoklama kurulu mu | Farabi client kurulu mu |
+   |-----------|----------------|--------------------|--------------------|--------------------------|
+   | 9-A       | 192.168.23.245 | vestel9a  | evet (Farabi client venv'ini paylaşır) | evet (pilot, 2026-08-12'den beri) |
+   | 9-B       | 192.168.23.239 | vestel9b  | evet | hayır |
+   | 10-A      | 192.168.23.242 | vestel10a | evet | hayır |
+   | 11-A      | 192.168.23.228 | vestel11a | evet (2026-08-24'te kuruldu — önceki 11-A/236 ataması yanlıştı, düzeltildi) | hayır |
+   | 11-B      | 192.168.23.233 | vestel11b | evet | evet (2026-09-12'de kuruldu) |
+   | 12-A      | 192.168.23.231 | vestel12a | evet | **evet (2026-09-06'da kuruldu — kanonik `server/farabi-kurulum.sh` sparse-checkout mekanizmasının ilk gerçek uçtan uca testi, bkz. DECISIONS.md).** Gemini API anahtarı hâlâ boş, ilk sesli ders öncesi elle girilmeli. |
+   | 12-B      | 192.168.23.240 | vestel12b | evet | hayır |
+
+   > ⚠️ **Düzeltme (2026-09-12):** Bu tablo önceden 9-B/10-A/11-B için YANLIŞ
+   > IP eşlemesi taşıyordu (.242↔9-B, .233↔10-A, .239↔11-B yazıyordu).
+   > MAC adresleri sabit kaldı (hiçbir IP fiilen değişmedi — DHCP kirası
+   > tutarlı) ama sınıf↔IP eşlemesi baştan yanlış girilmişti. Her tahtaya
+   > SSH ile bağlanıp gerçek `hostname` (`vestel<sınıf düzeyi><şube>` deseni)
+   > okunarak doğrulandı ve tablo buna göre düzeltildi — bu üç satırda IP
+   > yerine **hostname/MAC** esas alınmalı, statik IP notu tek başına
+   > güvenilir değil. `server/tahtalar.json` (tahta-ssh.sh'nin kaynağı)
+   > zaten bu doğru eşlemeyi taşıyordu (muhtemelen tahtayoklama dashboard'un
+   > otomatik keşfi düzeltmişti) — kanonik kaynak odur, bu tablo ona göre
+   > senkron edildi.
 VESTEL AKILLI TAHTALAR (Pardus ETAP GNU/Linux 23) - 11 adet 7 si aktif sınıf olarak kullanılıyor (Intel i3-2330M,eski mobil işlemci)
 --------------------------------------------------------------
 Kullanıcı adı : etapadmin

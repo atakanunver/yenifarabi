@@ -21,15 +21,59 @@
     "doğrulanmamış tahtalar için geçici IP-tabanlı isim — sınıf",
     "netleştikçe uygun 'derslik' adına yeniden adlandırılmalı."
   ],
-  "9-A": { "ip": "192.168.23.245", "kullanici": "ogretmen", "admin": "etapadmin" },
-  "9-B": { "ip": "192.168.23.242", "kullanici": "ogretmen", "admin": "etapadmin" },
-  "10-A": { "ip": "192.168.23.233", "kullanici": "ogretmen", "admin": "etapadmin" },
-  "11-A": { "ip": "192.168.23.228", "kullanici": "ogretmen", "admin": "etapadmin" },
-  "12-A": { "ip": "192.168.23.231", "kullanici": "ogretmen", "admin": "etapadmin" },
-  "12-B": { "ip": "192.168.23.240", "kullanici": "ogretmen", "admin": "etapadmin" },
-  "11-B": { "ip": "192.168.23.239", "kullanici": "ogretmen", "admin": "etapadmin" },
-  "tahta-234": { "ip": "192.168.23.234", "kullanici": "ogretmen", "admin": "etapadmin" },
-  "tahta-235": { "ip": "192.168.23.235", "kullanici": "ogretmen", "admin": "etapadmin" },
-  "tahta-244": { "ip": "192.168.23.244", "kullanici": "ogretmen", "admin": "etapadmin" },
-  "tahta-236": { "ip": "192.168.23.236", "kullanici": "ogretmen", "admin": "etapadmin" }
+  "9-A": {
+    "ip": "192.168.23.245",
+    "kullanici": "ogretmen",
+    "admin": "etapadmin"
+  },
+  "9-B": {
+    "ip": "192.168.23.239",
+    "kullanici": "ogretmen",
+    "admin": "etapadmin"
+  },
+  "10-A": {
+    "ip": "192.168.23.242",
+    "kullanici": "ogretmen",
+    "admin": "etapadmin"
+  },
+  "11-A": {
+    "ip": "192.168.23.228",
+    "kullanici": "ogretmen",
+    "admin": "etapadmin"
+  },
+  "12-A": {
+    "ip": "192.168.23.231",
+    "kullanici": "ogretmen",
+    "admin": "etapadmin"
+  },
+  "12-B": {
+    "ip": "192.168.23.240",
+    "kullanici": "ogretmen",
+    "admin": "etapadmin"
+  },
+  "11-B": {
+    "ip": "192.168.23.233",
+    "kullanici": "ogretmen",
+    "admin": "etapadmin"
+  },
+  "tahta-234": {
+    "ip": "192.168.23.234",
+    "kullanici": "ogretmen",
+    "admin": "etapadmin"
+  },
+  "tahta-235": {
+    "ip": "192.168.23.235",
+    "kullanici": "ogretmen",
+    "admin": "etapadmin"
+  },
+  "tahta-244": {
+    "ip": "192.168.23.244",
+    "kullanici": "ogretmen",
+    "admin": "etapadmin"
+  },
+  "tahta-236": {
+    "ip": "192.168.23.236",
+    "kullanici": "ogretmen",
+    "admin": "etapadmin"
+  }
 }
