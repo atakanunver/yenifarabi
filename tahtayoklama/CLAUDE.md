@@ -27,6 +27,37 @@ tahtayoklama/
 └── dashboard/              — merkezi web panosu (bkz. aşağıdaki bölüm; inşa halinde)
 ```
 
+## Harici tahta yönetim programları (kullanıcının Windows PC'si) — 2026-09-14
+
+Bu depoya DAHİL DEĞİL, ayrı bir makinede yaşıyor ama aynı 11 tahtayı
+uzaktan yönetiyor — burada yalnızca varlığı ve nereden geldiği not
+düşülüyor, tahtayoklama/dashboard bunlara bağlı değil:
+
+- `C:\Users\exa\Desktop\TAHTA ISLERI\tahta_panel.py`
+- `C:\Users\exa\Desktop\TAHTA ISLERI\tahta_ssh.py`
+
+Kullanıcının kendi Windows makinesinde duruyor, bu oturumdan dosya içeriği
+OKUNAMADI (uzak/erişilemez yol) — yalnızca kullanıcının bildirdiği isim/yol
+ve aşağıdaki bağımsız log kanıtı kayıtlı. **Muhtemel kimlik:** 9-B/11-B/
+12-A'nın SSH loglarında `192.168.23.243`'ten gelen, ~30 saniyede bir tekrar
+eden `etapadmin` girişleri (bkz. yoklayici/güç düğmesi incelemesi,
+2026-09-14) — her girişte `pkexec .../ETAKisitActivator.py
+--disable-websites-restriction` çalıştırılıyor, oturum saniyeler içinde
+kapanıyor. Bu IP, `farabi/CLAUDE.md`'deki 11 tahta/1 sunucu envanterinde
+YOK — ayrı bir yönetici istasyonu. Bu programların `tahta_panel.py`/
+`tahta_ssh.py` olduğu TEYİT EDİLMEDİ, yalnızca zaman/davranış örtüşmesiyle
+en olası açıklama bu — kesinleştirmek için kullanıcıdan doğrulama ya da bu
+iki dosyanın içeriği gerekir.
+
+**Bilinmeyenler (kullanıcıdan netleştirilmeli):** bu iki programın tam
+işlevi (yalnızca "web sitesi kısıtlamasını kapat" mı yapıyor, yoksa
+yoklama/roster/ders programı ile de mi ilgileniyorlar), tahtayoklama'nın
+kendi `dashboard`'uyla (bu depodaki `/admin/tahtalar` uzaktan başlatma,
+polling vb.) çakışan bir alanları olup olmadığı, ve periyodik SSH trafiğinin
+tahtalardaki `sshd`/CPU üzerinde ölçülebilir bir yük oluşturup
+oluşturmadığı (~30 sn'de bir, 7 aktif tahta × gün boyu — kısa oturumlar
+ama sürekli).
+
 ## `yoklama.py` — tahta deployment gerçeği
 
 Koddan ve canlı tahtalardan (9-A, 2026-08-23) doğrulandı:
@@ -162,6 +193,22 @@ tamamlandıkça güncellenecek:
 - ⛔ Faz 7 (gerçek yoklama vs. otomatik kayıt ayrımı, `yoklama.py`'de
   `elle_kaydedildi` alanı) — ayrı onay gerekir, bu proje kapsamında henüz
   planlanmadı
+- ✅ Ders kısa adı etiketi (2026-09-14, plan.md'de yoktu — kullanıcı
+  isteğiyle sonradan eklendi) — pano tablosundaki her dolu hücrede (öğrenci
+  isimleri/"Tam"/"Yoklama alınmadı" vb. altında) o an hangi dersin
+  işlendiğini gösteren küçük bir büyük-harf etiket (`MAT`, `İNG`, `DKAB`,
+  `BİYOLOJİ` gibi). Veri kaynağı: `data/ders_programi.json` —
+  `mudur/ders_programi.json`'dan alınmış KASITLI BAĞIMSIZ bir kopya
+  (`zil.json` ile aynı desen, canlı bağ yok, ders programı değişirse elle
+  güncellenmeli). Yeni `dashboard/ders_programi.py` modülü (sınıf+tarih+ders
+  no → ders adı → kısaltma, 24 ders için elle kısaltma tablosu, bilinmeyen
+  ders adı Türkçe-doğru büyütülerek gösterilir) `/api/durum` yanıtına
+  `ders_kisa_adi` alanı ekliyor; DB şeması değişmedi (statik program verisi
+  DB'ye yazılmadan istek anında hesaplanıyor). `app.py`/`pano.html`/
+  `pano.css` güncellendi. Gerçek servis restart edilip canlı oturum
+  token'ıyla `curl` ile uçtan uca doğrulandı (2026-09-14 Pazartesi, 10-A:
+  1-2. ders FEL, 3-4. ders BED, 5. ders KİM — `data/ders_programi.json`'daki
+  programla birebir eşleşti); tarayıcı görsel doğrulaması yapılmadı.
 - ✅ Rapor ekranı (2026-08-24, plan.md'de yoktu — kullanıcı isteğiyle
   sonradan eklendi) — `/admin/rapor`: tarih aralığı + sınıf filtresiyle
   (a) tarih/sınıf/ders detay tablosu, (b) öğrenci bazlı devamsızlık sayacı
@@ -177,6 +224,55 @@ tamamlandıkça güncellenecek:
   `/admin/rapor/csv` uçtan uca curl ile doğrulandı (elle oluşturulmuş
   oturum token'ıyla, gerçek şifre kullanılmadan); tarayıcı görsel
   doğrulaması yapılmadı.
+
+## `dashboard/scripts/` — bakım/kurulum araçları (2026-09-14)
+
+Kullanıcı isteğiyle eklendi: "tahtalar ağa bağlanınca fix/ders programı/zil
+güncel tutulabilsin, insan ya da ajan çalıştırabilsin" — hepsi TEK SEFERLİK,
+elle (ya da bir ajan tarafından elle) tetiklenen araçlar, hiçbiri
+crontab/systemd timer'a bağlanmadı (mudur/ders_programi_yukle.py'nin "tek
+seferlik" ilkesiyle aynı). Üçü de `venv/bin/python scripts/<ad>.py --help`
+ile kendi kullanım notlarını basıyor.
+
+- **`tahta_fix_uygula.py`** — bilinen OS düzeltmelerini bir/tüm tahtalara
+  idempotent şekilde uygular. Şu an tek düzeltmesi: 2026-09-14'te 9-B/11-B'de
+  yaşanan gerçek "kendi kendine kapanma" olayının kökü olan
+  `HandlePowerKey=poweroff` (ACPI güç düğmesine kısa basış anında kapatıyordu
+  — bkz. aşağıdaki "Güç düğmesi" bulgusu) → `HandlePowerKey=ignore` override'ı
+  + `systemd-logind`'e SIGHUP. `server/tahtalar.json`'dan tahta listesini,
+  `dashboard/config/gizli.json`'daki (gitignore'lu) `etapadmin_sifre`
+  alanından sudo parolasını okur — önce `sudo -n` (parolasız) dener, bazı
+  tahtalarda NOPASSWD kurulu (bkz. `server/tahtalar.json`'ın kendi notu).
+  2026-09-14'te tüm 7 aktif tahtaya (9-A/9-B/10-A/11-A/11-B/12-A/12-B) karşı
+  gerçek SSH ile doğrulandı — hepsi "zaten uygulanmış" döndü (daha önce elle
+  uygulanmıştı), script bunu doğru tespit etti.
+- **`ders_programi_yukle.py`** — `mudur/siniflar.pdf`'i (aSc k12 çıktısı,
+  pdfplumber ile vektör tablo okuma) `tahtayoklama/data/ders_programi.json`'a
+  çevirir. `mudur/ders_programi_yukle.py`'nin PDF-çözme mantığının BİREBİR
+  taşınmış hâli ama farklı iş yapıyor: mudur'unki Farabi client'ına SSH ile
+  dağıtım da yapıyor, bu YAPMAZ — tahtayoklama/data/ders_programi.json
+  yalnızca dashboard'un kendisi (`ders_programi.py`, pano etiketi için)
+  okuyor, tahtalara hiç gönderilmiyor. KISALTMALAR sözlüğü mudur'unkiyle
+  SENKRON tutulmalı (iki ayrı dosya, tek doğru kaynak yok). pdfplumber
+  dashboard'un ana venv'inde değil — yalnızca bu script için
+  `scripts/requirements-ekstra.txt`. 2026-09-14'te gerçek PDF'e karşı
+  çalıştırıldı, çıktı önceden elle kopyalanmış `data/ders_programi.json` ile
+  birebir eşleşti (bkz. "Ders kısa adı etiketi" bölümü).
+- **`zil_yukle.py`** — kaynağı bir PDF değil, `mudur/giris cikis
+  saatleri.jpg` (e-Okul "Ders Saatleri" ekran görüntüsü) — vektör tablo
+  yok, OCR eklemek (yeni ağır bağımlılık) zil'in neredeyse hiç değişmediği
+  bir şey için orantısız görüldüğünden görsel 2026-09-14'te elle okunup
+  script içindeki `VARSAYILAN_SAATLER` sabitine gömüldü (`--saatler` ile
+  okul saatleri değiştiğinde ayrı bir JSON verilebilir). Ürettiği
+  `data/zil.json`, önceden elde bulunanla bit bit AYNI çıktı verdi (yalnızca
+  JSON biçimlendirmesi farklı) — kaynak doğrulandı. `--no-dagit`
+  verilmedikçe `server/tahtalar.json`'daki her tahtaya SCP ile
+  `~/tahtayoklama/data/zil.json` yazar (ogretmen anahtarı, sudo gerekmez).
+
+## Harici tahta yönetim programları (kullanıcının Windows PC'si) bölümüne bkz.
+yukarıda — bu üç script YUKARIDAKİ ile AYNI amaca hizmet ediyor olabilir
+(tahta_panel.py/tahta_ssh.py'nin ne yaptığı teyit edilmeden kesin
+söylenemez), ileride birleştirilmesi/çakışması değerlendirilmeli.
 
 ## Tahta↔sınıf ataması, kalıcı gerçek (2026-08-24)
 

@@ -1,0 +1,4 @@
+# Yalnızca ders_programi_yukle.py için — dashboard'un ana uygulaması
+# (app.py/uvicorn) buna ihtiyaç duymuyor, bkz. ../requirements.txt'in kendi
+# "kasıtlı hafif" notu. Kurulum: venv/bin/pip install -r scripts/requirements-ekstra.txt
+pdfplumber==0.11.10
