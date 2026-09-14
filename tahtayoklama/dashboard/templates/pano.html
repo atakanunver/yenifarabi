@@ -90,12 +90,17 @@ function hucreDoldur(hucre, satir) {
   const bilgi = DURUM_BILGISI[anahtar] || { pill: '', metin: satir.durum };
 
   hucre.className = 'hucre';
+  const dersEtiketi = satir.ders_kisa_adi
+    ? `<span class="ders-etiketi">${satir.ders_kisa_adi}</span>` : '';
   if (bilgi.bos) {
-    hucre.innerHTML = '';
+    // Yoklama durumu boş gösterilse de (ör. ders henüz başlamadı, tahta
+    // hiç açılmamış) ders programı her zaman görünür kalmalı — kullanıcı
+    // isteği: "tahta açıkta kapalıda olsa ders programını görebilelim".
+    hucre.innerHTML = dersEtiketi;
   } else {
     const metin = anahtar === 'alindi_yok' ? isimler.join(', ') : bilgi.metin;
     const ikon = bilgi.ikon ? `<span aria-hidden="true">${bilgi.ikon}</span> ` : '';
-    hucre.innerHTML = `<span class="pill ${bilgi.pill}">${ikon}${metin}</span>`;
+    hucre.innerHTML = `<span class="pill ${bilgi.pill}">${ikon}${metin}</span>${dersEtiketi}`;
   }
 
   const tiklanabilir = bilgi.tiklanabilir && hucre.dataset.tahtaId;

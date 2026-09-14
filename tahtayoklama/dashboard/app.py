@@ -8,6 +8,7 @@ BAĞIMSIZ — bkz. CLAUDE.md.
 import asyncio
 import re
 from contextlib import asynccontextmanager
+from datetime import date
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -17,6 +18,7 @@ from fastapi.templating import Jinja2Templates
 import admin
 import auth
 import db
+import ders_programi
 import ssh_istemci
 import uzaktan_baslat
 import yoklayici
@@ -153,7 +155,15 @@ async def api_durum(request: Request, tarih: str | None = None):
         ).fetchall()
     finally:
         conn.close()
-    return JSONResponse({"tarih": hedef, "satirlar": [dict(s) for s in satirlar]})
+    hedef_tarih = date.fromisoformat(hedef)
+    sonuc = []
+    for s in satirlar:
+        satir = dict(s)
+        satir["ders_kisa_adi"] = ders_programi.ders_kisa_adi(
+            satir["sinif"], hedef_tarih, satir["ders_no"]
+        )
+        sonuc.append(satir)
+    return JSONResponse({"tarih": hedef, "satirlar": sonuc})
 
 
 @app.post("/api/tahta/{tahta_id}/baslat")

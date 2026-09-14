@@ -1,0 +1,370 @@
+{
+  "_kaynak": "siniflar.pdf (aSc k12)",
+  "_uretim_araci": "tahtayoklama/dashboard/scripts/ders_programi_yukle.py",
+  "siniflar": {
+    "9-A": {
+      "pazartesi": {
+        "1": "ingilizce",
+        "2": "ingilizce",
+        "3": "din kültürü ve ahlak bilgisi",
+        "4": "din kültürü ve ahlak bilgisi",
+        "5": "görsel sanatlar",
+        "6": "görsel sanatlar",
+        "7": "spor etkinlikleri",
+        "8": "sağlık bilgisi ve trafik kültürü"
+      },
+      "sali": {
+        "1": "tarih",
+        "2": "tarih",
+        "3": "türk dili ve edebiyatı",
+        "4": "türk dili ve edebiyatı",
+        "5": "din kültürü ve ahlak bilgisi",
+        "6": "din kültürü ve ahlak bilgisi",
+        "7": "biyoloji",
+        "8": "biyoloji"
+      },
+      "carsamba": {
+        "1": "kimya",
+        "2": "kimya",
+        "3": "almanca",
+        "4": "almanca",
+        "5": "matematik",
+        "6": "matematik",
+        "7": "türk dili ve edebiyatı",
+        "8": "rehberlik"
+      },
+      "persembe": {
+        "1": "matematik",
+        "2": "matematik",
+        "3": "ingilizce",
+        "4": "ingilizce",
+        "5": "türk dili ve edebiyatı",
+        "6": "türk dili ve edebiyatı",
+        "7": "almanca",
+        "8": "almanca"
+      },
+      "cuma": {
+        "1": "matematik",
+        "2": "matematik",
+        "3": "fizik",
+        "4": "fizik",
+        "5": "coğrafya",
+        "6": "coğrafya",
+        "7": "beden eğitimi",
+        "8": "beden eğitimi"
+      }
+    },
+    "9-B": {
+      "pazartesi": {
+        "1": "din kültürü ve ahlak bilgisi",
+        "2": "din kültürü ve ahlak bilgisi",
+        "3": "ingilizce",
+        "4": "ingilizce",
+        "5": "din kültürü ve ahlak bilgisi",
+        "6": "din kültürü ve ahlak bilgisi",
+        "7": "kimya",
+        "8": "kimya"
+      },
+      "sali": {
+        "1": "beden eğitimi",
+        "2": "beden eğitimi",
+        "3": "görsel sanatlar",
+        "4": "görsel sanatlar",
+        "5": "türk dili ve edebiyatı",
+        "6": "sağlık bilgisi ve trafik kültürü",
+        "7": "almanca",
+        "8": "almanca"
+      },
+      "carsamba": {
+        "1": "matematik",
+        "2": "matematik",
+        "3": "türk dili ve edebiyatı",
+        "4": "türk dili ve edebiyatı",
+        "5": "spor etkinlikleri",
+        "6": "fizik",
+        "7": "fizik",
+        "8": "rehberlik"
+      },
+      "persembe": {
+        "1": "tarih",
+        "2": "tarih",
+        "3": "biyoloji",
+        "4": "biyoloji",
+        "5": "matematik",
+        "6": "matematik",
+        "7": "ingilizce",
+        "8": "ingilizce"
+      },
+      "cuma": {
+        "1": "almanca",
+        "2": "almanca",
+        "3": "coğrafya",
+        "4": "coğrafya",
+        "5": "matematik",
+        "6": "matematik",
+        "7": "türk dili ve edebiyatı",
+        "8": "türk dili ve edebiyatı"
+      }
+    },
+    "10-A": {
+      "pazartesi": {
+        "1": "felsefe",
+        "2": "felsefe",
+        "3": "beden eğitimi",
+        "4": "beden eğitimi",
+        "5": "kimya",
+        "6": "kimya",
+        "7": "din kültürü ve ahlak bilgisi",
+        "8": "din kültürü ve ahlak bilgisi"
+      },
+      "sali": {
+        "1": "peygamberimizin hayatı",
+        "2": "peygamberimizin hayatı",
+        "3": "tarih",
+        "4": "tarih",
+        "5": "görsel sanatlar",
+        "6": "görsel sanatlar",
+        "7": "türk dili ve edebiyatı",
+        "8": "türk dili ve edebiyatı"
+      },
+      "carsamba": {
+        "1": "biyoloji",
+        "2": "biyoloji",
+        "3": "türk dili ve edebiyatı",
+        "4": "ingilizce",
+        "5": "ingilizce",
+        "6": "matematik",
+        "7": "matematik",
+        "8": "rehberlik"
+      },
+      "persembe": {
+        "1": "ingilizce",
+        "2": "ingilizce",
+        "3": "osmanlı türkçesi",
+        "4": "osmanlı türkçesi",
+        "5": "matematik",
+        "6": "matematik",
+        "7": "türk dili ve edebiyatı",
+        "8": "türk dili ve edebiyatı"
+      },
+      "cuma": {
+        "1": "coğrafya",
+        "2": "coğrafya",
+        "3": "matematik",
+        "4": "matematik",
+        "5": "spor etkinlikleri",
+        "6": "spor etkinlikleri",
+        "7": "fizik",
+        "8": "fizik"
+      }
+    },
+    "11-A": {
+      "pazartesi": {
+        "1": "kimya",
+        "2": "kimya",
+        "3": "fizik",
+        "4": "fizik",
+        "5": "felsefe",
+        "6": "felsefe",
+        "7": "türk dili ve edebiyatı",
+        "8": "türk dili ve edebiyatı"
+      },
+      "sali": {
+        "1": "matematik",
+        "2": "matematik",
+        "3": "din kültürü ve ahlak bilgisi",
+        "4": "din kültürü ve ahlak bilgisi",
+        "5": "beden eğitimi",
+        "6": "beden eğitimi",
+        "7": "ingilizce",
+        "8": "ingilizce"
+      },
+      "carsamba": {
+        "1": "görsel sanatlar",
+        "2": "görsel sanatlar",
+        "3": "biyoloji",
+        "4": "biyoloji",
+        "5": "kimya",
+        "6": "kimya",
+        "7": "türk dili ve edebiyatı",
+        "8": "rehberlik"
+      },
+      "persembe": {
+        "1": "biyoloji",
+        "2": "biyoloji",
+        "3": "matematik",
+        "4": "matematik",
+        "5": "ingilizce",
+        "6": "ingilizce",
+        "7": "matematik uygulamaları",
+        "8": "matematik uygulamaları"
+      },
+      "cuma": {
+        "1": "matematik",
+        "2": "matematik",
+        "3": "türk dili ve edebiyatı",
+        "4": "türk dili ve edebiyatı",
+        "5": "fizik",
+        "6": "fizik",
+        "7": "tarih",
+        "8": "tarih"
+      }
+    },
+    "11-B": {
+      "pazartesi": {
+        "1": "türk dili ve edebiyatı",
+        "2": "türk dili ve edebiyatı",
+        "3": "görsel sanatlar",
+        "4": "görsel sanatlar",
+        "5": "ingilizce",
+        "6": "ingilizce",
+        "7": "psikoloji",
+        "8": "psikoloji"
+      },
+      "sali": {
+        "1": "felsefe",
+        "2": "felsefe",
+        "3": "matematik",
+        "4": "matematik",
+        "5": "ingilizce",
+        "6": "ingilizce",
+        "7": "türk dili ve edebiyatı",
+        "8": "türk dili ve edebiyatı"
+      },
+      "carsamba": {
+        "1": "türk dili ve edebiyatı",
+        "2": "türk dili ve edebiyatı",
+        "3": "tarih",
+        "4": "tarih",
+        "5": "bilişim teknolojileri ve yazılım",
+        "6": "türk dili ve edebiyatı",
+        "7": "coğrafya",
+        "8": "rehberlik"
+      },
+      "persembe": {
+        "1": "matematik",
+        "2": "matematik",
+        "3": "coğrafya",
+        "4": "türk dili ve edebiyatı",
+        "5": "tarih",
+        "6": "tarih",
+        "7": "din kültürü ve ahlak bilgisi",
+        "8": "din kültürü ve ahlak bilgisi"
+      },
+      "cuma": {
+        "1": "beden eğitimi",
+        "2": "beden eğitimi",
+        "3": "türk dili ve edebiyatı",
+        "4": "türk dili ve edebiyatı",
+        "5": "matematik",
+        "6": "matematik",
+        "7": "coğrafya",
+        "8": "coğrafya"
+      }
+    },
+    "12-A": {
+      "pazartesi": {
+        "1": "fizik",
+        "2": "fizik",
+        "3": "kimya",
+        "4": "kimya",
+        "5": "sınav hazırlık çalışması",
+        "6": "biyoloji",
+        "7": "biyoloji",
+        "8": "türk dili ve edebiyatı"
+      },
+      "sali": {
+        "1": "ingilizce",
+        "2": "ingilizce",
+        "3": "beden eğitimi",
+        "4": "beden eğitimi",
+        "5": "matematik",
+        "6": "matematik",
+        "7": "din kültürü ve ahlak bilgisi",
+        "8": "din kültürü ve ahlak bilgisi"
+      },
+      "carsamba": {
+        "1": "türk dili ve edebiyatı",
+        "2": "türk dili ve edebiyatı",
+        "3": "kimya",
+        "4": "kimya",
+        "5": "biyoloji",
+        "6": "biyoloji",
+        "7": "sınav hazırlık çalışması",
+        "8": "rehberlik"
+      },
+      "persembe": {
+        "1": "ingilizce",
+        "2": "ingilizce",
+        "3": "türk dili ve edebiyatı",
+        "4": "türk dili ve edebiyatı",
+        "5": "sınav hazırlık çalışması",
+        "6": "spor etkinlikleri",
+        "7": "matematik",
+        "8": "matematik"
+      },
+      "cuma": {
+        "1": "fizik",
+        "2": "fizik",
+        "3": "matematik",
+        "4": "matematik",
+        "5": "inkılap tarihi ve atatürkçülük",
+        "6": "inkılap tarihi ve atatürkçülük",
+        "7": "almanca",
+        "8": "almanca"
+      }
+    },
+    "12-B": {
+      "pazartesi": {
+        "1": "bilişim teknolojileri ve yazılım",
+        "2": "bilişim teknolojileri ve yazılım",
+        "3": "coğrafya",
+        "4": "coğrafya",
+        "5": "türk dili ve edebiyatı",
+        "6": "türk dili ve edebiyatı",
+        "7": "ingilizce",
+        "8": "ingilizce"
+      },
+      "sali": {
+        "1": "beden eğitimi",
+        "2": "beden eğitimi",
+        "3": "ingilizce",
+        "4": "ingilizce",
+        "5": "sınav hazırlık çalışması",
+        "6": "türk dili ve edebiyatı",
+        "7": "matematik",
+        "8": "matematik"
+      },
+      "carsamba": {
+        "1": "çağdaş türk ve dünya tarihi",
+        "2": "çağdaş türk ve dünya tarihi",
+        "3": "matematik",
+        "4": "matematik",
+        "5": "türk dili ve edebiyatı",
+        "6": "sınav hazırlık çalışması",
+        "7": "din kültürü ve ahlak bilgisi",
+        "8": "rehberlik"
+      },
+      "persembe": {
+        "1": "türk dili ve edebiyatı",
+        "2": "türk dili ve edebiyatı",
+        "3": "sınav hazırlık çalışması",
+        "4": "coğrafya",
+        "5": "coğrafya",
+        "6": "din kültürü ve ahlak bilgisi",
+        "7": "inkılap tarihi ve atatürkçülük",
+        "8": "inkılap tarihi ve atatürkçülük"
+      },
+      "cuma": {
+        "1": "türk dili ve edebiyatı",
+        "2": "türk dili ve edebiyatı",
+        "3": "almanca",
+        "4": "almanca",
+        "5": "türk dili ve edebiyatı",
+        "6": "türk dili ve edebiyatı",
+        "7": "matematik",
+        "8": "matematik"
+      }
+    }
+  }
+}
