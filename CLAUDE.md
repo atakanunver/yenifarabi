@@ -3,6 +3,52 @@
 Sınıf akıllı tahtalarında çalışan sesli ders asistanı.
 Detaylı mimari: `@docs/mimari.md`
 
+## Güncel durum (2026-09-15 itibarıyla, hızlı özet)
+
+- **Farabi client:** aktif 7 tahtanın 7'sinde de kurulu (9-A, 9-B, 10-A,
+  11-A, 11-B, 12-A, 12-B) — ayrıntı ve kurulum tarihleri aşağıdaki "Ağ
+  Envanteri" tablosunda, DECISIONS.md'de.
+- **Tahtayoklama (yoklama sistemi):** aynı 7 tahtanın 7'sinde de kurulu.
+  Board tarafı `tahtayoklama/yoklama.py`; sunucu tarafı
+  `tahtayoklama/dashboard/` — `farabi-yoklama-dashboard.service` adıyla
+  ayrı bir systemd servisi, `server/`'daki RAG Brain'den (`farabi-api.
+  service`) TAMAMEN AYRI bir uygulama/servis, aynı sunucuda yan yana koşuyor.
+- **Uzaktan kontrol (2026-09-15'te eklendi):** `tahtayoklama/dashboard/`'a
+  `/admin/uzaktan` bölümü eklendi — ekran karart/kaldır, yoklama aç/kapat,
+  duvar kağıdı değiştir, çoklu tahta seçimiyle toplu işlem. Ayrı bir kurulum
+  gerektirmiyor — var olan `ogretmen` SSH anahtarını kullanıyor. ⚠️ Bu
+  eklenti henüz git'e commit edilmedi, `tahtayoklama/dashboard/` altında
+  uncommitted değişiklik olarak duruyor (`git status` ile görülür) —
+  commit edilmeden önce kaybolabilir, DECISIONS.md'nin
+  2026-09-15 kaydına bkz.
+- **IP değil, hostname esas alınmalı:** tahtaların IP'leri DHCP kirası
+  bozulursa değişebilir; kalıcı kimlik `hostname`'dir (`vestel9a`,
+  `vestel9b`, ... — artık gerçek sınıf adını taşıyor) ve MAC adresidir.
+  IP↔sınıf eşlemesi geçmişte en az bir kez yanlış girilmişti (2026-09-12
+  düzeltmesi, aşağıda) — şüphede kalınırsa `hostname` veya
+  `server/tahtalar.json` esas alınmalı, IP tek başına güvenilmemeli.
+- **farabi.local (bu sunucu) neyi barındırıyor:**
+  - `server/` ("Brain", `farabi-api.service`): ders kitapları RAG'i
+    (pgvector+rerank+LLM), bulut LLM proxy, dosya işleme. Yerel **Ollama**
+    (`ollama.service`, ayrı systemd birimi, `qwen2.5:14b`) RAG'in cevap
+    üretme adımını ve `dosya.py`'nin `belge_ozet` görevini (PDF/metin
+    özeti) çalıştırıyor — bulut 6-sağlayıcı havuzu (`server/saglayicilar.
+    py`: Groq/Mistral/DeepSeek/OpenRouter/NVIDIA) bundan AYRI, görsel/
+    web-arama-sentezi/video-özeti/kitap-özeti gibi görevler için.
+  - `tahtayoklama/dashboard/` (`farabi-yoklama-dashboard.service`):
+    yoklama, öğrenci listeleri (SQLite `siniflar`/`ogrenciler` tabloları +
+    `tahtayoklama/data/roster/*.json`) ve zil/ders-programı bilgisi.
+  - ⚠️ **Ders programı ve zil saatleri TEK kaynaktan gelmiyor, üç bağımsız
+    kopya var:** `mudur/ders_programi.json` (müdür yardımcısının kaynağı),
+    `tahtayoklama/data/ders_programi.json` (dashboard'un kendi kopyası —
+    `dashboard/ders_programi.py`'nin docstring'i bunun bilinçli bağımsız
+    bir kopya olduğunu, aralarında canlı bağlantı olmadığını açıkça
+    söylüyor) ve her tahtanın kendi `client/config/ders_programi.json`'ı
+    (Farabi'nin okuduğu). Biri değişince diğer ikisi OTOMATİK güncellenmez
+    — `mudur/ders_programi_yukle.py` / `tahtayoklama/dashboard/scripts/
+    ders_programi_yukle.py` ile elle/scriptle senkron edilmesi gerekir.
+    Aynı üç-kopya deseni `zil.json` için de geçerli.
+
 > ⚠️ **KESİN MİMARİ KARARI (2026-09-05) — `docs/mimari.md` §0'a bak, her
 > şeyden önce.** Client = yalnızca tahtadaki arayüz/etkileşim yüzeyi (ses
 > oturumu dahil), server = beyin (RAG + **sistem promptu** + iş mantığı +
