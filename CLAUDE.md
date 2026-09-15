@@ -480,12 +480,22 @@ Sudo          : şifresiz (NOPASSWD) (veya aynı şifre)
    | Sınıf/Ad  | IP             | Hostname (gerçek) | Yoklama kurulu mu | Farabi client kurulu mu |
    |-----------|----------------|--------------------|--------------------|--------------------------|
    | 9-A       | 192.168.23.245 | vestel9a  | evet (Farabi client venv'ini paylaşır) | evet (pilot, 2026-08-12'den beri) |
-   | 9-B       | 192.168.23.239 | vestel9b  | evet | hayır |
-   | 10-A      | 192.168.23.242 | vestel10a | evet | hayır |
-   | 11-A      | 192.168.23.228 | vestel11a | evet (2026-08-24'te kuruldu — önceki 11-A/236 ataması yanlıştı, düzeltildi) | hayır |
+   | 9-B       | 192.168.23.239 | vestel9b  | evet | evet (2026-09-15'te kuruldu, bkz. DECISIONS.md). Gemini API anahtarı boş, elle girilmeli. |
+   | 10-A      | 192.168.23.242 | vestel10a | evet | evet (2026-09-15'te kuruldu, bkz. DECISIONS.md). Gemini API anahtarı boş, elle girilmeli. |
+   | 11-A      | 192.168.23.228 | vestel11a | evet (2026-08-24'te kuruldu — önceki 11-A/236 ataması yanlıştı, düzeltildi) | evet (2026-09-15'te kuruldu, bkz. DECISIONS.md). Gemini API anahtarı boş, elle girilmeli. |
    | 11-B      | 192.168.23.233 | vestel11b | evet | evet (2026-09-12'de kuruldu) |
    | 12-A      | 192.168.23.231 | vestel12a | evet | **evet (2026-09-06'da kuruldu — kanonik `server/farabi-kurulum.sh` sparse-checkout mekanizmasının ilk gerçek uçtan uca testi, bkz. DECISIONS.md).** Gemini API anahtarı hâlâ boş, ilk sesli ders öncesi elle girilmeli. |
-   | 12-B      | 192.168.23.240 | vestel12b | evet | hayır |
+   | 12-B      | 192.168.23.240 | vestel12b | evet | evet (2026-09-15'te kuruldu, bkz. DECISIONS.md). Gemini API anahtarı boş, elle girilmeli. |
+
+   > **2026-09-15 — tüm 7 aktif tahtada Farabi client kurulu artık.** Kalan
+   > 4 tahtaya (9-B, 10-A, 11-A, 12-B) kanonik `server/farabi-kurulum.sh`
+   > ile kurulum yapıldı; script bu turda GENİŞLETİLDİ (önceden yalnızca
+   > git sparse-checkout + pull/heartbeat cron'u yazıyordu, venv/pip
+   > kurulumu, `config/api_keys.json` iskeleti ve masaüstü kısayolu elle
+   > yapılıyordu — artık script'in kendisi bunları da yapıyor, ön koşul
+   > paketlerini de kontrol edip eksikse raporluyor). Ayrıntı, bulunan bir
+   > gerçek bug (`tahtaayar/`'ın 3 tahtada `~/.local/bin`'i root sahipliğine
+   > düşürmesi) dahil: DECISIONS.md.
 
    > ⚠️ **Düzeltme (2026-09-12):** Bu tablo önceden 9-B/10-A/11-B için YANLIŞ
    > IP eşlemesi taşıyordu (.242↔9-B, .233↔10-A, .239↔11-B yazıyordu).
