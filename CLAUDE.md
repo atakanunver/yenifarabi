@@ -113,7 +113,7 @@ Ruff ortamı
 Ruff, Farabi'nin çalışma/runtime ortamından ayrı olan geliştirme ortamında kuruludur:
 .venv-tools/bin/ruff
 Ruff çalıştırılırken öncelikle bu yol tercih edilir:
-.venv-tools/bin/ruff check client server benchmark tahtayoklama
+.venv-tools/bin/ruff check client server benchmark tahtayoklama tahtaayar
 Ruff --fix veya format komutları çalıştıralabilir
 ruff check . --fix
 ruff format .
@@ -121,7 +121,7 @@ ruff format .
 Farabi'nin çalışan bir eğitim/yoklama sistemi olmasıdır. Otomatik kod değişiklikleri mevcut davranışı bozabilir.
 Ruff çalışma prosedürü Kod değişikliğinden sonra:
 Önce Ruff yalnızca kontrol amacıyla çalıştırılır:
-.venv-tools/bin/ruff check client server benchmark tahtayoklama
+.venv-tools/bin/ruff check client server benchmark tahtayoklama tahtaayar
 Bulgular sınıflandırılır:
 F8xx / gerçek Python hataları: Öncelikli olarak incelenir.
 F401 / F841: Güvenli olup olmadığı kontrol edilerek temizlenebilir.
@@ -145,7 +145,7 @@ Mevcut API endpointleri
 Mevcut dosya ve veritabanı formatları
 Ruff sonrası doğrulama
 Kod değişikliğinden sonra mümkünse:
-.venv-tools/bin/ruff check client server benchmark tahtayoklama
+.venv-tools/bin/ruff check client server benchmark tahtayoklama tahtaayar
 çalıştırılır.
 Ardından ilgili testler veya mevcut çalışma kontrolleri gerçekleştirilir.
 Ruff'un sıfır hata vermesi, çalışan davranışın korunmasından daha önemli değildir.
@@ -164,7 +164,10 @@ farabi/sunucu server
 │                         RAG (pgvector+rerank+eşik+LLM), kitap içeriği/PDF
 │                         render, YKS soru arama, bulut LLM proxy, dosya
 │                         işleme (bkz. aşağıdaki "server/" bölümü ve mimari.md §9/§10)
-└── benchmark/         — Faz 0a retrieval/eşik/katman testleri, 13 kitap pgvector'a indekslendi
+├── benchmark/         — Faz 0a retrieval/eşik/katman testleri, 13 kitap pgvector'a indekslendi
+└── tahtaayar/         — tahtaların OS/oturum ayarlarını (güç düğmesi, uyku,
+                          ekran karartma) referans duruma getiren, ajansız
+                          script'ler (bkz. tahtaayar/CLAUDE.md)
 
 
 **`client/` — PyQt6 tabanlı tahta istemcisi.**(vestel akıllı tahtalar üzerinde kurulu)
@@ -394,6 +397,12 @@ TAMAMI burada (Kural 1'in fiilen tamamlanmış hâli):
    Kubernetes, Prometheus/Grafana, bulut API'si, yeni LLM.
 9. `.env` asla commit edilmez. API anahtarı koda yazılmaz.
 10. Ölçmeden optimizasyon yapma.
+11. **Bug fix / özellik işlerinde plan Opus, uygulama Sonnet ile yapılır.**
+    Önce Opus modeliyle (ör. `Agent` tool, `model: opus`, `subagent_type:
+    Plan`) sorunun kök nedenini ve değişecek dosya/mantığı netleştiren yazılı
+    bir plan çıkarılır, kullanıcıya sunulur; onaydan sonra kodu Sonnet yazar.
+    Küçük/aşikâr tek satırlık düzeltmeler için (typo, config değeri gibi) bu
+    adım zorunlu değil — orantısız olur.
 
 ## Şu An Yapılmayacaklar
 

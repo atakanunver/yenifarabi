@@ -159,6 +159,12 @@ async def bir_tur_calistir(conn, tarih: str) -> None:
                     kaynak_tahta = excluded.kaynak_tahta,
                     kaydedilme_saati = excluded.kaydedilme_saati,
                     guncelleme_zamani = datetime('now')
+                -- Bir kez 'alindi' olmuş satır YALNIZCA yeni bir 'alindi'
+                -- kaydıyla güncellenir. Tahta bu turda kapalı/erişilemez
+                -- olduğu için kayıt görülmemesi, daha önce okunmuş gerçek
+                -- yoklamayı SİLMEZ (bkz. 2026-09-14 / 9-B olayı).
+                WHERE excluded.durum = 'alindi'
+                   OR yoklama_onbellek.durum <> 'alindi'
                 """,
                 (
                     tarih, sinif_adi, ders_no, durum,

@@ -40,8 +40,8 @@ Kullanıcının kendi Windows makinesinde duruyor, bu oturumdan dosya içeriği
 OKUNAMADI (uzak/erişilemez yol) — yalnızca kullanıcının bildirdiği isim/yol
 ve aşağıdaki bağımsız log kanıtı kayıtlı. **Muhtemel kimlik:** 9-B/11-B/
 12-A'nın SSH loglarında `192.168.23.243`'ten gelen, ~30 saniyede bir tekrar
-eden `etapadmin` girişleri (bkz. yoklayici/güç düğmesi incelemesi,
-2026-09-14) — her girişte `pkexec .../ETAKisitActivator.py
+eden `etapadmin` girişleri (bkz. `tahtaayar/CLAUDE.md` "Güç düğmesi"
+bölümü) — her girişte `pkexec .../ETAKisitActivator.py
 --disable-websites-restriction` çalıştırılıyor, oturum saniyeler içinde
 kapanıyor. Bu IP, `farabi/CLAUDE.md`'deki 11 tahta/1 sunucu envanterinde
 YOK — ayrı bir yönetici istasyonu. Bu programların `tahta_panel.py`/
@@ -224,6 +224,44 @@ tamamlandıkça güncellenecek:
   `/admin/rapor/csv` uçtan uca curl ile doğrulandı (elle oluşturulmuş
   oturum token'ıyla, gerçek şifre kullanılmadan); tarayıcı görsel
   doğrulaması yapılmadı.
+- ✅ **Bug düzeltildi (2026-09-15): "tahta kapanınca o günün alınmış
+  yoklamaları siliniyor".** Kullanıcı şikayeti: 1. ders (İngilizce)
+  yoklaması alınmış, 3-5. dersler tahta kapalı, 6. ders açılıp yoklama
+  alınmış, 7. ders yine kapalı — panoda 1. ve 6. dersler de görünmez
+  olmuş. Kök neden `yoklayici.py::bir_tur_calistir`'deki `ON CONFLICT
+  DO UPDATE` koşulsuzdu: bir turda tahtaya SSH ile ulaşılamazsa
+  `_tahtayi_tara` o tahtanın GÜNÜN TÜMÜ için hiç kayıt döndürmüyordu
+  (yalnızca o an açık olan dersin değil) — bu da önceden gerçek
+  `alindi` olarak yazılmış satırların `tahta_ulasilamaz`'a düşürülüp
+  ezilmesine yol açıyordu. Kanıt: canlı DB'de 2026-09-14/9-B'nin 8
+  dersinin TAMAMI `tahta_ulasilamaz`'a düşmüş, hepsi aynı
+  `guncelleme_zamani` — günün son polling turu tahta kapalıyken
+  çalışmış. Plan Opus modeliyle çıkarıldı, kullanıcı onayından sonra
+  Sonnet ile uygulandı (bkz. kök `CLAUDE.md` "Temel Kurallar" madde 11).
+  Fix: UPSERT'e tek koşul eklendi — `WHERE excluded.durum = 'alindi' OR
+  yoklama_onbellek.durum <> 'alindi'` (satır ~149-171). Anlamı: bir kez
+  `alindi` olmuş satır yalnızca yeni bir `alindi` kaydıyla değişir;
+  tahtanın o turda erişilemez olması eski gerçek kaydı SİLMEZ. Öğretmenin
+  tahtada gerçek bir düzeltme yapıp tekrar kaydetmesi hâlâ çalışır
+  (`yoklama.py::_kaydet` incelendi — aynı dosya yoluna üzerine yazıyor,
+  yeni `kaydedilme_saati` ile → erişilebilir bir sonraki tur yine
+  `alindi` üretir → koşul geçer). Şema/migration/yeni sütun yok, tek
+  dosya (`yoklayici.py`) değişti. Doğrulama: (1) `:memory:` SQLite'ta 8
+  senaryo test edildi (venv'in gerçek SQLite 3.46.1 sürümüyle), beklenen
+  `rowcount` değerleri birebir tutmuş; (2) servis restart edildi, hata
+  yok; (3) **canlı onarım**: 9-B'nin tahtası (192.168.23.239) o an açıktı,
+  diskinde 2026-09-14'ün 8 JSON dosyası hâlâ duruyordu — elle oluşturulmuş
+  oturum token'ıyla `POST /api/yenile?tarih=2026-09-14` çağrıldı, DB'de
+  8 satır da gerçek `kaydedilme_saati` değerleriyle `alindi`'ye geri döndü
+  (kayıp veri kurtarıldı); (4) regresyon: aynı anda diğer 6 sınıfın
+  2026-09-14 satırları ve bugünün (2026-09-15) canlı verisi kontrol
+  edildi, normal `alindi`/`alinmadi` dağılımı görüldü, hiçbir satır
+  "takılı" değil. **Doğrulanmayan:** tahtayı fiilen kapatıp negatif
+  senaryoyu (satırın `alindi` kalıp kalmadığını) canlıda tekrar test
+  etmek — bu, kullanıcıyla birlikte fiziksel/uzaktan tahta kapatma
+  gerektirdiği için yapılmadı, yalnızca `:memory:` testiyle doğrulandı
+  (orada birebir aynı SQL ile `rowcount=0` gözlendi). Tarayıcı görsel
+  doğrulaması da yapılmadı — kod değişikliği render yolunu etkilemiyor.
 
 ## `dashboard/scripts/` — bakım/kurulum araçları (2026-09-14)
 
@@ -231,21 +269,16 @@ Kullanıcı isteğiyle eklendi: "tahtalar ağa bağlanınca fix/ders programı/z
 güncel tutulabilsin, insan ya da ajan çalıştırabilsin" — hepsi TEK SEFERLİK,
 elle (ya da bir ajan tarafından elle) tetiklenen araçlar, hiçbiri
 crontab/systemd timer'a bağlanmadı (mudur/ders_programi_yukle.py'nin "tek
-seferlik" ilkesiyle aynı). Üçü de `venv/bin/python scripts/<ad>.py --help`
+seferlik" ilkesiyle aynı). İkisi de `venv/bin/python scripts/<ad>.py --help`
 ile kendi kullanım notlarını basıyor.
 
-- **`tahta_fix_uygula.py`** — bilinen OS düzeltmelerini bir/tüm tahtalara
-  idempotent şekilde uygular. Şu an tek düzeltmesi: 2026-09-14'te 9-B/11-B'de
-  yaşanan gerçek "kendi kendine kapanma" olayının kökü olan
-  `HandlePowerKey=poweroff` (ACPI güç düğmesine kısa basış anında kapatıyordu
-  — bkz. aşağıdaki "Güç düğmesi" bulgusu) → `HandlePowerKey=ignore` override'ı
-  + `systemd-logind`'e SIGHUP. `server/tahtalar.json`'dan tahta listesini,
-  `dashboard/config/gizli.json`'daki (gitignore'lu) `etapadmin_sifre`
-  alanından sudo parolasını okur — önce `sudo -n` (parolasız) dener, bazı
-  tahtalarda NOPASSWD kurulu (bkz. `server/tahtalar.json`'ın kendi notu).
-  2026-09-14'te tüm 7 aktif tahtaya (9-A/9-B/10-A/11-A/11-B/12-A/12-B) karşı
-  gerçek SSH ile doğrulandı — hepsi "zaten uygulanmış" döndü (daha önce elle
-  uygulanmıştı), script bunu doğru tespit etti.
+> **TAŞINDI (2026-09-15):** bu klasörde üçüncü bir araç olarak
+> `tahta_fix_uygula.py` vardı — OS/oturum düzeyi provizyon hem `client/`
+> hem `tahtayoklama/` altında koşan ortak bir katman olduğu için
+> `/home/ata/farabi/tahtaayar/tahta_fix_uygula.py`'ye taşındı (git mv, kopya
+> bırakılmadı). Bu klasörde artık kopyası YOK. Ayrıntı, düzeltme listesi ve
+> "Güç düğmesi" bulgusunun tam hikâyesi: `tahtaayar/CLAUDE.md`.
+
 - **`ders_programi_yukle.py`** — `mudur/siniflar.pdf`'i (aSc k12 çıktısı,
   pdfplumber ile vektör tablo okuma) `tahtayoklama/data/ders_programi.json`'a
   çevirir. `mudur/ders_programi_yukle.py`'nin PDF-çözme mantığının BİREBİR

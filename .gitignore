@@ -92,6 +92,9 @@ network.txt
 tahtayoklama/dashboard/config/gizli.json
 tahtayoklama/dashboard/veri/
 
+# tahtaayar/ kendi gizli.json'unu kullanabilir (bugün yok, yalnızca yol açık)
+tahtaayar/config/gizli.json
+
 # server/ sanal ortamı zaten yukarıdaki **/venv/ ile kapsanıyor
 
 # ── Analiz turu 2026-09-02: commit'e sızmaması gereken artefaktlar ────────
