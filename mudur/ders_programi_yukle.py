@@ -86,24 +86,35 @@ KISALTMALAR = {
     "Rehber": "rehberlik",
     "Bilisim": "bilişim teknolojileri ve yazılım",
     "Hedef": "sınav hazırlık çalışması",              # 2026-09-13 kullanıcı onayı
-    "SSpor": "seçmeli spor etkinlikleri",              # ⚠ tahmin
+    "SSpor": "spor etkinlikleri",                      # ⚠ tahmin
     "Sağlık": "sağlık bilgisi ve trafik kültürü",      # ⚠ tahmin
-    "SDin": "seçmeli din kültürü ve ahlak bilgisi",
-    "SAlm": "seçmeli almanca",
-    "SBiyo": "seçmeli biyoloji",
-    "SCoğ": "seçmeli coğrafya",
-    "SFizik": "seçmeli fizik",
-    "SKimya": "seçmeli kimya",
-    "SMat": "seçmeli matematik",
-    "SMatUyg": "seçmeli matematik uygulamaları",       # ⚠ tahmin
-    "SOTarih": "seçmeli osmanlı türkçesi",             # ⚠ tahmin
-    "SPeygamber": "seçmeli peygamberimizin hayatı",    # ⚠ tahmin
-    "SPsiko": "seçmeli psikoloji",
-    "STDE": "seçmeli türk dili ve edebiyatı",          # ⚠ tahmin
-    "STarih": "seçmeli tarih",
-    "SÇağdaş": "seçmeli çağdaş türk ve dünya tarihi",  # ⚠ tahmin
+    "SDin": "din kültürü ve ahlak bilgisi",
+    "SAlm": "almanca",
+    "SBiyo": "biyoloji",
+    "SCoğ": "coğrafya",
+    "SFizik": "fizik",
+    "SKimya": "kimya",
+    "SMat": "matematik",
+    "SMatUyg": "matematik uygulamaları",               # ⚠ tahmin
+    "SOTarih": "osmanlı türkçesi",                     # ⚠ tahmin
+    "SPeygamber": "peygamberimizin hayatı",            # ⚠ tahmin
+    "SPsiko": "psikoloji",
+    "STDE": "türk dili ve edebiyatı",                  # ⚠ tahmin
+    "STarih": "tarih",
+    "SÇağdaş": "çağdaş türk ve dünya tarihi",          # ⚠ tahmin
     "İnk": "inkılap tarihi ve atatürkçülük",
 }
+
+# 2026-09-13 DÜZELTME: "S" öneki daha önce "seçmeli X" olarak yazılıyordu
+# (ör. "seçmeli fizik") — ama client/actions/ders_icerigi.py::_ders_eslesir
+# (kitap_sorusu'nun DB kitap eşleşmesi) sorgudaki HER kelimenin hedefte
+# (kitap.ders) alt dize olarak geçmesini istiyor; "seçmeli" kelimesi "Fizik"
+# içinde hiç geçmediği için eşleşme SIFIRA düşüyordu — canlı DB'ye karşı
+# ölçüldü (12-A'nın yarınki ilk 3 bloğu: seçmeli fizik/kimya/biyoloji, hepsi
+# kitap_id=None döndü). Kitabın kendisi seçmeli/zorunlu ayrımı yapmıyor
+# (aynı MEB kitabı), o yüzden "seçmeli" öneki RAG eşleşmesi için hiç
+# gerekli değil — üstteki tabloda tamamen kaldırıldı, yalnızca ders adı
+# kaldı (ör. "seçmeli fizik" -> "fizik").
 
 TAHMIN_ISARETLI = {
     "SSpor", "Sağlık", "SMatUyg", "SOTarih", "SPeygamber", "STDE", "SÇağdaş",
