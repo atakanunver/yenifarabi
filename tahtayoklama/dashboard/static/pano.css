@@ -404,3 +404,54 @@ main form > button[type=submit]:disabled { background: var(--renk-gri-zemin); co
   main { padding: 1rem; }
   .ust-cubuk { gap: 0.6rem; }
 }
+
+/* ---------- Faz 6: uzaktan yönetim ---------- */
+.uz-secim-cubugu { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.9rem; }
+.uz-secim-cubugu button {
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  border: 1px solid var(--renk-kenar);
+  border-radius: 7px;
+  background: var(--renk-yuzey-2);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--renk-metin);
+}
+.uz-secim-cubugu button:hover { background: var(--renk-birincil-zemin); border-color: #c7cbfa; color: var(--renk-birincil-koyu); }
+
+.uz-eylem-cubugu { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.uz-eylem-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--renk-yuzey);
+  border: 1px solid var(--renk-kenar);
+  border-radius: var(--yaricap);
+  padding: 0.7rem 0.85rem;
+  box-shadow: var(--renk-golge);
+}
+.uz-eylem-form input[type=text] {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--renk-kenar);
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  background: var(--renk-yuzey-2);
+  width: 13rem;
+}
+.uz-eylem-form input[type=text]:focus { outline: 2px solid var(--renk-birincil); outline-offset: 1px; background: white; }
+.uz-eylem-form input[type=file] { font-size: 0.8rem; max-width: 11rem; }
+.uz-eylem-form button {
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  border: none;
+  border-radius: 7px;
+  background: var(--renk-birincil);
+  color: white;
+  font-weight: 700;
+  font-family: inherit;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.uz-eylem-form button:hover { background: var(--renk-birincil-koyu); }

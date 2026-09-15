@@ -115,6 +115,49 @@ async def scp_gonder(ip: str, kullanici: str, yerel_yol: Path, uzak_yol: str,
     return SSHSonuc(proc.returncode == 0, stdout, stderr)
 
 
+_X_ORTAMI_KESIF_KOMUTU = """python3 -c "
+import os
+uid = os.getuid()
+for pid in os.listdir('/proc'):
+    if not pid.isdigit():
+        continue
+    try:
+        with open(f'/proc/{pid}/environ', 'rb') as f:
+            data = f.read()
+    except (PermissionError, FileNotFoundError, ProcessLookupError):
+        continue
+    env = dict(item.split('=', 1) for item in data.decode(errors='replace').split(chr(0)) if '=' in item)
+    if env.get('DISPLAY') == ':0':
+        print(env.get('DISPLAY', ''))
+        print(env.get('XAUTHORITY', ''))
+        print(uid)
+        break
+" """
+
+
+async def x_ortamini_kesfet(ip: str, kullanici: str) -> tuple[str, str, str] | None:
+    """Bir tahtada aktif grafik oturumunun (DISPLAY=:0) DISPLAY/XAUTHORITY
+    değerlerini ve bağlanan kullanıcının uid'sini (DBUS adresi için) keşfeder
+    — GUI komutu (chrome, eta-screen-cover, gsettings/dconf) göndermenin ön
+    koşulu. uzaktan_baslat.py ve uzaktan_yonetim.py ortak kullanır (tek kopya
+    — bkz. tahtaayar/CLAUDE.md'deki "iki kopya senkron kalmadı" dersi).
+
+    Masaüstü ortamı belirli bir oturum yöneticisi sürecine (xfce4-session
+    vb.) bağlı KALMAZ — bağlanan kullanıcıya ait, DISPLAY=:0 olan HERHANGİ
+    bir sürecin ortamını tarar (2026-08-23, 9-A'da canlı doğrulandı —
+    masaüstü Cinnamon, plana yazılan XFCE değil)."""
+    sonuc = await komut_calistir(ip, kullanici, _X_ORTAMI_KESIF_KOMUTU)
+    if not sonuc.basarili:
+        return None
+    satirlar = sonuc.stdout.decode("utf-8", errors="replace").strip().splitlines()
+    if len(satirlar) < 1 or not satirlar[0]:
+        return None
+    display = satirlar[0]
+    xauthority = satirlar[1] if len(satirlar) > 1 else ""
+    uid = satirlar[2] if len(satirlar) > 2 else "1000"
+    return display, xauthority, uid
+
+
 _DURUM_TARAMA_KOMUTU = """python3 -c "
 import json, glob, os, sys
 tarih = sys.argv[1]

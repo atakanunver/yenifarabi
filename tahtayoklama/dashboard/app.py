@@ -21,6 +21,7 @@ import db
 import ders_programi
 import ssh_istemci
 import uzaktan_baslat
+import uzaktan_yonetim
 import yoklayici
 import zil
 
@@ -76,6 +77,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(admin.router)
+app.include_router(uzaktan_yonetim.router)
 
 
 @app.get("/giris", response_class=HTMLResponse)

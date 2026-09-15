@@ -1,30 +1,13 @@
 """Faz 4 — bir tahtada yoklama.py'yi uzaktan başlatma/öne getirme.
 
-Canlı SSH ile doğrulandı (2026-08-23, 9-A): masaüstü ortamı planın
-varsaydığı XFCE DEĞİL, Cinnamon — bu yüzden X ortamı keşfi belirli bir
-oturum yöneticisi sürecine (`xfce4-session` vb.) bağlı KALMAMALI, ogretmen
-kullanıcısına ait, DISPLAY=:0 olan HERHANGİ bir sürecin ortamını tarar
-(bkz. _X_ORTAMI_KESIF_KOMUTU).
+X-ortamı (DISPLAY/XAUTHORITY) keşfi 2026-09-15'te ssh_istemci.py'ye taşındı
+(x_ortamini_kesfet) — uzaktan_yonetim.py da aynı keşfe ihtiyaç duyuyor, tek
+kopya (bkz. tahtaayar/CLAUDE.md'deki "iki kopya senkron kalmadı" dersi).
 """
 
-import ssh_istemci
+import asyncio
 
-_X_ORTAMI_KESIF_KOMUTU = """python3 -c "
-import os
-for pid in os.listdir('/proc'):
-    if not pid.isdigit():
-        continue
-    try:
-        with open(f'/proc/{pid}/environ', 'rb') as f:
-            data = f.read()
-    except (PermissionError, FileNotFoundError, ProcessLookupError):
-        continue
-    env = dict(item.split('=', 1) for item in data.decode(errors='replace').split(chr(0)) if '=' in item)
-    if env.get('DISPLAY') == ':0':
-        print(env.get('DISPLAY', ''))
-        print(env.get('XAUTHORITY', ''))
-        break
-" """
+import ssh_istemci
 
 # '[t]ahtayoklama' — klasik pgrep öz-eşleşme kaçınma numarası: SSH bu komutu
 # çalıştırırken bazı durumlarda komut metnini içeren bir ara kabuk süreci
@@ -35,32 +18,21 @@ for pid in os.listdir('/proc'):
 _CALISIYOR_MU_KOMUTU = "pgrep -af '[t]ahtayoklama/yoklama.py'"
 
 
-async def _x_ortamini_kesfet(ip: str, kullanici: str) -> tuple[str, str] | None:
-    sonuc = await ssh_istemci.komut_calistir(ip, kullanici, _X_ORTAMI_KESIF_KOMUTU)
-    if not sonuc.basarili:
-        return None
-    satirlar = sonuc.stdout.decode("utf-8", errors="replace").strip().splitlines()
-    if len(satirlar) < 1 or not satirlar[0]:
-        return None
-    display = satirlar[0]
-    xauthority = satirlar[1] if len(satirlar) > 1 else ""
-    return display, xauthority
-
-
 async def baslat(tahta: dict) -> dict:
-    """tahta: {ip, ssh_kullanici, python_yolu, ad} — db'deki tahtalar satırı.
+    """tahta: {ip, ssh_kullanici, python_yolu, ad} — db'deki tahtalar satırı
+    (ya da uzaktan_yonetim.py'nin tahta_kaydi.py'den derlediği eşdeğeri).
     Döner: {"basarili": bool, "durum": str, "detay": str}."""
     ip = tahta["ip"]
     kullanici = tahta["ssh_kullanici"]
 
-    ortam = await _x_ortamini_kesfet(ip, kullanici)
+    ortam = await ssh_istemci.x_ortamini_kesfet(ip, kullanici)
     if ortam is None:
         return {
             "basarili": False,
             "durum": "hata",
             "detay": "Tahtada aktif masaüstü oturumu bulunamadı (tahta kapalı olabilir).",
         }
-    display, xauthority = ortam
+    display, xauthority, _uid = ortam
 
     calisiyor_mu = await ssh_istemci.komut_calistir(ip, kullanici, _CALISIYOR_MU_KOMUTU)
     zaten_calisiyor = calisiyor_mu.basarili and calisiyor_mu.stdout.strip() != b""
@@ -92,8 +64,6 @@ async def baslat(tahta: dict) -> dict:
         }
 
     # ~2sn sonra tekrar kontrol et — süreç gerçekten ayakta mı?
-    import asyncio
-
     await asyncio.sleep(2)
     dogrulama = await ssh_istemci.komut_calistir(ip, kullanici, _CALISIYOR_MU_KOMUTU)
     if dogrulama.basarili and dogrulama.stdout.strip() != b"":

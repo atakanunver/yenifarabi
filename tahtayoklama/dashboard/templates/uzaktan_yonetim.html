@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uzaktan Yönetim — Yoklama Panosu</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/pano.css">
+</head>
+<body>
+<header>
+  <h1>Uzaktan Yönetim</h1>
+  <nav class="ust-nav">
+    <a href="/">Pano</a>
+    <a href="/admin/tahtalar">Tahtalar</a>
+    <a href="/admin/siniflar">Sınıflar</a>
+    <a href="/admin/rapor">Rapor</a>
+  </nav>
+</header>
+
+<main>
+  <p class="uyari-not">Aşağıdaki işlemler fiziksel tahtaları gerçek zamanlı
+     etkiler (ekranı karartma, uygulama açma/kapatma, duvar kağıdı
+     değiştirme). Bir işlemi çalıştırmadan önce doğru tahtaları seçtiğinden
+     emin ol.</p>
+
+  <div class="uz-secim-cubugu">
+    <button type="button" id="tumunu-sec">Tümünü Seç</button>
+    <button type="button" id="secimi-kaldir">Seçimi Kaldır</button>
+    <a class="geri-link" href="/admin/uzaktan">⟳ Durumu Yenile</a>
+  </div>
+
+  <form id="tahta-secim">
+    <div class="tablo-sarici">
+      <table class="admin-tablo">
+        <thead>
+          <tr>
+            <th></th><th>Tahta</th><th>IP</th><th>Bağlantı</th>
+            <th>Oturum</th><th>Yoklama</th><th>Chrome</th><th>Ekran</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set oturum_etiket = {
+            'acik': ('Açık', 'pill-tam'),
+            'kilitli': ('Kilitli', 'pill-alinmadi'),
+            'giris_ekrani': ('Giriş ekranı', 'pill-alinmadi'),
+            'bilinmiyor': ('—', 'pill-ulasilamaz'),
+          } %}
+          {% for t in tahtalar %}
+          <tr>
+            <td><input type="checkbox" name="tahta" value="{{ t.ad }}"></td>
+            <td>{{ t.ad }}</td>
+            <td class="mono">{{ t.ip }}</td>
+            <td><span class="pill {{ 'pill-tam' if t.ulasilabilir else 'pill-ulasilamaz' }}">{{ 'Açık' if t.ulasilabilir else 'Ulaşılamaz' }}</span></td>
+            <td>
+              {% set e = oturum_etiket.get(t.oturum, ('—', 'pill-ulasilamaz')) %}
+              <span class="pill {{ e[1] }}">{{ e[0] }}</span>
+            </td>
+            <td><span class="pill {{ 'pill-tam' if t.yoklama else 'pill-yok' }}">{{ 'Açık' if t.yoklama else 'Kapalı' }}</span></td>
+            <td><span class="pill {{ 'pill-tam' if t.chrome else 'pill-yok' }}">{{ 'Açık' if t.chrome else 'Kapalı' }}</span></td>
+            <td><span class="pill {{ 'pill-alinmadi' if t.karartildi else 'pill-tam' }}">{{ 'Karartılmış' if t.karartildi else 'Normal' }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </form>
+
+  {% if sonuclar %}
+  <ul class="senkron-sonuc">
+    {% for s in sonuclar %}
+    <li class="{{ 'basarili' if s.basarili else 'hatali' }}">{{ s.tahta or '—' }}: {{ 'OK' if s.basarili else 'HATA' }} — {{ s.detay }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <h2>Eylemler</h2>
+  <div class="uz-eylem-cubugu">
+    <form class="uz-eylem-form" method="post" action="/admin/uzaktan/yoklama-ac">
+      <button type="submit">Yoklama Aç</button>
+    </form>
+    <form class="uz-eylem-form" method="post" action="/admin/uzaktan/yoklama-kapat">
+      <button type="submit">Yoklama Kapat</button>
+    </form>
+    <form class="uz-eylem-form" method="post" action="/admin/uzaktan/web-ac">
+      <input type="text" name="url" placeholder="https://…">
+      <button type="submit">Sayfa Aç</button>
+    </form>
+    <form class="uz-eylem-form" method="post" action="/admin/uzaktan/chrome-kapat">
+      <button type="submit">Chrome Kapat</button>
+    </form>
+    <form class="uz-eylem-form" method="post" action="/admin/uzaktan/ekran-karart">
+      <button type="submit">Ekranı Karart</button>
+    </form>
+    <form class="uz-eylem-form" method="post" action="/admin/uzaktan/ekran-kaldir">
+      <button type="submit">Karartmayı Kaldır</button>
+    </form>
+    <form class="uz-eylem-form" method="post" action="/admin/uzaktan/duvar-kagidi" enctype="multipart/form-data">
+      <input type="file" name="dosya" accept="image/*">
+      <button type="submit">Duvar Kağıdı Değiştir</button>
+    </form>
+  </div>
+</main>
+
+<script>
+document.querySelectorAll('.uz-eylem-form').forEach(function (form) {
+  form.addEventListener('submit', function () {
+    document.querySelectorAll('#tahta-secim input[name=tahta]:checked').forEach(function (kutu) {
+      var gizli = document.createElement('input');
+      gizli.type = 'hidden';
+      gizli.name = 'tahta';
+      gizli.value = kutu.value;
+      form.appendChild(gizli);
+    });
+  });
+});
+document.getElementById('tumunu-sec').addEventListener('click', function () {
+  document.querySelectorAll('#tahta-secim input[name=tahta]').forEach(function (k) { k.checked = true; });
+});
+document.getElementById('secimi-kaldir').addEventListener('click', function () {
+  document.querySelectorAll('#tahta-secim input[name=tahta]').forEach(function (k) { k.checked = false; });
+});
+</script>
+</body>
+</html>
