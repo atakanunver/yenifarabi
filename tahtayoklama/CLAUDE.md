@@ -1,109 +1,354 @@
 # tahtayoklama
 
-Sınıf akıllı tahtalarında dokunmatik yoklama arayüzü + (kuruluyor) merkezi
-web panosu. **Farabi'den TAMAMEN BAĞIMSIZ** (bkz. `yoklama.py`'nin kendi
-docstring'i, 2026-08-18 kullanıcı kararı) — Farabi'nin `actions/`
-registry'sine girmez, `client/`'a bağlı değildir, kendi başına çalışır.
-Farabi'nin sesli yoklaması ("derse gelmeyen öğrencilerin isimlerini söyler
-misiniz?") bu sistemden habersizdir, DEĞİŞMEDİ — ikisi paralel, birbirinden
+> **Konsolide doküman (2026-09-17).** Bu dosya, daha önce ayrı duran
+> `CLAUDE.md` (fiilen ne yapıldığı), `plan.md` (başlangıç tasarımı, artık
+> %90+ uygulanmış) ve aynı gün üretilen `eylulanaliz.md` denetim raporunun
+> tahtayoklama'yı ilgilendiren bulgularını **tek, güncel, kronolojik
+> olmayan** bir referansta topluyor. `plan.md` bu birleştirmeyle
+> **kaldırıldı** (kullanıcı onayıyla) — faz faz anlatım yerine, aşağıda
+> "neyin nasıl çalıştığı" konu başlıklarına göre anlatılıyor. Geçmiş
+> kararların ayrıntılı gerekçesi hâlâ kök `/home/ata/farabi/DECISIONS.md`'de
+> duruyor, oradan silinmedi.
+
+Sınıf akıllı tahtalarında dokunmatik yoklama arayüzü + merkezi web panosu.
+**Farabi'den TAMAMEN BAĞIMSIZ** (2026-08-18 kullanıcı kararı) — Farabi'nin
+`actions/` registry'sine girmez, `client/`'a bağlı değildir, kendi başına
+çalışır. Farabi'nin sesli yoklaması ("derse gelmeyen öğrencilerin isimlerini
+söyler misiniz?") bu sistemden habersizdir — ikisi paralel, birbirinden
 bağımsız iki yoklama yolu.
 
-Uygulama planı: `plan.md` (bu dizinde) — **kasıtlı olarak bu dosyadan ayrı
-tutuluyor**. `plan.md` = başlangıçta tasarlanan; bu dosya (`CLAUDE.md`) =
-fiilen ne yapıldığı. İkisi birbirine kopyalanmaz, aralarındaki fark
-istendiğinde incelenebilsin diye.
+## 1. Neden var, nasıl çalışır
 
-## Yapı
+`yoklama.py` (PyQt6, dokunmatik) her tahtada kendi başına, **ağdan tamamen
+izole** çalışır — idarenin "hangi sınıfta yoklama alınmadı" sorusuna cevap
+vermek için tek tek tahtaların başına gitmek gerekiyordu. `dashboard/` bu
+ihtiyaçtan doğdu: tüm tahtaların durumunu tek sayfada toplar, gerektiğinde
+ilgili tahtada yoklama ekranını uzaktan açar, sınıf/roster/tahta eşlemesini
+web üzerinden düzenlemeye izin verir.
+
+**Teknoloji (bilinçli tercih):** FastAPI + Jinja2 + vanilla JS (build adımı
+yok, npm yok) + SQLite (WAL) + `asyncio.create_subprocess_exec` ile
+doğrudan `ssh` (paramiko/APScheduler gibi yeni ağır bağımlılık yok) —
+repo genelindeki "Docker yok, hafif tut" konvansiyonuna uygun.
+
+## 2. Dizin yapısı
 
 ```
 tahtayoklama/
-├── yoklama.py            — tahtada çalışan PyQt6 GUI (bkz. dosyanın kendi docstring'i)
+├── yoklama.py            — tahtada çalışan PyQt6 GUI
 ├── pdf_disari_aktar.py   — e-Okul/MEB PDF çıktısını roster JSON'a çevirir
 ├── data/                 — DEV kopyası; tahtalarda ~ogretmen/tahtayoklama/data/ olarak yaşar
 │   ├── roster/<sinif>.json       — sınıf listesi ({"sinif", "ogrenciler": [{"no","ad_soyad","cinsiyet"}]})
 │   ├── kayitlar/<tarih>_<sinif>_ders<no>.json — yoklama kaydı
 │   └── zil.json                  — ders saati çizelgesi, Farabi'nin client/config/zil.json'undan KASITLI BAĞIMSIZ kopya
-├── plan.md                — uygulama planı (bkz. yukarı)
-└── dashboard/              — merkezi web panosu (bkz. aşağıdaki bölüm; inşa halinde)
+└── dashboard/              — merkezi web panosu (bkz. §4)
 ```
 
-## Harici tahta yönetim programları (kullanıcının Windows PC'si) — 2026-09-14
+## 3. `yoklama.py` — tahta deployment gerçeği
+
+- **Kendi venv'i YOK.** Tahtalarda `Exec=/home/ogretmen/farabi/client/venv/bin/python
+  /home/ogretmen/tahtayoklama/yoklama.py` — Farabi'nin client venv'i
+  kullanılıyor (PyQt6 zaten kurulu olduğu için). `requirements.txt`
+  (`PyQt6`, `pdfplumber`) yalnızca dev makinede anlamlı.
+- **Autostart DEĞİL.** `~/Masaüstü/Yoklama.desktop` ile öğretmen elle açar.
+- **Tamamen ağdan izole.** HTTP/socket/network I/O YOK. Tek durum kaynağı
+  tahtanın kendi diskindeki JSON dosyaları.
+- **Kayıt tahta kimliğine değil, o an seçili sınıfa göre isimlendirilir** —
+  tahta↔sınıf eşlemesi değiştikçe kayıt farklı fiziksel tahtalardan gelebilir;
+  hiçbir kod "tahta X = sınıf Y" eşlemesine güvenmemeli, kayıt içeriğindeki
+  `sinif` alanı esas alınmalı.
+- **Otomatik sessiz kayıt riski (çözülmedi, bkz. §8):** ders dönemi
+  değiştiğinde önceki dersin hâli otomatik kaydedilir (`_kaydet(sessiz=True)`)
+  — tahta açık bırakılıp kimse dokunmazsa "herkes var" diye gerçek olmayan
+  bir kayıt oluşur, öğretmenin bilerek kaydetmesiyle ayırt edilemez.
+- Pencere başlığı tam olarak `"Yoklama"`; 10 dakika kuralı ve kendi kendine
+  öne gelme (`_pencereyi_one_getir`) zaten `yoklama.py` içinde var, panonun
+  uzaktan başlatmasıyla çakışmaz.
+- Sınıf seçme kutusu (`QComboBox`) yalnızca **uygulama açılışında**
+  `data/roster/*.json` taranarak dolar — yeni senkronize edilen dosya,
+  uygulama zaten açıksa görünmez, öğretmenin kapatıp yeniden açması gerekir.
+
+## 4. `dashboard/` — merkezi web panosu
+
+Farabi'nin `server/`'daki FastAPI'sinden (`farabi-api.service`, GPU-bağımlı)
+**tamamen bağımsız**: kendi venv'i, kendi SQLite DB'si (`veri/yoklama_pano.db`),
+kendi portu (8010), kendi systemd birimi (`farabi-yoklama-dashboard.service`,
+`After=`/`Wants=` YOK — tam ayrık). `server/tahtalar.json`'a **geri yazma
+YAPILMAZ** — pano kendi tahta/sınıf kaydını tutar.
+
+### SQLite şeması (özet — `db.py`)
+
+| Tablo | Amaç |
+|---|---|
+| `siniflar` | id, ad ('9-A', 'tahta-234'...), aktif |
+| `ogrenciler` | sinif_id FK, no, ad_soyad, cinsiyet (opsiyonel) |
+| `tahtalar` | ad, ip, ssh_kullanici, python_yolu, sinif_id FK (NULL=atanmamış), aktif — **yalnızca bu DB'de**, `server/tahtalar.json`'a yazılmaz |
+| `yoklama_onbellek` | tarih+sinif+ders_no UNIQUE; durum (`alindi`\|`alinmadi`\|`henuz_baslamadi`\|`tahta_ulasilamaz`\|`ders_yok_o_gun`\|`tahta_atanmamis`); yok/izinli isimleri JSON; sinif alanı FK DEĞİL (kasıtlı — silinen sınıfta bile geçmiş veri okunabilir kalsın) |
+| `oturumlar` | token, tek ortak şifreyle giriş (`auth.py`, scrypt hash) |
+
+### Ana bileşenler
+
+| Dosya | İş |
+|---|---|
+| `app.py` | FastAPI giriş noktası, lifespan (DB kur + polling görevi), `/`, `/giris`, `/api/durum`, `/api/yenile`, `/api/tahta/{id}/baslat` |
+| `ssh_istemci.py` | `ssh`/`scp` subprocess sarmalayıcı (paramiko YOK), `komut_calistir`, `scp_gonder`, `x_ortamini_kesfet` (DISPLAY/XAUTHORITY/uid keşfi — tek kopya), `tahtanin_kayitlarini_tara`, tarih/ad allow-list doğrulama |
+| `yoklayici.py` | SSH polling motoru — tüm aktif tahtaları `asyncio.gather` ile paralel tarar, `yoklama_onbellek`'e UPSERT eder |
+| `zil.py` | `data/zil.json` okuma + ders-zamanlama, `Europe/Istanbul` saat dilimine sabit; `gun_adi_buyuk()` (2026-09-17 eklendi) — büyük harf Türkçe gün adı, `.upper()` DEĞİL sabit sözlük kullanır (Türkçe "İ" locale hatasından kaçınmak için) |
+| `admin.py` | `/admin/tahtalar`, `/admin/siniflar`, `/admin/siniflar/{id}/ogrenciler`, `/admin/rapor` — tahta↔sınıf atama, roster düzenleme/senkron, devamsızlık raporu+CSV |
+| `uzaktan_yonetim.py`, `uzaktan_baslat.py`, `tahta_kaydi.py` | Faz 6 — bkz. §5 |
+| `ders_programi.py` | pano hücrelerindeki ders kısa adı etiketi (MAT, İNG, ...) |
+
+**Polling penceresi:** Pazartesi-Cuma, ilk dersten ~20dk önce - son dersten
+~20dk sonra arasında ~2 dakikada bir; pencere dışında SSH trafiği yok.
+
+**2026-09-17 — isim değişikliği + gün etiketi:** Panonun marka adı
+"Yoklama Panosu"dan **"Yoklama ve Yönetim Paneli"**ye değiştirildi (yalnızca
+yoklama değil, `/admin/uzaktan` de artık aynı panonun bir parçası olduğu
+için) — 7 şablonun hepsinde `<title>`/`<h1>` güncellendi
+(`giris.html`/`pano.html` hariç diğerlerinde yalnızca `<title>` soneki).
+Aynı oturumda `header`'ın en soluna (`<h1>`'den önce) büyük harf Türkçe gün
+adı eklendi (`zil.gun_adi_buyuk()`, her üç Python dosyasında
+(`app.py`/`admin.py`/`uzaktan_yonetim.py`) `templates.env.globals` üzerinden
+Jinja fonksiyonu olarak kaydedildi — ~12 ayrı `TemplateResponse` çağrısına
+tek tek dokunmadan). `giris.html`'e eklenmedi (o sayfa `<header>` içermeyen
+ortalanmış bir giriş kartı, "sol üst" kavramı yok). **Hatırlatma:** okul
+hafta sonu kapalı olduğu için `ders_programi.json`/`zil.json`/polling
+penceresi zaten yalnızca Pazartesi-Cuma anlamlı — bu varsayım proje
+genelinde geçerliliğini koruyor, gün etiketi widget'ı 7 günü de doğru
+gösterse bile hafta sonu görünürlüğünün işlevsel bir önemi yok.
+
+## 5. Uzaktan Yönetim paneli (`/admin/uzaktan`) — Windows aracının web karşılığı
+
+Windows'ta ayrı çalışan `tahta_panel.py` (tkinter+paramiko, kullanıcının
+kendi makinesindeki `TAHTA ISLERI` projesi) yerine, panoya entegre bir
+bölüm: yoklama aç/kapat, web sayfası aç/chrome kapat, ekranı karart/kaldır,
+duvar kağıdı değiştir — hepsi toplu (çoklu tahta seçimi). Tasarım belgesi:
+`docs/superpowers/specs/2026-09-15-tahta-uzaktan-yonetim-design.md`.
+
+**Kasıtlı olarak dışarıda bırakılan** (etapadmin+sudo gerektiren, sistem
+dosyalarına dokunan işlemler — Faz 1'in "ogretmen'e doğrudan SSH, sudo yok"
+modeliyle uyuşmuyor): masaüstüne dosya gönderme, oturum aç/otomatik giriş
+kur-kaldır, "kapat butonunu karartmaya çevir".
+
+**Mimari kararlar:**
+- Tahta hedefleri HER ZAMAN `server/tahtalar.json`'dan (`tahta_kaydi.py`)
+  çözülür — istemciden yalnızca "ad" kabul edilir, IP/komut asla.
+- Ayrı bir yönetici şifresi YOK — panonun mevcut ortak öğretmen
+  şifresi/oturum çerezi yeterli kabul edildi (bkz. §8, güvenlik riski).
+- Hiçbir işlem sudo/root gerektirmez — Farabi'nin SSH anahtarı
+  (`~/.ssh/id_ed25519_tahta`) zaten `ogretmen` hesabına doğrudan yetkili.
+- X-ortamı (DISPLAY/XAUTHORITY/uid) keşfi tek yerde: `ssh_istemci.x_ortamini_kesfet()`
+  — `uzaktan_baslat.py` ve `uzaktan_yonetim.py` ikisi de bunu kullanır
+  (önceden iki kopyaydı, birleştirildi — bkz. `tahtaayar/CLAUDE.md`'deki
+  "iki kopya senkron kalmadı" dersi).
+
+**2026-09-17 kod denetimi sonucu (bu dosyanın önceki `eylulanaliz.md`
+raporundan taşındı):** Kod, tasarım belgesiyle **birebir uyumlu** bulundu;
+gerçek tahtalara karşı canlı test edildi (bkz. §6) ve **doğru çalışıyor**.
+⚠️ Bu denetim statik bir kod incelemesiydi, "doğru çalışıyor" kanıtı
+2026-09-15'teki eski canlı teste dayanıyordu — aynı gün ilerleyen
+saatlerde kullanıcının gerçek kullanımı "duvar kağıdı" için bunu
+çürüttü, bkz. madde 5 (aşağıda). Bulunan, kod hatası SAYILMAYAN ama
+iyileştirilebilecek noktalar:
+
+1. `auth.gecerli_oturum()` (dependency tarzı fonksiyon, `auth.py:81`) hiçbir
+   route tarafından çağrılmıyor — ölü kod. Repodaki her route (bu dosya
+   dahil) `auth.dogrula()` + elle `raise HTTPException(401,...)` desenini
+   tekrarlıyor. Ya `gecerli_oturum` silinmeli ya da route'lar ona taşınmalı.
+2. `/admin/uzaktan*` route'ları oturumsuz istekte çıplak 401 döndürüyor,
+   ana pano (`/`) gibi `/giris`'e yönlendirmiyor (bu, `admin.py`'nin zaten
+   yerleşik davranışı — yeni bir hata değil, ama tutarsız).
+3. **Loglama yok:** hiçbir uzaktan yönetim eylemi (kim, ne zaman, hangi
+   tahtaya, hangi eylemi yaptı) kaydedilmiyor. Ortak şifreyle giren HERKES
+   fiziksel tahtaları etkileyebildiği için (bilinçli kabul edilmiş risk,
+   tasarım belgesinde de yazılı) en azından basit bir log satırı eklenmesi
+   önerilir.
+4. Küçük verimsizlik: "Yoklama Aç" eylemi `_python_yolu_bul()` ve
+   `uzaktan_baslat.baslat()` içindeki `x_ortamini_kesfet()` olmak üzere
+   art arda 2 SSH round-trip yapıyor (sonuç doğru, yalnızca ~1 tur fazladan
+   gecikme).
+5. **BULUNDU VE DÜZELTİLDİ (2026-09-17) — "Duvar Kağıdı Değiştir" "yaptım
+   ama çalışmadı" şikâyeti.** Kullanıcı panelden gerçekten bir görsel
+   yükledi (9-A, bugün 08:20); `server/tahta-ssh.sh 9-A` ile canlı,
+   salt-okunur SSH teşhisiyle doğrulandı: dosya diskte geçerli bir JPEG
+   olarak duruyordu VE `gsettings get org.cinnamon.desktop.background
+   picture-uri` bu dosyayı gösteriyordu — yani SSH/gsettings mekanizması
+   BOZUK DEĞİLDİ, o seferinde fiilen çalışmıştı. Yine de kodda iki gerçek
+   sorun bulundu:
+   - `_duvar_kagidi_tek`'teki `ic_komut`, üç `gsettings set` çağrısını `;`
+     ile zincirliyordu — bash'te `;` zincirinin çıkış kodu SADECE son
+     komutundur. Asıl görünür etkiyi belirleyen ilk çağrı
+     (`org.cinnamon.desktop.background`, masaüstü Cinnamon olduğu için)
+     başarısız olsa bile, son sıradaki yedek `org.gnome.desktop.background`
+     çağrısı başarılıysa panel yanlışlıkla "Duvar kağıdı değiştirildi."
+     diyebiliyordu. **Düzeltildi:** artık yalnızca Cinnamon çağrısının
+     çıkış kodu (`$CINNAMON_DURUM`) raporlanıyor, GNOME çağrısı gerçek bir
+     best-effort/yedek oldu (hatası göz ardı edilir).
+   - Dosya seçilip HİÇBİR tahta kutusu işaretlenmeden gönderilirse route
+     sessizce "Hiçbir tahta seçilmedi." diyen tek bir satır ekliyordu —
+     bu satır tam sayfa yeniden yüklendiğinde "Eylemler" bölümünün
+     ÜSTÜNDE kalıyordu (kullanıcı az önce sayfanın altındaki butona
+     tıklamıştı), kolayca gözden kaçıyordu. **Düzeltildi:** artık form
+     JS'i gönderilmeden önce en az bir tahta seçili mi diye kontrol edip
+     `alert()` ile uyarıyor (tüm `.uz-eylem-form`'lar için, yalnızca duvar
+     kağıdı değil); sonuç listesi de sayfa yüklenince otomatik olarak
+     görünüme kaydırılıyor (`scrollIntoView`).
+   - **Ders:** "kod denetiminde bulunmadı" iki günlük statik bir gözlemdi;
+     gerçek kullanıcı denemesi + canlı SSH teşhisi farklı, daha güvenilir
+     bir kanıt kaynağı — şüpheli bir "çalışmıyor" bildirimi geldiğinde
+     önce statik koda değil, canlı tahtaya bakılmalı (bkz. kök
+     `CLAUDE.md`'nin log okuma ilkesiyle aynı prensip).
+
+## 6. Tahta envanteri ve canlı durum (2026-09-17'de doğrulandı)
+
+`server/tahtalar.json` tek doğru kaynak. O gün yapılan canlı bağlantı testi
+(`uzaktan_yonetim.tum_durumlar()` gerçek SSH ile çalıştırılarak, ~06:10 TR):
+
+| Tahta | IP | O gün ulaşılabilir mi | Not |
+|---|---|---|---|
+| 9-A | .245 | ✗ (No route to host) | 7 aktif sınıftan biri; sabah erken saatte kapalı olması muhtemel, arıza kanıtı değil |
+| 9-B | .239 | ✓ | normal |
+| 10-A | .242 | ✓ | normal |
+| 11-A | .228 | ✓ | normal |
+| 11-B | .233 | ✓ | normal |
+| 12-A | .231 | ✓ | normal |
+| 12-B | .240 | ✓ | normal |
+| tahta-234 | .234 | ✗ | sınıf değil (bkz. §7) |
+| tahta-235 | .235 | ✗ | sınıf değil (bkz. §7) |
+| tahta-236 | .236 | ✗ | eski/boşa çıkmış 11-A kaydı (bkz. §7) |
+| fenlab (eski tahta-244) | .244 | ✓ | ortak kullanım alanı (fen laboratuvarı), sınıflara sabit değil — Farabi+tahtayoklama artık kurulu, bkz. §7 |
+
+**2026-09-17 ek düzeltme (aynı gün, doküman birleştirmesi sırasında
+bulundu):** Bu tablodaki `.233`/`.239`/`.242` satırları `server/tahtalar.json`'dan
+alındığı için doğruydu, ama `network.txt` (insan-okunur ikinci referans)
+bu üç IP'nin sınıf etiketlerini birbirine KAYDIRMIŞ halde tutuyordu (10-A/
+11-B/9-B yerine 9-B/10-A/11-B gibi — IP/MAC doğruydu, isim yanlıştı). Her
+üç tahtanın kendi `data/roster/*.json` ve `client/config/api_keys.json`
+(`derslik` alanı) dosyaları canlı SSH ile okunarak doğrulandı:
+`server/tahtalar.json` DOĞRUYDU, `network.txt` YANLIŞTI — düzeltildi.
+**Ders:** iki kayıt dosyası (biri "resmi" JSON, biri "insan-okunur ek
+referans") olan her yerde, ikisi arasında sessizce sapma olabilir — şüphe
+varsa asıl kaynağa (`server/tahtalar.json`) ve mümkünse canlı doğrulamaya
+güvenin, ikincil referans dosyasına değil.
+
+`tahtaayar/tahta_fix_uygula.py --sadece-kontrol` ile aynı gün taranan
+OS-düzeyi güç/uyku düzeltmeleri: **7 aktif sınıf tahtasının 7'sinde de**
+dört düzeltme de uygulanmış durumda (regresyon yok). `fenlab`'ta o an
+(kontrol anında) üç düzeltme hiç uygulanmamıştı — aynı gün, kullanıcı
+talebiyle `--tahta fenlab` ile uygulandı, artık **8/8 tahta aynı ayarda**
+(bkz. §7'deki tam kurulum notu).
+
+## 7. Tahta↔sınıf ataması — kalıcı gerçekler ve açık uçlar
+
+- **`/admin/tahtalar`'daki atama SADECE dashboard'un kendi SQLite'ını
+  değiştirir, tahtaya HİÇBİR ŞEY göndermez** — tahtaya gerçekten dosya
+  yazan TEK yol, atama+senkronun tek adımda birleştiği "Yükle" butonu
+  (`admin.py::_tahtaya_roster_gonder`, her yüklemede eski roster
+  dosyalarını da otomatik siler). Eski "takas" route'u ve sürükle-bırak
+  özelliği kullanıcı isteğiyle tamamen kaldırıldı (kafa karıştırıcı
+  bulunmuştu).
+- `senkronize` her zaman HTTP 200 döner (SSH gerçekten başarısız olsa
+  bile) — "200 OK" tahtaya ulaştığının kanıtı DEĞİL, doğrulama SSH ile
+  dosyayı geri okuyarak yapılmalı.
+- **`tahta-234`/`tahta-235`/`fenlab` sınıf DEĞİL** (`fenlab` = eski
+  `tahta-244`, 2026-09-17'de kullanıcı teyidiyle "fen laboratuvarı" olarak
+  tanımlandı ve yeniden adlandırıldı — bkz. aşağıdaki not; `tahta-234`/
+  `tahta-235`'in hangisinin kütüphane, hangisinin spor odası olduğu hâlâ
+  netleşmedi). Bu 3 yerde yoklama alınmayacak diye Faz 6 (lab1/lab2/lab3
+  kurulumu) kullanıcı isteğiyle iptal/beklemede kaldı — `siniflar`
+  tablosuna hiç eklenmediler, `tahta_atanmamis` durumunda kalmaya devam
+  ediyorlar.
+  - **`fenlab` yeniden adlandırması (2026-09-17):** Makine hostname'i
+    `hostnamectl set-hostname fenlab` + `/etc/hosts` güncellemesiyle
+    "etap"tan "fenlab"a değiştirildi (etapadmin+sudo). `server/tahtalar.json`'da
+    `"tahta-244"` anahtarı `"fenlab"` oldu ve `"mac": "00:09:df:8c:32:8a"`
+    alanı eklendi — kullanıcı isteğiyle: **IP DHCP ile değişebilir, kimlik
+    doğrulaması için MAC esas alınmalı** (otomatik MAC→IP çözümleme henüz
+    YOK — IP değişirse `server/tahtalar.json`'daki `ip` alanı elle
+    güncellenmeli). Dashboard SQLite'ındaki (`tahtalar` tablosu, id=10)
+    `ad` alanı da `"fenlab"`a güncellendi.
+  - ✅ **Tam kurulum (2026-09-17, aynı gün, kullanıcı talebiyle):** `fenlab`
+    diğer 7 aktif tahtayla birebir aynı duruma getirildi:
+    - `tahtaayar/tahta_fix_uygula.py --tahta fenlab` çalıştırıldı — güç
+      düğmesi/uzun basış/uyku hedefleri maskeleme fix'lerinin 3'ü de
+      uygulandı ve doğrulandı (yalnızca `cinnamon_guc_tusu_yoksay` zaten
+      vardı). Artık 7 aktif tahta + fenlab, 8/8 aynı OS-düzeyi ayarda.
+    - Farabi client kuruldu (`server/farabi-kurulum.sh fenlab
+      http://192.168.23.252:8000 <yeni tahta_anahtari>`) — kurulum sırasında
+      script'in [0/7] ön koşul kontrolü gerçek bir eksiği KAÇIRDIĞI ortaya
+      çıktı: `python3 -c "import venv"` başarılı dönüyor ama Debian'da asıl
+      gerekli olan `ensurepip` ayrı pakette (`python3.11-venv`) —
+      script GÜNCELLENDİ (artık `import ensurepip` kontrol ediyor, eksikse
+      Python sürümüne göre doğru paket adını öneriyor). `libportaudio2`/
+      `libxcb-cursor0`/`git`/`wmctrl` da eksikti, etapadmin+sudo ile kuruldu.
+      Kurulum sonrası `import main` temiz, heartbeat `{"status":"ok"}`
+      döndü — `server/config/api_keys.json`'daki `board_keys` içine
+      `fenlab` için yeni bir anahtar eklendi. `gemini_api_keys` diğer
+      kurulumlarla aynı ilkeyle BOŞ bırakıldı (kullanıcı elle girmeli).
+    - tahtayoklama kuruldu — 9-A dışındaki diğer tahtalarla aynı desen:
+      kendi `~/tahtayoklama/venv` (PyQt6+pdfplumber pip ile), `yoklama.py` +
+      `data/zil.json` kopyalandı, `~/Masaüstü/YoklamaFenLab.desktop`
+      oluşturuldu. **Fark:** fenlab tek bir sınıfa ait olmadığı
+      (ortak/paylaşılan kullanım alanı, dersler mekan değişikliğiyle farklı
+      sınıflar tarafından kullanılabiliyor) için `data/roster/`'a TEK bir
+      sınıf değil, **mevcut 7 sınıfın hepsinin roster'ı** kopyalandı
+      (9-A/9-B/10-A/11-A/11-B/12-A/12-B) — `yoklama.py`'nin combo box'ı
+      açılışta `data/roster/*.json`'ı taradığı için (bkz. §3) öğretmen artık
+      hangi sınıf o an oradaysa onu seçebiliyor, canlı doğrulandı (7/7
+      roster dosyası görüldü). Dashboard tarafında hiçbir değişiklik
+      GEREKMEDİ — mimari zaten kayıt içeriğindeki `sinif` alanını esas
+      aldığı için (bkz. §3, "kayıt tahta kimliğine değil sınıfa göre") bu
+      paylaşımlı kullanım otomatik olarak destekleniyor; `fenlab`'ın
+      dashboard'da `sinif_id=NULL`/`tahta_atanmamis` kalması BİLEREK
+      değiştirilmedi (tek sınıfa sabitlemek yanlış olurdu).
+    - **Yapılmadı (kullanıcı elle tamamlamalı, diğer kurulumlarla aynı
+      ilke):** `gemini_api_keys` boş, fiziksel/görsel son kabul testi
+      yapılmadı (kural gereği kullanıcıya ait).
+- **`tahta-236`**: önceden "11-A" etiketiyle kayıtlıydı, gerçek 11-A'nın
+  `192.168.23.228`'de bulunmasıyla (2026-08-24) boşa çıktı — dashboard
+  DB'sinde `sinif_id=NULL` yapıldı ama satır SİLİNMEDİ, `server/tahtalar.json`'da
+  da ayrı satır olarak korunuyor (SSH erişimi gerekebilir ihtimaline karşı).
+
+## 8. Bilinen riskler / açık işler (öncelik sırasıyla)
+
+1. **Commit edilmemiş değişiklikler, 2 gündür bekliyor (kaybolma riski).**
+   `dashboard/static/pano.css` + 7 `templates/*.html` (koyu/yumuşak tema
+   sistemi) değiştirilmiş; `static/tema.js` ve
+   `dashboard/yedek/2026-09-15_tema_oncesi/` (değişiklik öncesi elle
+   alınmış yedek) izlenmiyor. Değişiklik tutarlı görünüyor (tüm ilgili
+   şablonlarda `tema.js`/`data-tema` kullanımı var) — kullanıcı onayı ile
+   commit edilmesi önerilir.
+2. ~~`fenlab` güç-düğmesi açık sorusu~~ — **ÇÖZÜLDÜ (2026-09-17)**, bkz. §7 "Tam kurulum" notu.
+3. **Uzaktan Yönetim'de loglama yok, ayrı bir yönetici rolü yok** — bkz. §5
+   madde 3 (bilinçli kabul edilmiş risk, ama izlenebilirlik hiç yok).
+4. **Otomatik sessiz kayıt ayrımı (Faz 7, hiç başlanmadı)** — `yoklama.py`'nin
+   dönem geçişindeki sessiz otomatik kaydı ile öğretmenin bilerek
+   kaydetmesi ayırt edilemiyor; çözüm `yoklama.py`'ye (canlı, kullanımda
+   bir dosyaya) `elle_kaydedildi: bool` alanı eklemeyi gerektiriyor — ayrı
+   bir onay/plan konusu, kasıtlı olarak ertelendi.
+5. **Harici Windows araçlarıyla ilişki netleşmedi** — bkz. §9.
+6. Küçük iyileştirmeler: `auth.gecerli_oturum` ölü kodu, `/admin/uzaktan`
+   401→`/giris` tutarsızlığı, "Yoklama Aç"taki fazladan SSH turu (§5).
+
+## 9. Harici tahta yönetim programları (kullanıcının Windows PC'si)
 
 Bu depoya DAHİL DEĞİL, ayrı bir makinede yaşıyor ama aynı 11 tahtayı
-uzaktan yönetiyor — burada yalnızca varlığı ve nereden geldiği not
-düşülüyor, tahtayoklama/dashboard bunlara bağlı değil:
+uzaktan yönetiyor:
 
 - `C:\Users\exa\Desktop\TAHTA ISLERI\tahta_panel.py`
 - `C:\Users\exa\Desktop\TAHTA ISLERI\tahta_ssh.py`
 
-Kullanıcının kendi Windows makinesinde duruyor, bu oturumdan dosya içeriği
-OKUNAMADI (uzak/erişilemez yol) — yalnızca kullanıcının bildirdiği isim/yol
-ve aşağıdaki bağımsız log kanıtı kayıtlı. **Muhtemel kimlik:** 9-B/11-B/
-12-A'nın SSH loglarında `192.168.23.243`'ten gelen, ~30 saniyede bir tekrar
-eden `etapadmin` girişleri (bkz. `tahtaayar/CLAUDE.md` "Güç düğmesi"
-bölümü) — her girişte `pkexec .../ETAKisitActivator.py
---disable-websites-restriction` çalıştırılıyor, oturum saniyeler içinde
-kapanıyor. Bu IP, `farabi/CLAUDE.md`'deki 11 tahta/1 sunucu envanterinde
-YOK — ayrı bir yönetici istasyonu. Bu programların `tahta_panel.py`/
-`tahta_ssh.py` olduğu TEYİT EDİLMEDİ, yalnızca zaman/davranış örtüşmesiyle
-en olası açıklama bu — kesinleştirmek için kullanıcıdan doğrulama ya da bu
-iki dosyanın içeriği gerekir.
+Bu oturumdan dosya içeriği OKUNAMADI (uzak/erişilemez yol). **Muhtemel
+kimlik:** 9-B/11-B/12-A'nın SSH loglarında `192.168.23.243`'ten gelen,
+~30 saniyede bir tekrar eden `etapadmin` girişleri — her girişte `pkexec
+.../ETAKisitActivator.py --disable-websites-restriction` çalıştırılıyor.
+Bu IP `server/tahtalar.json`'daki envanterde YOK — ayrı bir yönetici
+istasyonu. **TEYİT EDİLMEDİ**, yalnızca zaman/davranış örtüşmesiyle en
+olası açıklama. `/admin/uzaktan` (§5) bu iki programın işlevinin bir
+kısmını (muhtemelen tamamını değil) web'e taşımış durumda — iki aracın
+tam olarak nerede çakıştığı hâlâ netleşmedi.
 
-**Bilinmeyenler (kullanıcıdan netleştirilmeli):** bu iki programın tam
-işlevi (yalnızca "web sitesi kısıtlamasını kapat" mı yapıyor, yoksa
-yoklama/roster/ders programı ile de mi ilgileniyorlar), tahtayoklama'nın
-kendi `dashboard`'uyla (bu depodaki `/admin/tahtalar` uzaktan başlatma,
-polling vb.) çakışan bir alanları olup olmadığı, ve periyodik SSH trafiğinin
-tahtalardaki `sshd`/CPU üzerinde ölçülebilir bir yük oluşturup
-oluşturmadığı (~30 sn'de bir, 7 aktif tahta × gün boyu — kısa oturumlar
-ama sürekli).
-
-## `yoklama.py` — tahta deployment gerçeği
-
-Koddan ve canlı tahtalardan (9-A, 2026-08-23) doğrulandı:
-
-- **Kendi venv'i YOK.** Tahtalarda `Exec=/home/ogretmen/farabi/client/venv/bin/python
-  /home/ogretmen/tahtayoklama/yoklama.py` — Farabi'nin client venv'i
-  kullanılıyor (zaten PyQt6 kurulu olduğu için). `requirements.txt`
-  (`PyQt6`, `pdfplumber`) yalnızca dev makinede anlamlı.
-- **Autostart DEĞİL.** `~/Masaüstü/Yoklama.desktop` ile öğretmen elle
-  açıyor. Tahta açıldığında kendiliğinden başlamıyor.
-- **Tamamen ağdan izole.** HTTP/socket/network I/O YOK. Tek durum kaynağı
-  tahtanın kendi diskindeki JSON dosyaları
-  (`~ogretmen/tahtayoklama/data/{roster,kayitlar}/`).
-- **Kayıt tahta kimliğine değil, o an seçili sınıfa göre isimlendirilir.**
-  Bir tahtanın hangi sınıfa ait olduğu dosya sisteminde tutulmuyor — yalnızca
-  o an combo box'ta hangi sınıf seçiliyse o. Sınıf↔tahta eşlemesi
-  değiştikçe (ör. ilk hafta) bir sınıfın kaydı farklı fiziksel tahtalardan
-  gelebilir — bunu varsayan hiçbir kod "tahta X = sınıf Y" eşlemesine
-  güvenmemeli, kayıt içeriğindeki `sinif` alanı esas alınmalı.
-- **Otomatik sessiz kayıt riski**: ders dönemi değiştiğinde önceki dersin
-  hâli otomatik kaydedilir (`_kaydet(sessiz=True)`) — tahta açık bırakılıp
-  kimse dokunmazsa "herkes var" diye gerçek olmayan bir kayıt oluşur.
-  Öğretmenin bilerek "YOKLAMAYI KAYDET"e basmasıyla aynı `alindi` durumunu
-  üretir, şu an ayırt edilemiyor (bkz. `plan.md` Faz 7 — henüz yapılmadı).
-- Pencere başlığı tam olarak `"Yoklama"`; 10 dakika kuralı ve kendi
-  kendine öne gelme (`_pencereyi_one_getir`) `yoklama.py` içinde zaten var,
-  panonun uzaktan başlatma özelliğiyle çakışmaz — pano yalnızca "hiç
-  çalışmıyor" durumunu ele alır.
-
-## `dashboard/` — merkezi web panosu
-
-10 tahtanın yoklama durumunu tek sayfada toplayan, gerektiğinde ilgili
-tahtada yoklama ekranını uzaktan açabilen, sınıf/roster/tahta eşlemesini
-web üzerinden düzenlemeye izin veren ayrı bir servis.
-
-- Farabi'nin `server/`'daki FastAPI'sinden (`farabi-api.service`,
-  GPU-bağımlı) **tamamen bağımsız**: kendi venv'i, kendi SQLite DB'si, kendi
-  portu, kendi systemd birimi. Deploy/restart döngüleri kasıtlı olarak
-  birbirine bağlı değil.
-- `server/tahtalar.json`'a geri yazma YAPILMAZ — pano kendi tahta/sınıf
-  kaydını tutar (tek seferlik tohumlama dışında Farabi'nin dosyalarına
-  dokunmaz).
-- Detaylı mimari, DB şeması, SSH komutları, faz sırası: `plan.md`.
-- Durum (bu bölüm, ilerledikçe güncellenecek): _henüz inşa edilmedi._
-
-## Kurallar (kök `/home/ata/farabi/CLAUDE.md`'nin 1/3/4/6/8 maddelerine paralel)
+## 10. Kurallar (kök `/home/ata/farabi/CLAUDE.md`'nin 1/3/4/6/8 maddelerine paralel)
 
 1. Tahtalarda ÇALIŞAN `yoklama.py`'ye dokunmadan önce iki kez düşün —
    canlı, kullanımda bir sistem; geriye dönük uyumluluğu koru.
@@ -111,334 +356,38 @@ web üzerinden düzenlemeye izin veren ayrı bir servis.
 3. Değiştirmeden önce ilgili dosyayı oku — özellikle `yoklama.py`'nin veri
    şeması (roster/kayıt JSON) `dashboard/`'un varsaydığı şemayla birebir
    uyuşmalı.
-4. Docker yok, systemd servisleri (kök CLAUDE.md'nin "Kurulum Biçimi"
-   bölümüyle aynı konvansiyon).
+4. Docker yok, systemd servisleri.
 5. Yeni ağır bağımlılık (paramiko, APScheduler, Redis, vb.) eklemeden önce
-   onay iste — mevcut plan bilinçli olarak stdlib + FastAPI + Jinja2 +
-   SQLite ile sınırlı tutuyor.
-6. `dashboard/config/gizli.json` asla commit edilmez (repo konvansiyonu:
-   `.example.json` şablonu committed, gerçek dosya gitignore'lu).
+   onay iste.
+6. `dashboard/config/gizli.json` asla commit edilmez.
+7. Servis restart'ları yalnızca ders saatleri (08:00-17:00 TR) DIŞINDA.
+8. Son kabul testi (fiziksel/görsel doğrulama) HER ZAMAN kullanıcı
+   tarafından yapılır, otomatikleştirilmez.
 
-## Şu an yapılmayacaklar / henüz tamamlanmamış
+## 11. `dashboard/scripts/` — bakım/kurulum araçları
 
-`plan.md`'deki fazların tamamı henüz bitmedi — bu bölüm her faz
-tamamlandıkça güncellenecek:
+Tek seferlik, elle (ya da bir ajan tarafından elle) tetiklenen araçlar,
+hiçbiri crontab/systemd timer'a bağlı değil:
 
-- ✅ Faz 0 (bu dosya) — TAMAMLANDI (2026-08-23)
-- ✅ Faz 1 (pano iskeleti, DB, auth) — TAMAMLANDI (2026-08-23), uçtan uca
-  doğrulandı (giriş/çıkış, oturum çerezi, DB tohumlama). Plandan tek
-  sapma: `tahtalar` tablosuna plan.md'de olmayan bir `python_yolu` sütunu
-  eklendi — canlı SSH ile doğrulandı ki `yoklama.py`'yi çalıştıran python
-  yolu tahtadan tahtaya FARKLI (9-A hariç hepsi kendi
-  `~/tahtayoklama/venv`'ini kullanıyor, yalnızca 9-A Farabi'nin
-  `~/farabi/client/venv`'ini kullanıyor — `network.txt`'teki not
-  doğrulandı). Faz 4 (uzaktan başlatma) bu yolu sabit kodlamak yerine
-  buradan okuyacak.
-- ✅ Faz 2 (SSH polling motoru) — TAMAMLANDI (2026-08-23), gerçek tahtalara
-  karşı uçtan uca doğrulandı: 7 tahtanın hepsi tarandı, bugünün 5 gerçek
-  dersi doğru `alindi` çıktı, `ders_gunleri` dışı dersler (bugün fiilen
-  Pazar — `zil.json`'da yalnızca Pzt-Cuma tanımlı) doğru `ders_yok_o_gun`
-  çıktı, isim çözümleme (roster'da bulunamayan no dahil) test edildi. Plandan
-  tek sapma: `zil.py`'ye `Europe/Istanbul` saat dilimi sabitlendi
-  (`zoneinfo`) — dashboard'un barınacağı sunucunun sistem saat dilimi ne
-  olursa olsun (bu dev ortamı UTC, tahtalar +03 çalışıyor, canlı doğrulandı)
-  ders zamanlaması karşılaştırmaları her zaman Türkiye saatiyle yapılsın diye;
-  plan.md bunu öngörmüyordu.
-- ✅ Faz 3 (pano tablosu + tarih seçici) — TAMAMLANDI (2026-08-23). Sunucu
-  tarafı (sıralama, sinif↔tahta eşlemesi, gelecek tarih kelepçeleme) `curl`
-  ile doğrulandı; tarayıcı görsel doğrulaması YAPILMADI (Chrome uzantısı bu
-  oturumda kullanılamadı) — kullanıcı kendi tarayıcısında `http://<sunucu
-  IP>:8010/` açıp gözle teyit etmeli.
-- ✅ Faz 4 (uzaktan başlatma) — TAMAMLANDI (2026-08-23), 9-A'da uçtan uca
-  doğrulandı: hem "çalışmıyor → başlat" hem "çalışıyor → öne getir" yolları
-  gerçek SSH ile test edildi, ardından test süreci temizlendi. Plandan iki
-  sapma:
-  1. **Masaüstü ortamı XFCE DEĞİL, Cinnamon** — canlı doğrulandı (9-A,
-     `cinnamon-session` süreci; `.xsession` dosyası `xfce4-session` yazsa
-     da fiilen çalışan bu değil). X ortamı keşfi (`uzaktan_baslat.py`)
-     belirli bir oturum yöneticisi sürecine bağlı KALMADAN, DISPLAY=:0 olan
-     herhangi bir süreci genel taramayla buluyor — plan.md'nin varsaydığı
-     `pgrep -x xfce4-session` yaklaşımı kullanılmadı, kullanılsaydı sessizce
-     hiçbir tahtada çalışmazdı.
-  2. **`pgrep -af` öz-eşleşme hatası** — SSH üzerinden bileşik komutlarla
-     (`cmd1; cmd2 || cmd3`) çalıştırıldığında, geride kalan sarmalayıcı
-     kabuk sürecinin KENDİ komut metni arama deseniyle eşleşip yanlış
-     pozitif üretebiliyor (canlı gözlemlendi, debug sırasında). Üretim
-     kodundaki `_CALISIYOR_MU_KOMUTU` klasik `[t]ahtayoklama` köşeli parantez
-     numarasıyla bağışık yapıldı.
-  Ayrıca: gerçek sunucuda (`hostname` = `farabi`, bu makinenin kendisi)
-  `farabi-yoklama-dashboard.service` systemd birimi kuruldu, etkinleştirildi
-  ve `0.0.0.0:8010`'da çalışıyor — `farabi-api.service` ile aynı desen,
-  ona `After=`/`Wants=` YOK (tam ayrık). Giriş şifresi ayrıca üretildi
-  (test şifresi DEĞİL) — kullanıcıya ayrıca iletildi,
-  `dashboard/config/gizli.json`'da (gitignore'lu).
-- ✅ Faz 5 (yönetim ekranları) — TAMAMLANDI (2026-08-23). `/admin/tahtalar`
-  (sınıf ataması, aktif/pasif, hızlı takas + sürükle-bırak) ve
-  `/admin/siniflar` (+ `/admin/siniflar/{id}/ogrenciler` roster düzenleme,
-  `.../senkronize` tahtaya SSH ile atomik yazma) canlı sistemde test edildi:
-  yeni sınıf oluşturma, roster kaydetme, senkron hem başarılı hem (dizin
-  yok) başarısız yol, tahta↔sınıf takas ve geri-takas — hepsi gerçek 9-A/
-  9-B/tahta-235 üzerinde doğrulandı, test verisi sonra temizlendi, üretim
-  durumu (9-A→9-A, 9-B→9-B) bozulmadan bırakıldı. Plandan sapma yok.
-- ⏳ Faz 6 — kullanıcı isteğiyle bekletiliyor (bkz. yukarıdaki "Faz 6" bölümü)
-- ✅ Görsel tasarım yenileme (2026-08-23, plan.md'de yoktu — kullanıcı
-  isteğiyle sonradan eklendi) — `static/pano.css` CSS-değişkenli bir tasarım
-  sistemiyle baştan yazıldı (renk paleti, durum rozetleri/pill'ler, kart
-  görünümü, sticky başlık/ilk sütun), `giris.html` ve `admin_*.html`
-  şablonları aynı sisteme taşındı, favicon eklendi. Tarayıcı görsel
-  doğrulaması YAPILMADI (Chrome uzantısı bu oturumda da kullanılamadı) —
-  yalnızca curl ile yapısal doğrulama (sayfalar 200 dönüyor, pill/favicon
-  markup'ı doğru üretiliyor) yapıldı; kullanıcı kendi tarayıcısında
-  değerlendirmeli.
-- ⛔ Faz 7 (gerçek yoklama vs. otomatik kayıt ayrımı, `yoklama.py`'de
-  `elle_kaydedildi` alanı) — ayrı onay gerekir, bu proje kapsamında henüz
-  planlanmadı
-- ✅ Ders kısa adı etiketi (2026-09-14, plan.md'de yoktu — kullanıcı
-  isteğiyle sonradan eklendi) — pano tablosundaki her dolu hücrede (öğrenci
-  isimleri/"Tam"/"Yoklama alınmadı" vb. altında) o an hangi dersin
-  işlendiğini gösteren küçük bir büyük-harf etiket (`MAT`, `İNG`, `DKAB`,
-  `BİYOLOJİ` gibi). Veri kaynağı: `data/ders_programi.json` —
-  `mudur/ders_programi.json`'dan alınmış KASITLI BAĞIMSIZ bir kopya
-  (`zil.json` ile aynı desen, canlı bağ yok, ders programı değişirse elle
-  güncellenmeli). Yeni `dashboard/ders_programi.py` modülü (sınıf+tarih+ders
-  no → ders adı → kısaltma, 24 ders için elle kısaltma tablosu, bilinmeyen
-  ders adı Türkçe-doğru büyütülerek gösterilir) `/api/durum` yanıtına
-  `ders_kisa_adi` alanı ekliyor; DB şeması değişmedi (statik program verisi
-  DB'ye yazılmadan istek anında hesaplanıyor). `app.py`/`pano.html`/
-  `pano.css` güncellendi. Gerçek servis restart edilip canlı oturum
-  token'ıyla `curl` ile uçtan uca doğrulandı (2026-09-14 Pazartesi, 10-A:
-  1-2. ders FEL, 3-4. ders BED, 5. ders KİM — `data/ders_programi.json`'daki
-  programla birebir eşleşti); tarayıcı görsel doğrulaması yapılmadı.
-- ✅ Rapor ekranı (2026-08-24, plan.md'de yoktu — kullanıcı isteğiyle
-  sonradan eklendi) — `/admin/rapor`: tarih aralığı + sınıf filtresiyle
-  (a) tarih/sınıf/ders detay tablosu, (b) öğrenci bazlı devamsızlık sayacı
-  (`yoklama_onbellek`'teki `yok_isimleri`/`izinli_isimleri` JSON alanları
-  parse edilip (sınıf, öğrenci) anahtarıyla sayılıyor — isim çakışmasını
-  önlemek için sınıf da anahtarda), (c) her ikisi için CSV indirme
-  (`utf-8-sig` + `;` ayraç, Türkçe karakterler Excel'de bozulmasın diye).
-  `ders_yok_o_gun` satırları rapordan filtrelenir (hafta sonu/tatil
-  gürültüsü). Not: `yoklama_onbellek` adı "önbellek" olsa da hiçbir satır
-  silinmiyor (`ON CONFLICT ... DO UPDATE`, `yoklayici.py`) — yani "günlük
-  yoklamaların veritabanında tutulması" zaten baştan beri sağlanıyordu,
-  eksik olan yalnızca bu geriye dönük görünümdü. `/admin/rapor` ve
-  `/admin/rapor/csv` uçtan uca curl ile doğrulandı (elle oluşturulmuş
-  oturum token'ıyla, gerçek şifre kullanılmadan); tarayıcı görsel
-  doğrulaması yapılmadı.
-- ✅ **Bug düzeltildi (2026-09-15): "tahta kapanınca o günün alınmış
-  yoklamaları siliniyor".** Kullanıcı şikayeti: 1. ders (İngilizce)
-  yoklaması alınmış, 3-5. dersler tahta kapalı, 6. ders açılıp yoklama
-  alınmış, 7. ders yine kapalı — panoda 1. ve 6. dersler de görünmez
-  olmuş. Kök neden `yoklayici.py::bir_tur_calistir`'deki `ON CONFLICT
-  DO UPDATE` koşulsuzdu: bir turda tahtaya SSH ile ulaşılamazsa
-  `_tahtayi_tara` o tahtanın GÜNÜN TÜMÜ için hiç kayıt döndürmüyordu
-  (yalnızca o an açık olan dersin değil) — bu da önceden gerçek
-  `alindi` olarak yazılmış satırların `tahta_ulasilamaz`'a düşürülüp
-  ezilmesine yol açıyordu. Kanıt: canlı DB'de 2026-09-14/9-B'nin 8
-  dersinin TAMAMI `tahta_ulasilamaz`'a düşmüş, hepsi aynı
-  `guncelleme_zamani` — günün son polling turu tahta kapalıyken
-  çalışmış. Plan Opus modeliyle çıkarıldı, kullanıcı onayından sonra
-  Sonnet ile uygulandı (bkz. kök `CLAUDE.md` "Temel Kurallar" madde 11).
-  Fix: UPSERT'e tek koşul eklendi — `WHERE excluded.durum = 'alindi' OR
-  yoklama_onbellek.durum <> 'alindi'` (satır ~149-171). Anlamı: bir kez
-  `alindi` olmuş satır yalnızca yeni bir `alindi` kaydıyla değişir;
-  tahtanın o turda erişilemez olması eski gerçek kaydı SİLMEZ. Öğretmenin
-  tahtada gerçek bir düzeltme yapıp tekrar kaydetmesi hâlâ çalışır
-  (`yoklama.py::_kaydet` incelendi — aynı dosya yoluna üzerine yazıyor,
-  yeni `kaydedilme_saati` ile → erişilebilir bir sonraki tur yine
-  `alindi` üretir → koşul geçer). Şema/migration/yeni sütun yok, tek
-  dosya (`yoklayici.py`) değişti. Doğrulama: (1) `:memory:` SQLite'ta 8
-  senaryo test edildi (venv'in gerçek SQLite 3.46.1 sürümüyle), beklenen
-  `rowcount` değerleri birebir tutmuş; (2) servis restart edildi, hata
-  yok; (3) **canlı onarım**: 9-B'nin tahtası (192.168.23.239) o an açıktı,
-  diskinde 2026-09-14'ün 8 JSON dosyası hâlâ duruyordu — elle oluşturulmuş
-  oturum token'ıyla `POST /api/yenile?tarih=2026-09-14` çağrıldı, DB'de
-  8 satır da gerçek `kaydedilme_saati` değerleriyle `alindi`'ye geri döndü
-  (kayıp veri kurtarıldı); (4) regresyon: aynı anda diğer 6 sınıfın
-  2026-09-14 satırları ve bugünün (2026-09-15) canlı verisi kontrol
-  edildi, normal `alindi`/`alinmadi` dağılımı görüldü, hiçbir satır
-  "takılı" değil. **Doğrulanmayan:** tahtayı fiilen kapatıp negatif
-  senaryoyu (satırın `alindi` kalıp kalmadığını) canlıda tekrar test
-  etmek — bu, kullanıcıyla birlikte fiziksel/uzaktan tahta kapatma
-  gerektirdiği için yapılmadı, yalnızca `:memory:` testiyle doğrulandı
-  (orada birebir aynı SQL ile `rowcount=0` gözlendi). Tarayıcı görsel
-  doğrulaması da yapılmadı — kod değişikliği render yolunu etkilemiyor.
+- **`ders_programi_yukle.py`** — `mudur/siniflar.pdf`'i (aSc k12 çıktısı)
+  `tahtayoklama/data/ders_programi.json`'a çevirir (pano etiketi için).
+  `mudur/ders_programi_yukle.py`'nin PDF-çözme mantığının taşınmış hâli ama
+  farklı iş yapıyor: mudur'unki Farabi client'ına SSH ile dağıtım da
+  yapıyor, bu YAPMAZ. **KISALTMALAR sözlüğü mudur'unkiyle SENKRON
+  tutulmalı** (iki ayrı dosya, tek doğru kaynak yok — geçmişte bunun
+  senkron dışı kalması "seçmeli X" ders adlarının RAG'de eşleşmemesine
+  yol açmıştı, bkz. kök `sorunlar.md`/`DECISIONS.md`).
+- **`zil_yukle.py`** — kaynağı `mudur/giris cikis saatleri.jpg`, elle okunup
+  `VARSAYILAN_SAATLER` sabitine gömülü. `--no-dagit` verilmedikçe
+  `server/tahtalar.json`'daki her tahtaya SCP ile yazar.
+- `tahta_fix_uygula.py` buradan **taşındı** → `tahtaayar/tahta_fix_uygula.py`
+  (OS/oturum provizyonu `client/` ve `tahtayoklama/` ortak katmanı olduğu
+  için üst düzey klasöre alındı, kopya bırakılmadı).
 
-## `dashboard/scripts/` — bakım/kurulum araçları (2026-09-14)
+---
 
-Kullanıcı isteğiyle eklendi: "tahtalar ağa bağlanınca fix/ders programı/zil
-güncel tutulabilsin, insan ya da ajan çalıştırabilsin" — hepsi TEK SEFERLİK,
-elle (ya da bir ajan tarafından elle) tetiklenen araçlar, hiçbiri
-crontab/systemd timer'a bağlanmadı (mudur/ders_programi_yukle.py'nin "tek
-seferlik" ilkesiyle aynı). İkisi de `venv/bin/python scripts/<ad>.py --help`
-ile kendi kullanım notlarını basıyor.
-
-> **TAŞINDI (2026-09-15):** bu klasörde üçüncü bir araç olarak
-> `tahta_fix_uygula.py` vardı — OS/oturum düzeyi provizyon hem `client/`
-> hem `tahtayoklama/` altında koşan ortak bir katman olduğu için
-> `/home/ata/farabi/tahtaayar/tahta_fix_uygula.py`'ye taşındı (git mv, kopya
-> bırakılmadı). Bu klasörde artık kopyası YOK. Ayrıntı, düzeltme listesi ve
-> "Güç düğmesi" bulgusunun tam hikâyesi: `tahtaayar/CLAUDE.md`.
-
-- **`ders_programi_yukle.py`** — `mudur/siniflar.pdf`'i (aSc k12 çıktısı,
-  pdfplumber ile vektör tablo okuma) `tahtayoklama/data/ders_programi.json`'a
-  çevirir. `mudur/ders_programi_yukle.py`'nin PDF-çözme mantığının BİREBİR
-  taşınmış hâli ama farklı iş yapıyor: mudur'unki Farabi client'ına SSH ile
-  dağıtım da yapıyor, bu YAPMAZ — tahtayoklama/data/ders_programi.json
-  yalnızca dashboard'un kendisi (`ders_programi.py`, pano etiketi için)
-  okuyor, tahtalara hiç gönderilmiyor. KISALTMALAR sözlüğü mudur'unkiyle
-  SENKRON tutulmalı (iki ayrı dosya, tek doğru kaynak yok). pdfplumber
-  dashboard'un ana venv'inde değil — yalnızca bu script için
-  `scripts/requirements-ekstra.txt`. 2026-09-14'te gerçek PDF'e karşı
-  çalıştırıldı, çıktı önceden elle kopyalanmış `data/ders_programi.json` ile
-  birebir eşleşti (bkz. "Ders kısa adı etiketi" bölümü).
-- **`zil_yukle.py`** — kaynağı bir PDF değil, `mudur/giris cikis
-  saatleri.jpg` (e-Okul "Ders Saatleri" ekran görüntüsü) — vektör tablo
-  yok, OCR eklemek (yeni ağır bağımlılık) zil'in neredeyse hiç değişmediği
-  bir şey için orantısız görüldüğünden görsel 2026-09-14'te elle okunup
-  script içindeki `VARSAYILAN_SAATLER` sabitine gömüldü (`--saatler` ile
-  okul saatleri değiştiğinde ayrı bir JSON verilebilir). Ürettiği
-  `data/zil.json`, önceden elde bulunanla bit bit AYNI çıktı verdi (yalnızca
-  JSON biçimlendirmesi farklı) — kaynak doğrulandı. `--no-dagit`
-  verilmedikçe `server/tahtalar.json`'daki her tahtaya SCP ile
-  `~/tahtayoklama/data/zil.json` yazar (ogretmen anahtarı, sudo gerekmez).
-
-## Harici tahta yönetim programları (kullanıcının Windows PC'si) bölümüne bkz.
-yukarıda — bu üç script YUKARIDAKİ ile AYNI amaca hizmet ediyor olabilir
-(tahta_panel.py/tahta_ssh.py'nin ne yaptığı teyit edilmeden kesin
-söylenemez), ileride birleştirilmesi/çakışması değerlendirilmeli.
-
-## Tahta↔sınıf ataması, kalıcı gerçek (2026-08-24)
-
-Eylül'e hazırlık: fiziksel odalar arasında üçlü bir rotasyon yapıldı —
-"9-B" tahtası artık 10-A'yı, "10-A" tahtası artık 11-B'yi, "11-B" tahtası
-artık 9-B'yi gösteriyor (oda üzerindeki tabela DEĞİŞMEDİ, yalnızca içerik).
-Bununla ilgili öğrenilenler:
-
-- **`/admin/tahtalar`'daki atama/takas SADECE dashboard'un kendi
-  SQLite'ını değiştirir, tahtaya HİÇBİR ŞEY göndermez** — bunu ilk elden
-  yaşandı: kullanıcı bu ekranla atama yaptı, "değişiklik uygulanmadı"
-  diye bildirdi, log'da o gün hiç `/admin/siniflar/*/senkronize` isteği
-  olmadığı görüldü. Tahtaya gerçekten dosya yazan TEK yol
-  `/admin/siniflar/{id}/ogrenciler` sayfasındaki `Senkronize et` — atama
-  değiştikten SONRA ayrıca çalıştırılması gerekiyor, otomatik tetiklenmiyor.
-- `sinif_senkronize` başarı/hata farkı olmadan her zaman HTTP 200 döner
-  (SSH gerçekten başarısız olsa bile) — sunucu log'undaki "200 OK" satırı
-  dosyanın tahtaya ulaştığının kanıtı DEĞİL. Doğrulama SSH ile dosyayı
-  geri okuyarak yapıldı (`cat`/`ls`), dashboard'un kendi render'ına
-  güvenilmedi.
-- `senkronize` eski roster dosyasını SİLMEZ, yalnızca yeni dosyayı ekler
-  (`{sinif}.json` adıyla) — tahtada eski ve yeni sınıf dosyası bir arada
-  kalıyor. Bu swap'ta elle SSH ile silindi (`9-B.json` .242'den,
-  `11-B.json` .239'dan).
-- `yoklama.py`'nin sınıf seçme kutusu (`QComboBox`) yalnızca **uygulama
-  açılışında** `data/roster/*.json` taranarak dolduruluyor — yeni
-  senkronize edilen dosya, uygulama zaten açıksa combo'da görünmez,
-  öğretmenin uygulamayı kapatıp yeniden açması gerekir. Faz 4'teki uzaktan
-  başlatma yalnızca ÖLÜ bir örneği başlatıyor, canlı bir örneği yeniden
-  başlatmıyor — bu ayrım henüz hiçbir yerde otomatikleştirilmedi.
-- 192.168.23.233 (10-A tahtası) bu swap sırasında ağda erişilemez durumda
-  bulundu (ping bile dönmedi) — 11-B roster'ı oraya HENÜZ gönderilemedi,
-  DB'de sinif_id doğru (11-B) ama tahtanın diskinde hâlâ eski `10-A.json`
-  var. Tahta açılıp ağa bağlanınca `/admin/siniflar/3/ogrenciler` (11-B)
-  sayfasından `Senkronize et` tekrar çalıştırılmalı.
-  ✅ **Çözüldü (2026-08-24, aynı gün ilerleyen saatte):** tahta ağa geri
-  bağlandı, `192.168.23.233`'e `11-B.json` gönderildi ve eski `10-A.json`
-  silindi — bkz. aşağıdaki "`/admin/tahtalar` sadeleştirmesi" notu (asıl
-  kullanıcı şikayeti buydu: "web arayüzü işlemi yapmıyor").
-
-### `/admin/tahtalar` sadeleştirmesi + atama=yükleme birleşmesi (2026-08-24)
-
-Kullanıcı canlıda tam olarak yukarıdaki "atama SADECE DB'yi değiştirir,
-tahtaya hiçbir şey göndermez" tuzağına bir kez daha düştü (log'da aynı
-tahtaya art arda iki `POST /admin/tahtalar/3` görüldü — kullanıcı "kaydet"e
-basıp hiçbir şey olmadığını görmüştü) ve ayrıca "takas et" / sürükle-bırak
-özelliğini kafa karıştırıcı buldu. Kullanıcı isteğiyle:
-
-- **`tahta_takas` route'u ve UI'daki "Şununla yer değiştir ↔" sürükle-bırak
-  özelliği tamamen kaldırıldı** — artık iki tahtanın sınıfını karşılıklı
-  değiştirmenin tek yolu, her ikisinde ayrı ayrı doğru listeyi seçmek.
-- **Atama ve senkronizasyon TEK adımda birleştirildi**: `/admin/tahtalar`
-  sayfasında bir tahtaya liste seçip "Yükle"ye basmak artık hem DB'deki
-  `sinif_id`'yi günceller HEM DE seçilen roster'ı SSH ile AYNI İSTEKTE o
-  tek tahtaya yazar — `/admin/siniflar/{id}/ogrenciler` sayfasındaki ayrı
-  "Senkronize et" adımı artık gerekmiyor (o buton ve route hâlâ duruyor,
-  bir sınıfa bağlı BİRDEN FAZLA tahtayı tek seferde senkronize etmek
-  isteyen ileri kullanım için — ama günlük "bu tahtaya bu listeyi yükle"
-  akışı artık tek tıkla).
-- **Her yüklemede tahtadaki eski roster dosyaları otomatik silinir**
-  (`find ... -delete`, yeni yazılan dosya hariç) — kullanıcının ayrı
-  isteği: "web arayüzünde değişiklik yapıldığı anda json dosyasını
-  değiştir, tahtadaki eski dosyayı sil". Önceden bu elle SSH ile
-  yapılıyordu (bkz. yukarıdaki swap notu); artık `admin.py`'deki
-  `_tahtaya_roster_gonder` her çağrıda yapıyor, hem tekil "Yükle" hem
-  toplu "Senkronize et" yolunda.
-- `aktif` kutusu ve "IP ile tahtayı tanı" başlığı kasıtlı olarak
-  KORUNDU — kullanıcının şikayeti yalnızca takas/sürükle-bırak
-  karmaşasıyla ilgiliydi, tahta ekleme/aktif-pasif etme özelliği aynı
-  kaldı.
-- Not: `yoklama.py`'nin sınıf seçme kutusu hâlâ yalnızca uygulama
-  açılışında taranıyor (bkz. yukarıdaki not) — bu davranış bu değişiklikle
-  değişmedi, "Yükle" tahtaya dosyayı anında yazar ama uygulama zaten açıksa
-  öğretmenin onu kapatıp yeniden açması hâlâ gerekiyor.
-
-### 11. tahta bulundu, gerçek 11-A oldu — eski 11-A/236 boşa çıktı (2026-08-24)
-
-Kök `CLAUDE.md`'nin "Ağ Envanteri" bölümünde (2026-08-24 eklendi) belirtilen
-11. tahta bugün ağa bağlandı: `192.168.23.228`, MAC `00:09:df:83:50:6e`.
-Kullanıcı bunun **gerçek 11-A sınıfı** olduğunu teyit etti — önceden `11-A`
-etiketiyle kayıtlı olan `192.168.23.236` yanlış/eskiydi. Tam kimlik bilgisi
-ve IP listesi `network.txt`'te (gitignore'lu); burada yalnızca bu projeye
-özgü sonuç kayıtlı:
-
-- 228'e sıfırdan tahtayoklama kuruldu: `~/tahtayoklama/venv` (PyQt6 +
-  pdfplumber pip ile — diğer tahtalarla aynı desen, 9-A hariç hepsi böyle
-  kurulu), `data/roster/11-A.json` (mevcut 11-A roster'ının aynısı —
-  sınıfın kendisi değişmedi, yalnızca fiziksel tahtası değişti),
-  `~/Masaüstü/Yoklama.desktop`. `QT_QPA_PLATFORM=offscreen` ile modül
-  import/syntax doğrulaması yapıldı (gerçek dokunmatik ekranda görsel
-  doğrulama YAPILMADI — uzaktan erişimle mümkün değil).
-- Dashboard DB'sinde (`veri/yoklama_pano.db`): eski `tahtalar` satırı
-  (id=4, ip=.236) `tahta-236` adına yeniden adlandırıldı, `sinif_id` NULL
-  yapıldı (11-A sınıfı/roster'ı — `siniflar.id=2` — SİLİNMEDİ, kullanıcının
-  açık isteği buydu, yalnızca tahta ataması kaldırıldı). 228 için yeni
-  satır eklendi (`ad='11-A'`, `sinif_id=2`) — uygulamanın kendi
-  `/admin/tahtalar/{id}` ("Yükle") route'u üzerinden test edilip
-  `senkron-sonuc-tek basarili` sonucu doğrulandı.
-- ⚠️ **Açık iş:** eski tahta (236) kurulum sırasında ağda erişilemez
-  durumdaydı ("no route to host") — diskindeki eski
-  `data/roster/11-A.json` dosyası SİLİNEMEDİ. Ağa geri bağlanınca ya elle
-  SSH ile silinmeli ya da `/admin/tahtalar` üzerinden boş bir "Yükle"
-  (sinif_id'siz) çalıştırılıp elle temizlenmeli — aksi halde o tahtanın
-  öğretmeni combo box'ta hâlâ "11-A"yı görüp yanlış fiziksel odadan
-  yoklama girebilir (bkz. yukarıdaki swap notundaki aynı risk).
-- `server/tahtalar.json`'da `"11-A"` artık 228'i gösteriyor, eski kayıt
-  `"tahta-236"` adıyla ayrı satırda korundu (silinmedi — SSH erişimi hâlâ
-  gerekebilir).
-- ✅ **Düzeltildi (2026-08-24, aynı gün ilerleyen saatte): "yoklama sistemi
-  çalışmıyor" şikayeti.** Kök neden: 228'de `libxcb-cursor0` sistem
-  kütüphanesi eksikti (Qt6 6.5.0+'ın xcb platform plugin'i için zorunlu;
-  9-A/9-B gibi diğer tahtalarda kurulu, bu tahtaya sıfırdan kurulumda
-  atlanmış). Eksikken `yoklama.py` hiçbir pencere açmadan sessizce
-  çöküyordu — `Terminal=false` olduğu için öğretmen hiçbir hata görmüyor,
-  yalnızca "simgeye tıklayınca hiçbir şey olmuyor" izlenimi ediniyordu.
-  `sudo apt-get install -y libxcb-cursor0` (etapadmin) ile kuruldu; gerçek
-  `DISPLAY=:0`'da `yoklama.py` yeniden başlatılıp `xwininfo -root -tree` ile
-  1920x1080 "Yoklama" penceresinin fiilen açıldığı doğrulandı, test süreci
-  sonra kapatıldı. Diğer tahtalarda bu paket zaten var — yalnızca 228'e
-  özgü bir kurulum eksiğiydi, kod tarafında değişiklik gerekmedi.
-
-## Faz 6 — kullanıcı isteğiyle BEKLETİLİYOR (2026-08-23)
-
-`tahta-234`/`tahta-235`/`tahta-244` sınıf DEĞİL — üçü birden fen-lab/
-kütüphane/spor odasından biri (kullanıcı teyidi, hangi IP'nin hangisi
-olduğu henüz netleşmedi, bkz. `network.txt`). Bu 3 yerde yoklama
-alınmayacak — Faz 6 (lab1/lab2/lab3 kurulumu) planı bu yüzden kullanıcı
-isteğiyle iptal/beklemede; dashboard'da bu 3 tahta `tahta_atanmamis`
-durumunda kalmaya devam edecek, `siniflar` tablosuna eklenmeyecekler.
-
-Ayrıca kullanıcı bilinen 10 tahtaya ek **11. bir tahta** olduğunu bildirdi
-— şu an fişi çekili/kapalı, IP/MAC bilinmiyor, "orası bir sınıf olabilir."
-Bu tahta ağa bağlanıp IP/MAC tespit edilene kadar hiçbir şey yapılamaz;
-bağlandığında hem `network.txt` hem `server/tahtalar.json` hem bu projenin
-DB'si güncellenmeli (`scripts/ilk_yukleme.py`'nin tek-seferlik semantiğine
-göre elle bir `tahtalar` satırı eklenecek, yeniden tüm DB tohumlanmayacak).
+*Bu dosya `/home/ata/farabi/tahtayoklama/CLAUDE.md` olarak tutulur, dizine
+`cd` edildiğinde otomatik yüklenir. Kök `/home/ata/farabi/DECISIONS.md`
+kronolojik karar günlüğünü (neden X yapıldı, Y neden reddedildi) ayrı ve
+bozulmadan tutmaya devam ediyor — bu dosya onun yerine geçmez, yalnızca
+"şu an ne doğru" sorusuna tek bir yerden cevap verir.*

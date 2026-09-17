@@ -21,6 +21,7 @@ import zil
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk
 
 _SINIF_AD_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 

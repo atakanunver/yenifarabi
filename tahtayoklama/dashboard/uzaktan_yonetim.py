@@ -24,9 +24,11 @@ import db
 import ssh_istemci
 import tahta_kaydi
 import uzaktan_baslat
+import zil
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk
 
 _GORSEL_UZANTILARI = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
 _MAKS_DOSYA_BOYUTU = 15 * 1024 * 1024
@@ -191,10 +193,20 @@ async def _duvar_kagidi_tek(t: dict, icerik: bytes, uzanti: str) -> dict:
         return {"tahta": t["ad"], "basarili": False, "detay": "Dosya gönderildi ama aktif oturum yok — duvar kağıdı ayarlanamadı."}
     display, xauthority, uid = ortam
     uri = f"file://{uzak_yol}"
+    # Asıl görünür etki org.cinnamon.desktop.background'a bağlı (masaüstü
+    # Cinnamon, bkz. ssh_istemci.x_ortamini_kesfet docstring'i) — bu yüzden
+    # raporlanan başarı/hata SADECE bu iki çağrıya bakar ($CINNAMON_DURUM).
+    # org.gnome.desktop.background çağrısı yedek/best-effort'tur, sonucu
+    # göz ardı edilir — önceden üçü ";" ile zincirlenmişti, bu durumda
+    # bash'in döndürdüğü çıkış kodu zincirdeki SON komutundu (gnome), yani
+    # asıl önemli olan cinnamon çağrısı başarısız olsa bile son adım
+    # (gnome) başarılıysa panel yanlışlıkla "değiştirildi" diyebiliyordu.
     ic_komut = (
-        f"gsettings set org.cinnamon.desktop.background picture-uri {shlex.quote(uri)} ; "
-        f"gsettings set org.cinnamon.desktop.background picture-options zoom ; "
-        f"gsettings set org.gnome.desktop.background picture-uri {shlex.quote(uri)}"
+        f"gsettings set org.cinnamon.desktop.background picture-uri {shlex.quote(uri)} && "
+        f"gsettings set org.cinnamon.desktop.background picture-options zoom; "
+        f"CINNAMON_DURUM=$?; "
+        f"gsettings set org.gnome.desktop.background picture-uri {shlex.quote(uri)} >/dev/null 2>&1; "
+        f"exit $CINNAMON_DURUM"
     )
     komut = (
         f"env DISPLAY={display} XAUTHORITY={xauthority} "

@@ -27,6 +27,25 @@ def simdi_istanbul() -> datetime:
     return datetime.now(ISTANBUL)
 
 
+# Sabit sözlük — Türkçe büyük harfte "i" → "İ" olması gerekir, ama .upper()
+# çağrısı çalıştırıldığı ortamın locale'ine göre "I" verebilir (klasik
+# Türkçe metin hatası). Sabit sözlük bu riski tamamen ortadan kaldırır.
+_GUN_ADLARI_BUYUK = {
+    1: "PAZARTESİ",
+    2: "SALI",
+    3: "ÇARŞAMBA",
+    4: "PERŞEMBE",
+    5: "CUMA",
+    6: "CUMARTESİ",
+    7: "PAZAR",
+}
+
+
+def gun_adi_buyuk(gun: date | None = None) -> str:
+    gun = gun or simdi_istanbul().date()
+    return _GUN_ADLARI_BUYUK[gun.isoweekday()]
+
+
 @lru_cache(maxsize=1)
 def _zil_yukle() -> dict:
     return json.loads(ZIL_DOSYASI.read_text(encoding="utf-8"))

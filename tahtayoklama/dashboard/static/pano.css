@@ -1,11 +1,12 @@
 /* ---------- Tasarım sistemi ---------- */
+/* Tema: "klasik" (varsayılan, data-tema yoksa ya da "klasik" ise) */
 :root {
-  --renk-zemin: #f1f3f8;
+  --renk-zemin: #f0f2f7;
   --renk-yuzey: #ffffff;
   --renk-yuzey-2: #f7f8fb;
-  --renk-kenar: #e4e7ee;
-  --renk-golge: 0 1px 2px rgba(23, 30, 55, 0.04), 0 4px 16px rgba(23, 30, 55, 0.06);
-  --renk-golge-yukseltilmis: 0 2px 6px rgba(23, 30, 55, 0.08), 0 12px 28px rgba(23, 30, 55, 0.10);
+  --renk-kenar: #e6e9f0;
+  --renk-golge: 0 1px 2px rgba(23, 30, 55, 0.03), 0 4px 18px rgba(23, 30, 55, 0.05);
+  --renk-golge-yukseltilmis: 0 2px 6px rgba(23, 30, 55, 0.07), 0 14px 32px rgba(23, 30, 55, 0.09);
 
   --renk-metin: #1c2233;
   --renk-metin-soluk: #6b7280;
@@ -29,6 +30,60 @@
   --yazi-tipi: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
+/* Tema: "yumuşak" — sıcak/nötr, mat kil rengi vurgu */
+:root[data-tema="yumusak"] {
+  --renk-zemin: #f6f2ec;
+  --renk-yuzey: #fffdfa;
+  --renk-yuzey-2: #f3ede4;
+  --renk-kenar: #e8ded1;
+  --renk-golge: 0 1px 2px rgba(87, 66, 45, 0.04), 0 4px 16px rgba(87, 66, 45, 0.06);
+  --renk-golge-yukseltilmis: 0 2px 6px rgba(87, 66, 45, 0.08), 0 12px 28px rgba(87, 66, 45, 0.10);
+
+  --renk-metin: #2b241c;
+  --renk-metin-soluk: #7a6f60;
+  --renk-metin-cok-soluk: #a89c8b;
+
+  --renk-birincil: #b5602f;
+  --renk-birincil-koyu: #954d24;
+  --renk-birincil-zemin: #f7e6d8;
+
+  --renk-yesil: #3f8b4c;
+  --renk-yesil-zemin: #e8f3e6;
+  --renk-kirmizi: #c1442c;
+  --renk-kirmizi-zemin: #f8e5e0;
+  --renk-amber: #b6791a;
+  --renk-amber-zemin: #f6ead2;
+  --renk-gri: #7a6f60;
+  --renk-gri-zemin: #ede6da;
+}
+
+/* Tema: "koyu" — koyu gri-lacivert zemin, yükseltilmiş yüzeyler */
+:root[data-tema="koyu"] {
+  --renk-zemin: #14171f;
+  --renk-yuzey: #1b1f2a;
+  --renk-yuzey-2: #232837;
+  --renk-kenar: #313749;
+  --renk-golge: 0 1px 2px rgba(0, 0, 0, 0.25), 0 4px 18px rgba(0, 0, 0, 0.35);
+  --renk-golge-yukseltilmis: 0 2px 8px rgba(0, 0, 0, 0.35), 0 14px 32px rgba(0, 0, 0, 0.45);
+
+  --renk-metin: #e8eaf2;
+  --renk-metin-soluk: #9ba1b5;
+  --renk-metin-cok-soluk: #666d84;
+
+  --renk-birincil: #818cf8;
+  --renk-birincil-koyu: #a5b0fb;
+  --renk-birincil-zemin: #2a2f52;
+
+  --renk-yesil: #4ade80;
+  --renk-yesil-zemin: #1c3627;
+  --renk-kirmizi: #f87171;
+  --renk-kirmizi-zemin: #3c2226;
+  --renk-amber: #fbbf24;
+  --renk-amber-zemin: #3d3016;
+  --renk-gri: #9ba1b5;
+  --renk-gri-zemin: #262b3a;
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -37,6 +92,7 @@ body {
   margin: 0;
   color: var(--renk-metin);
   -webkit-font-smoothing: antialiased;
+  transition: background 0.15s, color 0.15s;
 }
 
 /* ---------- Üst çubuk ---------- */
@@ -65,6 +121,17 @@ header h1 {
 header h1::before {
   content: "📋";
   font-size: 1.2rem;
+}
+
+.gun-etiketi {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--renk-birincil-koyu);
+  background: var(--renk-birincil-zemin);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  white-space: nowrap;
 }
 
 .ust-cubuk { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
@@ -114,7 +181,7 @@ header h1::before {
   font-family: inherit;
   transition: background 0.15s, border-color 0.15s;
 }
-.cikis-form button:hover { background: #fdecea; border-color: #f5c6c0; color: var(--renk-kirmizi); }
+.cikis-form button:hover { background: var(--renk-kirmizi-zemin); border-color: var(--renk-kirmizi); color: var(--renk-kirmizi); }
 
 /* ---------- Ana içerik ---------- */
 main { padding: 1.75rem; max-width: 1400px; margin: 0 auto; }
@@ -215,7 +282,7 @@ thead th .saat { display: block; font-weight: 500; color: var(--renk-metin-cok-s
 /* ---------- Giriş sayfası ---------- */
 .giris-sarici {
   font-family: var(--yazi-tipi);
-  background: linear-gradient(160deg, #eef0ff 0%, var(--renk-zemin) 60%);
+  background: linear-gradient(160deg, var(--renk-birincil-zemin) 0%, var(--renk-zemin) 60%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -294,8 +361,8 @@ thead th .saat { display: block; font-weight: 500; color: var(--renk-metin-cok-s
   color: var(--renk-metin);
   transition: background 0.15s, border-color 0.15s;
 }
-.satir-form button:hover, #satir-ekle:hover { background: var(--renk-birincil-zemin); border-color: #c7cbfa; color: var(--renk-birincil-koyu); }
-#ogrenci-tablo .sil-satir:hover { background: var(--renk-kirmizi-zemin); border-color: #f5c6c0; color: var(--renk-kirmizi); }
+.satir-form button:hover, #satir-ekle:hover { background: var(--renk-birincil-zemin); border-color: var(--renk-birincil); color: var(--renk-birincil-koyu); }
+#ogrenci-tablo .sil-satir:hover { background: var(--renk-kirmizi-zemin); border-color: var(--renk-kirmizi); color: var(--renk-kirmizi); }
 .aktif-kutu { font-size: 0.82rem; color: var(--renk-metin-soluk); display: flex; align-items: center; gap: 0.3rem; }
 
 .yeni-form {
@@ -398,6 +465,36 @@ main form > button[type=submit]:disabled { background: var(--renk-gri-zemin); co
 
 .uyari-not { background: var(--renk-amber-zemin); color: var(--renk-amber); padding: 0.5rem 0.8rem; border-radius: 8px; font-size: 0.82rem !important; }
 
+/* ---------- Tema seçici ---------- */
+.tema-secici {
+  display: flex;
+  gap: 0.2rem;
+  background: var(--renk-yuzey-2);
+  border: 1px solid var(--renk-kenar);
+  border-radius: 9px;
+  padding: 0.2rem;
+}
+.tema-secici button {
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--renk-metin-soluk);
+  transition: background 0.15s, color 0.15s;
+}
+.tema-secici button:hover { background: var(--renk-yuzey); color: var(--renk-metin); }
+.tema-secici button.aktif { background: var(--renk-yuzey); color: var(--renk-birincil-koyu); box-shadow: var(--renk-golge); }
+
+.tema-secici-kose {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 30;
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 640px) {
   header { padding: 0.75rem 1rem; }
@@ -418,7 +515,7 @@ main form > button[type=submit]:disabled { background: var(--renk-gri-zemin); co
   font-weight: 600;
   color: var(--renk-metin);
 }
-.uz-secim-cubugu button:hover { background: var(--renk-birincil-zemin); border-color: #c7cbfa; color: var(--renk-birincil-koyu); }
+.uz-secim-cubugu button:hover { background: var(--renk-birincil-zemin); border-color: var(--renk-birincil); color: var(--renk-birincil-koyu); }
 
 .uz-eylem-cubugu { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .uz-eylem-form {

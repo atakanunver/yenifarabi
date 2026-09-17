@@ -66,10 +66,11 @@
     "kullanici": "ogretmen",
     "admin": "etapadmin"
   },
-  "tahta-244": {
+  "fenlab": {
     "ip": "192.168.23.244",
     "kullanici": "ogretmen",
-    "admin": "etapadmin"
+    "admin": "etapadmin",
+    "mac": "00:09:df:8c:32:8a"
   },
   "tahta-236": {
     "ip": "192.168.23.236",

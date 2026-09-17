@@ -3,24 +3,32 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Yoklama Panosu</title>
+<title>Yoklama ve Yönetim Paneli</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/pano.css">
+<script>document.documentElement.dataset.tema=localStorage.getItem('farabi_yoklama_tema')||'klasik';</script>
 </head>
 <body>
 <header>
-  <h1>Yoklama Panosu</h1>
+  <span class="gun-etiketi">{{ gun_adi_buyuk() }}</span>
+  <h1>Yoklama ve Yönetim Paneli</h1>
   <div class="ust-cubuk">
     <label>Tarih:
       <input type="date" id="tarih-secici" value="{{ tarih }}" max="{{ bugun }}">
     </label>
     <span id="son-guncelleme"></span>
+    <button type="button" id="simdi-yenile" {% if tarih != bugun %}disabled{% endif %}>⟳ Şimdi Yenile</button>
     <nav class="ust-nav">
       <a href="/admin/tahtalar">Tahtalar</a>
       <a href="/admin/siniflar">Sınıflar</a>
       <a href="/admin/rapor">Rapor</a>
     <a href="/admin/uzaktan">Uzaktan Yönetim</a>
     </nav>
+    <div class="tema-secici">
+      <button type="button" data-tema="klasik" title="Klasik tema">☀</button>
+      <button type="button" data-tema="yumusak" title="Yumuşak tema">🌤</button>
+      <button type="button" data-tema="koyu" title="Koyu tema">🌙</button>
+    </div>
     <form method="post" action="/cikis" class="cikis-form"><button type="submit">Çıkış</button></form>
   </div>
 </header>
@@ -59,6 +67,7 @@
 <script>
 const TARIH_SECICI = document.getElementById('tarih-secici');
 const SON_GUNCELLEME = document.getElementById('son-guncelleme');
+const SIMDI_YENILE = document.getElementById('simdi-yenile');
 const TOAST = document.getElementById('toast');
 let YENILEME_ZAMANLAYICI = null;
 
@@ -129,6 +138,27 @@ async function tabloyuGuncelle() {
   SON_GUNCELLEME.textContent = 'Son güncelleme: ' + new Date().toLocaleTimeString('tr-TR');
 }
 
+SIMDI_YENILE.addEventListener('click', async () => {
+  SIMDI_YENILE.disabled = true;
+  const eskiMetin = SIMDI_YENILE.textContent;
+  SIMDI_YENILE.textContent = 'Yenileniyor…';
+  try {
+    const yanit = await fetch(`/api/yenile?tarih=${TARIH_SECICI.value}`, { method: 'POST' });
+    const veri = await yanit.json().catch(() => ({}));
+    if (yanit.ok && veri.basarili) {
+      await tabloyuGuncelle();
+      toastGoster('Yenilendi.', false);
+    } else {
+      toastGoster(`Yenileme başarısız — ${veri.detay || yanit.status}`, true);
+    }
+  } catch (e) {
+    toastGoster('Yenileme sırasında bağlantı hatası.', true);
+  } finally {
+    SIMDI_YENILE.textContent = eskiMetin;
+    setTimeout(() => { SIMDI_YENILE.disabled = TARIH_SECICI.value !== TARIH_SECICI.max; }, 3000);
+  }
+});
+
 async function uzaktanBaslat(hucre) {
   const tahtaId = hucre.dataset.tahtaId;
   hucre.classList.add('tetikleniyor');
@@ -157,5 +187,6 @@ TARIH_SECICI.addEventListener('change', () => {
 tabloyuGuncelle();
 YENILEME_ZAMANLAYICI = setInterval(tabloyuGuncelle, 60000);
 </script>
+<script src="/static/tema.js"></script>
 </body>
 </html>

@@ -54,7 +54,12 @@ echo "[0/7] Ön koşullar kontrol ediliyor..."
 EKSIK_PAKET=()
 command -v git >/dev/null 2>&1 || EKSIK_PAKET+=("git")
 command -v wmctrl >/dev/null 2>&1 || EKSIK_PAKET+=("wmctrl")
-python3 -c "import venv" >/dev/null 2>&1 || EKSIK_PAKET+=("python3-venv")
+PYVER=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+# "import venv" Debian'da paket eksikken de BAŞARILI olabilir — asıl gerçek
+# eksik ensurepip'tir (venv oluşturma anında "ensurepip is not available"
+# ile patlar, bkz. fenlab kurulumu 2026-09-17). Doğru kontrol ensurepip'in
+# kendisi; eksikse Python sürümüne özel paket adı önerilir (ör. python3.11-venv).
+python3 -c "import ensurepip" >/dev/null 2>&1 || EKSIK_PAKET+=("python${PYVER}-venv")
 dpkg -s libportaudio2 >/dev/null 2>&1 || EKSIK_PAKET+=("libportaudio2")
 dpkg -s libxcb-cursor0 >/dev/null 2>&1 || EKSIK_PAKET+=("libxcb-cursor0")
 if [ "${#EKSIK_PAKET[@]}" -gt 0 ]; then

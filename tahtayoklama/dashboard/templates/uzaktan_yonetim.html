@@ -3,12 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Uzaktan Yönetim — Yoklama Panosu</title>
+<title>Uzaktan Yönetim — Yoklama ve Yönetim Paneli</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/pano.css">
+<script>document.documentElement.dataset.tema=localStorage.getItem('farabi_yoklama_tema')||'klasik';</script>
 </head>
 <body>
 <header>
+  <span class="gun-etiketi">{{ gun_adi_buyuk() }}</span>
   <h1>Uzaktan Yönetim</h1>
   <nav class="ust-nav">
     <a href="/">Pano</a>
@@ -16,6 +18,11 @@
     <a href="/admin/siniflar">Sınıflar</a>
     <a href="/admin/rapor">Rapor</a>
   </nav>
+  <div class="tema-secici">
+    <button type="button" data-tema="klasik" title="Klasik tema">☀</button>
+    <button type="button" data-tema="yumusak" title="Yumuşak tema">🌤</button>
+    <button type="button" data-tema="koyu" title="Koyu tema">🌙</button>
+  </div>
 </header>
 
 <main>
@@ -67,7 +74,7 @@
   </form>
 
   {% if sonuclar %}
-  <ul class="senkron-sonuc">
+  <ul class="senkron-sonuc" id="sonuc-alani">
     {% for s in sonuclar %}
     <li class="{{ 'basarili' if s.basarili else 'hatali' }}">{{ s.tahta or '—' }}: {{ 'OK' if s.basarili else 'HATA' }} — {{ s.detay }}</li>
     {% endfor %}
@@ -104,8 +111,14 @@
 
 <script>
 document.querySelectorAll('.uz-eylem-form').forEach(function (form) {
-  form.addEventListener('submit', function () {
-    document.querySelectorAll('#tahta-secim input[name=tahta]:checked').forEach(function (kutu) {
+  form.addEventListener('submit', function (olay) {
+    var secilenler = document.querySelectorAll('#tahta-secim input[name=tahta]:checked');
+    if (secilenler.length === 0) {
+      olay.preventDefault();
+      alert('Lütfen en az bir tahta seç.');
+      return;
+    }
+    secilenler.forEach(function (kutu) {
       var gizli = document.createElement('input');
       gizli.type = 'hidden';
       gizli.name = 'tahta';
@@ -120,6 +133,11 @@ document.getElementById('tumunu-sec').addEventListener('click', function () {
 document.getElementById('secimi-kaldir').addEventListener('click', function () {
   document.querySelectorAll('#tahta-secim input[name=tahta]').forEach(function (k) { k.checked = false; });
 });
+var sonucAlani = document.getElementById('sonuc-alani');
+if (sonucAlani) {
+  sonucAlani.scrollIntoView({ block: 'center' });
+}
 </script>
+<script src="/static/tema.js"></script>
 </body>
 </html>

@@ -3,17 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Yoklama Panosu — Giriş</title>
+<title>Yoklama ve Yönetim Paneli — Giriş</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/pano.css">
+<script>document.documentElement.dataset.tema=localStorage.getItem('farabi_yoklama_tema')||'klasik';</script>
 </head>
 <body class="giris-sarici">
+<div class="tema-secici tema-secici-kose">
+  <button type="button" data-tema="klasik" title="Klasik tema">☀</button>
+  <button type="button" data-tema="yumusak" title="Yumuşak tema">🌤</button>
+  <button type="button" data-tema="koyu" title="Koyu tema">🌙</button>
+</div>
 <form method="post" action="/giris" class="giris-kart">
   <div class="giris-simge">📋</div>
-  <h1>Yoklama Panosu</h1>
+  <h1>Yoklama ve Yönetim Paneli</h1>
   {% if hata %}<div class="giris-hata">{{ hata }}</div>{% endif %}
   <input type="password" name="sifre" placeholder="Şifre" autofocus required>
   <button type="submit">Giriş yap</button>
 </form>
+<script src="/static/tema.js"></script>
 </body>
 </html>
