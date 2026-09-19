@@ -21,11 +21,30 @@ Dashboard'la tek bağlantı noktası `pano.html`'deki bir nav linki.
 
 ## Durum (2026-09-19)
 
-İskelet aşamasında. Yazılmış ve test edilmiş: `db.py`, `auth.py`,
-`gonderim.py`, `sms_gonderici.py`, `scripts/sifre_belirle.py`. **`app.py`
-(FastAPI giriş noktası, router'lar, `/giris`/`/cikis`, HTML formları) henüz
-yazılmadı** — `templates/` ve `static/` da şu an boş. Bu dosyalar tasarım
-spec'inde ("Bileşenler") tanımlı ama koda dökülmedi.
+Üretimde çalışıyor. `farabi-smssistemi.service` aktif (port 8020),
+`app.py` + `templates/`/`static/` yazıldı, gerçek bir SMS ucu ucuna
+doğrulandı (bkz. kök `DECISIONS.md`). Dashboard'dan tek tıkla giriş
+(SSO) çalışıyor: `/sms-git` (dashboard) → `/sso?t=..&s=..` (smssistemi),
+kısa ömürlü (30sn) HMAC-imzalı token — paylaşılan anahtar
+`config/sso.json` (~dashboard'daki `config/sms_sso.json` eşi),
+gitignore'lu, kod/DB paylaşımı yok.
+
+**Rehber (telefon defteri) eklendi:** `siniflar` (bu yıl için 9-A..12-B,
+ekle/sil yapılabilir) + `kisiler` (ad_soyad, telefon [boş olabilir],
+sinif_id, tur='ogrenci'|'veli') tabloları, `/rehber` sayfası (CRUD +
+CSV/Excel toplu yükleme — isimle eşleştirip telefon günceller, üzerine
+yazmaz). `gonder.html`'de "Hedef Grup Seç" (örn. "9-A Velilerine")
+numaralar alanını otomatik dolduruyor. `scripts/roster_ice_aktar.py`
+(bir kereye mahsus, çalıştırıldı) `tahtayoklama/data/roster/*.json`'dan
+101 öğrenci adını (telefonsuz) aktardı — veli telefonları ve öğrenci
+telefonları kullanıcı tarafından Excel ile yüklenecek (henüz
+yapılmadı).
+
+modem köprüsü (Müdür PC `netsh portproxy`) zaman zaman kararsız
+davranıyor (`sms_gonderici._baglan` bunu 8 denemelik, gerçek API
+çağrısıyla doğrulanan bir retry ile tolere ediyor) — kök neden kesin
+teşhis edilmedi, tekrarlarsa önce Müdür PC'nin modeme olan Wi-Fi
+sinyaline bakılmalı (bkz. `DECISIONS.md`).
 
 ## Komutlar
 
@@ -41,7 +60,7 @@ uvicorn app:app --reload --port 8020            # geliştirmede elle çalıştı
 ```
 
 Üretimde `farabi-smssistemi.service` adıyla systemd altında, port `8020`'de
-çalışması planlanıyor (henüz kurulmadı — `app.py` yazılana kadar servis de yok).
+çalışıyor (`sudo systemctl status/restart farabi-smssistemi`).
 
 Lint: kök `/home/ata/farabi/CLAUDE.md`'deki Ruff kuralı geçerli
 (`.venv-tools/bin/ruff check ... smssistemi`) — o listede `smssistemi` henüz
