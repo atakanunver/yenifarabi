@@ -1,0 +1,38 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Gönderim Durumu — SMS Sistemi{% endblock %}
+{% block icerik %}
+<h1>Gönderim Durumu</h1>
+<button type="button" id="durdur-btn">Durdur</button>
+<form method="post" id="tekrar-form" action="/tekrar-gonder/{{ gonderim_id }}" style="display:inline">
+  <button type="submit" id="tekrar-btn" disabled>Başarısızları Tekrar Gönder</button>
+</form>
+<table id="durum-tablo">
+  <thead><tr><th>İsim</th><th>Telefon</th><th>Durum</th><th>Hata</th><th>Zaman</th></tr></thead>
+  <tbody id="durum-govde"></tbody>
+</table>
+<script>
+const GONDERIM_ID = {{ gonderim_id | tojson }};
+const GOVDE = document.getElementById('durum-govde');
+const DURDUR_BTN = document.getElementById('durdur-btn');
+const TEKRAR_BTN = document.getElementById('tekrar-btn');
+
+async function yenile() {
+  const yanit = await fetch(`/api/durum/${GONDERIM_ID}`);
+  const veri = await yanit.json();
+  GOVDE.innerHTML = veri.satirlar.map(s => `<tr class="${s.durum}">
+    <td>${s.isim || ''}</td><td>${s.telefon || ''}</td>
+    <td>${s.durum}</td><td>${s.hata_metni || ''}</td><td>${s.zaman}</td>
+  </tr>`).join('');
+  DURDUR_BTN.disabled = !veri.devam_ediyor;
+  const hataliVarMi = veri.satirlar.some(s => s.durum === 'hata' && s.telefon);
+  TEKRAR_BTN.disabled = veri.devam_ediyor || !hataliVarMi;
+  if (veri.devam_ediyor) setTimeout(yenile, 1500);
+}
+
+DURDUR_BTN.addEventListener('click', async () => {
+  await fetch(`/durdur/${GONDERIM_ID}`, { method: 'POST' });
+});
+
+yenile();
+</script>
+{% endblock %}

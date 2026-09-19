@@ -1,0 +1,19 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Kayıtlar — SMS Sistemi{% endblock %}
+{% block icerik %}
+<h1>Geçmiş Gönderimler</h1>
+<table>
+  <thead><tr><th>Tarih</th><th>Toplam</th><th>Başarılı</th><th>Hatalı</th><th></th></tr></thead>
+  <tbody>
+    {% for o in ozetler %}
+    <tr>
+      <td>{{ o.ilk_zaman }}</td>
+      <td>{{ o.toplam }}</td>
+      <td>{{ o.basarili }}</td>
+      <td>{{ o.hatali }}</td>
+      <td><a href="/durum/{{ o.gonderim_id }}">Detay</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

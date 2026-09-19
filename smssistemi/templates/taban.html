@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block baslik_etiketi %}SMS Sistemi{% endblock %}</title>
+<link rel="stylesheet" href="/static/stil.css">
+</head>
+<body>
+<header class="ust-cubuk">
+  <a href="/" class="marka">📨 SMS Sistemi</a>
+  <nav>
+    <a href="/" class="{{ 'aktif' if request.url.path == '/' else '' }}">Gönder</a>
+    <a href="/kayitlar" class="{{ 'aktif' if request.url.path == '/kayitlar' else '' }}">Kayıtlar</a>
+  </nav>
+  <form method="post" action="/cikis" class="cikis-form">
+    <button type="submit">Çıkış</button>
+  </form>
+</header>
+<main>
+{% block icerik %}{% endblock %}
+</main>
+</body>
+</html>
