@@ -6,11 +6,13 @@ import hashlib
 import hmac
 import json
 import secrets
+import time
 from pathlib import Path
 
 from fastapi import HTTPException, Request
 
 GIZLI_YOLU = Path(__file__).resolve().parent / "config" / "gizli.json"
+SMS_SSO_GIZLI_YOLU = Path(__file__).resolve().parent / "config" / "sms_sso.json"
 COOKIE_ADI = "oturum"
 
 
@@ -84,3 +86,17 @@ def gecerli_oturum(request: Request, conn) -> None:
     token = request.cookies.get(COOKIE_ADI)
     if not oturum_gecerli_mi(conn, token):
         raise HTTPException(401, "Oturum geçersiz veya süresi dolmuş.")
+
+
+def sms_sso_token() -> tuple[str, str]:
+    """smssistemi'nin /sso'suna kısa ömürlü, imzalı bir geçiş token'ı
+    üretir — dashboard'da zaten kimlik doğrulamış kullanıcı smssistemi
+    şifresini tekrar girmesin diye (bkz. /sms-git route'u, app.py). İki
+    servis arasındaki TEK bağlantı noktası paylaşılan imza anahtarı
+    (config/sms_sso.json, smssistemi'deki eşiyle aynı) — kod/DB paylaşımı
+    yok, yalnızca bir HMAC imzası."""
+    gizli = json.loads(SMS_SSO_GIZLI_YOLU.read_text(encoding="utf-8"))
+    anahtar = bytes.fromhex(gizli["secret"])
+    zaman_str = str(int(time.time()))
+    imza = hmac.new(anahtar, zaman_str.encode("utf-8"), hashlib.sha256).hexdigest()
+    return zaman_str, imza

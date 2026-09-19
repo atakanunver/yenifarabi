@@ -105,6 +105,20 @@ async def giris_gonder(request: Request, sifre: str = Form(...)):
     return yanit
 
 
+@app.get("/sms-git")
+async def sms_git(request: Request):
+    """smssistemi'ne kısa ömürlü imzalı bir token'la yönlendirir — dashboard'da
+    zaten oturum açmış kullanıcı orada tekrar şifre girmesin diye."""
+    conn = db.baglanti()
+    try:
+        if not auth.dogrula(request, conn):
+            return RedirectResponse("/giris", status_code=303)
+    finally:
+        conn.close()
+    zaman, imza = auth.sms_sso_token()
+    return RedirectResponse(f"http://farabi.local:8020/sso?t={zaman}&s={imza}", status_code=303)
+
+
 @app.post("/cikis")
 async def cikis(request: Request):
     token = request.cookies.get(auth.COOKIE_ADI)

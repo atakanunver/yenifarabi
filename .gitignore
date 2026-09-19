@@ -112,4 +112,6 @@ tahtayoklama/dashboard/yedek/
 
 smssistemi/config/gizli.json
 smssistemi/config/modem.json
+smssistemi/config/sso.json
 smssistemi/veri/
+tahtayoklama/dashboard/config/sms_sso.json
