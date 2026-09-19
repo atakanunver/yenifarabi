@@ -57,18 +57,31 @@ def _kopru_session(ayarlar: dict) -> requests.Session:
     return session
 
 
-def _baglan(ayarlar: dict, deneme: int = 5, bekleme_sn: float = 1.5) -> Connection:
+def _baglan(ayarlar: dict, deneme: int = 8, bekleme_sn: float = 1.0) -> Connection:
     """Müdür PC'deki `netsh portproxy` relay'i HTTP framing'i güvenilir
     taşımıyor (bkz. DECISIONS.md 2026-09-19 — art arda denemelerin çoğu
-    ConnectionError/BadStatusLine ile düşüyor). Bağlantı kurulumu (login/
-    CSRF init, Connection.__init__ içinde olur) bu yüzden birkaç kez
-    denenir; hiçbir SMS burada gönderilmez, tekrar denemek yan etkisiz."""
+    ConnectionError/BadStatusLine ile düşüyor); manuel/hop-başına taze
+    bağlantı zorlamak da modemin kendi redirect mantığını bozup sonsuz
+    döngüye sokuyor (aynı gün, aynı kayıt — modem aynı TCP bağlantısının
+    sürmesini bekliyor). Bu yüzden her deneme TAMAMEN taze bir
+    Connection/session ile kurulur ve gerçek bir API çağrısıyla
+    (`device.information`) doğrulanır — yalnızca bu doğrulama başarılı
+    olursa bağlantı 'sağlıklı' kabul edilir. Hiçbir SMS burada
+    gönderilmez, tekrar denemek yan etkisiz."""
     son_hata: Exception | None = None
     for i in range(1, deneme + 1):
+        connection: Connection | None = None
         try:
-            return Connection(_baglanti_url(ayarlar), requests_session=_kopru_session(ayarlar))
+            connection = Connection(_baglanti_url(ayarlar), requests_session=_kopru_session(ayarlar))
+            Client(connection).device.information()
+            return connection
         except Exception as exc:  # noqa: BLE001 - kopru/modem'den gelen cesitli hatalar
             son_hata = exc
+            if connection is not None:
+                try:
+                    connection.close()
+                except Exception:  # noqa: BLE001 - zaten bozuk bir baglantiyi kapatmaya calisiyoruz
+                    pass
             if i < deneme:
                 time.sleep(bekleme_sn)
     assert son_hata is not None
