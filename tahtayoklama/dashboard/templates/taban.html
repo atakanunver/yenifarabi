@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block baslik_etiketi %}Yoklama ve Yönetim Paneli{% endblock %}</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/pano.css">
+<script>document.documentElement.dataset.tema=localStorage.getItem('farabi_yoklama_tema')||'klasik';</script>
+</head>
+<body>
+{% include "_ikon_sprite.html" %}
+<div class="uygulama">
+  <div class="kenar-orustu" id="kenar-orustu"></div>
+  <aside class="kenar-cubugu" id="kenar-cubugu">
+    <div class="marka">
+      <span class="marka-simge">📋</span>
+      <span class="marka-metin">Yoklama Panosu</span>
+      <button type="button" class="kenar-kapat" id="kenar-kapat" aria-label="Menüyü kapat">
+        <svg class="ikon"><use href="#ik-kapat"/></svg>
+      </button>
+    </div>
+    <nav class="kenar-nav">
+      <div class="kenar-grup">
+        <span class="kenar-baslik">Genel</span>
+        <a href="/" class="{{ 'aktif' if request.url.path == '/' else '' }}">
+          <svg class="ikon"><use href="#ik-ev"/></svg> Ana Sayfa
+        </a>
+      </div>
+      <div class="kenar-grup">
+        <span class="kenar-baslik">Yoklama Yönetimi</span>
+        <a href="/admin/tahtalar" class="{{ 'aktif' if request.url.path.startswith('/admin/tahtalar') else '' }}">
+          <svg class="ikon"><use href="#ik-monitor"/></svg> Tahtalar
+        </a>
+        <a href="/admin/siniflar" class="{{ 'aktif' if request.url.path.startswith('/admin/siniflar') else '' }}">
+          <svg class="ikon"><use href="#ik-kullanicilar"/></svg> Sınıflar
+        </a>
+        <a href="/admin/rapor" class="{{ 'aktif' if request.url.path.startswith('/admin/rapor') else '' }}">
+          <svg class="ikon"><use href="#ik-grafik"/></svg> Rapor
+        </a>
+      </div>
+      <div class="kenar-grup">
+        <span class="kenar-baslik">Tahta Yönetimi</span>
+        <a href="/admin/uzaktan" class="{{ 'aktif' if request.url.path.startswith('/admin/uzaktan') else '' }}">
+          <svg class="ikon"><use href="#ik-kaydirici"/></svg> Uzaktan Yönetim
+        </a>
+      </div>
+      <div class="kenar-grup">
+        <span class="kenar-baslik">Zil Servisi</span>
+        <a href="http://admin:midnight@192.168.23.230:8090/" target="_blank" rel="noopener">
+          <svg class="ikon"><use href="#ik-zil"/></svg> Zil Sistemi <svg class="ikon ikon-kucuk ikon-disa"><use href="#ik-ok-sag"/></svg>
+        </a>
+      </div>
+      <div class="kenar-grup">
+        <span class="kenar-baslik">SMS Sistemi</span>
+        <a href="http://farabi.local:8020/" target="_blank" rel="noopener">
+          <svg class="ikon"><use href="#ik-zil"/></svg> SMS Sistemi <svg class="ikon ikon-kucuk ikon-disa"><use href="#ik-ok-sag"/></svg>
+        </a>
+      </div>
+      <div class="kenar-grup">
+        <span class="kenar-baslik">Sistem</span>
+        <a href="/sistem-durumu" class="{{ 'aktif' if request.url.path.startswith('/sistem-durumu') else '' }}">
+          <svg class="ikon"><use href="#ik-nabiz"/></svg> Sistem Durumu
+        </a>
+      </div>
+    </nav>
+    <div class="kenar-alt">
+      <div class="mini-durum" id="mini-durum" title="Sunucu durumu — ayrıntı için Sistem Durumu'na git">
+        <svg class="ikon ikon-kucuk"><use href="#ik-termometre"/></svg>
+        <span id="mini-durum-sicaklik">—</span>
+        <span class="mini-durum-ayrac">·</span>
+        <span class="mini-durum-nokta" id="mini-durum-nokta"></span>
+        <span id="mini-durum-servis">—</span>
+      </div>
+      <div class="tema-secici">
+        <button type="button" data-tema="klasik" title="Açık tema"><svg class="ikon"><use href="#ik-gunes"/></svg></button>
+        <button type="button" data-tema="yumusak" title="Orta tema"><svg class="ikon"><use href="#ik-bulut"/></svg></button>
+        <button type="button" data-tema="koyu" title="Koyu tema"><svg class="ikon"><use href="#ik-ay"/></svg></button>
+      </div>
+      <form method="post" action="/cikis" class="cikis-form">
+        <button type="submit"><svg class="ikon"><use href="#ik-cikis"/></svg> Çıkış</button>
+      </form>
+    </div>
+  </aside>
+
+  <div class="icerik-alani">
+    <header class="ust-cubuk">
+      <button type="button" class="menu-ac" id="menu-ac" aria-label="Menüyü aç">
+        <svg class="ikon"><use href="#ik-menu"/></svg>
+      </button>
+      <span class="gun-etiketi">{{ gun_adi_buyuk() }}</span>
+      <h1>{% block baslik %}{% endblock %}</h1>
+      <div class="ust-sag">{% block ust_sag %}{% endblock %}</div>
+    </header>
+    <main>
+      {% block icerik %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<div id="toast" class="toast gizli"></div>
+
+<script src="/static/tema.js"></script>
+<script src="/static/kenar.js"></script>
+{% block script %}{% endblock %}
+</body>
+</html>
