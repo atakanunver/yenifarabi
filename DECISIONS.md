@@ -137,3 +137,30 @@
   PC'de gerçek bir HTTP reverse proxy (Location/body rewrite yapabilen) —
   ama bu "Müdür PC'ye uygulama kodu yok" kararını (spec, "Kullanıcı
   kararları") değiştirir, ayrı bir onay gerektirir.
+
+## 2026-09-19 (devam) - SMS köprüsü: sorun zamanla kötüleşiyor, muhtemelen Wi-Fi sinyali
+- Müdür PC'nin kendi üzerinden köprüye (`192.168.23.243:18080`) atılan 10
+  bağımsız `curl.exe` isteği **10/10 başarılı** (307, hatasız) — portproxy
+  kuralı ve firewall kuralı doğru, modemin kendisi de köprüden erişilebilir
+  durumda. Bu, sorunun Müdür PC↔modem hattında DEĞİL, Farabi'nin köprüyü
+  art arda/kalıcı bağlantıyla kullanma şeklinde olduğunu gösteriyordu.
+- **Denendi ve reddedildi:** her redirect hop'unda bağlantıyı kapatıp taze
+  bir TCP bağlantısı zorlamak (`session.close()` + manuel redirect takibi)
+  — bu, modemin kendi redirect mantığını bozup **sonsuz döngüye** soktu
+  (`origin` parametresi her seferinde bir öncekini base64 olarak sarıp
+  büyüyerek 30 redirect sınırına çarpıyordu). Modem, aynı TCP bağlantısının
+  kesintisiz sürmesini bekliyor gibi görünüyor.
+- `sms_gonderici._baglan` artık her denemede tamamen taze bir Connection
+  kurup gerçek bir API çağrısıyla (`device.information`) doğruluyor (bkz.
+  commit `77cc036`) — ama bu da tek başına yeterli olmadı.
+- **Önemli gözlem: başarı oranı zaman içinde kötüleşti.** Oturumun başında
+  (~15:10-15:20 TR) tekli isteklerde %30-60 başarı görülüyordu; ~15:40'ta
+  aynı testler ard arda **0/15** başarısız oldu (tutarlı
+  `ConnectionError: BadStatusLine`, bir de `ExpatError`/`TooManyRedirects`
+  çeşitlemesi). Bu, sabit/deterministik bir bug'dan çok **zamanla
+  değişen bir ortam koşuluna** (en olası aday: Müdür PC'nin modemin ayrı
+  Wi-Fi ağına olan sinyal kalitesi) işaret ediyor.
+- **Sonuç: gerçek SMS testi hâlâ yapılamadı.** `netsh wlan show interfaces`
+  çıktısı (Wi-Fi sinyal yüzdesi) istendi, henüz alınmadı — bu, sorunun
+  fiziksel/ortam kaynaklı olup olmadığını netleştirecek. Netleşene kadar
+  Farabi tarafında daha fazla kör deneme yapmanın değeri düşük.
