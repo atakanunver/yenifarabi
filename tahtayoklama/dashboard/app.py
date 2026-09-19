@@ -19,6 +19,7 @@ import admin
 import auth
 import db
 import ders_programi
+import sistem_durumu
 import ssh_istemci
 import uzaktan_baslat
 import uzaktan_yonetim
@@ -167,6 +168,29 @@ async def api_durum(request: Request, tarih: str | None = None):
         )
         sonuc.append(satir)
     return JSONResponse({"tarih": hedef, "satirlar": sonuc})
+
+
+@app.get("/api/sistem-durumu")
+async def api_sistem_durumu(request: Request):
+    conn = db.baglanti()
+    try:
+        if not _oturum_gerekli(request, conn):
+            raise HTTPException(401, "Oturum geçersiz.")
+    finally:
+        conn.close()
+    return JSONResponse(await sistem_durumu.durum_topla())
+
+
+@app.get("/sistem-durumu", response_class=HTMLResponse)
+async def sistem_durumu_sayfa(request: Request):
+    conn = db.baglanti()
+    try:
+        token = request.cookies.get(auth.COOKIE_ADI)
+        if not auth.oturum_gecerli_mi(conn, token):
+            return RedirectResponse("/giris", status_code=303)
+    finally:
+        conn.close()
+    return templates.TemplateResponse(request, "sistem_durumu.html", {})
 
 
 @app.post("/api/tahta/{tahta_id}/baslat")

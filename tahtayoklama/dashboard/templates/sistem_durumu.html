@@ -1,0 +1,148 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Sistem Durumu — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Sistem Durumu{% endblock %}
+
+{% block ust_sag %}
+<span id="son-guncelleme-durum"></span>
+{% endblock %}
+
+{% block icerik %}
+<p class="rapor-aciklama">Farabi sunucusunun donanım ve servis durumu — salt
+   izleme, buradan hiçbir servise müdahale edilmez. 15 saniyede bir otomatik
+   yenilenir.</p>
+
+<div class="durum-izgara" id="durum-izgara">
+  <div class="durum-kart durum-yukleniyor-kart">
+    <svg class="ikon durum-kart-simge"><use href="#ik-termometre"/></svg>
+    <div class="durum-kart-govde">
+      <span class="durum-kart-baslik">CPU Sıcaklığı</span>
+      <span class="durum-kart-deger" id="deger-cpu">—</span>
+      <span class="durum-kart-alt" id="alt-cpu">Okunuyor…</span>
+    </div>
+  </div>
+  <div class="durum-kart" id="kart-bellek">
+    <svg class="ikon durum-kart-simge"><use href="#ik-cip"/></svg>
+    <div class="durum-kart-govde">
+      <span class="durum-kart-baslik">Bellek (RAM)</span>
+      <span class="durum-kart-deger" id="deger-bellek">—</span>
+      <span class="durum-kart-alt" id="alt-bellek">Okunuyor…</span>
+    </div>
+  </div>
+  <div class="durum-kart" id="kart-disk">
+    <svg class="ikon durum-kart-simge"><use href="#ik-disk"/></svg>
+    <div class="durum-kart-govde">
+      <span class="durum-kart-baslik">Disk</span>
+      <span class="durum-kart-deger" id="deger-disk">—</span>
+      <span class="durum-kart-alt" id="alt-disk">Okunuyor…</span>
+    </div>
+  </div>
+  <div class="durum-kart" id="kart-calisma">
+    <svg class="ikon durum-kart-simge"><use href="#ik-saat"/></svg>
+    <div class="durum-kart-govde">
+      <span class="durum-kart-baslik">Çalışma Süresi</span>
+      <span class="durum-kart-deger" id="deger-calisma">—</span>
+      <span class="durum-kart-alt" id="alt-calisma">Yük ortalaması okunuyor…</span>
+    </div>
+  </div>
+</div>
+
+<h2>Ekran Kartları (GPU)</h2>
+<div class="durum-izgara" id="gpu-izgara">
+  <div class="durum-kart">
+    <svg class="ikon durum-kart-simge"><use href="#ik-katman"/></svg>
+    <div class="durum-kart-govde">
+      <span class="durum-kart-baslik">Okunuyor…</span>
+      <span class="durum-kart-deger">—</span>
+    </div>
+  </div>
+</div>
+
+<h2>Servisler</h2>
+<div class="servis-listesi" id="servis-listesi">
+  <p class="rapor-aciklama">Okunuyor…</p>
+</div>
+
+<h2>Ollama Modelleri</h2>
+<div class="model-rozet-listesi" id="model-listesi">
+  <span class="rapor-aciklama">Okunuyor…</span>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+const SON_GUNCELLEME_DURUM = document.getElementById('son-guncelleme-durum');
+
+function birim(deger, birim) { return deger == null ? '—' : deger + birim; }
+
+function gpuKartOlustur(g) {
+  const bellekYuzde = g.bellek_toplam_mb ? Math.round(100 * g.bellek_kullanim_mb / g.bellek_toplam_mb) : 0;
+  return `<div class="durum-kart">
+    <svg class="ikon durum-kart-simge"><use href="#ik-katman"/></svg>
+    <div class="durum-kart-govde">
+      <span class="durum-kart-baslik">GPU ${g.index} — ${g.ad}</span>
+      <span class="durum-kart-deger">${birim(g.sicaklik_c, '°C')}</span>
+      <span class="durum-kart-alt">Kullanım %${g.kullanim_yuzde} · VRAM ${(g.bellek_kullanim_mb/1024).toFixed(1)}/${(g.bellek_toplam_mb/1024).toFixed(1)} GB (%${bellekYuzde})</span>
+    </div>
+  </div>`;
+}
+
+function servisSatirOlustur(s) {
+  const nokta = s.aktif ? 'nokta-yesil' : (s.durum === 'inactive' ? 'nokta-gri' : 'nokta-kirmizi');
+  const etiket = s.aktif ? 'çalışıyor' : s.durum;
+  return `<div class="servis-satir">
+    <span class="mini-durum-nokta ${nokta}"></span>
+    <span class="servis-adi">${s.etiket}</span>
+    <span class="servis-durum-metin">${etiket}</span>
+  </div>`;
+}
+
+async function durumGuncelle() {
+  let veri;
+  try {
+    const yanit = await fetch('/api/sistem-durumu');
+    if (!yanit.ok) throw new Error('durum alınamadı');
+    veri = await yanit.json();
+  } catch (e) {
+    document.getElementById('alt-cpu').textContent = 'Durum alınamadı.';
+    return;
+  }
+
+  document.getElementById('deger-cpu').textContent = birim(veri.cpu.sicaklik_c, '°C');
+  document.getElementById('alt-cpu').textContent = veri.cpu.fanlar && veri.cpu.fanlar.length
+    ? veri.cpu.fanlar.map(f => `${f.ad}: ${f.rpm} RPM`).join(' · ')
+    : 'Fan verisi yok';
+
+  document.getElementById('deger-bellek').textContent = `%${veri.bellek.yuzde}`;
+  document.getElementById('alt-bellek').textContent = `${veri.bellek.kullanilan_gb} / ${veri.bellek.toplam_gb} GB`;
+
+  document.getElementById('deger-disk').textContent = `%${veri.disk.yuzde}`;
+  document.getElementById('alt-disk').textContent = `${veri.disk.kullanilan_gb} / ${veri.disk.toplam_gb} GB`;
+
+  document.getElementById('deger-calisma').textContent = veri.calisma_suresi;
+  document.getElementById('alt-calisma').textContent =
+    `Yük: ${veri.yukleme.bir_dk} / ${veri.yukleme.bes_dk} / ${veri.yukleme.onbes_dk}`;
+
+  const gpuIzgara = document.getElementById('gpu-izgara');
+  gpuIzgara.innerHTML = veri.gpu.length
+    ? veri.gpu.map(gpuKartOlustur).join('')
+    : '<p class="rapor-aciklama">GPU bulunamadı.</p>';
+
+  const servisListesi = document.getElementById('servis-listesi');
+  servisListesi.innerHTML = veri.servisler.map(servisSatirOlustur).join('');
+
+  const modelListesi = document.getElementById('model-listesi');
+  if (veri.ollama_modelleri === null) {
+    modelListesi.innerHTML = '<span class="rapor-aciklama">Ollama API\'ye ulaşılamadı.</span>';
+  } else if (veri.ollama_modelleri.length === 0) {
+    modelListesi.innerHTML = '<span class="rapor-aciklama">Yüklü model yok.</span>';
+  } else {
+    modelListesi.innerHTML = veri.ollama_modelleri.map(m => `<span class="model-rozet">${m}</span>`).join('');
+  }
+
+  SON_GUNCELLEME_DURUM.textContent = 'Son güncelleme: ' + new Date().toLocaleTimeString('tr-TR');
+}
+
+durumGuncelle();
+setInterval(durumGuncelle, 15000);
+</script>
+{% endblock %}

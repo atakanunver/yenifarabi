@@ -1,81 +1,57 @@
-<!doctype html>
-<html lang="tr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ sinif.ad }} — Öğrenciler</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="/static/pano.css">
-<script>document.documentElement.dataset.tema=localStorage.getItem('farabi_yoklama_tema')||'klasik';</script>
-</head>
-<body>
-<header>
-  <span class="gun-etiketi">{{ gun_adi_buyuk() }}</span>
-  <h1>{{ sinif.ad }} — Öğrenciler</h1>
-  <nav class="ust-nav">
-    <a href="/">Pano</a>
-    <a href="/admin/tahtalar">Tahtalar</a>
-    <a href="/admin/siniflar">Sınıflar</a>
-    <a href="/admin/rapor">Rapor</a>
-    <a href="/admin/uzaktan">Uzaktan Yönetim</a>
-  <a href="http://admin:midnight@192.168.23.230:8090/" target="_blank" rel="noopener">🔔 Zil Sistemi</a>
-  </nav>
-  <div class="tema-secici">
-    <button type="button" data-tema="klasik" title="Klasik tema">☀</button>
-    <button type="button" data-tema="yumusak" title="Yumuşak tema">🌤</button>
-    <button type="button" data-tema="koyu" title="Koyu tema">🌙</button>
-  </div>
-</header>
+{% extends "taban.html" %}
+{% block baslik_etiketi %}{{ sinif.ad }} — Öğrenciler{% endblock %}
+{% block baslik %}{{ sinif.ad }} — Öğrenciler{% endblock %}
 
-<main>
-  <div class="tahta-bilgi">
-    Bağlı tahta(lar):
-    {% if tahtalar %}
-      {% for t in tahtalar %}<span class="etiket">{{ t.ad }} ({{ t.ip }})</span>{% endfor %}
-    {% else %}
-      <span class="etiket etiket-uyari">hiçbiri — bu sınıfa henüz tahta atanmadı</span>
-    {% endif %}
-  </div>
-
-  <form method="post" action="/admin/siniflar/{{ sinif.id }}/ogrenciler">
-    <div class="tablo-sarici">
-      <table class="admin-tablo" id="ogrenci-tablo">
-        <thead><tr><th>No</th><th>Ad Soyad</th><th>Cinsiyet</th><th></th></tr></thead>
-        <tbody>
-          {% for o in ogrenciler %}
-          <tr>
-            <td><input type="text" name="no" value="{{ o.no }}" required></td>
-            <td><input type="text" name="ad_soyad" value="{{ o.ad_soyad }}" required></td>
-            <td><input type="text" name="cinsiyet" value="{{ o.cinsiyet or '' }}"></td>
-            <td><button type="button" class="sil-satir">Sil</button></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <p><button type="button" id="satir-ekle">+ Öğrenci ekle</button></p>
-    <p><button type="submit">Listeyi kaydet</button></p>
-  </form>
-
-  <h2>Tahtaya senkronize et</h2>
-  <p>Kaydedilmiş listeyi bağlı tahta(lar)daki <code>data/roster/{{ sinif.ad }}.json</code>
-     dosyasına yazar (üzerine yazar) ve o tahtadaki diğer eski sınıf
-     listelerini siler.</p>
-  <form method="post" action="/admin/siniflar/{{ sinif.id }}/senkronize">
-    <button type="submit" {{ 'disabled' if not tahtalar else '' }}>Senkronize et</button>
-  </form>
-
-  {% if senkron_sonuclari %}
-  <ul class="senkron-sonuc">
-    {% for s in senkron_sonuclari %}
-    <li class="{{ 'basarili' if s.basarili else 'hatali' }}">
-      {{ s.tahta or '(tahta yok)' }}: {{ 'başarılı' if s.basarili else 'BAŞARISIZ — ' + s.detay }}
-    </li>
-    {% endfor %}
-  </ul>
+{% block icerik %}
+<div class="tahta-bilgi">
+  Bağlı tahta(lar):
+  {% if tahtalar %}
+    {% for t in tahtalar %}<span class="etiket">{{ t.ad }} ({{ t.ip }})</span>{% endfor %}
+  {% else %}
+    <span class="etiket etiket-uyari">hiçbiri — bu sınıfa henüz tahta atanmadı</span>
   {% endif %}
-</main>
+</div>
 
+<form method="post" action="/admin/siniflar/{{ sinif.id }}/ogrenciler">
+  <div class="tablo-sarici">
+    <table class="admin-tablo" id="ogrenci-tablo">
+      <thead><tr><th>No</th><th>Ad Soyad</th><th>Cinsiyet</th><th></th></tr></thead>
+      <tbody>
+        {% for o in ogrenciler %}
+        <tr>
+          <td><input type="text" name="no" value="{{ o.no }}" required></td>
+          <td><input type="text" name="ad_soyad" value="{{ o.ad_soyad }}" required></td>
+          <td><input type="text" name="cinsiyet" value="{{ o.cinsiyet or '' }}"></td>
+          <td><button type="button" class="sil-satir">Sil</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p><button type="button" id="satir-ekle"><svg class="ikon"><use href="#ik-arti"/></svg> Öğrenci ekle</button></p>
+  <p><button type="submit">Listeyi kaydet</button></p>
+</form>
+
+<h2>Tahtaya senkronize et</h2>
+<p>Kaydedilmiş listeyi bağlı tahta(lar)daki <code>data/roster/{{ sinif.ad }}.json</code>
+   dosyasına yazar (üzerine yazar) ve o tahtadaki diğer eski sınıf
+   listelerini siler.</p>
+<form method="post" action="/admin/siniflar/{{ sinif.id }}/senkronize">
+  <button type="submit" {{ 'disabled' if not tahtalar else '' }}>Senkronize et</button>
+</form>
+
+{% if senkron_sonuclari %}
+<ul class="senkron-sonuc">
+  {% for s in senkron_sonuclari %}
+  <li class="{{ 'basarili' if s.basarili else 'hatali' }}">
+    {{ s.tahta or '(tahta yok)' }}: {{ 'başarılı' if s.basarili else 'BAŞARISIZ — ' + s.detay }}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}
+
+{% block script %}
 <template id="satir-sablonu">
   <tr>
     <td><input type="text" name="no" required></td>
@@ -96,6 +72,4 @@ document.querySelector('#ogrenci-tablo').addEventListener('click', (e) => {
   }
 });
 </script>
-<script src="/static/tema.js"></script>
-</body>
-</html>
+{% endblock %}

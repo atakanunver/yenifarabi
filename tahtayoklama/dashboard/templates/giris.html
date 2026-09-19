@@ -9,13 +9,14 @@
 <script>document.documentElement.dataset.tema=localStorage.getItem('farabi_yoklama_tema')||'klasik';</script>
 </head>
 <body class="giris-sarici">
+{% include "_ikon_sprite.html" %}
 <div class="tema-secici tema-secici-kose">
-  <button type="button" data-tema="klasik" title="Klasik tema">☀</button>
-  <button type="button" data-tema="yumusak" title="Yumuşak tema">🌤</button>
-  <button type="button" data-tema="koyu" title="Koyu tema">🌙</button>
+  <button type="button" data-tema="klasik" title="Açık tema"><svg class="ikon"><use href="#ik-gunes"/></svg></button>
+  <button type="button" data-tema="yumusak" title="Orta tema"><svg class="ikon"><use href="#ik-bulut"/></svg></button>
+  <button type="button" data-tema="koyu" title="Koyu tema"><svg class="ikon"><use href="#ik-ay"/></svg></button>
 </div>
 <form method="post" action="/giris" class="giris-kart">
-  <div class="giris-simge">📋</div>
+  <div class="giris-simge"><svg class="ikon ikon-buyuk"><use href="#ik-kilit"/></svg></div>
   <h1>Yoklama ve Yönetim Paneli</h1>
   {% if hata %}<div class="giris-hata">{{ hata }}</div>{% endif %}
   <input type="password" name="sifre" placeholder="Şifre" autofocus required>

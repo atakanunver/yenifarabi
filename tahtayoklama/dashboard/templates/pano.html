@@ -1,70 +1,47 @@
-<!doctype html>
-<html lang="tr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Yoklama ve Yönetim Paneli</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="/static/pano.css">
-<script>document.documentElement.dataset.tema=localStorage.getItem('farabi_yoklama_tema')||'klasik';</script>
-</head>
-<body>
-<header>
-  <span class="gun-etiketi">{{ gun_adi_buyuk() }}</span>
-  <h1>Yoklama ve Yönetim Paneli</h1>
-  <div class="ust-cubuk">
-    <label>Tarih:
-      <input type="date" id="tarih-secici" value="{{ tarih }}" max="{{ bugun }}">
-    </label>
-    <span id="son-guncelleme"></span>
-    <button type="button" id="simdi-yenile" {% if tarih != bugun %}disabled{% endif %}>⟳ Şimdi Yenile</button>
-    <nav class="ust-nav">
-      <a href="/admin/tahtalar">Tahtalar</a>
-      <a href="/admin/siniflar">Sınıflar</a>
-      <a href="/admin/rapor">Rapor</a>
-    <a href="/admin/uzaktan">Uzaktan Yönetim</a>
-    <a href="http://admin:midnight@192.168.23.230:8090/" target="_blank" rel="noopener">🔔 Zil Sistemi</a>
-    </nav>
-    <div class="tema-secici">
-      <button type="button" data-tema="klasik" title="Klasik tema">☀</button>
-      <button type="button" data-tema="yumusak" title="Yumuşak tema">🌤</button>
-      <button type="button" data-tema="koyu" title="Koyu tema">🌙</button>
-    </div>
-    <form method="post" action="/cikis" class="cikis-form"><button type="submit">Çıkış</button></form>
-  </div>
-</header>
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Yoklama Panosu — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Yoklama Panosu{% endblock %}
 
-<main>
-  <div class="tablo-sarici">
-    <table id="pano-tablo">
-      <thead>
-        <tr>
-          <th>Sınıf</th>
-          {% for ders in ders_saatleri %}
-          <th>{{ ders.no }}. ders<br><span class="saat">{{ ders.baslangic }}</span></th>
-          {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for sinif in siniflar %}
-        <tr>
-          <th class="sinif-adi">{{ sinif.ad }}</th>
-          {% for ders in ders_saatleri %}
-          <td id="hucre-{{ sinif.ad }}-{{ ders.no }}" class="hucre durum-yukleniyor"
-              data-sinif="{{ sinif.ad }}" data-ders-no="{{ ders.no }}"
-              {% if sinif.id in sinif_tahta %}data-tahta-id="{{ sinif_tahta[sinif.id] }}"{% endif %}>
-            <span class="pill">…</span>
-          </td>
-          {% endfor %}
-        </tr>
+{% block ust_sag %}
+<label>Tarih:
+  <input type="date" id="tarih-secici" value="{{ tarih }}" max="{{ bugun }}">
+</label>
+<span id="son-guncelleme"></span>
+<button type="button" id="simdi-yenile" {% if tarih != bugun %}disabled{% endif %}>
+  <svg class="ikon"><use href="#ik-yenile"/></svg> Şimdi Yenile
+</button>
+{% endblock %}
+
+{% block icerik %}
+<div class="tablo-sarici">
+  <table id="pano-tablo">
+    <thead>
+      <tr>
+        <th>Sınıf</th>
+        {% for ders in ders_saatleri %}
+        <th>{{ ders.no }}. ders<br><span class="saat">{{ ders.baslangic }}</span></th>
         {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</main>
+      </tr>
+    </thead>
+    <tbody>
+      {% for sinif in siniflar %}
+      <tr>
+        <th class="sinif-adi">{{ sinif.ad }}</th>
+        {% for ders in ders_saatleri %}
+        <td id="hucre-{{ sinif.ad }}-{{ ders.no }}" class="hucre durum-yukleniyor"
+            data-sinif="{{ sinif.ad }}" data-ders-no="{{ ders.no }}"
+            {% if sinif.id in sinif_tahta %}data-tahta-id="{{ sinif_tahta[sinif.id] }}"{% endif %}>
+          <span class="pill">…</span>
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
 
-<div id="toast" class="toast gizli"></div>
-
+{% block script %}
 <script>
 const TARIH_SECICI = document.getElementById('tarih-secici');
 const SON_GUNCELLEME = document.getElementById('son-guncelleme');
@@ -141,7 +118,7 @@ async function tabloyuGuncelle() {
 
 SIMDI_YENILE.addEventListener('click', async () => {
   SIMDI_YENILE.disabled = true;
-  const eskiMetin = SIMDI_YENILE.textContent;
+  const eskiMetin = SIMDI_YENILE.innerHTML;
   SIMDI_YENILE.textContent = 'Yenileniyor…';
   try {
     const yanit = await fetch(`/api/yenile?tarih=${TARIH_SECICI.value}`, { method: 'POST' });
@@ -155,7 +132,7 @@ SIMDI_YENILE.addEventListener('click', async () => {
   } catch (e) {
     toastGoster('Yenileme sırasında bağlantı hatası.', true);
   } finally {
-    SIMDI_YENILE.textContent = eskiMetin;
+    SIMDI_YENILE.innerHTML = eskiMetin;
     setTimeout(() => { SIMDI_YENILE.disabled = TARIH_SECICI.value !== TARIH_SECICI.max; }, 3000);
   }
 });
@@ -188,6 +165,4 @@ TARIH_SECICI.addEventListener('change', () => {
 tabloyuGuncelle();
 YENILEME_ZAMANLAYICI = setInterval(tabloyuGuncelle, 60000);
 </script>
-<script src="/static/tema.js"></script>
-</body>
-</html>
+{% endblock %}
