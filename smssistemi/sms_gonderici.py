@@ -57,8 +57,26 @@ def _kopru_session(ayarlar: dict) -> requests.Session:
     return session
 
 
+def _baglan(ayarlar: dict, deneme: int = 5, bekleme_sn: float = 1.5) -> Connection:
+    """Müdür PC'deki `netsh portproxy` relay'i HTTP framing'i güvenilir
+    taşımıyor (bkz. DECISIONS.md 2026-09-19 — art arda denemelerin çoğu
+    ConnectionError/BadStatusLine ile düşüyor). Bağlantı kurulumu (login/
+    CSRF init, Connection.__init__ içinde olur) bu yüzden birkaç kez
+    denenir; hiçbir SMS burada gönderilmez, tekrar denemek yan etkisiz."""
+    son_hata: Exception | None = None
+    for i in range(1, deneme + 1):
+        try:
+            return Connection(_baglanti_url(ayarlar), requests_session=_kopru_session(ayarlar))
+        except Exception as exc:  # noqa: BLE001 - kopru/modem'den gelen cesitli hatalar
+            son_hata = exc
+            if i < deneme:
+                time.sleep(bekleme_sn)
+    assert son_hata is not None
+    raise son_hata
+
+
 def baglantiyi_test_et(ayarlar: dict) -> dict:
-    with Connection(_baglanti_url(ayarlar), requests_session=_kopru_session(ayarlar)) as connection:
+    with _baglan(ayarlar) as connection:
         client = Client(connection)
         info = client.device.information()
         signal = client.device.signal()
@@ -73,7 +91,12 @@ def toplu_gonder(
     bekleme_sn: float,
 ) -> None:
     try:
-        with Connection(_baglanti_url(ayarlar), requests_session=_kopru_session(ayarlar)) as connection:
+        connection = _baglan(ayarlar)
+    except Exception as exc:  # noqa: BLE001 - birkaç denemeden sonra hala basarisiz
+        sonuc_callback("", "", "", "hata", f"BAĞLANTI HATASI: {exc}")
+        return
+    try:
+        with connection:
             client = Client(connection)
             for i, (isim, telefon, mesaj) in enumerate(kisiler):
                 if durdur_bayragi.is_set():
@@ -86,5 +109,5 @@ def toplu_gonder(
                     sonuc_callback(isim, telefon, mesaj, "hata", str(exc))
                 if i < len(kisiler) - 1 and not durdur_bayragi.is_set():
                     time.sleep(bekleme_sn)
-    except Exception as exc:  # noqa: BLE001 - bağlantı hatası, tüm batch için
-        sonuc_callback("", "", "", "hata", f"BAĞLANTI HATASI: {exc}")
+    except Exception as exc:  # noqa: BLE001 - baglanti kurulduktan sonraki genel hata
+        sonuc_callback("", "", "", "hata", f"BAĞLANTI HATASI (gönderim sırasında): {exc}")

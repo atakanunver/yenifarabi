@@ -35,6 +35,15 @@ def _oturum_sarti(request: Request, conn) -> None:
         raise HTTPException(401, "Oturum geçersiz.")
 
 
+def _oturum_yoksa_giris(request: Request, conn) -> RedirectResponse | None:
+    """Tarayıcıda açılan sayfalarda (API/form-POST değil) oturum yoksa ham
+    401 JSON yerine /giris'e yönlendirir — dashboard'daki auth.oturum_gecerli_mi
+    + RedirectResponse deseniyle aynı."""
+    if not auth.oturum_gecerli_mi(conn, request.cookies.get(auth.COOKIE_ADI)):
+        return RedirectResponse("/giris", status_code=303)
+    return None
+
+
 @app.get("/giris", response_class=HTMLResponse)
 async def giris_formu(request: Request):
     return templates.TemplateResponse(request, "giris.html", {"hata": None})
@@ -74,9 +83,11 @@ async def cikis(request: Request):
 async def anasayfa(request: Request):
     conn = db.baglanti()
     try:
-        _oturum_sarti(request, conn)
+        yonlendirme = _oturum_yoksa_giris(request, conn)
     finally:
         conn.close()
+    if yonlendirme is not None:
+        return yonlendirme
     return templates.TemplateResponse(request, "gonder.html", {"hata": None, "onizleme_numaralar": ""})
 
 
@@ -171,9 +182,11 @@ async def tekrar_gonder(request: Request, gonderim_id: str, bekleme_sn: float = 
 async def durum_sayfasi(request: Request, gonderim_id: str):
     conn = db.baglanti()
     try:
-        _oturum_sarti(request, conn)
+        yonlendirme = _oturum_yoksa_giris(request, conn)
     finally:
         conn.close()
+    if yonlendirme is not None:
+        return yonlendirme
     return templates.TemplateResponse(request, "durum.html", {"gonderim_id": gonderim_id})
 
 
@@ -193,8 +206,10 @@ async def durum_api(request: Request, gonderim_id: str):
 async def kayitlar(request: Request):
     conn = db.baglanti()
     try:
-        _oturum_sarti(request, conn)
-        ozetler = db.gonderim_ozetleri(conn)
+        yonlendirme = _oturum_yoksa_giris(request, conn)
+        ozetler = db.gonderim_ozetleri(conn) if yonlendirme is None else None
     finally:
         conn.close()
+    if yonlendirme is not None:
+        return yonlendirme
     return templates.TemplateResponse(request, "kayitlar.html", {"ozetler": ozetler})
