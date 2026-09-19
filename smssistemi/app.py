@@ -65,6 +65,23 @@ async def giris_gonder(request: Request, sifre: str = Form(...)):
     return yanit
 
 
+@app.get("/sso")
+async def sso_giris(request: Request, t: str, s: str):
+    """Dashboard'daki /sms-git'ten gelen kısa ömürlü imzalı token'la
+    giriş — kullanıcı dashboard'da zaten kimlik doğrulamışsa smssistemi
+    şifresini tekrar girmez."""
+    if not auth.sso_dogrula(t, s):
+        return RedirectResponse("/giris", status_code=303)
+    conn = db.baglanti()
+    try:
+        token = auth.oturum_olustur(conn)
+    finally:
+        conn.close()
+    yanit = RedirectResponse("/", status_code=303)
+    yanit.set_cookie(auth.COOKIE_ADI, token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 30)
+    return yanit
+
+
 @app.post("/cikis")
 async def cikis(request: Request):
     token = request.cookies.get(auth.COOKIE_ADI)

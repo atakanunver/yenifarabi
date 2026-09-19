@@ -6,12 +6,15 @@ import hashlib
 import hmac
 import json
 import secrets
+import time
 from pathlib import Path
 
 from fastapi import HTTPException
 
 GIZLI_YOLU = Path(__file__).resolve().parent / "config" / "gizli.json"
+SSO_GIZLI_YOLU = Path(__file__).resolve().parent / "config" / "sso.json"
 COOKIE_ADI = "smssistemi_oturum"
+SSO_GECERLILIK_SN = 30
 
 
 def sifre_hashle(sifre: str, tuz: bytes | None = None) -> str:
@@ -65,3 +68,22 @@ def oturum_gecerli_mi(conn, token: str | None) -> bool:
     conn.execute("UPDATE oturumlar SET son_gorulme = datetime('now') WHERE token = ?", (token,))
     conn.commit()
     return True
+
+
+def sso_dogrula(zaman_str: str, imza: str) -> bool:
+    """Dashboard'daki /sms-git route'unun ürettiği kısa ömürlü imzalı
+    token'ı doğrular — dashboard zaten kendi şifresiyle kimlik doğrulaması
+    yaptığı için buradan gelen kullanıcı smssistemi şifresini tekrar
+    girmez. İki servis arasındaki TEK bağlantı noktası bu paylaşılan
+    imza anahtarı (config/sso.json, dashboard'daki eşiyle aynı) — kod/DB
+    paylaşımı yok, yalnızca bir HMAC doğrulaması."""
+    try:
+        zaman = int(zaman_str)
+    except (TypeError, ValueError):
+        return False
+    if abs(time.time() - zaman) > SSO_GECERLILIK_SN:
+        return False
+    gizli = json.loads(SSO_GIZLI_YOLU.read_text(encoding="utf-8"))
+    anahtar = bytes.fromhex(gizli["secret"])
+    beklenen = hmac.new(anahtar, zaman_str.encode("utf-8"), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(beklenen, imza)
