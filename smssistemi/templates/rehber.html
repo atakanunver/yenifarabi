@@ -1,0 +1,139 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Rehber — SMS Sistemi{% endblock %}
+{% block icerik %}
+<h1>Rehber</h1>
+
+{% if mesaj %}
+  {% if mesaj == "sinif_kullanimda" %}
+    <p class="hata">Bu sınıf silinemedi — içinde kayıtlı kişi var, önce onları taşıyın/silin.</p>
+  {% elif mesaj == "desteklenmeyen_format" %}
+    <p class="hata">Desteklenmeyen dosya formatı — yalnızca .csv ve .xlsx kabul edilir.</p>
+  {% elif mesaj.startswith("yuklendi:") %}
+    {% set parcalar = mesaj.split(":") %}
+    <p class="basari">Yükleme tamamlandı: {{ parcalar[1] }} eklendi, {{ parcalar[2] }} güncellendi, {{ parcalar[3] }} atlandı.</p>
+  {% endif %}
+{% endif %}
+
+<section>
+  <h2>Sınıflar</h2>
+  <ul class="sinif-liste">
+    {% for s in siniflar %}
+    <li>
+      {{ s.ad }}
+      <form method="post" action="/rehber/sinif/{{ s.id }}/sil" class="satir-form">
+        <button type="submit" onclick="return confirm('{{ s.ad }} silinsin mi?')">Sil</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  <form method="post" action="/rehber/sinif/ekle" class="sinif-ekle-form">
+    <input type="text" name="ad" placeholder="ör. 13-A" required>
+    <button type="submit">Sınıf Ekle</button>
+  </form>
+</section>
+
+<section>
+  <h2>Filtre</h2>
+  <form method="get" action="/rehber" class="filtre-form">
+    <label>Sınıf
+      <select name="sinif_id">
+        <option value="">Hepsi</option>
+        {% for s in siniflar %}
+        <option value="{{ s.id }}" {% if secili_sinif_id == s.id %}selected{% endif %}>{{ s.ad }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Tür
+      <select name="tur">
+        <option value="">Hepsi</option>
+        <option value="ogrenci" {% if secili_tur == "ogrenci" %}selected{% endif %}>Öğrenci</option>
+        <option value="veli" {% if secili_tur == "veli" %}selected{% endif %}>Veli</option>
+      </select>
+    </label>
+    <button type="submit">Filtrele</button>
+  </form>
+</section>
+
+<section>
+  <h2>Kişiler ({{ kisiler|length }})</h2>
+  <table>
+    <thead>
+      <tr><th>Adı Soyadı</th><th>Telefon</th><th>Sınıf</th><th>Tür</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for k in kisiler %}
+      <tr>
+        <td><input form="duzenle-{{ k.id }}" type="text" name="ad_soyad" value="{{ k.ad_soyad }}" required></td>
+        <td><input form="duzenle-{{ k.id }}" type="text" name="telefon" value="{{ k.telefon or '' }}" placeholder="05XXXXXXXXX"></td>
+        <td>
+          <select form="duzenle-{{ k.id }}" name="sinif_id">
+            {% for s in siniflar %}
+            <option value="{{ s.id }}" {% if s.id == k.sinif_id %}selected{% endif %}>{{ s.ad }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td>
+          <select form="duzenle-{{ k.id }}" name="tur">
+            <option value="ogrenci" {% if k.tur == "ogrenci" %}selected{% endif %}>Öğrenci</option>
+            <option value="veli" {% if k.tur == "veli" %}selected{% endif %}>Veli</option>
+          </select>
+        </td>
+        <td class="satir-eylemler">
+          <form id="duzenle-{{ k.id }}" method="post" action="/rehber/kisi/{{ k.id }}/duzenle"></form>
+          <button form="duzenle-{{ k.id }}" type="submit">Kaydet</button>
+          <form method="post" action="/rehber/kisi/{{ k.id }}/sil" class="satir-form">
+            <input type="hidden" name="sinif_id" value="{{ secili_sinif_id or k.sinif_id }}">
+            <input type="hidden" name="tur" value="{{ secili_tur or '' }}">
+            <button type="submit" onclick="return confirm('{{ k.ad_soyad }} silinsin mi?')">Sil</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Yeni Kişi Ekle</h2>
+  <form method="post" action="/rehber/kisi/ekle" class="kisi-ekle-form">
+    <label>Adı Soyadı <input type="text" name="ad_soyad" required></label>
+    <label>Telefon <input type="text" name="telefon" placeholder="05XXXXXXXXX"></label>
+    <label>Sınıf
+      <select name="sinif_id" required>
+        {% for s in siniflar %}
+        <option value="{{ s.id }}" {% if secili_sinif_id == s.id %}selected{% endif %}>{{ s.ad }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Tür
+      <select name="tur">
+        <option value="ogrenci" {% if secili_tur == "ogrenci" %}selected{% endif %}>Öğrenci</option>
+        <option value="veli" {% if secili_tur == "veli" %}selected{% endif %}>Veli</option>
+      </select>
+    </label>
+    <button type="submit">Ekle</button>
+  </form>
+</section>
+
+<section>
+  <h2>Toplu Yükle (CSV / Excel)</h2>
+  <p class="ipucu">"Adı Soyadı" ve "Telefon" (veya benzer) başlıklı bir sütun aranır; bulunamazsa ilk iki sütun kullanılır. İsim zaten kayıtlıysa telefonu günceller, yoksa yeni kişi ekler.</p>
+  <form method="post" action="/rehber/yukle" enctype="multipart/form-data" class="yukle-form">
+    <label>Sınıf
+      <select name="sinif_id" required>
+        {% for s in siniflar %}
+        <option value="{{ s.id }}" {% if secili_sinif_id == s.id %}selected{% endif %}>{{ s.ad }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Tür
+      <select name="tur">
+        <option value="ogrenci" {% if secili_tur == "ogrenci" %}selected{% endif %}>Öğrenci</option>
+        <option value="veli" {% if secili_tur == "veli" %}selected{% endif %}>Veli</option>
+      </select>
+    </label>
+    <label>Dosya (.csv / .xlsx) <input type="file" name="dosya" accept=".csv,.xlsx,.xlsm" required></label>
+    <button type="submit">Yükle</button>
+  </form>
+</section>
+{% endblock %}

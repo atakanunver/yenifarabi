@@ -101,11 +101,14 @@ async def anasayfa(request: Request):
     conn = db.baglanti()
     try:
         yonlendirme = _oturum_yoksa_giris(request, conn)
+        siniflar = db.siniflar_listele(conn) if yonlendirme is None else None
     finally:
         conn.close()
     if yonlendirme is not None:
         return yonlendirme
-    return templates.TemplateResponse(request, "gonder.html", {"hata": None, "onizleme_numaralar": ""})
+    return templates.TemplateResponse(
+        request, "gonder.html", {"hata": None, "onizleme_numaralar": "", "siniflar": siniflar}
+    )
 
 
 @app.post("/gonder")
@@ -119,6 +122,7 @@ async def gonder(
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
+        siniflar = db.siniflar_listele(conn)
     finally:
         conn.close()
 
@@ -133,7 +137,7 @@ async def gonder(
         return templates.TemplateResponse(
             request,
             "gonder.html",
-            {"hata": "Gönderilecek geçerli numara yok.", "onizleme_numaralar": satirlar},
+            {"hata": "Gönderilecek geçerli numara yok.", "onizleme_numaralar": satirlar, "siniflar": siniflar},
             status_code=400,
         )
 
@@ -230,3 +234,159 @@ async def kayitlar(request: Request):
     if yonlendirme is not None:
         return yonlendirme
     return templates.TemplateResponse(request, "kayitlar.html", {"ozetler": ozetler})
+
+
+# --- Rehber ----------------------------------------------------------------
+
+
+@app.get("/rehber", response_class=HTMLResponse)
+async def rehber(request: Request, sinif_id: int | None = None, tur: str | None = None, mesaj: str | None = None):
+    conn = db.baglanti()
+    try:
+        yonlendirme = _oturum_yoksa_giris(request, conn)
+        if yonlendirme is not None:
+            return yonlendirme
+        siniflar = db.siniflar_listele(conn)
+        kisiler = db.kisiler_listele(conn, sinif_id=sinif_id, tur=tur)
+    finally:
+        conn.close()
+    return templates.TemplateResponse(
+        request,
+        "rehber.html",
+        {
+            "siniflar": siniflar,
+            "kisiler": kisiler,
+            "secili_sinif_id": sinif_id,
+            "secili_tur": tur,
+            "mesaj": mesaj,
+        },
+    )
+
+
+@app.post("/rehber/kisi/ekle")
+async def rehber_kisi_ekle(
+    request: Request,
+    ad_soyad: str = Form(...),
+    telefon: str = Form(""),
+    sinif_id: int = Form(...),
+    tur: str = Form(...),
+):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        tel = gonderim.normalize_phone(telefon) if telefon.strip() else None
+        db.kisi_ekle(conn, ad_soyad.strip(), tel, sinif_id, tur)
+    finally:
+        conn.close()
+    return RedirectResponse(f"/rehber?sinif_id={sinif_id}&tur={tur}", status_code=303)
+
+
+@app.post("/rehber/kisi/{kisi_id}/duzenle")
+async def rehber_kisi_duzenle(
+    request: Request,
+    kisi_id: int,
+    ad_soyad: str = Form(...),
+    telefon: str = Form(""),
+    sinif_id: int = Form(...),
+    tur: str = Form(...),
+):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        tel = gonderim.normalize_phone(telefon) if telefon.strip() else None
+        db.kisi_guncelle(conn, kisi_id, ad_soyad.strip(), tel, sinif_id, tur)
+    finally:
+        conn.close()
+    return RedirectResponse(f"/rehber?sinif_id={sinif_id}&tur={tur}", status_code=303)
+
+
+@app.post("/rehber/kisi/{kisi_id}/sil")
+async def rehber_kisi_sil(request: Request, kisi_id: int, sinif_id: int = Form(...), tur: str = Form(...)):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        db.kisi_sil(conn, kisi_id)
+    finally:
+        conn.close()
+    return RedirectResponse(f"/rehber?sinif_id={sinif_id}&tur={tur}", status_code=303)
+
+
+@app.post("/rehber/sinif/ekle")
+async def rehber_sinif_ekle(request: Request, ad: str = Form(...)):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        db.sinif_ekle(conn, ad.strip())
+    finally:
+        conn.close()
+    return RedirectResponse("/rehber", status_code=303)
+
+
+@app.post("/rehber/sinif/{sinif_id}/sil")
+async def rehber_sinif_sil(request: Request, sinif_id: int):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        basarili = db.sinif_sil(conn, sinif_id)
+    finally:
+        conn.close()
+    mesaj = "" if basarili else "sinif_kullanimda"
+    return RedirectResponse(f"/rehber?mesaj={mesaj}", status_code=303)
+
+
+@app.post("/rehber/yukle")
+async def rehber_yukle(
+    request: Request,
+    sinif_id: int = Form(...),
+    tur: str = Form(...),
+    dosya: UploadFile = File(...),
+):
+    ad_kucuk = (dosya.filename or "").lower()
+    if not ad_kucuk.endswith((".csv", ".xlsx", ".xlsm")):
+        return RedirectResponse("/rehber?mesaj=desteklenmeyen_format", status_code=303)
+
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        icerik = await dosya.read()
+        satirlar = gonderim.rehber_dosyasindan_oku(dosya.filename, icerik)
+
+        eklendi = guncellendi = atlandi = 0
+        for satir in satirlar:
+            ad_soyad = satir["ad_soyad"]
+            if not ad_soyad:
+                atlandi += 1
+                continue
+            hedef_sinif_id = sinif_id
+            if satir["sinif"]:
+                hedef_sinif_id = db.sinif_ekle(conn, satir["sinif"])
+            telefon = satir["telefon"] or None
+
+            var_olan = db.kisi_bul_isimle(conn, ad_soyad, hedef_sinif_id, tur)
+            if var_olan is not None:
+                if telefon and telefon != var_olan["telefon"]:
+                    db.kisi_guncelle(conn, var_olan["id"], ad_soyad, telefon, hedef_sinif_id, tur)
+                    guncellendi += 1
+                else:
+                    atlandi += 1
+            else:
+                db.kisi_ekle(conn, ad_soyad, telefon, hedef_sinif_id, tur)
+                eklendi += 1
+    finally:
+        conn.close()
+
+    return RedirectResponse(
+        f"/rehber?sinif_id={sinif_id}&tur={tur}&mesaj=yuklendi:{eklendi}:{guncellendi}:{atlandi}",
+        status_code=303,
+    )
+
+
+@app.get("/api/rehber/telefonlar")
+async def rehber_telefonlar(request: Request, sinif_id: int, tur: str):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        kisiler = db.kisiler_telefonlu(conn, sinif_id, tur)
+    finally:
+        conn.close()
+    return JSONResponse({"kisiler": [{"ad_soyad": a, "telefon": t} for a, t in kisiler]})

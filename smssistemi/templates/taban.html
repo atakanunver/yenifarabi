@@ -11,6 +11,7 @@
   <a href="/" class="marka">📨 SMS Sistemi</a>
   <nav>
     <a href="/" class="{{ 'aktif' if request.url.path == '/' else '' }}">Gönder</a>
+    <a href="/rehber" class="{{ 'aktif' if request.url.path == '/rehber' else '' }}">Rehber</a>
     <a href="/kayitlar" class="{{ 'aktif' if request.url.path == '/kayitlar' else '' }}">Kayıtlar</a>
   </nav>
   <form method="post" action="/cikis" class="cikis-form">

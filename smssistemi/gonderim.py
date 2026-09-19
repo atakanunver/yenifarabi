@@ -79,3 +79,90 @@ def csv_ayristir(icerik: bytes) -> list[tuple[str, str]]:
 
 def kisisellestir(mesaj_sablonu: str, isim: str) -> str:
     return mesaj_sablonu.replace("{isim}", isim or "")
+
+
+# --- Rehber: CSV/Excel'den kişi çekme (Adı Soyadı + Telefonu, geniş toleranslı) ---
+
+_AD_ANAHTAR_KELIMELERI = ("soyad", "isim", "name", "veli ad", "öğrenci ad", "ogrenci ad")
+_TELEFON_ANAHTAR_KELIMELERI = ("telefon", "gsm", "cep", "phone", "tel")
+_SINIF_ANAHTAR_KELIMELERI = ("sınıf", "sinif", "class")
+
+
+def _baslik_ad_sutunu_mu(baslik: str) -> bool:
+    b = baslik.strip().lower()
+    return b in ("ad", "adı") or any(k in b for k in _AD_ANAHTAR_KELIMELERI)
+
+
+def _baslik_telefon_sutunu_mu(baslik: str) -> bool:
+    return any(k in baslik.strip().lower() for k in _TELEFON_ANAHTAR_KELIMELERI)
+
+
+def _baslik_sinif_sutunu_mu(baslik: str) -> bool:
+    return any(k in baslik.strip().lower() for k in _SINIF_ANAHTAR_KELIMELERI)
+
+
+def _rehber_satirlarini_isle(satirlar: list[list[str]]) -> list[dict]:
+    """`satirlar`: hücre metinlerinden oluşan satır listesi (ilk satır
+    başlık olabilir). Başlıktaki ad/telefon/sınıf sütunlarını geniş
+    toleranslı tanır (Adı Soyadı/İsim/Name, Telefon/Cep/GSM,
+    Sınıf/Sinif/Class); hiçbiri eşleşmezse ilk iki sütunu
+    (ad_soyad, telefon) sayar, başlık satırı atlanmaz."""
+    if not satirlar:
+        return []
+    baslik = satirlar[0]
+    ad_idx = tel_idx = sinif_idx = None
+    for i, hucre in enumerate(baslik):
+        hucre = (hucre or "").strip()
+        if ad_idx is None and _baslik_ad_sutunu_mu(hucre):
+            ad_idx = i
+        elif tel_idx is None and _baslik_telefon_sutunu_mu(hucre):
+            tel_idx = i
+        elif sinif_idx is None and _baslik_sinif_sutunu_mu(hucre):
+            sinif_idx = i
+
+    if ad_idx is not None or tel_idx is not None:
+        veri_satirlari = satirlar[1:]
+    else:
+        ad_idx, tel_idx = 0, 1
+        veri_satirlari = satirlar
+
+    def _al(satir: list[str], idx: int | None) -> str:
+        if idx is None or idx >= len(satir):
+            return ""
+        return (satir[idx] or "").strip()
+
+    sonuc: list[dict] = []
+    for satir in veri_satirlari:
+        ad_soyad = _al(satir, ad_idx)
+        telefon_ham = _al(satir, tel_idx)
+        sinif = _al(satir, sinif_idx) if sinif_idx is not None else ""
+        if not ad_soyad and not telefon_ham:
+            continue
+        telefon = normalize_phone(telefon_ham) if telefon_ham else ""
+        sonuc.append({"ad_soyad": ad_soyad, "telefon": telefon, "sinif": sinif or None})
+    return sonuc
+
+
+def rehber_dosyasindan_oku(dosya_adi: str, icerik: bytes) -> list[dict]:
+    """.csv/.xlsx dosyasından `{"ad_soyad", "telefon", "sinif"}` sözlükleri
+    çıkarır — `sinif` dosyada bir sütun varsa doldurulur, yoksa `None`
+    (çağıran taraf formda seçilen sınıfı kullanır)."""
+    ad_kucuk = dosya_adi.lower()
+    if ad_kucuk.endswith((".xlsx", ".xlsm")):
+        import openpyxl
+
+        calisma_kitabi = openpyxl.load_workbook(io.BytesIO(icerik), read_only=True, data_only=True)
+        try:
+            sayfa = calisma_kitabi.active
+            satirlar = [
+                ["" if h is None else str(h) for h in satir]
+                for satir in sayfa.iter_rows(values_only=True)
+            ]
+        finally:
+            calisma_kitabi.close()
+    else:
+        metin = icerik.decode("utf-8-sig")
+        ornek = metin[:2048]
+        ayirici = ";" if ornek.count(";") > ornek.count(",") else ","
+        satirlar = list(csv.reader(io.StringIO(metin), delimiter=ayirici))
+    return _rehber_satirlarini_isle(satirlar)

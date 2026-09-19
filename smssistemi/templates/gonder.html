@@ -3,9 +3,29 @@
 {% block icerik %}
 <h1>Toplu SMS Gönder</h1>
 {% if hata %}<p class="hata">{{ hata }}</p>{% endif %}
+
+<section class="hedef-secici">
+  <h2>Hedef Grup Seç (opsiyonel)</h2>
+  <label>Sınıf
+    <select id="hedef-sinif">
+      {% for s in siniflar %}
+      <option value="{{ s.id }}">{{ s.ad }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Tür
+    <select id="hedef-tur">
+      <option value="veli">Veli</option>
+      <option value="ogrenci">Öğrenci</option>
+    </select>
+  </label>
+  <button type="button" id="hedef-doldur-btn">Listeyi Doldur</button>
+  <span id="hedef-sonuc"></span>
+</section>
+
 <form method="post" action="/gonder" enctype="multipart/form-data" class="gonder-form">
   <label>Numaralar (bir satıra bir kişi: "isim,telefon" ya da sadece telefon)
-    <textarea name="numaralar" rows="8">{{ onizleme_numaralar }}</textarea>
+    <textarea name="numaralar" id="numaralar-alani" rows="8">{{ onizleme_numaralar }}</textarea>
   </label>
   <label>ya da CSV yükle
     <input type="file" name="csv_dosya" accept=".csv">
@@ -18,4 +38,30 @@
   </label>
   <button type="submit">Gönder</button>
 </form>
+
+<script>
+const HEDEF_SINIF = document.getElementById('hedef-sinif');
+const HEDEF_TUR = document.getElementById('hedef-tur');
+const HEDEF_BTN = document.getElementById('hedef-doldur-btn');
+const HEDEF_SONUC = document.getElementById('hedef-sonuc');
+const NUMARALAR = document.getElementById('numaralar-alani');
+
+HEDEF_BTN.addEventListener('click', async () => {
+  if (!HEDEF_SINIF.value) { HEDEF_SONUC.textContent = 'Önce sınıf seçin.'; return; }
+  HEDEF_SONUC.textContent = 'Yükleniyor…';
+  try {
+    const yanit = await fetch(`/api/rehber/telefonlar?sinif_id=${HEDEF_SINIF.value}&tur=${HEDEF_TUR.value}`);
+    const veri = await yanit.json();
+    if (veri.kisiler.length === 0) {
+      HEDEF_SONUC.textContent = 'Bu grupta telefonu olan kimse yok.';
+      return;
+    }
+    const satirlar = veri.kisiler.map(k => `${k.ad_soyad},${k.telefon}`).join('\n');
+    NUMARALAR.value = NUMARALAR.value.trim() ? NUMARALAR.value.trim() + '\n' + satirlar : satirlar;
+    HEDEF_SONUC.textContent = `${veri.kisiler.length} kişi eklendi.`;
+  } catch (e) {
+    HEDEF_SONUC.textContent = 'Hata oluştu.';
+  }
+});
+</script>
 {% endblock %}

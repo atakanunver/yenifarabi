@@ -41,3 +41,45 @@ def test_csv_ayristir_baslik_satirini_atlar():
 
 def test_kisisellestir_yer_tutucuyu_degistirir():
     assert gonderim.kisisellestir("Merhaba {isim}", "Ahmet") == "Merhaba Ahmet"
+
+
+def test_rehber_dosyasindan_oku_csv_gecnis_baslik_taniz():
+    icerik = "Öğrenci Adı Soyadı;Cep Telefonu\nAhmet Yılmaz;05551234567\nAyşe Kaya;5551234568\n".encode(
+        "utf-8-sig"
+    )
+    sonuc = gonderim.rehber_dosyasindan_oku("liste.csv", icerik)
+    assert sonuc == [
+        {"ad_soyad": "Ahmet Yılmaz", "telefon": "05551234567", "sinif": None},
+        {"ad_soyad": "Ayşe Kaya", "telefon": "05551234568", "sinif": None},
+    ]
+
+
+def test_rehber_dosyasindan_oku_sinif_sutununu_yakalar():
+    icerik = "Ad Soyad,Telefon,Sınıf\nAhmet Yılmaz,05551234567,9-A\n".encode("utf-8-sig")
+    sonuc = gonderim.rehber_dosyasindan_oku("liste.csv", icerik)
+    assert sonuc == [{"ad_soyad": "Ahmet Yılmaz", "telefon": "05551234567", "sinif": "9-A"}]
+
+
+def test_rehber_dosyasindan_oku_baslik_eslesmezse_ilk_iki_sutunu_kullanir():
+    icerik = "Ahmet Yılmaz,05551234567\nAyşe Kaya,5551234568\n".encode("utf-8-sig")
+    sonuc = gonderim.rehber_dosyasindan_oku("liste.csv", icerik)
+    assert sonuc == [
+        {"ad_soyad": "Ahmet Yılmaz", "telefon": "05551234567", "sinif": None},
+        {"ad_soyad": "Ayşe Kaya", "telefon": "05551234568", "sinif": None},
+    ]
+
+
+def test_rehber_dosyasindan_oku_xlsx_calisir():
+    import io
+
+    import openpyxl
+
+    calisma_kitabi = openpyxl.Workbook()
+    sayfa = calisma_kitabi.active
+    sayfa.append(["Adı Soyadı", "Telefon Numarası"])
+    sayfa.append(["Ahmet Yılmaz", "05551234567"])
+    tampon = io.BytesIO()
+    calisma_kitabi.save(tampon)
+
+    sonuc = gonderim.rehber_dosyasindan_oku("liste.xlsx", tampon.getvalue())
+    assert sonuc == [{"ad_soyad": "Ahmet Yılmaz", "telefon": "05551234567", "sinif": None}]
