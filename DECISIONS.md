@@ -98,3 +98,42 @@
 - Değişiklik öncesi `yedek/2026-09-18_sidebar_ikon_oncesi/` içine eski templates+static+app.py yedeklendi (proje konvansiyonu, bkz. daha önceki `yedek/2026-09-15_tema_oncesi/`).
 - Uçtan uca doğrulama: `venv/bin/python3 -m py_compile` temiz; servis restart edildi (ders saatleri dışı değildi ama kısa kesinti kabul edilebilir görüldü — canlı kullanıcı o an `/api/durum` polling yapıyordu, birkaç saniyelik kesintiden sonra sorunsuz devam etti); DB üzerinden geçici bir QA oturum tokenı (`auth.oturum_olustur`) üretilip tüm sayfalar (`/`, `/admin/tahtalar`, `/admin/siniflar`, `/admin/rapor`, `/admin/uzaktan`, `/sistem-durumu`, `/api/sistem-durumu`) hem `curl` hem gerçek Chrome üzerinden (üç tema: klasik/yumuşak/koyu) görsel olarak kontrol edildi, token test sonrası silindi.
 - **Bilinen sınırlama:** mobil/dar-ekran (sidebar'ın off-canvas'a geçtiği <900px) davranışı bu oturumda otomasyon tarayıcısının pencere-boyutlandırma kısıtı yüzünden CANLI doğrulanamadı — CSS standart bir `transform:translateX` + hamburger deseni, ama kullanıcı gerçek bir dar ekran/telefon üzerinden bir kez kontrol etmeli.
+
+## 2026-09-19 - SMS Sistemi: köprü redirect hatası bulundu+düzeltildi, ama Müdür PC portproxy güvenilmez çıktı — gerçek SMS testi YAPILAMADI
+- `sms_gonderici.baglantiyi_test_et` ilk denemede `192.168.8.1` (modemin
+  kendi LAN IP'si) adresine bağlanmaya çalışıp timeout veriyordu. Kök neden
+  bulundu: modem `http://192.168.23.243:18080/` (köprü) isteğine 307 ile
+  cevap veriyor ama `Location` header'ı kendi mutlak adresine
+  (`http://192.168.8.1/html/index.html?origin=...`) işaret ediyor — netsh
+  portproxy salt TCP seviyesinde yönlendirdiği için bu HTTP içeriğini
+  düzeltmiyor, `requests`/`huawei_lte_api` da bu redirect'i olduğu gibi
+  takip edip köprüden kaçıyor, Farabi o ağa doğrudan ulaşamadığı için
+  bağlantı düşüyor.
+- **Düzeltildi** (`smssistemi/sms_gonderici.py::_kopru_session`): her iki
+  `Connection(...)` çağrısına özel bir `requests.Session` veriliyor,
+  `response` hook'u her redirect'in `Location`'ındaki host:port'unu köprüyle
+  değiştiriyor. Bu düzeltme doğrulandı — köprü artık en azından bazı
+  denemelerde modemin gerçek giriş sayfasına (200, csrf_token'lı HTML)
+  ulaşabiliyor.
+- **Ama ayrı, çözülmemiş bir sorun ortaya çıktı: köprünün kendisi
+  güvenilmez.** ~10 art arda denemede yalnızca 1 tanesi tam HTML'e ulaştı,
+  1 tanesi `125003: Wrong Session Token` (modem API hatası, muhtemelen
+  session/csrf senkron sorunu) verdi, geri kalanı
+  `ConnectionError: BadStatusLine('ï»¿<!DOCTYPE html>\n')` ile düştü — yani
+  HTTP response byte akışı bozuluyor (bir önceki isteğin gövdesi bir
+  sonrakinin status satırı yerine okunuyor). Bu, `netsh interface
+  portproxy`'nin salt TCP relay olup HTTP framing'i anlamamasından ve/veya
+  bağlantı tekrar kullanımı (keep-alive) sırasında zamanlama sorunlarından
+  kaynaklanıyor gibi görünüyor — `Connection: close` header'ı eklemek
+  değiştirmedi.
+- **Sonuç: gerçek SMS testi (Task 10) bu oturumda YAPILMADI** — güvenilmez
+  bir bağlantı üzerinden gerçek bir SMS denemesi anlamlı bir doğrulama
+  olmaz (başarısız bir gönderim bağlantı sorunundan mı yoksa gerçek bir
+  hatadan mı kaynaklandığını ayırt edemeyiz). Bu, Farabi tarafında yazılan
+  Python koduyla düzeltilebilecek bir sorun değil — Müdür PC'deki
+  portproxy/firewall kurulumunun ve/veya Müdür PC'nin modeme olan Wi-Fi
+  bağlantısının kendisinin incelenmesi gerekiyor (paket yakalama, portproxy
+  loglama, sinyal kalitesi). Alternatif: `netsh portproxy` yerine Müdür
+  PC'de gerçek bir HTTP reverse proxy (Location/body rewrite yapabilen) —
+  ama bu "Müdür PC'ye uygulama kodu yok" kararını (spec, "Kullanıcı
+  kararları") değiştirir, ayrı bir onay gerektirir.
