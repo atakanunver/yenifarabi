@@ -164,3 +164,21 @@
   çıktısı (Wi-Fi sinyal yüzdesi) istendi, henüz alınmadı — bu, sorunun
   fiziksel/ortam kaynaklı olup olmadığını netleştirecek. Netleşene kadar
   Farabi tarafında daha fazla kör deneme yapmanın değeri düşük.
+
+## 2026-09-19 (sonuç) - SMS Sistemi uçtan uca doğrulandı ✅
+- **Gerçek SMS testi başarılı**: `05059399303` numarasına `2026-09-19
+  15:34:32`'de gönderildi (`gonderim_id=1be31ac0515d`, `durum=gonderildi`,
+  DB'de doğrulandı: `db.gonderim_ozetleri` → `basarili: 1`). Kullanıcı
+  telefonda SMS'i aldığını teyit etti.
+- Önceki kayıttaki "başarı oranı zamanla kötüleşiyor" gözlemi doğru çıktı
+  ama geçiciydi — birkaç dakika sonra köprü/modem stabilize oldu, ek bir
+  müdahale gerekmedi. Kök neden kesin teşhis edilmedi (Wi-Fi sinyal
+  dalgalanması en olası aday olarak kaldı) ama `sms_gonderici._baglan`'daki
+  8 denemelik, gerçek API çağrısıyla doğrulanan retry mekanizması (bkz.
+  önceki kayıt, commit `77cc036`) bu geçici bozulmayı tolere edebildi.
+- **Task 10 (uçtan uca test) tamamlandı.** Proje artık üretimde çalışır
+  durumda: `farabi-smssistemi.service` aktif (port 8020), dashboard'dan
+  SSO ile tek tıkla giriş çalışıyor, gerçek gönderim doğrulandı.
+- **Kalan/bilinçli ertelenen:** kök nedenin kesin teşhisi (paket yakalama
+  ile) yapılmadı — sorun tekrar ederse `netsh wlan show interfaces` ile
+  Wi-Fi sinyali ilk bakılacak yer.
