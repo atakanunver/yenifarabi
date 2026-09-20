@@ -95,6 +95,14 @@ tahtayoklama/dashboard/veri/
 # tahtaayar/ kendi gizli.json'unu kullanabilir (bugün yok, yalnızca yol açık)
 tahtaayar/config/gizli.json
 
+# dogum/ — doğum günü Telegram botu (2026-09-20 eklendi). Dogum.xlsx GERÇEK
+# öğrenci adı+doğum tarihi içeriyor (135 satır) — tahtayoklama/data/roster ile
+# aynı KVKK hassasiyeti. aboneler.json Telegram kullanıcı ID'leri, dogum.log
+# çalışma zamanı log'u (regenerable). .env zaten yukarıdaki *.env ile kapsanıyor.
+dogum/Dogum.xlsx
+dogum/aboneler.json
+dogum/dogum.log
+
 # server/ sanal ortamı zaten yukarıdaki **/venv/ ile kapsanıyor
 
 # ── Analiz turu 2026-09-02: commit'e sızmaması gereken artefaktlar ────────
