@@ -1,0 +1,15 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Doğum Günleri — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Doğum Günleri{% endblock %}
+
+{% block icerik %}
+<section>
+  <h2><svg class="ikon"><use href="#ik-pasta"/></svg> Doğum Günleri modülü hazırlanıyor</h2>
+  <p class="rapor-aciklama">
+    Öğrenci ve personel doğum günlerini eklemek/düzenlemek, otomatik SMS
+    açıp kapatmak ve yaklaşan doğum günlerini görmek için bu sayfa
+    hazırlanıyor. Telegram botu (<code>dogum/dogum.py</code>) bu arada
+    kendi başına çalışmaya devam ediyor.
+  </p>
+</section>
+{% endblock %}

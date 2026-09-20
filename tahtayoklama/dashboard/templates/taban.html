@@ -58,6 +58,12 @@
         </a>
       </div>
       <div class="kenar-grup">
+        <span class="kenar-baslik">Doğum Günleri</span>
+        <a href="/dogum" class="{{ 'aktif' if request.url.path.startswith('/dogum') else '' }}">
+          <svg class="ikon"><use href="#ik-pasta"/></svg> Doğum Günleri
+        </a>
+      </div>
+      <div class="kenar-grup">
         <span class="kenar-baslik">Sistem</span>
         <a href="/sistem-durumu" class="{{ 'aktif' if request.url.path.startswith('/sistem-durumu') else '' }}">
           <svg class="ikon"><use href="#ik-nabiz"/></svg> Sistem Durumu

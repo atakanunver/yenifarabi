@@ -207,6 +207,20 @@ async def sistem_durumu_sayfa(request: Request):
     return templates.TemplateResponse(request, "sistem_durumu.html", {})
 
 
+@app.get("/dogum", response_class=HTMLResponse)
+async def dogum_sayfa(request: Request):
+    """Yer tutucu — asıl modül (ekle/düzenle/sil + otomatik SMS) ayrı bir
+    plan/onay sonrası gelecek, bkz. docs/superpowers/plans/."""
+    conn = db.baglanti()
+    try:
+        token = request.cookies.get(auth.COOKIE_ADI)
+        if not auth.oturum_gecerli_mi(conn, token):
+            return RedirectResponse("/giris", status_code=303)
+    finally:
+        conn.close()
+    return templates.TemplateResponse(request, "dogum.html", {})
+
+
 @app.post("/api/tahta/{tahta_id}/baslat")
 async def api_tahta_baslat(request: Request, tahta_id: int):
     conn = db.baglanti()
