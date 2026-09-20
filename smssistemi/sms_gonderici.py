@@ -1,7 +1,16 @@
-"""Huawei HiLink modem köprüsü — Müdür PC'deki netsh portproxy üzerinden
-(bkz. docs/superpowers/specs/2026-09-19-smssistemi-design.md "Mimari").
+"""Huawei HiLink modem köprüsü — Müdür PC'deki WifiHttpProxy (gerçek bir
+HTTP forward proxy, Wi-Fi arayüzüne bound) üzerinden (bkz.
+docs/superpowers/specs/2026-09-19-smssistemi-design.md "Mimari").
 huawei_lte_api'nin gerçek ağ çağrılarını yapan tek yer; app.py bunu
 threading.Thread içinde çağırır (senkron/bloklayan kütüphane).
+
+2026-09-20: köprü mekanizması `netsh portproxy` (ham TCP yönlendirme,
+HTTP çerçevelemesini bozuyordu — BadStatusLine, DECISIONS.md 2026-09-19)
+üzerinden WifiHttpProxy'ye (gerçek HTTP/CONNECT proxy, mesajları
+ayrıştırıp doğru şekilde aktarıyor) taşındı. Artık modeme onun GERÇEK
+IP'siyle (`modem_ip`) doğrudan konuşuluyor, proxy sadece taşımayı
+yapıyor — modemin kendi Host kontrolü de böylece doğal şekilde geçiyor,
+eski `_kopru_session` Location-yeniden-yazma hack'ine gerek kalmadı.
 """
 
 import json
@@ -9,7 +18,6 @@ import time
 from pathlib import Path
 from threading import Event
 from typing import Callable
-from urllib.parse import urlsplit, urlunsplit
 
 import requests
 from huawei_lte_api.Client import Client
@@ -23,67 +31,68 @@ MODEM_CONFIG_YOLU = Path(__file__).resolve().parent / "config" / "modem.json"
 
 def modem_ayarlarini_yukle() -> dict:
     veri = json.loads(MODEM_CONFIG_YOLU.read_text(encoding="utf-8"))
-    return {"host": veri["host"], "port": veri["port"], "user": veri["user"], "pass": veri["pass"]}
+    return {
+        "user": veri["user"],
+        "pass": veri["pass"],
+        "modem_ip": veri.get("modem_ip", "192.168.8.1"),
+        "proxy_host": veri["proxy_host"],
+        "proxy_port": veri["proxy_port"],
+        "proxy_user": veri["proxy_user"],
+        "proxy_pass": veri["proxy_pass"],
+    }
 
 
 def _baglanti_url(ayarlar: dict) -> str:
-    return f"http://{ayarlar['user']}:{ayarlar['pass']}@{ayarlar['host']}:{ayarlar['port']}/"
+    return f"http://{ayarlar['user']}:{ayarlar['pass']}@{ayarlar['modem_ip']}/"
 
 
-def _kopru_session(ayarlar: dict) -> requests.Session:
-    """Müdür PC'deki netsh portproxy salt TCP yönlendirmesi — modem kendi
-    HTML'inde/Location header'ında hep kendi LAN IP'sine (örn. 192.168.8.1)
-    mutlak URL üretiyor, Farabi o ağa doğrudan ulaşamadığı için `requests`
-    bu redirect'i takip ederken bağlantı timeout'a düşüyor (bkz.
-    docs/superpowers/specs/2026-09-19-smssistemi-design.md "Mimari" — köprü
-    yalnızca TCP seviyesinde, HTTP içeriğini yeniden yazmıyor). Bu hook her
-    redirect'in Location'ındaki host:port'u köprünün kendisiyle değiştirip
-    modemin kendi ağına kaçmasını engelliyor.
+class _TekSeferlikSession(requests.Session):
+    """WifiHttpProxy (Müdür PC) her TCP bağlantısında yalnızca TEK istek
+    işleyip sonra soketi kapatıyor (kalıcı/keep-alive bağlantı
+    desteklemiyor) — `requests`'in varsayılan bağlantı havuzu aynı soketi
+    ikinci istek için yeniden kullanmaya çalışınca ConnectionResetError/
+    ReadTimeout ile düşüyor (canlı teşhis, 2026-09-20; `Connection: close`
+    header'ı da tek başına yetmiyor). Her istekten sonra adapter'ın
+    bağlantı havuzunu kapatıp sonraki isteğin taze bir TCP bağlantısı
+    açmasını zorluyor."""
 
-    2026-09-20 canlı teşhis: `/html/index.html?origin=<base64>` isteğinde
-    modem, Host köprünün adresi olduğu sürece origin'i KORUYARAK aynı
-    307'yi tekrar tekrar üretiyor — host'u düzeltmek tek başına yetmiyor,
-    `requests` aynı origin'li URL'i döngüsel olarak takip edip 30
-    yönlendirmeyi aşınca (`TooManyRedirects`) düşüyor. `origin` sorgu
-    parametresi yalnızca modemin "redirect sonrası nereye dön" bilgisi,
-    API akışı için gereksiz — atılınca döngü kırılıyor. `max_redirects`
-    de düşürüldü ki döngü yine de oluşursa 30 yerine birkaç denemede
-    hızlı düşüp `_baglan`'ın taze-bağlantı retry'ına devretsin."""
-    kopru_netloc = f"{ayarlar['host']}:{ayarlar['port']}"
+    def send(self, *args, **kwargs):
+        yanit = super().send(*args, **kwargs)
+        for adapter in self.adapters.values():
+            adapter.close()
+        return yanit
 
-    def _location_duzelt(response: requests.Response, *args, **kwargs) -> requests.Response:
-        konum = response.headers.get("Location")
-        if not konum:
-            return response
-        parcalar = urlsplit(konum)
-        if parcalar.netloc and parcalar.netloc != kopru_netloc:
-            response.headers["Location"] = urlunsplit(
-                (parcalar.scheme or "http", kopru_netloc, parcalar.path, "", parcalar.fragment)
-            )
-        return response
 
-    session = requests.Session()
-    session.max_redirects = 5
-    session.hooks["response"].append(_location_duzelt)
+def _proxy_session(ayarlar: dict) -> requests.Session:
+    """Müdür PC'deki WifiHttpProxy'yi kullanan session — modem plain HTTP
+    olduğu için `requests` CONNECT değil, proxy'ye mutlak-URI GET/POST
+    (absolute-form) isteği atar; WifiHttpProxy bunu gerçek bir HTTP
+    isteği olarak ayrıştırıp modeme iletir (ham byte kopyalama değil)."""
+    proxy_url = (
+        f"http://{ayarlar['proxy_user']}:{ayarlar['proxy_pass']}"
+        f"@{ayarlar['proxy_host']}:{ayarlar['proxy_port']}"
+    )
+    session = _TekSeferlikSession()
+    session.proxies = {"http": proxy_url}
     return session
 
 
 def _baglan(ayarlar: dict, deneme: int = 8, bekleme_sn: float = 1.0) -> Connection:
-    """Müdür PC'deki `netsh portproxy` relay'i HTTP framing'i güvenilir
-    taşımıyor (bkz. DECISIONS.md 2026-09-19 — art arda denemelerin çoğu
-    ConnectionError/BadStatusLine ile düşüyor); manuel/hop-başına taze
-    bağlantı zorlamak da modemin kendi redirect mantığını bozup sonsuz
-    döngüye sokuyor (aynı gün, aynı kayıt — modem aynı TCP bağlantısının
-    sürmesini bekliyor). Bu yüzden her deneme TAMAMEN taze bir
-    Connection/session ile kurulur ve gerçek bir API çağrısıyla
-    (`device.information`) doğrulanır — yalnızca bu doğrulama başarılı
-    olursa bağlantı 'sağlıklı' kabul edilir. Hiçbir SMS burada
-    gönderilmez, tekrar denemek yan etkisiz."""
+    """2026-09-19: `netsh portproxy` relay'i HTTP framing'i güvenilir
+    taşımıyordu (DECISIONS.md — art arda denemelerin çoğu
+    ConnectionError/BadStatusLine ile düşüyordu). 2026-09-20'de köprü
+    WifiHttpProxy'ye (gerçek HTTP proxy) taşındı ama yine de her deneme
+    TAMAMEN taze bir Connection/session ile kurulup gerçek bir API
+    çağrısıyla (`device.information`) doğrulanıyor — proxy/modem tarafında
+    beklenmeyen bir davranış çıkarsa (ör. modemin tek-oturum kısıtı) taze
+    bağlantı bunu tolere eder. Yalnızca bu doğrulama başarılı olursa
+    bağlantı 'sağlıklı' kabul edilir. Hiçbir SMS burada gönderilmez,
+    tekrar denemek yan etkisiz."""
     son_hata: Exception | None = None
     for i in range(1, deneme + 1):
         connection: Connection | None = None
         try:
-            connection = Connection(_baglanti_url(ayarlar), requests_session=_kopru_session(ayarlar))
+            connection = Connection(_baglanti_url(ayarlar), requests_session=_proxy_session(ayarlar))
             Client(connection).device.information()
             return connection
         except Exception as exc:  # noqa: BLE001 - kopru/modem'den gelen cesitli hatalar
