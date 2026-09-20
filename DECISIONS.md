@@ -182,3 +182,56 @@
 - **Kalan/bilinçli ertelenen:** kök nedenin kesin teşhisi (paket yakalama
   ile) yapılmadı — sorun tekrar ederse `netsh wlan show interfaces` ile
   Wi-Fi sinyali ilk bakılacak yer.
+
+## 2026-09-20 - SMS köprüsü kök nedeni bulundu ve kalıcı çözüldü: netsh portproxy → WifiHttpProxy
+- Önceki kayıttaki "geçici, kendi kendine düzeldi" değerlendirmesi
+  **yanlış çıktı** — sorun tekrar etti (`BadStatusLine`, tek/temiz
+  denemede bile), Wi-Fi sinyali de normaldi (modem Müdür PC'nin kendi
+  tarayıcısından şifreyle sorunsuz açılıyordu). Canlı teşhis (debug
+  seviyesinde ham HTTP trafiği izlenerek) kök nedeni kesinleştirdi:
+  **`netsh interface portproxy` ham TCP seviyesinde çalışıyor, HTTP
+  mesaj çerçevelemesini (framing) anlamıyor/korumuyor** — modemin kendi
+  `/html/index.html?origin=...` self-redirect akışı ve ardışık
+  login/logout API çağrıları bu ham relay üzerinden bazen düzgün
+  taşınıyor, bazen bozuk status-line ile düşüyor, bazen de `origin`
+  parametresi köprü host'una sabitlendiği için sonsuz yönlendirme
+  döngüsüne giriyordu (`TooManyRedirects`).
+- **Ayrıca bulunan, düzeltilen ayrı bir bug:** `_kopru_session`'ın
+  Location-yeniden-yazma hook'u redirect'in sorgu dizesini (`origin=`)
+  koruyordu — bu, host düzeltmesi tek başına yeterli olmadığında döngüye
+  giren asıl mekanizmaydı. Commit `ceabdfb`.
+- **Kalıcı çözüm:** Müdür PC'deki köprü mekanizması `netsh portproxy`'den
+  gerçek bir HTTP forward proxy'ye (`WifiHttpProxy.exe` — kullanıcının
+  ayrı bir amaçla [Wi-Fi üzerinden filtrelenmiş Ethernet'i atlatma]
+  yazdırdığı bir .NET CONNECT/HTTP relay) taşındı. Proxy'nin script'inde
+  carrier-tethering-tespitini atlatmaya yönelik bir TTL ayarı (`DefaultTTL=65`)
+  vardı — bu satır bilinçli olarak KULLANILMADI, yalnızca HTTP proxy
+  kısmı devreye alındı. `sms_gonderici.py` artık modeme kendi gerçek
+  IP'siyle (`192.168.8.1`, yeni `modem_ip` config alanı) bu proxy
+  üzerinden konuşuyor — modemin kendi Host-eşleşme kontrolü böylece
+  doğal şekilde geçiyor, eski `_kopru_session` Location-hack'ine hiç
+  gerek kalmadı (komple kaldırıldı, commit `9cda34b`).
+- **Yol boyunca bulunan ikinci, beklenmedik bug:** WifiHttpProxy her TCP
+  bağlantısında yalnızca TEK istek işleyip soketi kapatıyor (kalıcı/
+  keep-alive bağlantı desteklemiyor) — `requests`'in varsayılan bağlantı
+  havuzu aynı soketi ikinci istek için yeniden kullanmaya çalışınca
+  `ConnectionResetError`/`ReadTimeout` ile düşüyordu (`Connection: close`
+  header'ı da tek başına çözmedi). Fix: `_TekSeferlikSession` — her
+  istekten sonra adapter'ın bağlantı havuzunu kapatıp sonraki isteğin
+  taze bir TCP bağlantısı açmasını zorluyor.
+- **Uçtan uca doğrulandı:** `device.information()`, `device.signal()`,
+  ve gerçek bir SMS gönderimi — hepsi üretim servisi (`farabi-
+  smssistemi.service`, kod değişikliğinden sonra restart edildi)
+  üzerinden, `05059399303` numarasına gönderildi, kullanıcı telefonda
+  aldığını teyit etti.
+- **config/modem.json şema değişikliği** (gitignore'lu dosya, kod
+  dışında elle/scriptle güncellendi): yeni alanlar `modem_ip`,
+  `proxy_host`, `proxy_port`, `proxy_user`, `proxy_pass` eklendi; eski
+  `host`/`port` (köprü adresiydi) artık `sms_gonderici.py` tarafından
+  okunmuyor, dosyadan silinmedi ama ölü alan.
+- **Açık kalan operasyonel risk:** WifiHttpProxy.exe, Müdür PC'de
+  `netsh portproxy`'nin aksine systemd/Windows servisi değil, kullanıcının
+  elle çalıştırdığı bir batch script + .exe — Müdür PC yeniden
+  başlatılırsa otomatik ayağa kalkmayabilir (görev zamanlayıcı/başlangıç
+  klasörü ile kalıcı hale getirilmesi ayrı bir iş, bu oturumda
+  yapılmadı).

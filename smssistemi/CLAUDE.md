@@ -51,11 +51,15 @@ elle bağlanabilir).
   butonu — taslak metni resmi Türkçe okul SMS'ine çevirir, `{isim}` ve
   `{ogrenci_adi}` yer tutucularını olduğu gibi korur.
 
-modem köprüsü (Müdür PC `netsh portproxy`) zaman zaman kararsız
-davranıyor (`sms_gonderici._baglan` bunu 8 denemelik, gerçek API
-çağrısıyla doğrulanan bir retry ile tolere ediyor) — kök neden kesin
-teşhis edilmedi, tekrarlarsa önce Müdür PC'nin modeme olan Wi-Fi
-sinyaline bakılmalı (bkz. `DECISIONS.md`).
+**Modem köprüsü 2026-09-20'de değişti:** `netsh portproxy` (ham TCP
+yönlendirme, HTTP framing'i bozuyordu — kronik `BadStatusLine`, aylarca
+çözülmemişti) yerine Müdür PC'de gerçek bir HTTP forward proxy
+(`WifiHttpProxy.exe`, Wi-Fi arayüzüne bound) kullanılıyor artık. Kök
+neden ve çözüm detayı `DECISIONS.md` 2026-09-20 kaydında; ayrıntı için
+aşağıdaki "Mimari" bölümüne bak. `sms_gonderici._baglan` yine de her
+denemede tamamen taze bir bağlantı kurup gerçek bir API çağrısıyla
+doğruluyor (8 deneme) — artık asıl kronik hatayı tolere etmek için değil,
+genel bir güvenlik payı olarak.
 
 ## Komutlar
 
@@ -81,18 +85,36 @@ büyük ölçekli otomatik düzeltme yok) burada da uygulanır.
 ## Mimari (özet — ayrıntı için spec dosyası)
 
 ```
-Farabi :8020 (FastAPI)  --TCP 18080-->  Müdür PC netsh portproxy  -->  Huawei modem :80
-  auth.py / db.py / sms_gonderici.py       (uygulama kodu yok,          (SIM kartlı SMS gateway)
-                                             sadece OS yönlendirme)
+Farabi :8020 (FastAPI)  --HTTP proxy (8080)-->  Müdür PC WifiHttpProxy.exe  -->  Huawei modem :80 (192.168.8.1)
+  auth.py / db.py / sms_gonderici.py            (Wi-Fi arayüzüne bound,          (SIM kartlı SMS gateway)
+                                                  gerçek HTTP/CONNECT relay)
 ```
 
-Farabi, modeme (`192.168.8.1`) doğrudan ulaşamıyor — Müdür PC'nin ayrı Wi-Fi
-ağında. Çözüm uygulama kodunda DEĞİL: Müdür PC'de OS seviyesinde
-`netsh interface portproxy` ile `192.168.23.243:18080` → `192.168.8.1:80`
-yönlendirmesi, yalnızca Farabi'nin IP'sinden erişime izin veren bir firewall
-kuralıyla. `sms_gonderici.py::_baglanti_url` bu yüzden `config/modem.json`'daki
-`host`/`port` olarak Müdür PC'nin adresini kullanır, modemin kendi IP'sini
-değil.
+**2026-09-20'de değişti** (bkz. `DECISIONS.md` aynı tarihli kayıt —
+ayrıntılı teşhis, denenen/reddedilen alternatifler orada): önceki
+mekanizma `netsh interface portproxy` idi (ham TCP seviyesinde
+`192.168.23.243:18080` → `192.168.8.1:80` yönlendirmesi) ama bu, HTTP
+mesaj çerçevelemesini korumadığı için kronik `BadStatusLine`/
+`ConnectionReset` hatalarına yol açıyordu — köprünün kendisi kırılgandı,
+uygulama kodundan düzeltilemezdi. Çözüm: Müdür PC'de gerçek bir HTTP
+forward proxy'ye (`WifiHttpProxy.exe`) geçildi; Farabi artık modeme
+kendi GERÇEK IP'siyle (`192.168.8.1`, `config/modem.json`'daki
+`modem_ip`) doğrudan konuşuyor, proxy yalnızca taşımayı yapıyor —
+modemin kendi Host-eşleşme kontrolü de böylece doğal şekilde geçiyor.
+`sms_gonderici.py::_baglanti_url` artık `modem_ip`'yi hedefler;
+proxy'nin adresi/kimlik bilgileri ayrı alanlarda (`proxy_host`,
+`proxy_port`, `proxy_user`, `proxy_pass`). Eski `host`/`port` alanları
+(köprü adresiydi) `config/modem.json`'da durabilir ama artık okunmuyor.
+
+⚠️ **WifiHttpProxy.exe, Müdür PC'de systemd/Windows servisi DEĞİL** —
+kullanıcının elle çalıştırdığı bir batch script + .exe. Müdür PC yeniden
+başlatılırsa otomatik ayağa kalkmayabilir; kalıcı hale getirme (görev
+zamanlayıcı/başlangıç klasörü) henüz yapılmadı. Ayrıca bu script'in
+kaynağında (kullanıcının ayrı bir amaçla — okulun filtrelenmiş
+Ethernet'ini Wi-Fi üzerinden atlatmak için — yazdırdığı) bir TTL=65
+ayarı (carrier-tethering-tespitini atlatmaya yönelik) vardı; bu ayar
+**bilinçli olarak devreye alınmadı**, yalnızca HTTP proxy kısmı
+kullanılıyor.
 
 - `db.py` — SQLite (`veri/smssistemi.db`, gitignore'lu), tek durum kaynağı.
   `gonderimler` (her SMS satırı, `gonderim_id` ile toplu gönderim gruplanır)
@@ -112,6 +134,12 @@ değil.
   `threading.Thread` (daemon) içinde çalıştırıyor, `/durum/{gonderim_id}`
   sayfası `/api/durum/{gonderim_id}`'yi polluyor. Türkçe karakter içeren
   mesajlar UCS2, ASCII mesajlar 7-bit modunda gönderilir (`gonderim.is_ascii`).
+  `_proxy_session`, `requests.Session`'ı özelleştiren `_TekSeferlikSession`
+  kullanır — WifiHttpProxy her TCP bağlantısında yalnızca tek istek işleyip
+  soketi kapattığı için, varsayılan bağlantı havuzu (connection pooling)
+  ikinci istekte `ConnectionReset`/`ReadTimeout` veriyordu; her istekten
+  sonra adapter havuzu kapatılıp sonraki isteğin taze bağlantı açması
+  zorlanıyor (bkz. yukarıdaki "Mimari" ve `DECISIONS.md` 2026-09-20).
 - `app.py` — route'lar üç grup: giriş/SSO (`/giris`, `/sso`, `/cikis`),
   gönderim (`/`, `/gonder`, `/durum/{id}`, `/api/durum/{id}`,
   `/durdur/{id}`, `/tekrar-gonder/{id}`, `/kayitlar`, `/api/mesaj-duzelt`)
