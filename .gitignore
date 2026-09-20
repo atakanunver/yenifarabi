@@ -115,3 +115,8 @@ smssistemi/config/modem.json
 smssistemi/config/sso.json
 smssistemi/veri/
 tahtayoklama/dashboard/config/sms_sso.json
+
+# smssistemi/ornek/ — rehber CSV/Excel toplu yükleme için bırakılan örnek
+# dosyalar GERÇEK ÖĞRENCİ ADI/SINIF verisi içeriyor (2026-09-20'de bulundu,
+# `9-A.xlsx`) — tahtayoklama/data/roster ile aynı KVKK hassasiyeti.
+smssistemi/ornek/
