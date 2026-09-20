@@ -744,3 +744,115 @@ büyük, 2026-08-14'te client'tan buraya taşındı; client'ta artık `kitaplar/
 pdf içerikleri sayfa sayfa parcalayıp ekranda gösterebilirsin ders anında 
 gemini live bunları okuyabilir.hatta gemini live tablo yorumlara görsel
 vision görü yeteneği kazandırabilirsin.
+
+## Araçlar / Eklentiler (2026-09-20'de kuruldu)
+
+- **superpowers** (`superpowers@claude-plugins-official`, user kapsamı,
+  v6.3.0 — zaten kuruluydu ama DEVRE DIŞIYDI, bu tarihte etkinleştirildi;
+  bilinçli kapatıldıysa `claude plugin disable superpowers` ile geri alınır).
+  Beceriler kendiliğinden tetiklenir, isimle çağrılmaz. Üretilen tasarım ve
+  plan belgeleri repoda ZATEN var olan yere yazılır:
+  `docs/superpowers/specs/<TARİH>-<konu>-design.md` ve
+  `docs/superpowers/plans/<TARİH>-<konu>.md` (üç committed örnek var).
+  ⚠️ Superpowers'ın TDD/worktree akışı Kural 11'i (plan Opus → uygulama
+  Sonnet) ve Kural 6'yı (büyük refactor için önce onay) GEÇERSİZ KILMAZ;
+  çakışırsa bu dosyadaki kurallar kazanır.
+- **context7** (MCP, `.mcp.json` — proje kapsamı, `npx -y
+  @upstash/context7-mcp`). Kütüphane/framework dokümanını sürüm-özel çeker.
+  API anahtarı YOK — anahtarsız düşük kotayla çalışıyor; kota yetmezse
+  `context7.com/dashboard`'dan anahtar alınıp `.mcp.json`'a `--api-key` ile
+  eklenir. Okul ağından uçtan uca DOĞRULANDI (2026-09-20: npx indirmesi +
+  canlı `resolve-library-id` çağrısı başarılı, MEB-CERT-TTVPN
+  SSL-incelemesi bu yolu bozmuyor). Kullanım yeri: FastAPI/PyQt6/Flask gibi dış
+  kütüphane API'si soruları — Farabi'nin KENDİ kodu için değil, onun için
+  kodu oku (Kural 4).
+- **frontend-design** (`frontend-design@claude-plugins-official`, proje
+  kapsamı). Ayrıntılı kurallar aşağıdaki bölümde.
+
+## Frontend / Dashboard Tasarım Standartları
+
+Rol: **Senior Product Designer & Frontend Architect.** Geçerli olduğu yer
+**yalnızca `tahtayoklama/dashboard/templates/` + `static/`**. Client'ın
+PyQt6 arayüzü (`client/ui.py`) bu bölümün kapsamı DIŞINDA — Qt widget'ına
+web tasarım kuralı uygulanmaz.
+
+**Görsel kimlik zaten kurulu, dondurulmuş sayılır.** Tasarım sistemi
+`static/pano.css` başındaki Türkçe adlı CSS değişkenleri (`--renk-*`,
+`--yaricap*`, `--yazi-tipi`) ve üç tema: `klasik` (varsayılan), `yumusak`,
+`koyu` — `data-tema` ile. frontend-design becerisi "sıfırdan ayırt edici
+kimlik kur" modunda çalıştırılmaz; disiplini (kısıtlılık, erişilebilirlik,
+klavye odağı, arayüz metni) mevcut token sistemi İÇİNDE uygulanır.
+- Ham hex renk yazılmaz, var olan değişken kullanılır.
+- Yeni bir değişken gerekiyorsa ÜÇ tema bloğunda da tanımlanır.
+- Arayüz metni Türkçe, cümle düzeninde (ALL-CAPS etiket yok).
+
+**Hiyerarşi ve taranabilirlik.** Sayfa başı sırası: Başlık > birincil
+eylem (CTA) > kritik metrikler (KPI) > tablo/grafik. Veri kartları, durum
+rozetleri ve kritik metrikler ilk bakışta okunmalı — bilgi yoğunluğu
+öğretmenin 5 saniyede "hangi sınıfta yoklama eksik" sorusunu
+cevaplayabileceği kadar olmalı.
+
+**Semantik durum renkleri** — `pano.css`'teki eşleşme zaten bu, yenisi
+uydurulmaz: başarılı `--renk-yesil`, uyarı `--renk-amber`, kritik/hata
+`--renk-kirmizi`, nötr/bilgi `--renk-gri`. Zemin karşılıkları
+`--renk-*-zemin`. Varsayılan bootstrap görünümünden ve tek düze gri
+paletten kaçın.
+
+**Mikro etkileşimler ve durumlar.** Buton hover, tablo satır vurgusu.
+Geçiş süresi `pano.css`'te zaten yerleşik: **0.15 s** (renk/zemin) ve
+**0.12 s** (transform/gölge) — yeni süre uydurma, bu ikisini kullan.
+Veri yüklenirken `skeleton` iskelet, veri yokken düzgün bir `empty-state`
+(ne olduğunu ve ne yapılacağını söyleyen, özür dilemeyen metin)
+tasarlanır — boş tablo bırakılmaz.
+⚠️ `pano.css`'te **`prefers-reduced-motion` bloğu YOK** (2026-09-20'de
+doğrulandı). Pulse/skeleton gibi kendiliğinden dönen bir animasyon
+eklenirken bu medya sorgusu da eklenmeli — sürekli animasyon tek
+erişilebilirlik açığımız.
+
+**İkonlar — sprite zaten var, CDN yok.** İkon alanları açıkça
+tanımlanmalı; ikonsuz veri paneli kabul edilmez. Ama mekanizma kurulu:
+`templates/_ikon_sprite.html` içinde **24 adet satır içi `<symbol>`**,
+zaten **Lucide çizim konvansiyonunda** (24×24 viewBox,
+`stroke="currentColor"`, `stroke-width="2"`, yuvarlak uçlar). Kullanım:
+`<svg class="ikon"><use href="#ik-<ad>"/></svg>`. Boyut sınıfları hazır:
+`.ikon` (1.05em, metinle birlikte ölçeklenir), `.ikon-kucuk` (0.85em),
+`.ikon-buyuk` (2.4rem), `.ikon-disa` (satır sonuna iter).
+- Eksik ikon gerekiyorsa Lucide/Tabler'ın SVG kaynağından **yeni bir
+  `<symbol>` olarak sprite'a eklenir** — `ik-` önekiyle, Türkçe adla.
+- **`lucide-react` veya CDN script'i KULLANILMAZ**: bu stack Jinja2 +
+  vanilla CSS, React yok; CDN okul ağında (SSL-inceleme) ve eski
+  i3-2330M tahtalarda sessizce boş ikon bırakır. Satır içi sprite
+  sıfır istek atar ve çevrimdışı çalışır — kazanan desen bu.
+- İkon coverage'ı bugün ince olan sayfalar: `uzaktan_yonetim.html`,
+  `admin_tahtalar.html`, `admin_sinif_ogrenciler.html` (1'er ikon),
+  `admin_siniflar.html`, `admin_rapor.html` (2'şer). Bu sayfalara
+  dokunulduğunda ikon eklemek serbest, ayrı onay gerektirmez.
+
+**Kompakt / pro yoğunluk.** Hedef "profesyonel operasyon paneli"
+hissiyatı — geniş boşluk yok. **Dashboard bugün ZATEN bu yoğunlukta**
+(2026-09-20'de ölçüldü): `gap` 0.3–0.6rem, `padding` 0.45×0.9rem
+civarı, gövde metni 0.78–0.88rem. Tailwind'in `p-8`/`gap-8` (2rem)
+sorunu burada YOK — yani "daha kompakt yap" diye mevcut değerleri
+küçültme, referans bunlar.
+⚠️ Gerçek eksik şu: **boşluk token'ı hiç yok** (`--bosluk-*` aranıp
+bulunamadı) ve **10 farklı yakın punto** serpiştirilmiş (0.78 / 0.8 /
+0.82 / 0.85 / 0.86 / 0.88rem — ölçek değil, gürültü). Yeni CSS yazarken
+bu listeden var olan bir değeri seç, 0.83 gibi yeni bir ara değer
+üretme. Bunu gerçek bir ölçeğe (`--bosluk-1/2/3`, `--punto-*`)
+indirgemek istenen bir iyileştirme ama `pano.css` üretimde — Kural 6
+gereği ayrıca onay ister, kendiliğinden yapılmaz.
+
+**Yerel/edge dashboard ergonomisi.** Servis/donanım durumu için anlık
+"canlı" göstergeler (yeşil pulse nokta) kullanılır — tahta çevrimiçi mi,
+yoklama açık mı gibi. Tablolarda pagination yerine akıcı dikey kaydırma
+ve kompakt filtre alanı tercih edilir.
+
+> ⚠️ **Kütüphane kuralı — Kural 8 burada da geçerli.** Dashboard bugün
+> SIFIR dış bağımlılıkla çalışıyor: CDN yok, Tailwind yok, grafik
+> kütüphanesi yok, ikon paketi yok (ikonlar `templates/_ikon_sprite.html`
+> içinde satır içi SVG sprite). Tailwind / Lucide / Chart.js / ApexCharts
+> / Tremor önerilebilir ama **onay almadan eklenmez** — üstelik okul
+> ağında SSL-inceleme (MEB-CERT-TTVPN) var ve tahtalar eski i3-2330M,
+> yani CDN'e bağlı bir çözüm derste sessizce boş ekran verebilir. Yeni
+> kütüphane gerçekten gerekiyorsa: yerel olarak `static/`'e indirilir,
+> CDN'den çağrılmaz.
