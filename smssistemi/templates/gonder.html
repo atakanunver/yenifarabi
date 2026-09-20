@@ -4,64 +4,352 @@
 <h1>Toplu SMS Gönder</h1>
 {% if hata %}<p class="hata">{{ hata }}</p>{% endif %}
 
-<section class="hedef-secici">
-  <h2>Hedef Grup Seç (opsiyonel)</h2>
-  <label>Sınıf
-    <select id="hedef-sinif">
-      {% for s in siniflar %}
-      <option value="{{ s.id }}">{{ s.ad }}</option>
-      {% endfor %}
-    </select>
-  </label>
-  <label>Tür
-    <select id="hedef-tur">
-      <option value="veli">Veli</option>
-      <option value="ogrenci">Öğrenci</option>
-    </select>
-  </label>
-  <button type="button" id="hedef-doldur-btn">Listeyi Doldur</button>
-  <span id="hedef-sonuc"></span>
-</section>
+<div class="gonder-izgara">
+  <!-- SOL PANEL: Gönderim Formu & Alıcı Listesi -->
+  <div class="sol-panel">
+    <form method="post" action="/gonder" enctype="multipart/form-data" id="gonder-form">
+      <input type="hidden" name="secilen_kisi_ids" id="secilen-kisi-ids" value="">
 
-<form method="post" action="/gonder" enctype="multipart/form-data" class="gonder-form">
-  <label>Numaralar (bir satıra bir kişi: "isim,telefon" ya da sadece telefon)
-    <textarea name="numaralar" id="numaralar-alani" rows="8">{{ onizleme_numaralar }}</textarea>
-  </label>
-  <label>ya da CSV yükle
-    <input type="file" name="csv_dosya" accept=".csv">
-  </label>
-  <label>Mesaj (kişiselleştirme için {isim} kullanabilirsiniz)
-    <textarea name="mesaj" rows="4" required></textarea>
-  </label>
-  <label>Gönderimler arası bekleme (sn)
-    <input type="number" name="bekleme_sn" value="2" min="0.5" step="0.5">
-  </label>
-  <button type="submit">Gönder</button>
-</form>
+      <!-- Rehberden Seçilen Alıcılar -->
+      <section class="secilenler-kutusu">
+        <div class="secilenler-ust">
+          <h2>Rehberden Seçilen Alıcılar (<span id="secilen-sayisi">0</span>)</h2>
+          <button type="button" id="secilenleri-temizle-btn" class="kucuk-btn" style="display: none;">Temizle</button>
+        </div>
+        <div id="secilenler-bos" class="ipucu">
+          Sağdaki panelden sınıf ve tür seçerek kişi işaretleyebilirsiniz.
+        </div>
+        <div id="secilenler-etiketler" class="secilenler-etiket-listesi"></div>
+      </section>
+
+      <!-- Manuel / CSV Girişi (Alternatif) -->
+      <details class="manuel-giris-akordiyon">
+        <summary><strong>Manuel Numaralar / CSV (Alternatif)</strong></summary>
+        <div class="manuel-giris-govde">
+          <p class="ipucu">Rehberden kişi seçilmediyse bu alandaki numaralar kullanılır.</p>
+          <label>Numaralar (bir satıra bir kişi: "isim,telefon" ya da "isim,telefon,öğrenci_adı")
+            <textarea name="numaralar" id="numaralar-alani" rows="4">{{ onizleme_numaralar }}</textarea>
+          </label>
+          <label>ya da CSV yükle
+            <input type="file" name="csv_dosya" accept=".csv">
+          </label>
+        </div>
+      </details>
+
+      <!-- Mesaj ve AI Düzelt Butonu -->
+      <section class="mesaj-kutusu-bolumu">
+        <div class="mesaj-baslik-sarici">
+          <label for="mesaj-alani"><strong>Mesaj</strong> (kişiselleştirme için <code>{isim}</code> ve <code>{ogrenci_adi}</code>)</label>
+          <button type="button" id="duzelt-btn" class="duzelt-btn" title="Yapay zeka ile resmi okul SMS metnine dönüştür">
+            ✨ Düzelt (AI)
+          </button>
+        </div>
+        <textarea name="mesaj" id="mesaj-alani" rows="5" required placeholder="Mesaj metnini buraya yazın..."></textarea>
+        <span id="duzelt-durum" class="ipucu"></span>
+      </section>
+
+      <!-- Ayarlar ve Gönder -->
+      <section class="ayarlar-bolumu">
+        <label>Gönderimler arası bekleme (sn)
+          <input type="number" name="bekleme_sn" value="2" min="0.5" step="0.5">
+        </label>
+        <button type="submit" class="gonder-ana-btn">SMS Gönder</button>
+      </section>
+    </form>
+  </div>
+
+  <!-- SAĞ PANEL: Sınıf+Tür Filtresi ve Checkbox Listesi -->
+  <div class="sag-panel">
+    <section class="rehber-secim-kutusu">
+      <h2>Rehberden Kişi Seç</h2>
+      <div class="panel-filtreler">
+        <label>Sınıf
+          <select id="panel-sinif">
+            <option value="">Tüm Sınıflar</option>
+            {% for s in siniflar %}
+            <option value="{{ s.id }}">{{ s.ad }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Tür
+          <select id="panel-tur">
+            <option value="veli">Veli</option>
+            <option value="ogrenci">Öğrenci</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="panel-ust-cubuk">
+        <label class="tumunu-sec-label">
+          <input type="checkbox" id="tumunu-sec-chk">
+          <strong>Tümünü Seç</strong> (<span id="gorunen-sayisi">0</span>)
+        </label>
+        <span id="panel-yukleniyor" class="ipucu"></span>
+      </div>
+
+      <div id="panel-kisi-listesi" class="panel-kisi-listesi">
+        <!-- JS ile adaylar yüklenir -->
+      </div>
+    </section>
+  </div>
+</div>
 
 <script>
-const HEDEF_SINIF = document.getElementById('hedef-sinif');
-const HEDEF_TUR = document.getElementById('hedef-tur');
-const HEDEF_BTN = document.getElementById('hedef-doldur-btn');
-const HEDEF_SONUC = document.getElementById('hedef-sonuc');
-const NUMARALAR = document.getElementById('numaralar-alani');
+// State: Seçilen kişiler haritası (kisi_id -> kisi nesnesi)
+const secilenKisiler = new Map();
+let mevcutAdaylar = [];
 
-HEDEF_BTN.addEventListener('click', async () => {
-  if (!HEDEF_SINIF.value) { HEDEF_SONUC.textContent = 'Önce sınıf seçin.'; return; }
-  HEDEF_SONUC.textContent = 'Yükleniyor…';
+const PANEL_SINIF = document.getElementById('panel-sinif');
+const PANEL_TUR = document.getElementById('panel-tur');
+const PANEL_LISTE = document.getElementById('panel-kisi-listesi');
+const PANEL_YUKLENIYOR = document.getElementById('panel-yukleniyor');
+const TUMUNU_SEC_CHK = document.getElementById('tumunu-sec-chk');
+const GORUNEN_SAYISI = document.getElementById('gorunen-sayisi');
+
+const SECILEN_SAYISI = document.getElementById('secilen-sayisi');
+const SECILENLER_BOS = document.getElementById('secilenler-bos');
+const SECILENLER_ETIKETLER = document.getElementById('secilenler-etiketler');
+const SECILENLERI_TEMIZLE_BTN = document.getElementById('secilenleri-temizle-btn');
+const SECILEN_KISI_IDS = document.getElementById('secilen-kisi-ids');
+
+const DUZELT_BTN = document.getElementById('duzelt-btn');
+const DUZELT_DURUM = document.getElementById('duzelt-durum');
+const MESAJ_ALANI = document.getElementById('mesaj-alani');
+
+// Adayları API'den yükleme
+async function adaylariYukle() {
+  const sinifId = PANEL_SINIF.value;
+  const tur = PANEL_TUR.value;
+  PANEL_YUKLENIYOR.textContent = 'Yükleniyor…';
+
+  let url = '/api/rehber/kisiler?tur=' + encodeURIComponent(tur);
+  if (sinifId) {
+    url += '&sinif_id=' + encodeURIComponent(sinifId);
+  }
+
   try {
-    const yanit = await fetch(`/api/rehber/telefonlar?sinif_id=${HEDEF_SINIF.value}&tur=${HEDEF_TUR.value}`);
-    const veri = await yanit.json();
-    if (veri.kisiler.length === 0) {
-      HEDEF_SONUC.textContent = 'Bu grupta telefonu olan kimse yok.';
-      return;
+    const res = await fetch(url);
+    const data = await res.json();
+    mevcutAdaylar = data.kisiler || [];
+    renderAdayListesi();
+  } catch (err) {
+    PANEL_LISTE.innerHTML = '<p class="hata" style="padding: 10px;">Kişiler yüklenirken hata oluştu.</p>';
+  } finally {
+    PANEL_YUKLENIYOR.textContent = '';
+  }
+}
+
+// Aday listesini HTML olarak oluşturma
+function renderAdayListesi() {
+  if (mevcutAdaylar.length === 0) {
+    PANEL_LISTE.innerHTML = '<p class="ipucu" style="padding: 12px;">Bu grupta kayıtlı kişi bulunamadı.</p>';
+    GORUNEN_SAYISI.textContent = '0';
+    TUMUNU_SEC_CHK.checked = false;
+    TUMUNU_SEC_CHK.disabled = true;
+    return;
+  }
+
+  TUMUNU_SEC_CHK.disabled = false;
+  let telefonluSayisi = 0;
+  let html = '';
+
+  for (const k of mevcutAdaylar) {
+    const varTel = Boolean(k.telefon && k.telefon.trim());
+    if (varTel) telefonluSayisi++;
+    const secili = secilenKisiler.has(k.id);
+
+    let ogrBilgi = '';
+    if (k.tur === 'veli') {
+      if (k.ogrenci_ad) {
+        ogrBilgi = `<span class="ogr-rozet">Öğr: ${escapeHtml(k.ogrenci_ad)}</span>`;
+      } else {
+        ogrBilgi = '<span class="ogr-rozet eslesmedi">Öğr: Eşleşmedi</span>';
+      }
     }
-    const satirlar = veri.kisiler.map(k => `${k.ad_soyad},${k.telefon}`).join('\n');
-    NUMARALAR.value = NUMARALAR.value.trim() ? NUMARALAR.value.trim() + '\n' + satirlar : satirlar;
-    HEDEF_SONUC.textContent = `${veri.kisiler.length} kişi eklendi.`;
-  } catch (e) {
-    HEDEF_SONUC.textContent = 'Hata oluştu.';
+
+    html += `
+      <div class="kisi-karti ${!varTel ? 'telefonsuz' : ''}">
+        <label>
+          <input type="checkbox"
+                 class="kisi-chk"
+                 data-id="${k.id}"
+                 ${!varTel ? 'disabled title="Telefonu olmadığı için seçilemez"' : ''}
+                 ${secili ? 'checked' : ''}>
+          <div class="kisi-bilgi">
+            <strong class="kisi-ad">${escapeHtml(k.ad_soyad)}</strong>
+            <div class="kisi-detay">
+              <span class="sinif-rozet">${escapeHtml(k.sinif_ad || '')}</span>
+              <span class="tel-metin">${k.telefon || '(Telefon yok)'}</span>
+              ${ogrBilgi}
+            </div>
+          </div>
+        </label>
+      </div>
+    `;
+  }
+
+  PANEL_LISTE.innerHTML = html;
+  GORUNEN_SAYISI.textContent = telefonluSayisi;
+  tumunuSecCheckboxGuncelle();
+}
+
+// Tümünü Seç durumunu güncelle
+function tumunuSecCheckboxGuncelle() {
+  const chkler = PANEL_LISTE.querySelectorAll('.kisi-chk:not(:disabled)');
+  if (chkler.length === 0) {
+    TUMUNU_SEC_CHK.checked = false;
+    return;
+  }
+  let hepsiSecili = true;
+  for (const chk of chkler) {
+    if (!chk.checked) {
+      hepsiSecili = false;
+      break;
+    }
+  }
+  TUMUNU_SEC_CHK.checked = hepsiSecili;
+}
+
+// Sol paneldeki seçilenleri güncelle
+function solPaneliGuncelle() {
+  const sayi = secilenKisiler.size;
+  SECILEN_SAYISI.textContent = sayi;
+  SECILEN_KISI_IDS.value = Array.from(secilenKisiler.keys()).join(',');
+
+  if (sayi === 0) {
+    SECILENLER_BOS.style.display = 'block';
+    SECILENLERI_TEMIZLE_BTN.style.display = 'none';
+    SECILENLER_ETIKETLER.innerHTML = '';
+    return;
+  }
+
+  SECILENLER_BOS.style.display = 'none';
+  SECILENLERI_TEMIZLE_BTN.style.display = 'inline-block';
+
+  let html = '';
+  for (const [id, k] of secilenKisiler.entries()) {
+    const ogrStr = (k.tur === 'veli' && k.ogrenci_ad) ? ` • Öğr: ${escapeHtml(k.ogrenci_ad)}` : '';
+    html += `
+      <div class="alici-etiket">
+        <span><strong>${escapeHtml(k.ad_soyad)}</strong> <small>(${escapeHtml(k.telefon || '')}${ogrStr})</small></span>
+        <button type="button" class="alici-sil-btn" data-id="${id}" title="Kaldır">✕</button>
+      </div>
+    `;
+  }
+  SECILENLER_ETIKETLER.innerHTML = html;
+}
+
+// Olay dinleyicileri
+PANEL_SINIF.addEventListener('change', adaylariYukle);
+PANEL_TUR.addEventListener('change', adaylariYukle);
+
+// Aday listesi checkbox tıklamaları
+PANEL_LISTE.addEventListener('change', (e) => {
+  if (e.target.classList.contains('kisi-chk')) {
+    const kisiId = parseInt(e.target.dataset.id, 10);
+    const kisi = mevcutAdaylar.find(k => k.id === kisiId);
+    if (!kisi) return;
+
+    if (e.target.checked) {
+      secilenKisiler.set(kisiId, kisi);
+    } else {
+      secilenKisiler.delete(kisiId);
+    }
+    solPaneliGuncelle();
+    tumunuSecCheckboxGuncelle();
   }
 });
+
+// Tümünü Seç checkbox
+TUMUNU_SEC_CHK.addEventListener('change', () => {
+  const secilsinMi = TUMUNU_SEC_CHK.checked;
+  const chkler = PANEL_LISTE.querySelectorAll('.kisi-chk:not(:disabled)');
+
+  for (const chk of chkler) {
+    chk.checked = secilsinMi;
+    const kisiId = parseInt(chk.dataset.id, 10);
+    const kisi = mevcutAdaylar.find(k => k.id === kisiId);
+    if (!kisi) continue;
+
+    if (secilsinMi) {
+      secilenKisiler.set(kisiId, kisi);
+    } else {
+      secilenKisiler.delete(kisiId);
+    }
+  }
+  solPaneliGuncelle();
+});
+
+// Sol panelden tek tek silme
+SECILENLER_ETIKETLER.addEventListener('click', (e) => {
+  if (e.target.classList.contains('alici-sil-btn')) {
+    const kisiId = parseInt(e.target.dataset.id, 10);
+    secilenKisiler.delete(kisiId);
+
+    // Sağ panelde varsa uncheck yap
+    const chk = PANEL_LISTE.querySelector(`.kisi-chk[data-id="${kisiId}"]`);
+    if (chk) {
+      chk.checked = false;
+    }
+    tumunuSecCheckboxGuncelle();
+    solPaneliGuncelle();
+  }
+});
+
+// Tüm seçilenleri temizle
+SECILENLERI_TEMIZLE_BTN.addEventListener('click', () => {
+  secilenKisiler.clear();
+  const chkler = PANEL_LISTE.querySelectorAll('.kisi-chk');
+  for (const chk of chkler) {
+    chk.checked = false;
+  }
+  TUMUNU_SEC_CHK.checked = false;
+  solPaneliGuncelle();
+});
+
+// Ollama Yapay Zeka Mesaj Düzeltme
+DUZELT_BTN.addEventListener('click', async () => {
+  const taslak = MESAJ_ALANI.value.trim();
+  if (!taslak) {
+    DUZELT_DURUM.textContent = 'Lütfen önce düzeltilecek bir taslak mesaj yazın.';
+    return;
+  }
+
+  DUZELT_BTN.disabled = true;
+  DUZELT_DURUM.textContent = 'Düzeltiliyor…';
+
+  try {
+    const res = await fetch('/api/mesaj-duzelt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taslak: taslak })
+    });
+    const veri = await res.json();
+    if (res.ok && veri.duzeltilmis) {
+      MESAJ_ALANI.value = veri.duzeltilmis;
+      DUZELT_DURUM.textContent = 'Mesaj resmi okul SMS diline dönüştürüldü.';
+      setTimeout(() => { DUZELT_DURUM.textContent = ''; }, 4000);
+    } else {
+      DUZELT_DURUM.textContent = veri.hata || 'Düzeltme yapılamadı.';
+    }
+  } catch (err) {
+    DUZELT_DURUM.textContent = 'Bağlantı hatası: ' + err.message;
+  } finally {
+    DUZELT_BTN.disabled = false;
+  }
+});
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Sayfa yüklendiğinde varsayılan listeyi çek
+adaylariYukle();
 </script>
 {% endblock %}

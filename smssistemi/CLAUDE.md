@@ -31,14 +31,25 @@ gitignore'lu, kod/DB paylaşımı yok.
 
 **Rehber (telefon defteri) eklendi:** `siniflar` (bu yıl için 9-A..12-B,
 ekle/sil yapılabilir) + `kisiler` (ad_soyad, telefon [boş olabilir],
-sinif_id, tur='ogrenci'|'veli') tabloları, `/rehber` sayfası (CRUD +
-CSV/Excel toplu yükleme — isimle eşleştirip telefon günceller, üzerine
-yazmaz). `gonder.html`'de "Hedef Grup Seç" (örn. "9-A Velilerine")
-numaralar alanını otomatik dolduruyor. `scripts/roster_ice_aktar.py`
-(bir kereye mahsus, çalıştırıldı) `tahtayoklama/data/roster/*.json`'dan
-101 öğrenci adını (telefonsuz) aktardı — veli telefonları ve öğrenci
-telefonları kullanıcı tarafından Excel ile yüklenecek (henüz
-yapılmadı).
+sinif_id, tur='ogrenci'|'veli', ogrenci_kisi_id [nullable FK → kisiler.id,
+yalnızca veliler için öğrenci bağlantısı]) tabloları, `/rehber` sayfası
+(CRUD + elle öğrenci seçici dropdown + CSV/Excel toplu yükleme — veli
+yüklemesinde "Öğrenci Adı" sütunuyla aynı sınıftaki öğrenci otomatik eşleşir,
+eşleşmeyenler yükleme özetinde "eşleşmedi: N" olarak gösterilir ve tablodan
+elle bağlanabilir).
+
+**Gönderim & Kişiselleştirme & Yapay Zeka:**
+- `gonder.html` 2 panelli arayüze kavuştu: Sağ panelde Sınıf+Tür filtresi ile
+  kişiler checkbox'lı liste olarak gelir ("Tümünü Seç" + tek tek seçim serbest),
+  işaretli kişiler anında sol paneldeki alıcı listesine eklenir. Sol paneldeki
+  serbest textarea / CSV yükleme paralel çalışır, gönderirken panelden yapılan
+  seçim önceliklidir.
+- `kisisellestir`: `{isim}` (alıcı adı) ve `{ogrenci_adi}` (veli için bağlı
+  öğrencinin adı, öğrenci için kendi adı) yer tutucularını destekler.
+- Ollama entegrasyonu: Farabi'deki `qwen2.5:14b` (`192.168.23.252:11434`) modeline
+  bağlanan `POST /api/mesaj-duzelt` endpoint'i ve mesaj kutusu yanındaki "✨ Düzelt (AI)"
+  butonu — taslak metni resmi Türkçe okul SMS'ine çevirir, `{isim}` ve
+  `{ogrenci_adi}` yer tutucularını olduğu gibi korur.
 
 modem köprüsü (Müdür PC `netsh portproxy`) zaman zaman kararsız
 davranıyor (`sms_gonderici._baglan` bunu 8 denemelik, gerçek API
@@ -97,11 +108,24 @@ değil.
   hâli. `05XXXXXXXXX` ve `+905XXXXXXXXX` dışındaki formatlar geçersiz sayılır.
 - `sms_gonderici.py` — `huawei_lte_api` senkron/bloklayan bir kütüphane;
   `toplu_gonder` bu yüzden `durdur_bayragi` (Event) ile iptal edilebilir bir
-  döngü olarak yazılmış, çağıran taraf (planlanan `app.py`) bunu bir thread/
-  background task içinde çalıştırmalı. Türkçe karakter içeren mesajlar UCS2,
-  ASCII mesajlar 7-bit modunda gönderilir (`gonderim.is_ascii`).
-- `config/gizli.json`, `config/modem.json`, `veri/` — hepsi gitignore'lu, asla
-  okuma/commit etme (kök CLAUDE.md'nin "Okuma" kısıtına ek).
+  döngü olarak yazılmış; `app.py::_gonderim_calistir` bunu bir
+  `threading.Thread` (daemon) içinde çalıştırıyor, `/durum/{gonderim_id}`
+  sayfası `/api/durum/{gonderim_id}`'yi polluyor. Türkçe karakter içeren
+  mesajlar UCS2, ASCII mesajlar 7-bit modunda gönderilir (`gonderim.is_ascii`).
+- `app.py` — route'lar üç grup: giriş/SSO (`/giris`, `/sso`, `/cikis`),
+  gönderim (`/`, `/gonder`, `/durum/{id}`, `/api/durum/{id}`,
+  `/durdur/{id}`, `/tekrar-gonder/{id}`, `/kayitlar`, `/api/mesaj-duzelt`)
+  ve rehber (`/rehber` + `/rehber/kisi|sinif/...` CRUD +
+  `/rehber/yukle` + `/api/rehber/kisiler`, JS panelinin kişi listesini
+  buradan çeker). Her route kendi `db.baglanti()`'sini açıp `finally`'de
+  kapatır — bağlantı paylaşılmaz.
+- `config/gizli.json`, `config/modem.json`, `config/sso.json`, `veri/` —
+  hepsi gitignore'lu, asla okuma/commit etme (kök CLAUDE.md'nin "Okuma"
+  kısıtına ek).
+- `scripts/roster_ice_aktar.py` — bir kereye mahsus, `tahtayoklama/data/
+  roster/*.json`'daki öğrenci listesini rehbere (`tur='ogrenci'`,
+  telefon boş) aktarır; isim+sınıf zaten varsa atlar, tekrar çalıştırmak
+  güvenli.
 
 ## Test deseni
 

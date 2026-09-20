@@ -117,3 +117,49 @@ def test_kisiler_telefonlu_sadece_dolu_telefonlari_doner(tmp_path, monkeypatch):
     sonuc = db.kisiler_telefonlu(conn, sinif_id, "veli")
     conn.close()
     assert sonuc == [("Ahmet Yılmaz", "05551234567")]
+
+
+def test_ogrenci_kisi_id_baglama_ve_listeleme(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test_kisi_bagla.db")
+    db.semayi_kur()
+    conn = db.baglanti()
+    sinif_id = db.sinif_ekle(conn, "9-A")
+    ogr_id = db.kisi_ekle(conn, "Ali Çimen", "05551111111", sinif_id, "ogrenci")
+    # Çoklu veli desteği: anne ve baba aynı öğrenciye bağlanabilir
+    veli1_id = db.kisi_ekle(conn, "Ayşe Çimen", "05552222222", sinif_id, "veli", ogrenci_kisi_id=ogr_id)
+    veli2_id = db.kisi_ekle(conn, "Hasan Çimen", "05553333333", sinif_id, "veli", ogrenci_kisi_id=ogr_id)
+
+    veliler = db.kisiler_listele(conn, sinif_id=sinif_id, tur="veli")
+    assert len(veliler) == 2
+    assert veliler[0]["ogrenci_kisi_id"] == ogr_id
+    assert veliler[0]["ogrenci_ad"] == "Ali Çimen"
+    assert veliler[1]["ogrenci_kisi_id"] == ogr_id
+    assert veliler[1]["ogrenci_ad"] == "Ali Çimen"
+
+    # Öğrenci silinince velinin ogrenci_kisi_id'si NULL olur
+    db.kisi_sil(conn, ogr_id)
+    veliler_sonrasi = db.kisiler_listele(conn, sinif_id=sinif_id, tur="veli")
+    assert veliler_sonrasi[0]["ogrenci_kisi_id"] is None
+    assert veliler_sonrasi[0]["ogrenci_ad"] is None
+    conn.close()
+
+
+def test_sinif_bazli_ogrenciler_ve_kisiler_id_ile(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test_kisi_sorgular.db")
+    db.semayi_kur()
+    conn = db.baglanti()
+    s1 = db.sinif_ekle(conn, "9-A")
+    s2 = db.sinif_ekle(conn, "9-B")
+    o1 = db.kisi_ekle(conn, "Ali", "05551111111", s1, "ogrenci")
+    o2 = db.kisi_ekle(conn, "Veli", "05552222222", s1, "ogrenci")
+    o3 = db.kisi_ekle(conn, "Can", "05553333333", s2, "ogrenci")
+
+    harita = db.sinif_bazli_ogrenciler(conn)
+    assert len(harita[s1]) == 2
+    assert len(harita[s2]) == 1
+
+    secilenler = db.kisiler_id_ile(conn, [o1, o3])
+    assert len(secilenler) == 2
+    ids = {r["id"] for r in secilenler}
+    assert ids == {o1, o3}
+    conn.close()

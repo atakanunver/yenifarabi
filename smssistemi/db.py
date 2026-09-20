@@ -32,15 +32,22 @@ CREATE TABLE IF NOT EXISTS siniflar (
 );
 
 CREATE TABLE IF NOT EXISTS kisiler (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    ad_soyad  TEXT NOT NULL,
-    telefon   TEXT,
-    sinif_id  INTEGER NOT NULL REFERENCES siniflar (id),
-    tur       TEXT NOT NULL CHECK (tur IN ('ogrenci', 'veli'))
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    ad_soyad        TEXT NOT NULL,
+    telefon         TEXT,
+    sinif_id        INTEGER NOT NULL REFERENCES siniflar (id),
+    tur             TEXT NOT NULL CHECK (tur IN ('ogrenci', 'veli')),
+    ogrenci_kisi_id INTEGER REFERENCES kisiler (id)
 );
 """
 
 _VARSAYILAN_SINIFLAR = ["9-A", "9-B", "10-A", "10-B", "11-A", "11-B", "12-A", "12-B"]
+
+
+def _tr_norm(s: str | None) -> str:
+    if not s:
+        return ""
+    return " ".join(s.replace("I", "ı").replace("İ", "i").lower().split())
 
 
 def baglanti() -> sqlite3.Connection:
@@ -48,6 +55,7 @@ def baglanti() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_YOLU)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.create_function("tr_norm", 1, _tr_norm)
     return conn
 
 
@@ -55,6 +63,9 @@ def semayi_kur() -> None:
     conn = baglanti()
     try:
         conn.executescript(SEMA)
+        mevcut_sutunlar = [r["name"] for r in conn.execute("PRAGMA table_info(kisiler)").fetchall()]
+        if "ogrenci_kisi_id" not in mevcut_sutunlar:
+            conn.execute("ALTER TABLE kisiler ADD COLUMN ogrenci_kisi_id INTEGER REFERENCES kisiler (id)")
         if conn.execute("SELECT COUNT(*) FROM siniflar").fetchone()[0] == 0:
             conn.executemany(
                 "INSERT INTO siniflar (ad) VALUES (?)", [(ad,) for ad in _VARSAYILAN_SINIFLAR]
@@ -156,36 +167,58 @@ def sinif_sil(conn: sqlite3.Connection, sinif_id: int) -> bool:
 # --- Rehber: kişiler -----------------------------------------------------
 
 
-def kisi_ekle(conn: sqlite3.Connection, ad_soyad: str, telefon: str | None, sinif_id: int, tur: str) -> int:
+def kisi_ekle(
+    conn: sqlite3.Connection,
+    ad_soyad: str,
+    telefon: str | None,
+    sinif_id: int,
+    tur: str,
+    ogrenci_kisi_id: int | None = None,
+) -> int:
     imlec = conn.execute(
-        "INSERT INTO kisiler (ad_soyad, telefon, sinif_id, tur) VALUES (?, ?, ?, ?)",
-        (ad_soyad, telefon or None, sinif_id, tur),
+        "INSERT INTO kisiler (ad_soyad, telefon, sinif_id, tur, ogrenci_kisi_id) VALUES (?, ?, ?, ?, ?)",
+        (ad_soyad, telefon or None, sinif_id, tur, ogrenci_kisi_id),
     )
     conn.commit()
     return imlec.lastrowid
 
 
 def kisi_guncelle(
-    conn: sqlite3.Connection, kisi_id: int, ad_soyad: str, telefon: str | None, sinif_id: int, tur: str
+    conn: sqlite3.Connection,
+    kisi_id: int,
+    ad_soyad: str,
+    telefon: str | None,
+    sinif_id: int,
+    tur: str,
+    ogrenci_kisi_id: int | None = None,
 ) -> None:
     conn.execute(
-        "UPDATE kisiler SET ad_soyad = ?, telefon = ?, sinif_id = ?, tur = ? WHERE id = ?",
-        (ad_soyad, telefon or None, sinif_id, tur, kisi_id),
+        "UPDATE kisiler SET ad_soyad = ?, telefon = ?, sinif_id = ?, tur = ?, ogrenci_kisi_id = ? WHERE id = ?",
+        (ad_soyad, telefon or None, sinif_id, tur, ogrenci_kisi_id, kisi_id),
+    )
+    conn.commit()
+
+
+def kisi_ogrenci_bagla(conn: sqlite3.Connection, veli_kisi_id: int, ogrenci_kisi_id: int | None) -> None:
+    conn.execute(
+        "UPDATE kisiler SET ogrenci_kisi_id = ? WHERE id = ? AND tur = 'veli'",
+        (ogrenci_kisi_id, veli_kisi_id),
     )
     conn.commit()
 
 
 def kisi_sil(conn: sqlite3.Connection, kisi_id: int) -> None:
+    conn.execute("UPDATE kisiler SET ogrenci_kisi_id = NULL WHERE ogrenci_kisi_id = ?", (kisi_id,))
     conn.execute("DELETE FROM kisiler WHERE id = ?", (kisi_id,))
     conn.commit()
 
 
 def kisi_bul_isimle(conn: sqlite3.Connection, ad_soyad: str, sinif_id: int, tur: str) -> dict | None:
     """Toplu yüklemede eşleştirme için — isim/sınıf/tür birebir (boşluk/büyük-küçük
-    harf farkı gözetmeksizin) eşleşen kişiyi bulur."""
+    harf ve Türkçe karakter farkı gözetmeksizin) eşleşen kişiyi bulur."""
     satir = conn.execute(
-        "SELECT id, telefon FROM kisiler "
-        "WHERE sinif_id = ? AND tur = ? AND lower(trim(ad_soyad)) = lower(trim(?))",
+        "SELECT id, ad_soyad, telefon, sinif_id, tur, ogrenci_kisi_id FROM kisiler "
+        "WHERE sinif_id = ? AND tur = ? AND tr_norm(ad_soyad) = tr_norm(?)",
         (sinif_id, tur, ad_soyad),
     ).fetchone()
     return dict(satir) if satir else None
@@ -204,10 +237,39 @@ def kisiler_listele(
         degerler.append(tur)
     kosul_str = f"WHERE {' AND '.join(kosullar)}" if kosullar else ""
     satirlar = conn.execute(
-        f"SELECT k.id, k.ad_soyad, k.telefon, k.tur, k.sinif_id, s.ad AS sinif_ad "
-        f"FROM kisiler k JOIN siniflar s ON s.id = k.sinif_id "
+        f"SELECT k.id, k.ad_soyad, k.telefon, k.tur, k.sinif_id, k.ogrenci_kisi_id, "
+        f"s.ad AS sinif_ad, ogr.ad_soyad AS ogrenci_ad "
+        f"FROM kisiler k "
+        f"JOIN siniflar s ON s.id = k.sinif_id "
+        f"LEFT JOIN kisiler ogr ON ogr.id = k.ogrenci_kisi_id "
         f"{kosul_str} ORDER BY s.ad, k.tur, k.ad_soyad",
         degerler,
+    ).fetchall()
+    return [dict(r) for r in satirlar]
+
+
+def sinif_bazli_ogrenciler(conn: sqlite3.Connection) -> dict[int, list[dict]]:
+    satirlar = conn.execute(
+        "SELECT id, ad_soyad, sinif_id FROM kisiler WHERE tur = 'ogrenci' ORDER BY ad_soyad"
+    ).fetchall()
+    sonuc: dict[int, list[dict]] = {}
+    for r in satirlar:
+        sonuc.setdefault(r["sinif_id"], []).append({"id": r["id"], "ad_soyad": r["ad_soyad"]})
+    return sonuc
+
+
+def kisiler_id_ile(conn: sqlite3.Connection, kisi_ids: list[int]) -> list[dict]:
+    if not kisi_ids:
+        return []
+    yer_tutucular = ",".join("?" for _ in kisi_ids)
+    satirlar = conn.execute(
+        f"SELECT k.id, k.ad_soyad, k.telefon, k.tur, k.sinif_id, k.ogrenci_kisi_id, "
+        f"s.ad AS sinif_ad, ogr.ad_soyad AS ogrenci_ad "
+        f"FROM kisiler k "
+        f"JOIN siniflar s ON s.id = k.sinif_id "
+        f"LEFT JOIN kisiler ogr ON ogr.id = k.ogrenci_kisi_id "
+        f"WHERE k.id IN ({yer_tutucular}) AND k.telefon IS NOT NULL AND k.telefon != ''",
+        kisi_ids,
     ).fetchall()
     return [dict(r) for r in satirlar]
 

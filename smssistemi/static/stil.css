@@ -34,3 +34,61 @@ section h2 { margin-top: 0; font-size: 1.05rem; }
 .hedef-secici select { width: auto; }
 #hedef-sonuc { font-size: .9rem; color: #555; align-self: center; }
 .ipucu { color: #666; font-size: .9rem; margin-top: 0; }
+
+/* 2 panelli Gönder sayfası */
+main { padding: 20px; max-width: 1140px; margin: 0 auto; }
+.gonder-izgara { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 24px; align-items: start; }
+@media (max-width: 860px) {
+  .gonder-izgara { grid-template-columns: 1fr; }
+}
+.sol-panel, .sag-panel { display: flex; flex-direction: column; gap: 16px; }
+
+.secilenler-ust { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.secilenler-ust h2 { margin: 0; }
+.secilenler-etiket-listesi { display: flex; flex-wrap: wrap; gap: 6px; max-height: 220px; overflow-y: auto; padding: 4px 0; }
+.alici-etiket { background: #eef; border: 1px solid #cce; border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; }
+.alici-etiket small { color: #555; }
+.alici-sil-btn { background: none; border: none; color: #b00020; font-weight: bold; cursor: pointer; padding: 0 2px; font-size: 0.95rem; line-height: 1; }
+.alici-sil-btn:hover { color: #ff0000; }
+
+.kucuk-btn { padding: 4px 10px; font-size: 0.8rem; background: #666; border-radius: 4px; }
+.kucuk-btn:hover { background: #444; }
+
+.manuel-giris-akordiyon { background: #fff; border-radius: 10px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.manuel-giris-akordiyon summary { cursor: pointer; font-size: 0.95rem; color: #333; }
+.manuel-giris-govde { margin-top: 12px; }
+
+.mesaj-baslik-sarici { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.mesaj-baslik-sarici label { margin-bottom: 0; }
+.duzelt-btn { background: #4b2377; color: #fff; font-size: 0.85rem; padding: 4px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; border: none; cursor: pointer; }
+.duzelt-btn:hover { background: #371a58; }
+.duzelt-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+#duzelt-durum { display: block; margin-top: 4px; }
+
+.gonder-ana-btn { width: 100%; padding: 12px; font-size: 1.05rem; font-weight: bold; background: #226; margin-top: 8px; }
+.gonder-ana-btn:hover { background: #114; }
+
+/* Sağ Panel: Rehberden Kişi Seç */
+.rehber-secim-kutusu { background: #fff; border-radius: 10px; padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06); position: sticky; top: 16px; }
+.panel-filtreler { display: flex; gap: 12px; margin-bottom: 12px; }
+.panel-filtreler label { flex: 1; margin-bottom: 0; }
+.panel-ust-cubuk { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; margin-bottom: 6px; }
+.tumunu-sec-label { display: flex; align-items: center; gap: 8px; margin-bottom: 0; cursor: pointer; font-size: 0.95rem; }
+.tumunu-sec-label input[type=checkbox] { width: auto; margin: 0; }
+
+.panel-kisi-listesi { max-height: 460px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; }
+.kisi-karti { padding: 8px 10px; border-bottom: 1px solid #f2f2f5; transition: background 0.12s; }
+.kisi-karti:last-child { border-bottom: none; }
+.kisi-karti:hover { background: #f8f8fc; }
+.kisi-karti label { display: flex; align-items: center; gap: 10px; margin-bottom: 0; cursor: pointer; width: 100%; }
+.kisi-karti input[type=checkbox] { width: auto; margin: 0; flex: 0 0 auto; }
+.kisi-karti.telefonsuz { opacity: 0.55; }
+.kisi-karti.telefonsuz label { cursor: not-allowed; }
+
+.kisi-bilgi { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.kisi-ad { font-size: 0.92rem; color: #111; }
+.kisi-detay { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 0.78rem; color: #666; }
+.sinif-rozet { background: #eef; color: #226; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+.tel-metin { font-family: monospace; color: #444; }
+.ogr-rozet { background: #e6f4ea; color: #137333; padding: 1px 6px; border-radius: 4px; font-weight: 500; }
+.ogr-rozet.eslesmedi { background: #fce8e6; color: #c5221f; }

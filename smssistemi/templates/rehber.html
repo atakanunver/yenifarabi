@@ -10,7 +10,12 @@
     <p class="hata">Desteklenmeyen dosya formatı — yalnızca .csv ve .xlsx kabul edilir.</p>
   {% elif mesaj.startswith("yuklendi:") %}
     {% set parcalar = mesaj.split(":") %}
-    <p class="basari">Yükleme tamamlandı: {{ parcalar[1] }} eklendi, {{ parcalar[2] }} güncellendi, {{ parcalar[3] }} atlandı.</p>
+    <p class="basari">
+      Yükleme tamamlandı: {{ parcalar[1] }} eklendi, {{ parcalar[2] }} güncellendi, {{ parcalar[3] }} atlandı.
+      {% if parcalar|length > 4 and parcalar[4]|int > 0 %}
+        <span class="hata">({{ parcalar[4] }} veli öğrencisiyle eşleşmedi — aşağıdan elle bağlayabilirsiniz).</span>
+      {% endif %}
+    </p>
   {% endif %}
 {% endif %}
 
@@ -58,7 +63,7 @@
   <h2>Kişiler ({{ kisiler|length }})</h2>
   <table>
     <thead>
-      <tr><th>Adı Soyadı</th><th>Telefon</th><th>Sınıf</th><th>Tür</th><th></th></tr>
+      <tr><th>Adı Soyadı</th><th>Telefon</th><th>Sınıf</th><th>Tür</th><th>Öğrencisi</th><th></th></tr>
     </thead>
     <tbody>
       {% for k in kisiler %}
@@ -77,6 +82,18 @@
             <option value="ogrenci" {% if k.tur == "ogrenci" %}selected{% endif %}>Öğrenci</option>
             <option value="veli" {% if k.tur == "veli" %}selected{% endif %}>Veli</option>
           </select>
+        </td>
+        <td>
+          {% if k.tur == "veli" %}
+          <select form="duzenle-{{ k.id }}" name="ogrenci_kisi_id" style="min-width: 130px;">
+            <option value="">(Bağlantı Yok)</option>
+            {% for ogr in sinif_ogrencileri.get(k.sinif_id, []) %}
+            <option value="{{ ogr.id }}" {% if ogr.id == k.ogrenci_kisi_id %}selected{% endif %}>{{ ogr.ad_soyad }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <span style="color: #888;">—</span>
+          {% endif %}
         </td>
         <td class="satir-eylemler">
           <form id="duzenle-{{ k.id }}" method="post" action="/rehber/kisi/{{ k.id }}/duzenle"></form>
@@ -117,7 +134,7 @@
 
 <section>
   <h2>Toplu Yükle (CSV / Excel)</h2>
-  <p class="ipucu">"Adı Soyadı" ve "Telefon" (veya benzer) başlıklı bir sütun aranır; bulunamazsa ilk iki sütun kullanılır. İsim zaten kayıtlıysa telefonu günceller, yoksa yeni kişi ekler.</p>
+  <p class="ipucu">"Adı Soyadı", "Telefon" ve veliler için "Öğrenci Adı" sütunları tanınır. Veli yüklemesinde öğrenci adı ile aynı sınıftaki öğrenci otomatik eşleştirilir; eşleşmeyenler tablodan elle bağlanabilir.</p>
   <form method="post" action="/rehber/yukle" enctype="multipart/form-data" class="yukle-form">
     <label>Sınıf
       <select name="sinif_id" required>

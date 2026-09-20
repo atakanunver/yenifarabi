@@ -39,8 +39,15 @@ def test_csv_ayristir_baslik_satirini_atlar():
     assert sonuc == [("Ahmet Yilmaz", "05551234567")]
 
 
-def test_kisisellestir_yer_tutucuyu_degistirir():
+def test_kisisellestir_yer_tutuculari_degistirir():
+    assert (
+        gonderim.kisisellestir("Sayın {isim}, {ogrenci_adi} bugün gelmedi.", "Fatma Hanım", "Ali Çimen")
+        == "Sayın Fatma Hanım, Ali Çimen bugün gelmedi."
+    )
+    # Geriye uyumluluk: ogrenci_adi verilmezse sadece {isim}
     assert gonderim.kisisellestir("Merhaba {isim}", "Ahmet") == "Merhaba Ahmet"
+    # {ogrenci_adi} boş string ile değiştirilir
+    assert gonderim.kisisellestir("Öğr: {ogrenci_adi}", "Ali") == "Öğr: "
 
 
 def test_rehber_dosyasindan_oku_csv_gecnis_baslik_taniz():
@@ -49,23 +56,25 @@ def test_rehber_dosyasindan_oku_csv_gecnis_baslik_taniz():
     )
     sonuc = gonderim.rehber_dosyasindan_oku("liste.csv", icerik)
     assert sonuc == [
-        {"ad_soyad": "Ahmet Yılmaz", "telefon": "05551234567", "sinif": None},
-        {"ad_soyad": "Ayşe Kaya", "telefon": "05551234568", "sinif": None},
+        {"ad_soyad": "Ahmet Yılmaz", "telefon": "05551234567", "sinif": None, "ogrenci_adi": None},
+        {"ad_soyad": "Ayşe Kaya", "telefon": "05551234568", "sinif": None, "ogrenci_adi": None},
     ]
 
 
 def test_rehber_dosyasindan_oku_sinif_sutununu_yakalar():
     icerik = "Ad Soyad,Telefon,Sınıf\nAhmet Yılmaz,05551234567,9-A\n".encode("utf-8-sig")
     sonuc = gonderim.rehber_dosyasindan_oku("liste.csv", icerik)
-    assert sonuc == [{"ad_soyad": "Ahmet Yılmaz", "telefon": "05551234567", "sinif": "9-A"}]
+    assert sonuc == [
+        {"ad_soyad": "Ahmet Yılmaz", "telefon": "05551234567", "sinif": "9-A", "ogrenci_adi": None}
+    ]
 
 
 def test_rehber_dosyasindan_oku_baslik_eslesmezse_ilk_iki_sutunu_kullanir():
     icerik = "Ahmet Yılmaz,05551234567\nAyşe Kaya,5551234568\n".encode("utf-8-sig")
     sonuc = gonderim.rehber_dosyasindan_oku("liste.csv", icerik)
     assert sonuc == [
-        {"ad_soyad": "Ahmet Yılmaz", "telefon": "05551234567", "sinif": None},
-        {"ad_soyad": "Ayşe Kaya", "telefon": "05551234568", "sinif": None},
+        {"ad_soyad": "Ahmet Yılmaz", "telefon": "05551234567", "sinif": None, "ogrenci_adi": None},
+        {"ad_soyad": "Ayşe Kaya", "telefon": "05551234568", "sinif": None, "ogrenci_adi": None},
     ]
 
 
@@ -82,4 +91,55 @@ def test_rehber_dosyasindan_oku_xlsx_calisir():
     calisma_kitabi.save(tampon)
 
     sonuc = gonderim.rehber_dosyasindan_oku("liste.xlsx", tampon.getvalue())
-    assert sonuc == [{"ad_soyad": "Ahmet Yılmaz", "telefon": "05551234567", "sinif": None}]
+    assert sonuc == [
+        {"ad_soyad": "Ahmet Yılmaz", "telefon": "05551234567", "sinif": None, "ogrenci_adi": None}
+    ]
+
+
+def test_rehber_dosyasindan_oku_ogrenci_adi_sutununu_tanir():
+    icerik = "Veli Adı,Öğrenci Adı,Telefon\nFatma Çimen,Ali Çimen,05551234567\n".encode("utf-8-sig")
+    sonuc = gonderim.rehber_dosyasindan_oku("liste.csv", icerik, tur="veli")
+    assert sonuc == [
+        {
+            "ad_soyad": "Fatma Çimen",
+            "telefon": "05551234567",
+            "sinif": None,
+            "ogrenci_adi": "Ali Çimen",
+        }
+    ]
+
+
+def test_rehber_dosyasindan_oku_ogrenci_sutun_basligi_ile_ogrenciyi_alir():
+    icerik = "Veli Adı,Öğrenci,Telefon\nMehmet Kaya,Zeynep Kaya,05559876543\n".encode("utf-8-sig")
+    sonuc = gonderim.rehber_dosyasindan_oku("liste.csv", icerik, tur="veli")
+    assert sonuc == [
+        {
+            "ad_soyad": "Mehmet Kaya",
+            "telefon": "05559876543",
+            "sinif": None,
+            "ogrenci_adi": "Zeynep Kaya",
+        }
+    ]
+
+
+def test_rehber_dosyasindan_oku_veli_yuklemesinde_veli_adi_yoksa_turetir():
+    icerik = "Öğrenci Adı,Telefon\nAli Çimen,05551234567\n".encode("utf-8-sig")
+    sonuc = gonderim.rehber_dosyasindan_oku("liste.csv", icerik, tur="veli")
+    assert sonuc == [
+        {
+            "ad_soyad": "Ali Çimen Velisi",
+            "telefon": "05551234567",
+            "sinif": None,
+            "ogrenci_adi": "Ali Çimen",
+        }
+    ]
+
+
+def test_metinden_ayristir_3_parametre_ogrenci_adi():
+    metin = "Fatma Çimen,05551234567,Ali Çimen\nAhmet Yılmaz,05551234568"
+    gecerli, gecersiz = gonderim.metinden_ayristir(metin)
+    assert gecerli == [
+        ("Fatma Çimen", "05551234567", "Ali Çimen"),
+        ("Ahmet Yılmaz", "05551234568"),
+    ]
+    assert gecersiz == []
