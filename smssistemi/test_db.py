@@ -1,3 +1,5 @@
+import sqlite3
+
 import db
 
 
@@ -45,11 +47,18 @@ def test_gonderim_basarisizlari_sadece_hatali_ve_telefonlu_satirlari_doner(tmp_p
 
 def test_semayi_kur_varsayilan_siniflari_doldurur(tmp_path, monkeypatch):
     monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test_siniflar.db")
+    monkeypatch.setattr(db, "YEDEK_DIZINI", tmp_path / "yedek")
     db.semayi_kur()
     conn = db.baglanti()
     siniflar = [s["ad"] for s in db.siniflar_listele(conn)]
     conn.close()
-    assert siniflar == ["9-A", "9-B", "10-A", "10-B", "11-A", "11-B", "12-A", "12-B"]
+    # "Personel" ve "Bilinmeyen Sınıf" — gerçek sınıf değil, doğum günleri
+    # modülünün FK'sini NOT NULL tutmak için her kurulumda seed edilen
+    # sahte satırlar (bkz. db.py::_PERSONEL_SINIF_ADI).
+    assert siniflar == [
+        "9-A", "9-B", "10-A", "10-B", "11-A", "11-B", "12-A", "12-B",
+        "Bilinmeyen Sınıf", "Personel",
+    ]
 
 
 def test_sinif_ekle_ve_sil(tmp_path, monkeypatch):
@@ -162,4 +171,194 @@ def test_sinif_bazli_ogrenciler_ve_kisiler_id_ile(tmp_path, monkeypatch):
     assert len(secilenler) == 2
     ids = {r["id"] for r in secilenler}
     assert ids == {o1, o3}
+    conn.close()
+
+
+# --- Doğum günleri modülü (2026-09-20) ------------------------------------
+
+
+def test_semayi_kur_personel_turunu_ekler_ve_veriyi_korur(tmp_path, monkeypatch):
+    """Eski (personel'siz) şemadan başlayıp migration'ın veriyi bozmadan
+    tur='personel' değerini kabul eder hale getirdiğini doğrular."""
+    monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test_migration.db")
+    monkeypatch.setattr(db, "YEDEK_DIZINI", tmp_path / "yedek")
+
+    # Eski şemayı elle kur (personel'siz) — semayi_kur()'un migration'ı
+    # tetiklemesi için başlangıç noktası budur.
+    conn = sqlite3.connect(db.DB_YOLU)
+    conn.execute("""
+        CREATE TABLE siniflar (id INTEGER PRIMARY KEY AUTOINCREMENT, ad TEXT NOT NULL UNIQUE)
+    """)
+    conn.execute("""
+        CREATE TABLE kisiler (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ad_soyad TEXT NOT NULL,
+            telefon TEXT,
+            sinif_id INTEGER NOT NULL REFERENCES siniflar (id),
+            tur TEXT NOT NULL CHECK (tur IN ('ogrenci', 'veli')),
+            ogrenci_kisi_id INTEGER REFERENCES kisiler (id)
+        )
+    """)
+    conn.execute("INSERT INTO siniflar (ad) VALUES ('9-A')")
+    conn.execute(
+        "INSERT INTO kisiler (ad_soyad, telefon, sinif_id, tur) VALUES ('Ali Çimen', '05551111111', 1, 'ogrenci')"
+    )
+    conn.commit()
+    conn.close()
+
+    db.semayi_kur()
+
+    conn = db.baglanti()
+    # Veri korunmuş mu?
+    kisi = conn.execute("SELECT * FROM kisiler WHERE ad_soyad = 'Ali Çimen'").fetchone()
+    assert kisi["telefon"] == "05551111111"
+    assert kisi["dogum_tarihi"] is None
+
+    # 'personel' artık kabul ediliyor mu?
+    yeni_id = db.kisi_ekle(conn, "Test Personel", None, 1, "personel")
+    assert yeni_id is not None
+
+    # Geçersiz tur hâlâ reddediliyor mu?
+    try:
+        conn.execute(
+            "INSERT INTO kisiler (ad_soyad, sinif_id, tur) VALUES ('X', 1, 'hatali')"
+        )
+        conn.commit()
+        raise AssertionError("CHECK kısıtı geçersiz tur'u reddetmeliydi")
+    except sqlite3.IntegrityError:
+        pass
+
+    # Yedek dosyası oluştu mu?
+    yedekler = list((tmp_path / "yedek").glob("*.db"))
+    assert len(yedekler) == 1
+    conn.close()
+
+
+def test_semayi_kur_migration_idempotan(tmp_path, monkeypatch):
+    """İkinci semayi_kur() çağrısı tabloyu tekrar yeniden kurmamalı (yedek
+    dosyası çoğalmamalı, satır sayısı değişmemeli)."""
+    monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test_idempotan.db")
+    monkeypatch.setattr(db, "YEDEK_DIZINI", tmp_path / "yedek")
+
+    db.semayi_kur()
+    conn = db.baglanti()
+    sinif_id = db.sinif_ekle(conn, "9-A")
+    db.kisi_ekle(conn, "Ali", "05551111111", sinif_id, "ogrenci")
+    onceki_sayim = conn.execute("SELECT COUNT(*) FROM kisiler").fetchone()[0]
+    conn.close()
+
+    db.semayi_kur()  # ikinci çağrı — migration zaten uygulanmış olmalı
+
+    conn = db.baglanti()
+    sonraki_sayim = conn.execute("SELECT COUNT(*) FROM kisiler").fetchone()[0]
+    conn.close()
+    assert sonraki_sayim == onceki_sayim
+    # Bu senaryoda hiç migration tetiklenmedi (tablo baştan personel'li
+    # kuruldu) — yedek dizini hiç oluşmamalı.
+    assert not (tmp_path / "yedek").exists()
+
+
+def test_semayi_kur_personel_ve_bilinmeyen_sinif_olusturur(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test_sahte_siniflar.db")
+    monkeypatch.setattr(db, "YEDEK_DIZINI", tmp_path / "yedek")
+    db.semayi_kur()
+    conn = db.baglanti()
+    adlar = [s["ad"] for s in db.siniflar_listele(conn)]
+    conn.close()
+    assert "Personel" in adlar
+    assert "Bilinmeyen Sınıf" in adlar
+
+
+def test_ayar_oku_yaz(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test_ayar.db")
+    monkeypatch.setattr(db, "YEDEK_DIZINI", tmp_path / "yedek")
+    db.semayi_kur()
+    conn = db.baglanti()
+    assert db.ayar_oku(conn, "sms_otomatik") == "0"
+    db.ayar_yaz(conn, "sms_otomatik", "1")
+    assert db.ayar_oku(conn, "sms_otomatik") == "1"
+    assert db.ayar_oku(conn, "olmayan_anahtar") is None
+    conn.close()
+
+
+def test_kisi_bul_isimle_sinifsiz(tmp_path, monkeypatch):
+    """Sınıf bilgisi olmayan Dogum.xlsx gibi kaynaklardan eşleştirme için —
+    çağıran hangi sınıfta olduğunu bilmeden, yalnızca ad+tür ile bulabilmeli."""
+    monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test_sinifsiz.db")
+    monkeypatch.setattr(db, "YEDEK_DIZINI", tmp_path / "yedek")
+    db.semayi_kur()
+    conn = db.baglanti()
+    s1 = db.sinif_ekle(conn, "9-A")
+    db.kisi_ekle(conn, "Ali Çimen", None, s1, "ogrenci")
+
+    bulunan = db.kisi_bul_isimle_sinifsiz(conn, "ALİ ÇİMEN", "ogrenci")
+    assert bulunan is not None
+    assert bulunan["sinif_id"] == s1
+
+    bulunmayan = db.kisi_bul_isimle_sinifsiz(conn, "Olmayan Kişi", "ogrenci")
+    assert bulunmayan is None
+    conn.close()
+
+
+def test_kisi_dogum_tarihi_guncelle(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test_dogum_guncelle.db")
+    monkeypatch.setattr(db, "YEDEK_DIZINI", tmp_path / "yedek")
+    db.semayi_kur()
+    conn = db.baglanti()
+    sinif_id = db.sinif_ekle(conn, "9-A")
+    kisi_id = db.kisi_ekle(conn, "Ali Çimen", None, sinif_id, "ogrenci")
+    db.kisi_dogum_tarihi_guncelle(conn, kisi_id, "2010-05-12")
+    kisi = db.kisiler_listele(conn, sinif_id=sinif_id)[0]
+    assert kisi["dogum_tarihi"] == "2010-05-12"
+    conn.close()
+
+
+def test_dogum_gunu_olanlar(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test_dogum_bugun.db")
+    monkeypatch.setattr(db, "YEDEK_DIZINI", tmp_path / "yedek")
+    db.semayi_kur()
+    conn = db.baglanti()
+    sinif_id = db.sinif_ekle(conn, "9-A")
+    ali_id = db.kisi_ekle(conn, "Ali Çimen", "05551111111", sinif_id, "ogrenci")
+    db.kisi_dogum_tarihi_guncelle(conn, ali_id, "2010-05-12")
+    veli_id = db.kisi_ekle(conn, "Veli Anne", "05552222222", sinif_id, "veli")
+    db.kisi_dogum_tarihi_guncelle(conn, veli_id, "2010-05-12")  # aynı gün ama veli — hariç tutulmalı
+
+    bugun = db.dogum_gunu_olanlar(conn, 5, 12)
+    assert len(bugun) == 1
+    assert bugun[0]["ad_soyad"] == "Ali Çimen"
+
+    yarin = db.dogum_gunu_olanlar(conn, 5, 13)
+    assert yarin == []
+    conn.close()
+
+
+def test_dogum_gunu_olanlar_29_subat_28_subatta_da_eslesir(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test_29subat.db")
+    monkeypatch.setattr(db, "YEDEK_DIZINI", tmp_path / "yedek")
+    db.semayi_kur()
+    conn = db.baglanti()
+    sinif_id = db.sinif_ekle(conn, "9-A")
+    kisi_id = db.kisi_ekle(conn, "Artık Yıl Çocuğu", None, sinif_id, "ogrenci")
+    db.kisi_dogum_tarihi_guncelle(conn, kisi_id, "2008-02-29")
+
+    sonuc = db.dogum_gunu_olanlar(conn, 2, 28)
+    assert len(sonuc) == 1
+    assert sonuc[0]["ad_soyad"] == "Artık Yıl Çocuğu"
+    conn.close()
+
+
+def test_dogum_tarihli_kisiler_yalnizca_dolu_olanlari_doner(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test_dogum_tarihli.db")
+    monkeypatch.setattr(db, "YEDEK_DIZINI", tmp_path / "yedek")
+    db.semayi_kur()
+    conn = db.baglanti()
+    sinif_id = db.sinif_ekle(conn, "9-A")
+    ali_id = db.kisi_ekle(conn, "Ali Çimen", None, sinif_id, "ogrenci")
+    db.kisi_ekle(conn, "Tarihsiz Kişi", None, sinif_id, "ogrenci")
+    db.kisi_dogum_tarihi_guncelle(conn, ali_id, "2010-05-12")
+
+    sonuc = db.dogum_tarihli_kisiler(conn)
+    assert len(sonuc) == 1
+    assert sonuc[0]["ad_soyad"] == "Ali Çimen"
     conn.close()

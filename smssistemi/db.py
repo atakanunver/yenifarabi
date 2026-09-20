@@ -3,12 +3,31 @@ tahtayoklama/dashboard'un db.py deseninin bağımsız kopyası (kod paylaşımı
 yok, bkz. docs/superpowers/specs/2026-09-19-smssistemi-design.md)."""
 
 import re
+import shutil
 import sqlite3
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 DB_YOLU = Path(__file__).resolve().parent / "veri" / "smssistemi.db"
+YEDEK_DIZINI = Path(__file__).resolve().parent / "veri" / "yedek"
+_ISTANBUL = ZoneInfo("Europe/Istanbul")
 
-SEMA = """
+# `kisiler` tablosunun KANONİK gövdesi — tek yerden yönetilir, hem SEMA
+# (sıfırdan kurulumda) hem migration (eski kurulumu bu şekle getirirken)
+# aynı tanımı kullanır. 2026-09-20'de 'personel' + `dogum_tarihi` eklendi
+# (docs/superpowers/plans/2026-09-20-dogum-gunleri-modulu.md §2).
+_KISILER_TABLO_GOVDESI = """(
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    ad_soyad        TEXT NOT NULL,
+    telefon         TEXT,
+    sinif_id        INTEGER NOT NULL REFERENCES siniflar (id),
+    tur             TEXT NOT NULL CHECK (tur IN ('ogrenci', 'veli', 'personel')),
+    ogrenci_kisi_id INTEGER REFERENCES kisiler (id),
+    dogum_tarihi    TEXT
+)"""
+
+SEMA = f"""
 CREATE TABLE IF NOT EXISTS gonderimler (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     gonderim_id   TEXT NOT NULL,
@@ -31,17 +50,32 @@ CREATE TABLE IF NOT EXISTS siniflar (
     ad  TEXT NOT NULL UNIQUE
 );
 
-CREATE TABLE IF NOT EXISTS kisiler (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    ad_soyad        TEXT NOT NULL,
-    telefon         TEXT,
-    sinif_id        INTEGER NOT NULL REFERENCES siniflar (id),
-    tur             TEXT NOT NULL CHECK (tur IN ('ogrenci', 'veli')),
-    ogrenci_kisi_id INTEGER REFERENCES kisiler (id)
+CREATE TABLE IF NOT EXISTS kisiler {_KISILER_TABLO_GOVDESI};
+
+CREATE TABLE IF NOT EXISTS ayarlar (
+    anahtar TEXT PRIMARY KEY,
+    deger   TEXT NOT NULL
 );
 """
 
 _VARSAYILAN_SINIFLAR = ["9-A", "9-B", "10-A", "10-B", "11-A", "11-B", "12-A", "12-B"]
+
+# Doğum günleri modülü (2026-09-20, docs/superpowers/plans/
+# 2026-09-20-dogum-gunleri-modulu.md) — bilinçli seçim: 'personel' de bu
+# tabloya eklendi, ayrı bir DB/tablo AÇILMADI (öğrenci+veli+personel zaten
+# aynı "kime SMS atılabilir" kavramının parçası). "Personel" ve "Bilinmeyen
+# Sınıf" gerçek sınıf DEĞİL, kişi-sınıf FK'sinin NOT NULL kalması için
+# gereken sahte satırlar — NULL yapılsaydı kisiler_listele()'nin INNER
+# JOIN'i bu kişileri sessizce listeden düşürürdü.
+_PERSONEL_SINIF_ADI = "Personel"
+_BILINMEYEN_SINIF_ADI = "Bilinmeyen Sınıf"
+
+_AYARLAR_VARSAYILAN = {
+    "sms_otomatik": "0",  # KAPALI — bkz. plan §9 R1, telefon listesi dolana kadar kasıtlı
+    "dogum_sms_sablonu": (
+        "Sevgili {isim}, dogum gununuzu kutlar, saglikli ve mutlu bir yil dileriz. Okul Idaresi"
+    ),
+}
 
 
 def _tr_norm(s: str | None) -> str:
@@ -59,6 +93,56 @@ def baglanti() -> sqlite3.Connection:
     return conn
 
 
+def _dosya_yedekle(etiket: str) -> Path | None:
+    """DB dosyasını (WAL içeriği checkpoint edilmiş hâliyle) veri/yedek/'e
+    kopyalar. Dosya yoksa (ilk kurulum) None döner — yedeklenecek bir şey yok."""
+    if not DB_YOLU.exists():
+        return None
+    YEDEK_DIZINI.mkdir(parents=True, exist_ok=True)
+    bugun = datetime.now(_ISTANBUL).date().isoformat()
+    hedef = YEDEK_DIZINI / f"smssistemi_{bugun}_{etiket}.db"
+    gecici = sqlite3.connect(DB_YOLU)
+    try:
+        gecici.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    finally:
+        gecici.close()
+    shutil.copy2(DB_YOLU, hedef)
+    return hedef
+
+
+def _kisiler_personel_migration(conn: sqlite3.Connection) -> None:
+    """`tur` CHECK kısıtına 'personel' ekler. SQLite CHECK kısıtları
+    ALTER TABLE ile değiştirilemediği için tabloyu yeniden kurar (resmi
+    12 adımlı prosedür). İdempotan: `kisiler` tanımında zaten 'personel'
+    geçiyorsa hiçbir şey yapmaz — semayi_kur() her başlangıçta çağrıldığı
+    için bu koruma olmadan her restart'ta tablo yeniden kurulurdu.
+    Bkz. docs/superpowers/plans/2026-09-20-dogum-gunleri-modulu.md §2.2."""
+    tanim = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'kisiler'"
+    ).fetchone()
+    if tanim is None or "'personel'" in tanim["sql"]:
+        return
+
+    _dosya_yedekle("dogum_oncesi")
+
+    conn.execute("PRAGMA foreign_keys = off")
+    conn.execute("BEGIN")
+    try:
+        conn.execute(f"CREATE TABLE kisiler_yeni {_KISILER_TABLO_GOVDESI}")
+        conn.execute(
+            "INSERT INTO kisiler_yeni (id, ad_soyad, telefon, sinif_id, tur, ogrenci_kisi_id) "
+            "SELECT id, ad_soyad, telefon, sinif_id, tur, ogrenci_kisi_id FROM kisiler"
+        )
+        conn.execute("DROP TABLE kisiler")
+        conn.execute("ALTER TABLE kisiler_yeni RENAME TO kisiler")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.execute("PRAGMA foreign_keys = on")
+
+
 def semayi_kur() -> None:
     conn = baglanti()
     try:
@@ -66,10 +150,25 @@ def semayi_kur() -> None:
         mevcut_sutunlar = [r["name"] for r in conn.execute("PRAGMA table_info(kisiler)").fetchall()]
         if "ogrenci_kisi_id" not in mevcut_sutunlar:
             conn.execute("ALTER TABLE kisiler ADD COLUMN ogrenci_kisi_id INTEGER REFERENCES kisiler (id)")
+        conn.commit()
+
+        _kisiler_personel_migration(conn)
+
+        mevcut_sutunlar = [r["name"] for r in conn.execute("PRAGMA table_info(kisiler)").fetchall()]
+        if "dogum_tarihi" not in mevcut_sutunlar:
+            conn.execute("ALTER TABLE kisiler ADD COLUMN dogum_tarihi TEXT")
+            conn.commit()
+
         if conn.execute("SELECT COUNT(*) FROM siniflar").fetchone()[0] == 0:
             conn.executemany(
                 "INSERT INTO siniflar (ad) VALUES (?)", [(ad,) for ad in _VARSAYILAN_SINIFLAR]
             )
+        sinif_ekle(conn, _PERSONEL_SINIF_ADI)
+        sinif_ekle(conn, _BILINMEYEN_SINIF_ADI)
+
+        for anahtar, deger in _AYARLAR_VARSAYILAN.items():
+            conn.execute("INSERT OR IGNORE INTO ayarlar (anahtar, deger) VALUES (?, ?)", (anahtar, deger))
+
         conn.commit()
     finally:
         conn.close()
@@ -238,7 +337,7 @@ def kisiler_listele(
     kosul_str = f"WHERE {' AND '.join(kosullar)}" if kosullar else ""
     satirlar = conn.execute(
         f"SELECT k.id, k.ad_soyad, k.telefon, k.tur, k.sinif_id, k.ogrenci_kisi_id, "
-        f"s.ad AS sinif_ad, ogr.ad_soyad AS ogrenci_ad "
+        f"k.dogum_tarihi, s.ad AS sinif_ad, ogr.ad_soyad AS ogrenci_ad "
         f"FROM kisiler k "
         f"JOIN siniflar s ON s.id = k.sinif_id "
         f"LEFT JOIN kisiler ogr ON ogr.id = k.ogrenci_kisi_id "
@@ -283,3 +382,74 @@ def kisiler_telefonlu(conn: sqlite3.Connection, sinif_id: int, tur: str) -> list
         (sinif_id, tur),
     ).fetchall()
     return [(r["ad_soyad"], r["telefon"]) for r in satirlar]
+
+
+# --- Ayarlar (global anahtar/değer) --------------------------------------
+
+
+def ayar_oku(conn: sqlite3.Connection, anahtar: str) -> str | None:
+    satir = conn.execute("SELECT deger FROM ayarlar WHERE anahtar = ?", (anahtar,)).fetchone()
+    return satir["deger"] if satir else None
+
+
+def ayar_yaz(conn: sqlite3.Connection, anahtar: str, deger: str) -> None:
+    conn.execute(
+        "INSERT INTO ayarlar (anahtar, deger) VALUES (?, ?) "
+        "ON CONFLICT (anahtar) DO UPDATE SET deger = excluded.deger",
+        (anahtar, deger),
+    )
+    conn.commit()
+
+
+# --- Doğum günleri --------------------------------------------------------
+
+
+def kisi_bul_isimle_sinifsiz(conn: sqlite3.Connection, ad_soyad: str, tur: str) -> dict | None:
+    """`kisi_bul_isimle`'nin sınıftan bağımsız hâli — Dogum.xlsx gibi sınıf
+    bilgisi içermeyen kaynaklardan eşleştirme için. Aynı ad+tür'e sahip
+    BİRDEN FAZLA kişi varsa (iki ayrı sınıfta aynı isimli öğrenci) ilk
+    bulunanı döner — bu bilinçli bir sınırlama, dogum_ice_aktar.py bu
+    durumu özet raporunda ayrıca sayar (bkz. plan §4)."""
+    satir = conn.execute(
+        "SELECT id, ad_soyad, telefon, sinif_id, tur, ogrenci_kisi_id, dogum_tarihi FROM kisiler "
+        "WHERE tur = ? AND tr_norm(ad_soyad) = tr_norm(?)",
+        (tur, ad_soyad),
+    ).fetchone()
+    return dict(satir) if satir else None
+
+
+def kisi_dogum_tarihi_guncelle(conn: sqlite3.Connection, kisi_id: int, iso_tarih: str | None) -> None:
+    conn.execute("UPDATE kisiler SET dogum_tarihi = ? WHERE id = ?", (iso_tarih, kisi_id))
+    conn.commit()
+
+
+def dogum_gunu_olanlar(conn: sqlite3.Connection, ay: int, gun: int) -> list[dict]:
+    """Verilen ay/gün (bugün) doğum günü olan öğrenci+personeli döner.
+    Veli hariç tutulur (kullanıcı kararı — plan §10 madde 6). 29 Şubat'ta
+    doğanlar, artık olmayan yıllarda 28 Şubat'ta da eşleşsin diye ayrıca
+    aranır (veride bugün 29 Şubat kaydı yok, savunmacı davranış)."""
+    mm_gg = f"{ay:02d}-{gun:02d}"
+    kosullar = ["substr(k.dogum_tarihi, 6, 5) = ?"]
+    degerler: list = [mm_gg]
+    if ay == 2 and gun == 28:
+        kosullar[0] = "(substr(k.dogum_tarihi, 6, 5) = ? OR substr(k.dogum_tarihi, 6, 5) = '02-29')"
+    satirlar = conn.execute(
+        f"SELECT k.id, k.ad_soyad, k.telefon, k.tur, k.sinif_id, k.dogum_tarihi, s.ad AS sinif_ad "
+        f"FROM kisiler k JOIN siniflar s ON s.id = k.sinif_id "
+        f"WHERE k.tur IN ('ogrenci', 'personel') AND {kosullar[0]} "
+        f"ORDER BY k.ad_soyad",
+        degerler,
+    ).fetchall()
+    return [dict(r) for r in satirlar]
+
+
+def dogum_tarihli_kisiler(conn: sqlite3.Connection) -> list[dict]:
+    """Yaklaşan doğum günleri hesaplaması için ham liste (ay/gün Python'da
+    işlenir — yıl sonu sarması SQL'de kırılgan, bkz. plan §3)."""
+    satirlar = conn.execute(
+        "SELECT k.id, k.ad_soyad, k.telefon, k.tur, k.sinif_id, k.dogum_tarihi, s.ad AS sinif_ad "
+        "FROM kisiler k JOIN siniflar s ON s.id = k.sinif_id "
+        "WHERE k.tur IN ('ogrenci', 'personel') AND k.dogum_tarihi IS NOT NULL "
+        "ORDER BY k.ad_soyad"
+    ).fetchall()
+    return [dict(r) for r in satirlar]
