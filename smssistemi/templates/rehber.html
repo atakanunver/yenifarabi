@@ -135,6 +135,7 @@
 <section>
   <h2>Toplu Yükle (CSV / Excel)</h2>
   <p class="ipucu">"Adı Soyadı", "Telefon" ve veliler için "Öğrenci Adı" sütunları tanınır. Veli yüklemesinde öğrenci adı ile aynı sınıftaki öğrenci otomatik eşleştirilir; eşleşmeyenler tablodan elle bağlanabilir.</p>
+  <p class="ipucu">Sütun düzenini bilmiyorsanız <a href="/static/rehber_sablon.xlsx" download>şablonu indirin</a>, doldurup aynı formda geri yükleyin.</p>
   <form method="post" action="/rehber/yukle" enctype="multipart/form-data" class="yukle-form">
     <label>Sınıf
       <select name="sinif_id" required>
