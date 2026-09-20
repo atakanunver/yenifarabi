@@ -39,6 +39,24 @@ def test_veli_ogrenci_eslestirme_otomatik_baglar(tmp_path, monkeypatch):
     conn.close()
 
 
+def test_velisi_sutunu_veli_adi_sutununu_golgelemez():
+    """e-Okul dışa aktarımlarında "VELİSİ (ANNE/BABA/DEDE...)" sütunu her zaman
+    "VELİ ADI"ndan önce gelir. Büyük 'İ' Python'da 'i' + birleştirici nokta
+    (U+0307) olarak küçüldüğü için "velisi" ASCII dışlaması hiç tetiklenmiyordu
+    ve bu sütun yanlışlıkla veli-adı sütunu sanılıp gerçek "VELİ ADI"nı kalıcı
+    olarak gölgeliyordu (bulundu: 2026-09-20)."""
+    csv_icerik = (
+        "OKUL NO,VELİSİ (ANNE/BABA/DEDE...),VELİ ADI,ÖĞRENCİ AD-SOYAD,ANNE TEL\n"
+        "1,ANNE,Fatma Çimen,Ali Çimen,05552222222\n"
+    ).encode("utf-8-sig")
+
+    satirlar = gonderim.rehber_dosyasindan_oku("veliler.csv", csv_icerik, tur="veli")
+
+    assert len(satirlar) == 1
+    assert satirlar[0]["ad_soyad"] == "Fatma Çimen"
+    assert satirlar[0]["ogrenci_adi"] == "Ali Çimen"
+
+
 def test_veli_ogrenci_bulunamazsa_baglantisiz_ekler(tmp_path, monkeypatch):
     monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test_esles_yok.db")
     db.semayi_kur()

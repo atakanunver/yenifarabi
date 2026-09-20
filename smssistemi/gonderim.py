@@ -108,23 +108,33 @@ _VELI_ANAHTAR_KELIMELERI = ("veli adı", "veli ad", "veli isim", "veli ad-soyad"
 _GENEL_AD_ANAHTAR_KELIMELERI = ("soyad", "isim", "name", "ad", "adı")
 
 
+def _tr_kucult(s: str) -> str:
+    """Türkçe-güvenli küçültme. Python'ın varsayılan `.lower()`'ı büyük
+    'İ'yi (nokta ayrı bir birleştirici karakter olarak) 'i' + U+0307'ye
+    çevirir — bu da "velisi" gibi düz ASCII anahtar kelimelerin "VELİSİ"
+    içinde hiç eşleşmemesine yol açar (bulundu: 2026-09-20, `_baslik_veli_
+    sutunu_mu`'daki "velisi" dışlaması gerçekte hiç tetiklenmiyordu).
+    Önce İ→i, I→ı çevrilip öyle küçültülür."""
+    return s.replace("İ", "i").replace("I", "ı").lower()
+
+
 def _baslik_telefon_sutunu_mu(baslik: str) -> bool:
-    return any(k in baslik.strip().lower() for k in _TELEFON_ANAHTAR_KELIMELERI)
+    return any(k in _tr_kucult(baslik.strip()) for k in _TELEFON_ANAHTAR_KELIMELERI)
 
 
 def _baslik_sinif_sutunu_mu(baslik: str) -> bool:
-    return any(k in baslik.strip().lower() for k in _SINIF_ANAHTAR_KELIMELERI)
+    return any(k in _tr_kucult(baslik.strip()) for k in _SINIF_ANAHTAR_KELIMELERI)
 
 
 def _baslik_ogrenci_sutunu_mu(baslik: str) -> bool:
-    b = baslik.strip().lower()
+    b = _tr_kucult(baslik.strip())
     if _baslik_telefon_sutunu_mu(b) or _baslik_sinif_sutunu_mu(b):
         return False
     return any(k in b for k in _OGRENCI_ANAHTAR_KELIMELERI)
 
 
 def _baslik_veli_sutunu_mu(baslik: str) -> bool:
-    b = baslik.strip().lower()
+    b = _tr_kucult(baslik.strip())
     if _baslik_telefon_sutunu_mu(b) or _baslik_sinif_sutunu_mu(b) or _baslik_ogrenci_sutunu_mu(b):
         return False
     if any(k in b for k in _VELI_ANAHTAR_KELIMELERI):
@@ -135,7 +145,7 @@ def _baslik_veli_sutunu_mu(baslik: str) -> bool:
 
 
 def _baslik_genel_ad_sutunu_mu(baslik: str) -> bool:
-    b = baslik.strip().lower()
+    b = _tr_kucult(baslik.strip())
     if (
         _baslik_telefon_sutunu_mu(b)
         or _baslik_sinif_sutunu_mu(b)
