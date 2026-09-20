@@ -38,7 +38,17 @@ def _kopru_session(ayarlar: dict) -> requests.Session:
     docs/superpowers/specs/2026-09-19-smssistemi-design.md "Mimari" — köprü
     yalnızca TCP seviyesinde, HTTP içeriğini yeniden yazmıyor). Bu hook her
     redirect'in Location'ındaki host:port'u köprünün kendisiyle değiştirip
-    modemin kendi ağına kaçmasını engelliyor."""
+    modemin kendi ağına kaçmasını engelliyor.
+
+    2026-09-20 canlı teşhis: `/html/index.html?origin=<base64>` isteğinde
+    modem, Host köprünün adresi olduğu sürece origin'i KORUYARAK aynı
+    307'yi tekrar tekrar üretiyor — host'u düzeltmek tek başına yetmiyor,
+    `requests` aynı origin'li URL'i döngüsel olarak takip edip 30
+    yönlendirmeyi aşınca (`TooManyRedirects`) düşüyor. `origin` sorgu
+    parametresi yalnızca modemin "redirect sonrası nereye dön" bilgisi,
+    API akışı için gereksiz — atılınca döngü kırılıyor. `max_redirects`
+    de düşürüldü ki döngü yine de oluşursa 30 yerine birkaç denemede
+    hızlı düşüp `_baglan`'ın taze-bağlantı retry'ına devretsin."""
     kopru_netloc = f"{ayarlar['host']}:{ayarlar['port']}"
 
     def _location_duzelt(response: requests.Response, *args, **kwargs) -> requests.Response:
@@ -48,11 +58,12 @@ def _kopru_session(ayarlar: dict) -> requests.Session:
         parcalar = urlsplit(konum)
         if parcalar.netloc and parcalar.netloc != kopru_netloc:
             response.headers["Location"] = urlunsplit(
-                (parcalar.scheme or "http", kopru_netloc, parcalar.path, parcalar.query, parcalar.fragment)
+                (parcalar.scheme or "http", kopru_netloc, parcalar.path, "", parcalar.fragment)
             )
         return response
 
     session = requests.Session()
+    session.max_redirects = 5
     session.hooks["response"].append(_location_duzelt)
     return session
 
