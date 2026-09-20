@@ -1,7 +1,7 @@
 # Doğum Günleri Modülü — Uygulama Planı
 
 **Tarih:** 2026-09-20
-**Durum:** Plan — uygulanmadı. Faz 0 (karar onayı) kullanıcıda.
+**Durum:** Faz 1 UYGULANDI ve doğrulandı (bkz. §12). Faz 2-6 bekliyor.
 **Plan modeli:** Opus (Kural 11). Uygulama: Sonnet.
 **İlgili:** `smssistemi/CLAUDE.md`, kök `CLAUDE.md` → "Frontend / Dashboard Tasarım Standartları", `docs/superpowers/specs/2026-09-19-smssistemi-design.md`
 
@@ -318,6 +318,46 @@ yok → senkron riski doğurmuyor.
 - **S6 — Personel `/gonder` panelinde görünsün mü?** Varsayılan: evet.
 
 ---
+
+## 12. Faz 1 sonuç raporu (2026-09-20)
+
+Uygulandı: `smssistemi/db.py` (`_KISILER_TABLO_GOVDESI` kanonik şema,
+`_kisiler_personel_migration` idempotan+yedekli+atomik rebuild, `ayarlar`
+tablosu, 6 yeni sorgu fonksiyonu), `smssistemi/test_db.py` (10 yeni test).
+
+**Uygulama sırasında bulunan/düzeltilen iki gerçek sorun:**
+1. `SEMA`'nın kendi `kisiler` tanımı ilk yazımda hâlâ eski (personel'siz)
+   haldeydi — bu, **sıfırdan kurulan** bir veritabanında bile migration'ın
+   gereksiz yere tetiklenmesine yol açıyordu (boş DB'yi "yedekliyordu").
+   `_KISILER_TABLO_GOVDESI` ortak sabitine taşınıp hem `SEMA` hem migration
+   aynı kanonik tanımı kullanacak şekilde düzeltildi.
+2. Bu düzeltmeden ÖNCEKİ ilk `pytest` koşumunda, henüz `YEDEK_DIZINI`
+   izole edilmemiş bir test (`test_semayi_kur_varsayilan_siniflari_doldurur`)
+   migration'ı tetikleyip **gerçek** `smssistemi/veri/yedek/` dizinine boş
+   bir test-DB'si yazdı. İçeriği doğrulanıp (0 satır, gerçek veriyle
+   ilgisi yok) temizlendi; test artık `YEDEK_DIZINI`'ni de izole ediyor.
+
+**Doğrulama:**
+- 48/48 pytest geçti (10 yeni: migration idempotanlığı + veri koruması +
+  personel/geçersiz-tur CHECK davranışı + 6 yeni fonksiyon).
+- Ruff temiz (bir `DTZ011` bulgusu kendi yeni kodumdan çıktı,
+  `datetime.now(ZoneInfo("Europe/Istanbul"))`'a çevrilip düzeltildi —
+  projenin `zil.py`'deki mevcut saat dilimi konvansiyonuyla aynı).
+- Gerçek üretim DB'sinin kopyası üzerinde migration iki kez manuel test
+  edildi (102→102 satır, ikinci koşuda guard'ın çalıştığı doğrulandı).
+- **Gerçek üretim restart'ı** (Pazar 08:55 TR, ders saati dışı): 102 satır
+  korundu, `tur` CHECK'i `'personel'` içeriyor, `dogum_tarihi` sütunu var,
+  "Personel"/"Bilinmeyen Sınıf" sınıfları ve `ayarlar` varsayılanları
+  (`sms_otomatik='0'`) seed edildi. Otomatik dosya yedeği kendiliğinden
+  oluştu; ayrıca elle bir yedek daha alındı.
+- Regresyon: `/giris` (200), `/` ve `/rehber` (auth yoksa 303→`/giris`,
+  değişmedi).
+
+**Yapılmadı / Faz 2'ye bırakıldı:** `Dogum.xlsx`'in gerçek içe aktarımı
+henüz çalıştırılmadı — `kisiler` tablosunda hâlâ hiçbir `dogum_tarihi`
+dolu değil, `sms_otomatik` hâlâ kapalı. Web arayüzü (`/dogum-gunleri`)
+henüz yok; dashboard'daki yer tutucu sayfa (commit `d47b342`) hâlâ
+"hazırlanıyor" diyor.
 
 ### Uygulama için kritik dosyalar
 - `smssistemi/db.py` — şema, migration, tüm yeni sorgular
