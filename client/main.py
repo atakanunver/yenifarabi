@@ -201,9 +201,14 @@ MIKSIZ_DERS_DK = 40
 MIKSIZ_KAPANIS_KALAN_DK = 2
 
 MIKSIZ_KURALLARI = (
-    "[MİKROFONSUZ MOD]\n"
+    "[MİKROFONSUZ MOD — YUKARIDAKİ KURALLARDAN ÖNCE GELİR]\n"
     "Bu tahtanın mikrofonu yok: sınıfı ve öğretmeni DUYAMAZSIN, sana sesli "
     "hiçbir cevap gelmeyecek. Dersi tek yönlü, akıcı bir anlatım olarak işle.\n"
+    "- Bu modda şu kurallar ASKIDADIR: YOKLAMA (dersin ilk işi değil, hiç "
+    "alınmaz), ÜÇ ADIM KURALI ve 'birlikte çözüm' (öğrenciden cevap "
+    "beklenmez, çözümü sen gösterirsin), ÖĞRENCİ ETKİLEŞİMİ VE KATILIM, "
+    "GRUP ÇALIŞMASI, KALABALIK VE GÜRÜLTÜ uyarıları ve sınıfa sesli söz "
+    "verdiren her şey.\n"
     "- Yoklama alma, kimseden sesli cevap bekleme, 'duyamadım' ya da 'kimse "
     "cevap vermedi' deme.\n"
     "- Soru sorabilirsin ama cevabı kendin ver: soruyu sor, 'Bir düşünün…' "
@@ -276,7 +281,7 @@ _THOUGHT_RE = re.compile(r"\bthought\b\s*", re.IGNORECASE)
 # Model, kendisine verilen talimat etiketini cümlenin başında sesli olarak
 # tekrarlıyor. İlk savunma promptta ("etiketi okuma"), bu ikinci savunma.
 _ETIKET_RE = re.compile(
-    r"\[(?:DERS_ACILISI|DERS DURUMU|ÖĞRETMEN KOMUTU|OTURUM DEVAM|"
+    r"\[(?:DERS_ACILISI|DERS_KAPANISI|DEVAM|DERS DURUMU|ÖĞRETMEN KOMUTU|OTURUM DEVAM|"
     r"CURRENT DATE & TIME|DERSLİK|DERS KİPİ[^\]]*)\]\s*",
     re.IGNORECASE)
 
@@ -816,12 +821,15 @@ class FarabiLive:
                 "doğruluğu senin sorumluluğunda. Sınıfa 'çocuklar' de.\n"
             )
 
-        # Mikrofon yok: sınıftan cevap gelmez, anlatım tek yönlü (talimat
-        # modu yukarıda ayrı config'e döndü; o mod mikrofonsuz seçilemez).
+        parts.append(sys_prompt)
+
+        # Mikrofon yok: sınıftan cevap gelmez, anlatım tek yönlü. prompt.txt'ten
+        # SONRA eklenir — oradaki yoklama/üç adım/katılım kurallarını geçersiz
+        # kılması gerekiyor ve sonra gelen, daha özel talimat kazanır (dil
+        # direktifi de aynı gerekçeyle en sonda). Talimat modu yukarıda ayrı
+        # config'e döndü; o mod mikrofonsuz seçilemez.
         if getattr(self, "_mikrofonsuz", False):
             parts.append(MIKSIZ_KURALLARI)
-
-        parts.append(sys_prompt)
 
         # ── Ders dili ────────────────────────────────────────────────────────
         # Varsayılan Türkçe. core/prompt.txt TEK KAYNAK olarak Türkçe kalır —
@@ -1599,7 +1607,9 @@ class FarabiLive:
                 "sonraki adıma geç. Selamlama yapma, 'devam ediyorum' deme, "
                 "söylediklerini tekrar etme."
             )
-            log.debug("Mikrofonsuz mod: [DEVAM] gönderildi (tur %d).", self._tur_no)
+            # INFO: tahtaları uzaktan duyamıyoruz, döngünün çalıştığının tek
+            # kanıtı farabi.log (ders başına ~80 satır, rotating log kaldırır).
+            log.info("Mikrofonsuz mod: [DEVAM] gönderildi (tur %d).", self._tur_no)
         await self.session.send_client_content(
             turns={"role": "user", "parts": [{"text": metin}]},
             turn_complete=True,

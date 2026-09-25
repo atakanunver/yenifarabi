@@ -72,12 +72,25 @@ def _yapilandirma(mikrofonsuz: bool):
 
 def test_mikrofonsuz_kurallari_sistem_talimatinda():
     metin = _yapilandirma(True)
-    assert "[MİKROFONSUZ MOD]" in metin
+    assert "[MİKROFONSUZ MOD" in metin
     assert "cevabı kendin" in metin
 
 
+def test_mikrofonsuz_kurallari_personadan_sonra_gelir():
+    # prompt.txt'teki yoklama/üç adım kurallarını ezebilmesi için sonra gelmeli.
+    metin = _yapilandirma(True)
+    persona_basi = main._load_system_prompt()[:200]
+    assert metin.index("[MİKROFONSUZ MOD") > metin.index(persona_basi)
+    assert "YOKLAMA" in main.MIKSIZ_KURALLARI and "ÜÇ ADIM" in main.MIKSIZ_KURALLARI
+
+
+@pytest.mark.parametrize("etiket", ["[DEVAM]", "[DERS_KAPANISI]"])
+def test_yeni_etiketler_transkriptten_temizlenir(etiket):
+    assert etiket not in main._konusma_temizle(f"{etiket} Newton'un yasası")
+
+
 def test_normal_modda_mikrofonsuz_kurali_yok():
-    assert "[MİKROFONSUZ MOD]" not in _yapilandirma(False)
+    assert "[MİKROFONSUZ MOD" not in _yapilandirma(False)
 
 
 # ── Açılış ─────────────────────────────────────────────────────────────────
