@@ -462,4 +462,8 @@ def geogebra(parameters: dict | None = None, player=None, speak=None, **_) -> st
     if basarisiz:
         ozet += (" BAŞARISIZ olanlar (GeoGebra sözdizimini düzeltip yeniden "
                  "gönder, çalışmayanı çizilmiş gibi anlatma): " + "; ".join(basarisiz))
+        if _K.uygulama != "classic":
+            ozet += (" Not: Solve/Factor/Expand/Simplify/Tangent gibi sembolik "
+                     "(CAS) komutlar yalnızca uygulama='classic'te çalışır — "
+                     "sözdizimi doğruysa classic'e geçip yeniden gönder.")
     return ozet

@@ -284,6 +284,9 @@ ARACLAR: list[Arac] = [
             "the board themselves. 'komutlar' are GeoGebra input-bar commands "
             "in ENGLISH syntax, run in order: 'a=Slider(-5,5,0.1)', "
             "'f(x)=a(x-h)^2+k', 'A=(1,2)', 'c=Circle(A,3)', 'Intersect(f,g)'. "
+            "Symbolic (CAS) commands — Solve, Factor, Expand, Simplify, "
+            "Tangent, NSolve — work ONLY with uygulama='classic'; graphing "
+            "and geometry reject them. "
             "To change an existing number use 'degerler' ([{\"ad\": \"a\", \"deger\": 2}]), not "
             "SetValue. temizle=true starts from an empty scene. The result "
             "lists any command GeoGebra rejected — fix its syntax and resend; "
@@ -303,7 +306,7 @@ ARACLAR: list[Arac] = [
                              "description": "Set existing numbers/sliders, e.g. [{\"ad\": \"a\", \"deger\": 2}]."},
                 "temizle":  {"type": "BOOLEAN", "description": "true = clear the scene before running the commands."},
                 "uygulama": {"type": "STRING", "enum": ["graphing", "geometry", "3d", "classic"],
-                             "description": "GeoGebra app. Default graphing; geometry for constructions, 3d for solids. Changing it reloads the scene."},
+                             "description": "GeoGebra app. Default graphing; geometry for constructions, 3d for solids, classic for symbolic/CAS commands (Solve, Factor, Tangent). Changing it reloads the scene."},
                 "kapat":    {"type": "BOOLEAN", "description": "true = close the GeoGebra window."},
             },
             "required": [],
