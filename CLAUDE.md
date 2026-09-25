@@ -1,112 +1,173 @@
 # Farabi
 
-Sınıf akıllı tahtalarında çalışan sesli ders asistanı.
-Detaylı mimari: `@docs/mimari.md`
+Sınıf akıllı tahtalarında çalışan sesli ders asistanı + aynı sunucuda koşan
+okul operasyon servisleri (yoklama panosu, SMS).
 
-## Güncel durum (2026-09-15 itibarıyla, hızlı özet)
+- **Bu dosya = güncel durum + kurallar.** Tarihli olay anlatımları, kök neden
+  hikâyeleri ve "neden böyle" gerekçeleri `DECISIONS.md`'de (2026-09-25'te
+  buradan taşınanlar dosyanın sonundaki "Arşiv" bölümünde). Bir notun
+  ayrıntısı için `grep "## <tarih>" DECISIONS.md`.
+- Detaylı mimari: `@docs/mimari.md` §0–§14 (§15 yok). ⚠️ İçeriği
+  **2026-09-13'te donmuş**, sonraki değişiklikleri yansıtmaz; çelişkide BU
+  dosya esas. Dosya kaybolursa yeniden üretme: `git show
+  3f26d71^:docs/mimari.md` ile geri al.
+- Alt projelerin kendi `CLAUDE.md`'leri var: `client/`, `tahtayoklama/`,
+  `smssistemi/`, `tahtaayar/`.
 
-- **Farabi client:** aktif 7 tahtanın 7'sinde de kurulu (9-A, 9-B, 10-A,
-  11-A, 11-B, 12-A, 12-B) — ayrıntı ve kurulum tarihleri aşağıdaki "Ağ
-  Envanteri" tablosunda, DECISIONS.md'de.
-- **Tahtayoklama (yoklama sistemi):** aynı 7 tahtanın 7'sinde de kurulu.
-  Board tarafı `tahtayoklama/yoklama.py`; sunucu tarafı
-  `tahtayoklama/dashboard/` — `farabi-yoklama-dashboard.service` adıyla
-  ayrı bir systemd servisi, `server/`'daki RAG Brain'den (`farabi-api.
-  service`) TAMAMEN AYRI bir uygulama/servis, aynı sunucuda yan yana koşuyor.
-- **Uzaktan kontrol (2026-09-15'te eklendi):** `tahtayoklama/dashboard/`'a
-  `/admin/uzaktan` bölümü eklendi — ekran karart/kaldır, yoklama aç/kapat,
-  duvar kağıdı değiştir, çoklu tahta seçimiyle toplu işlem. Ayrı bir kurulum
-  gerektirmiyor — var olan `ogretmen` SSH anahtarını kullanıyor. ⚠️ Bu
-  eklenti henüz git'e commit edilmedi, `tahtayoklama/dashboard/` altında
-  uncommitted değişiklik olarak duruyor (`git status` ile görülür) —
-  commit edilmeden önce kaybolabilir, DECISIONS.md'nin
-  2026-09-15 kaydına bkz.
-- **IP değil, hostname esas alınmalı:** tahtaların IP'leri DHCP kirası
-  bozulursa değişebilir; kalıcı kimlik `hostname`'dir (`vestel9a`,
-  `vestel9b`, ... — artık gerçek sınıf adını taşıyor) ve MAC adresidir.
-  IP↔sınıf eşlemesi geçmişte en az bir kez yanlış girilmişti (2026-09-12
-  düzeltmesi, aşağıda) — şüphede kalınırsa `hostname` veya
-  `server/tahtalar.json` esas alınmalı, IP tek başına güvenilmemeli.
-- **farabi.local (bu sunucu) neyi barındırıyor:**
-  - `server/` ("Brain", `farabi-api.service`): ders kitapları RAG'i
-    (pgvector+rerank+LLM), bulut LLM proxy, dosya işleme. Yerel **Ollama**
-    (`ollama.service`, ayrı systemd birimi, `qwen2.5:14b`) RAG'in cevap
-    üretme adımını ve `dosya.py`'nin `belge_ozet` görevini (PDF/metin
-    özeti) çalıştırıyor — bulut 6-sağlayıcı havuzu (`server/saglayicilar.
-    py`: Groq/Mistral/DeepSeek/OpenRouter/NVIDIA) bundan AYRI, görsel/
-    web-arama-sentezi/video-özeti/kitap-özeti gibi görevler için.
-  - `tahtayoklama/dashboard/` (`farabi-yoklama-dashboard.service`):
-    yoklama, öğrenci listeleri (SQLite `siniflar`/`ogrenciler` tabloları +
-    `tahtayoklama/data/roster/*.json`) ve zil/ders-programı bilgisi.
-  - ⚠️ **Ders programı ve zil saatleri TEK kaynaktan gelmiyor, üç bağımsız
-    kopya var:** `mudur/ders_programi.json` (müdür yardımcısının kaynağı),
-    `tahtayoklama/data/ders_programi.json` (dashboard'un kendi kopyası —
-    `dashboard/ders_programi.py`'nin docstring'i bunun bilinçli bağımsız
-    bir kopya olduğunu, aralarında canlı bağlantı olmadığını açıkça
-    söylüyor) ve her tahtanın kendi `client/config/ders_programi.json`'ı
-    (Farabi'nin okuduğu). Biri değişince diğer ikisi OTOMATİK güncellenmez
-    — `mudur/ders_programi_yukle.py` / `tahtayoklama/dashboard/scripts/
-    ders_programi_yukle.py` ile elle/scriptle senkron edilmesi gerekir.
-    Aynı üç-kopya deseni `zil.json` için de geçerli.
+## Güncel durum (2026-09-25)
 
-> ⚠️ **KESİN MİMARİ KARARI (2026-09-05) — `docs/mimari.md` §0'a bak, her
-> şeyden önce.** Client = yalnızca tahtadaki arayüz/etkileşim yüzeyi (ses
-> oturumu dahil), server = beyin (RAG + **sistem promptu** + iş mantığı +
-> sağlayıcı routing). Bu, aşağıdaki "Temel Kurallar"daki Kural 1'in
-> ("client ince kalmalı") doğal uzantısıdır. İki somut göç PLANLANDI, henüz
-> YAPILMADI:
-> 1. `client/core/prompt.txt` server'a taşınacak, client onu oturum başında
->    HTTP ile çekecek.
-> 2. **Dağıtım: GitHub tek doğru kaynak — UYGULANDI (2026-09-05).**
->    Tahtalar GitHub'dan (`github.com/atakanunver/yenifarabi`, PUBLIC)
->    **doğrudan** çeker, server ARADA DEĞİL (kullanıcı netleştirdi: "tahtalar
->    serverdan kodu github üzerinden çeksin rsync iptal"). `server/
->    farabi-kurulum.sh` rsync'ten git'e yeniden yazıldı: tahta `client/`'ı
->    sparse-checkout ile klonlar, `farabiguncelle.sh` artık `git fetch` +
->    `git reset --hard origin/master` (aynı isim, tamamen yeni mekanizma) —
->    repo public olduğu için SSH-anahtar adımları kaldırıldı. `farabi.local`
->    yalnızca KENDİ (`server/`) kodu için ayrıca GitHub'dan çeker, bu board
->    dağıtımından bağımsız bir akış. **Düzeltme (2026-09-06): "9-A ağda
->    erişilemez" artık geçerli değil — 9-A'ya SSH ile bağlanıldı, server'a
->    sorunsuz ulaşıyor.**
->
->    **9-A'nın kendi mekanizması da 2026-09-06'da YENİ mekanizmaya
->    geçirildi — ama bilinçli olarak KLASÖR YAPISI KORUNARAK.** Kanonik
->    `server/farabi-kurulum.sh` tahtanın `~/farabi`'sinin doğrudan
->    sparse-checkout (yalnızca `client/`) olmasını varsayıyor; 9-A'da zaten
->    çalışan farklı bir yapı vardı (`~/farabi/repo` tam klon, gerçek client
->    `~/farabi/repo/client`'ta, masaüstü kısayolu bu yola sabit) — bu yapı
->    BOZULMADI (kullanıcı kararı, riskli bir restructure yerine). Değişen
->    yalnızca MEKANİZMA: `~/.local/bin/farabiguncelle.sh` artık eskisi gibi
->    `gh` kimlik doğrulamasıyla `git pull` değil, kanonikteki gibi kimlik
->    doğrulamasız `git fetch` + `git reset --hard origin/master` (repo
->    public, doğrulandı). Ayrıca `~/.local/bin/farabi-heartbeat.sh` ilk kez
->    kuruldu ve crontab'a eklendi (15 dk'da bir) — `POST
->    /api/client/heartbeat`'e commit hash/hostname/ip gönderiyor, canlıda
->    doğrulandı (`tahta_durum` tablosunda 9-A satırı var). **Bu arada
->    kanonik script'te de gerçek bir bug bulundu ve düzeltildi:** üretilen
->    heartbeat script'i `X-Farabi-Board-Key` header'ı göndermiyordu —
->    `client_durum.py::heartbeat` her router gibi `auth.dogrula_tahta`'ya
->    bağlı olduğu için her heartbeat sessizce 401 alıyordu (curl -s + log
->    olduğu için hiç görünmüyordu). Her iki script'te de düzeltildi.
->
-> **Çapraz değişiklik kuralı (yeni):** client+server bağlı değiştiğinde
-> (biri diğerini gerektiriyorsa) ikisi BİRLİKTE ele alınır — Claude her iki
-> tarafı da inceler ve ilgili test paketlerini (`server/tests/`,
-> `client/tests/`) çalıştırır, sonra `farabi.local` deploy eder. **Son kabul
-> testi her zaman Atakan tarafından fiziksel tahtada yapılır** — bu adım
-> otomatikleştirilmez/atlanmaz.
->
-> `client/core/prompt.txt`'in server'a taşınması hâlâ PLANLANDI, henüz
-> YAPILMADI — bu dosyanın geri kalanındaki "client'ta prompt.txt var"
-> anlatımı hâlâ koddaki gerçek durumdur; dağıtım kısmı ise artık YUKARIDAKİ
-> yeni akışı yansıtır, "rsync ile senkron" ifadeleri geçmiş durumu anlatır.
+- **Farabi client:** 8 tahtada kurulu — 7 sınıf (9-A, 9-B, 10-A, 11-A, 11-B,
+  12-A, 12-B) + `fenlab`. Tablo: aşağıda "Ağ Envanteri".
+- **Tahtayoklama:** aynı 8 tahtada kurulu. Tahta tarafı
+  `tahtayoklama/yoklama.py`; sunucu tarafı `tahtayoklama/dashboard/`.
+- **Mikrofonsuz mod** şu an 8 tahtanın hepsinde açık (`api_keys.json::
+  mikrofon`, bkz. DECISIONS.md 2026-09-25 "Gemini faturalandırma engeli").
+- **`client/core/prompt.txt` hâlâ client'ta.** Server'a taşınması
+  PLANLANDI, YAPILMADI (mimari.md §0).
+- **IP değil hostname/MAC esas alınır.** DHCP kirası bozulunca IP değişiyor
+  (12-A, 2026-09-22). Kanonik kayıt `server/tahtalar.json`. Bir tahtanın IP'si
+  değişirse **üç yer** güncellenir: `server/tahtalar.json`, dashboard SQLite
+  `tahtalar` tablosu (yoklama + uzaktan yönetim buradan okur), bu dosyadaki
+  tablo.
+- ⚠️ **Ders programı ve zil saatleri üç bağımsız kopya:**
+  `mudur/ders_programi.json` (müdür yardımcısının kaynağı),
+  `tahtayoklama/data/ders_programi.json` (dashboard'un kendi kopyası —
+  `dashboard/ders_programi.py` docstring'i bilinçli bağımsız olduğunu
+  söylüyor) ve her tahtanın `client/config/ders_programi.json`'ı. Biri
+  değişince diğerleri OTOMATİK güncellenmez — `mudur/ders_programi_yukle.py`
+  / `tahtayoklama/dashboard/scripts/ders_programi_yukle.py` ile senkron
+  edilir. Aynı desen `zil.json` için de geçerli.
 
-**Donanım (server, hızlı referans):** 2× NVIDIA RTX 3060 12GB 
-İkisi de tam kapasite committed: biri `ollama.service`'e, diğeri
-`farabi-api.service` (embedding+reranker) — ayrıntı ve gerekçe için aşağıdaki
-"Bilinçli sapma (2026-08-09)" notuna bkz. Yeni bir GPU işi (ör. vision model)
-planlanırken bu iki kartın ZATEN dolu olduğu unutulmamalı.
+## Mimari: üç servis + tahta istemcisi
+
+Hepsi bu makinede (`farabi.local`), **üç ayrı systemd birimi, üç ayrı venv**.
+Kod paylaşmazlar, birini deploy etmek diğerini etkilemez; üretime almak =
+ilgili servisi restart etmek. Servisler birleştirilmez; servisler arası bağ =
+HTTP + HMAC.
+
+| Servis | Dizin | Port | Ne yapar |
+|---|---|---|---|
+| `farabi-api` ("Brain") | `server/` | 8000 | RAG, kitap içeriği/PDF render, YKS, bulut LLM proxy, dosya işleme, tahta auth |
+| `farabi-yoklama-dashboard` | `tahtayoklama/dashboard/` | 8010 | yoklama, roster, zil/ders programı, uzaktan yönetim (`/admin/uzaktan`) |
+| `farabi-smssistemi` | `smssistemi/` | 8020 | toplu/kişisel SMS, rehber, Doğum Günleri, Yoklama SMS |
+| `ollama` | — | 11434 | `qwen2.5:14b`, LAN'a açık, paylaşılan yerel LLM |
+
+- **Tek bilinçli DB paylaşımı istisnası:** smssistemi'nin `/yoklama-sms`'i
+  dashboard'un `yoklama_pano.db`'sini **salt-okunur, doğrudan** okur (bkz.
+  DECISIONS.md 2026-09-23). Dashboard ↔ smssistemi başka bağı yok: HMAC SSO
+  köprüsü (`/dogum`, `/sms-git`).
+- **Uzaktan yönetim** (`/admin/uzaktan`): ekran karart/kaldır, yoklama
+  aç/kapat, duvar kağıdı, anlık ekran görüntüsü (`GET /admin/uzaktan/
+  ekran-goruntusu/{tahta_adi}?ham=1`), çoklu tahta seçimi. Tahtaya doğrudan
+  `ogretmen` olarak SSH (`~/.ssh/id_ed25519_tahta`), sudo gerektirmez.
+
+**Client ↔ Server ayrımı (KESİN, mimari.md §0):** client = yalnızca tahtadaki
+arayüz/etkileşim yüzeyi (Gemini Live ses oturumu dahil); server = beyin (RAG,
+sistem promptu, iş mantığı, sağlayıcı routing). Ses kalıcı olarak Gemini
+Live'da, client'ta (2026-08-11 kararı); client'taki tek bulut anahtarı Gemini.
+
+**Tahtaya dağıtım:** GitHub tek doğru kaynak (`github.com/atakanunver/
+yenifarabi`, PUBLIC). Tahtalar GitHub'dan **doğrudan** çeker, server arada
+değil: `server/farabi-kurulum.sh` `client/`'ı sparse-checkout ile klonlar,
+tahtadaki `farabiguncelle.sh` = `git fetch` + `git reset --hard
+origin/master` (günlük cron), `farabi-heartbeat.sh` 15 dk'da bir `POST
+/api/client/heartbeat`. İstisna: **9-A** tam klon yapısını korur
+(`~/farabi/repo`, client `~/farabi/repo/client`'ta) — mekanizma aynı.
+Gitignore'lu ayarlar (`zil.json`, `ders_programi.json`, `api_keys.json`'ın
+ortak alanları: Gemini anahtarı, `mikrofon`, `sunucu_url`) git ile gitmez,
+`server/config_dagit.sh [--kuru] [tahta...]` ile SSH'tan dağıtılır; ortak
+değerlerin kaynağı `server/config/api_keys_tahta_ortak.json` (gitignore'lu).
+`farabi.local` kendi `server/` kodunu ayrıca GitHub'dan çeker.
+
+**Tahta auth:** her `/api/egitim/*` router'ı `auth.dogrula_tahta`'ya bağlı,
+üretimde ZORUNLU. Client tüm isteklerde `core.tahta.auth_headers()` ile
+`X-Farabi-Board-Key` gönderir. Anahtarlar `server/config/api_keys.json::
+board_keys` ve her tahtanın `client/config/api_keys.json`'ında;
+`auth._board_keys()` dosyayı her istekte okur (restart gerekmez). Acil geri
+dönüş: servis override'ına `Environment="FARABI_AUTH_REQUIRED=0"`.
+
+### `client/` — PyQt6 tahta istemcisi
+
+Detay `client/CLAUDE.md`'de. Özet:
+
+- `main.py` (`FarabiLive`: Gemini Live oturumu, araç dağıtımı, ders açılışı),
+  `ui.py` (`FarabiUI`/`MainWindow` HUD; kalem/silgi çizim katmanı
+  `_CizilebilirGorsel` — yalnızca butonla açılır, LLM tool'u DEĞİL, çizim
+  kaydedilmez).
+- `core/` — `ders_motoru.py`, `olaylar.py` (event bus), `program.py`,
+  `zil.py`, `anahtar.py` (Gemini anahtar havuzu), `transcript.py`,
+  `tahta.py`, `saglayicilar.py` (sağlayıcı havuzu DEĞİL — server'a ince HTTP
+  proxy; `metin_uret`/`gorsel_uret` imzaları korunmuş).
+- `actions/` — modelin çağırdığı araçlar, tek kaynak `kayit.py`. Server'a
+  bağlı olanlar sunucu ulaşılamazsa sessizce kısıtlayıcı metne düşer, ders
+  bozulmaz. `kitap_sorusu` (RAG ile kaynaklı soru-cevap) ≠ `ders_icerigi`
+  (konu anlatımı için sayfa metni) — karıştırma. `pdf_sayfa` PNG'yi
+  indirip ≤30 dosyalık önbelleğe yazar, sonra `pdf_sayfa_metni` ile sayfa
+  metnini modele verir. `ekran_goruntusu_al`/`ekrandaki_soruyu_oku` yalnızca
+  tahtanın kendi ekranını yakalar (webcam yok; eski `screen_processor.py`
+  ayrı, kaldırılmış bir modüldü).
+- `tools/` — çevrimdışı içerik hazırlama script'leri (kitap/YKS PDF → JSON);
+  tahtada koşmaz, bu makinede `/mnt/farabi-data/farabi/` verisiyle çalışır.
+  `dogrula.py` ve `mikrofon_test.py` hâlâ kullanılır.
+- `config/` — gerçek JSON'lar gitignore'lu, `.example.json` şablonlar
+  committed. Client'ta yalnızca `gemini_api_keys`, `derslik`, `sunucu_url`,
+  `ders_kipi`, `os_system`, `mikrofon`, `tahta_anahtari` kalır.
+- `planlar/` koda bağlı değil, arşiv. Client'ın kendi kitap/YKS deposu YOK;
+  yalnızca `icerik/onbellek/{pdf_sayfa,yks_sayfa}/` geçici önbelleği.
+
+### `server/` — FastAPI Brain
+
+- `main.py`/`rag.py`/`db.py` — `/health`, `/ready`, `POST
+  /api/egitim/question`, `GET /api/egitim/kitaplar`, `POST
+  /api/egitim/ders_kaydi_yedek`.
+- `icerik.py` — `POST /api/egitim/ders_icerigi`, `GET /api/egitim/pdf_sayfa`
+  (PyMuPDF → PNG), `GET /api/egitim/pdf_sayfa_metni`. Aynı ders için birden
+  fazla cilt olabilir (ör. `matematik_9.pdf` / `matematik_9_2.pdf`):
+  `ders_icerigi`'nin seçtiği kitap `_SON_KITAP`'ta (derslik anahtarlı)
+  tutulur, `pdf_sayfa` onu tercih eder — bu senkron bozulursa tahtadaki
+  sayfa ile Farabi'nin okuduğu ayrışır.
+- `yks.py` — `POST /api/egitim/yks_sorusu`, `GET /api/egitim/yks_sayfa`;
+  sıralı sunum oturumu `derslik` anahtarlı `_OTURUMLAR`'da (tek süreç tüm
+  tahtalara hizmet ediyor, modül-seviyesi global kullanma).
+- `saglayicilar.py` + `proxy.py` — bulut sağlayıcı havuzu
+  (Groq/Mistral/DeepSeek/OpenRouter/NVIDIA, `GOREV_ZINCIRLERI`) ve HTTP yüzü
+  (`/api/egitim/metin_uret`, `/api/egitim/gorsel_uret`). `gorsel` zinciri:
+  `mistral/pixtral-12b-2409` → `mistral/mistral-medium-latest` →
+  `nvidia/meta/llama-3.2-11b-vision-instruct`. **NVIDIA bu ağdan güvenilmez**
+  (metin modelleri 410/timeout). Ollama'ya giden çağrılarda sistem mesajı
+  şart (`_OLLAMA_VARSAYILAN_SISTEM`, yoksa Türkçe→Çince kayma).
+- `dosya.py` — `POST /api/egitim/dosya_isle`, `GET
+  /api/egitim/dosya_indir/{id}/{ad}` (24 saatte silinir). `belge_ozet`
+  (metin özeti) ÖNCE yerel Ollama, bulut yalnızca yedek; görsel özet yalnızca
+  bulut (yerel vision modeli yok, eklemek Kural 8 onayı ister). Diğer
+  görevler (`gorsel`, `arama_sentez`, `video_ozet`, `sembol_duzelt`,
+  `soru_taslak`, `kitap_ozet`) bulut öncelikli.
+- `config/api_keys.json` (gitignore'lu) — bulut anahtarları + `board_keys`.
+  `.gitignore` desen tabanlı (`*.env`, `**/api_keys*`,
+  `!**/api_keys.example.json`); yeni anahtar dosyası bırakırken `git
+  check-ignore` ile doğrula.
+- Tahta işlemleri script'leri: `tahta-ssh.sh [--admin] <derslik>`,
+  `farabi-kurulum.sh`, `config_dagit.sh`.
+
+### Sunucu ortamı — tuzaklar
+
+- **GPU:** 2× RTX 3060 12GB, her servis kendi kartına sabit:
+  `farabi-api` → `CUDA_VISIBLE_DEVICES=0` (embedding+reranker), `ollama` →
+  `1` (context 8192'ye düşürüldü, tek karta sığsın diye). İkisinde de
+  `CUDA_DEVICE_ORDER=PCI_BUS_ID` şart — yoksa CUDA numaralandırması
+  `nvidia-smi`'ninkiyle ters çıkıp iki servis aynı karta düşebiliyor.
+  2026-09-02 ölçümü: GPU 0'da yük altında ~7 GB boş, GPU 1 dolu. Yeni GPU işi
+  planlanırken o an `nvidia-smi` ile yeniden ölç.
+- **Okul ağı SSL-inceleme yapıyor (MEB-CERT-TTVPN).** Sertifika sistem güven
+  deposuna VE her venv'in `certifi`'sine eklendi — yeni venv kurulursa
+  certifi'ye tekrar eklenmeli, yoksa bulut çağrıları ve HF Hub kırılır.
+  `HF_HUB_OFFLINE=1` bu yüzden açık. CDN'e bağlı her şey burada sessizce
+  bozulabilir.
+- `farabi-api` `--host 0.0.0.0` ile LAN'a açık (tahtalar başka türlü
+  ulaşamaz); VLAN/güvenlik duvarı yok, dış sınırı okul güvenlik duvarı
+  koruyor.
+- Bu çalışma dizini (`/home/ata/farabi`) canlı üretim — servisler buradan
+  koşuyor.
 
 ## Komutlar
 
@@ -121,8 +182,7 @@ venv/bin/python -m pytest tests/ -q   # test (pytest requirements.txt'te YOK, ge
 python tools/dogrula.py       # içerik doğrulama kapısı
 ```
 
-Server kodu `server/` altında — FastAPI Brain, bu makinede (`farabi.local`)
-`farabi-api.service` olarak systemd altında çalışıyor
+`server/` — `farabi-api.service`
 (`WorkingDirectory=/home/ata/farabi/server`,
 `ExecStart=.../server/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000`).
 
@@ -130,20 +190,20 @@ Server kodu `server/` altında — FastAPI Brain, bu makinede (`farabi.local`)
 cd server
 python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
 venv/bin/uvicorn main:app --reload --port 8000   # geliştirmede elle çalıştır
-venv/bin/python -m pytest tests/ -q              # test (pytest requirements.txt'te var)
+venv/bin/python -m pytest tests/ -q              # test (pytest requirements.lock.txt'te, venv'de kurulu)
 venv/bin/python -m pytest tests/test_icerik.py -q          # tek dosya
 venv/bin/python -m pytest "tests/test_icerik.py::TestKitapBul" -q  # tek sınıf
 
 sudo systemctl status farabi-api.service          # üretim servisi durumu
 sudo systemctl restart farabi-api.service         # kod değişikliğinden sonra üretime almak için
+journalctl -u farabi-api.service                  # server logu (dosya log YOK, yalnızca journal)
 ```
 
-Benchmark kodu `benchmark/` altında — Faz 0a/R-4 retrieval ölçüm harness'ları,
-pytest'e bağlı DEĞİL (`tests/` dizini yok), her script bağımsız çalıştırılan
-bir CLI. `rag_test.py` üretimin gerçek `server/rag.py::RagMotoru`'sunu import
-edip ölçer; `recall_test.py`/`katman_test.py` pipeline'ı kendi başına yeniden
-uygular (bkz. `rag_test.py`'nin kendi docstring'i — üçünün NEDEN ayrı
-tutulduğu orada açıklanıyor, aralarında fark varsa `rag_test.py` esas alınır).
+`benchmark/` — Faz 0a/R-4 retrieval ölçüm harness'ları, pytest'e bağlı
+DEĞİL, her script bağımsız CLI. `rag_test.py` üretimin gerçek
+`server/rag.py::RagMotoru`'sunu import eder; `recall_test.py`/
+`katman_test.py` pipeline'ı kendi başına yeniden uygular (neden ayrı
+oldukları `rag_test.py` docstring'inde; fark varsa `rag_test.py` esas).
 
 ```bash
 cd benchmark
@@ -153,280 +213,74 @@ venv/bin/python recall_test.py       # Recall@4/rerank/eşik/MRR, üretimden ba�
 venv/bin/python katman_test.py       # iki katmanlı halüsinasyon savunması simülasyonu
 ```
 
-Lint/formatter yapılandırısı — Farabi Python kodunda lint ve formatter aracı olarak Ruff kullanılır.
+`tahtayoklama/dashboard/` — ⚠️ **pytest DEĞİL, `unittest`** (venv'de pytest
+yok, çağırmak "No module named pytest" verir). Yeni testte var olan
+`unittest.TestCase` desenini sürdür.
 
-Ruff ortamı
-Ruff, Farabi'nin çalışma/runtime ortamından ayrı olan geliştirme ortamında kuruludur:
-.venv-tools/bin/ruff
-Ruff çalıştırılırken öncelikle bu yol tercih edilir:
-.venv-tools/bin/ruff check client server benchmark tahtayoklama tahtaayar
-Ruff --fix veya format komutları çalıştıralabilir
-ruff check . --fix
-ruff format .
-.venv-tools/bin/ruff karşılıkları.
-Farabi'nin çalışan bir eğitim/yoklama sistemi olmasıdır. Otomatik kod değişiklikleri mevcut davranışı bozabilir.
-Ruff çalışma prosedürü Kod değişikliğinden sonra:
-Önce Ruff yalnızca kontrol amacıyla çalıştırılır:
-.venv-tools/bin/ruff check client server benchmark tahtayoklama tahtaayar
-Bulgular sınıflandırılır:
-F8xx / gerçek Python hataları: Öncelikli olarak incelenir.
-F401 / F841: Güvenli olup olmadığı kontrol edilerek temizlenebilir.
-I001 / formatlama: Davranışı değiştirmediği doğrulandıktan sonra düzenlenebilir.
-DTZ / timezone: Farabi'nin İstanbul/Türkiye saat mantığı kontrol edilmeden değiştirilmez.
-PLR / SIM / PERF / RUF: Önce davranış etkisi değerlendirilir.
-Bir Ruff bulgusu gerçek bir bug ise önce kodun çalışma mantığı incelenir, ardından minimum değişiklik yapılır.
-Büyük ölçekli otomatik düzeltme yapılmaz.Özellikle korunacak davranışlar
-Ruff temizliği sırasında aşağıdaki davranışlar bozulmamalıdır:
-Yoklama sistemi
-Ders/zil zamanlaması
-İstanbul/Türkiye saat dilimi
-Öğrenci ve sınıf verileri
-Dashboard
-SSH bağlantıları
-Akıllı tahta ↔ server iletişimi
-RAG sistemi
-LLM bağlantıları
-Farabi'nin ders akışı
-Mevcut API endpointleri
-Mevcut dosya ve veritabanı formatları
-Ruff sonrası doğrulama
-Kod değişikliğinden sonra mümkünse:
-.venv-tools/bin/ruff check client server benchmark tahtayoklama tahtaayar
-çalıştırılır.
-Ardından ilgili testler veya mevcut çalışma kontrolleri gerçekleştirilir.
-Ruff'un sıfır hata vermesi, çalışan davranışın korunmasından daha önemli değildir.
-Farabi'de öncelik sırası:
-Çalışan sistem > davranışın korunması > gerçek bugların düzeltilmesi > lint temizliği > stil/formatlamalma
+```bash
+cd tahtayoklama/dashboard
+venv/bin/uvicorn app:app --reload --port 8010          # geliştirmede elle
+venv/bin/python -m unittest discover -p 'test_*.py'    # tüm testler
+venv/bin/python -m unittest test_uzaktan_ekran -v      # tek dosya (modül adı, .py YOK)
+venv/bin/python -m unittest test_uzaktan_ekran.TestUzaktanEkran.test_route_gecersiz_tahta
 
-farabi/sunucu server
-├── CLAUDE.md          — bu dosya, günlük kurallar
-├── docs/mimari.md     — detaylı mimari (server/veri/RAG tasarımı) dosya yoksa claude code agent en yüksek model fable5 ile oluşturur.(mimari önemli)
-├── client/            — ÇALIŞAN kod, tahta istemcisi (aşağıya bkz.) — İNCE:
-│                         kendi kitaplar/YKS/içerik deposu YOK (2026-08-14'te
-│                         kaldırıldı), tüm ders_icerigi/pdf_sayfa/yks_sorulari/
-│                         file_processor/bulut-LLM çağrıları HTTP ile server'a
-│                         gidiyor; SES hâlâ tamamen Gemini Live'da, server'dan bağımsız
-├── server/            — ÇALIŞAN Brain, artık yalnız RAG değil — FastAPI:
-│                         RAG (pgvector+rerank+eşik+LLM), kitap içeriği/PDF
-│                         render, YKS soru arama, bulut LLM proxy, dosya
-│                         işleme (bkz. aşağıdaki "server/" bölümü ve mimari.md §9/§10)
-├── benchmark/         — Faz 0a retrieval/eşik/katman testleri, 13 kitap pgvector'a indekslendi
-└── tahtaayar/         — tahtaların OS/oturum ayarlarını (güç düğmesi, uyku,
-                          ekran karartma) referans duruma getiren, ajansız
-                          script'ler (bkz. tahtaayar/CLAUDE.md)
+sudo systemctl restart farabi-yoklama-dashboard.service
+```
 
+`smssistemi/` — pytest, düz `test_*.py` dosyaları (tüm komutlar
+`smssistemi/CLAUDE.md`'de).
 
-**`client/` — PyQt6 tabanlı tahta istemcisi.**(vestel akıllı tahtalar üzerinde kurulu)
-Detaylar `client/CLAUDE.md`'de (koddan doğrulanmış, güncellenmesi gerekebilir);
-özet:
+```bash
+cd smssistemi
+venv/bin/python -m pytest -q
+sudo systemctl restart farabi-smssistemi.service
+```
 
-- `main.py` — `FarabiLive`: Gemini Live oturumu, araç çağrı dağıtımı, ders açılışı
-- `ui.py` — `FarabiUI`/`MainWindow`: PyQt6 HUD; `main.py` bunu import eder, 
-  bu tahtanın artık yerel kitap dizinleri yok, içerik hazırlama tek noktadan (server) yapılıyor. Aynı
-  tarihte **kalem/silgi çizim katmanı** eklendi (`_CizilebilirGorsel`,
-  `pdf_sayfa`/`yks_sorulari` görüntüsünün üzerine dokunmatik yazma/silme) —
-  yalnızca buton ile açılır, sesli komutla DEĞİL (LLM'e tool olarak sunulmadı,
-  yanlış tetikleme riski taşımasın diye); çizim geçicidir, kaydedilmez.
-- `core/` — motor/altyapı: `ders_motoru.py` (ders akışı), `olaylar.py` (event bus),
-  `program.py` (ders programı), `zil.py` (zil senkronizasyonu),
-  `saglayicilar.py` (2026-08-14: artık sağlayıcı havuzu DEĞİL — ince bir HTTP
-  proxy istemcisi, gerçek Groq/Mistral/DeepSeek/OpenRouter/NVIDIA havuzu
-  `server/saglayicilar.py`'ye taşındı; `metin_uret`/`gorsel_uret` imzaları
-  BİREBİR korunarak — bkz. `server/` bölümü), `anahtar.py` (yalnızca
-  Gemini anahtar havuzu/rotasyon — client'ta kalan TEK bulut anahtarı türü),
-  `transcript.py` (yalnızca metin, KVKK notlu), `tahta.py`, `modeller.py`, `logger.py`
-- `actions/` — modelin çağırdığı araçlar, tek kaynak `kayit.py` (registry).
-  Tümü (kitap_sorusu, ders_icerigi, pdf_sayfa, yks_sorulari, file_processor)
-  artık server'a HTTP ile bağlı; sunucu ulaşılamazsa hepsi sessizce kısıtlayıcı
-  bir metne düşer, ders hiçbir zaman bozulmaz (mimari.md §2).
-  `kitap_sorusu.py` — kaynaklı, somut soru-cevabı `server/`'ın RAG motoruna
-  yönlendirir; `ders_icerigi` (konu anlatımı için sayfa getirir, artık
-  `server/icerik.py`'de eşleştirilir) ile karıştırılmamalı, ikisi farklı iş yapar.
-  `pdf_sayfa.py` (2026-08-14'te server-çağıran hale getirildi) — render artık
-  `server/icerik.py`'de (PyMuPDF client'tan kalktı); client yalnızca PNG indirip
-  küçük, boyut sınırlı bir yerel önbelleğe (`icerik/onbellek/pdf_sayfa/`, en
-  fazla 30 dosya) yazar.
-  ekran görüntüsü alma zorunlu bir yetenek — 9-A'da `ekran_goruntusu_al.py`/
-  `ekrandaki_soruyu_oku.py` olarak kurulu (2026-08-30, bkz. `client/CLAUDE.md`);
-  eski `screen_processor.py` (webcam tabanlı) bu ikisinin YERİNE geçmedi, ayrı
-  ve kaldırılmış bir modüldü — karıştırma. Diğer tahtalarda Farabi client hiç
-  kurulu değil, bu yetenek de dolayısıyla oralarda yok; kurulum yapıldığında
-  buraya da gitmesi gerekiyor.
-- `tools/` — çevrimdışı içerik hazırlama script'leri (kitap/YKS PDF → JSON) hâlâ
-  burada duruyor (kod olarak sil) ama **artık bu tahtada koşmuyor** —
-  işledikleri `kitaplar/`/`YKS/`/`icerik/` dizinleri client'ta yok; aynı
-  script'ler server'ın kendi `client/` kopyasında (rsync ile senkron), kanonik
-  veri konumuna (`/mnt/farabi-data/farabi/`) symlink'lenmiş halde çalışıyor.
-  `dogrula.py` (ücretsiz doğrulama kapısı), `mikrofon_test.py` client'ta anlamlı
-  kalmaya devam ediyor.
-- `tests/` — pytest, ağ/model çağrısı olsun. `test_saglayicilar.py` 2026-08-14'te
-  HTTP-proxy davranışını test edecek şekilde yeniden yazıldı (eski
-  sağlayıcı-zinciri testleri `server/tests/test_saglayicilar.py`'ye taşındı).
-- `config/` — gerçek JSON'lar gitignore'lu, `.example.json` şablonları committed.
-  2026-08-14: `api_keys.json`'server'a taşındı — client'ta yalnızca
-  `gemini_api_keys`/`gemini_api_key`, `derslik`, `sunucu_url`, `ders_kipi`,
-  `os_system` kaldı.
-- `memory/`,derste geçen konuşmalar hatalar loglar tutulsun  
-  `planlar/` — koda BAĞLI DEĞİL, ölü/arşiv (sil,yenidenbağlama— `client/CLAUDE.md`'de gerekçesi var)
+Tahtaya komut / log okuma:
 
-> kitap/YKS PDF'i ve türetilmiş içerik tamamen server'a taşındı (bkz. aşağıdaki
-> "server/" bölümü ve mimari.md §6). Client'ta yalnızca `icerik/onbellek/
-> pdf_sayfa/` ve `icerik/onbellek/yks_sayfa/` kalır — o an gösterilen sayfanın
-> geçici, boyut sınırlı (≤30 dosya) yerel önbelleği, kalıcı bir veri deposu
-> değil.
+```bash
+server/tahta-ssh.sh <derslik> "<komut>"          # ogretmen olarak
+server/tahta-ssh.sh --admin <derslik> "<komut>"  # etapadmin (sudo)
+server/config_dagit.sh --kuru                    # gitignore'lu ayar dağıtımı, önce kuru çalıştır
+```
 
-**`server/`** — FastAPI Brain, artık yalnızca RAG değil, Farabi'nin ağır işinin
-TAMAMI burada (Kural 1'in fiilen tamamlanmış hâli):
+### Lint: Ruff
 
-- `main.py`/`rag.py`/`db.py` — `/health`, `/ready`, `POST /api/egitim/question`,
-  `GET /api/egitim/kitaplar`, `POST /api/egitim/ders_kaydi_yedek`. Ollama
-  (qwen2.5:14b) + embedding/reranker GPU'lu çalışıyor, her biri kendi kartına
-  sabit (bkz. "Bilinçli sapma", aşağıda).
-- `icerik.py` (2026-08-14 eklendi) — `POST /api/egitim/ders_icerigi` (kitap
-  sayfa metni, eşleştirme mantığı client'tan taşındı), `GET /api/egitim/
-  pdf_sayfa` (PyMuPDF render, PNG döner).
-- `yks.py` (2026-08-14 eklendi) — `POST /api/egitim/yks_sorusu`,
-  `GET /api/egitim/yks_sayfa`. Sıralı-sunum oturumu `derslik` anahtarlı bir
-  dict'te (`_OTURUMLAR`) tutulur — client'taki eski modül-seviyesi `_OTURUM`
-  tek sürecin TÜM tahtalara hizmet etmesiyle artık güvenli değildi.
-- `saglayicilar.py` (2026-08-14 eklendi) — client'ın eski `core/saglayicilar.py`
-  sağlayıcı havuzunun BİREBİR taşınmış hâli (GOREV_ZINCIRLERI, soğuma mantığı
-  değişmedi). Anahtarlar `server/config/api_keys.json`'da.
-  ⚠️ **2026-09-02 — `gorsel` zinciri onarıldı.** Gerçek çağrılarla ölçüldü:
-  eski zincirin İKİ basamağı da ölüydü (groq `llama-4-scout` → 404, model
-  groq hesabının kataloğunda artık yok; nvidia `llama-3.2-90b-vision` →
-  120 sn'de bile yanıt yok) ve `gorsel_uret` `evrensel_yedek=False` ile
-  çağrıldığı için üçüncü basamak yoktu. Yani `ekrandaki_soruyu_oku` ve
-  `file_processor`'ın görsel işi ~31 sn sonra hata dönüyordu. Loglar bu
-  yolun 2026-08-14'ten beri hiç çağrılmadığını gösterdi — arıza gizliydi,
-  ilk gerçek sınıf kullanımında patlayacaktı. Yeni zincir:
-  `mistral/pixtral-12b-2409` → `mistral/mistral-medium-latest` →
-  `nvidia/meta/llama-3.2-11b-vision-instruct`. Uçtan uca doğrulandı
-  (`POST /api/egitim/dosya_isle`, gerçek kitap sayfası: 200 OK, 10,1 sn).
-  Aynı turda `kitap_ozet` ve `soru_taslak` zincirlerindeki ölü
-  `nvidia/meta/llama-3.3-70b-instruct` (410 Gone) da değiştirildi.
-  **nvidia bu ağdan genel olarak güvenilmez** — metin modelleri 410/timeout
-  veriyor, yalnızca 11b-vision çalışıyor (10,4 sn, ama Türkçe istemde
-  İngilizce cevap eğilimli, o yüzden son çare).
-  Durum tespiti ve ölçümlerin tamamı: kökteki `plan.md`.
-- `proxy.py` (2026-08-14 eklendi) — `POST /api/egitim/metin_uret`,
-  `POST /api/egitim/gorsel_uret`: `saglayicilar.py`'nin HTTP yüzü.
-- `dosya.py` (2026-08-14 eklendi) — `POST /api/egitim/dosya_isle` (multipart
-  upload; PDF/docx/xlsx/pptx/görsel işleme + AI özet/analiz),
-  `GET /api/egitim/dosya_indir/{id}/{ad}` (üretilen dönüşüm dosyaları, 24 saat
-  sonra silinir). **2026-08-25:** metin özetleme (`belge_ozet` görevi,
-  `_ai_metin`) artık ÖNCE yerel Ollama'yı (`qwen2.5:14b`) dener, bulut
-  (deepseek→mistral) yalnızca Ollama yanıt vermezse devreye girer — kullanıcı
-  kararı: "PDF analizinde bulut token'ı harcanmasın". Görsel özetleme
-  (`gorsel_uret`, `_ai_gorsel`) hâlâ yalnızca bulut — bu makinede yerel bir
-  vision modeli yok; yerel vision modeli eklemek Kural 8 kapsamında ayrı bir
-  onay gerektirir. **2026-09-02: zincirin KENDİSİ değişti** (eski
-  groq→nvidia zinciri tamamen ölüydü, bkz. yukarıdaki `saglayicilar.py`
-  notu) — artık mistral/pixtral birincil. Ayrıca aynı tarihte ölçüldü:
-  GPU 0'da yük altında **7.041 MiB boş** var (CLAUDE.md'nin başındaki
-  "iki kart da tam kapasite committed" notu GPU 1 için doğru, GPU 0 için
-  değil) — yerel VLM tartışması bu ölçümle yapılmalı, varsayımla değil.
-  Ayrıntı: `raganaliz.txt` (2026-08-25) ve kökteki `plan.md` (2026-09-02).
-- `config/api_keys.json` (gitignore'lu) — bulut anahtarları (Gemini YOK, o
-  client'ta kalıyor — ses oturumu mimari kısıtı, bkz. §14) + `board_keys`.
-  ⚠️ **2026-09-02:** `.gitignore` kuralları TAM YOL idi
-  (`server/config/api_keys.json`), yanında duran `apikeys.env` ve
-  `api_keys_yeni 30.08.2026.txt` ignore kapsamı DIŞINDAYDI — bir
-  `git add -A` anahtarları commit ederdi (Kural 9 ihlali, denetimde
-  bulundu). Kurallar desen tabanlı yapıldı: `*.env`, `**/api_keys*`,
-  `!**/api_keys.example.json`. Yeni anahtar dosyası bırakılırken bu
-  desenlere uyduğu `git check-ignore` ile doğrulanmalı.
+Lint ve formatter aracı Ruff; runtime'dan ayrı geliştirme ortamında:
+`.venv-tools/bin/ruff`. `--fix` / `format` çalıştırılabilir
+(`.venv-tools/bin/ruff check . --fix`, `.venv-tools/bin/ruff format .`) ama
+Farabi çalışan bir eğitim/yoklama sistemi, otomatik değişiklikler davranışı
+bozabilir.
 
-> ⚠️ **Kritik düzeltme (2026-08-14):** `farabi-api.service` önceden yalnızca
-> `127.0.0.1:8000`'e bağlıydı — bu satırın eski hâli "client artık BAĞLI"
-> diyordu ama bu YANLIŞTI, hiçbir gerçek tahta server'a ulaşamıyordu (bağlantı
-> reddediliyordu). `--host 0.0.0.0` yapıldı, artık LAN'dan erişilebilir ve
-> uçtan uca doğrulandı. VLAN/güvenlik duvarı henüz kurulmadığı için bu, Ollama
-> ile aynı risk modelini paylaşıyor (okul güvenlik duvarı dış sınır koruması,
-> bkz. §5 ve mimari.md §11). Aynı oturumda okul ağının SSL-inceleme sertifikası
-> (MEB-CERT-TTVPN) server'da tanınmadığı için hem HuggingFace Hub kontrolleri
-> (`HF_HUB_OFFLINE=1` ile atlandı, ~5dk→~12sn) hem de bulut LLM proxy çağrıları
-> başarısız oluyordu — sertifika server'ın sistem güven deposuna VE her venv'in
-> certifi paketine eklendi, artık gerçek Groq/Mistral/DeepSeek çağrıları çalışıyor.
+```bash
+.venv-tools/bin/ruff check client server benchmark tahtayoklama tahtaayar smssistemi
+.venv-tools/bin/ruff check smssistemi/app.py      # yalnızca dokunduğun dosya
+```
 
-> ⚠️ **9-A'da gerçek sınıf hatası (2026-08-30) — tahtadaki sayfa ile Farabi'nin
-> okuduğu farklıydı.** İki AYRI kusur bulundu, ikisi de kanıtlı:
->
-> 1. **Düzeltildi:** `icerik.py::_kitap_bul` (pdf_sayfa'nın kitap seçimi),
->    `_bolum_bul` (ders_icerigi'nin konu bazlı seçimi) ile SENKRON değildi.
->    9. sınıf matematik için İKİ kitap var (`matematik_9.pdf` cilt 1, temalar
->    1-3; `matematik_9_2.pdf` cilt 2, temalar 4-7) — `ders_icerigi` konuya
->    göre doğru cildi buluyordu ama `pdf_sayfa` her zaman listedeki İLK kitabı
->    (cilt 1) döndürüyordu, aynı sayfa numarası iki kitapta bambaşka içerik.
->    Fix: `ders_icerigi` artık hangi kitabı seçtiğini `_SON_KITAP` (derslik
->    anahtarlı, process-ömürlü dict) içine yazıyor, `pdf_sayfa` aynı derslik+
->    ders için varsa onu tercih ediyor. `derslik` kimliği auth'tan DEĞİL,
->    doğrudan client isteğinden geliyor (`yks.py`'nin `istek.derslik`
->    deseniyle aynı) — bkz. madde 2, auth henüz client'a bağlı değil. Client
->    tarafı: `actions/ders_icerigi.py`/`actions/pdf_sayfa.py` artık
->    `tahta.derslik()`'i isteğe ekliyor. Test: `server/tests/test_icerik.py::
->    TestKitapBul`. Uçtan uca canlıda doğrulandı (aynı derslik ile cilt 2,
->    derslik olmadan cilt 1 döndüğü curl ile karşılaştırıldı).
-> 2. **DÜZELTİLDİ (2026-08-30, aynı gün, `6ab9328` commit'i içinde — bu not
->    "flagged, onay bekliyor" derken bayat kalmıştı, 2026-08-31'de koddan
->    doğrulanıp güncellendi).** Kök neden: öğretmen doğrudan sayfa numarası
->    söylediğinde ("Bizim 45. sayfa") Farabi `pdf_sayfa`yı ÇIPLAK çağırıyordu
->    (önce/sonra hiçbir `ders_icerigi` çağrısı yok) → `pdf_sayfa` yalnızca PNG
->    döndürüyordu, sayfa METNİ döndürmüyordu → Farabi ekranda ne olduğunu
->    bilmeden içerik uyduruyordu. Fix: `server/icerik.py`'a
->    `GET /api/egitim/pdf_sayfa_metni` eklendi (`SayfaMetniYanit`, `metin`
->    alanı); `client/actions/pdf_sayfa.py` artık sayfayı gösterdikten sonra bu
->    endpoint'i çağırıp modele "buna dayandır" diyerek gerçek sayfa metnini
->    veriyor. 9-A'da SSH ile doğrulandı (2026-08-31): repodaki kod ile 9-A'daki
->    kod checksum'ları birebir aynı, bu fix üründe canlı.
+⚠️ **Sıfır hata beklenmiyor — 2026-09-22 taban çizgisi 480 bulgu**
+(`smssistemi` hariç 448, `smssistemi` 32). Değişiklikten önce ve sonra
+çalıştırıp **farkı** oku ya da yalnızca dokunduğun dosyayı ver. Birikmiş
+yığını topluca temizlemek Kural 6 kapsamında ayrı iş. `mudur/` ve `dogum/`
+bilinçli olarak kapsam dışı.
 
-> ⚠️ **FAZ 1 (server auth) — rapor ile gerçek durum uyuşmuyor (2026-08-30
-> doğrulandı).** `docs/FAZ1_IMPLEMENT_RAPORU.md` (commit edilmemiş,
-> `server/auth.py`/`server/tests/test_auth.py` ile birlikte hâlâ `??`)
-> "Client (10) dosya değiştirildi, `client` testleri 129/129 geçti" diyor —
-> bu YANLIŞ. `git status client/` tertemiz (hiçbir client dosyası
-> değişmemiş) ve gerçek `client/tests/test_board_auth.py` çalıştırıldığında
-> 3/5 test `AttributeError: module 'core.tahta' has no attribute
-> 'tahta_anahtari'` ile düşüyor — o fonksiyon hiç yazılmamış, hiçbir
-> `actions/*.py` `X-Farabi-Board-Key` header'ı göndermiyor. Server tarafı
-> (`auth.dogrula_tahta`, her router'a bağlı) gerçek ve çalışıyor, ama
-> `server/config/api_keys.json`'da `board_keys` alanı da BOŞ. Rapor bunu
-> düzeltmeden/silmeden burada not düşülüyor — rapor kendi hâlinde kalsın,
-> gerçek durum buradan okunsun.
->
-> **Operasyonel sonuç (2026-08-30'da böyleydi):** servis restart edilirse
-> (auth kod olarak zaten her router'a bağlı) client hiç header göndermediği
-> için TÜM tahtaların HER `/api/egitim/*` çağrısı 401 alırdı — bu bir
-> icerik.py fix'ini devreye almak için restart gerekirken keşfedildi, restart'tan
-> HEMEN ÖNCE. Geçici çözüm olarak `/etc/systemd/system/farabi-api.service.d/
-> override.conf` içine `Environment="FARABI_AUTH_REQUIRED=0"` eklenmişti
-> (auth.py'nin kendi tasarladığı acil rollback anahtarı).
->
-> ⚠️ **ÇÖZÜLDÜ (2026-08-30, aynı gün ilerleyen saatlerde) — override
-> kaldırıldı, auth artık üretimde ZORUNLU.** `core.tahta.auth_headers()`/
-> `tahta_anahtari()` yazıldı ve `core/saglayicilar.py` + 6 `actions/*.py`
-> dosyasındaki (`kitap_sorusu`, `pdf_sayfa`, `ders_icerigi`, `ders_hafizasi`,
-> `yks_sorulari`, `file_processor`) + `main.py`'nin `ders_kaydi_yedek`
-> çağrısındaki TÜM sunucu isteklerine eklendi (`client/tests/
-> test_board_auth.py` 5/5). Yalnızca **9-A** için gerçek bir `board_keys`
-> anahtarı üretilip hem `server/config/api_keys.json`'a hem 9-A'nın kendi
-> `client/config/api_keys.json`'ına yazıldı, kod 9-A'ya senkronlandı
-> (`farabiguncelle.sh` elle tetiklendi). `override.conf` silindi,
-> `farabi-api.service` yeniden başlatıldı ve uçtan uca doğrulandı: header
-> yoksa/yanlışsa 401, 9-A'nın gerçek anahtarıyla 200 — hem localhost'tan hem
-> 9-A'nın kendisinden (LAN üzerinden, `sunucu_url()` ile) gerçek istekle
-> test edildi.
->
-> **Diğer 6 aktif "tahta" (9-B, 10-A, 11-A, 11-B, 12-A, 12-B) bu restart'tan
-> ETKİLENMEDİ ve etkilenemezdi** — bu deploy sırasında keşfedildi: bu
-> tahtalarda Farabi client hiç KURULU DEĞİL (yalnızca ayrı bir proje olan
-> `tahtayoklama/` kurulu; kök `CLAUDE.md`'deki "Yoklama kurulu mu" tablosu
-> yoklama projesinin kurulumunu gösteriyordu, Farabi client'ının değil —
-> yalnızca 9-A'da ikisi birlikte, aynı venv'i paylaşarak kurulu). Bu 6 tahta
-> için `board_keys`'e önceden birer anahtar yazıldı (placeholder, zararsız,
-> şu an hiçbir client bunları hiç göndermiyor) — ileride `farabi-kurulum.sh`
-> ile bu tahtalara gerçek Farabi client kurulduğunda hazır beklesinler diye.
-> O kurulum yapılmadan bu tahtaların auth'la bir ilgisi yok.
+Prosedür — kod değişikliğinden sonra önce yalnızca kontrol, bulgular
+sınıflandırılır:
+- F8xx / gerçek Python hataları: öncelikli incelenir.
+- F401 / F841: güvenli olduğu kontrol edilerek temizlenebilir.
+- I001 / formatlama: davranışı değiştirmediği doğrulandıktan sonra.
+- DTZ / timezone: İstanbul/Türkiye saat mantığı kontrol edilmeden değiştirilmez.
+- PLR / SIM / PERF / RUF: önce davranış etkisi değerlendirilir.
+
+Bulgu gerçek bir bug ise önce çalışma mantığı incelenir, sonra minimum
+değişiklik. Büyük ölçekli otomatik düzeltme yapılmaz. Ruff temizliğinde
+bozulmaması gerekenler: yoklama sistemi, ders/zil zamanlaması,
+İstanbul/Türkiye saat dilimi, öğrenci ve sınıf verileri, dashboard, SSH
+bağlantıları, tahta ↔ server iletişimi, RAG, LLM bağlantıları, ders akışı,
+mevcut API endpoint'leri, mevcut dosya ve veritabanı formatları. Sonrasında
+Ruff tekrar + ilgili testler/çalışma kontrolleri.
+
+**Öncelik sırası:** Çalışan sistem > davranışın korunması > gerçek bugların
+düzeltilmesi > lint temizliği > stil/formatlama.
 
 ## Temel Kurallar
 
@@ -449,170 +303,85 @@ TAMAMI burada (Kural 1'in fiilen tamamlanmış hâli):
     bir plan çıkarılır, kullanıcıya sunulur; onaydan sonra kodu Sonnet yazar.
     Küçük/aşikâr tek satırlık düzeltmeler için (typo, config değeri gibi) bu
     adım zorunlu değil — orantısız olur.
+12. **Çapraz değişiklik:** client+server bağlı değiştiğinde (biri diğerini
+    gerektiriyorsa) ikisi BİRLİKTE ele alınır — her iki taraf incelenir,
+    ilgili test paketleri (`server/tests/`, `client/tests/`) çalıştırılır,
+    sonra `farabi.local` deploy edilir. **Son kabul testi her zaman Atakan
+    tarafından fiziksel tahtada yapılır** — otomatikleştirilmez/atlanmaz.
+
+**Kurulum biçimi:** systemd servisleri. Docker kullanılmaz — okulda sistemi
+devralacak kişi `systemctl status` ile durumu görebilmeli.
 
 ## Şu An Yapılmayacaklar
 
-- ⛔ **`/api/idari/*` — KALICI OLARAK İPTAL EDİLDİ (2026-08-31), "Faz 4" artık
-  bir sonraki aşama değil, hiç yapılmayacak bir iş.** Endpoint yazılmayacak,
-  idari tablo/chunk tasarımı gündemde değil. Şu an yalnızca ders içeriği
-  (Faz 1) çalışıyor: sunucu `farabi.local`, client 9-A'da; testler bitmedi.
-- ⛔ **Yerel STT/TTS (faster-whisper, Piper) — KALICI OLARAK İPTAL EDİLDİ
-  (2026-08-11), Faz 0a'da "henüz gerekmez" değil.** Ses kalıcı olarak Gemini
-  Live'da kalıyor —
-> - **GPU yapılandırması** artık karara bağlandı: makinede 2x NVIDIA RTX 3060
->   var, `nvidia-driver-595-open` kuruldu (`nvidia-smi` ile doğrulandı, iki kart
->   da görünüyor). "Kaç kart aktif" sorusu **2026-08-12'de kapatıldı**: her
->   servis kendi kartına `CUDA_VISIBLE_DEVICES` ile sabitlendi —
->   `ollama.service` bir kartı (context 32768→8192'ye düşürüldü, tek 12GB
->   karta sığması için), `farabi-api.service` diğer kartı (embedding+reranker
->   birlikte) tek başına kullanıyor. `CUDA_DEVICE_ORDER=PCI_BUS_ID` her ikisine
->   de eklendi — bu olmadan CUDA'nın kendi kart numaralandırması
->   `nvidia-smi`'ninkiyle TERS çıkabiliyor (canlıda böyle bir çakışma
->   yaşandı: iki servis aynı fiziksel karta düştü, modelin bir kısmı CPU'ya
->   taştı — `CUDA_DEVICE_ORDER` eklenince düzeldi). Doğrulama: `ollama ps` →
->   `100% GPU`, `nvidia-smi` → iki kart ayrı, `POST /api/egitim/question` uçtan
->   uca test edildi.
-> - **Ollama** kullanıcının açık isteğiyle kuruldu — amaç Faz 1'deki Brain'i
->   önceden kurmak DEĞİL, `benchmark/soru_taslak.py` gibi çevrimdışı içerik
->   araçlarının bulut sağlayıcı kotalarına (deepseek/mistral/nvidia kesintileri,
->   bkz. `core/saglayicilar.py`) bağımlılığını azaltmak. **2026-08-12'de
->   kapsamı genişledi:** artık yalnızca Farabi'ye özel değil — `OLLAMA_HOST`
->   ile okul LAN'ına açıldı (`0.0.0.0:11434`, okulun kendi güvenlik duvarı
->   dış sınırı koruyor), başka projelerin de kullanabileceği kalıcı, paylaşılan
->   bir yerel LLM servisi olarak düşünülüyor.
->
-> **Üçüncü sapma (2026-08-14):** "Server iskeleti"nden çok daha ileri gidildi
-> — kullanıcının açık isteğiyle ("çoğu şeyi server tarafına alalım, client'ta
-> minimum dosya bulunsun") RAG dışındaki TÜM ağır iş (kitap/YKS PDF depolama,
-> sayfa render, bulut LLM çağrıları, dosya işleme) da server'a taşındı; bkz.
-> yukarıdaki "server/" ve "client/" bölümleri, mimari.md §6/§9/§10/§15. Bu,
-> Faz 1→4 yol haritasının bir adımı değil, ona PARALEL yapılan bir
-> konsolidasyon — roadmap'in kendisi değişmedi, yalnızca "client ince kalmalı"
-> kuralı (Kural 1) artık neredeyse tam uygulanıyor. Aynı oturumda kritik bir
-> üretim hatası da düzeltildi: server API'si LAN'a hiç açık değildi (bkz.
-> "server/" bölümündeki düzeltme notu).
+- ⛔ **`/api/idari/*` — KALICI OLARAK İPTAL (2026-08-31).** Endpoint
+  yazılmayacak, idari tablo/chunk (`chunk_idari`) tasarımı gündemde değil.
+- ⛔ **Yerel STT/TTS (faster-whisper, Piper) — KALICI OLARAK İPTAL
+  (2026-08-11).** Ses kalıcı olarak Gemini Live'da (mimari.md §14).
 
-## Kurulum Biçimi
+## Ağ Envanteri
 
-systemd servisleri. Docker kullanılmaz — okulda sistemi devralacak kişi
-`systemctl status` ile durumu görebilmeli.
-
-## Ağ Envanteri (tahtalar + sunucu, yapısal özet)
-
-FARABI SUNUCU (Ubuntu 26.04 LTS, AMD Ryzen 9 3900X,AKILLI TAHTALAR BU SUNUCUYA BAĞLANIP DERS BILGILERI GIRIS CIKIS VE YOKLAMA BILGILERINI SENKRON YONETIYORLAR)
-ata@farabi.local
-OS: Ubuntu 26.04 resolute
-Kernel: x86_64 Linux 7.0.0-29-generic
-Shell: bash 5.3.9
-Disk: 57G / 2.3T (3%)
-CPU: AMD Ryzen 9 3900X 12-Core @ 24x 4.67382GHz
-GPU: NVIDIA GeForce RTX 3060, NVIDIA GeForce RTX 3060
-RAM: 13870MiB / 61899MiB
-
-SSH BILGILERI
-Host          : farabi.local  (192.168.23.252)
-Kullanıcı adı : ata
-Şifre         : 1
-Sudo          : şifresiz (NOPASSWD) (veya aynı şifre)
-
+Kimlik bilgileri (şifreler) ve tüm MAC adresleri **yalnızca
+`network.txt`'te** (gitignore'lu). Bu dosya public GitHub'a gidiyor —
+buraya şifre yazılmaz.
 
 Üç ayrı makine sınıfı var:
 
-1. **Vestel akıllı tahtalar** (Pardus ETAP GNU/Linux, hostname hepsinde
-   `etap`, ağ `192.168.23.0/24`, VLAN/güvenlik duvarı yok) — Farabi
-   client'ının (`client/`) VE `tahtayoklama/`'nın (Farabi'den bağımsız,
-   ayrı proje) koştuğu fiziksel donanım. 11 tahta (2026-08-24 itibarıyla):
+1. **Vestel akıllı tahtalar** (Pardus ETAP GNU/Linux, hostname
+   `vestel<düzey><şube>` deseninde — ör. `vestel9a`, ağ `192.168.23.0/24`,
+   VLAN/güvenlik duvarı yok). **Sayım:** ağda 11 fiziksel tahta; **8'inde**
+   Farabi client kurulu (aşağıdaki tablo = `config_dagit.sh`'in varsayılan
+   hedef listesi), 8'in **7'si** sınıf, 8.'si `fenlab`. Kalan 3 tahta
+   (`.234`, `.235`, `.236`) `server/tahtalar.json`'da `tahta-NNN` geçici
+   adıyla kayıtlı, sınıfı atanmamış, client kurulu değil. Kurulum tarihleri
+   ve ayrıntıları DECISIONS.md'de.
 
-   | Sınıf/Ad  | IP             | Hostname (gerçek) | Yoklama kurulu mu | Farabi client kurulu mu |
-   |-----------|----------------|--------------------|--------------------|--------------------------|
-   | 9-A       | 192.168.23.245 | vestel9a  | evet (Farabi client venv'ini paylaşır) | evet (pilot, 2026-08-12'den beri) |
-   | 9-B       | 192.168.23.239 | vestel9b  | evet | evet (2026-09-15'te kuruldu, bkz. DECISIONS.md). Gemini API anahtarı boş, elle girilmeli. |
-   | 10-A      | 192.168.23.242 | vestel10a | evet | evet (2026-09-15'te kuruldu, bkz. DECISIONS.md). Gemini API anahtarı boş, elle girilmeli. |
-   | 11-A      | 192.168.23.228 | vestel11a | evet (2026-08-24'te kuruldu — önceki 11-A/236 ataması yanlıştı, düzeltildi) | evet (2026-09-15'te kuruldu, bkz. DECISIONS.md). Gemini API anahtarı boş, elle girilmeli. |
-   | 11-B      | 192.168.23.233 | vestel11b | evet | evet (2026-09-12'de kuruldu) |
-   | 12-A      | 192.168.23.231 | vestel12a | evet | **evet (2026-09-06'da kuruldu — kanonik `server/farabi-kurulum.sh` sparse-checkout mekanizmasının ilk gerçek uçtan uca testi, bkz. DECISIONS.md).** Gemini API anahtarı hâlâ boş, ilk sesli ders öncesi elle girilmeli. |
-   | 12-B      | 192.168.23.240 | vestel12b | evet | evet (2026-09-15'te kuruldu, bkz. DECISIONS.md). Gemini API anahtarı boş, elle girilmeli. |
+   | Sınıf/Ad | IP             | Hostname  | Yoklama | Farabi client |
+   |----------|----------------|-----------|---------|---------------|
+   | 9-A      | 192.168.23.245 | vestel9a  | evet (Farabi client venv'ini paylaşır) | evet (pilot; tam klon yapısı `~/farabi/repo`) |
+   | 9-B      | 192.168.23.239 | vestel9b  | evet | evet |
+   | 10-A     | 192.168.23.242 | vestel10a | evet | evet |
+   | 11-A     | 192.168.23.228 | vestel11a | evet | evet |
+   | 11-B     | 192.168.23.233 | vestel11b | evet | evet |
+   | 12-A     | 192.168.23.226 | vestel12a | evet | evet |
+   | 12-B     | 192.168.23.240 | vestel12b | evet | evet |
+   | fenlab   | 192.168.23.244 | fenlab    | evet (7 sınıfın rosterı birden; dashboard'da sınıf atanmamış) | evet |
 
-   > **2026-09-15 — tüm 7 aktif tahtada Farabi client kurulu artık.** Kalan
-   > 4 tahtaya (9-B, 10-A, 11-A, 12-B) kanonik `server/farabi-kurulum.sh`
-   > ile kurulum yapıldı; script bu turda GENİŞLETİLDİ (önceden yalnızca
-   > git sparse-checkout + pull/heartbeat cron'u yazıyordu, venv/pip
-   > kurulumu, `config/api_keys.json` iskeleti ve masaüstü kısayolu elle
-   > yapılıyordu — artık script'in kendisi bunları da yapıyor, ön koşul
-   > paketlerini de kontrol edip eksikse raporluyor). Ayrıntı, bulunan bir
-   > gerçek bug (`tahtaayar/`'ın 3 tahtada `~/.local/bin`'i root sahipliğine
-   > düşürmesi) dahil: DECISIONS.md.
+   ⚠️ **fenlab'ın `derslik` değeri `"fenlab"`** — Farabi sınıf düzeyini
+   `derslik`ten çıkarıyor (`10-A` → 10. sınıf); `"fenlab"` bir düzeye
+   çözülemez, bu yüzden kitap ararken öğretmene sınıfı soracak. Tek bir
+   düzeye sabitlenecekse `derslik` değiştirilmeli.
 
-   > ⚠️ **Düzeltme (2026-09-12):** Bu tablo önceden 9-B/10-A/11-B için YANLIŞ
-   > IP eşlemesi taşıyordu (.242↔9-B, .233↔10-A, .239↔11-B yazıyordu).
-   > MAC adresleri sabit kaldı (hiçbir IP fiilen değişmedi — DHCP kirası
-   > tutarlı) ama sınıf↔IP eşlemesi baştan yanlış girilmişti. Her tahtaya
-   > SSH ile bağlanıp gerçek `hostname` (`vestel<sınıf düzeyi><şube>` deseni)
-   > okunarak doğrulandı ve tablo buna göre düzeltildi — bu üç satırda IP
-   > yerine **hostname/MAC** esas alınmalı, statik IP notu tek başına
-   > güvenilir değil. `server/tahtalar.json` (tahta-ssh.sh'nin kaynağı)
-   > zaten bu doğru eşlemeyi taşıyordu (muhtemelen tahtayoklama dashboard'un
-   > otomatik keşfi düzeltmişti) — kanonik kaynak odur, bu tablo ona göre
-   > senkron edildi.
-VESTEL AKILLI TAHTALAR (Pardus ETAP GNU/Linux 23) - 11 adet 7 si aktif sınıf olarak kullanılıyor (Intel i3-2330M,eski mobil işlemci)
---------------------------------------------------------------
-Kullanıcı adı : etapadmin
-Şifre         : etap+pardus!
-Root'a geçiş  : sudo -S (aynı şifre)
-
-Akıllı Tahta Öğretmen Kullanıcısı Şifreleri
-Kullanıcı adı :ogretmen
-Sifre         :ogretmen
-
-IP              MAC Adresi           Ağ Arayüzü
-192.168.23.231  00:09:df:83:ff:cc    enp3s0
-192.168.23.233  00:09:df:8b:0c:c4    enp3s0
-192.168.23.234  00:09:df:83:cd:c8    enp3s0
-192.168.23.235  00:09:df:83:5c:45    enp3s0
-192.168.23.236  00:09:df:83:f3:8b    enp3s0
-192.168.23.239  00:09:df:83:5c:a9    enp3s0
-192.168.23.240  00:09:df:8c:1a:e8    enp3s0f0
-192.168.23.242  00:09:df:84:14:1e    enp3s0
-192.168.23.244  00:09:df:8c:32:8a    enp3s0f0
-192.168.23.245  00:09:df:83:55:d1    enp3s0
-192.168.23.228  00:09:df:83:50:6e    11-A SINIFI OLARAK KURULdu
-
-   Bağlanma: `server/tahta-ssh.sh <derslik>` (kullanıcı) ya da
-   `--admin <derslik>` (etapadmin, sudo). MAC adresleri ve tam kimlik
-   bilgileri `network.txt`'te.
+   Donanım: Pardus ETAP 23, Intel i3-2330M (eski mobil işlemci).
+   Bağlanma: `server/tahta-ssh.sh <derslik>` (`ogretmen`) ya da
+   `--admin <derslik>` (`etapadmin`, sudo). NOPASSWD sudo tahtadan tahtaya
+   değişiyor — önce `sudo -n true` ile dene. MAC adresleri ve kimlik
+   bilgileri `network.txt`'te (ikincil referans; çelişkide
+   `server/tahtalar.json` esas).
 
 2. **Kapıdaki yüz tanıma sistemi** (giriş yoklaması kiosk PC'si,
-   `192.168.23.254`, Debian 12, düşük donanım) — bu repodaki hiçbir
-   projeye henüz BAĞLI DEĞİL, yalnızca envanter/referans amaçlı not
-   (2026-08-24 eklendi).
+   `192.168.23.254`, Debian 12) — bu repodaki hiçbir projeye BAĞLI DEĞİL,
+   yalnızca envanter notu.
 
-3. **Farabi sunucu** (bu makine, `farabi.local` / `192.168.23.252`,
-   Ubuntu 26.04, 2× RTX 3060) — `server/`, `tahtayoklama/dashboard/`
-   burada koşuyor, yukarıdaki tahtalara buradan SSH ile bağlanılıyor.
+3. **Farabi sunucu** (bu makine, `ata@farabi.local` / `192.168.23.252`,
+   Ubuntu 26.04, Ryzen 9 3900X, 2× RTX 3060, 64 GB RAM, sudo NOPASSWD) —
+   üç servis burada, tahtalara buradan SSH ile bağlanılıyor.
 
 ## RAG Kuralları (kritik)
 
 - Cevap **sadece** retrieval sonucundan üretilir. Serbest üretim yok.
 - Ana savunma: skor eşiğin altındaysa LLM'e hiç gitme → "Bu konu ders kitabında
   bulunmuyor."
-- Arama **yalnızca kitap filtresiyle** çalışır (`kitap_id` WHERE koşulu) —
-  ama **2026-09-02'den beri İKİ kaynaktan**: `chunk_egitim` top-20
-  (`rag.py::_ilk_k_getir`) + `chunk_tablo` top-10 (`rag.py::_tablo_getir`),
-  ikisi de aynı `kitap_id` filtresiyle, ayrı sorgularla. Rerank birleşim
-  üzerinde çalışır, top-4 oradan seçilir; `ESIK_RERANK` (0,5) değişmedi.
-  Ölçüldü (40 soruluk set, 2 kez): 35/40 → **38/40**, Grup A/C bozulmadı,
-  medyan gecikme 5,2 → 5,7 sn. Ayrıntı `docs/mimari.md` §5. Geri dönüş tek
+- Arama **yalnızca kitap filtresiyle** (`kitap_id` WHERE koşulu), **iki
+  kaynaktan**: `chunk_egitim` top-20 (`rag.py::_ilk_k_getir`) +
+  `chunk_tablo` top-10 (`rag.py::_tablo_getir`), ayrı sorgular. Rerank
+  birleşim üzerinde, top-4 seçilir; `ESIK_RERANK` = 0,5. Geri dönüş tek
   satır: `rag.py::TABLO_KAYNAGI = False`. **`chunk_tablo` şu an yalnızca
-  `biyoloji-9` için dolu** — yeni kitap eklendiğinde ölçüm tekrarlanmalı.
-
-  ⚠️ **Daha eski düzeltme (2026-08-30, doc↔kod denetiminde bulundu), hâlâ
-  geçerli:** bu satır o tarihten önceki sürümlerde "iki aşamalı: (1)
-  kazanım + kitap filtresi, (2) sonuç yoksa yalnızca kitap" diyordu — bu hiç
-  doğru olmamıştı, `chunk_egitim`'in `kazanim_kod` kolonu DB'de var ama kod
-  tarafında hiçbir sorguda okunmuyor/filtrelenmiyor. Kazanım bazlı filtre
-  fikri gerçek bir gelecek-fazı önerisi (`docs/mimari.md` §12, "RAG çıktı-
-  doğrulama genişletmesi + kazanım filtresi") ama BUGÜN uygulanmış bir
-  davranış değil — kod değiştirilmedi, yalnızca bu satır gerçeğe uyduruldu.
+  `biyoloji-9` için dolu** — yeni kitap eklendiğinde ölçüm (40 soruluk set,
+  şu an 38/40) tekrarlanmalı. Ayrıntı `docs/mimari.md` §5.
+- **Kazanım filtresi YOK:** `chunk_egitim.kazanim_kod` kolonu DB'de var ama
+  hiçbir sorguda okunmuyor. Kazanım bazlı filtre yalnızca gelecek-fazı
+  önerisi (mimari.md §12).
 - Her cevapta kaynak: `9. Sınıf Biyoloji, s. 84`
 - Chunk sayfa sınırını aşmaz.
 - LLM sıcaklığı ≤ 0.2, cevap ≤ 3 cümle.
@@ -622,75 +391,38 @@ IP              MAC Adresi           Ağ Arayüzü
 ## API Prensibi
 
 **Brain karar verir, Client görüntüler.** Server ham LLM metni döndürmez;
-`{status, answer, sources[], latency_ms, request_id}` yapısı döner (`audio_url`
-2026-08-11'de kaldırıldı — ses Brain'de üretilmiyor, bkz. mimari.md §9/§14).
-Client metni ayrıştırmaz, `status`'a göre davranır.
+`{status, answer, sources[], latency_ms, request_id}` yapısı döner
+(`audio_url` yok — ses Brain'de üretilmiyor). Client metni ayrıştırmaz,
+`status`'a göre davranır.
 
-Client↔Server event listesi bağlayıcıdır — `mimari.md`  dokümanı güncelle.
+Client↔Server event listesi bağlayıcıdır — değişirse `mimari.md`'yi güncelle.
 
-## Veri Yerleşimi
+## Veri Yerleşimi ve İzolasyon
 
-  Brain sunucusuna zaten bağlı ikinci disk (`/mnt/farabi-data/farabi/`, 1.8TB)
-  kullanılıyor (2026-08-14): `kitaplar/`, `yks/`, `icerik/{metin,ozet,
-  yks_metin,eslemeler,onbellek,kitaplar.json}`. Gerçek NAS gelirse bu yol
-  taşınır, kod bu ayrımdan habersiz (yalnızca `DATA_DIR` sabiti değişir).
-- **PostgreSQL** → metadata, hash, sınıf, ders, kazanım, sayfa
-- **pgvector** → chunk + embedding
-
-Dosya içeriği DB'ye gömülmez.
-
-## Veri İzolasyonu (kritik)
-
-- `chunk_egitim` — tek chunk tablosu, kurulu olan bu ve olacak olan da bu.
-  `chunk_idari` hiç oluşturulmadı ve oluşturulmayacak (`/api/idari/*` kalıcı
-  iptal, "Şu An Yapılmayacaklar"a bkz.) — DB'de, kodda veya promptlarda idari
-  içerikle ilgili hiçbir referans yok, karışacak bir şey yok.
+- Dosyalar ikinci diskte: `/mnt/farabi-data/farabi/` (1.8TB) — `kitaplar/`,
+  `yks/`, `icerik/{metin,ozet,yks_metin,eslemeler,onbellek,kitaplar.json}`.
+  Kod bu yoldan yalnızca `DATA_DIR` sabitiyle haberdar (NAS gelirse tek sabit
+  değişir).
+- **PostgreSQL** → metadata, hash, sınıf, ders, kazanım, sayfa.
+  **pgvector** → chunk + embedding. Dosya içeriği DB'ye gömülmez.
+- `chunk_egitim` tek chunk tablosu; `chunk_idari` yok ve olmayacak.
 - Tahta token'ı yalnızca `/api/egitim/*` çağırabilir.
 
 ## Gizlilik
 
-> ⚠️ **Karar (2026-08-11): Öğrenci sesi kalıcı olarak Gemini Live'a (Google
-> bulutu) gidiyor.** Bu, önceki sürümlerde "geçici, kabul edilmiş bir açık"
-> olarak yazıyordu ve yerel STT/TTS hedef gösteriliyordu — o plan **iptal
-> edildi**. Gerekçe: Gemini Live'ın gerçek-zamanlı ses akıcılığını (konuşma
-> sırası, araya girme, doğal tonlama) yerel bir hatla eşleştirmek ayrı, büyük
-> bir mühendislik işi; başka bir projede denenebilir, bu projenin kapsamında
-> değil. Detay: `docs/mimari.md` §14.
-
-- Fiziksel kamera/webcam donanımı yok, bu değişmedi (9-A'da `/dev/video*` yok,
-  2026-08-30 doğrulandı) — ama bu, tahtanın KENDİ ekranının görüntüsünü alma
-  yeteneğini kapsamaz. **2026-08-30 kararıyla ekran görüntüsü zorunlu bir
-  yetenek**: `ekran_goruntusu_al`/`ekrandaki_soruyu_oku` yalnızca
-  `QApplication.primaryScreen().grabWindow(0)` çağırır — tahtanın o an
-  gösterdiği şeyi (pdf_sayfa/show_content) yakalar, kamera karesi/fiziksel
-  sınıf/öğrenciler asla değil. Ayrıntı: `client/CLAUDE.md`, "Project layout"
-  altında `RESOLVED 2026-08-30` notu.
-- Ham ses diske yazılmaz — Gemini Live'ın kendi transkripsiyonu client'ta
-  kalır, Brain'e yalnızca metin gider.
+- **Öğrenci sesi kalıcı olarak Gemini Live'a (Google bulutu) gidiyor** —
+  bilinçli karar (2026-08-11, mimari.md §14).
+- Fiziksel kamera/webcam yok. Ekran görüntüsü zorunlu bir yetenek ama
+  yalnızca `QApplication.primaryScreen().grabWindow(0)` — tahtanın o an
+  gösterdiği şey, asla kamera/sınıf/öğrenci. Ayrıntı `client/CLAUDE.md`.
+- Ham ses diske yazılmaz — Gemini Live'ın transkripsiyonu client'ta kalır,
+  Brain'e yalnızca metin gider.
 - Öğrenci kimliği tutulmaz. Anonim "öğrenci sordu".
 - **Eğitim İÇERİĞİ (kitap metni, RAG cevabı) dış bulut AI servisine
-  gönderilmez** — bu hedef karşılanıyor, Brain (Ollama, embedding, reranker,
-  PostgreSQL/pgvector) tamamen yerel. **SES bu kuralın dışında, kalıcı olarak
-  Gemini Live'a gidiyor** — yukarıdaki karar notuna bkz.
-
-> **Kapandı (2026-08-14):** Yukarıda "hâlâ açık" denen konu artık farklı bir
-> biçimde kapandı — client'ın metin/görsel görevleri (eskiden `core/
-> saglayicilar.py`) hâlâ bulut sağlayıcılara (Groq/Mistral/DeepSeek/
-> OpenRouter/NVIDIA NIM) gidiyor, bu DEĞİŞMEDİ; ama artık bu çağrılar
-> client'tan değil server'dan yapılıyor (`server/saglayicilar.py` +
-> `proxy.py`), anahtarlar client diskinde durmuyor. Yerel qwen'e taşıma hâlâ
-> karara bağlanmadı (zincirlerde yalnızca son çare olarak duruyor) ama bu artık
-> ayrı bir soru — bulut bağımlılığının KENDİSİ değil, anahtarların NEREDE
-> durduğu sorunu çözüldü.
->
-> **Kısmen genişledi (2026-08-25):** `belge_ozet` görevi (dosya/PDF metin
-> özeti, `dosya.py`) için "yerel qwen'e taşıma" kararı verildi — artık bu
-> görevde Ollama birincil, bulut yalnızca yedek. Diğer görevler
-> (`gorsel`, `arama_sentez`, `video_ozet`, `sembol_duzelt`, `soru_taslak`,
-> `kitap_ozet`) DEĞİŞMEDİ, hâlâ bulut öncelikli/yalnızca bulut. Ollama'ya
-> giderken sistem mesajı olmadan dil karışması (Türkçe→Çince kayma)
-> gözlendi ve düzeltildi — bkz. `server/saglayicilar.py` içindeki
-> `_OLLAMA_VARSAYILAN_SISTEM`, ayrıntı `raganaliz.txt`'te.
+  gönderilmez** — Brain (Ollama, embedding, reranker, PostgreSQL/pgvector)
+  tamamen yerel. Ses bu kuralın dışında. Metin/görsel yardımcı görevler
+  (bkz. `server/saglayicilar.py`) bulut sağlayıcılara server üzerinden
+  gider; anahtarlar client diskinde durmaz.
 
 ## Loglama — iki tablo, karıştırma
 
@@ -699,48 +431,64 @@ Dosya içeriği DB'ye gömülmez.
   `yetersiz_kaynak`, `sayi_kontrolu_reddi`, `iptal`, `hata`.
   Başarılı+yüksek skorlu cevaplarda metin saklanmaz.
   derste konuşulan şeyler metin olarak tutulur loglamaya dahil edilir.
+- `soru_log` **süre sınırı olmadan** tutulur (bilinçli karar, 2026-08-18);
+  otomatik silme mekanizması yok ve olmamalı, aksi istenmedikçe.
 
-> ⚠️ **Karar (2026-08-18): "90 gün sonra silinir" kaldırıldı, bilinçli
-> olarak.** Bu satır önceki sürümlerde burada duruyordu ama hiçbir zaman
-> uygulanmamıştı (crontab'da, systemd timer'da ya da kodda buna karşılık
-> gelen bir DELETE hiç yoktu — bir kod incelemesinde bulundu). Kullanıcı bu
-> boşluğu bir hata olarak DEĞİL, olması gereken durum olarak onayladı:
-> `soru_log` artık süre sınırı olmadan tutulur. Zaten kimlik tutulmuyor
-> ("Anonim öğrenci sordu", bkz. Gizlilik bölümü) — süresiz saklamanın KVKK
-> açısından ek bir kişisel-veri riski taşımadığı değerlendirmesiyle alınmış
-> bir karar. İleride tekrar bir silme politikası istenirse bu not
-> güncellenmeli, kod tarafında hâlâ hiçbir otomatik silme mekanizması yok.
+### Log dosyalarını okuma ilkesi
 
-### Log dosyalarını okuma ilkesi (karar: 2026-08-31)
-
-**Log dosyaları önemli — hata/bug avında birincil kanıt, varsayımla debug
-etme.**
+**Log dosyaları hata/bug avında birincil kanıt — varsayımla debug etme.**
 
 - Ders transkriptleri (`client/logs/ders/*.txt` — tahtanın kendi diskinde,
-  repoya committed değil, SSH gerekir: `server/tahta-ssh.sh <derslik> "cat
-  ~/farabi/client/logs/ders/<dosya>.txt"`) derste gerçekten ne konuşulduğunu,
-  hangi tool'un ne zaman çağrıldığını, modelin nerede yanlış yaptığını
-  gösterir — bkz. yukarıdaki "9-A'da gerçek sınıf hatası" notu, tam olarak bu
-  şekilde bulundu. Server'a yedeklenen kopyaları
-  `server/yedekler/ders_kaydi/<derslik>/*.txt`'te (bu makinenin kendi diski,
-  doğrudan okunabilir).
-- `client/logs/farabi.log` (tanı/rotating log, tahtanın diskinde) ikincil
-  kanıt — bağlantı/reconnect/hata izleri.
-- **Server'da dosya bazlı log YOK** — `server/main.py` hiçbir yere
-  `FileHandler` yazmıyor, çıktı yalnızca systemd journal'a gidiyor:
-  `journalctl -u farabi-api.service`.
+  SSH gerekir: `server/tahta-ssh.sh <derslik> "cat
+  ~/farabi/client/logs/ders/<dosya>.txt"`) derste ne konuşulduğunu, hangi
+  tool'un ne zaman çağrıldığını, modelin nerede yanlış yaptığını gösterir.
+  Server'a yedeklenen kopyalar `server/yedekler/ders_kaydi/<derslik>/*.txt`
+  (doğrudan okunabilir).
+- `client/logs/farabi.log` (tahtanın diskinde, rotating) ikincil kanıt —
+  bağlantı/reconnect/hata izleri.
+- **Server'da dosya bazlı log YOK** — yalnızca `journalctl -u
+  farabi-api.service`.
 - **Bir log dosyası büyükse (kabaca >1000 satır ya da >200KB), önce
   boyutunu bildir; dosyanın TAMAMINI okumadan önce mutlaka sor.** Hedefli
-  arama (`grep`, `tail`, belirli tarih/derslik aralığı) sormadan yapılabilir
-  — onay yalnızca "dosyanın tamamını context'e çek" istendiğinde gerekir.
+  arama (`grep`, `tail`, belirli tarih/derslik aralığı) sormadan yapılabilir.
 
 ## Okuma
 
 Şunları okuma: `*.pdf`, `data/`, `models/`, `*.onnx`, `venv/`, `__pycache__/`,
 `client/config/api_keys.json*`, `server/config/api_keys.json*`,
 `/mnt/farabi-data/farabi/` (kitap/YKS PDF'leri ve türetilmiş içerik — telifli/
-büyük, 2026-08-14'te client'tan buraya taşındı; client'ta artık `kitaplar/`,
-`YKS/`, `icerik/metin`/`ozet`/`yks_metin`/`eslemeler`/`kitaplar.json` YOK).
+büyük).
 pdf içerikleri sayfa sayfa parcalayıp ekranda gösterebilirsin ders anında 
 gemini live bunları okuyabilir.hatta gemini live tablo yorumlara görsel
 vision görü yeteneği kazandırabilirsin.
+
+## Diğer dizinler
+
+- `mudur/` — müdür yardımcısının kaynak dosyaları (ders programı, SINIF/
+  Excel+PDF). Servis değil; `smssistemi/scripts/sinif_bilgi_ice_aktar.py`
+  buradan okur.
+- `dogum/` — eski tek dosyalık **Telegram** doğum günü botu. UYKUDA
+  (crontab/systemd'de kayıtlı değil, son çalışma 2026-09-20); smssistemi'nin
+  Doğum Günleri modülü yerini aldı, kasıtlı mı bilinmiyor.
+- `tahtaayar/` — tahtaların OS/oturum ayarlarını (güç düğmesi, uyku, ekran
+  karartma) referans duruma getiren ajansız script'ler.
+- `docs/superpowers/{specs,plans}/` — superpowers becerilerinin ürettiği
+  belgeler buraya yazılır (`<TARİH>-<konu>-design.md`, `<TARİH>-<konu>.md`).
+
+## Araçlar / Eklentiler
+
+- **superpowers** — beceriler kendiliğinden tetiklenir. ⚠️ TDD/worktree
+  akışı Kural 11'i (plan Opus → uygulama Sonnet) ve Kural 6'yı GEÇERSİZ
+  KILMAZ; çakışırsa bu dosya kazanır.
+- **context7** (MCP, `.mcp.json`, anahtarsız düşük kota) — FastAPI/PyQt6
+  gibi dış kütüphane API'si için. Farabi'nin KENDİ kodu için değil, onun için
+  kodu oku (Kural 4).
+- **frontend-design** — kurallar `tahtayoklama/CLAUDE.md`'de.
+
+## Frontend / Dashboard Tasarım Standartları
+
+`tahtayoklama/dashboard/` web arayüzüne (templates + `static/`) dokunmadan
+önce `tahtayoklama/CLAUDE.md` → "Frontend / Dashboard Tasarım
+Standartları" bölümünü oku. Özet: tasarım sistemi (`pano.css` token'ları,
+üç tema, satır içi ikon sprite) dondurulmuş; CDN/yeni kütüphane yok
+(Kural 8).

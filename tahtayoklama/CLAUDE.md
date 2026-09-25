@@ -117,6 +117,18 @@ penceresi zaten yalnızca Pazartesi-Cuma anlamlı — bu varsayım proje
 genelinde geçerliliğini koruyor, gün etiketi widget'ı 7 günü de doğru
 gösterse bile hafta sonu görünürlüğünün işlevsel bir önemi yok.
 
+### 4.1 Sistem Durumu / Farabi Health (2026-09-25)
+
+`/sistem-durumu` + `/api/sistem-durumu[?trend=1]` — `sistem_durumu.py`. Ölçüm
+lifespan'daki tek arka plan görevinde (donanım 15 sn, HTTP/SQL/uzak yoklamalar
+60 sn), API önbellekten okur; 30 dk trend bellekte (restart'ta sıfırlanır).
+SALT OKUNUR — restart/komut endpoint'i YOK, olmamalı. ⚠️ Farabi'nin PostgreSQL'ini
+(`metrik`, `pg_stat_*`) `psql` ile salt-okunur sorgular — servisler arası DB
+paylaşımı kuralının bilinçli ikinci istisnası (bkz. kök DECISIONS.md 2026-09-25).
+SMS modemine asla bağlanmaz, yalnızca Müdür PC proxy portuna TCP. Birim
+`Environment`'ı API'ye konmaz (ollama'nınki proxy parolası içeriyor).
+Test: `venv/bin/python -m unittest test_sistem_durumu -v`.
+
 ## 5. Uzaktan Yönetim paneli (`/admin/uzaktan`) — Windows aracının web karşılığı
 
 Windows'ta ayrı çalışan `tahta_panel.py` (tkinter+paramiko, kullanıcının
@@ -199,6 +211,28 @@ iyileştirilebilecek noktalar:
      önce statik koda değil, canlı tahtaya bakılmalı (bkz. kök
      `CLAUDE.md`'nin log okuma ilkesiyle aynı prensip).
 
+### 5.1 Canlı Ekran Görüntüsü (Screenshot) — Yeni Sekmede Görüntüleme (2026-09-21)
+
+Kullanıcı isteği: `http://farabi.local:8010/admin/uzaktan` bölümünde tablo düzenini bozmayan bir screenshot butonu yer alması, tıklandığında anlık ekran görüntüsünün doğrudan yeni sekmede tam boy açılması (`target="_blank"`).
+
+**Mimari ve Gerçekleştirim:**
+- **Backend Route:** `GET /admin/uzaktan/ekran-goruntusu/{tahta_adi}?ham=1` (`uzaktan_yonetim.py`):
+  - Oturum zorunlu (`auth.dogrula()`).
+  - Tahta adı `server/tahtalar.json` üzerinden doğrulanır.
+  - SSH üzerinden ekran yakalama: Farklı Linux sürümlerini desteklemek için çoklu araç fallback zinciri kullanılır:
+    1. Birincil: `import -window root -resize 1280x -quality 70 jpg:-` (ImageMagick, ~0.4s — standart tahtalarda mevcuttur).
+    2. Yedek: `gnome-screenshot --file=/tmp/tahta_ss.png && cat /tmp/tahta_ss.png && rm -f /tmp/tahta_ss.png` (`fenlab` gibi `import` olmayan tahtalar için — *not: eski GNOME sürümlerinde `-f "$F"` argüman hatası verdiği için `--file=...` parametresi zorunludur*).
+  - Sunucu tarafı optimizasyon: Pillow ile görsel kontrol edilir; genişlik > 1280px ise oran korunarak küçültülür ve %75 kalitede JPEG olarak sıkıştırılır (~20–30 KB).
+  - İkili JPEG Akışı (`ham=1`):
+    - Başarılı durumda `Response(content=jpeg_bytes, media_type="image/jpeg", headers={"Cache-Control": "no-cache, ..."})` döner; tarayıcı yerel görsel görüntüleyicisinde tam ekran, yakınlaştırılabilir (zoom) olarak açar.
+    - Tahta çevrimdışı veya hata durumunda şık bir HTML hata sayfası döner ("Ekran Görüntüsü Alınamadı", "Tekrar Dene", "Kapat" butonlarıyla).
+    - API / otomasyon istekleri için varsayılan (`ham=0`) JSON yanıt formatı korunmuştur.
+- **Frontend & Tablo Düzeni:**
+  - `uzaktan_yonetim.html`: Tabloya son sütun olarak `<th>Screenshot</th>` eklendi.
+  - Satır yüksekliğini veya sütun genişliklerini kesinlikle bozmayan, `.pill` ile aynı yükseklik ve font boyutuna sahip `.ss-link-btn` tasarlandı (`target="_blank"`, rel="noopener noreferrer").
+  - Tablo içine görsel veya thumbnail gömülmez; satır kayması, taşma veya modal pencere karmaşası yoktur. Ulaşılamayan tahtalar için sade bir `—` işareti gösterilir.
+- **Testler:** `test_uzaktan_ekran.py` (9/9 test): JSON yanıtı, binary `?ham=1` akışı, hata anında HTML yanıtı, `import` -> `gnome-screenshot` fallback mekanizması, 401 yetkisiz erişim, 404 bilinmeyen tahta ve çevrimdışı tahta durumları test edilmiştir.
+
 ## 6. Tahta envanteri ve canlı durum (2026-09-17'de doğrulandı)
 
 `server/tahtalar.json` tek doğru kaynak. O gün yapılan canlı bağlantı testi
@@ -211,12 +245,30 @@ iyileştirilebilecek noktalar:
 | 10-A | .242 | ✓ | normal |
 | 11-A | .228 | ✓ | normal |
 | 11-B | .233 | ✓ | normal |
-| 12-A | .231 | ✓ | normal |
+| 12-A | ~~.231~~ **.226** | ✓ | ⚠️ 2026-09-22'de IP değişti (DHCP kirası), aynı fiziksel tahta — bkz. aşağıdaki not |
 | 12-B | .240 | ✓ | normal |
 | tahta-234 | .234 | ✗ | sınıf değil (bkz. §7) |
 | tahta-235 | .235 | ✗ | sınıf değil (bkz. §7) |
 | tahta-236 | .236 | ✗ | eski/boşa çıkmış 11-A kaydı (bkz. §7) |
 | fenlab (eski tahta-244) | .244 | ✓ | ortak kullanım alanı (fen laboratuvarı), sınıflara sabit değil — Farabi+tahtayoklama artık kurulu, bkz. §7 |
+
+> ⚠️ **2026-09-22 — 12-A'nın IP'si `.231` → `.226` oldu ve yoklamayı canlı
+> olarak BOZDU.** DHCP kirası değişti; aynı fiziksel tahta (MAC
+> `00:09:df:83:ff:cc`, hostname `vestel12a` ile doğrulandı). **Etkisi
+> `yoklama_onbellek`'te ölçüldü:** 12-A'nın 1-3. ders yoklaması `alindi`,
+> 4-8. ders `tahta_ulasilamaz` — `.231`'in son heartbeat'i 10:30, yani tam
+> 3. dersin bitişi. Pano tahtayı o anda kaybetti ve günün yarısı yoklamasız
+> kaldı. Düzeltildi: `server/tahtalar.json` + dashboard `tahtalar` tablosu
+> (`ip` ve `mac`) güncellendi, uzaktan ekran görüntüsü yeni IP'de
+> doğrulandı. `yoklayici.bir_tur_calistir` tahta listesini HER turda
+> DB'den okuduğu için servis restart'ı GEREKMEDİ.
+>
+> **Bu, §7'deki "otomatik MAC→IP çözümleme henüz YOK, IP değişirse elle
+> güncellenmeli" açık ucunun gerçekleşmiş hâli.** Sessizce oldu — hiçbir
+> uyarı üretilmedi, yalnızca `tahta_ulasilamaz` satırları birikti. Pano
+> "bir tahta uzun süre ulaşılamazken aynı MAC başka bir IP'de görünüyor"
+> durumunu tespit edip uyarabilseydi aynı gün yakalanırdı; bu hâlâ açık
+> bir iyileştirme.
 
 **2026-09-17 ek düzeltme (aynı gün, doküman birleştirmesi sırasında
 bulundu):** Bu tablodaki `.233`/`.239`/`.242` satırları `server/tahtalar.json`'dan
@@ -383,6 +435,98 @@ hiçbiri crontab/systemd timer'a bağlı değil:
 - `tahta_fix_uygula.py` buradan **taşındı** → `tahtaayar/tahta_fix_uygula.py`
   (OS/oturum provizyonu `client/` ve `tahtayoklama/` ortak katmanı olduğu
   için üst düzey klasöre alındı, kopya bırakılmadı).
+
+
+## Frontend / Dashboard Tasarım Standartları
+
+*(2026-09-25'te kök `CLAUDE.md`'den buraya taşındı; kapsamı yalnızca bu
+alt proje. Yollar `dashboard/`'a görelidir.)*
+
+Rol: **Senior Product Designer & Frontend Architect.** Geçerli olduğu yer
+**yalnızca `tahtayoklama/dashboard/templates/` + `static/`**. Client'ın
+PyQt6 arayüzü (`client/ui.py`) bu bölümün kapsamı DIŞINDA — Qt widget'ına
+web tasarım kuralı uygulanmaz.
+
+**Görsel kimlik zaten kurulu, dondurulmuş sayılır.** Tasarım sistemi
+`static/pano.css` başındaki Türkçe adlı CSS değişkenleri (`--renk-*`,
+`--yaricap*`, `--yazi-tipi`) ve üç tema: `klasik` (varsayılan), `yumusak`,
+`koyu` — `data-tema` ile. frontend-design becerisi "sıfırdan ayırt edici
+kimlik kur" modunda çalıştırılmaz; disiplini (kısıtlılık, erişilebilirlik,
+klavye odağı, arayüz metni) mevcut token sistemi İÇİNDE uygulanır.
+- Ham hex renk yazılmaz, var olan değişken kullanılır.
+- Yeni bir değişken gerekiyorsa ÜÇ tema bloğunda da tanımlanır.
+- Arayüz metni Türkçe, cümle düzeninde (ALL-CAPS etiket yok).
+
+**Hiyerarşi ve taranabilirlik.** Sayfa başı sırası: Başlık > birincil
+eylem (CTA) > kritik metrikler (KPI) > tablo/grafik. Veri kartları, durum
+rozetleri ve kritik metrikler ilk bakışta okunmalı — bilgi yoğunluğu
+öğretmenin 5 saniyede "hangi sınıfta yoklama eksik" sorusunu
+cevaplayabileceği kadar olmalı.
+
+**Semantik durum renkleri** — `pano.css`'teki eşleşme zaten bu, yenisi
+uydurulmaz: başarılı `--renk-yesil`, uyarı `--renk-amber`, kritik/hata
+`--renk-kirmizi`, nötr/bilgi `--renk-gri`. Zemin karşılıkları
+`--renk-*-zemin`. Varsayılan bootstrap görünümünden ve tek düze gri
+paletten kaçın.
+
+**Mikro etkileşimler ve durumlar.** Buton hover, tablo satır vurgusu.
+Geçiş süresi `pano.css`'te zaten yerleşik: **0.15 s** (renk/zemin) ve
+**0.12 s** (transform/gölge) — yeni süre uydurma, bu ikisini kullan.
+Veri yüklenirken `skeleton` iskelet, veri yokken düzgün bir `empty-state`
+(ne olduğunu ve ne yapılacağını söyleyen, özür dilemeyen metin)
+tasarlanır — boş tablo bırakılmaz.
+⚠️ `pano.css`'te **`prefers-reduced-motion` bloğu YOK** (2026-09-20'de
+doğrulandı). Pulse/skeleton gibi kendiliğinden dönen bir animasyon
+eklenirken bu medya sorgusu da eklenmeli — sürekli animasyon tek
+erişilebilirlik açığımız.
+
+**İkonlar — sprite zaten var, CDN yok.** İkon alanları açıkça
+tanımlanmalı; ikonsuz veri paneli kabul edilmez. Ama mekanizma kurulu:
+`templates/_ikon_sprite.html` içinde **27 adet satır içi `<symbol>`** (2026-09-25 sayımı),
+zaten **Lucide çizim konvansiyonunda** (24×24 viewBox,
+`stroke="currentColor"`, `stroke-width="2"`, yuvarlak uçlar). Kullanım:
+`<svg class="ikon"><use href="#ik-<ad>"/></svg>`. Boyut sınıfları hazır:
+`.ikon` (1.05em, metinle birlikte ölçeklenir), `.ikon-kucuk` (0.85em),
+`.ikon-buyuk` (2.4rem), `.ikon-disa` (satır sonuna iter).
+- Eksik ikon gerekiyorsa Lucide/Tabler'ın SVG kaynağından **yeni bir
+  `<symbol>` olarak sprite'a eklenir** — `ik-` önekiyle, Türkçe adla.
+- **`lucide-react` veya CDN script'i KULLANILMAZ**: bu stack Jinja2 +
+  vanilla CSS, React yok; CDN okul ağında (SSL-inceleme) ve eski
+  i3-2330M tahtalarda sessizce boş ikon bırakır. Satır içi sprite
+  sıfır istek atar ve çevrimdışı çalışır — kazanan desen bu.
+- İkon coverage'ı bugün ince olan sayfalar: `uzaktan_yonetim.html`,
+  `admin_tahtalar.html`, `admin_sinif_ogrenciler.html` (1'er ikon),
+  `admin_siniflar.html`, `admin_rapor.html` (2'şer). Bu sayfalara
+  dokunulduğunda ikon eklemek serbest, ayrı onay gerektirmez.
+
+**Kompakt / pro yoğunluk.** Hedef "profesyonel operasyon paneli"
+hissiyatı — geniş boşluk yok. **Dashboard bugün ZATEN bu yoğunlukta**
+(2026-09-20'de ölçüldü): `gap` 0.3–0.6rem, `padding` 0.45×0.9rem
+civarı, gövde metni 0.78–0.88rem. Tailwind'in `p-8`/`gap-8` (2rem)
+sorunu burada YOK — yani "daha kompakt yap" diye mevcut değerleri
+küçültme, referans bunlar.
+⚠️ Gerçek eksik şu: **boşluk token'ı hiç yok** (`--bosluk-*` aranıp
+bulunamadı) ve **10 farklı yakın punto** serpiştirilmiş (0.78 / 0.8 /
+0.82 / 0.85 / 0.86 / 0.88rem — ölçek değil, gürültü). Yeni CSS yazarken
+bu listeden var olan bir değeri seç, 0.83 gibi yeni bir ara değer
+üretme. Bunu gerçek bir ölçeğe (`--bosluk-1/2/3`, `--punto-*`)
+indirgemek istenen bir iyileştirme ama `pano.css` üretimde — Kural 6
+gereği ayrıca onay ister, kendiliğinden yapılmaz.
+
+**Yerel/edge dashboard ergonomisi.** Servis/donanım durumu için anlık
+"canlı" göstergeler (yeşil pulse nokta) kullanılır — tahta çevrimiçi mi,
+yoklama açık mı gibi. Tablolarda pagination yerine akıcı dikey kaydırma
+ve kompakt filtre alanı tercih edilir.
+
+> ⚠️ **Kütüphane kuralı — Kural 8 burada da geçerli.** Dashboard bugün
+> SIFIR dış bağımlılıkla çalışıyor: CDN yok, Tailwind yok, grafik
+> kütüphanesi yok, ikon paketi yok (ikonlar `templates/_ikon_sprite.html`
+> içinde satır içi SVG sprite). Tailwind / Lucide / Chart.js / ApexCharts
+> / Tremor önerilebilir ama **onay almadan eklenmez** — üstelik okul
+> ağında SSL-inceleme (MEB-CERT-TTVPN) var ve tahtalar eski i3-2330M,
+> yani CDN'e bağlı bir çözüm derste sessizce boş ekran verebilir. Yeni
+> kütüphane gerçekten gerekiyorsa: yerel olarak `static/`'e indirilir,
+> CDN'den çağrılmaz.
 
 ---
 
