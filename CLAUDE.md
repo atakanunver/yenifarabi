@@ -21,6 +21,11 @@ Detaylı mimari: `@docs/mimari.md`
   uncommitted değişiklik olarak duruyor (`git status` ile görülür) —
   commit edilmeden önce kaybolabilir, DECISIONS.md'nin
   2026-09-15 kaydına bkz.
+- **Gitignore'lu tahta ayarları (2026-09-25):** `zil.json`, `ders_programi.json` ve
+  `api_keys.json`'ın ortak alanları (Gemini anahtarı, `mikrofon`, `sunucu_url`) GitHub'a
+  gitmez — `server/config_dagit.sh [--kuru] [tahta...]` ile SSH üzerinden 8 tahtaya
+  dağıtılır. Ortak alanların kaynağı `server/config/api_keys_tahta_ortak.json`
+  (gitignore'lu). Mikrofonsuz mod şu an 8 tahtanın hepsinde açık. Ayrıntı: DECISIONS.md.
 - **IP değil, hostname esas alınmalı:** tahtaların IP'leri DHCP kirası
   bozulursa değişebilir; kalıcı kimlik `hostname`'dir (`vestel9a`,
   `vestel9b`, ... — artık gerçek sınıf adını taşıyor) ve MAC adresidir.
