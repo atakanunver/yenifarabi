@@ -62,6 +62,28 @@ def sinif_duzeyi() -> str:
     return m.group(1) if m else ""
 
 
+_MIKROFON_YOK = {"false", "yok", "kapali", "kapalı", "hayir", "hayır", "0", "no", "off"}
+
+
+def mikrofon_var() -> bool:
+    """
+    Bu tahtada kullanılabilir bir mikrofon var mı? Config'teki `mikrofon`
+    alanı `false` ise Farabi MİKROFONSUZ MODDA çalışır (2026-09-25: tahta
+    mikrofonları bozuk) — ses girişi hiç açılmaz, ders tek yönlü anlatılır.
+
+    Alan yoksa ya da dosya okunamıyorsa True: eski tahtalarda davranış
+    değişmesin. Mikrofon tamir edilen tahtada alan silinir ya da `true` yapılır.
+    """
+    try:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            deger = json.load(f).get("mikrofon", True)
+    except Exception:
+        return True
+    if isinstance(deger, bool):
+        return deger
+    return str(deger).strip().lower() not in _MIKROFON_YOK
+
+
 def etiket() -> str:
     """Arayüzde gösterilecek etiket. Tanımsızsa uyarı metni döner."""
     d = derslik()
