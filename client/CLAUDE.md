@@ -176,7 +176,21 @@ actions/                 one public function per module — the
                          server serves it at `/geogebra/` (StaticFiles, from
                          /mnt/farabi-data/farabi/geogebra/GeoGebra), the bridge
                          caches fetched files in icerik/onbellek/geogebra/ (~9 MB
-                         after first open). Open in all kips incl. lessons — a
+                         after first open). Boards get the full bundle pre-copied
+                         to icerik/geogebra/GeoGebra (server/geogebra_dagit.sh).
+                         GeoGebra's GWT fragment loader sometimes stalls on a
+                         same-Chrome reload or slow (cold) file serving, and a
+                         stalled page never recovers → the bridge waits for the
+                         page's first /komut (ILK_DENEME 8 s), else restarts
+                         Chrome ONCE; app switches restart Chrome instead of
+                         reloading. Every reopen bumps `surum` so a dead page's
+                         pending long-poll can't swallow the next packet.
+                         Delivery is acknowledged: the local connection rarely
+                         drops a /komut response the bridge already wrote
+                         ("Failed to fetch", ~1/100), so a packet without a
+                         /sonuc is re-sent on the page's next /komut and the
+                         page dedupes by id (re-reports, never re-applies).
+                         Open in all kips incl. lessons — a
                          deliberate, user-approved exception to the "no app
                          launching" line (2026-09-25): locked --app window,
                          localhost page only.

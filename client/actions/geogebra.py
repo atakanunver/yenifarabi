@@ -49,7 +49,14 @@ PROFIL_DIZINI = Path.home() / ".cache" / "farabi-geogebra-chrome"
 UYGULAMALAR = ("graphing", "geometry", "3d", "classic")
 PENCERE_BASLIGI = "Farabi GeoGebra"
 
-YANIT_BEKLEME = 15.0       # ilk açılışta GeoGebra'nın yüklenmesi dahil
+YANIT_BEKLEME = 5.0        # sayfa hazırken komutların uygulanması (ms düzeyinde)
+# Yeni açılan sayfanın /komut'a ilk gelişi için süre. Ölçüm (fenlab, 2026-09-25):
+# temiz Chrome + diskteki paket ~3 sn, sunucudan soğuk ~4 sn. Gelmezse Chrome
+# BİR KEZ yeniden açılır — GeoGebra'nın parça yükleyicisi (GWT deferredjs) aynı
+# Chrome içinde sayfa yeniden yüklenince ya da dosyalar ağdan yavaş gelince
+# zaman zaman takılıyor ve o pencere kendini toparlamıyor; temiz açılış
+# ~25 denemede hiç takılmadı.
+ILK_DENEME = 8.0
 
 _SAYFA = """<!DOCTYPE html>
 <html lang="tr"><head><meta charset="utf-8">
@@ -59,28 +66,52 @@ _SAYFA = """<!DOCTYPE html>
 </head><body><div id="ggb"></div>
 <script>
 const SURUM = __SURUM__;
+// Köprü, /sonuc'u gelmemiş paketi bir sonraki /komut'ta YENİDEN gönderir
+// (yerel bağlantıda nadiren "Failed to fetch": köprü yanıtı yazdığı hâlde
+// sayfaya ulaşmıyor). Uygulanmış paket tekrar uygulanmaz — sonucu yeniden
+// bildirilir, adsız nesneler (Circle(A,2)) çift oluşmaz.
+const bitti = new Map();
+function bildir(id, sonuclar) {
+  fetch("/sonuc", {method: "POST", body: JSON.stringify({id, sonuclar})}).catch(() => {});
+}
+// Her adım ayrı try/catch: bir istisna /sonuc'u hiç göndertmezse araç
+// "yanıt vermedi" der, model de neyin bozulduğunu bilemez.
 function uygula(paket) {
+  if (bitti.has(paket.id)) return bildir(paket.id, bitti.get(paket.id));
   const api = window.ggbApplet, sonuclar = [];
-  if (paket.temizle) api.newConstruction();
+  if (paket.temizle) {
+    try { api.newConstruction(); }
+    catch (e) { sonuclar.push({komut: "temizle", tamam: false, hata: String(e)}); }
+  }
   for (const k of paket.komutlar) {
-    let tamam = false;
-    try { tamam = api.evalCommand(k); } catch (e) { tamam = false; }
-    sonuclar.push({komut: k, tamam: !!tamam});
+    try { sonuclar.push({komut: k, tamam: !!api.evalCommand(k)}); }
+    catch (e) { sonuclar.push({komut: k, tamam: false, hata: String(e)}); }
   }
   for (const [ad, deger] of Object.entries(paket.degerler || {})) {
-    const var_mi = api.exists(ad);
-    if (var_mi) api.setValue(ad, deger);
-    sonuclar.push({komut: ad + " = " + deger, tamam: var_mi});
+    const s = {komut: ad + " = " + deger, tamam: false};
+    try {
+      if (api.exists(ad)) { api.setValue(ad, deger); s.tamam = true; }
+      else s.hata = "böyle bir nesne yok";
+    } catch (e) { s.hata = String(e); }
+    sonuclar.push(s);
   }
-  fetch("/sonuc", {method: "POST", body: JSON.stringify({id: paket.id, sonuclar})});
+  bitti.set(paket.id, sonuclar);
+  bildir(paket.id, sonuclar);
+}
+function hata_bildir(yer, e) {
+  fetch("/hata", {method: "POST", body: yer + ": " + e}).catch(() => {});
 }
 async function dongu() {
   while (true) {
-    try {
-      const r = await fetch("/komut?surum=" + SURUM);
-      if (r.status === 410) { location.reload(); return; }
-      if (r.status === 200) uygula(await r.json());
-    } catch (e) { await new Promise(t => setTimeout(t, 1000)); }
+    let r, paket;
+    try { r = await fetch("/komut?surum=" + SURUM); }
+    catch (e) { hata_bildir("fetch", e); await new Promise(t => setTimeout(t, 1000)); continue; }
+    if (r.status === 410) { location.reload(); return; }
+    if (r.status !== 200) continue;
+    try { paket = await r.json(); }
+    catch (e) { hata_bildir("json", e); continue; }
+    try { uygula(paket); }
+    catch (e) { hata_bildir("uygula", e); }
   }
 }
 const app = new GGBApplet({
@@ -109,6 +140,14 @@ class _Kopru:
         self.yanitlar: dict[int, list] = {}
         self.yanit_olayi = threading.Condition()
         self.sayac = 0
+        self.teslim: dict[int, dict] = {}   # sayfaya gönderilmiş, /sonuc'u gelmemiş paketler
+        self.vazgecilen: set[int] = set()   # araç zaman aşımıyla döndü — artık uygulanmasın
+        self.son_hata = ""             # sayfanın /hata ile bildirdiği son JS hatası
+        self.hazir_surum = -1          # /komut'a en son gelen GÜNCEL sayfanın sürümü
+        self.acilis = 0.0              # Chrome'un açıldığı an (monotonic)
+
+    def sayfa_hazir(self) -> bool:
+        return self.hazir_surum == self.surum
 
     def port(self) -> int:
         return self.sunucu.server_address[1]
@@ -128,7 +167,10 @@ def _isleyici_sinifi():
             self.send_header("Content-Length", str(len(govde)))
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
-            self.wfile.write(govde)
+            try:
+                self.wfile.write(govde)
+            except (BrokenPipeError, ConnectionResetError):
+                pass               # kapanmış pencerenin bekleyen isteği
 
         def do_GET(self):
             yol = self.path.split("?", 1)[0]
@@ -139,15 +181,34 @@ def _isleyici_sinifi():
                 return self._gonder(200, sayfa.encode(), "text/html; charset=utf-8")
             if yol == "/komut":
                 istenen = self.path.partition("surum=")[2]
-                if istenen != str(_K.surum):
-                    return self._gonder(410)
+                with _K.yanit_olayi:
+                    if istenen != str(_K.surum):
+                        return self._gonder(410)
+                    if _K.hazir_surum != _K.surum:
+                        _K.hazir_surum = _K.surum
+                        _K.yanit_olayi.notify_all()
+                # Sayfa sırayla çalışır: yeni /komut geldiyse önceki paketle işi
+                # bitmiştir — /sonuc'u hâlâ yoksa paket ya da sonucu yolda kaybolmuştur.
+                with _K.yanit_olayi:
+                    bekleyen = next(iter(_K.teslim.values()), None)
+                if bekleyen is not None:
+                    return self._gonder(200, json.dumps(bekleyen).encode(), "application/json")
                 try:
                     paket = _K.kuyruk.get(timeout=20)
                 except queue.Empty:
                     return self._gonder(204)
-                if istenen != str(_K.surum):
-                    # beklerken uygulama değişti: paket yeni sayfanındır
-                    _K.kuyruk.put(paket)
+                with _K.yanit_olayi:
+                    if paket["id"] in _K.vazgecilen:
+                        _K.vazgecilen.discard(paket["id"])
+                        return self._gonder(204)
+                    if istenen != str(_K.surum):
+                        # beklerken pencere kapandı/yeniden açıldı: paket yeni sayfanındır
+                        _K.kuyruk.put(paket)
+                        eski = True
+                    else:
+                        _K.teslim[paket["id"]] = paket
+                        eski = False
+                if eski:
                     return self._gonder(410)
                 return self._gonder(200, json.dumps(paket).encode(), "application/json")
             if yol.startswith("/GeoGebra/"):
@@ -155,13 +216,18 @@ def _isleyici_sinifi():
             return self._gonder(404)
 
         def do_POST(self):
+            if self.path == "/hata":
+                uzunluk = int(self.headers.get("Content-Length") or 0)
+                _K.son_hata = self.rfile.read(uzunluk).decode("utf-8", "replace")[:300]
+                return self._gonder(204)
             if self.path != "/sonuc":
                 return self._gonder(404)
             uzunluk = int(self.headers.get("Content-Length") or 0)
             try:
                 veri = json.loads(self.rfile.read(uzunluk))
                 with _K.yanit_olayi:
-                    _K.yanitlar[int(veri["id"])] = veri.get("sonuclar") or []
+                    if _K.teslim.pop(int(veri["id"]), None) is not None:
+                        _K.yanitlar[int(veri["id"])] = veri.get("sonuclar") or []
                     _K.yanit_olayi.notify_all()
             except Exception:
                 return self._gonder(400)
@@ -244,6 +310,12 @@ def _pencere_ac() -> str | None:
     if chrome is None:
         return "Tahtada Chrome bulunamadı, GeoGebra açılamıyor."
     PROFIL_DIZINI.mkdir(parents=True, exist_ok=True)
+    # Kapanan pencerenin /komut isteği köprüde hâlâ kuyrukta bekliyor olabilir
+    # (pencere X ile de kapanabilir, _kapat'tan geçmeden). Sürüm değişince o
+    # istek yeni paketi alırsa geri koyar ve 410 döner — paket kaybolmaz.
+    with _K.yanit_olayi:
+        _K.surum += 1
+    _K.acilis = time.monotonic()
     _K.chrome = subprocess.Popen(
         [chrome, f"--app=http://127.0.0.1:{_K.port()}/farabi.html",
          f"--user-data-dir={PROFIL_DIZINI}", "--start-maximized",
@@ -254,19 +326,54 @@ def _pencere_ac() -> str | None:
     return None
 
 
+def _chrome_durdur():
+    # Sürüm ÖNCE artar: kapanmakta olan sayfanın o an gelen /komut'u paketi
+    # almasın (alırsa geri koyar), eski sayfa "hazır" sayılmasın.
+    with _K.yanit_olayi:
+        _K.surum += 1
+    if _pencere_acik():
+        _K.chrome.terminate()
+        try:
+            _K.chrome.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            _K.chrome.kill()
+    _K.chrome = None
+
+
 def _kapat() -> str:
     if not _pencere_acik():
         return "GeoGebra zaten açık değil."
-    _K.chrome.terminate()
-    try:
-        _K.chrome.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        _K.chrome.kill()
-    _K.chrome = None
+    _chrome_durdur()
     return "GeoGebra kapatıldı."
 
 
+def _sayfa_bekle() -> bool:
+    """
+    Açık sayfanın hazır olmasını (/komut'a gelmesini) bekler. ILK_DENEME içinde
+    gelmezse Chrome'u bir kez temiz açar. Kuyruktaki paket beklemede kalır —
+    takılan sayfa /komut'a hiç gelmediği için onu almamıştır.
+    """
+    for deneme in range(2):
+        with _K.yanit_olayi:
+            while not _K.sayfa_hazir():
+                kalan = _K.acilis + ILK_DENEME - time.monotonic()
+                if kalan <= 0:
+                    break
+                _K.yanit_olayi.wait(kalan)
+            if _K.sayfa_hazir():
+                return True
+        if deneme == 0:
+            with _K.kilit:
+                if not _K.sayfa_hazir():
+                    _chrome_durdur()
+                    if _pencere_ac():
+                        return False
+    return False
+
+
 def _kuyrugu_bosalt():
+    with _K.yanit_olayi:
+        _K.teslim.clear()
     while True:
         try:
             _K.kuyruk.get_nowait()
@@ -304,9 +411,10 @@ def geogebra(parameters: dict | None = None, player=None, speak=None, **_) -> st
             return hata
 
         if uygulama and uygulama != _K.uygulama:
+            # Sayfayı aynı Chrome'da yeniden yüklemek yerine pencereyi temiz açar:
+            # yeniden yükleme GeoGebra'nın parça yükleyicisini sık sık takıyor.
             _K.uygulama = uygulama
-            _K.surum += 1            # açık sayfa 410 alır ve yeni uygulamayla yeniden yüklenir
-            _kuyrugu_bosalt()
+            _chrome_durdur()
 
         yeni_acildi = False
         if not _pencere_acik():
@@ -317,14 +425,20 @@ def geogebra(parameters: dict | None = None, player=None, speak=None, **_) -> st
                 return hata
             yeni_acildi = True
 
-        if not komutlar and not degerler and not temizle:
-            log(f"[GeoGebra] {_K.uygulama} açıldı")
-            return f"GeoGebra ({_K.uygulama}) tahtada açıldı."
+        paket_id = None
+        if komutlar or degerler or temizle:
+            _K.sayac += 1
+            paket_id = _K.sayac
+            _K.kuyruk.put({"id": paket_id, "komutlar": komutlar,
+                           "degerler": degerler, "temizle": temizle})
 
-        _K.sayac += 1
-        paket_id = _K.sayac
-        _K.kuyruk.put({"id": paket_id, "komutlar": komutlar,
-                       "degerler": degerler, "temizle": temizle})
+    if not _sayfa_bekle():
+        log("[GeoGebra] sayfa yüklenmedi (yeniden açma dahil)")
+        return ("GeoGebra açılamadı (sayfa yüklenmedi). Sınıfa teknik sorundan "
+                "bahsetme, konuyu tahtada anlatmaya devam et.")
+    if paket_id is None:
+        log(f"[GeoGebra] {_K.uygulama} açıldı")
+        return f"GeoGebra ({_K.uygulama}) tahtada açıldı."
 
     log(f"[GeoGebra] {len(komutlar)} komut, {len(degerler)} değer gönderildi")
     son = time.monotonic() + YANIT_BEKLEME
@@ -332,13 +446,17 @@ def geogebra(parameters: dict | None = None, player=None, speak=None, **_) -> st
         while paket_id not in _K.yanitlar:
             kalan = son - time.monotonic()
             if kalan <= 0:
-                return ("GeoGebra penceresi açıldı ama komutlara yanıt vermedi "
-                        "(yükleniyor olabilir). Birkaç saniye sonra tekrar dene; "
-                        "sınıfa teknik sorundan bahsetme.")
+                if _K.teslim.pop(paket_id, None) is None:
+                    _K.vazgecilen.add(paket_id)   # kuyrukta: çıkınca atılsın
+                log(f"[GeoGebra] yanıt yok (sayfa hatası: {_K.son_hata or '-'})")
+                return ("GeoGebra komutlara yanıt vermedi. Bir kez daha dene; "
+                        "yine olmazsa sınıfa teknik sorundan bahsetme, konuyu "
+                        "tahtada anlatmaya devam et.")
             _K.yanit_olayi.wait(kalan)
         sonuclar = _K.yanitlar.pop(paket_id)
 
-    basarisiz = [s["komut"] for s in sonuclar if not s.get("tamam")]
+    basarisiz = [s["komut"] + (f" ({s['hata']})" if s.get("hata") else "")
+                 for s in sonuclar if not s.get("tamam")]
     ozet = "GeoGebra tahtada " + ("açıldı ve " if yeni_acildi else "") + \
         f"{len(sonuclar) - len(basarisiz)}/{len(sonuclar)} komut uygulandı."
     if basarisiz:

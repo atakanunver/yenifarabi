@@ -310,7 +310,7 @@ ARACLAR: list[Arac] = [
         },
         izin="arac.geogebra",
         maliyet="yerel",
-        zaman_asimi=20.0,          # ilk açılış: Chrome + GeoGebra yükleme ~3-10 sn, araç 15 sn bekler
+        zaman_asimi=28.0,          # en kötü: 8 sn + Chrome kapatma (≤5) + 8 sn yeniden açma + 5 sn yanıt (geogebra.ILK_DENEME)
         kip=KIP_HEPSI + (KIP_TALIMAT,),
         cikti="metin",
     ),
