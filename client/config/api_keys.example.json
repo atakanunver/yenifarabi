@@ -35,6 +35,9 @@
     "Okul kurulumunda GERÇEK sunucu adresini yazın, ör.",
     "'http://192.168.1.100:8000' ya da 'http://farabi.local:8000'.",
     "ders_kipi: ogretmenli | ogretmensiz (varsayılan ogretmenli).",
+    "mikrofon: false -> MİKROFONSUZ MOD (2026-09-25): ses girişi açılmaz, konu",
+    "DERSİ BAŞLAT'ta yazılı sorulur, Farabi dersi tek yönlü anlatır. Alan yoksa",
+    "ya da true ise mikrofon kullanılır (eski davranış).",
     "camera_index: UYGULAMA YAZAR, elle doldurmayın — kamera ilk",
     "kullanımda taranıp buraya kaydedilir.",
     "",
@@ -51,5 +54,6 @@
   "derslik": "10-A",
   "sunucu_url": "http://127.0.0.1:8000",
   "ders_kipi": "ogretmenli",
+  "mikrofon": true,
   "tahta_anahtari": ""
 }

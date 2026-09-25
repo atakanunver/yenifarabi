@@ -369,6 +369,7 @@ committed, not readable from this board).
 | `sunucu_url` | hand-edited, per board | falls back to `http://127.0.0.1:8000` — only correct if server and client are the SAME machine (dev only); a real board must set the real server address |
 | `os_system` | hand-edited | — |
 | `ders_kipi` | hand-edited | defaults to `ogretmenli` (`_ders_kipi`, `main.py`) |
+| `mikrofon` | hand-edited, per board | `true` (mic used). `false` = **mic-less mode** (2026-09-25, board mics broken): `_listen_audio` never starts, öğretmen/talimat mode is locked in the UI, DERSİ BAŞLAT asks ders/konu/kazanım in `_KonuDiyalogu`, `MIKSIZ_KURALLARI` is appended AFTER `prompt.txt` (suspends yoklama/üç adım/katılım), and `_otomatik_devam_dongusu` sends `[DEVAM]` after each finished turn (Gemini Live goes silent without user audio). Closes at `MIKSIZ_DERS_DK` (40) or 2 min before the bell. Tests: `tests/test_mikrofonsuz*.py` |
 | `derslik` | hand-edited, per board | classroom unknown — see below. Also THE per-board identity used for the 9-A→server sync and (planned) multi-board status tracking, see "9-A ↔ server sync" below |
 | `camera_index` | dead (writer removed 2026-08-09) | ignored — no camera code reads or writes it |
 
