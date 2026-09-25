@@ -273,6 +273,48 @@ ARACLAR: list[Arac] = [
         cikti="metin",
     ),
     Arac(
+        ad="geogebra",
+        aciklama=(
+            "Opens GeoGebra on the board and drives it LIVE — the math "
+            "visualisation tool for functions, graphs, geometry and 3D. Use it "
+            "when a concept is clearer seen and explored than told: e.g. for "
+            "quadratics create sliders a, h, k and f(x)=a(x-h)^2+k, then change "
+            "a value with 'degerler' while you explain ('şimdi a'yı 3 yapıyorum, "
+            "parabol nasıl değişti?'); students can also drag the sliders on "
+            "the board themselves. 'komutlar' are GeoGebra input-bar commands "
+            "in ENGLISH syntax, run in order: 'a=Slider(-5,5,0.1)', "
+            "'f(x)=a(x-h)^2+k', 'A=(1,2)', 'c=Circle(A,3)', 'Intersect(f,g)'. "
+            "To change an existing number use 'degerler' ([{\"ad\": \"a\", \"deger\": 2}]), not "
+            "SetValue. temizle=true starts from an empty scene. The result "
+            "lists any command GeoGebra rejected — fix its syntax and resend; "
+            "never describe a rejected object as if it were drawn. "
+            "kapat=true closes the window."
+        ),
+        parametreler={
+            "type": "OBJECT",
+            "properties": {
+                "komutlar": {"type": "ARRAY", "items": {"type": "STRING"},
+                             "description": "GeoGebra commands (English syntax), executed in order."},
+                "degerler": {"type": "ARRAY",
+                             "items": {"type": "OBJECT", "properties": {
+                                 "ad":    {"type": "STRING", "description": "Existing number/slider name, e.g. 'a'."},
+                                 "deger": {"type": "NUMBER", "description": "New value."},
+                             }, "required": ["ad", "deger"]},
+                             "description": "Set existing numbers/sliders, e.g. [{\"ad\": \"a\", \"deger\": 2}]."},
+                "temizle":  {"type": "BOOLEAN", "description": "true = clear the scene before running the commands."},
+                "uygulama": {"type": "STRING", "enum": ["graphing", "geometry", "3d", "classic"],
+                             "description": "GeoGebra app. Default graphing; geometry for constructions, 3d for solids. Changing it reloads the scene."},
+                "kapat":    {"type": "BOOLEAN", "description": "true = close the GeoGebra window."},
+            },
+            "required": [],
+        },
+        izin="arac.geogebra",
+        maliyet="yerel",
+        zaman_asimi=20.0,          # ilk açılış: Chrome + GeoGebra yükleme ~3-10 sn, araç 15 sn bekler
+        kip=KIP_HEPSI + (KIP_TALIMAT,),
+        cikti="metin",
+    ),
+    Arac(
         ad="file_processor",
         aciklama=(
             "Processes a document or image the teacher or student dropped onto the "

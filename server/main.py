@@ -18,6 +18,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sentence_transformers import CrossEncoder, SentenceTransformer
 
@@ -100,6 +101,14 @@ app.include_router(client_durum.router)
 # ders_hafizasi taşıması (2026-08-18) — durum["hazir"]'a bağlı değil, yalnızca
 # yedekler/ders_kaydi/ dosyalarını okur, RAG modeli gerekmez.
 app.include_router(ders_hafizasi.router)
+# GeoGebra çevrimdışı paketi (2026-09-25) — client/actions/geogebra.py'nin
+# yerel köprüsü dosyaları buradan çekip tahtada önbelleğe alır (paket ~120 MB,
+# git'e girmez, her tahtaya ayrı kopyalanmaz). Auth YOK, bilerek: içerik
+# GeoGebra'nın herkese açık, ücretsiz dağıtımı — öğrenci/ders verisi değil.
+# Dizin yoksa yol hiç bağlanmaz, tahta yerel paket yollarına düşer.
+GEOGEBRA_DIR = icerik.DATA_DIR / "geogebra" / "GeoGebra"
+if GEOGEBRA_DIR.is_dir():
+    app.mount("/geogebra", StaticFiles(directory=GEOGEBRA_DIR), name="geogebra")
 
 
 class SoruIstek(BaseModel):

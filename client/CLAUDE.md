@@ -166,6 +166,20 @@ actions/                 one public function per module — the
   web_search.py          DuckDuckGo (primary, free) + core/saglayicilar.py
                          synthesis — no Gemini (see "Provider notes" below)
   site_goster.py         whitelisted reference sites, no browser
+  geogebra.py            GeoGebra, driven LIVE (added 2026-09-25): a stdlib HTTP
+                         bridge on 127.0.0.1 serves the offline Math Apps Bundle
+                         + a page opened in `chrome --app` (no address bar,
+                         own --user-data-dir so the PID is the window); the page
+                         long-polls /komut, runs evalCommand/setValue, reports
+                         per-command success to /sonuc — rejected commands go
+                         back to the model. Bundle (~120 MB) is NOT in git: the
+                         server serves it at `/geogebra/` (StaticFiles, from
+                         /mnt/farabi-data/farabi/geogebra/GeoGebra), the bridge
+                         caches fetched files in icerik/onbellek/geogebra/ (~9 MB
+                         after first open). Open in all kips incl. lessons — a
+                         deliberate, user-approved exception to the "no app
+                         launching" line (2026-09-25): locked --app window,
+                         localhost page only.
 
 > ⚠️ **`yoklama_al.py` REMOVED (2026-08-31).** Found unregistered (not in
 > `kayit.py`, no `ad="yoklama_al"` entry, unreachable from tool dispatch) and

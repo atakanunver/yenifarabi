@@ -28,6 +28,7 @@ from actions.yks_sorulari      import yks_sorulari
 from actions.ders_hafizasi     import ders_hafizasi
 from actions.file_processor    import file_processor
 from actions.site_goster      import site_goster
+from actions.geogebra         import geogebra
 from actions.youtube_video     import youtube_video
 from actions.eba               import eba
 from actions.web_search        import web_search as web_search_action
@@ -1057,6 +1058,10 @@ class FarabiLive:
                     name, lambda: site_goster(parameters=args, player=self.ui, speak=self.speak)
                 )
                 result = r or "Sayfa gösterilemedi."
+
+            elif name == "geogebra":
+                r = await self._isci(name, lambda: geogebra(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Done."
 
             elif name == "file_processor":
                 if not args.get("file_path") and self.ui.current_file:
