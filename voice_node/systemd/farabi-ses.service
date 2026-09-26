@@ -1,0 +1,38 @@
+# voice_node/systemd/farabi-ses.service — METİN, kurulum kullanıcı adımı.
+#
+# Bu dosya yalnızca REFERANS olarak burada duruyor — Faz 1b bu ünitenin
+# `systemctl enable`/`start` edilmesini KAPSAMAZ (plan "DUR — Faz 1c'ye
+# onaysız geçilmez"). Kurulum için:
+#
+#   sudo cp voice_node/systemd/farabi-ses.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now farabi-ses.service
+#
+# Öncesinde `voice_node/config/ses_node.env`'in gerçek (gitignore'lu,
+# mod 600) değerlerle dolu olduğu doğrulanmalı.
+
+[Unit]
+Description=Farabi ses düğümü (Pipecat, Faz 1b)
+After=network-online.target farabi-api.service farabi-piper.service
+Wants=network-online.target
+Requires=farabi-piper.service
+
+[Service]
+Type=simple
+User=ata
+WorkingDirectory=/home/ata/farabi/voice_node
+EnvironmentFile=/home/ata/farabi/voice_node/config/ses_node.env
+Environment=CUDA_VISIBLE_DEVICES=0
+Environment=CUDA_DEVICE_ORDER=PCI_BUS_ID
+Environment=HF_HUB_OFFLINE=1
+Environment=HF_HUB_DISABLE_TELEMETRY=1
+Environment=LD_LIBRARY_PATH=/home/ata/farabi/voice_node/venv/lib/python3.12/site-packages/nvidia/cublas/lib:/home/ata/farabi/voice_node/venv/lib/python3.12/site-packages/nvidia/cuda_nvrtc/lib
+ExecStart=/home/ata/farabi/voice_node/venv/bin/uvicorn app:app --host 0.0.0.0 --port 8030
+Nice=5
+CPUQuota=600%
+MemoryMax=6G
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

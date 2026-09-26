@@ -1,0 +1,19 @@
+[project]
+name = "farabi-ses-dugumu"
+version = "0.1.0"
+description = "Farabi tahta ses düğümü — Pipecat pipeline (Faz 1b)."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pipecat-ai[whisper,websocket]==1.11.0",
+    "nvidia-cublas-cu12==12.8.5.5",
+    "uvicorn==0.54.0",
+    "aiohttp",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+]
+
+[tool.uv]
+package = false
