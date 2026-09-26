@@ -22,6 +22,12 @@ okul operasyon servisleri (yoklama panosu, SMS).
   `tahtayoklama/yoklama.py`; sunucu tarafı `tahtayoklama/dashboard/`.
 - **Mikrofonsuz mod** şu an 8 tahtanın hepsinde açık (`api_keys.json::
   mikrofon`, bkz. DECISIONS.md 2026-09-25 "Gemini faturalandırma engeli").
+- **Yerel sese geçiş sürüyor (dal `yerel-ses-pipecat`, 2026-09-25):**
+  Gemini Live → Pipecat ses düğümü (faster-whisper STT + Piper TTS, bu
+  makinede). Faz 1a (Brain'in OpenAI-uyumlu cephesi `server/ses_cephe.py`,
+  `/v1/*`) commit'li, canlıya ALINMADI (`ses.env` yokken 503 döner). Faz 1b
+  (ses düğümü) planlanıyor, Faz 1c pilot tahta 9-A. Gemini kodu SİLİNMEZ,
+  bayrakla kapatılacak. Planlar: `docs/superpowers/plans/2026-09-25-ses-*`.
 - **`client/core/prompt.txt` hâlâ client'ta.** Server'a taşınması
   PLANLANDI, YAPILMADI (mimari.md §0).
 - **IP değil hostname/MAC esas alınır.** DHCP kirası bozulunca IP değişiyor
@@ -63,8 +69,10 @@ HTTP + HMAC.
 
 **Client ↔ Server ayrımı (KESİN, mimari.md §0):** client = yalnızca tahtadaki
 arayüz/etkileşim yüzeyi (Gemini Live ses oturumu dahil); server = beyin (RAG,
-sistem promptu, iş mantığı, sağlayıcı routing). Ses kalıcı olarak Gemini
-Live'da, client'ta (2026-08-11 kararı); client'taki tek bulut anahtarı Gemini.
+sistem promptu, iş mantığı, sağlayıcı routing). Ses bugün Gemini Live'da,
+client'ta; client'taki tek bulut anahtarı Gemini. 2026-08-11'deki "ses
+kalıcı olarak Gemini'de" kararı 2026-09-25'te kaldırıldı — yerel sese geçiş
+için yukarıdaki "Güncel durum"a bkz.
 
 **Tahtaya dağıtım:** GitHub tek doğru kaynak (`github.com/atakanunver/
 yenifarabi`, PUBLIC). Tahtalar GitHub'dan **doğrudan** çeker, server arada
@@ -316,8 +324,6 @@ devralacak kişi `systemctl status` ile durumu görebilmeli.
 
 - ⛔ **`/api/idari/*` — KALICI OLARAK İPTAL (2026-08-31).** Endpoint
   yazılmayacak, idari tablo/chunk (`chunk_idari`) tasarımı gündemde değil.
-- ⛔ **Yerel STT/TTS (faster-whisper, Piper) — KALICI OLARAK İPTAL
-  (2026-08-11).** Ses kalıcı olarak Gemini Live'da (mimari.md §14).
 
 ## Ağ Envanteri
 
@@ -406,12 +412,15 @@ Client↔Server event listesi bağlayıcıdır — değişirse `mimari.md`'yi g�
 - **PostgreSQL** → metadata, hash, sınıf, ders, kazanım, sayfa.
   **pgvector** → chunk + embedding. Dosya içeriği DB'ye gömülmez.
 - `chunk_egitim` tek chunk tablosu; `chunk_idari` yok ve olmayacak.
-- Tahta token'ı yalnızca `/api/egitim/*` çağırabilir.
+- Tahta token'ı yalnızca `/api/egitim/*` çağırabilir; `/v1/*` (ses
+  cephesi) ek olarak yalnızca 127.0.0.1'den + ses düğümü bearer token'ıyla.
 
 ## Gizlilik
 
-- **Öğrenci sesi kalıcı olarak Gemini Live'a (Google bulutu) gidiyor** —
-  bilinçli karar (2026-08-11, mimari.md §14).
+- **Öğrenci sesi bugün Gemini Live'a (Google bulutu) gidiyor** (2026-08-11
+  kararı). Yerel sese geçişte (dal `yerel-ses-pipecat`) ses bu makinede
+  işlenir, buluta gitmez; ses düğümü transkript/bağlamı journal'a DEBUG
+  seviyesinde dökmemeli (`LOGURU_LEVEL=INFO`).
 - Fiziksel kamera/webcam yok. Ekran görüntüsü zorunlu bir yetenek ama
   yalnızca `QApplication.primaryScreen().grabWindow(0)` — tahtanın o an
   gösterdiği şey, asla kamera/sınıf/öğrenci. Ayrıntı `client/CLAUDE.md`.
