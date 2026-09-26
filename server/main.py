@@ -29,6 +29,7 @@ import ders_hafizasi
 import dosya
 import icerik
 import proxy
+import ses_cephe
 import yks
 from rag import EMBED_MODEL, RERANK_MODEL, RagMotoru
 from version import VERSION, major_version
@@ -109,6 +110,12 @@ app.include_router(ders_hafizasi.router)
 GEOGEBRA_DIR = icerik.DATA_DIR / "geogebra" / "GeoGebra"
 if GEOGEBRA_DIR.is_dir():
     app.mount("/geogebra", StaticFiles(directory=GEOGEBRA_DIR), name="geogebra")
+# Faz 1a (2026-09-25) — OpenAI-uyumlu ses cephesi (/v1/models, /v1/chat/
+# completions), Gemini Live → yerel ses geçişinin Brain tarafı. Kendi
+# adres/bearer/tahta-anahtarı erişim katmanını taşıyor (ses_cephe.py::
+# _erisim) — durum["hazir"]'a bağlı DEĞİL, RAG'a yalnızca kitap_sorusu aracı
+# çağrıldığında ihtiyaç anında erişir.
+app.include_router(ses_cephe.router)
 
 
 class SoruIstek(BaseModel):
