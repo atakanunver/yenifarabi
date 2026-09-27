@@ -1822,8 +1822,8 @@ class MainWindow(QMainWindow):
             b.setCursor(Qt.CursorShape.PointingHandCursor)
             b.clicked.connect(lambda _=False, k=kod: self._ders_dili_sec(k))
             self._dil_btns[kod] = b
-        izgara.addWidget(self._dil_btns["en"], 4, 0)
-        izgara.addWidget(self._dil_btns["de"], 4, 1)
+        izgara.addWidget(self._dil_btns["en"], 5, 0)
+        izgara.addWidget(self._dil_btns["de"], 5, 1)
         self._dil_dugmelerini_boya()
 
         # ── Mikrofon modu (2026-09-27) ────────────────────────────────────
@@ -1841,7 +1841,7 @@ class MainWindow(QMainWindow):
         self._mikrofon_mod_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._mikrofon_mod_btn.setStyleSheet(stil)
         self._mikrofon_mod_btn.clicked.connect(self._mikrofon_modu_degistir)
-        izgara.addWidget(self._mikrofon_mod_btn, 5, 0, 1, 2)
+        izgara.addWidget(self._mikrofon_mod_btn, 4, 0, 1, 2)   # mod düğmelerinin hemen altı
         self._mikrofon_mod_dugmesini_boya()
         return izgara
 

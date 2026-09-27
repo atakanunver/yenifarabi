@@ -410,6 +410,12 @@ class FarabiLive:
         # Ders bitti (zil/boşta kalma) — aynı desen, bkz. _DersBitti.
         self._ders_bitti_event: asyncio.Event | None = None
         self._ders_bitti_istendi = False
+        # _dersi_bitir() yeniden girişe kapalı: `_ders_bitti_istendi` ancak
+        # 6 sn'lik yedeklemeden SONRA True oluyor; o pencerede gelen ikinci
+        # çağrı (çift tık, zil, boşta, MIKSIZ süre) bayrağı run()'ın
+        # sıfırlamasından sonra yeniden True yapıp bir sonraki dersi açılır
+        # açılmaz bitirirdi. Yalnızca run()'ın ders-bitti dalında temizlenir.
+        self._ders_bitiriliyor = False
         # Konu/kazanım öğretmenden gelince arka planda sessizce ısıtılan
         # (ders, konu) çifti — aynı çifti tekrar ısıtmamak için (bkz.
         # _cerceveyi_ogretmenden_guncelle, _isit_ders_icerigini).
@@ -1991,16 +1997,27 @@ class FarabiLive:
 
     def _on_ders_bitir(self) -> None:
         """UI iş parçacığından çağrılır (DERSİ BİTİR çift tık, ui.py'nin
-        `_dersi_bitir_istendi`'si). `_dersi_bitir()`'i asenkron döngüye
-        zamanlar — aynı desen: `oturum_baslat`. `self._ders_bitti_event`
-        yalnızca oturum bağlıyken (run()'ın `async with` bloğu içinde) var;
-        yokluğu "bitirilecek ders yok" demek, sessizce yoksayılır (hata
-        pencereye sızmaz — bkz. dosya başı "Farabi asla dersi bozmaz")."""
-        if not self._loop or not self._ders_bitti_event:
+        `_dersi_bitir_istendi`'si). Asıl karar `_ogretmen_dersi_bitirir`'de,
+        döngünün KENDİ iş parçacığında verilir — bkz. orası."""
+        if not self._loop:
             log.info("DERSİ BİTİR istendi ama sürmekte olan bir ders yok.")
             return
-        asyncio.run_coroutine_threadsafe(
-            self._dersi_bitir("öğretmen dersi bitirdi"), self._loop)
+        asyncio.run_coroutine_threadsafe(self._ogretmen_dersi_bitirir(), self._loop)
+
+    async def _ogretmen_dersi_bitirir(self) -> None:
+        """Ders gerçekten sürüyorsa ve zaten bitmekte değilse bitir.
+
+        Kontrol döngü iş parçacığında yapılır ki zil/boşta kalma ile aynı
+        anda gelen çift tık `_dersi_bitir`'i İKİNCİ kez çalıştırmasın:
+        ikinci çağrı `_ders_bitti_istendi`'yi run()'ın ders-bitti dalı
+        sıfırladıktan SONRA True yapar, bayat bayrak bir sonraki dersi
+        açılır açılmaz kapatırdı (+ çift yedekleme). `_oturum_izni` DERSİ
+        BAŞLAT'tan ders bitene kadar set'tir (yeniden bağlanmalar dahil)."""
+        izin = getattr(self, "_oturum_izni", None)
+        if not izin or not izin.is_set() or getattr(self, "_ders_bitti_istendi", False):
+            log.info("DERSİ BİTİR istendi ama sürmekte olan bir ders yok.")
+            return
+        await self._dersi_bitir("öğretmen dersi bitirdi")
 
     def _sesi_sustur(self) -> int:
         """
@@ -2097,6 +2114,10 @@ class FarabiLive:
         `self._oturum_izni.clear()` ÇAĞRILMAZ, o `run()`'ın except dalında,
         state sıfırlamasıyla aynı yerde olmalı (bkz. orası).
         """
+        if getattr(self, "_ders_bitiriliyor", False):
+            log.info("Ders zaten bitiriliyor, ikinci istek yoksayıldı: %s", sebep)
+            return
+        self._ders_bitiriliyor = True
         try:
             transcript.log_line("sistem", f"— Oturum kapandı ({sebep}) —")
             transcript.log_session_end()
@@ -2110,7 +2131,6 @@ class FarabiLive:
         except Exception as e:
             log.info("Ders kaydı yedekleme adımı atlandı: %s", e)
         log.info("Ders bitiyor (süreç açık kalıyor): %s", sebep)
-        self._ders_bitti_istendi = True
         if self._ders_bitti_event:
             self._ders_bitti_event.set()
 
@@ -2256,6 +2276,7 @@ class FarabiLive:
                     # log_session_end()` burada TEKRAR ÇAĞRILMAZ — `_dersi_
                     # bitir()` zaten yazdı, tekrarı çift kapanış satırı olur.
                     self._ders_bitti_istendi = False
+                    self._ders_bitiriliyor = False
                     log.info("Ders bitti — DERSİ BAŞLAT öncesi bekleme durumuna dönülüyor.")
                     self.ui.write_log(
                         "SYS: Ders bitti — yeni ders için DERSİ BAŞLAT'a çift tıklayın.")

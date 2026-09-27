@@ -1845,7 +1845,7 @@ category from "the teacher needs to redirect a lesson in progress," so it
 doesn't reopen the "three buttons only" decision above.
 
 **Mic-mode toggle** (`_mikrofon_mod_btn`, 2026-09-27): a single-tap button
-above DERSİ BAŞLAT, "🎤 MİKROFONLU" / "🚫 MİKROFONSUZ", that flips
+directly under the öğrenci/öğretmen mode row, "🎤 MİKROFONLU" / "🚫 MİKROFONSUZ", that flips
 `self.mikrofonsuz` for the current process only — it never reads or writes
 `config/api_keys.json`; a restart always goes back to the file's `mikrofon`
 value (see the config table above). `main.py` re-reads `ui.mikrofonsuz` at
