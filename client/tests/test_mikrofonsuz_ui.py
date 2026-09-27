@@ -6,8 +6,10 @@ Mikrofonsuz tahtada: öğretmen modu (yalnız sesli komut) seçilemez, varsayıl
 sorar — konu boşken başlatılamaz.
 """
 
+import builtins
 import os
 import sys
+import threading
 from pathlib import Path
 
 import pytest
@@ -98,3 +100,131 @@ def test_dersi_baslat_konuyla_cerceveyi_saklar(monkeypatch):
     assert w.baslangic_cercevesi == {"ders": "Kimya", "konu": "Mol kavramı",
                                      "kazanim": ""}
     assert not w._baslat_btn.isEnabled()
+
+
+# ── Mikrofon modu — canlı (dokunmatik) geçiş ────────────────────────────────
+#
+# DERSİ BAŞLAT'tan önce panelde tek dokunuşla mikrofonlu/mikrofonsuz arasında
+# geçiş — yalnızca bellek içi (self.mikrofonsuz); config dosyası hiç
+# okunmaz/yazılmaz, yeniden başlatınca ayar dosyasındaki değere döner.
+
+class TestMikrofonModuGecisi:
+    def test_mikrofonsuzdan_mikrofonluya_gecis(self, monkeypatch):
+        w = _pencere(monkeypatch, mikrofon=False)
+        assert w.mikrofonsuz is True
+        w._mikrofon_modu_degistir()
+        assert w.mikrofonsuz is False
+        assert w._ogretmen_btn.isEnabled()
+        assert w._mute_btn.isEnabled()
+        assert "MİKROFON AÇIK" in w._mute_btn.text()
+
+    def test_mikrofonludan_mikrofonsuza_gecis(self, monkeypatch):
+        w = _pencere(monkeypatch, mikrofon=True)
+        assert w.mikrofonsuz is False
+        w._mikrofon_modu_degistir()
+        assert w.mikrofonsuz is True
+        assert w.talimat_modu is False
+        assert not w._ogretmen_btn.isEnabled()
+        assert not w._mute_btn.isEnabled()
+        assert "MİKROFONSUZ" in w._mute_btn.text()
+
+    def test_gecis_dosyaya_asla_yazmaz(self, monkeypatch):
+        w = _pencere(monkeypatch, mikrofon=True)
+        yazma_denemeleri = []
+        orig_open = builtins.open
+
+        def _guard(dosya, *args, **kwargs):
+            mod = args[0] if args else kwargs.get("mode", "r")
+            if "api_keys" in str(dosya) and any(c in mod for c in "wa+"):
+                yazma_denemeleri.append(dosya)
+            return orig_open(dosya, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "open", _guard)
+        w._mikrofon_modu_degistir()
+        w._mikrofon_modu_degistir()
+        assert yazma_denemeleri == []
+
+    def test_dugme_ders_baslayinca_kilitlenir(self, monkeypatch):
+        w = _pencere(monkeypatch, mikrofon=True)
+        w.on_session_start = lambda: None
+        w._dersi_baslat()
+        assert not w._mikrofon_mod_btn.isEnabled()
+
+    def test_dugme_ders_bitince_tekrar_acilir(self, monkeypatch):
+        w = _pencere(monkeypatch, mikrofon=True)
+        w.on_session_start = lambda: None
+        w._dersi_baslat()
+        w._dersi_sifirla_gorunumu()
+        assert w._mikrofon_mod_btn.isEnabled()
+
+    def test_talimat_modundan_cikinca_kilitlenir(self, monkeypatch):
+        w = _pencere(monkeypatch, mikrofon=True)
+        w._talimat_modundan_cik_gorunumu()
+        assert not w._mikrofon_mod_btn.isEnabled()
+
+
+# ── DERSİ BİTİR düğmesi ──────────────────────────────────────────────────
+#
+# Yalnızca ders sürerken aktif; çift tıkla çalışır (dokunmatik tahtada tek
+# tık yanlışlıkla dersi bitirmemeli — DERSİ BAŞLAT ile aynı gerekçe).
+
+class TestDersiBitirDugmesi:
+    def test_baslangicta_kapali(self, monkeypatch):
+        w = _pencere(monkeypatch, mikrofon=True)
+        assert not w._bitir_btn.isEnabled()
+
+    def test_oturum_acilinca_aktif_olur(self, monkeypatch):
+        w = _pencere(monkeypatch, mikrofon=True)
+        w._on_gemini_oturum_degisti(True)
+        assert w._bitir_btn.isEnabled()
+
+    def test_ders_bitince_tekrar_kapanir(self, monkeypatch):
+        w = _pencere(monkeypatch, mikrofon=True)
+        w._on_gemini_oturum_degisti(True)
+        w._dersi_sifirla_gorunumu()
+        assert not w._bitir_btn.isEnabled()
+
+    def test_tek_tikla_tetiklenmez(self, monkeypatch):
+        w = _pencere(monkeypatch, mikrofon=True)
+        w._on_gemini_oturum_degisti(True)
+        cagrildi = []
+        w.on_ders_bitir = lambda: cagrildi.append(1)
+        w._bitir_btn.click()
+        assert cagrildi == []
+
+    def test_cift_tikla_callback_bir_kez_cagrilir(self, monkeypatch):
+        w = _pencere(monkeypatch, mikrofon=True)
+        w._on_gemini_oturum_degisti(True)
+        bitti = threading.Event()
+        cagrildi = []
+
+        def _cb():
+            cagrildi.append(1)
+            bitti.set()
+
+        w.on_ders_bitir = _cb
+        w._bitir_btn.mouseDoubleClickEvent(None)
+        assert bitti.wait(timeout=2)
+        assert cagrildi == [1]
+        assert not w._bitir_btn.isEnabled()   # kendini kapatır, çift ateşlemeyi önler
+
+    def test_callback_baglanmamissa_sessiz_kalir(self, monkeypatch):
+        w = _pencere(monkeypatch, mikrofon=True)
+        w._on_gemini_oturum_degisti(True)
+        w.on_ders_bitir = None
+        w._bitir_btn.mouseDoubleClickEvent(None)   # exception atmamalı
+        assert w._bitir_btn.isEnabled()
+
+
+def test_mikrofonsuzdan_sonra_mikrofonlu_derse_eski_konu_tasinmaz(monkeypatch):
+    # Aynı süreçte: mikrofonsuz ders (konu yazıldı) → bitti → mikrofonluya
+    # geçildi → yeni ders. main.py her DERSİ BAŞLAT'ta baslangic_cercevesi'ni
+    # okuduğu için eski konu yeni derse sızmamalı.
+    w = _pencere(monkeypatch, mikrofon=False)
+    w.on_session_start = lambda: None
+    w.baslangic_cercevesi = {"ders": "Kimya", "konu": "Mol", "kazanim": ""}
+    w._dersi_sifirla_gorunumu()
+    w._mikrofon_modu_degistir()           # → mikrofonlu
+    w._talimat_modu_degistir(False)       # öğrenci modu, normal ders
+    w._dersi_baslat()
+    assert w.baslangic_cercevesi is None

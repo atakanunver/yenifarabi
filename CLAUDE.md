@@ -22,6 +22,10 @@ okul operasyon servisleri (yoklama panosu, SMS).
   `tahtayoklama/yoklama.py`; sunucu tarafı `tahtayoklama/dashboard/`.
 - **Mikrofonsuz mod** şu an 8 tahtanın hepsinde açık (`api_keys.json::
   mikrofon`, bkz. DECISIONS.md 2026-09-25 "Gemini faturalandırma engeli").
+  Bu değer yalnızca açılış varsayılanı: panelde 🎤 MİKROFONLU / 🚫
+  MİKROFONSUZ düğmesi DERSİ BAŞLAT'tan önce yalnızca bellekte değiştirir
+  (dosyaya yazmaz), yeniden başlatınca dosyadakine döner. Ders içi düğmeler:
+  DURDUR, DEVAM ET, ⏹ DERSİ BİTİR (çift dokunuş, 2026-09-27).
 - **`client/core/prompt.txt` hâlâ client'ta.** Server'a taşınması
   PLANLANDI, YAPILMADI (mimari.md §0).
 - **IP değil hostname/MAC esas alınır.** DHCP kirası bozulunca IP değişiyor

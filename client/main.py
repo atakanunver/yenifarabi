@@ -1989,6 +1989,19 @@ class FarabiLive:
             return
         self._loop.call_soon_threadsafe(self._oturum_izni.set)
 
+    def _on_ders_bitir(self) -> None:
+        """UI iş parçacığından çağrılır (DERSİ BİTİR çift tık, ui.py'nin
+        `_dersi_bitir_istendi`'si). `_dersi_bitir()`'i asenkron döngüye
+        zamanlar — aynı desen: `oturum_baslat`. `self._ders_bitti_event`
+        yalnızca oturum bağlıyken (run()'ın `async with` bloğu içinde) var;
+        yokluğu "bitirilecek ders yok" demek, sessizce yoksayılır (hata
+        pencereye sızmaz — bkz. dosya başı "Farabi asla dersi bozmaz")."""
+        if not self._loop or not self._ders_bitti_event:
+            log.info("DERSİ BİTİR istendi ama sürmekte olan bir ders yok.")
+            return
+        asyncio.run_coroutine_threadsafe(
+            self._dersi_bitir("öğretmen dersi bitirdi"), self._loop)
+
     def _sesi_sustur(self) -> int:
         """
         Çalınmayı bekleyen sesi at ve kaç paket atıldığını döndür.
@@ -2105,6 +2118,7 @@ class FarabiLive:
         self._loop = asyncio.get_event_loop()
         self._oturum_izni = asyncio.Event()
         self.ui.on_session_start = self.oturum_baslat
+        self.ui.on_ders_bitir = self._on_ders_bitir
         self._log_startup_banner()
 
         # PİLOT/TEST AŞAMASI (2026-08-15) burada `self.ui.oto_baslat()` ile
@@ -2154,6 +2168,12 @@ class FarabiLive:
                 )
 
             try:
+                if self._ders_bitti_istendi:
+                    # DERSİ BİTİR bağlantı koptuğu sırada (yeniden bağlanma
+                    # beklerken) basıldı — yeni bağlantı AÇILMADAN aşağıdaki
+                    # ders-bitti dalına git; aksi hâlde istek yeni bağlantıda
+                    # sıfırlanıp kaybolurdu (düğme kendini kapatmış olur).
+                    raise _DersBitti()
                 log.info("Gemini Live oturumu açılıyor... (deneme %d, anahtar %s)",
                          fail_streak + 1, anahtar.durum())
                 self.ui.set_state("THINKING")
@@ -2180,7 +2200,11 @@ class FarabiLive:
                     self._durdur_zorla_event = asyncio.Event()
                     self._durdur_zorla_istendi = False
                     self._ders_bitti_event = asyncio.Event()
-                    self._ders_bitti_istendi = False
+                    if self._ders_bitti_istendi:
+                        # DERSİ BİTİR bağlantı kurulurken basıldı — sıfırlama,
+                        # gözcü hemen kapatsın. (Bayrak yalnızca aşağıdaki
+                        # ders-bitti dalında False'a döner.)
+                        self._ders_bitti_event.set()
 
                     log.info("Oturum açıldı. (anahtar %s)", anahtar.durum())
                     if fail_streak:

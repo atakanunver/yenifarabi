@@ -1061,6 +1061,10 @@ class MainWindow(QMainWindow):
         # Dersi öğretmen başlatır (çift tık). main.py bunu bağlar; bağlanmazsa
         # düğme sessizce hiçbir şey yapmaz, arayüz yine çalışır.
         self.on_session_start = None
+        # Dersi öğretmen bitirir (çift tık, DERSİ BİTİR — 2026-09-27).
+        # main.py bunu bağlar; bağlanmazsa düğme log'a yazar ve hiçbir şey
+        # yapmaz (bkz. _dersi_bitir_istendi).
+        self.on_ders_bitir = None
         # Ders dili — DERSİ BAŞLAT'tan ÖNCE seçilir. Gemini Live'da bir
         # bağlantının system_instruction'ı bağlantı kurulduktan sonra
         # değiştirilemez, bu yüzden ders başladıktan sonra bu değer okunmaz
@@ -1245,6 +1249,13 @@ class MainWindow(QMainWindow):
                 self._baslat_btn.setText("▶▶  DERS BAŞLADI")
             else:
                 self._baslat_btn.setText("🔄  YENİDEN BAĞLANIYOR…")
+
+        # DERSİ BİTİR yalnızca oturum GERÇEKTEN açıkken kullanılabilir.
+        # Yeniden bağlanmalarda (acildi=False) bilerek KAPATILMAZ — ders
+        # hâlâ sürüyor, yalnızca bağlantı yenileniyor; kapanış yalnızca
+        # `_dersi_sifirla_gorunumu`'nun işi.
+        if acildi:
+            self._bitir_btn.setEnabled(True)
 
     def _update_metrics(self):
         snap = _metrics.snapshot()
@@ -1637,15 +1648,7 @@ class MainWindow(QMainWindow):
         self._mute_btn.clicked.connect(self._toggle_mute)
         self._style_mute_btn()
         if self.mikrofonsuz:
-            # Yeşil "açık" görünümü yanıltıcı olurdu — nötr, pasif görünüm.
-            self._mute_btn.setText("🚫  MİKROFONSUZ MOD")
-            self._mute_btn.setEnabled(False)
-            self._mute_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background: {C.PANEL}; color: {C.TEXT_MED};
-                    border: 1px dashed {C.BORDER_B}; border-radius: 3px;
-                }}
-            """)
+            self._mute_btn_mikrofonsuz_gorunumu()
         lay.addWidget(self._mute_btn)
 
         self._kalibre_btn = self._arac_dugmesi(lay, "📊  MİKROFONU KALİBRE ET")
@@ -1686,7 +1689,8 @@ class MainWindow(QMainWindow):
     #
     # Mikrofon susturma bilerek buraya konmadı: zaten mute düğmesi ve F4 var,
     # aynı işi yapan ikinci bir denetim karışıklık üretir.
-    # Panelde YALNIZCA iki düğme var: durdur ve devam et.
+    # Panelde ders sırasında yalnızca ÜÇ düğme var: durdur, devam et, dersi
+    # bitir.
     #
     # Karar: dersi sanal öğretmen planlar ve anlatır; 40 dakikanın akışı
     # onundur. Öğretmenin sürekli müdahale etmesi gereken bir sistem, zaten
@@ -1696,6 +1700,13 @@ class MainWindow(QMainWindow):
     #
     # Durdur/devam düğme olarak kalır çünkü acil olduğu an klavyeye yazacak
     # vakit yoktur: sınıfa biri girer, telefon çalar, öğrenci fenalaşır.
+    #
+    # DERSİ BİTİR (2026-09-27) de aynı gerekçeyle düğme: mikrofon modu ve
+    # öğretmen/öğrenci modu yalnızca DERSİ BAŞLAT'tan önce seçilir ve bir kez
+    # bağlanınca kilitlenir (bkz. self.mikrofonsuz, self.talimat_modu) — bir
+    # ders sırasında bunları değiştirmek isteyen öğretmenin tek yolu dersi
+    # burada bitirmekti; öncesinde bunun için ya zilin 40 dakikayı doldurmasını
+    # ya da tahtanın yeniden başlatılmasını beklemek gerekiyordu.
     OGRETMEN_KOMUTLARI = [
         ("⏸  DURDUR", "durdur",
          "Dersi burada duraklat. Konuşmayı bitir, yeni konu açma, soru sorma "
@@ -1730,6 +1741,23 @@ class MainWindow(QMainWindow):
             izgara.addWidget(b, i // 2, i % 2)
             self._ogretmen_btns[anahtar] = b
 
+        # ── DERSİ BİTİR ──────────────────────────────────────────────────
+        # Yalnızca ders sürerken aktif (oturum açılınca `_on_gemini_oturum_
+        # degisti` açar, `_dersi_sifirla_gorunumu` kapatır — bkz. yukarıdaki
+        # sınıf yorumu). ÇİFT tıklama DERSİ BAŞLAT'la aynı gerekçeyle:
+        # dokunmatik tahtada geçen bir öğrenci tek tıkla dersi bitirmemeli.
+        self._bitir_btn = QPushButton("⏹  DERSİ BİTİR  (çift tıkla)")
+        self._bitir_btn.setFixedHeight(26)
+        self._bitir_btn.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
+        self._bitir_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._bitir_btn.setStyleSheet(stil + f"""
+            QPushButton {{ color: {C.RED}; border: 1px solid {C.RED}; }}
+        """)
+        self._bitir_btn.setEnabled(False)
+        self._bitir_btn.mouseDoubleClickEvent = (
+            lambda _e: self._dersi_bitir_istendi())
+        izgara.addWidget(self._bitir_btn, 1, 0, 1, 2)
+
         # ── DERSİ BAŞLAT ─────────────────────────────────────────────────────
         # Panelde bilerek yalnızca DURDUR/DEVAM ET vardı; bu üçüncü düğmenin
         # gerekçesi ayrı: oturum artık kendiliğinden açılmıyor, çünkü açık
@@ -1747,7 +1775,7 @@ class MainWindow(QMainWindow):
         # Tek tık bilerek bağlanmıyor; yalnızca çift tık başlatır.
         self._baslat_btn.mouseDoubleClickEvent = (
             lambda _e: self._dersi_baslat())
-        izgara.addWidget(self._baslat_btn, 1, 0, 1, 2)
+        izgara.addWidget(self._baslat_btn, 2, 0, 1, 2)
 
         # ── Farabi Modu: Öğrenci / Öğretmen ──────────────────────────────
         # DERSİ BAŞLAT'ın hemen altında, ders dili düğmelerinden ÖNCE — bu
@@ -1772,8 +1800,8 @@ class MainWindow(QMainWindow):
             b.setCursor(Qt.CursorShape.PointingHandCursor)
         self._ogrenci_btn.clicked.connect(lambda: self._talimat_modu_degistir(False))
         self._ogretmen_btn.clicked.connect(lambda: self._talimat_modu_degistir(True))
-        izgara.addWidget(self._ogrenci_btn, 2, 0)
-        izgara.addWidget(self._ogretmen_btn, 2, 1)
+        izgara.addWidget(self._ogrenci_btn, 3, 0)
+        izgara.addWidget(self._ogretmen_btn, 3, 1)
         if self.mikrofonsuz:
             self._ogretmen_btn.setEnabled(False)
             self._ogretmen_btn.setToolTip(
@@ -1794,9 +1822,27 @@ class MainWindow(QMainWindow):
             b.setCursor(Qt.CursorShape.PointingHandCursor)
             b.clicked.connect(lambda _=False, k=kod: self._ders_dili_sec(k))
             self._dil_btns[kod] = b
-        izgara.addWidget(self._dil_btns["en"], 3, 0)
-        izgara.addWidget(self._dil_btns["de"], 3, 1)
+        izgara.addWidget(self._dil_btns["en"], 4, 0)
+        izgara.addWidget(self._dil_btns["de"], 4, 1)
         self._dil_dugmelerini_boya()
+
+        # ── Mikrofon modu (2026-09-27) ────────────────────────────────────
+        # DERSİ BAŞLAT'tan ÖNCE dokunmatik geçiş — tahta mikrofonlarının
+        # çoğu bozuk olduğu için config'teki "mikrofon" değeri (bkz.
+        # self.mikrofonsuz tanımındaki not) çoğu tahtada zaten false, ama
+        # bir mikrofon takılan/tamir edilen tahtada öğretmenin ayar dosyasını
+        # elle değiştirip tahtayı yeniden başlatmadan MİKROFONLU dersi
+        # deneyebilmesi gerekiyor — ve tersi. Yalnızca bellek içi (Kural:
+        # UI api_keys.json'a asla yazmaz) — yeniden başlatınca dosyadaki
+        # değere döner.
+        self._mikrofon_mod_btn = QPushButton()
+        self._mikrofon_mod_btn.setFixedHeight(24)
+        self._mikrofon_mod_btn.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
+        self._mikrofon_mod_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._mikrofon_mod_btn.setStyleSheet(stil)
+        self._mikrofon_mod_btn.clicked.connect(self._mikrofon_modu_degistir)
+        izgara.addWidget(self._mikrofon_mod_btn, 5, 0, 1, 2)
+        self._mikrofon_mod_dugmesini_boya()
         return izgara
 
     def _talimat_modu_degistir(self, acik: bool) -> None:
@@ -1815,6 +1861,43 @@ class MainWindow(QMainWindow):
         """
         self._ogrenci_btn.setStyleSheet(self._ogretmen_btn_stili if self.talimat_modu else secili_stil)
         self._ogretmen_btn.setStyleSheet(secili_stil if self.talimat_modu else self._ogretmen_btn_stili)
+
+    def _mikrofon_modu_degistir(self) -> None:
+        """Mikrofonlu/mikrofonsuz arasında DERSİ BAŞLAT'tan ÖNCE dokunmatik
+        geçiş. Yalnızca `self.mikrofonsuz`'u değiştirir — HİÇBİR dosyaya
+        yazmaz (bkz. bu düğmenin üstündeki yorum). main.py bu değeri her
+        DERSİ BAŞLAT'ta yeniden okur (`self.ui.mikrofonsuz`), o yüzden
+        burada başka bir şey tetiklemeye gerek yok."""
+        self.mikrofonsuz = not self.mikrofonsuz
+        self._mikrofon_mod_dugmesini_boya()
+        if self.mikrofonsuz:
+            # Öğretmen modu yalnızca sesli komutla çalışır — mikrofon
+            # yoksa seçilemez, bkz. yukarıdaki ÖĞRETMEN MODU notu.
+            self.talimat_modu = False
+            self._talimat_modu_dugmesini_boya()
+            self._ogretmen_btn.setEnabled(False)
+            self._ogretmen_btn.setToolTip(
+                "Mikrofonsuz modda kullanılamaz — öğretmen modu sesli komutla çalışır.")
+            self._muted = False
+            self.hud.muted = False
+            self._mute_btn_mikrofonsuz_gorunumu()
+            self._log.append_log(
+                "SYS: Mikrofon modu — MİKROFONSUZ (bu oturum için; yeniden "
+                "başlatınca ayar dosyasındaki değere döner).")
+        else:
+            self._ogretmen_btn.setEnabled(True)
+            self._ogretmen_btn.setToolTip("")
+            self._mute_btn.setEnabled(True)
+            self._style_mute_btn()
+            self._log.append_log(
+                "SYS: Mikrofon modu — MİKROFONLU (bu oturum için; yeniden "
+                "başlatınca ayar dosyasındaki değere döner).")
+
+    def _mikrofon_mod_dugmesini_boya(self) -> None:
+        if self.mikrofonsuz:
+            self._mikrofon_mod_btn.setText("🚫  MİKROFONSUZ")
+        else:
+            self._mikrofon_mod_btn.setText("🎤  MİKROFONLU")
 
     def _dil_dugmelerini_boya(self) -> None:
         secili_stil = f"""
@@ -1860,12 +1943,17 @@ class MainWindow(QMainWindow):
             self.baslangic_cercevesi = diyalog.cerceve()
             self._log.append_log("ÖĞRETMEN: " + " · ".join(
                 f"{k}: {v}" for k, v in self.baslangic_cercevesi.items() if v))
+        else:
+            # Aynı süreçte önceki mikrofonsuz dersin yazılı konusu bu derse
+            # taşınmasın (main.py her DERSİ BAŞLAT'ta bunu okur).
+            self.baslangic_cercevesi = None
         self._baslat_btn.setEnabled(False)
         self._baslat_btn.setText("⏳  ISINIYOR…")
         for b in self._dil_btns.values():          # dil artık değişemez, bkz. yukarıdaki not
             b.setEnabled(False)
         self._ogrenci_btn.setEnabled(False)         # mod artık değişemez, bkz. yukarıdaki not
         self._ogretmen_btn.setEnabled(False)
+        self._mikrofon_mod_btn.setEnabled(False)    # mikrofon modu artık değişemez, aynı gerekçe
         self._log.append_log("SYS: Ders başlatılıyor (öğretmen) — bağlanılıyor…")
         threading.Thread(target=self.on_session_start, daemon=True).start()
 
@@ -1878,6 +1966,23 @@ class MainWindow(QMainWindow):
             return (slot or {}).get("ders", "") or ""
         except Exception:
             return ""
+
+    def _dersi_bitir_istendi(self) -> None:
+        """Öğretmen DERSİ BİTİR'e çift tıkladı. `on_ders_bitir` main.py'de
+        `_on_ders_bitir`'e bağlanır (bkz. FarabiUI); yalnızca ders sürerken
+        aktif olduğu için (bkz. `_on_gemini_oturum_degisti` / `_dersi_
+        sifirla_gorunumu`) burada `isEnabled()` kontrolü çift ateşlemeyi
+        önler — düğme kendini hemen kapatır, gerçek kapanış (`_dersi_bitti_
+        sig`) main.py'den asenkron gelir."""
+        if not self._bitir_btn.isEnabled():
+            return
+        if not self.on_ders_bitir:
+            self._log.append_log(
+                "SYS: DERSİ BİTİR tıklandı ama bağlanacak oturum yok.")
+            return
+        self._bitir_btn.setEnabled(False)
+        self._log.append_log("SYS: Ders bitirme isteği (öğretmen) — oturum kapatılıyor…")
+        threading.Thread(target=self.on_ders_bitir, daemon=True).start()
 
     def _durdur_gorunumu(self) -> None:
         """Duraklatılmışken DURDUR düğmesi yanar, DEVAM ET öne çıkar."""
@@ -2511,6 +2616,7 @@ class MainWindow(QMainWindow):
         self._talimat_modu_dugmesini_boya()
         self._ogrenci_btn.setEnabled(False)
         self._ogretmen_btn.setEnabled(False)
+        self._mikrofon_mod_btn.setEnabled(False)   # zaten kilitliydi, tutarlılık için
 
     def _dersi_sifirla_gorunumu(self) -> None:
         """Slot for `_ders_bitti_sig` — main.py'nin `_ders_bitti_istendi`
@@ -2527,9 +2633,25 @@ class MainWindow(QMainWindow):
             b.setEnabled(True)
         self._ogrenci_btn.setEnabled(True)
         self._ogretmen_btn.setEnabled(not self.mikrofonsuz)
+        self._mikrofon_mod_btn.setEnabled(True)
+        self._bitir_btn.setEnabled(False)
         self._duraklatildi = False
         self._durdur_gorunumu()
         self._log.append_log("SYS: Ders bitti — yeni ders için hazır.")
+
+    def _mute_btn_mikrofonsuz_gorunumu(self) -> None:
+        """Mikrofonsuz moddaki mute düğmesi görünümü — hem __init__'te hem
+        `_mikrofon_modu_degistir()`'de kullanılır (ikisi de aynı hâli
+        üretir, tekrarı önlemek için tek yerde). Yeşil "açık" görünümü
+        yanıltıcı olurdu — nötr, pasif görünüm."""
+        self._mute_btn.setText("🚫  MİKROFONSUZ MOD")
+        self._mute_btn.setEnabled(False)
+        self._mute_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {C.PANEL}; color: {C.TEXT_MED};
+                border: 1px dashed {C.BORDER_B}; border-radius: 3px;
+            }}
+        """)
 
     def _style_mute_btn(self):
         if self._muted:
@@ -2762,6 +2884,15 @@ class FarabiUI:
     @on_session_start.setter
     def on_session_start(self, cb):
         self._win.on_session_start = cb
+
+    # DERSİ BİTİR — aynı köprü deseni (2026-09-27).
+    @property
+    def on_ders_bitir(self):
+        return self._win.on_ders_bitir
+
+    @on_ders_bitir.setter
+    def on_ders_bitir(self, cb):
+        self._win.on_ders_bitir = cb
 
     @property
     def ders_dili(self) -> str:
