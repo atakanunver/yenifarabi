@@ -271,8 +271,9 @@ _CTRL_RE = re.compile(r"<ctrl\d+>", re.IGNORECASE)
 # içine araç içleri girmemeli. Persona da talimatların öğrenciye
 # açıklanmamasını söylüyor.
 #
-# İlk savunma thinking_config.include_thoughts=False (kaynakta keser); bu
-# temizleyici ikinci savunma, araç çağrısı sızıntısı için.
+# Eskiden ilk savunma thinking_config.include_thoughts=False'tu; 2026-09-27'de
+# modeli susturduğu için kaldırıldı (bkz. _build_config). Artık düşünce ve
+# araç çağrısı sızıntısına karşı tek savunma bu temizleyici.
 _TOOL_ADLARI: list[str] = []          # araç listesi tanımlandıktan sonra doldurulur
 _ARAC_RE: re.Pattern | None = None
 _THOUGHT_RE = re.compile(r"\bthought\b\s*", re.IGNORECASE)
@@ -944,10 +945,11 @@ class FarabiLive:
             # GÜRÜLTÜ" kuralıyla (tek tek konuşalım uyarısı) ele alınıyor —
             # yani model tarafında, ses katmanında değil.
             session_resumption=types.SessionResumptionConfig(),
-            # Modelin iç muhakemesi yanıt akışına karışmasın — ders kaydına
-            # İngilizce düşünce metni sızıyordu. Düşünme devam eder, yalnızca
-            # dışa verilmez.
-            thinking_config=types.ThinkingConfig(include_thoughts=False),
+            # thinking_config GÖNDERİLMEZ. include_thoughts=False da,
+            # thinking_budget=0 da bu modeli susturuyordu: her tur ses
+            # üretmeden kapanıyor, tahta "dinliyor"da kalıyordu (2026-09-27,
+            # fenlab'da ölçüldü, bkz. DECISIONS.md). Düşünce sızıntısına
+            # karşı savunma `_konusma_temizle()`'de.
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(
                     prebuilt_voice_config=types.PrebuiltVoiceConfig(
@@ -961,7 +963,7 @@ class FarabiLive:
         """
         Öğretmen talimat modu — kısa, ayrı bir sistem promptu ve yalnızca
         kip="talimat" araçları (kayit.bildirimler(KIP_TALIMAT)). Ses/oturum
-        ayarları (session_resumption, thinking_config, speech_config,
+        ayarları (session_resumption, speech_config,
         transkripsiyon) `_build_config()`'teki ile BİREBİR aynı tutulur —
         bunlar gerçek arızalarla ayarlanmış, kipe bağlı değil.
         """
@@ -973,7 +975,6 @@ class FarabiLive:
             output_audio_transcription={},
             input_audio_transcription={},
             session_resumption=types.SessionResumptionConfig(),
-            thinking_config=types.ThinkingConfig(include_thoughts=False),
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(
                     prebuilt_voice_config=types.PrebuiltVoiceConfig(

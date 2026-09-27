@@ -93,9 +93,19 @@ def test_ses_ayari_sade_kalmali(config):
     assert getattr(config, "realtime_input_config", None) is None
 
 
-def test_dusunce_metni_disa_verilmiyor(config):
-    """Ders kaydına İngilizce iç muhakeme sızmıştı."""
-    assert config.thinking_config.include_thoughts is False
+def test_thinking_config_gonderilmiyor(config):
+    """
+    `thinking_config` (include_thoughts=False da, thinking_budget=0 da)
+    gemini-2.5-flash-native-audio-preview-12-2025'i SUSTURUYOR: model her
+    turu ses üretmeden kapatıyor, tahta "dinliyor"da kalıyordu. 2026-09-27
+    fenlab'da ölçüldü (DECISIONS.md). Düşünce sızıntısına karşı savunma
+    `_konusma_temizle()`'de.
+    """
+    assert config.thinking_config is None
+
+
+def test_talimat_thinking_config_gonderilmiyor(talimat_config):
+    assert talimat_config.thinking_config is None
 
 
 class TestDersDili:

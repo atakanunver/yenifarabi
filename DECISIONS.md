@@ -1,3 +1,9 @@
+## 2026-09-27 - Live modeli thinking_config yüzünden susuyordu (ders "dinliyor"da takılıyordu)
+- Belirti: DERSİ BAŞLAT → "Farabi çevrimiçi", açılış gönderildi, sonra Farabi hiç konuşmuyor; mikrofonsuz modda `[DEVAM]` 10 sn'de bir gidiyor (boş tur bekleme süresi). 9-B ve fenlab'da 3+ dk sessizlik; ders kitabı içeriğinin bulunup bulunmaması fark etmiyordu.
+- Kök neden: `LiveConnectConfig(thinking_config=ThinkingConfig(include_thoughts=False))`. fenlab'da gerçek `_build_config()` + `_send_session_opening()` ile ölçüldü: bu ayarla her tur `ses=0 bayt`, transkript yalnızca `'\n\n'` (10/10 tur). `thinking_config` kaldırılınca ilk turda 1,4-1,8 MB ses ve doğru açılış (2/2 deneme). `thinking_budget=0` da sessiz + İngilizce "Let me check" sızdırdı. Araçsız ve açılışa `role: user` eklenmiş varyantlar da sessizdi, yani neden onlar değil.
+- Düzeltme: iki config'ten (`_build_config`, `_build_talimat_config`) `thinking_config` kaldırıldı; test artık `thinking_config is None` bekliyor. Düşünce sızıntısına karşı savunma `_konusma_temizle()` (`_THOUGHT_RE`).
+- Neden önemli: ayar 2026-08-11'den beri vardı ve çalışıyordu, yani davranış Google tarafında (model `gemini-2.5-flash-native-audio-preview-12-2025`) değişti. Model sessizse önce `thinking_config`/config alanlarını tek tek çıkararak ölç; prompt metnini değiştirmeye koşma.
+
 ## 2026-09-25 - CLAUDE.md'den düz metin şifreler çıkarıldı
 - Kök `CLAUDE.md`'deki sunucu (`ata`) ve tahta (`etapadmin`, `ogretmen`) şifreleri ile ham IP/MAC listesi silindi; kimlik bilgileri yalnızca gitignore'lu `network.txt`'te. Dashboard tasarım standartları `tahtayoklama/CLAUDE.md`'ye taşındı.
 - Neden: `CLAUDE.md` git'e ekli ve repo PUBLIC — şifreler `origin/master`'da açıktaydı. Geçmişte kaldıkları için şifrelerin değiştirilmesi gerekiyor (dosyadan silmek yetmez).
