@@ -20,10 +20,10 @@ def ekran_goruntusu_al(parameters: dict | None = None, player=None, speak=None, 
         return "Ekran görüntüsü alma arayüzü şu an hazır değil, efendim."
 
     log("[Ekran Görüntüsü] Ekran görüntüsü alınıyor…")
-    
+
     # GUI operasyonları için ana thread ile senkronizasyon nesneleri
-    ctx = {"event": threading.Event(), "path": ""}
-    
+    ctx = {"event": threading.Event(), "path": "", "gizli": False}
+
     try:
         # Sinyali tetikle
         player._win._screenshot_sig.emit(ctx)
@@ -31,7 +31,10 @@ def ekran_goruntusu_al(parameters: dict | None = None, player=None, speak=None, 
         if ctx["event"].wait(timeout=5.0) and ctx["path"]:
             yol = ctx["path"]
             log(f"[Ekran Görüntüsü] Başarıyla kaydedildi: {yol}")
-            return f"Ekran görüntüsü başarıyla alındı ve ders loglarına eklendi, efendim."
+            return "Ekran görüntüsü başarıyla alındı ve ders loglarına eklendi, efendim."
+        elif ctx.get("gizli"):
+            log("[Ekran Görüntüsü] Gizlilik filtresi — ekranda kişisel veri olabileceği için alınmadı.")
+            return "Ekranda kişisel veri olabileceği için görüntü alınmadı, efendim."
         else:
             log("[Ekran Görüntüsü] Zaman aşımı veya kaydetme hatası.")
             return "Ekran görüntüsü alınamadı, zaman aşımı oluştu."

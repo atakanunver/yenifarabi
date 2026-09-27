@@ -7,6 +7,7 @@ import math
 import os
 import platform
 import random
+import re
 import subprocess
 import sys
 import threading
@@ -60,6 +61,72 @@ _OS = platform.system()  # "Windows" | "Darwin" | "Linux"
 # `_TERMINALLER` listesi kaldırıldı — tek kullanım yeri, kaldırılan yerel
 # içerik dönüştürme düğmeleriydi (KİTAPLARI METNE DÖNÜŞTÜR vb., bkz.
 # _mikrofon_kalibre'nin altındaki not). Terminal açma ihtiyacı kalmadı.
+
+
+# ── Ekran yakalama — gizlilik filtresi (2026-09-27) ─────────────────────────
+# `ekrandaki_soruyu_oku`/`ekran_goruntusu_al` artık ekranı yakalamadan ÖNCE
+# önde duran pencerenin başlığını okuyor (bkz. `_ekran_goruntusu_cek`) — bu
+# kelimelerden biri geçiyorsa (yoklama panosu, e-Okul, MEBBİS gibi kişisel/
+# idari veri) hiç yakalama yapılmaz. Küçük harfe çevrilmiş başlıkla
+# karşılaştırılır.
+_EKRAN_GIZLI_KELIMELER = ("yoklama", "e-okul", "eokul", "mebbis", "tahtayoklama")
+# str.lower() tek başına "İ" → "i̇" (birleşik nokta işareti EKLER, tek harfe
+# DÖNMEZ) üretir — "MEBBİS" bu yüzden düz .lower()'la "mebbis" alt dizesini
+# içermez (ölçüldü). main.py::_TR_KUCUK_HARF ile aynı düzeltme; ui.py
+# main.py'yi import EDEMEZ (döngüsel bağımlılık, bkz. core/zil.py notu),
+# bu yüzden burada AYRICA tanımlı.
+_TR_KUCUK_HARF = str.maketrans({"İ": "i", "I": "ı"})
+
+
+def _ekran_baslik_gizli_mi(baslik: str) -> bool:
+    b = (baslik or "").translate(_TR_KUCUK_HARF).lower()
+    return any(k in b for k in _EKRAN_GIZLI_KELIMELER)
+
+
+def _aktif_pencere_basligi() -> str | None:
+    """Aktif X penceresinin başlığını `xprop` ile okur.
+
+    `None` DÖNERSE `xprop` başarısız oldu demektir (kurulu değil, X yok,
+    zaman aşımı...) — çağıran bu durumda YAKALAMAYA DEVAM ETMELİ (özellik
+    bloke olmamalı, bkz. modül CLAUDE.md'si), yalnızca bir tanı satırı
+    yazmalı. Boş string ("") ise xprop çalıştı ama başlık okunamadı/aktif
+    pencere yok — bu da "gizli değil" sayılır."""
+    try:
+        aktif = subprocess.run(
+            ["xprop", "-root", "_NET_ACTIVE_WINDOW"],
+            capture_output=True, text=True, timeout=1.5, check=False,
+        )
+        if aktif.returncode != 0:
+            return None
+        m = re.search(r"window id # (0x[0-9a-fA-F]+)", aktif.stdout)
+        if not m:
+            return ""
+        ad = subprocess.run(
+            ["xprop", "-id", m.group(1), "_NET_WM_NAME"],
+            capture_output=True, text=True, timeout=1.5, check=False,
+        )
+        if ad.returncode != 0:
+            return None
+        m2 = re.search(r'"(.*)"', ad.stdout)
+        return m2.group(1) if m2 else ""
+    # xprop kurulu değilse (OSError/FileNotFoundError) ya da zaman aşımına
+    # uğrarsa (subprocess.SubprocessError) — bilerek DAR: özellik BLOKE
+    # OLMAMALI, çağıran None'ı "denetim atlandı, yakalamaya devam et" olarak
+    # okur (bkz. yukarıdaki docstring).
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def _pencere_onceki_durumu(tam_ekran: bool, buyutulmus: bool) -> str:
+    """Pencerenin ekran-yakalama için gizlenmeden ÖNCEKİ görünüm durumunu
+    tek bir etikete özetler — saf fonksiyon, offscreen Qt olmadan da test
+    edilebilir. Gizlemeden sonra AYNI etiketle geri yüklenir
+    (`_pencereyi_geri_getir`)."""
+    if tam_ekran:
+        return "fullscreen"
+    if buyutulmus:
+        return "maximized"
+    return "normal"
 
 
 class C:
@@ -2442,6 +2509,11 @@ class MainWindow(QMainWindow):
 
     _EKRAN_GORUNTUSU_DIZINI = BASE_DIR / "icerik" / "onbellek" / "ekran_goruntusu"
     _EKRAN_GORUNTUSU_LIMIT = 20
+    # Farabi'yi küçültüp arkadaki pencerenin ekrana tam oturması için
+    # beklenen süre — ölçülmedi ama i3'te bir WM geçişi için cömert bir pay
+    # (bkz. actions/ekrandaki_soruyu_oku.py::CTX_BEKLEME_SN, bu süreden
+    # büyük tutulur).
+    _EKRAN_GIZLEME_BEKLEME_MS = 400
 
     def _ekran_goruntusu_yakala(self, ctx: dict):
         """`actions/ekran_goruntusu_al.py` ve `actions/ekrandaki_soruyu_oku.py`nun
@@ -2454,8 +2526,61 @@ class MainWindow(QMainWindow):
         kamera donanımı yok (`/dev/video*` yok, 2026-08-30 doğrulandı) ve
         proje kamera/webcam kullanmıyor. Yalnızca o an ekranda zaten
         gösterilen şeyi (ör. `pdf_sayfa`'nın açtığı sayfa, `show_content`
-        metni) bir PNG'e alır — sınıfı/öğrencileri değil."""
+        metni) bir PNG'e alır — sınıfı/öğrencileri değil.
+
+        2026-09-27: öğretmen yazılı komut kutusuna yazarken Farabi'nin
+        kendi penceresi ÖNDE olur — o anda yakalanan `grabWindow(0)` Farabi'nin
+        kendi arayüzünü çeker, arkadaki soru/grafiği DEĞİL. Farabi önde ise
+        önce kendini küçültür (`showMinimized`), GUI thread'i BLOKE ETMEDEN
+        `QTimer.singleShot` ile bekler, sonra yakalar ve tam olarak önceki
+        görünümüne (tam ekran/büyütülmüş/normal) geri döner. Önde değilse
+        (ör. talimat modunda açılmış bir tarayıcı/uygulama önde) doğrudan
+        yakalar — gizleyecek bir şey yok."""
+        onde = self.isActiveWindow() or QApplication.activeWindow() is self
+        if not onde:
+            self._ekran_goruntusu_cek(ctx, onceki=None)
+            return
+        onceki = _pencere_onceki_durumu(self.isFullScreen(), self.isMaximized())
+        self.showMinimized()
+        QTimer.singleShot(self._EKRAN_GIZLEME_BEKLEME_MS,
+                          lambda: self._ekran_goruntusu_cek(ctx, onceki))
+
+    def _pencereyi_geri_getir(self, onceki: str) -> None:
+        if onceki == "fullscreen":
+            self.showFullScreen()
+        elif onceki == "maximized":
+            self.showMaximized()
+        else:
+            self.showNormal()
+        self.raise_()
+        self.activateWindow()
+
+    def _ekran_goruntusu_cek(self, ctx: dict, onceki: str | None) -> None:
+        """Gerçek yakalama — `_ekran_goruntusu_yakala`'nın (gerekiyorsa
+        Farabi'yi gizleyip bir `QTimer.singleShot` sonrası) çağırdığı asıl
+        iş. `onceki` None DEĞİLSE Farabi kendini gizlemiştir ve iş bitince
+        AYNI görünüme geri döner (bkz. `_pencereyi_geri_getir`)."""
         try:
+            baslik = _aktif_pencere_basligi()
+            if baslik is None:
+                self._log.append_log(
+                    "SYS: ekran gizlilik denetimi atlandı (xprop hatası) — yakalama sürüyor.")
+            elif _ekran_baslik_gizli_mi(baslik):
+                ctx["gizli"] = True
+                ctx["path"] = ""
+                try:
+                    from core import transcript
+                    transcript.log_line(
+                        "SİSTEM",
+                        "Ekran görüntüsü alınmadı — ekranda kişisel/idari veri "
+                        "olabilir (gizlilik filtresi).")
+                # `transcript.log_line` kendi içinde zaten TÜM hataları yutar
+                # (bkz. core/transcript.py docstring'i) — tek gerçekçi hata
+                # burada modülün import edilememesidir.
+                except ImportError as e:
+                    self._log.append_log(f"SYS: gizlilik transkript satırı yazılamadı: {e}")
+                return
+
             self._EKRAN_GORUNTUSU_DIZINI.mkdir(parents=True, exist_ok=True)
             ekran = QApplication.primaryScreen()
             if ekran is None:
@@ -2480,6 +2605,8 @@ class MainWindow(QMainWindow):
         except Exception:
             ctx["path"] = ""
         finally:
+            if onceki is not None:
+                self._pencereyi_geri_getir(onceki)
             ctx["event"].set()
 
     def _mikrofon_kalibre(self):

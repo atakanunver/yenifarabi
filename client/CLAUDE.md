@@ -104,6 +104,24 @@ actions/                 one public function per module — the
 > (`server/dosya.py:104`, already supported, no server change needed).
 > Verified end-to-end with an offscreen Qt test (`QT_QPA_PLATFORM=offscreen`)
 > before deploying to 9-A.
+
+> ⚠️ **UPDATED 2026-09-27 — `ekrandaki_soruyu_oku` sends the image DIRECTLY
+> to Gemini as a `send_client_content` user turn (`FarabiLive.
+> ekrani_modele_gonder`, ≤1024px/JPEG q70), tagged `[EKRAN]`; OCR
+> (`file_processor` `"ocr"`) is now only a fallback if that fails.**
+> `send_realtime_input(video=…)` was tried first and measured to misread
+> digits on a real board — not used. Tool is `calisma="arkaplan"` now (like
+> `gorsel_uret`): immediate ack, result arrives in a later turn. Before
+> grabbing, Farabi minimises itself if it's the front window (`ui.py::
+> _ekran_goruntusu_yakala`/`_ekran_goruntusu_cek`, `QTimer.singleShot`,
+> restores exact prior state after) and checks the active window's title via
+> `xprop` against a personal-data word filter (yoklama/e-Okul/MEBBİS/
+> tahtayoklama — skips capture, xprop failure doesn't block the feature). A
+> teacher typing "ekranı oku" etc. (`main.py::_ekran_okuma_komutu_mu`)
+> triggers this directly from `_on_teacher_command` instead of going to the
+> model as text. **Caller note:** this file's committed CLAUDE.md (base
+> `00d37c1`) has no separate "Tools (current behaviour)" section yet — port
+> this note there if/when that restructure lands.
   kayit.py               TOOL REGISTRY — the single source for declarations,
                          timeouts, permissions, cost class (see below)
   ders_icerigi.py        textbook pages for the teacher's subject + topic.

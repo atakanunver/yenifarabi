@@ -8,11 +8,13 @@ import sys
 import time
 import traceback
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 
 import sounddevice as sd
 from google import genai
 from google.genai import types
+from PIL import Image
 from ui import FarabiUI
 from core import transcript, zil, tahta, anahtar, olaylar, program
 from core.ders_motoru import DersMotoru
@@ -284,7 +286,7 @@ _THOUGHT_RE = re.compile(r"\bthought\b\s*", re.IGNORECASE)
 # tekrarlıyor. İlk savunma promptta ("etiketi okuma"), bu ikinci savunma.
 _ETIKET_RE = re.compile(
     r"\[(?:DERS_ACILISI|DERS_KAPANISI|DEVAM|DERS DURUMU|ÖĞRETMEN KOMUTU|OTURUM DEVAM|"
-    r"CURRENT DATE & TIME|DERSLİK|DERS KİPİ[^\]]*)\]\s*",
+    r"CURRENT DATE & TIME|DERSLİK|DERS KİPİ[^\]]*|EKRAN)\]\s*",
     re.IGNORECASE)
 
 
@@ -346,6 +348,46 @@ def _acilis_selam_gun(ders_dili: str, simdi: datetime) -> tuple[str, str]:
                 "Guten Tag" if saat < 18 else "Guten Abend"
         return selam, _GUN_ADLARI_DE[simdi.weekday()]
     return _greeting_for_hour(saat), GUN_ADLARI[simdi.weekday()]
+
+
+# ── Yazılı "ekranı oku" komutu — deterministik yakalama ─────────────────────
+# Öğretmen bunu yazarsa modelin metne cevap vermesini BEKLEMEDEN doğrudan
+# `ekrandaki_soruyu_oku` arka plan işçisini tetikleriz (bkz.
+# `_on_teacher_command`) — aksi hâlde model görüntü gelmeden metinle cevap
+# verir, görüntü geldiğinde ikinci bir çelişkili yanıt daha gelmiş olur.
+_EKRAN_OKUMA_KALIPLARI = (
+    "ekranı oku", "ekrani oku", "ekrandaki soruyu oku", "ekrana bak",
+    "ekrandakini oku",
+)
+# `\b...\b` — düz alt dize araması "ekranı okuma"/"ekrana bakma" gibi
+# OLUMSUZ biçimleri de yanlışlıkla eşleştiriyordu ("okuma" içinde "oku" bir
+# ÖNEK): "ekranı oku"nun \b'si "okuma"daki 'u'dan 'm'ye GEÇİŞTE sınır
+# bulamaz (ikisi de \w), bu yüzden eşleşmez — ölçüldü.
+_EKRAN_OKUMA_RE = re.compile(
+    "|".join(rf"\b{re.escape(k)}\b" for k in _EKRAN_OKUMA_KALIPLARI))
+# Türkçe büyük/küçük harf çevrimi (İ/I) noktalı-noktasız ayrımını KORUR —
+# str.lower() tek başına "İ" → "i̇" (birleşik nokta işareti EKLER, tek
+# harfe DÖNMEZ) üretir, bu da alt dizeye tam eşleşmeyi bozar (ölçüldü).
+_TR_KUCUK_HARF = str.maketrans({"İ": "i", "I": "ı"})
+
+
+def _turkce_sadelestir(metin: str) -> str:
+    """Karşılaştırma için sadeleştirme: Türkçe büyük→küçük, noktalama
+    kaldırma, tekrarlanan boşlukları tekleştirme."""
+    sade = (metin or "").translate(_TR_KUCUK_HARF).lower()
+    sade = re.sub(r"[^\w\s]", " ", sade, flags=re.UNICODE)
+    return re.sub(r"\s+", " ", sade).strip()
+
+
+def _ekran_okuma_komutu_mu(metin: str) -> bool:
+    """Öğretmenin yazılı talimatı ekranı okumayı mı istiyor?
+
+    Yalnızca YAZILI komutlar için (bkz. `_on_teacher_command`) — sesli
+    konuşma zaten modelin kendi `ekrandaki_soruyu_oku` çağrısına gider,
+    burada işlenmez. Basit bir eşleştirici — "ekranı okuma" gibi açık
+    olumsuzları eler ama genel bir olumsuzluk/kip çözümleyicisi DEĞİL."""
+    sade = _turkce_sadelestir(metin.removeprefix("[ÖĞRETMEN KOMUTU] "))
+    return bool(_EKRAN_OKUMA_RE.search(sade))
 
 
 # Araç bildirimleri TEK KAYNAKTAN gelir: actions/kayit.py.
@@ -528,7 +570,32 @@ class FarabiLive:
             log.error("Öğretmen komutu işlenemedi (%s): %s", anahtar, e)
 
         log.info("ÖĞRETMEN KOMUTU: %s", anahtar)
-        self._on_text_command(metin)
+
+        # Yazılı "ekranı oku" — modele düz metni GÖNDERMİYORUZ, doğrudan
+        # aynı işçiyi tetikliyoruz (bkz. `_ekran_okuma_komutu_mu` docstring'i):
+        # model görüntü gelmeden metinle cevap verirse, görüntü geldiğinde
+        # ikinci ve çelişen bir yanıt daha üretir.
+        #
+        # `self._arkaplan` KULLANILMAZ: o `asyncio.get_event_loop()` çağırır
+        # ve yalnızca ÇALIŞAN LOOP'UN İÇİNDEN (ör. `_execute_tool`, TaskGroup
+        # üyesi) güvenlidir. `_on_teacher_command`'ın kendisi ise `ui.py`nin
+        # `_send`/`_ogretmen_komutu`'sunun açtığı DÜZ bir `threading.Thread`
+        # üzerinde çalışır — loop'suz bir iş parçacığında `_arkaplan`
+        # `RuntimeError: There is no current event loop in thread ...` ile
+        # patlar ve öğretmen "ekranı oku" yazınca hiçbir şey olmaz (ölçüldü).
+        # Bu yüzden burada da AYNI düz `threading.Thread` deseni kullanılır.
+        if _ekran_okuma_komutu_mu(metin):
+            talimat = metin.removeprefix("[ÖĞRETMEN KOMUTU] ")
+            log.info("Yazılı ekran okuma komutu tespit edildi — işçi tetikleniyor.")
+            threading.Thread(
+                target=lambda: ekrandaki_soruyu_oku(
+                    parameters={"talimat": talimat}, player=self.ui, speak=self.speak,
+                    ekrani_gonder=self.ekrani_modele_gonder),
+                daemon=True,
+            ).start()
+        else:
+            self._on_text_command(metin)
+
         if self._loop:
             asyncio.run_coroutine_threadsafe(
                 olaylar.yayinla(olaylar.OGRETMEN_MUDAHALE, komut=anahtar),
@@ -726,6 +793,78 @@ class FarabiLive:
             ),
             self._loop
         )
+
+    def ekrani_modele_gonder(self, yol: str, talimat: str) -> bool:
+        """
+        Yakalanan ekran görüntüsünü OCR'a DEĞİL, doğrudan Gemini Live
+        oturumuna ayrı bir kullanıcı turu olarak gönderir — modelin kendi
+        görü yeteneğiyle okusun diye.
+
+        2026-09-27, gerçek tahtada ölçüldü: `send_realtime_input(video=…)`
+        ile gönderilen aynı görüntüdeki rakamlar YANLIŞ okundu; bu yüzden
+        realtime video YOK, `send_client_content` ile tek seferlik bir
+        kullanıcı turu var — model "3. SORU 2x + 3 = 11 ise x kaçtır?"ı
+        harfiyen doğru okudu.
+
+        `speak`/`_on_text_command` ile AYNI thread-safe desen
+        (`asyncio.run_coroutine_threadsafe`) — ama SONUCU BEKLER (`fut.
+        result(timeout=...)`): yalnızca zamanlamayı değil, gönderimin
+        GERÇEKTEN bittiğini de doğrular. `run_coroutine_threadsafe` tek
+        başına yalnızca "loop'a kondu" demektir — bağlantı kapanmışsa/
+        yeniden bağlanıyorsa `send_client_content` daha sonra sessizce
+        patlayabilir, o zaman burada asla görülmez ve OCR yedeğine hiç
+        düşülmez. Yalnızca bir İŞÇİ İŞ PARÇACIĞINDAN çağrılmalı (loop'un
+        KENDİ iş parçacığından ASLA — `fut.result()` o zaman kilitlenir);
+        her iki çağıran da (main.py::_execute_tool'un arkaplan işçisi,
+        main.py::_on_teacher_command'ın kendi thread'i) zaten öyle.
+
+        Oturum/loop yoksa, görüntü okunamıyorsa ya da gönderim başarısız/
+        zaman aşımına uğrarsa False döner; çağıran (actions/
+        ekrandaki_soruyu_oku.py) bunu eski OCR yoluna düşme sinyali olarak
+        kullanır — Farabi asla dersi bozmaz (Kural 2).
+        """
+        if not self._loop or not self.session:
+            return False
+
+        # PIL'in okuma/dönüştürme/kaydetme zincirinde beklenen hata sınıfları:
+        # bozuk/eksik dosya ya da desteklenmeyen biçim → OSError (PIL'in
+        # UnidentifiedImageError'ı da OSError alt sınıfı), geçersiz mod
+        # dönüşümü → ValueError.
+        try:
+            with Image.open(yol) as im:
+                im = im.convert("RGB")
+                im.thumbnail((1024, 1024))
+                arabellek = BytesIO()
+                im.save(arabellek, format="JPEG", quality=70)
+                jpeg = arabellek.getvalue()
+        except (OSError, ValueError) as e:
+            log.error("Ekran görüntüsü okunamadı/ölçeklenemedi (%s): %s", yol, e)
+            return False
+
+        metin = (
+            f"[EKRAN] {talimat}. Ekranın o anki görüntüsü ekte; YALNIZCA "
+            "görüntüde gerçekten gördüğünü söyle, göremediğini tahmin etme."
+        )
+        try:
+            fut = asyncio.run_coroutine_threadsafe(
+                self.session.send_client_content(
+                    turns={"role": "user", "parts": [
+                        {"text": metin},
+                        {"inline_data": {"mime_type": "image/jpeg", "data": jpeg}},
+                    ]},
+                    turn_complete=True,
+                ),
+                self._loop,
+            )
+            fut.result(timeout=10.0)
+        except Exception as e:  # noqa: BLE001 — bilerek geniş: oturum/ağ
+            # tarafındaki HERHANGİ bir hata (kapanmış bağlantı, zaman aşımı,
+            # SDK istisnası) OCR yedeğine düşme sinyaline dönüşmeli, tek tek
+            # sınıflandırmak bu sınıfları bilmeyi gerektirir ve yeni bir tanesi
+            # kolayca kaçar — Farabi asla dersi bozmaz (Kural 2).
+            log.error("Ekran görüntüsü modele gönderilemedi: %s", e)
+            return False
+        return True
 
     def speak_error(self, tool_name: str, error: str):
         short = str(error)[:120]
@@ -1133,8 +1272,18 @@ class FarabiLive:
                 result = r or "Done."
 
             elif name == "ekrandaki_soruyu_oku":
-                r = await self._isci(name, lambda: ekrandaki_soruyu_oku(parameters=args, player=self.ui, speak=self.speak))
-                result = r or "Done."
+                # arkaplan (2026-09-27, aynı desen gorsel_uret'te): yakalama +
+                # gönderim onlarca saniye sürebilir (gizleme + grabWindow +
+                # OCR yedeği). Model hemen bir onay alır, görüntü (ya da
+                # gizlilik/hata bildirimi) `speak()` ile AYRI bir turda gelir.
+                self._arkaplan(lambda: ekrandaki_soruyu_oku(
+                    parameters=args, player=self.ui, speak=self.speak,
+                    ekrani_gonder=self.ekrani_modele_gonder))
+                result = (
+                    "Ekran yakalanıyor; görüntü sana birazdan ayrı bir "
+                    "mesajla gelecek. Gelene kadar ekranda ne olduğunu "
+                    "tahmin etme, tek cümleyle bekle."
+                )
 
             elif name == "yoklama_al":
                 r = await self._isci(name, lambda: yoklama_al(parameters=args, player=self.ui))
