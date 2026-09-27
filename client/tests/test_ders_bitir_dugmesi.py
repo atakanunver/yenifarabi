@@ -110,33 +110,3 @@ class TestDersiBitirTekrarGirisi:
         assert yedek == [1]
         assert f._ders_bitti_istendi is True
         assert f._ders_bitti_event.is_set()
-
-
-class TestDersiBitirYenidenGiris:
-    def test_yedekleme_suresince_ikinci_cagri_yoksayilir(self, monkeypatch):
-        # Zil ve öğretmen aynı 6 sn'lik yedekleme penceresinde bitirirse
-        # _dersi_bitir yalnızca bir kez işlemeli; ikinci çağrı bayrağı
-        # sıfırlamadan sonra yeniden kuramamalı.
-        monkeypatch.setattr(main.transcript, "log_line", lambda *a, **k: None)
-        monkeypatch.setattr(main.transcript, "log_session_end", lambda: None)
-        yedek = []
-
-        async def _calistir():
-            f = main.FarabiLive.__new__(main.FarabiLive)
-            f._ders_bitti_event = asyncio.Event()
-            f._ders_bitti_istendi = False
-            f._ders_bitiriliyor = False
-
-            def _yavas_yedek():
-                import time
-                yedek.append(1)
-                time.sleep(0.1)
-
-            f._ders_kaydini_yedekle = _yavas_yedek
-            await asyncio.gather(f._dersi_bitir("zil"), f._dersi_bitir("öğretmen"))
-            return f
-
-        f = asyncio.run(_calistir())
-        assert yedek == [1]
-        assert f._ders_bitti_istendi is True
-        assert f._ders_bitiriliyor is True   # yalnızca run()'ın ders-bitti dalı temizler

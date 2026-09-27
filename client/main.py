@@ -2131,6 +2131,7 @@ class FarabiLive:
         except Exception as e:
             log.info("Ders kaydı yedekleme adımı atlandı: %s", e)
         log.info("Ders bitiyor (süreç açık kalıyor): %s", sebep)
+        self._ders_bitti_istendi = True
         if self._ders_bitti_event:
             self._ders_bitti_event.set()
 
