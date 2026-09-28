@@ -37,6 +37,16 @@ GÜNCELLEME (2026-08-19, gerçek tahta testi sonrası):
   için kayıt yoksa, pencere öne getirilir (`raise_`/`activateWindow`) —
   30 saniyede bir çalışan bir zamanlayıcıyla kontrol edilir.
 
+GÜNCELLEME (2026-09-28, "yoklama panoda görünmüyor" şikâyeti sonrası kök
+neden düzeltmesi — ayrıntı kök `DECISIONS.md` 2026-09-28):
+- **Tek örnek (single instance) koruması eklendi.** Masaüstü simgesine
+  çift dokunulup ikinci bir pencere açılması, dokunulmamış arka plan
+  penceresinin öğretmenin gerçek kaydının üzerine "herkes var" yazmasına
+  yol açan senaryolardan biriydi. Artık ikinci bir başlatma yeni pencere
+  AÇMAZ — zaten çalışan bir örneğe (varsa) `QLocalServer`/`QLocalSocket`
+  (PyQt6.QtNetwork) ile "öne getir" mesajı gönderir ve kendisi hemen çıkar
+  (bkz. `_tekil_ornek_sunucusu_baslat`).
+
 VERİ MODELİ:
 - Sınıf listesi (roster): `data/roster/<sinif>.json` — {"sinif": "9-A",
   "ogrenciler": [{"no": 1, "ad_soyad": "..."}, ...]}. Kaynak: okulun
@@ -56,6 +66,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QFontMetrics
+from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -73,6 +84,9 @@ BASE_DIR = Path(__file__).resolve().parent
 ROSTER_DIR = BASE_DIR / "data" / "roster"
 KAYIT_DIR = BASE_DIR / "data" / "kayitlar"
 ZIL_DOSYASI = BASE_DIR / "data" / "zil.json"
+
+# Tek örnek koruması için sabit yerel soket adı — bkz. _tekil_ornek_sunucusu_baslat.
+TEKIL_ORNEK_SUNUCU_ADI = "tahtayoklama-yoklama"
 
 DURUM_SIRASI = ["var", "yok", "izinli"]
 DURUM_RENK = {
@@ -212,6 +226,51 @@ def _ad_sarmala(ad: str, kart_genislik: int, font_pt: int) -> str:
     return "\n".join(satirlar)
 
 
+def _tekil_ornek_sunucusu_baslat(adi: str = TEKIL_ORNEK_SUNUCU_ADI) -> tuple[QLocalServer | None, bool]:
+    """Tek örnek (single instance) koruması — masaüstü simgesine çift
+    dokunulup ikinci bir pencere açılması, dokunulmamış arka plan
+    penceresinin öğretmenin gerçek kaydının üzerine yazmasına yol açıyordu
+    (bkz. modül docstring'i, 2026-09-28). `(sunucu, cikilmali)` döner:
+
+    - `cikilmali=True`: bu ikinci bir örnek — zaten çalışan bir örneğe
+      "öne getir" mesajı gönderildi (ya da gönderilmeye çalışıldı).
+      Çağıran hemen `sys.exit`/`return` etmeli, PENCERE AÇMAMALI.
+    - `cikilmali=False, sunucu is not None`: bu ilk örnek, `sunucu` artık
+      dinlemede — çağıran bu referansı YoklamaPenceresi'ne (ya da en azından
+      `app.exec()` süresince canlı bir yere) vermeli, aksi halde
+      çöp toplayıcı soketi kapatır.
+    - `cikilmali=False, sunucu is None`: soket hiçbir şekilde kurulamadı
+      (beklenmeyen ortam/izin sorunu) — tek-örnek koruması YOK, ama
+      pencere normal açılır (Kural 2, "Farabi asla dersi bozmaz": eksik
+      koruma, hiç açılmayan yoklama penceresinden daha az kötü).
+
+    Sıra kasıtlı: ÖNCE `listen()` denenir. Başarısız olursa ÖNCE `connect`
+    ile gerçekten canlı bir örnek olup olmadığı doğrulanır, `removeServer`
+    yalnızca bağlantı da başarısız olursa (soket kalıntısı/çökmüş önceki
+    örnek) çağrılır — tersi sıra (önce removeServer) çift dokunuşta bir
+    yarış durumu yaratıp iki pencerenin de açılmasına yol açabilirdi."""
+    sunucu = QLocalServer()
+    if sunucu.listen(adi):
+        return sunucu, False
+
+    soket = QLocalSocket()
+    soket.connectToServer(adi)
+    if soket.waitForConnected(200):
+        soket.write(b"one_getir\n")
+        soket.waitForBytesWritten(200)
+        soket.disconnectFromServer()
+        soket.waitForDisconnected(200)
+        return None, True
+
+    # Bağlanılamadı: önceki örnek çökmüş, soket dosyası kalıntı — temizleyip
+    # yeniden dinlemeyi dene.
+    QLocalServer.removeServer(adi)
+    sunucu = QLocalServer()
+    if sunucu.listen(adi):
+        return sunucu, False
+    return None, False
+
+
 class OgrenciKarti(QPushButton):
     """Bir öğrencinin dokunmatik yoklama kartı — üç hâl arasında döner."""
 
@@ -258,7 +317,7 @@ class OgrenciKarti(QPushButton):
 
 
 class YoklamaPenceresi(QWidget):
-    def __init__(self):
+    def __init__(self, tekil_ornek_sunucusu: QLocalServer | None = None):
         super().__init__()
         self.setWindowTitle("Yoklama")
         self._kartlar: list[OgrenciKarti] = []
@@ -268,9 +327,26 @@ class YoklamaPenceresi(QWidget):
         self._sinif_degisti()
         self.showFullScreen()
 
+        # Tek örnek koruması — bkz. _tekil_ornek_sunucusu_baslat. Referans
+        # burada tutulmazsa Python çöp toplayıcısı sunucuyu kapatabilir.
+        self._tekil_ornek_sunucusu = tekil_ornek_sunucusu
+        if self._tekil_ornek_sunucusu is not None:
+            self._tekil_ornek_sunucusu.newConnection.connect(self._tekil_ornek_bagli_geldi)
+
         self._zamanlayici = QTimer(self)
         self._zamanlayici.timeout.connect(self._periyodik_kontrol)
         self._zamanlayici.start(KONTROL_ARALIGI_MS)
+
+    def _tekil_ornek_bagli_geldi(self) -> None:
+        """İkinci bir örnek başlatılmaya çalışıldığında (bkz.
+        _tekil_ornek_sunucusu_baslat) çağrılır — mesajın İÇERİĞİ önemli
+        değil, bağlantının kendisi zaten "öne getir" sinyalidir."""
+        if self._tekil_ornek_sunucusu is None:
+            return
+        soket = self._tekil_ornek_sunucusu.nextPendingConnection()
+        if soket is not None:
+            soket.disconnected.connect(soket.deleteLater)
+        self._pencereyi_one_getir()
 
     def _kur_arayuz(self) -> None:
         ana = QVBoxLayout(self)
@@ -479,7 +555,14 @@ class YoklamaPenceresi(QWidget):
 
 def main() -> int:
     app = QApplication(sys.argv)
-    pencere = YoklamaPenceresi()
+
+    # Tek örnek koruması — ikinci bir başlatma (masaüstü simgesine çift
+    # dokunuş) yeni bir pencere AÇMAZ, ilk örneği öne getirtip kendisi çıkar.
+    sunucu, cikilmali = _tekil_ornek_sunucusu_baslat()
+    if cikilmali:
+        return 0
+
+    pencere = YoklamaPenceresi(tekil_ornek_sunucusu=sunucu)
     pencere.show()
     return app.exec()
 
