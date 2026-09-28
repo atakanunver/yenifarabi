@@ -566,13 +566,20 @@ ARACLAR: list[Arac] = [
         ad="ekrandaki_soruyu_oku",
         aciklama=(
             "Captures the board's OWN screen (not a camera — this board has "
-            "none) and reads/solves/explains whatever question or content is "
-            "currently displayed, via cloud OCR. Call when the teacher or a "
-            "student asks about 'ekrandaki soru/yazı/görsel' without it "
-            "coming from ders_icerigi/pdf_sayfa/kitap_sorusu (e.g. something "
-            "manually opened, drawn, or pasted on screen). Prefer "
-            "kitap_sorusu/ders_icerigi for textbook content — this is for "
-            "reading whatever is ACTUALLY on screen right now, sight-unseen."
+            "none) and sends the image DIRECTLY to you as a separate "
+            "message a moment later, tagged [EKRAN] — you do NOT get it in "
+            "this call's result. Call when the teacher or a student asks "
+            "about 'ekrandaki soru/yazı/görsel' without it coming from "
+            "ders_icerigi/pdf_sayfa/kitap_sorusu (e.g. something manually "
+            "opened, drawn, or pasted on screen). This call returns "
+            "IMMEDIATELY with a short acknowledgement — do NOT answer yet "
+            "and do NOT guess what is on screen; wait for the [EKRAN] "
+            "message before describing anything. If the screen shows "
+            "personal/administrative data (attendance, e-Okul, MEBBİS) it "
+            "will not be captured — you will be told this instead, say so "
+            "plainly. Prefer kitap_sorusu/ders_icerigi for textbook "
+            "content — this is for reading whatever is ACTUALLY on screen "
+            "right now, sight-unseen."
         ),
         parametreler={
             "type": "OBJECT",
@@ -583,7 +590,13 @@ ARACLAR: list[Arac] = [
         },
         izin="ekran.yakala",
         maliyet="dusuk",
-        zaman_asimi=45.0,
+        # arkaplan: bu değer _isci'nin wait_for'ı tarafından UYGULANMAZ
+        # (bkz. calisma="arkaplan" dokümantasyonu). Aracın kendi iç bekleme
+        # sınırı: ctx event'i ~6 sn (gizleme 400 ms + grabWindow), OCR
+        # yedeği (file_processor) kendi 60 sn'lik sunucu zaman aşımını
+        # ayrıca uygular — bu alan yalnızca referans/dokümantasyon.
+        zaman_asimi=8.0,
+        calisma="arkaplan",
         kip=KIP_HEPSI + (KIP_TALIMAT,),
         cikti="metin",
     ),

@@ -29,11 +29,10 @@ okul operasyon servisleri (yoklama panosu, SMS).
 - **Mikrofonsuz mod** şu an 8 tahtanın hepsinde açık (`api_keys.json::
   mikrofon`). Nedeni artık faturalandırma değil, tahta mikrofonlarının
   bozuk olması (kullanıcı kararı, DECISIONS.md 2026-09-25 config_dagit
-  kaydı). Bu değer yalnızca açılış varsayılanı: `origin/master`'daki
-  bd41c85'ten itibaren panelde 🎤 MİKROFONLU / 🚫 MİKROFONSUZ düğmesi DERSİ
-  BAŞLAT'tan önce yalnızca bellekte değiştirir (dosyaya yazmaz); ders içinde
-  ⏹ DERSİ BİTİR (çift dokunuş) var. Yerel `master` o commit'leri henüz
-  içermiyor (origin/master ile ayrışma, 2026-09-28).
+  kaydı). Bu değer yalnızca açılış varsayılanı: panelde 🎤 MİKROFONLU / 🚫
+  MİKROFONSUZ düğmesi DERSİ BAŞLAT'tan önce yalnızca bellekte değiştirir
+  (dosyaya yazmaz), yeniden başlatınca dosyadakine döner. Ders içi düğmeler:
+  DURDUR, DEVAM ET, ⏹ DERSİ BİTİR (çift dokunuş, 2026-09-27).
 - ⛔ **Yerel sese geçiş (Pipecat) KALICI OLARAK İPTAL (2026-09-28).**
   Donanım altyapısı izin vermiyor; Gemini Live ile devam kararı. Kod
   (`voice_node/`, `server/ses_cephe.py`) 66af43d ile master'dan geri

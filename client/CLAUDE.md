@@ -104,6 +104,24 @@ actions/                 one public function per module — the
 > (`server/dosya.py:104`, already supported, no server change needed).
 > Verified end-to-end with an offscreen Qt test (`QT_QPA_PLATFORM=offscreen`)
 > before deploying to 9-A.
+
+> ⚠️ **UPDATED 2026-09-27 — `ekrandaki_soruyu_oku` sends the image DIRECTLY
+> to Gemini as a `send_client_content` user turn (`FarabiLive.
+> ekrani_modele_gonder`, ≤1024px/JPEG q70), tagged `[EKRAN]`; OCR
+> (`file_processor` `"ocr"`) is now only a fallback if that fails.**
+> `send_realtime_input(video=…)` was tried first and measured to misread
+> digits on a real board — not used. Tool is `calisma="arkaplan"` now (like
+> `gorsel_uret`): immediate ack, result arrives in a later turn. Before
+> grabbing, Farabi minimises itself if it's the front window (`ui.py::
+> _ekran_goruntusu_yakala`/`_ekran_goruntusu_cek`, `QTimer.singleShot`,
+> restores exact prior state after) and checks the active window's title via
+> `xprop` against a personal-data word filter (yoklama/e-Okul/MEBBİS/
+> tahtayoklama — skips capture, xprop failure doesn't block the feature). A
+> teacher typing "ekranı oku" etc. (`main.py::_ekran_okuma_komutu_mu`)
+> triggers this directly from `_on_teacher_command` instead of going to the
+> model as text. **Caller note:** this file's committed CLAUDE.md (base
+> `00d37c1`) has no separate "Tools (current behaviour)" section yet — port
+> this note there if/when that restructure lands.
   kayit.py               TOOL REGISTRY — the single source for declarations,
                          timeouts, permissions, cost class (see below)
   ders_icerigi.py        textbook pages for the teacher's subject + topic.
@@ -397,7 +415,7 @@ committed, not readable from this board).
 | `sunucu_url` | hand-edited, per board | falls back to `http://127.0.0.1:8000` — only correct if server and client are the SAME machine (dev only); a real board must set the real server address |
 | `os_system` | hand-edited | — |
 | `ders_kipi` | hand-edited | defaults to `ogretmenli` (`_ders_kipi`, `main.py`) |
-| `mikrofon` | hand-edited, per board | `true` (mic used). `false` = **mic-less mode** (2026-09-25, board mics broken): `_listen_audio` never starts, öğretmen/talimat mode is locked in the UI, DERSİ BAŞLAT asks ders/konu/kazanım in `_KonuDiyalogu`, `MIKSIZ_KURALLARI` is appended AFTER `prompt.txt` (suspends yoklama/üç adım/katılım), and `_otomatik_devam_dongusu` sends `[DEVAM]` after each finished turn (Gemini Live goes silent without user audio). Closes at `MIKSIZ_DERS_DK` (40) or 2 min before the bell. Tests: `tests/test_mikrofonsuz*.py` |
+| `mikrofon` | hand-edited, per board | `true` (mic used). `false` = **mic-less mode** (2026-09-25, board mics broken): `_listen_audio` never starts, öğretmen/talimat mode is locked in the UI, DERSİ BAŞLAT asks ders/konu/kazanım in `_KonuDiyalogu`, `MIKSIZ_KURALLARI` is appended AFTER `prompt.txt` (suspends yoklama/üç adım/katılım), and `_otomatik_devam_dongusu` sends `[DEVAM]` after each finished turn (Gemini Live goes silent without user audio). Closes at `MIKSIZ_DERS_DK` (40) or 2 min before the bell. Tests: `tests/test_mikrofonsuz*.py`. This config value is only the **default at launch** (`MainWindow.mikrofonsuz`, set once from `tahta.mikrofon_var()`) — see the touch toggle in "Teacher panel" below, which can flip it for the current process without touching the file |
 | `derslik` | hand-edited, per board | classroom unknown — see below. Also THE per-board identity used for the 9-A→server sync and (planned) multi-board status tracking, see "9-A ↔ server sync" below |
 | `camera_index` | dead (writer removed 2026-08-09) | ignored — no camera code reads or writes it |
 
@@ -1809,23 +1827,53 @@ teach once the teacher speaks, same principle as `ui.py` surviving a missing
 `config/api_keys.json` — study hall and make-up periods are a property of the
 schedule.
 
-### Teacher panel (`ui.py`) — two intervention buttons, on purpose
+### Teacher panel (`ui.py`) — three intervention buttons, on purpose
 
-The **intervention** controls in `ÖĞRETMEN PANELİ` are exactly **DURDUR** and
-**DEVAM ET**. Everything else that touches an *already-running* lesson was
-removed by decision: the virtual teacher plans and runs the 40-minute lesson,
-and a system needing constant teacher intervention is a system not doing its
-job. Anything else the teacher wants mid-lesson is typed — the input box
-already sends teacher instructions. Those two stay as buttons because when
-they are needed there is no time to type (someone walks in, a phone rings).
+The **intervention** controls in `ÖĞRETMEN PANELİ` are **DURDUR**, **DEVAM
+ET**, and (2026-09-27) **DERSİ BİTİR**. Everything else that touches an
+*already-running* lesson was removed by decision: the virtual teacher plans
+and runs the 40-minute lesson, and a system needing constant teacher
+intervention is a system not doing its job. Anything else the teacher wants
+mid-lesson is typed — the input box already sends teacher instructions.
+DURDUR/DEVAM ET stay as buttons because when they are needed there is no
+time to type (someone walks in, a phone rings).
 
-The same grid also holds **DERSİ BAŞLAT** and, since the lesson-language
-feature (see "Lesson language" above), the two language buttons — these are
-not interventions, they are **pre-lesson setup**, made once before the
-connection opens and then locked (the language buttons disable themselves
-the moment DERSİ BAŞLAT is pressed). That's a different category from "the
-teacher needs to redirect a lesson in progress," so it doesn't reopen the
-"two buttons only" decision above.
+**DERSİ BİTİR** is a button for a different reason: the mic-mode toggle and
+the öğrenci/öğretmen mode buttons (below) are read only once, at DERSİ
+BAŞLAT, and then lock for the rest of the connection — a teacher who needs
+to flip either mid-lesson has no other way to do it than end the lesson
+(waiting out the 40-minute bell, or rebooting the board, were the only
+alternatives before this button existed). It works like DERSİ BAŞLAT:
+**double tap** only (`_bitir_btn.mouseDoubleClickEvent`, a passing student
+must not end a lesson with one touch), disabled until a session actually
+opens (`_on_gemini_oturum_degisti(acildi=True)`) and disabled again once the
+lesson ends (`_dersi_sifirla_gorunumu`). A tap calls `ui.on_ders_bitir` →
+`FarabiLive._on_ders_bitir`, which schedules the normal `_dersi_bitir()`
+teardown (transcript close + server backup) onto the asyncio loop — same
+"process stays alive, returns to the pre-DERSİ-BAŞLAT state" path as any
+other lesson end, not a special case.
+
+The same grid also holds **DERSİ BAŞLAT**, the **mic-mode toggle**
+(`_mikrofon_mod_btn`, see below), and, since the lesson-language feature
+(see "Lesson language" above), the two language buttons — these are not
+interventions, they are **pre-lesson setup**, made once before the
+connection opens and then locked (they disable themselves the moment DERSİ
+BAŞLAT is pressed, alongside öğrenci/öğretmen mode). That's a different
+category from "the teacher needs to redirect a lesson in progress," so it
+doesn't reopen the "three buttons only" decision above.
+
+**Mic-mode toggle** (`_mikrofon_mod_btn`, 2026-09-27): a single-tap button
+directly under the öğrenci/öğretmen mode row, "🎤 MİKROFONLU" / "🚫 MİKROFONSUZ", that flips
+`self.mikrofonsuz` for the current process only — it never reads or writes
+`config/api_keys.json`; a restart always goes back to the file's `mikrofon`
+value (see the config table above). `main.py` re-reads `ui.mikrofonsuz` at
+every DERSİ BAŞLAT, so no other wiring is needed for the new value to take
+effect. Switching to mikrofonsuz forces `talimat_modu = False` and disables
+`_ogretmen_btn` (talimat/öğretmen mode is voice-only) and turns the mute
+button into the same disabled "🚫 MİKROFONSUZ MOD" look `__init__` uses
+(shared helper `_mute_btn_mikrofonsuz_gorunumu`); switching back to
+mikrofonlu re-enables both but does **not** force `talimat_modu` back to
+`True` — it stays whatever it was left at.
 
 `durdur` is a **latched** pause (`motor.duraklat()`), cleared only by `devam` —
 a lesson that resumes on its own defeats the reason it was stopped. Typed
