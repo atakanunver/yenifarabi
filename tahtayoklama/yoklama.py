@@ -30,9 +30,7 @@ GÜNCELLEME (2026-08-19, gerçek tahta testi sonrası):
   ders", "08:40 → hâlâ 1. ders (öğrenci geç gelmiş olabilir)" gibi —
   ölçüt basitçe "şu an hangi dersin [başlangıç, bitiş) aralığındayız".
 - **Kayıt artık DERS BAZLI**: `data/kayitlar/<tarih>_<sinif>_ders<no>.json`
-  — bir günde en fazla 8 kayıt (bir tanesi her ders saati için). Dönem
-  değiştiğinde önceki dersin ekrandaki hâli KAYBOLMASIN diye otomatik
-  kaydedilir (öğretmen "Kaydet"e basmayı unutsa bile).
+  — bir günde en fazla 8 kayıt (bir tanesi her ders saati için).
 - **10 dakika kuralı**: bir ders başladıktan 10 dakika sonra hâlâ o ders
   için kayıt yoksa, pencere öne getirilir (`raise_`/`activateWindow`) —
   30 saniyede bir çalışan bir zamanlayıcıyla kontrol edilir.
@@ -46,6 +44,12 @@ neden düzeltmesi — ayrıntı kök `DECISIONS.md` 2026-09-28):
   AÇMAZ — zaten çalışan bir örneğe (varsa) `QLocalServer`/`QLocalSocket`
   (PyQt6.QtNetwork) ile "öne getir" mesajı gönderir ve kendisi hemen çıkar
   (bkz. `_tekil_ornek_sunucusu_baslat`).
+- **Otomatik sessiz kayıt KALDIRILDI.** Eskiden dönem değiştiğinde önceki
+  dersin ekrandaki hâli `_kaydet(sessiz=True)` ile otomatik yazılıyordu —
+  bu, teneffüste yapılan işaretlemelerin ders başlarken sıfırlanıp sonra
+  otomatik "herkes var" olarak kaydedilmesine yol açıyordu. Artık kayıt
+  YALNIZCA öğretmen "YOKLAMAYI KAYDET"e basınca yazılır; dönem değiştiğinde
+  yalnızca yeni dersin grubu yüklenir, hiçbir dosyaya otomatik yazma olmaz.
 
 VERİ MODELİ:
 - Sınıf listesi (roster): `data/roster/<sinif>.json` — {"sinif": "9-A",
@@ -405,10 +409,11 @@ class YoklamaPenceresi(QWidget):
         yeni_ders_no = _simdiki_ders(self._zil, simdi)
 
         if yeni_ders_no != self._aktif_ders_no:
-            # Dönem değişti — eski dersin ekrandaki hâli kaybolmasın diye
-            # önce otomatik kaydet, sonra yeni dersi yükle.
-            if self._aktif_ders_no is not None:
-                self._kaydet(sessiz=True)
+            # Dönem değişti — YALNIZCA yeni dersin grubu yüklenir. Eskiden
+            # burada önceki dersin hâli otomatik kaydediliyordu
+            # (_kaydet(sessiz=True)); bu KASITLI OLARAK kaldırıldı (bkz.
+            # modül docstring'i, 2026-09-28) — kayıt yalnızca öğretmen
+            # "YOKLAMAYI KAYDET"e basınca yazılır.
             self._aktif_ders_no = yeni_ders_no
             self._ders_grubunu_yukle()
 
@@ -529,14 +534,17 @@ class YoklamaPenceresi(QWidget):
             self.showFullScreen()
             self.tam_ekran_dugmesi.setText("⛶ Pencereye Dön")
 
-    def _kaydet(self, sessiz: bool = False) -> None:
+    def _kaydet(self) -> None:
+        """Yoklamayı diske yazar — YALNIZCA bu metot çağrıldığında (yani
+        öğretmen "YOKLAMAYI KAYDET"e bastığında) dosya yazılır/üzerine
+        yazılır; otomatik/sessiz bir çağıran YOKTUR (bkz. modül docstring'i,
+        2026-09-28)."""
         sinif = self.sinif_secici.currentText()
         if not sinif or not self._kartlar or self._aktif_ders_no is None:
-            if not sessiz:
-                QMessageBox.warning(
-                    self, "Kaydedilemedi",
-                    "Şu an ders saati dışındayız, hangi ders için kaydedileceği belli değil."
-                )
+            QMessageBox.warning(
+                self, "Kaydedilemedi",
+                "Şu an ders saati dışındayız, hangi ders için kaydedileceği belli değil."
+            )
             return
         KAYIT_DIR.mkdir(parents=True, exist_ok=True)
         tarih = datetime.now().strftime("%Y-%m-%d")
@@ -549,8 +557,7 @@ class YoklamaPenceresi(QWidget):
         }
         yol = _kayit_yolu(sinif, self._aktif_ders_no, tarih)
         yol.write_text(json.dumps(kayit, ensure_ascii=False, indent=2), encoding="utf-8")
-        if not sessiz:
-            QMessageBox.information(self, "Kaydedildi", f"Yoklama kaydedildi:\n{yol.name}")
+        QMessageBox.information(self, "Kaydedildi", f"Yoklama kaydedildi:\n{yol.name}")
 
 
 def main() -> int:

@@ -19,11 +19,14 @@ Python sürümü NOT: tahtalar Pardus ETAP 23 üzerinde daha eski bir Python
 kullanılmaz (yoklama.py'nin kendisi de zaten `int | None` gibi 3.10+
 sözdizimi kullanıyor, bu dosya da onunla aynı çizgide kalır)."""
 
+import json
 import os
 import socket
 import sys
 import uuid
+from datetime import datetime as _GercekDatetime
 from pathlib import Path
+from unittest.mock import MagicMock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -43,6 +46,131 @@ def qapp():
 
 def _benzersiz_soket_adi() -> str:
     return f"test-yoklama-{uuid.uuid4().hex}"
+
+
+# ----------------------------------------------------------------------
+# Sahte saat + geçici roster/zil ortamı (kayıt testleri için)
+# ----------------------------------------------------------------------
+
+ZIL_ORNEGI = {
+    "dersler": [
+        {"no": 1, "baslangic": "08:10", "bitis": "08:50"},
+        {"no": 2, "baslangic": "09:00", "bitis": "09:40"},
+    ]
+}
+
+ROSTER_ORNEGI = {
+    "sinif": "9-A",
+    "ogrenciler": [
+        {"no": 1, "ad_soyad": "Ali Veli"},
+        {"no": 2, "ad_soyad": "Ayşe Yılmaz"},
+    ],
+}
+
+
+class _SahteDatetime(_GercekDatetime):
+    """`yoklama.datetime`'ı sabit bir saate iğnelemek için — `now()` GERÇEK
+    bir `datetime` alt sınıfı döner (strftime/.time() vb. hepsi normal
+    çalışır), yalnızca "şu an" testler boyunca sabitlenir."""
+
+    _sabit_an = _GercekDatetime(2026, 9, 28, 8, 20, 0)  # noqa: DTZ001 — yoklama.py da tz-naive kullanıyor
+
+    @classmethod
+    def now(cls, tz=None):
+        return cls._sabit_an
+
+
+def _saat_ayarla(saat: int, dakika: int) -> None:
+    _SahteDatetime._sabit_an = _GercekDatetime(2026, 9, 28, saat, dakika, 0)  # noqa: DTZ001
+
+
+@pytest.fixture
+def yoklama_ortami(tmp_path, monkeypatch, qapp):
+    """Geçici bir veri dizini kurar (roster + zil.json), yoklama.py'nin
+    modül sabitlerini (ROSTER_DIR/KAYIT_DIR/ZIL_DOSYASI) buraya
+    yönlendirir, QMessageBox'ı sessizleştirir ve saati 1. ders içine
+    (08:20) sabitler."""
+    roster_dir = tmp_path / "roster"
+    kayit_dir = tmp_path / "kayitlar"
+    roster_dir.mkdir()
+    zil_dosyasi = tmp_path / "zil.json"
+
+    (roster_dir / "9-A.json").write_text(json.dumps(ROSTER_ORNEGI, ensure_ascii=False), encoding="utf-8")
+    zil_dosyasi.write_text(json.dumps(ZIL_ORNEGI, ensure_ascii=False), encoding="utf-8")
+
+    monkeypatch.setattr(yoklama, "ROSTER_DIR", roster_dir)
+    monkeypatch.setattr(yoklama, "KAYIT_DIR", kayit_dir)
+    monkeypatch.setattr(yoklama, "ZIL_DOSYASI", zil_dosyasi)
+    monkeypatch.setattr(yoklama, "datetime", _SahteDatetime)
+    _saat_ayarla(8, 20)
+
+    # QMessageBox.information/warning gerçek pencere açar — testte engelle.
+    monkeypatch.setattr(yoklama.QMessageBox, "information", MagicMock())
+    monkeypatch.setattr(yoklama.QMessageBox, "warning", MagicMock())
+
+    yield kayit_dir
+
+
+# ----------------------------------------------------------------------
+# Kayıt: manuel kaydet YAZAR, otomatik/dönem geçişi YAZMAZ
+# ----------------------------------------------------------------------
+
+
+class TestOtomatikKayitKaldirildi:
+    def test_manuel_kaydet_dosya_yazar(self, yoklama_ortami):
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            pencere._kaydet()
+            yol = yoklama._kayit_yolu("9-A", 1, "2026-09-28")
+            assert yol.exists()
+            kayit = json.loads(yol.read_text(encoding="utf-8"))
+            assert kayit["sinif"] == "9-A"
+            assert kayit["ders_no"] == 1
+            assert kayit["durumlar"] == {"1": "var", "2": "var"}
+        finally:
+            pencere.close()
+
+    def test_donem_degisimi_ogretmenin_kaydinin_ustune_yazmaz(self, yoklama_ortami):
+        """Regresyon (b): öğretmen 1. derste "1 numaralı öğrenci yok"
+        işaretleyip kaydeder; ders 2'ye geçildiğinde 1. dersin kayıt
+        dosyası DEĞİŞMEMELİ (eskiden _kaydet(sessiz=True) burada dosyanın
+        üzerine "herkes var" yazıyordu)."""
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            pencere._kartlar[0]._sonraki_duruma_gec()  # var -> yok
+            assert pencere._kartlar[0].durum == "yok"
+            pencere._kaydet()
+
+            yol = yoklama._kayit_yolu("9-A", 1, "2026-09-28")
+            once_yazilan = yol.read_bytes()
+            assert json.loads(once_yazilan)["durumlar"]["1"] == "yok"
+
+            # Ders 2'ye geç (dönem değişimi) — _periyodik_kontrol'ü elle tetikle.
+            _saat_ayarla(9, 5)
+            pencere._periyodik_kontrol()
+
+            assert pencere._aktif_ders_no == 2
+            # 1. dersin kaydı bayt bayt AYNI kalmalı.
+            assert yol.read_bytes() == once_yazilan
+            # 2. ders için henüz hiçbir dosya YOK (otomatik yazma yok).
+            assert not yoklama._kayit_yolu("9-A", 2, "2026-09-28").exists()
+        finally:
+            pencere.close()
+
+    def test_derse_teneffuse_gecis_dosya_olusturmaz(self, yoklama_ortami):
+        """Regresyon (a)/(b)'nin diğer ucu: ders bitip teneffüse
+        girildiğinde de (yeni_ders_no None) hiçbir dosya oluşmamalı."""
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            pencere._kartlar[1]._sonraki_duruma_gec()  # var -> yok (kaydedilmeden)
+
+            _saat_ayarla(8, 55)  # 1. ders bitti, 2. ders başlamadı -> teneffüs
+            pencere._periyodik_kontrol()
+
+            assert pencere._aktif_ders_no is None
+            assert not yoklama._kayit_yolu("9-A", 1, "2026-09-28").exists()
+        finally:
+            pencere.close()
 
 
 # ----------------------------------------------------------------------
