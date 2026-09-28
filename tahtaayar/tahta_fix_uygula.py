@@ -134,6 +134,26 @@ _OGRETMEN_OTURUM_ONEKI = (
     "export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus; "
 )
 
+# Ekran karartma (boşta kalma) süresi, saniye. tahtaayar/CLAUDE.md bunun
+# "7 tahtada da aynı, ayrı bir fix'e gerek yok" olduğunu söylüyordu; 2026-09-22'de
+# fenlab'da 0 (= hiç karartma) bulundu, yani varsayım tutmuyordu — sürüklenmeyi
+# yakalamak için yönetilen bir fix'e dönüştürüldü. 600 = 9-B/10-A/12-B'de ölçülen
+# referans değer.
+EKRAN_KARARTMA_SN = 600
+
+# LightDM otomatik giriş — 2026-09-22'de 9-B/10-A/11-A/12-A/12-B'de ZATEN bu
+# drop-in dosyayla kurulu bulundu, içeriği birebir oradan alındı. 9-A ve fenlab'da
+# eksikti. Tahta açılınca öğretmen parola girmeden masaüstüne düşsün diye gerekli;
+# ayrıca `cinnamon_guc_tusu_yoksay` aktif bir 'ogretmen' oturumu istediği için
+# (bkz. tahtaayar/CLAUDE.md "Bilinen sınırlar") bu fix onun da ön koşuludur.
+_AUTOLOGIN_DOSYA = "/etc/lightdm/lightdm.conf.d/50-tahta-autologin.conf"
+_AUTOLOGIN_SATIRLAR = (
+    "[Seat:*]",
+    "autologin-user=ogretmen",
+    "autologin-user-timeout=0",
+    "autologin-session=cinnamon",
+)
+
 DUZELTMELER = [
     Duzeltme(
         ad="guc_tusu_yoksay",
@@ -192,6 +212,32 @@ DUZELTMELER = [
         uygula_komutu=(
             _OGRETMEN_OTURUM_ONEKI
             + f"gsettings set {_CINNAMON_GUC_SEMASI} button-power {CINNAMON_GUC_TUSU_HEDEFI}"
+        ),
+    ),
+    Duzeltme(
+        ad="otomatik_giris",
+        aciklama="Tahta açılınca 'ogretmen' oturumu parola sorulmadan açılsın (LightDM autologin)",
+        # '|| echo yok' — dosya hiç yokken de komut BAŞARIYLA dönmeli, yoksa
+        # "kontrol edilemedi" raporlanır (bu dosyanın başındaki kurala bkz.).
+        kontrol_komutu=f"cat {_AUTOLOGIN_DOSYA} 2>/dev/null || echo yok",
+        beklenen="\n".join(_AUTOLOGIN_SATIRLAR).encode(),
+        uygula_komutu=(
+            "mkdir -p /etc/lightdm/lightdm.conf.d && printf '%s\\n' "
+            + " ".join(f"'{s}'" for s in _AUTOLOGIN_SATIRLAR)
+            + f" > {_AUTOLOGIN_DOSYA}"
+        ),
+    ),
+    Duzeltme(
+        ad="ekran_karartma",
+        aciklama=f"Boşta kalınca ekran {EKRAN_KARARTMA_SN} sn sonra karartılsın",
+        root_gerekli=False,
+        kontrol_komutu=(
+            _OGRETMEN_OTURUM_ONEKI + f"gsettings get {_CINNAMON_GUC_SEMASI} sleep-display-ac"
+        ),
+        beklenen=str(EKRAN_KARARTMA_SN).encode(),
+        uygula_komutu=(
+            _OGRETMEN_OTURUM_ONEKI
+            + f"gsettings set {_CINNAMON_GUC_SEMASI} sleep-display-ac {EKRAN_KARARTMA_SN}"
         ),
     ),
 ]

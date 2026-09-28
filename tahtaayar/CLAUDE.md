@@ -87,6 +87,40 @@ fiziksel tahtada yapılır" ilkesiyle aynı).
 yok. "Oda ekranı karartsın" isteği bu boşta-kalma zamanlayıcısıyla zaten
 karşılanıyor.
 
+> ⚠️ **Düzeltme (2026-09-22): "7 tahtada da aynı, ayrı bir fix'e gerek yok"
+> varsayımı tutmadı.** `fenlab` (.244) taranınca `sleep-display-ac = 0`
+> (= hiç karartma) bulundu. Yukarıdaki cümle yazıldığında yalnızca 7 sınıf
+> tahtası taranmıştı, laboratuvar kapsam dışındaydı. Sürüklenmenin sessizce
+> sürmemesi için **`ekran_karartma` artık yönetilen bir fix** (aşağıya bkz.)
+> — değer yine 600, ama artık ölçülüp uygulanıyor.
+
+## 2026-09-22'de eklenen iki fix
+
+`DUZELTMELER` listesi 4'ten 6'ya çıktı:
+
+- **`otomatik_giris`** (root) — `/etc/lightdm/lightdm.conf.d/50-tahta-autologin.conf`
+  drop-in dosyasıyla `ogretmen` oturumu parola sorulmadan açılır. İçerik
+  uydurulmadı: 9-B/10-A/11-A/12-A/12-B'de ZATEN bu dosyayla kurulu bulundu,
+  birebir oradan alındı (`[Seat:*]` + `autologin-user=ogretmen` +
+  `autologin-user-timeout=0` + `autologin-session=cinnamon`).
+  **Bu fix `cinnamon_guc_tusu_yoksay`'ın ön koşuludur** — o fix aktif bir
+  `ogretmen` oturumu ister (bkz. "Bilinen sınırlar"), otomatik giriş kurulu
+  olan tahtada bu koşul kendiliğinden sağlanır.
+- **`ekran_karartma`** (kullanıcı düzeyi, sudo YOK) — `sleep-display-ac` = 600.
+
+2026-09-22 taraması (10 kayıtlı tahtanın erişilebilen 7'si):
+
+| Durum | Tahtalar |
+|---|---|
+| Her iki fix de uygulanmış | 9-B, 10-A, 11-A, 12-A, 12-B, fenlab |
+| `otomatik_giris` EKSİK | **9-A** (karartma tamam) |
+| Erişilemedi (kapalı) | 11-B, tahta-234/235/236 |
+
+`fenlab`'a ikisi de bu tarihte uygulandı ve doğrulandı. **9-A'ya bilinçli
+olarak DOKUNULMADI** — pilot tahta ve kendine özgü bir klasör yapısı var
+(`~/farabi/repo/client`, bkz. kök `CLAUDE.md`); otomatik girişin orada
+istenip istenmediği kullanıcıya sorulacak.
+
 ## Bilinen sınırlar
 
 - `cinnamon_guc_tusu_yoksay` aktif bir `ogretmen` masaüstü oturumu
