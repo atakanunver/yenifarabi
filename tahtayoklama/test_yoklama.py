@@ -120,7 +120,7 @@ class TestOtomatikKayitKaldirildi:
     def test_manuel_kaydet_dosya_yazar(self, yoklama_ortami):
         pencere = yoklama.YoklamaPenceresi()
         try:
-            pencere._kaydet()
+            pencere.kaydet_dugmesi.click()
             yol = yoklama._kayit_yolu("9-A", 1, "2026-09-28")
             assert yol.exists()
             kayit = json.loads(yol.read_text(encoding="utf-8"))
@@ -137,9 +137,9 @@ class TestOtomatikKayitKaldirildi:
         üzerine "herkes var" yazıyordu)."""
         pencere = yoklama.YoklamaPenceresi()
         try:
-            pencere._kartlar[0]._sonraki_duruma_gec()  # var -> yok
+            pencere._kartlar[0].click()  # var -> yok
             assert pencere._kartlar[0].durum == "yok"
-            pencere._kaydet()
+            pencere.kaydet_dugmesi.click()
 
             yol = yoklama._kayit_yolu("9-A", 1, "2026-09-28")
             once_yazilan = yol.read_bytes()
@@ -162,13 +162,78 @@ class TestOtomatikKayitKaldirildi:
         girildiğinde de (yeni_ders_no None) hiçbir dosya oluşmamalı."""
         pencere = yoklama.YoklamaPenceresi()
         try:
-            pencere._kartlar[1]._sonraki_duruma_gec()  # var -> yok (kaydedilmeden)
+            pencere._kartlar[1].click()  # var -> yok (kaydedilmeden)
 
             _saat_ayarla(8, 55)  # 1. ders bitti, 2. ders başlamadı -> teneffüs
             pencere._periyodik_kontrol()
 
             assert pencere._aktif_ders_no is None
             assert not yoklama._kayit_yolu("9-A", 1, "2026-09-28").exists()
+        finally:
+            pencere.close()
+
+
+# ----------------------------------------------------------------------
+# Teneffüste giriş devre dışı
+# ----------------------------------------------------------------------
+
+
+class TestTeneffusDevreDisi:
+    def test_teneffuste_kartlar_ve_kaydet_devre_disi(self, yoklama_ortami):
+        _saat_ayarla(8, 55)  # 1. ders bitti, 2. ders başlamadı -> teneffüs
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere._aktif_ders_no is None
+            assert pencere.kaydet_dugmesi.isEnabled() is False
+            for kart in pencere._kartlar:
+                assert kart.isEnabled() is False
+            # Devre dışı bir düğmede .click() hiçbir şey tetiklemez (Qt).
+            durum_once = pencere._kartlar[0].durum
+            pencere._kartlar[0].click()
+            assert pencere._kartlar[0].durum == durum_once
+            pencere.kaydet_dugmesi.click()
+            assert not yoklama._kayit_yolu("9-A", 1, "2026-09-28").exists()
+        finally:
+            pencere.close()
+
+    def test_ders_baslayinca_yeniden_etkinlesir(self, yoklama_ortami):
+        _saat_ayarla(8, 55)  # teneffüs
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere.kaydet_dugmesi.isEnabled() is False
+
+            _saat_ayarla(9, 5)  # 2. ders
+            pencere._periyodik_kontrol()
+
+            assert pencere._aktif_ders_no == 2
+            assert pencere.kaydet_dugmesi.isEnabled() is True
+            for kart in pencere._kartlar:
+                assert kart.isEnabled() is True
+            # Artık gerçekten tıklanabilir/kaydedilebilir.
+            pencere.kaydet_dugmesi.click()
+            assert yoklama._kayit_yolu("9-A", 2, "2026-09-28").exists()
+        finally:
+            pencere.close()
+
+    def test_acilista_ders_icindeyse_etkin(self, yoklama_ortami):
+        """Başlangıçta (08:20, 1. ders) doğrudan etkin olmalı."""
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere.kaydet_dugmesi.isEnabled() is True
+            for kart in pencere._kartlar:
+                assert kart.isEnabled() is True
+        finally:
+            pencere.close()
+
+    def test_sinif_degisince_de_dogru_durum(self, yoklama_ortami):
+        """Sınıf (combobox) değiştirildiğinde de giriş durumu güncellenmeli
+        (bkz. _sinif_degisti -> _ders_grubunu_yukle)."""
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere.kaydet_dugmesi.isEnabled() is True
+            _saat_ayarla(8, 55)  # teneffüs
+            pencere._sinif_degisti()
+            assert pencere.kaydet_dugmesi.isEnabled() is False
         finally:
             pencere.close()
 

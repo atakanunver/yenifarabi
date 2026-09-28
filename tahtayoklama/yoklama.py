@@ -50,6 +50,11 @@ neden düzeltmesi — ayrıntı kök `DECISIONS.md` 2026-09-28):
   otomatik "herkes var" olarak kaydedilmesine yol açıyordu. Artık kayıt
   YALNIZCA öğretmen "YOKLAMAYI KAYDET"e basınca yazılır; dönem değiştiğinde
   yalnızca yeni dersin grubu yüklenir, hiçbir dosyaya otomatik yazma olmaz.
+- **Teneffüs/ders saati dışında yoklama alınamaz.** `_aktif_ders_no is
+  None` iken öğrenci kartları ve "YOKLAMAYI KAYDET" düğmesi devre dışı
+  kalır (bkz. `_girisleri_ayarla`) — bu, teneffüste yapılan işaretlemelerin
+  ders başlarken sıfırlanmasının kök nedenini kapatır. Ders başladığında
+  (dönem değişimi ile) tazeden etkinleşir.
 
 VERİ MODELİ:
 - Sınıf listesi (roster): `data/roster/<sinif>.json` — {"sinif": "9-A",
@@ -313,10 +318,14 @@ class OgrenciKarti(QPushButton):
         dolgu = 4 if self.height() < MAKS_KART_YUKSEKLIK else 10
         ad_gosterim = _ad_sarmala(self.ad_soyad, self.width(), font_pt)
         self.setText(f"{self.no}. {ad_gosterim}\n[ {DURUM_ETIKET[self.durum]} ]")
+        # QPushButton:disabled seçicisi — teneffüste kartlar devre dışıyken
+        # (bkz. YoklamaPenceresi._girisleri_ayarla) görünüşte de farklı
+        # olsun, aksi halde devre dışı kart etkin karttan ayırt edilemezdi.
         self.setStyleSheet(
-            f"font-size: {font_pt}pt; font-weight: bold; color: white; "
+            f"QPushButton {{ font-size: {font_pt}pt; font-weight: bold; color: white; "
             f"background-color: {DURUM_RENK[self.durum]}; "
-            f"border-radius: 12px; padding: {dolgu}px;"
+            f"border-radius: 12px; padding: {dolgu}px; }}"
+            f"QPushButton:disabled {{ background-color: #95a5a6; color: #ecf0f1; }}"
         )
 
 
@@ -391,14 +400,15 @@ class YoklamaPenceresi(QWidget):
         self._kaydirma.setWidget(icerik)
         ana.addWidget(self._kaydirma, stretch=1)
 
-        kaydet = QPushButton("YOKLAMAYI KAYDET")
-        kaydet.setMinimumHeight(70)
-        kaydet.setStyleSheet(
-            "font-size: 17pt; font-weight: bold; color: white; "
-            "background-color: #2980b9; border-radius: 12px;"
+        self.kaydet_dugmesi = QPushButton("YOKLAMAYI KAYDET")
+        self.kaydet_dugmesi.setMinimumHeight(70)
+        self.kaydet_dugmesi.setStyleSheet(
+            "QPushButton { font-size: 17pt; font-weight: bold; color: white; "
+            "background-color: #2980b9; border-radius: 12px; }"
+            "QPushButton:disabled { background-color: #95a5a6; color: #ecf0f1; }"
         )
-        kaydet.clicked.connect(self._kaydet)
-        ana.addWidget(kaydet)
+        self.kaydet_dugmesi.clicked.connect(self._kaydet)
+        ana.addWidget(self.kaydet_dugmesi)
 
     # ------------------------------------------------------------------
     # Dönem/ders takibi
@@ -466,6 +476,7 @@ class YoklamaPenceresi(QWidget):
                 f"'{ROSTER_DIR}' altında sınıf listesi bulunamadı — "
                 f"önce pdf_disari_aktar.py ile bir roster oluşturun."
             )
+            self._girisleri_ayarla()
             return
 
         onceki_durumlar: dict[str, str] = {}
@@ -490,7 +501,21 @@ class YoklamaPenceresi(QWidget):
             kart.clicked.connect(self._ozeti_guncelle)
             self._kartlar.append(kart)
             self.izgara.addWidget(kart, idx // sutun, idx % sutun)
+        self._girisleri_ayarla()
         self._ozeti_guncelle()
+
+    def _girisleri_ayarla(self) -> None:
+        """Teneffüste/ders saati dışında (`_aktif_ders_no is None`) öğrenci
+        kartları ve "YOKLAMAYI KAYDET" düğmesi tıklanamaz olur — aksi
+        halde öğretmen teneffüste yaptığı işaretlemeler ders başlayınca
+        sıfırlanıp kafa karışıklığına yol açıyordu (bkz. modül docstring'i,
+        2026-09-28). `_ders_grubunu_yukle` her çağrıldığında (açılış, sınıf
+        değişimi, dönem geçişi) burası da çağrılır, bu yüzden ayrıca bir
+        zamanlayıcı gerekmez."""
+        aktif = self._aktif_ders_no is not None
+        for kart in self._kartlar:
+            kart.setEnabled(aktif)
+        self.kaydet_dugmesi.setEnabled(aktif)
 
     def _izgarayi_yeniden_diz(self) -> None:
         """Kartları yeniden OLUŞTURMADAN (durumları koruyarak) pencere
@@ -513,6 +538,12 @@ class YoklamaPenceresi(QWidget):
         QTimer.singleShot(50, self._izgarayi_yeniden_diz)
 
     def _ozeti_guncelle(self) -> None:
+        if self._aktif_ders_no is None:
+            self.ozet_etiketi.setText(
+                '<span style="color:#000;">Teneffüs / ders saati dışı — '
+                "yoklama ders başlayınca alınır.</span>"
+            )
+            return
         toplam = len(self._kartlar)
         var = sum(1 for k in self._kartlar if k.durum == "var")
         yok = sum(1 for k in self._kartlar if k.durum == "yok")

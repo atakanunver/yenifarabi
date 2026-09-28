@@ -73,7 +73,11 @@ tahtayoklama/
   kök nedeni ortadan kaldırmak oldu:** otomatik/sessiz kayıt yolu
   `_kaydet`'ten tamamen SİLİNDİ — artık hiçbir otomatik yazma yok, her
   kayıt zaten öğretmenin elle bastığı kayıttır. Dönem değiştiğinde
-  yalnızca yeni dersin grubu yüklenir.
+  yalnızca yeni dersin grubu yüklenir. **İkinci kök neden de kapatıldı:**
+  teneffüste (`_aktif_ders_no is None`) öğrenci kartları ve "YOKLAMAYI
+  KAYDET" düğmesi `_girisleri_ayarla` ile devre dışı bırakılır — eskiden
+  teneffüste yapılan işaretlemeler ders başında sıfırlanıp kafa
+  karışıklığına yol açıyordu, artık teneffüste hiç işaretleme yapılamaz.
 - Pencere başlığı tam olarak `"Yoklama"`; 10 dakika kuralı ve kendi kendine
   öne gelme (`_pencereyi_one_getir`) zaten `yoklama.py` içinde var, panonun
   uzaktan başlatmasıyla (`dashboard/uzaktan_baslat.py`, pgrep+wmctrl ile
@@ -392,9 +396,10 @@ talebiyle `--tahta fenlab` ile uygulandı, artık **8/8 tahta aynı ayarda**
    bir yolla.** Planlanan çözüm (`elle_kaydedildi: bool` alanı ekleyip iki
    tür kaydı ayırt etmek) yerine kök neden ortadan kaldırıldı: otomatik
    sessiz kayıt (`_kaydet(sessiz=True)`) tamamen SİLİNDİ, artık hiçbir
-   otomatik yazma yolu yok. Aynı oturumda "çift pencere" kök nedeni tek
-   örnek korumasıyla (bkz. §3) kapatıldı. Bkz. `yoklama.py` modül
-   docstring'i.
+   otomatik yazma yolu yok. Aynı oturumda diğer iki kök neden de
+   kapatıldı: "çift pencere" tek örnek korumasıyla, "teneffüste
+   işaretleme" ise kartların/kaydet düğmesinin teneffüste devre dışı
+   bırakılmasıyla (bkz. §3). Bkz. `yoklama.py` modül docstring'i.
 5. **Harici Windows araçlarıyla ilişki netleşmedi** — bkz. §9.
 6. Küçük iyileştirmeler: `auth.gecerli_oturum` ölü kodu, `/admin/uzaktan`
    401→`/giris` tutarsızlığı, "Yoklama Aç"taki fazladan SSH turu (§5).
