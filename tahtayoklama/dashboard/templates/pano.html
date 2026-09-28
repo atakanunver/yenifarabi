@@ -69,11 +69,16 @@ const DURUM_BILGISI = {
 function hucreDoldur(hucre, satir) {
   hucre.classList.remove('durum-yukleniyor');
   let anahtar = satir.durum;
-  let isimler = [];
-  try { isimler = JSON.parse(satir.yok_isimleri || '[]'); } catch (e) {}
+  let yokIsimleri = [];
+  let izinliIsimleri = [];
+  try { yokIsimleri = JSON.parse(satir.yok_isimleri || '[]'); } catch (e) {}
+  try { izinliIsimleri = JSON.parse(satir.izinli_isimleri || '[]'); } catch (e) {}
 
   if (satir.durum === 'alindi') {
-    anahtar = isimler.length > 0 ? 'alindi_yok' : 'alindi_tam';
+    // "Tam" YALNIZCA hem yok HEM izinli listesi boşsa — eskiden yalnızca
+    // yok_isimleri kontrol ediliyordu, bu yüzden sadece izinli öğrencisi
+    // olan bir ders "Tam" gösteriyordu (2026-09-28'de bulunan hata).
+    anahtar = (yokIsimleri.length > 0 || izinliIsimleri.length > 0) ? 'alindi_yok' : 'alindi_tam';
   }
   const bilgi = DURUM_BILGISI[anahtar] || { pill: '', metin: satir.durum };
 
@@ -85,10 +90,20 @@ function hucreDoldur(hucre, satir) {
     // hiç açılmamış) ders programı her zaman görünür kalmalı — kullanıcı
     // isteği: "tahta açıkta kapalıda olsa ders programını görebilelim".
     hucre.innerHTML = dersEtiketi;
+  } else if (anahtar === 'alindi_yok') {
+    // Yok VE/VEYA izinli isimleri — ikisi de aynı hücrede, ayrı rozetlerde
+    // (ayrı renk/anlam) görünebilir.
+    let rozetler = '';
+    if (yokIsimleri.length > 0) {
+      rozetler += `<span class="pill pill-yok"><span aria-hidden="true">●</span> ${yokIsimleri.join(', ')}</span>`;
+    }
+    if (izinliIsimleri.length > 0) {
+      rozetler += `<span class="pill pill-izinli">İzinli: ${izinliIsimleri.join(', ')}</span>`;
+    }
+    hucre.innerHTML = `${rozetler}${dersEtiketi}`;
   } else {
-    const metin = anahtar === 'alindi_yok' ? isimler.join(', ') : bilgi.metin;
     const ikon = bilgi.ikon ? `<span aria-hidden="true">${bilgi.ikon}</span> ` : '';
-    hucre.innerHTML = `<span class="pill ${bilgi.pill}">${ikon}${metin}</span>${dersEtiketi}`;
+    hucre.innerHTML = `<span class="pill ${bilgi.pill}">${ikon}${bilgi.metin}</span>${dersEtiketi}`;
   }
 
   const tiklanabilir = bilgi.tiklanabilir && hucre.dataset.tahtaId;
