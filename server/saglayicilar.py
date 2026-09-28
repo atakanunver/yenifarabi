@@ -167,8 +167,11 @@ def _istemci(saglayici: str):
 # bulundu (bkz. raganaliz.txt). Bulut sağlayıcılar zaten örtük olarak
 # isteğin dilinde cevap veriyordu, yalnızca Ollama'ya özel bir varsayılan
 # sistem mesajı ekleniyor — diğer sağlayıcıların davranışı değişmiyor.
+# 2026-09-20: Okul ortamı ve pedagojik dil tutarlılığı için güçlendirildi.
 _OLLAMA_VARSAYILAN_SISTEM = (
-    "Sadece Türkçe cevap ver. Başka hiçbir dile geçme. Kısa ve net yaz."
+    "Sen bir okul ve eğitim asistanısın. Tüm düşünme ve yanıt sürecini duru, "
+    "akıcı, kurallı ve zengin bir Türkçe ile yürüt. Başka hiçbir dile geçme. "
+    "Öğretmen ve öğrencilere uygun pedagojik, net, öz ve resmi bir dille yaz."
 )
 
 

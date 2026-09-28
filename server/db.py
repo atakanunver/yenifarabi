@@ -3,17 +3,21 @@
 benchmark/ortak.py'nin tek-bağlantı deseninin sunucu (çok istek, eşzamanlı)
 karşılığı — her istek için yeni bağlantı açmak yerine küçük bir havuzdan
 alıp geri veriyoruz.
+
+ThreadedConnectionPool (2026-09-25): endpoint'ler `def` olduğu için FastAPI
+onları threadpool'da PARALEL koşturuyor; SimpleConnectionPool thread-safe
+değil (eşzamanlı getconn/putconn yarışı). Threaded sürüm aynı API + kilit.
 """
 
 import psycopg2.pool
 from pgvector.psycopg2 import register_vector
 
-_havuz: psycopg2.pool.SimpleConnectionPool | None = None
+_havuz: psycopg2.pool.ThreadedConnectionPool | None = None
 
 
 def baslat(host: str, dbname: str, user: str, min_conn: int = 1, max_conn: int = 5) -> None:
     global _havuz
-    _havuz = psycopg2.pool.SimpleConnectionPool(min_conn, max_conn, host=host, dbname=dbname, user=user)
+    _havuz = psycopg2.pool.ThreadedConnectionPool(min_conn, max_conn, host=host, dbname=dbname, user=user)
 
 
 def kapat() -> None:

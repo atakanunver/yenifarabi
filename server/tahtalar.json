@@ -42,7 +42,9 @@
     "admin": "etapadmin"
   },
   "12-A": {
-    "ip": "192.168.23.231",
+    "ip": "192.168.23.226",
+    "mac": "00:09:df:83:ff:cc",
+    "_ip_notu": "2026-09-22: DHCP kirası .231 -> .226 değişti. Aynı fiziksel tahta (MAC ve hostname 'vestel12a' ile doğrulandı), sınıf değişmedi.",
     "kullanici": "ogretmen",
     "admin": "etapadmin"
   },
