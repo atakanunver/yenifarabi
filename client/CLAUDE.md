@@ -4,2150 +4,488 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Scope:** the board client (`client/`) only. The repo root `CLAUDE.md` is
+the source of truth for architecture, server, deployment and rules; when the
+two disagree, the root wins. Dated incident stories and "why it became this
+way" narratives that used to live here are in the root `DECISIONS.md` (see
+its "Arşiv: client/CLAUDE.md'den taşınan…" section) — this file keeps only
+the current state and the rules that came out of them.
+
 ## What this is
 
-**Farabi** — a Turkish-language AI teaching assistant for classroom smart boards.
-Named after Fârâbî, the Turkic-Islamic polymath titled *Muallim-i Sânî*
-("The Second Teacher", after Aristotle).
+**Farabi** — a Turkish-language AI teaching assistant for classroom smart
+boards, named after Fârâbî (*Muallim-i Sânî*, "The Second Teacher").
 
-**Target: an INCE (thin) Linux smart board client, backed by a central
-Brain server (`server/`, on `farabi.local`).** The "standalone client, no
-central server" framing below is **HISTORICAL — superseded 2026-08-14**
-(server-taşıma). Every board still has its own `config/api_keys.json`
-(`derslik`, `sunucu_url`, Gemini key pool) but no longer has its own book/
-YKS/content index — that lives on the server now (`/mnt/farabi-data/farabi/`
-on the server machine), fetched over HTTP per lesson.
+A **thin** PyQt6 client on Pardus/Vestel boards (Intel i3-2330M). Voice is a
+Gemini Live session held **on the board** — permanently the only voice path.
+(A local Pipecat voice node was tried 2026-09-25 on branch
+`yerel-ses-pipecat`; it was **permanently cancelled 2026-09-28** because the
+hardware cannot support it. Do not add local STT/TTS to the client — see
+root `CLAUDE.md` "Şu An Yapılmayacaklar".) Everything else heavy — book/YKS content, page rendering, RAG,
+cloud text/vision providers, file processing, past-lesson recall — is an
+HTTP call to the Brain server (`server/`, `farabi.local`). The board has no
+book/YKS/content store of its own; only small disposable caches under
+`icerik/onbellek/`.
 
-> ⚠️ **RESOLVED 2026-08-14 (server-taşıma) — supersedes the "Reconciled
-> 2026-08-09/2026-08-11" note that used to be here.** That note said "the
-> text/vision provider dependency is a separate, still-open question, not
-> resolved by the voice decision" and warned not to "pretend content already
-> flows through `server/`" — this is exactly what happened next, on the
-> user's explicit request ("çoğu şeyi server tarafına alalım, client'ta
-> minimum dosya bulunsun"): `ders_icerigi`, `kitap_sorusu`, `pdf_sayfa`,
-> `yks_sorulari`, `file_processor`, and all five non-Gemini text/vision
-> providers (`core/saglayicilar.py`) now go over HTTP to `server/`. **Voice
-> is still the one unchanged, permanent exception** — Gemini Live stays
-> fully client-side, independent of `server/` (same reasoning as before:
-> local STT/TTS was evaluated and cancelled, realtime turn-taking/barge-in
-> isn't worth re-engineering for this project). See the repo root
-> `CLAUDE.md` and `docs/mimari.md` §6/§9/§10/§15 for the authoritative,
-> up-to-date architecture — **this file is the client-only detail layer,
-> the root doc is the source of truth when the two disagree.**
+**Three kips (lesson modes):**
+- `ogretmenli` (default) — a human teacher is present with ~20 students;
+  Farabi carries content and questioning, classroom order stays with the
+  teacher, addresses them as *"kıymetli öğretmenim"*.
+- `ogretmensiz` — study hall / make-up / unstaffed; Farabi is the only
+  teacher, order included.
+- `talimat` — no lesson at all; the teacher drives the board by voice with
+  one-sentence commands (see "Öğretmen talimat modu").
 
-**Two lesson modes.** In a normal lesson a human teacher is present with ~20
-students and Farabi is the assistant: it carries content and questioning while
-classroom order stays with the teacher, and it addresses the teacher as
-*"kıymetli öğretmenim"*. In study hall, make-up and unstaffed lessons nobody
-else is there and Farabi is the only teacher, responsible for order too. The
-mode is injected as its own system-prompt block (`_ders_kipi` in `main.py`),
-read from `config/ders_programi.json` first, then `config/api_keys.json`.
-**Default is `ogretmenli`.** Per-mode behaviour rules live in `core/prompt.txt`.
+`_ders_kipi` is read from `config/ders_programi.json` first (per slot), then
+`config/api_keys.json`. Per-mode behaviour rules live in `core/prompt.txt`.
 
-**Lesson frame:** subject from `ders_programi.json`; topic and kazanım from the
-teacher at the start of the lesson. Do not re-introduce yearly-plan
-auto-detection into `_current_lesson` or the opening.
+**Lesson frame:** subject from the timetable; topic and kazanım **only from
+the teacher** (spoken or typed) at lesson start. There is no yearly-plan
+pipeline anymore — never reintroduce "derive today's topic from the plan",
+never ask the class *"nerede kalmıştık"*.
 
 ## Project layout
 
-(No line counts here on purpose — they drift every commit and re-adding them just
-schedules the next cleanup. Byte sizes are kept only where size is the point: the
-persona files and the data directories.)
-
 ```
-main.py                  FarabiLive: Live session, tool dispatch, audio loops,
-                         lesson opening, mic diagnostics
-ui.py                    PyQt6 HUD. FarabiUI is the surface actions write to.
-                         Also hosts the content-prep buttons (book/YKS
-                         conversion, AI symbol cleanup, book summary — see
-                         "Content pipeline" below) and the startup check that
-                         refreshes `icerik/kitaplar.json` when `kitaplar/`
-                         changed
-setup.py                 pip install + a pointer to copy the config/*.example
-                         files (see README.md). Nothing else — the fork's
-                         stale `playwright install` line and the semantic-
-                         index rebuild step (that subsystem is gone, see
-                         below) were removed
-farabi_start.sh          venv + launch wrapper
-Farabi.gif               HUD animation (placeholder art; swap freely)
-dersgiriscikis.png       school bell-schedule photo — provenance for zil.json
+main.py            FarabiLive: Live session, tool dispatch, audio loops, lesson
+                   opening, mic diagnostics
+ui.py              PyQt6 HUD (FarabiUI = the surface actions write to)
+farabi_start.sh    venv + launch wrapper
+update_farabi.sh   git fetch + update helper for a client checkout
+requirements.txt / requirements.lock.txt   (installer uses the lock file)
 
-actions/                 one public function per module — the
-                         registry declares thirteen tools (`shutdown_farabi`
-                         runs inline, it has no module). No camera/webcam
-                         anywhere — this board has no camera hardware at all
-                         (`/dev/video*` doesn't exist, confirmed 2026-08-30),
-                         and none is planned. `screen_processor.py`
-                         (webcam-based, removed 2026-08-09 for the no-camera
-                         privacy rule) stays removed and unrelated to the two
-                         tools below.
-
-> ⚠️ **RESOLVED 2026-08-30 — `ekran_goruntusu_al`/`ekrandaki_soruyu_oku` wired
-> in, by explicit user decision.** These two files were found already on disk
-> (2026-08-30, pulled onto 9-A from the server's `client/` mirror; origin
-> unknown, not in any commit message) but **not** registered in `kayit.py`
-> and missing their capture mechanism (`ui.py::_ekran_goruntusu_yakala`, the
-> GUI-thread slot `_screenshot_sig` fires into, did not exist — the files
-> would have failed every call). The user was told this reintroduces the
-> capability class `screen_processor.py` was removed for (root `CLAUDE.md`'s
-> "Gizlilik" section, "Kamera yok") and explicitly confirmed they want it
-> applied anyway. **What actually ships is narrower than a camera ever
-> was, and categorically different**: `_ekran_goruntusu_yakala` calls
-> `QApplication.primaryScreen().grabWindow(0)` — the board's OWN on-screen
-> display only (whatever `pdf_sayfa`/`show_content` is already showing),
-> never a camera frame, never the physical room or students. Both tools are
-> registered in `kayit.py` (`kip=KIP_HEPSI + (KIP_TALIMAT,)`, matching
-> `pdf_sayfa`/`kitap_sorusu`'s availability), dispatched in `main.py`. Saved
-> to `icerik/onbellek/ekran_goruntusu/` (LRU-capped at 20, same pattern as
-> `pdf_sayfa`'s cache) and logged via `transcript.log_line("SİSTEM", ...)`.
-> `ekrandaki_soruyu_oku` reuses `file_processor`'s existing `"ocr"` action
-> (`server/dosya.py:104`, already supported, no server change needed).
-> Verified end-to-end with an offscreen Qt test (`QT_QPA_PLATFORM=offscreen`)
-> before deploying to 9-A.
-
-> ⚠️ **UPDATED 2026-09-27 — `ekrandaki_soruyu_oku` sends the image DIRECTLY
-> to Gemini as a `send_client_content` user turn (`FarabiLive.
-> ekrani_modele_gonder`, ≤1024px/JPEG q70), tagged `[EKRAN]`; OCR
-> (`file_processor` `"ocr"`) is now only a fallback if that fails.**
-> `send_realtime_input(video=…)` was tried first and measured to misread
-> digits on a real board — not used. Tool is `calisma="arkaplan"` now (like
-> `gorsel_uret`): immediate ack, result arrives in a later turn. Before
-> grabbing, Farabi minimises itself if it's the front window (`ui.py::
-> _ekran_goruntusu_yakala`/`_ekran_goruntusu_cek`, `QTimer.singleShot`,
-> restores exact prior state after) and checks the active window's title via
-> `xprop` against a personal-data word filter (yoklama/e-Okul/MEBBİS/
-> tahtayoklama — skips capture, xprop failure doesn't block the feature). A
-> teacher typing "ekranı oku" etc. (`main.py::_ekran_okuma_komutu_mu`)
-> triggers this directly from `_on_teacher_command` instead of going to the
-> model as text. **Caller note:** this file's committed CLAUDE.md (base
-> `00d37c1`) has no separate "Tools (current behaviour)" section yet — port
-> this note there if/when that restructure lands.
-  kayit.py               TOOL REGISTRY — the single source for declarations,
-                         timeouts, permissions, cost class (see below)
-  ders_icerigi.py        textbook pages for the teacher's subject + topic.
-                         `KITAP_PATH`/`_json_oku`/`_ders_eslesir` are now
-                         imported by kitap_sorusu.py AND pdf_sayfa.py too —
-                         renaming them breaks both, even though underscored
-                         (pdf_sayfa.py's own `render_pdf_sayfa()` has the same
-                         fragility in reverse — it's deliberately public and
-                         imported by yks_sorulari.py)
-  kitap_sorusu.py        answers a concrete, source-checked question via the
-                         server's RAG pipeline (`server/rag.py`), added
-                         2026-08-11 — NOT a topic walkthrough, that's
-                         ders_icerigi's job (see below)
-  pdf_sayfa.py            renders one specific PDF page number as an IMAGE
-                         (PyMuPDF/fitz — already a dependency, no new one
-                         added) with zoom +/- and pan in the content panel,
-                         added 2026-08-12. Exposes `render_pdf_sayfa()` as a
-                         deliberately public/reusable render helper — imported
-                         by yks_sorulari.py too, so the fitz rendering logic
-                         lives in one place. See kayit.py's `pdf_sayfa` entry
-                         and ui.py's `show_image`/`_olcekle_goruntu`.
-  yks_sorulari.py        past YKS exam questions on the topic, keyword-matched
-                         against tools/yks_metin.py output. Shows ONE question
-                         at a time as an actual PDF page IMAGE (via
-                         pdf_sayfa.render_pdf_sayfa — original layout, not
-                         reflowed text), module-level `_OTURUM` dict tracks
-                         which matched question is current for the process
-                         lifetime. Advancing to the next matched question
-                         needs an explicit `sonraki=true` call — never
-                         automatic, see core/prompt.txt's SESLİ HİTAP/SORU
-                         SUNUM PROTOKOLÜ. Question only, no solution; model
-                         must work the solution itself (see below)
-  ders_hafizasi.py       recalls what was covered in a PAST lesson on this
-                         board ("geçen ders ne işlemiştik"), added 2026-08-12.
-                         **CHANGED 2026-08-18 — server-taşıma.** No longer
-                         reads local files directly: this file is now a thin
-                         HTTP client to `POST /api/egitim/ders_hafizasi`
-                         (`server/ders_hafizasi.py`), which matches against
-                         this board's own backed-up transcripts under
-                         `server/yedekler/ders_kaydi/<derslik>/` (written by
-                         the `ders_kaydi_yedek` backup call, see below) — NOT
-                         the textbook, NOT the RAG pipeline. No separate
-                         "summary" storage: the server fetches the raw
-                         matched past session (bounded/truncated, same
-                         pattern as yks_sorulari), the model paraphrases it
-                         at answer time. "Exclude the CURRENT session's own
-                         file" is now enforced server-side (this board just
-                         reports its current file name,
-                         `transcript.session_file().name`, in the request).
-                         Not gated by the SORU SUNUM PROTOKOLÜ silence rules
-                         — answers immediately, same behavior class as
-                         kitap_sorusu. (Found stale during a 2026-08-30
-                         doc↔code audit — this paragraph used to describe a
-                         local-file-only implementation that no longer
-                         exists.)
-  file_processor.py      documents and images only (narrowed, see below)
-  youtube_video.py       lesson videos
-  eba.py                 EBA (MEB portal) lesson videos + question PDFs, added
-                         2026-08-09 (see "eba" section below)
-  web_search.py          DuckDuckGo (primary, free) + core/saglayicilar.py
-                         synthesis — no Gemini (see "Provider notes" below)
-  site_goster.py         whitelisted reference sites, no browser
-  geogebra.py            GeoGebra, driven LIVE (added 2026-09-25): a stdlib HTTP
-                         bridge on 127.0.0.1 serves the offline Math Apps Bundle
-                         + a page opened in `chrome --app` (no address bar,
-                         own --user-data-dir so the PID is the window); the page
-                         long-polls /komut, runs evalCommand/setValue, reports
-                         per-command success to /sonuc — rejected commands go
-                         back to the model. Bundle (~120 MB) is NOT in git: the
-                         server serves it at `/geogebra/` (StaticFiles, from
-                         /mnt/farabi-data/farabi/geogebra/GeoGebra), the bridge
-                         caches fetched files in icerik/onbellek/geogebra/ (~9 MB
-                         after first open). Boards get the full bundle pre-copied
-                         to icerik/geogebra/GeoGebra (server/geogebra_dagit.sh).
-                         GeoGebra's GWT fragment loader sometimes stalls on a
-                         same-Chrome reload or slow (cold) file serving, and a
-                         stalled page never recovers → the bridge waits for the
-                         page's first /komut (ILK_DENEME 8 s), else restarts
-                         Chrome ONCE; app switches restart Chrome instead of
-                         reloading. Every reopen bumps `surum` so a dead page's
-                         pending long-poll can't swallow the next packet.
-                         Delivery is acknowledged: the local connection rarely
-                         drops a /komut response the bridge already wrote
-                         ("Failed to fetch", ~1/100), so a packet without a
-                         /sonuc is re-sent on the page's next /komut and the
-                         page dedupes by id (re-reports, never re-applies).
-                         Open in all kips incl. lessons — a
-                         deliberate, user-approved exception to the "no app
-                         launching" line (2026-09-25): locked --app window,
-                         localhost page only.
-
-> ⚠️ **`yoklama_al.py` REMOVED (2026-08-31).** Found unregistered (not in
-> `kayit.py`, no `ad="yoklama_al"` entry, unreachable from tool dispatch) and
-> shelling out to launch `tahtayoklama/yoklama.py` (a separate, sibling
-> project) via `subprocess.Popen` — dead, half-wired integration code, not a
-> capability Farabi's own actions should have. Deleted from the repo; will
-> disappear from 9-A on its next `farabiguncelle.sh` pull. If yoklama
-> integration is wanted later, it needs a real `Arac(...)` entry and an
-> explicit capability-boundary decision, not a resurrected copy of this file.
-
+actions/           one public function per module; registry = kayit.py
 core/
-  prompt.txt         26K teaching persona (v2.0) — USER-OWNED
-  vision_prompt.txt 1.0K vision persona — USER-OWNED, easy to miss
-  ders_motoru.py         LESSON ENGINE — deterministic state machine; the class
-                         defaults to observer mode, `main.py` runs it with
-                         `enjekte=True` (see below)
-  olaylar.py             in-process event bus (asyncio, no broker)
-  program.py             timetable: day × period × class → subject (see below)
-  zil.py                 bell schedule + lesson-period state (shared, see below)
-  tahta.py               which classroom this board stands in, AND which
-                         Brain server it talks to (`sunucu_url()`, added
-                         2026-08-12 — reads `config/api_keys.json`'s
-                         `sunucu_url`, falls back to `http://127.0.0.1:8000`
-                         for single-machine dev; kitap_sorusu.py and the
-                         `_ders_kaydini_yedekle` backup call in main.py both
-                         use this instead of a hardcoded address, so cloning
-                         this board's config to another board just means
-                         editing one field — see "Ders hafızası" below)
-                         (shared, see below)
-  modeller.py            CANLI_MODEL only now — Live model name, one place
-  anahtar.py             Gemini API key pool + quota detection (Live only)
-  saglayicilar.py        **CHANGED 2026-08-14 — no longer a provider pool.**
-                         Now an ince HTTP proxy client to `server/`'s
-                         `POST /api/egitim/metin_uret` / `gorsel_uret`; the
-                         real Groq/Mistral/DeepSeek/OpenRouter/NVIDIA NIM
-                         pool + task chains + cooldown logic moved to
-                         `server/saglayicilar.py` (byte-for-byte transplant,
-                         same `GOREV_ZINCIRLERI`). `metin_uret`/`gorsel_uret`
-                         function signatures were kept IDENTICAL on purpose
-                         so every caller (`file_processor.py`,
-                         `web_search.py`, `youtube_video.py`,
-                         `tools/kitap_ozet.py`, `tools/sembol_temizle.py`)
-                         needed zero changes. Still raises `RuntimeError` on
-                         total failure, same as before — see "Provider notes
-                         and API quota" below, now describing the SERVER's
-                         pool, not this file's.
-  logger.py              rotating diagnostic log
-  transcript.py          lesson record (text only, never audio). Changed
-                         2026-08-12: ONE FILE PER LESSON SESSION now
-                         (`logs/ders/<timestamp>_<derslik>.txt`), not one
-                         per calendar day — the file path is computed once
-                         and cached for the process lifetime (`_oturum_yolu`)
-                         so a Gemini Live reconnect mid-lesson doesn't
-                         fragment the record across files. `log_frame(ders,
-                         konu)` appends a `ÇERÇEVE: ...` marker once the
-                         subject/topic becomes known (called from
-                         `ders_icerigi.py`, not main.py — see "Ders hafızası"
-                         below for why). `today_file()` renamed
-                         `session_file()` accordingly.
-
-memory/                  UNUSED at runtime (legacy package; `save_memory` removed).
-                         Do not re-wire into `_build_config` or the tool registry
-                         without an explicit request — a shared classroom board
-                         must not hold a single-student profile.
-
-tools/                   not part of a lesson — see the invariant below.
-                         Reachable from a UI button (kitap/YKS conversion,
-                         AI symbol cleanup, book summary) as well as the
-                         command line — see "Content pipeline" below
-  kitap_index.py         textbook PDFs          → icerik/kitaplar.json (offline)
-  kitap_metin.py         textbook PDFs          → icerik/metin/<kitap>.json
-                         (offline, NO API) — the runtime text source; run it on
-                         every book (see below)
-  dogrula.py             CONTENT VALIDATION GATE for the book index + hand
-                         mappings — catches silently-bad indexes (offline,
-                         free, no API)
-  sembol_temizle.py      AI-ASSISTED symbol cleanup for pages `kitap_metin.py`
-                         flagged ambiguous ('#'/'$') — a separate, opt-in,
-                         PAID step; see "Content pipeline" below
-  kitap_ozet.py          book summary + web-sourced enrichment questions,
-                         written to icerik/ozet/<kitap>.json — PAID, opt-in;
-                         `ders_icerigi` reads the summary if present
-  onbellek_isit.py       pre-lesson page-selection warming for one konu
-                         (offline; the topic is always given by hand, never
-                         auto-detected — see below)
-  mikrofon_test.py       per-board mic verification (setup / field use)
-  yks_metin.py           YKS exam PDFs → icerik/yks_metin/<dosya>.txt (offline,
-                         NO API, no symbol-repair layer) — the runtime text
-                         source for `yks_sorulari` (see below)
-
-tests/                   pytest; pure functions only, no network, no model
-  test_mufredat.py       subject matching, display names, text-source helpers
-  test_ders_motoru.py    lesson engine states, suggestions, injection
-  test_arac_kaydi.py     registry ↔ dispatch, timeouts, permissions
-  test_program.py        timetable slots, aliases, mode per slot
-  test_oturum_yapilandirmasi.py  built config carries system_instruction + tools,
-                         lesson-language directive text (see "Lesson language")
-  test_kitap_index_sira.py  fitz header/page-number ordering regression (see
-                         "kitap_index.py'nin fitz geçişi" under Content pipeline)
-  test_oturum_devam.py   reconnect sends [OTURUM DEVAM], never re-greets
-  test_ogretmen_komutu_kaydi.py  typed teacher instructions reach the
-                         persistent lesson record, not just the on-screen panel
-  test_transcript.py     ÖĞRETMEN label written distinctly from ÖĞRENCİ/FARABİ
-  test_alim_dongusu_kesinti.py  `_receive_audio` clears out_buf/in_buf on
-                         `interrupted` so a cut-off turn's text can't merge
-                         into the next turn's line (see below)
-  test_saglayicilar.py   six-provider chain fallback/skip logic (mocked
-                         clients, no network — see "Provider notes" below)
-  test_sembol_temizle.py  AI symbol-cleanup page counting and failure handling
-  test_kitap_sorusu.py   book-matching refuses without `ders` (network-free,
-                         monkeypatched cache — see kitap_sorusu section below)
-
-config/
-  api_keys.json          gemini_api_keys/gemini_api_key, derslik, sunucu_url,
-                         ders_kipi, os_system (gitignored — see Config keys
-                         below). **2026-08-14: the five cloud-provider keys
-                         (groq/mistral/deepseek/openrouter/nvidia) were
-                         REMOVED from this file** — they live in
-                         `server/config/api_keys.json` now (server machine
-                         only), this board no longer holds or needs them.
-  api_keys.example.json  same shape, committed as template — hand-copy this,
-                         there is no setup wizard that writes api_keys.json
-  zil.json               bell schedule (gitignored, but school-wide shared —
-                         see the 9-A sync mechanism note below)
-  zil.example.json       same values, committed as template
-  ders_programi.json     timetable (gitignored, also school-wide shared)
-  ders_programi.example.json   same shape, committed as template
-
-planlar/           2.3M  MEB yearly-plan .xlsx — ARCHIVE ONLY, not read by any
-                         code path anymore (see below). Left on disk because
-                         it's the teacher's source material, not because
-                         anything consumes it; see planlar/BURAYA_NE_KONUR.md.
-                         Root CLAUDE.md marks this "don't delete" explicitly.
-
-> ⚠️ **`kitaplar/`, `YKS/`, and everything under `icerik/` except
-> `icerik/onbellek/` are GONE from this board (2026-08-14, server-taşıma) —
-> the paragraphs below describing them as live drop directories are
-> HISTORICAL.** 1.1GB+ of textbook/YKS PDFs and all derived content
-> (`icerik/metin`, `icerik/ozet`, `icerik/eslemeler`, `icerik/yks_metin`,
-> `icerik/kitaplar.json`) moved to the server's own disk
-> (`/mnt/farabi-data/farabi/`, see root `CLAUDE.md`). This board now only
-> keeps `icerik/onbellek/pdf_sayfa/` and `icerik/onbellek/yks_sayfa/` — a
-> small (≤30 files each), disposable local cache of PNG pages already
-> rendered by the server for THIS board's current lesson, not a data store.
-> Nothing in `actions/` reads a local PDF or a local `icerik/metin/*.json`
-> anymore; `ders_icerigi`/`kitap_sorusu`/`pdf_sayfa`/`yks_sorulari` all call
-> `server/` over HTTP instead (see each tool's section further down).
-
-logs/                    ders/*.txt lesson records, farabi.log (GITIGNORED)
+  prompt.txt       teaching persona (v2.0) — USER-OWNED
+  vision_prompt.txt, prompteski.txt   user-owned, not read by code — don't delete
+  ders_motoru.py   lesson engine (state machine), run with enjekte=True
+  olaylar.py       in-process asyncio event bus
+  program.py       timetable: class × day × period → subject (+ kip)
+  zil.py           bell schedule + lesson-period state
+  tahta.py         board identity: derslik, grade, sunucu_url, mikrofon,
+                   auth headers (tahta_anahtari)
+  anahtar.py       Gemini key pool + quota detection
+  saglayicilar.py  thin HTTP proxy to server's provider pool (NOT a pool)
+  modeller.py      CANLI_MODEL — the Live model name, one place
+  transcript.py    lesson record (text only), one file per session
+  logger.py        rotating diagnostic log
+  version.py       client semver (checked against server GET /api/version)
+tools/             offline content-prep scripts — they run on the SERVER
+                   against /mnt/farabi-data/farabi/, not on a board. Only
+                   dogrula.py and mikrofon_test.py matter board-side.
+tests/             pytest, no network, no model
+config/            real JSON gitignored; *.example.json templates committed
+memory/            UNUSED legacy package — do not re-wire (a shared board
+                   must not hold a single-student profile)
+planlar/           MEB yearly-plan .xlsx, archive only, no code reads it
+logs/              ders/*.txt lesson records, farabi.log (gitignored)
 ```
 
-**A lesson is driven only by the teacher's spoken/typed topic, never by the
-yearly plan.** Subject comes from `config/ders_programi.json`
-(`program.simdiki_ders()` → `_programdan_cerceve`); topic and kazanım come
-from the teacher (typed or spoken) at lesson start; `ders_icerigi` sends that
-topic to the server, which matches it against the book index there. The
-yearly-plan pipeline (`plan_parse.py` → `icerik/plan.json`, the `dogrula.py`
-plan/coverage checks, `gunun_adaylari`/`ders_cercevesi_yap`) was **removed
-entirely** long before the server move and stays removed — do not
-reintroduce a "derive today's topic from the plan" path; topic/kazanım only
-ever come from the teacher.
+On boards, `~/farabi` is a sparse checkout of `client/` only, updated by
+cron `farabiguncelle.sh` (`git fetch` + `git reset --hard origin/master`,
+20:00). **Exception: 9-A** is a full clone at `~/farabi/repo` (client at
+`~/farabi/repo/client`). Deployment details: root `CLAUDE.md`.
 
-**`tools/` invariant — CHANGED 2026-08-14.** `kitap_index.py`, `kitap_metin.py`,
-`sembol_temizle.py` and `kitap_ozet.py` are still content preparation
-scripts and their code is still here, but they **no longer run on this
-board** — the `kitaplar/`/`YKS/`/`icerik/` directories they process don't
-exist here anymore (see the warning box above). The HUD buttons that used to
-trigger them (`📚 KİTAPLARI METNE DÖNÜŞTÜR` etc., see "Content pipeline"
-below) were **removed from `ui.py`** in the same change. Content preparation
-now happens once, centrally, on the server side against
-`/mnt/farabi-data/farabi/` — see root `CLAUDE.md`'s "server/" section. The
-"Content pipeline" subsection further down in this file describes the OLD,
-now-inactive-on-this-board flow; kept for history since the scripts
-themselves weren't deleted, not because a teacher should press those buttons
-here.
-`mikrofon_test.py` is not content — it is board verification, run at install
-time and whenever a board is suspected deaf. The same two-phase measurement is
-also reachable at runtime from a HUD button (`_mikrofon_kalibre` in `ui.py`),
-which is deliberate: whoever is standing at the board is the one who needs the
-answer.
-
-**No semantic/embedding search — CLAIM NOW ABOUT `server/`, NOT THIS BOARD.**
-`sentence-transformers`/`torch` were removed from THIS board's
-`requirements.txt` back when page selection still ran here; since
-2026-08-14 page selection (word-overlap, "Page selection" below) runs
-server-side in `server/icerik.py` instead, this board doesn't run either
-kind of search anymore — it just calls `server/` and shows the result.
-
-### Config keys (`config/api_keys.json`)
-
-**2026-08-14: the five cloud-provider keys were removed from this table**
-(`groq_api_key`, `mistral_api_key`, `deepseek_api_key`, `openrouter_api_key`,
-`nvidia_api_key`) — they no longer exist in this board's config at all, real
-values live in `server/config/api_keys.json` (server machine only, not
-committed, not readable from this board).
-
-| Key | Set by | Missing means |
-|---|---|---|
-| `gemini_api_keys` | hand-edited, list | falls back to the single key |
-| `gemini_api_key` | hand-edited (legacy singular) | client cannot start (blocks the LIVE session only — see below) |
-| `sunucu_url` | hand-edited, per board | falls back to `http://127.0.0.1:8000` — only correct if server and client are the SAME machine (dev only); a real board must set the real server address |
-| `os_system` | hand-edited | — |
-| `ders_kipi` | hand-edited | defaults to `ogretmenli` (`_ders_kipi`, `main.py`) |
-| `mikrofon` | hand-edited, per board | `true` (mic used). `false` = **mic-less mode** (2026-09-25, board mics broken): `_listen_audio` never starts, öğretmen/talimat mode is locked in the UI, DERSİ BAŞLAT asks ders/konu/kazanım in `_KonuDiyalogu`, `MIKSIZ_KURALLARI` is appended AFTER `prompt.txt` (suspends yoklama/üç adım/katılım), and `_otomatik_devam_dongusu` sends `[DEVAM]` after each finished turn (Gemini Live goes silent without user audio). Closes at `MIKSIZ_DERS_DK` (40) or 2 min before the bell. Tests: `tests/test_mikrofonsuz*.py`. This config value is only the **default at launch** (`MainWindow.mikrofonsuz`, set once from `tahta.mikrofon_var()`) — see the touch toggle in "Teacher panel" below, which can flip it for the current process without touching the file |
-| `derslik` | hand-edited, per board | classroom unknown — see below. Also THE per-board identity used for the 9-A→server sync and (planned) multi-board status tracking, see "9-A ↔ server sync" below |
-| `camera_index` | dead (writer removed 2026-08-09) | ignored — no camera code reads or writes it |
-
-### API key pool (`core/anahtar.py`)
-
-`gemini_api_keys` is a list; on a quota error the session moves to the next key
-**without waiting**, resets `fail_streak`, and retries immediately. Template in
-`config/api_keys.example.json`.
-
-Three things that make this work, each of which was a way to get it wrong:
-
-- **The client is built inside the reconnect loop.** It used to be constructed
-  once above `while True`, where a rotated key would never reach the SDK.
-- **Rotation resets the backoff.** The 3→6→12→24→48→60 s ladder and the "3
-  failures = log likely causes" diagnostic are tuned for one key; walking a
-  ten-key pool through them means minutes of classroom silence and a false
-  "check your API key" verdict while nothing is actually wrong.
-- **`kota_hatasi_mi()` matches narrowly** — spending cap, `RESOURCE_EXHAUSTED`,
-  429, quota, rate limit. Rotating on *any* exception turns a wrong model name or
-  a bad key into "tried all ten and gave up", the exact misdiagnosis the reconnect
-  section exists to prevent. Verified: the real 1011 string and 429 match;
-  `Unknown name language_codes`, connection refused and invalid-key do not.
-
-**Only one Gemini key reader now: `main.py`.** (`screen_processor.py` was the
-second reader; it was removed 2026-08-09 — no camera/screen capture anywhere
-in this repo anymore, see "Project layout" above.) It goes through
-`anahtar.simdiki()` — used to open `api_keys.json` itself, which would leave
-it on the dead key after the session rotated. Every other former reader
-(`web_search.py`, `file_processor.py`, `youtube_video.py`) was migrated off
-Gemini entirely — see "Provider notes and API quota" below,
-`core/saglayicilar.py`. `ders_icerigi.py` and `site_goster.py` call **no** AI
-API at all (the image-transcription path that once made `ders_icerigi` a key
-reader is gone — see "Do not re-add the image path" below — and
-`site_goster` only fetches and cleans a page server-side), so they don't need
-a key and aren't in this list.
-
-**Rotation only helps across separate Google Cloud projects.** A monthly spending
-cap is per project, so ten keys minted in one project share one cap and the pool
-fails over ten times into the same 1011.
-
-`camera_index` is now dead data: it was written by the removed
-`screen_processor.py` (probed camera indices 0–5, saved via `_save_config_key`).
-Nothing reads or writes it anymore — safe to ignore or delete by hand from
-`api_keys.json`, not load-bearing for anything.
-
-## ⚠️ Microphone: hardware limit, not a code bug — RESOLVED as a requirement
-
-The "Farabi does not hear me" problem was traced to microphone sensitivity, not
-software. Measured on the dev machine (Dell G15, internal DMIC via `acp`):
-
-| Condition | RMS | Healthy range |
-|---|---|---|
-| Silent room | 8–16 | — |
-| Speech at normal distance | 200–450 | **1500–8000** |
-| Gain raised to 200% | floor 160, speech 272 | ratio only 1.7x |
-
-The mic is not faulty — it captures speech about 10x too quietly, and raising
-gain does not help because the noise floor rises by the same factor, leaving
-signal-to-noise unchanged. **Each board needs an external microphone** (USB
-conference or ceiling mic). Verify per board with
-`python tools/mikrofon_test.py --karsilastir` — a ratio below 3x means that board
-is not lesson-ready. The same check is on the HUD (`MİKROFONU KALİBRE ET`), run in a
-background thread with the result in the content panel, so it can be done at the
-board without a terminal.
-
-Facts already established, do not re-litigate:
-- `acp` **is** the correct capture device. The ALC3254 analog input
-  (`hw_Generic_1`) was tested at equal gain and unmuted: it captures less.
-- Hardware devices reject 16 kHz (48 kHz only), so PulseAudio `default` is
-  mandatory — do not try to pin `hw:*` at 16 kHz.
-- Nothing in the client can fix this. `realtime_input_config` was tried and made
-  Farabi completely deaf (next section).
-
-Two of my own diagnostic mistakes are worth remembering:
-1. **Absolute RMS thresholds were wrong.** The noise floor moves ~40x with system
-   gain, so a fixed "rms 400 = speech" rule reported a silent room as speech.
-   `_listen_audio`'s diagnostic now measures the floor first and bands relative
-   to it.
-2. **A single startup transient was misread as clipping.** Opening the stream
-   produces a pop that hits 32768; judging clipping by the run's max peak made
-   `mikrofon_test.py` recommend *lowering* gain when the real problem was too
-   little signal. It now skips the first blocks and judges clipping by the
-   proportion of samples at the ceiling.
-3. **A logarithmic level bar hid the answer.** rms 500 → 29 bars, rms 5000 → 40
-   bars, so speech and room noise looked identical and the level appeared "flat".
-   Now square-root scaled.
-
-Interpreting levels without knowing *when* the speaker was talking produced two
-wrong diagnoses. The two-phase `--karsilastir` mode exists because of that:
-it measures silence and speech itself and reports the ratio.
-
-## Reported stutter/lag during speech (9-A, 2026-08-30) — investigated, NOT root-caused
-
-Teacher-reported "tekleme ve kasma" (stutter/hitching) while Farabi speaks.
-Investigated from `logs/farabi.log` only (no live session was running —
-Sunday, no school — so nothing below is a confirmed cause, only what the
-static log data supports or rules out):
-
-- **133 `Sözü kesildi` (interrupted) events** across the retained log window
-  (2026-08-23 to 2026-08-29). Distribution of "çalınmamış N ses paketi
-  atıldı" (unplayed packets discarded at interrupt): 72 are `0` (turn had
-  already finished playing — benign, not a mid-speech cutoff), but 61 are
-  non-zero and the tail is heavy — values up to 390. **Roughly half of all
-  interruptions genuinely land mid-speech.** An initial theory (mic
-  picking up Farabi's own voice with no echo cancellation, given 9-A's
-  audio is the internal `ALC662` analog codec with no external mic detected
-  in `arecord -l`/`pactl list sources`) is *plausible* given the packet
-  counts, but was **not verified** — no live session to correlate an
-  interrupt timestamp against an actual FARABİ-speaking window.
-- **Tool-call latency is not the cause** — checked and ruled out. Slowest
-  tool calls in the window: `web_search` at ~20s (expected, has its own
-  budget), everything else (`pdf_sayfa`, `web_ac`, `uygulama_ac`) under 1s.
-  Tool calls run off the receive loop (see "Tool dispatch" above) so
-  wouldn't stutter playback even if slow.
-- **Untested but mechanically plausible, not yet measured:** 9-A's board is
-  an Intel i3-2330M (2011-era dual-core mobile CPU, per the school's own
-  hardware sheet) running four asyncio audio loops, a 15s rolling RMS
-  diagnostic, and Qt repainting a 12.7 MB `Farabi.gif` HUD animation, all on
-  one process. This is the kind of load that produces exactly "az da olsa
-  tekleme ve kasma" if the process occasionally can't keep the audio
-  callback fed. **Not measured this session** — would need, during an
-  actual live lesson: `pidstat -p $(pgrep -f 'python main.py') 2 10` (is the
-  process pegging a core when it stutters), `pw-top` (XRUN count on the
-  PipeWire output stream during a stutter). Do not write a cause into this
-  file from this paragraph alone — it's a hypothesis to test, not a finding.
-
-**Next step, not done:** run the two `pidstat`/`pw-top` checks above on 9-A
-during a real lesson, correlated against a stutter the teacher actually
-hears, before spending effort on either the mic/AEC theory or a CPU/audio-
-underrun fix.
-
-## ⚠️ Do not re-add VAD / audio-detection config
-
-`realtime_input_config` / `AutomaticActivityDetection` was added to tune for a
-crowded classroom (start/end sensitivity, prefix padding, silence duration) and
-it **made Farabi completely deaf**: sessions opened, it greeted, zero student
-transcripts arrived. Evidence: 11 student lines before the change, 0 across four
-sessions after. Reverting only `start_of_speech_sensitivity` was not enough; the
-whole block had to go.
-
-Audio config is now exactly:
-
-```python
-output_audio_transcription={},
-input_audio_transcription={},
-```
-
-Also rejected server-side (tested): `language_codes` and `language_hints` on
-`input_audio_transcription`. The SDK exposes those fields but the Live API returns
-`Unknown name "language_codes"` and the session never opens. **A field existing in
-the SDK does not mean the endpoint accepts it.** Accepted and kept:
-`realtime_input_config` is gone, `thinking_config` stays.
-
-Classroom noise is handled in the model instead — the "KALABALIK VE GÜRÜLTÜ" rule
-in `core/prompt.txt` ("Lütfen sessiz olalım ve tek tek konuşalım").
-
-## Running the board client
+## Commands
 
 ```bash
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
+python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
 python main.py
+
+venv/bin/python -m pytest tests/ -q                               # all (pytest is dev-only, not in requirements.txt)
+venv/bin/python -m pytest tests/test_mufredat.py -q               # one file
+venv/bin/python -m pytest tests/test_mufredat.py::TestDersEslesir -q
+venv/bin/python -m pytest tests/ -q -k "eslesme"                  # by name
+venv/bin/python -c "import main"                                  # clean import set
+python tools/dogrula.py                                           # content gate (exit 1 = RED)
+python tools/mikrofon_test.py --karsilastir                       # per-board mic, ratio <3x = not lesson-ready
 ```
 
-**No first-launch wizard.** `config/api_keys.json` is hand-authored only, same
-as `zil.json`/`ders_programi.json` — copy `config/api_keys.example.json` and
-fill it in. A `SetupOverlay` first-launch dialog used to exist in `ui.py`; it
-was removed because on any missing/incomplete config it rewrote
-`config/api_keys.json` **from scratch** with just `{"gemini_api_key",
-"os_system"}`, silently destroying a hand-edited `derslik`, `ders_kipi`, or
-`gemini_api_keys` pool that didn't happen to also satisfy that exact shape.
-`MainWindow._check_config()` now only *reads* (via `core.anahtar.adet()`,
-the same pool-aware reader every other module uses) and, if nothing usable is
-found, logs an error to the DERS KAYDI panel and leaves `_ready=False` —
-`FarabiUI.wait_for_api_key()` blocks the session thread until the operator
-fixes the file by hand and restarts. Do not reintroduce anything that writes
-`api_keys.json` from the UI.
+Lint from the repo root: `.venv-tools/bin/ruff check client` (read the diff
+against the baseline, see root `CLAUDE.md`).
 
-`requirements.txt` is derived from the actual import set and verified by a
-clean-venv install plus `python -c "import main"` — re-verify that way rather
-than trimming by eye.
+`requirements.txt` is derived from the real import set — re-verify with a
+clean venv + `python -c "import main"`, don't trim by eye. The lock file must
+be generated on the boards' Python (3.11), not the server's.
 
-### Verifying a change
+`tests/conftest.py` points `FARABI_LOG_DIR` / `FARABI_DERS_LOG_DIR` at temp
+dirs so tests never write into real lesson records — keep new logging behind
+those variables.
 
-Ruff is configured (root `CLAUDE.md`'s "Komutlar" section) and covers this
-directory: `.venv-tools/bin/ruff check client server benchmark tahtayoklama`
-run from the repo root. Otherwise, what exists here:
+Offscreen UI check: `QT_QPA_PLATFORM=offscreen python -c "..."` → build
+`MainWindow`, `w.grab().save(...)`. (`grep -i` misses letter-dotted strings
+like `F.A.R.A.B.İ`.)
 
-```bash
-venv/bin/python -m pytest tests/ -q        # no network, no model
-venv/bin/python -m pytest tests/test_mufredat.py -q         # one file
-venv/bin/python -m pytest tests/test_mufredat.py::TestDersEslesir -q       # one class
-venv/bin/python -m pytest "tests/test_mufredat.py::TestDersEslesir::test_kelime_bazli_eslesme" -q
-venv/bin/python -m pytest tests/ -q -k "eslesme"            # by name substring
-venv/bin/python -c "import main"           # clean import set
-python tools/dogrula.py                    # content gate (exit 1 = RED)
-python tools/mikrofon_test.py --karsilastir   # per-board mic, ratio <3x = not lesson-ready
-```
+## Configuration
 
-`pytest` is a dev-only dependency and is deliberately **not** in
-`requirements.txt` — the board install stays minimal.
+### `config/api_keys.json` (hand-edited, gitignored)
 
-**Two defects found only by running it** (31.07.2026, live session):
+No first-launch wizard, and **nothing in the UI may write this file** (a
+removed `SetupOverlay` once rewrote it from scratch and destroyed hand-edited
+fields). `MainWindow._check_config()` only reads; if no key is usable it logs
+to DERS KAYDI and blocks until fixed by hand. Shared fields (Gemini key,
+`mikrofon`, `sunucu_url`) are distributed with `server/config_dagit.sh`.
 
-- **The model reads instruction markers aloud.** Lesson record: `FARABİ
-  [DERS_ACILISI] Merhaba çocuklar…`. Defended twice, like the chain-of-thought
-  leak: the opening now says not to read the marker, and `_ETIKET_RE` strips
-  `[DERS_ACILISI]`, `[DERS DURUMU]`, `[ÖĞRETMEN KOMUTU]`, `[OTURUM DEVAM]` from
-  the transcript.
-- **The clock was handed over in 12-hour form.** `time_ctx` used `%I:%M %p`, so
-  at 00:20 Farabi told the class *"saat 12:20"*. It is `%H:%M` now — the same
-  format the opening already used.
+| Key | Missing means |
+|---|---|
+| `gemini_api_keys` (list) / `gemini_api_key` (legacy) | client cannot start the Live session |
+| `sunucu_url` | falls back to `http://127.0.0.1:8000` — dev only |
+| `tahta_anahtari` | every server call gets 401 (auth is mandatory) |
+| `derslik` | classroom unknown → grade unknown, `DERSLİK TANIMSIZ` in red. Not copyable between boards |
+| `ders_kipi` | `ogretmenli` |
+| `mikrofon` | `true`. `false` = **mic-less mode**, see below. Only the launch default — the panel's 🎤 MİKROFONLU / 🚫 MİKROFONSUZ toggle flips it in memory |
+| `os_system` | — |
 
-**Verified working:** clean install, Live session, audio tasks, HUD animation,
-live tool calls (`ders_icerigi`, `web_search`), lesson-record file,
-opening line with day/time/period. **Not verified:** reliable microphone input
-(above), real smart-board hardware, touchscreen, camera.
+`camera_index` is dead data (no camera anywhere) — ignore.
+
+### Gemini key pool (`core/anahtar.py`)
+
+On a quota error the session moves to the next key **immediately** and
+resets the backoff. Invariants, each a past bug:
+- the client is built **inside** the reconnect loop (else a rotated key never
+  reaches the SDK);
+- rotation resets `fail_streak` (the 3→60 s ladder is tuned for one key);
+- `kota_hatasi_mi()` matches narrowly (spending cap, `RESOURCE_EXHAUSTED`,
+  429, quota, rate limit) — rotating on any exception turns a bad model name
+  into "tried all keys";
+- `main.py` reads keys only via `anahtar.simdiki()`; `gorsel_uret` shares the
+  same pool.
+
+**Rotation only helps across separate Google Cloud projects** — a spending
+cap is per project. (Current outage: see DECISIONS.md 2026-09-25, billing
+block.)
+
+### Mic-less mode (`mikrofon: false`, 2026-09-25 — on all boards now)
+
+`_listen_audio` never starts; öğretmen/talimat mode is locked (it is
+voice-only); DERSİ BAŞLAT asks ders/konu/kazanım in `_KonuDiyalogu`;
+`MIKSIZ_KURALLARI` is appended **after** `prompt.txt` (suspends yoklama /
+three-step / participation); `_otomatik_devam_dongusu` sends `[DEVAM]` after
+each finished turn (Live goes silent without user audio). Ends at
+`MIKSIZ_DERS_DK` (40) or 2 min before the bell. Tests:
+`tests/test_mikrofonsuz*.py`.
+
+## Audio — settled facts, do not re-litigate
+
+- **Board mics are a hardware limit, not a code bug.** Speech RMS ~200–450
+  vs healthy 1500–8000; raising gain raises the floor equally. Each board
+  needs an external mic. Verify with `mikrofon_test.py --karsilastir` (also
+  the HUD `MİKROFONU KALİBRE ET` button). Judge levels relative to the
+  measured floor, never by absolute RMS.
+- On the dev machine `acp` is the correct capture device (the ALC3254
+  analog input `hw_Generic_1` captured less at equal gain).
+- PulseAudio `default` is mandatory — hardware rejects 16 kHz; don't pin
+  `hw:*`.
+- **Do not re-add VAD / `realtime_input_config` /
+  `AutomaticActivityDetection`** — it made Farabi completely deaf. Audio
+  config is exactly `output_audio_transcription={}`,
+  `input_audio_transcription={}`. `language_codes`/`language_hints` are
+  rejected by the Live endpoint (session never opens) even though the SDK
+  has the fields. Classroom noise is handled by the prompt's "KALABALIK VE
+  GÜRÜLTÜ" rule.
+- **Open, not root-caused:** stutter while Farabi speaks on 9-A (echo
+  without AEC vs CPU/audio underrun on the i3). Next step is measuring
+  `pidstat`/`pw-top` during a real stutter — don't write a cause without
+  that. Details: DECISIONS.md 2026-08-30.
 
 ## Architecture
 
 ### Session lifecycle (`main.py`)
 
-1. `_log_startup_banner()` — model, prompt size, tool count, **actual default**
-   audio devices, lesson frame, lesson mode, classroom; ERROR when no mic/speaker. It used to
-   print the *first* device in the list, which sent diagnosis down the wrong path;
-   it now prints what `sd.default.device` resolves to.
-2. `_build_config()` — time, lesson frame (`_current_lesson`: subject from
-   timetable, topic/kazanım from teacher when known), `[KONU BEKLENİYOR]` when
-   those are empty, lesson-mode block, `[DERSLİK]` block (`core/tahta.py`,
-   omitted when unset), `core/prompt.txt`, language directive (see "Lesson
-   language" below), `thinking_config(include_thoughts=False)`. **No student-memory block** —
-   `save_memory` and `format_memory_for_prompt` are gone from the live path.
+1. `_log_startup_banner()` — model, prompt size, tool count, the **actual
+   default** audio devices (`sd.default.device`), frame, kip, classroom.
+2. `_build_config()` — time, lesson frame (or `[KONU BEKLENİYOR]`), kip
+   block, `[DERSLİK]`, `core/prompt.txt`, language directive,
+   `thinking_config(include_thoughts=False)`. No student-memory block.
+   **Both `system_instruction` and `tools` must actually reach
+   `LiveConnectConfig`** — each was silently missing once, and the model then
+   either had no persona or *narrated* calling tools that didn't exist.
+   `tests/test_oturum_yapilandirmasi.py` asserts both. If tool use goes quiet,
+   check this before touching prompt wording.
+3. Connects to `CANLI_MODEL` (`core/modeller.py`).
+4. Audio loops + 15 s mic diagnostic. The session starts only on a
+   double-click of **DERSİ BAŞLAT** (idle sessions cost money); idle timeout
+   `BOSTA_KAPATMA_DK` (15).
+5. `_send_session_opening()` — hour-aware greeting, day, time, period,
+   subject. Missing topic/kazanım → ask the **teacher**, don't start
+   attendance or teaching. The opening says "sadece bu açılış turunda araç
+   çağırma" — keep any opening rule scoped to the turn. Typed `konu:` /
+   `kazanım:` / `ders:` lines update `_current_lesson`.
+6. On reconnect `_oturum_devam_notu()` (`[OTURUM DEVAM] … SELAMLAMA YAPMA`)
+   is sent instead of the opening; stale `mudahale` is cleared.
+7. Lesson end (`shutdown_farabi` → `_dersi_bitir`) does **not** exit the
+   process: `_DersBitti` parks the loop until the next DERSİ BAŞLAT; the
+   transcript is POSTed to `/api/egitim/ders_kaydi_yedek` (6 s wrap, silent
+   on failure).
 
-   **Two things must actually be passed to `LiveConnectConfig`, and both were
-   silently missing at different times: `system_instruction` and `tools`.**
+Reconnect backoff: 3, 6, 12, 24, 48, max 60 s; identical errors log the
+traceback once; 3 failures log likely causes on screen; every 10th is
+CRITICAL.
 
-   `tools=[{"function_declarations": TOOL_DECLARATIONS}]` was absent entirely —
-   the declarations were built and dropped, so the model never knew any tool
-   existed. The symptom was worse than silence: it **narrated calling a tool**.
-   From the lesson record, 30.07.2026 23:25 —
-   *"…`youtube_video` aracını çağırıyorum. (`youtube_video` çağırıldı…)
-   Çocuklar, şu an ekranda … bir video dönüyor."* — with nothing on screen and
-   not one `ARAÇ ▶` line in that session's log. A comment in this very file
-   asserted "Araç TANIMLARI gidiyordu (tools=…)"; it did not.
+Instruction markers (`[DERS_ACILISI]`, `[DERS DURUMU]`, `[ÖĞRETMEN KOMUTU]`,
+`[OTURUM DEVAM]`) are stripped from the transcript by `_ETIKET_RE`; the clock
+is handed over as `%H:%M` (never 12-hour).
 
-   A tool works only when **both** are true: the declaration reaches the model
-   (`tools=`) and the text saying when to call it reaches it
-   (`system_instruction`). `tests/test_oturum_yapilandirmasi.py` now asserts the
-   built config carries both; the startup banner logs the tool count.
+### Lesson language (`ui.ders_dili`)
 
-   **The assembled prompt must actually be passed as `system_instruction`.** It
-   once was not: `parts` was built and then dropped, so the returned
-   `LiveConnectConfig` carried no system instruction and Farabi ran with **no
-   persona at all** — no teaching rules, no tool-usage table, no lesson frame.
-   It looked healthy because startup logs `Sistem promptu: prompt.txt (8033
-   karakter)`; the file was read and discarded. The visible symptom was Farabi
-   never calling `ders_icerigi` or `web_search` on its own: tool *declarations*
-   reached the model, the text saying *when* to call them did not. If tool use
-   goes quiet again, check this line before touching prompt wording.
-3. Connects to `models/gemini-2.5-flash-native-audio-preview-12-2025`.
-4. Four audio-loop tasks + the 15 s mic diagnostic. Session starts only when
-   the teacher double-clicks **DERSİ BAŞLAT** (idle live sessions cost money).
-5. `_send_session_opening()` once per process — hour-aware greeting (plus
-   *"kıymetli öğretmenim"* in teacher mode), day, time, lesson period, then the
-   subject from the timetable. If topic/kazanım are missing, ask the
-   **teacher** (not the class) and do **not** start attendance or teaching
-   until they arrive. Never invent them from anywhere — there is no yearly
-   plan to fall back on anymore, topic/kazanım only ever come from the
-   teacher. Never ask the class *"nerede kalmıştık"*.
-
-   Typed teacher lines matching `konu:` / `kazanım:` / `ders:` update
-   `_current_lesson` via `_cerceveyi_ogretmenden_guncelle`.
-
-   The opening ends with **"sadece bu açılış turunda araç çağırma"**. It used to say
-   "hiçbir araç çağırma" — the model read that as session-wide. Keep any new
-   opening rule scoped to the turn.
-
-### Lesson language (`ui.ders_dili`, `main._acilis_selam_gun`)
-
-Two HUD buttons next to **DERSİ BAŞLAT** (🇬🇧 İngilizce, 🇩🇪 Almanca) let the
-teacher run the whole lesson in English or German instead of Turkish.
-Clicking a language button toggles it; clicking it again (or never clicking
-either) leaves `ders_dili` at the default `"tr"`.
-
-**Must be chosen before DERSİ BAŞLAT, not mid-lesson.** A Gemini Live
-connection's `system_instruction` cannot change after the connection opens.
-`_build_config()` reads `self.ui.ders_dili` once, when building the config
-for the (re)connect — since the client is built inside the reconnect loop
-(see above), a language chosen before the first connection stays correct
-across reconnects too, but there is no supported way to switch language
-*during* an already-open session without forcing a reconnect. Both language
-buttons are disabled the moment DERSİ BAŞLAT is pressed (`ui.py`).
-
-**`core/prompt.txt` stays Turkish-authored, single source.** Translating a
-26K-character, carefully-tuned persona into three languages and keeping them
-in sync was rejected outright — the model is instead told (in the language
-directive, appended last in `parts`) to *read the Turkish pedagogical rules
-above but speak entirely in the target language*. This relies on Gemini's
-ordinary cross-lingual instruction-following (the same thing it already does
-translating English web-search results into Turkish) rather than triplicating
-maintenance.
-
-**Two hard-coded-Turkish spots had to be found and fixed, or the feature
-would silently not work**, same class of bug as the missing
-`system_instruction`/`tools` lines above — each one *looked* like a detail,
-each one would have made the model open an "English" lesson by literally
-speaking Turkish:
-
-- The opening's verbatim first line (`"İlk cümlen aynen şu olsun: '{selam}
-  {hitap}, ben Farabi.'"`) was built from `core/zil.py`'s Turkish-only
-  `selam()`/`GUN_ADLARI` — `core/zil.py` stays Turkish (it also feeds the
-  UI's date/time panel, which must stay Turkish regardless of lesson
-  language). `main._acilis_selam_gun(ders_dili, simdi)` computes a
-  language-appropriate greeting/day name locally instead, used only for the
-  opening's verbatim line.
-- A second, independent `"- Tamamen TÜRKÇE konuş."` line was appended to the
-  *opening's own instruction turn*, separate from and in addition to the
-  `[DİL KURALI]` block in `system_instruction` — the general language
-  directive alone would not have overridden this more specific, later
-  instruction for the opening. Now branches on `ders_dili` (`"- Speak
-  entirely in ENGLISH…"` / `"- Sprich vollständig auf DEUTSCH…"`).
-
-**A third spot existed in `actions/screen_processor.py`, since removed
-(2026-08-09, see "Project layout") — kept here as history, the lesson about
-easy-to-miss unreachable config blocks still applies to any future per-module
-persona/session.** It was easy to miss for exactly the reason
-`core/vision_prompt.txt` is already flagged "USER-OWNED, easy to miss" in
-this doc. That module opened its **own**, separate
-Gemini Live sub-session (screen/webcam vision that speaks its answer
-directly — see "Provider notes and API quota" for why this couldn't be
-migrated off Gemini) with its own persona file and its own hard-coded
-`"- Tamamen TÜRKÇE konuş."` line, completely unreachable from
-`main.py._build_config()`'s `[DİL KURALI]` block. Without a fix, a student
-showing their screen mid-"English lesson" would get a Turkish-speaking
-vision module — a jarring, silent break of the feature `main.py` otherwise
-delivers correctly. Fixed the same way as `core/prompt.txt`:
-`core/vision_prompt.txt` stays Turkish, single source; `_sistem_promptu(ders_dili)`
-appends the same style of EN/DE directive. `_VisionSession._session_loop()`'s
-`config` (previously built once, before the `while True` reconnect loop —
-unlike `main.py`, this one genuinely didn't need per-connection freshness
-for anything else) now rebuilds every (re)connection so a language chosen
-before `screen_process` is first called is picked up correctly; the value
-comes from `self._player.ders_dili` (`self._player` is the `FarabiUI` bridge,
-same object `main.py` passes as `player=self.ui` when dispatching the tool).
-
-`tests/test_oturum_yapilandirmasi.py::TestDersDili` and `::TestAcilisSelamGun`
-cover the `main.py` side: the directive text per language, the `"tr"` default
-when `ui.ders_dili` is absent entirely (not just empty — a bare
-`FarabiLive.__new__(...)` test double has no `.ui` at all, which is why the
-read is `getattr(getattr(self, "ui", None), "ders_dili", None) or "tr"`, not
-a single-level `getattr`), and the greeting/day tables for en/de.
-(`tests/test_screen_processor_dili.py` covered the vision-module side the same
-way — removed along with the module.)
-
-**Reconnect is backoff'd**: 3, 6, 12, 24, 48, max 60 s. A repeated identical error
-logs its traceback once then one line per retry; at 3 failures it logs likely
-causes and writes to the on-screen log; every 10th logs CRITICAL. This system
-caught both the `language_codes` and the VAD regressions.
+🇬🇧/🇩🇪 buttons next to DERSİ BAŞLAT run the lesson in English/German.
+Chosen **before** DERSİ BAŞLAT and then locked — a Live connection's
+`system_instruction` can't change mid-connection. `core/prompt.txt` stays
+Turkish, single source; a `[DİL KURALI]` directive appended last tells the
+model to speak the target language. Any hard-coded Turkish in the opening
+must branch on `ders_dili` (`_acilis_selam_gun`); `core/zil.py` stays
+Turkish because it also feeds the UI. Tests: `TestDersDili`,
+`TestAcilisSelamGun`.
 
 ### Tool dispatch
 
-**Declarations come from `actions/kayit.py`, not from a list in `main.py`.**
-`TOOL_DECLARATIONS = kayit.bildirimler()`. Adding a tool: create
-`actions/<name>.py`, add an `Arac(...)` entry to the registry, add an `elif`
-branch in `_execute_tool`. `tests/test_arac_kaydi.py` fails if the two drift —
-that test replaces the grep one-liner that used to live here.
+Declarations come only from `actions/kayit.py` (`TOOL_DECLARATIONS =
+kayit.bildirimler(kip)`). Adding a tool = `actions/<name>.py` + an
+`Arac(...)` entry + an `elif` in `_execute_tool`; `tests/test_arac_kaydi.py`
+fails if they drift. Tool descriptions (`aciklama`) go to the model verbatim
+— shortening them is a known way to make the model stop calling a tool.
 
-The registry carries three fields that do real work at runtime:
-
-| Field | Effect |
+| Field | Runtime effect |
 |---|---|
-| `zaman_asimi` | enforced via `asyncio.wait_for` in `_isci`. **There used to be none**, and a measured 55.4 s `ders_icerigi` call froze the whole session |
-| `calisma` | `isci` (thread + timeout) / `satirici` (inline: shutdown). A third mode, `daemon`, existed only for the removed `screen_process` (spoke for itself, so a generic worker wrapper would've broken it) — no current tool uses it, don't reintroduce it without a tool that genuinely needs its own thread |
-| `kip` | filters which tools are offered per lesson mode (`kip in a.kip` in `bildirimler()`) |
-
-`izin` and `maliyet` are set on every `Arac` and asserted non-empty by
-`tests/test_arac_kaydi.py`, but nothing reads them at runtime — they're
-metadata for a human scanning the registry, not live behavior. Don't build
-logic that assumes they're enforced anywhere.
-
-`run_in_executor` cannot truly be cancelled — the thread runs on. What the
-timeout cancels is the **wait**, and that is what matters in a classroom: the
-lesson is no longer hostage to one tool. On timeout the model is told the
-resource did not arrive and to stay inside the kazanım text.
-
-**Tool calls no longer run inside the receive loop.** `_receive_audio` spawns
-`_araclari_calistir` and keeps reading; during the old inline await nothing was
-processed, not even student audio.
-
-Tool calls log timing (`ARAÇ ◀ web_search | 2.14 sn | 850 karakter`); over 10 s
-logs a WARNING — in a classroom that is a long silence.
-
-Actions are called as `module_function(parameters=args, player=ui, speak=self.speak)`.
-Heavy work runs via `loop.run_in_executor`.
-
-**Capability boundary — do not cross it.** No app launching, terminal execution,
-OS settings, browser automation, messaging, or process management. **Scoped to
-`kip=("ogretmenli","ogretmensiz")` tools — a real, DELIBERATE exception exists
-for `kip=("talimat",)` tools, see "Öğretmen talimat modu" below; do not treat
-that as license to relax the boundary for normal-lesson tools too.** `reminder` was
-removed (the bell schedule is the timer; a desktop notification firing over a
-later class is actively harmful). `file_processor` was narrowed to PDF, Word, text,
-spreadsheets, presentations, JSON/XML and images: audio, video, archive and **code**
-support were removed because its code handler ran `subprocess.run(["python", file])`
-— a student could drop a `.py` and execute it. That was a real hole in this stated
-boundary, not a hypothetical.
-
-**This boundary is scoped to `actions/` — the tools the model calls live, during
-a lesson.** It is not a claim that `ui.py` itself never shells out; it already
-did (`subprocess.run` for mic calibration and book conversion) before this line
-was written — mic calibration still does. **The book-conversion half is GONE
-(2026-08-14, server-taşıma):** `_terminalde_calistir`, `_terminalde_donustur`,
-`_kitaplari_donustur`, `_yks_donustur`, `_api_calisan_dugmeyi_baslat`,
-`_sembolleri_temizle`, `_kitap_ozeti_cikar`, and the `KİTAPLARI METNE
-DÖNÜŞTÜR`/`YKS SORULARINI METNE DÖNÜŞTÜR`/`ŞÜPHELİ SEMBOLLERİ TEMİZLE`/
-`KİTAP ÖZETİ ÇIKAR` buttons were all removed from `ui.py` — they existed only
-to run `tools/*.py` against this board's own `kitaplar/`/`YKS/`/`icerik/`,
-and those directories don't exist here anymore (see "Project layout" above).
-Content preparation now happens entirely on the server (`docs/mimari.md`,
-`server/icerik.py`) — there is no terminal-opening admin button on this board
-anymore. If a future change makes any `actions/` module shell out or open a
-terminal, that *would* cross this boundary — don't do that.
-
-**`youtube_video` currently breaks this boundary in two reachable ways, not yet
-fixed.** `action: "play"` calls `_open_url` → `subprocess.Popen(["xdg-open", url])`,
-handing the board an uncontrolled system browser window — the same escape-route
-class `site_goster` was built to avoid. `action: "summarize", save: true` calls
-`_save_summary`, which writes the summary to `~/Desktop` and then opens it with
-`xdg-open`/`notepad.exe`/`open -t` — file writing *and* app launching, both
-against the stated rule. README's "Bilinen sorunlar" only flags the first; the
-Desktop-write-and-open path isn't documented anywhere. No fix is scheduled —
-treat both as open holes, not settled behavior, until someone rewrites
-`youtube_video` to stop shelling out (kiosk-mode playback or dropping the
-save-and-open step).
-
-### Öğretmen talimat modu — a deliberate, separate hole in the capability boundary
-
-Added 2026-08-23. A THIRD lesson kip, `KIP_TALIMAT = "talimat"`
-(`main.py`), for when there is no lesson at all — the teacher controls the
-board directly by voice, single-sentence commands only ("google aç", "fizik
-kitabının 45. sayfasını aç", "pardus kalem uygulamasını aç"). Selected in
-`ui.py` via a two-button pair directly under DERSİ BAŞLAT — `_ogrenci_btn`
-("🎓 ÖĞRENCİ MODU") and `_ogretmen_btn` ("👨‍🏫 ÖĞRETMEN MODU"), **2026-08-30**:
-replaced the old single checkable `_talimat_btn` ("ÖĞRETMEN TALİMAT MODU")
-with this explicit pair on user request — the underlying mechanism is
-UNCHANGED, both buttons just set the same `self.talimat_modu` boolean
-(Öğrenci → `False`, Öğretmen → `True`). "Öğrenci Modu" is not a new
-mechanism — it's the label for the already-existing normal/autonomous
-lesson flow (`ders_motoru` running `enjekte=True`), not a separate student
-identity/tracking system. **Defaults to Öğretmen/CHECKED at launch** (user's
-explicit request, unchanged) — a normal lesson requires the teacher to press
-🎓 ÖĞRENCİ before pressing DERSİ BAŞLAT. Same "read once at connect, then
-locked" pattern as `ders_dili`: `main._build_config()` reads `ui.talimat_modu`
-and overrides `self._ders_kipi`, `ui.py` disables both buttons the moment
-DERSİ BAŞLAT is pressed.
-
-**This mode INTENTIONALLY breaks the capability boundary above — decided,
-not overlooked.** Three new `kip=("talimat",)`-only tools exist purely to
-launch a real browser / real apps / real files, something the boundary
-explicitly forbids for every other tool:
-
-- `actions/web_ac.py` — opens a REAL, unsandboxed browser (`xdg-open`) to
-  any site/URL/search query. **No whitelist** — `site_goster.py`'s whole
-  reason to exist (no address bar for students) is bypassed by design here.
-  Only a hygiene floor blocks `file:`/`javascript:`/`data:` schemes.
-- `actions/uygulama_ac.py` — launches a desktop app from a small, hand-
-  written name→command table (`pardus-pen`, `drawing`/Çizim, `nemo`,
-  `gnome-calculator`, `evince`, `gnome-screenshot` — verified against this
-  board's real `/usr/share/applications/*.desktop`, 2026-08-23). Deliberately
-  NOT every installed app — Ayarlar/Paket Kurucu/Sanal Makine etc. are left
-  out; add to the table by hand if a new one is genuinely needed. No
-  terminal in this table, on purpose — that line was not asked for and
-  stays uncrossed.
-- `actions/dosya_ac.py` — opens a folder (`ev dizini` = `$HOME`, `masaüstü`,
-  ...) or searches `$HOME` (bounded depth, `.git`/`venv`/`__pycache__`/etc.
-  excluded) for a file by name and `xdg-open`s it. Never searches outside
-  `$HOME`.
-
-`pdf_sayfa`, `yks_sorulari` and `kitap_sorusu` are also open in this kip
-(`kip=KIP_HEPSI + (KIP_TALIMAT,)` in `actions/kayit.py`) — "kitabın 45.
-sayfasını aç", "yks sorularını göster" and "kitaba göre X nedir" are
-single-page/single-question lookups, not lesson narration, so they don't
-violate "no ders anlatımı" the way `ders_icerigi` would. `kitap_sorusu` was
-added a few hours after first shipping this mode (see "First real classroom
-test" below) — the initial version deliberately left it out, a real test
-showed that was too strict.
-
-**Why this was allowed despite the boundary**: explicitly decided by the
-user (2026-08-23) after being shown the exact tension — `site_goster`'s
-"no browser" design and this boundary both exist because the board's mic
-has **no speaker authentication** (see "No auth on the board" above): anyone
-talking while the mode is on is treated as the teacher. The user chose full,
-unrestricted access ("trust the room") over a whitelist or an extra arm-step,
-knowing that risk. Don't quietly narrow it back to a whitelist, and don't
-extend the same trust to the normal lesson kips without asking again.
-
-**Everything else about a normal lesson is OFF in this kip**, on purpose
-("bu modda ders anlatımı yok müdahele yok"):
-- `main._build_talimat_config()` replaces `core/prompt.txt` + lesson frame +
-  `[DERS KİPİ]` block + language directive ENTIRELY with one short,
-  dedicated persona (`main._TALIMAT_PERSONASI`) — command-in, one-sentence-
-  confirmation-out, nothing else.
-- `main._ders_motoru_dongusu()` no-ops immediately (`KIP_TALIMAT` guard) —
-  no step/suggestion/remaining-time injection, `self.motor` is built but
-  never actually drives anything in this mode.
-- `main._send_session_opening()`/`_oturum_devam_notu()` send a one-line
-  "hazırım" instead of the greeting/attendance/lesson-continuation flow.
-
-`kayit.bildirimler(kip)` now takes an optional `kip` filter (`kip is None` =
-unfiltered, used only for the startup-banner tool count) — `main._build_config()`
-and `_build_talimat_config()` both call it with the live `self._ders_kipi` so
-Gemini is only ever told about the tools valid for the CURRENT kip; normal
-lessons never see `web_ac`/`uygulama_ac`/`dosya_ac` in their tool list.
-`tests/test_oturum_yapilandirmasi.py::TestTalimatModu` and
-`test_arac_bildirimleri_config_e_giriyor` cover this.
-
-**First real classroom test (2026-08-23, same day as shipping) found four
-real problems**, all from reading `logs/farabi.log` + the actual
-`logs/ders/2026-08-23_14-17-09_9-A.txt` transcript, not from guessing:
-
-1. **No way to CLOSE anything, and the model lied about it.** Only
-   open-tools existed. Asked to close YouTube, the model called
-   `web_ac(hedef='kapat')` — which doesn't close anything, it Google-searched
-   the literal word "kapat" and opened ANOTHER tab — while telling the room
-   "Kapatılıyor." Fixed with `actions/pencere_kapat.py`, a new
-   `kip=("talimat",)` tool. Matches windows by **title substring**
-   (`wmctrl -c <hedef>`), not by tracking the PID `web_ac`/`uygulama_ac`
-   launched — verified this matters: `xdg-open <url>` usually hands the URL
-   to an *already-running* browser via IPC and the `Popen`'d process exits
-   in under a second, so PID-tracking would silently fail to close browser
-   windows specifically. `wmctrl` was not installed on this board; added via
-   `sudo apt install wmctrl` (2026-08-23) — a fresh board needs this too, not
-   yet added to `farabi-kurulum.sh`.
-2. **No way to EXIT talimat modu by voice at all.** "Öğretmen talimat
-   modundan çık" got a confident "Anlaşıldı, çıkıyorum" and then *nothing
-   changed* — no tool existed, so the model just said what sounded right.
-   Real fix needed a way to force the live connection closed and let it
-   reconnect with a fresh (non-talimat) config, since (same constraint as
-   `ders_dili`) a Live connection's `system_instruction`/`tools` can't change
-   mid-connection. New `talimat_modundan_cik` tool (`calisma="satirici"`,
-   same shape as `shutdown_farabi`) sets `self._talimat_cikis_istendi=True`
-   and, after a 1.5s delay so the confirmation sentence is heard, sets
-   `ui.talimat_modu = False` and signals `self._talimat_cikis_event`. A new
-   `_talimat_cikis_gozcusu()` task (registered via `tg.create_task()`,
-   **not** a bare `asyncio.create_task()` — raising from inside
-   `_execute_tool`/`_araclari_calistir` doesn't work, that call chain has its
-   own try/except that swallows the exception, see its docstring) raises
-   `_TalimatCikisi` when the event fires, which unwinds the `TaskGroup` and
-   lands in `run()`'s `except Exception`. That handler now checks
-   `self._talimat_cikis_istendi` **first**, before the generic
-   fail_streak/backoff/quota logic — a deliberate mode exit must never be
-   logged or treated as a connection error, and must reconnect *immediately*,
-   not after a 3-60s backoff. **RESOLVED 2026-09-01 — `shutdown_farabi`'s
-   pattern now IS the same family.** This paragraph used to say
-   `shutdown_farabi`'s `_temiz_kapan`/`os._exit(0)` ended the whole process
-   and couldn't be reused; that was true until the "programı açıp kapatmak
-   gerekiyor" complaint (teacher had to manually restart the app between
-   every lesson period, since mode/language buttons never re-enabled after
-   `DERSİ BAŞLAT`) got traced to exactly this `os._exit(0)`. `_temiz_kapan`
-   was renamed `_dersi_bitir` and no longer calls `os._exit` — it sets
-   `self._ders_bitti_event` instead, mirroring `_TalimatCikisi` via a new
-   `_DersBitti`/`_ders_bitti_gozcusu()` pair. The one real difference from
-   talimat-exit stays: `_DersBitti` does **not** reconnect immediately, it
-   parks the loop (`self._oturum_izni.clear()`) until the next `DERSİ
-   BAŞLAT` — reconnecting instantly after "lesson ended" would just hold an
-   idle connection open, the exact waste `BOSTA_KAPATMA_DK` exists to avoid.
-3. **`self._ders_kipi` was a one-way ratchet — genuinely would have broken
-   (2) even after building it.** The original `_build_config()` only ever
-   set `self._ders_kipi = KIP_TALIMAT` when `ui.talimat_modu` was true; it
-   never had a branch to set it back. Once a connection had been in talimat
-   mode, `self._ders_kipi` stayed `"talimat"` forever, so the exit tool's
-   forced reconnect would have rebuilt the *same* talimat config again.
-   Fixed by adding `self._ders_kipi_taban` (the real, `__init__`-time
-   kip from the timetable/config, never mutated) and recomputing
-   `self._ders_kipi` **fresh on every `_build_config()` call**:
-   `KIP_TALIMAT if ui.talimat_modu else self._ders_kipi_taban`. Covered by
-   `TestTalimatModu::test_kip_iki_yonlu_calisir_tek_yonlu_mandal_degil` —
-   asserts the SAME `FarabiLive` instance produces the talimat persona, then
-   the normal one, then the talimat one again as `ui.talimat_modu` flips.
-   Any test fixture that hand-builds a bare `FarabiLive.__new__(...)` and
-   calls `_build_config()` must set `_ders_kipi_taban` too now, not just
-   `_ders_kipi` (three existing fixtures needed this fix).
-4. **The model guessed missing required parameters instead of asking, and
-   confused local files with server-hosted textbook PDFs.** Asked to open
-   "25. sayfa" with no subject named (after a `ders='fizik'` call correctly
-   failed — 9-A is grade 9, only `fizik-10.pdf` exists), the model silently
-   substituted `ders='matematik'` out of nowhere. Separately, "kitabın
-   PDF'ini aç" was routed to `dosya_ac(hedef='matematik.pdf')`, which of
-   course found nothing — textbook PDFs haven't lived on this board's disk
-   since the 2026-08-14 server-taşıma (see the warning box under "Project
-   layout"), `pdf_sayfa`/`kitap_sorusu` are the only way to reach them from
-   here. `_TALIMAT_PERSONASI` was rewritten to say both explicitly: never
-   guess a required tool parameter, ask instead; and textbook content is
-   never a local file, always `pdf_sayfa`/`kitap_sorusu`, never `dosya_ac`.
-   Also tightened: the model must relay what a tool call **actually
-   returned**, not narrate an assumed success — the "Kapatılıyor" lie in
-   (1) was as much a prompt-honesty gap as a missing-tool gap.
-
-The visible-button-vs-actual-mode desync from (2)/(3) is handled the same
-cross-thread-safe way as `muted` (`ui.py`'s `_mute_sig`/`_set_muted`
-pattern): `FarabiUI.talimat_modundan_cik()` writes `self._win.talimat_modu
-= False` **directly and synchronously** (a plain attribute, safe from any
-thread, and `_build_config()`'s next read must see it immediately — no
-queued round-trip) and *separately* emits `_talimat_cikis_sig` (queued,
-Qt-thread-only) purely to update the button's checked/enabled visuals. Don't
-collapse these into one write — the mode switch cannot depend on Qt's event
-queue timing.
-
-### `eba` (`actions/eba.py`, added 2026-08-09) — EBA video + question PDFs
-
-Two actions, deliberately asymmetric:
-
-- **`video`** — same `xdg-open` pattern as `youtube_video`'s `play`, extended
-  to EBA on purpose (explicit call, not an oversight): eba.gov.tr is a JS/SPA
-  site with no server-rendered search results to scrape (verified via `curl`,
-  2026-08-09 — the HTML is an empty app shell), so unlike YouTube there's no
-  way to resolve "first matching video" without a real browser. A direct
-  `eba.gov.tr` URL opens straight; a bare topic query opens EBA's search page
-  instead of a specific video, and the teacher/student picks from there. This
-  is the **same capability-boundary violation** `youtube_video` already has
-  (see above) — not a new hole, an EBA-scoped instance of the existing one.
-- **`pdf`** — does **not** open a browser. Downloads the PDF (`requests`,
-  whitelisted to `eba.gov.tr` only) and extracts text locally, IN THIS FILE
-  (pdfplumber → PyPDF2 fallback) — **this is genuinely still local, not a
-  server call**, deliberately out of scope for the 2026-08-14 server move
-  (see `requirements.txt`'s comment on why `pdfplumber`/`PyPDF2` are still a
-  client dependency): an EBA question PDF is a live, one-off download, not
-  durable content worth centralizing. `eba.py`'s own docstring still
-  cross-references `file_processor.py::_process_pdf` for "same pattern" —
-  that function moved to `server/dosya.py` in the migration, the docstring
-  wasn't updated; the pattern itself (pdfplumber → PyPDF2) is unchanged,
-  just no longer literally the same function to point at. Then prints to
-  the content panel via `player.show_content`. No file written to disk, no
-  app launched — this action does **not** cross
-  the capability boundary.
-
-Both actions refuse any URL whose host isn't `eba.gov.tr` or a subdomain of
-it (`_izinli`, same suffix-match principle as `site_goster._izinli`).
-
-### `ders_icerigi` — book skeleton, not lesson frame
-
-**CHANGED 2026-08-14 — matching logic moved to `server/icerik.py`.**
-Everything below this line used to describe THIS file's own algorithm; it
-now describes what the SERVER does after this client just POSTs
-`{ders, konu, sinif, tema}` to `POST /api/egitim/ders_icerigi` and returns
-the text it gets back (or `_SINIRLI_DEVAM` on any failure — same
-fail-silent discipline as `kitap_sorusu` below, unchanged). Kept here
-because the RULES still bind the model's behavior even though the CODE
-moved: call with the **teacher's** `ders` + `konu` (and ideally `sinif`)
-after the frame is known; must **not** invent today's subject or kazanım;
-`tema` optional, matches a chapter name more precisely than a raw topic
-string; no args → book catalogue instead of guessing.
-
-**Failure text is still BINDING, not permission to improvise** — this part
-didn't change just because the fetch is now remote. Server-side fallback
-paths return `_SINIRLI_DEVAM`: stay inside the known kazanım text, invent
-nothing, call the tool again with a narrower request.
-
-The rest of the old algorithm notes (hand-written `eslemeler/` mappings
-winning over the index, the `TARAMA_SINIRI` page-scan cap, grade defaulting
-from `tahta.sinif_duzeyi()`, word-based subject matching, ≥50% theme-overlap
-threshold, the 6000-char output cap, the `ozet/` summary prepend) are now
-**server-side facts, not client-side ones** — see `server/icerik.py` and the
-root `docs/mimari.md` for the current, authoritative description. Grade
-still defaults from THIS board's `derslik` before the request is sent
-(`tahta.sinif_duzeyi()`), since that's board-identity information the
-server doesn't have on its own.
-
-### `kitap_sorusu` — sourced Q&A via server, not a page fetch
-
-Added 2026-08-11. Calls `server/`'s RAG pipeline (`POST /api/egitim/question`
-— retrieval + rerank + threshold + LLM + number-check, see `docs/mimari.md`
-§8) for a **concrete question**, not a topic to teach. `ders_icerigi` hands
-the model raw pages to narrate from; this tool hands back an already
-source-checked answer string that must be read as given, not elaborated on.
-
-**`ders` is required in the schema and enforced in code** (`_kitap_id_bul`
-returns `None` if `ders` is falsy) — found via live testing 2026-08-11:
-without it, the board's classroom grade (`tahta.sinif_duzeyi()`) alone could
-match the *first* book at that grade level regardless of subject, e.g. a
-physics question answered — with a citation — from the biology book. `ders`
-closes that; `sinif` still defaults from the board if omitted.
-
-The server's book list (`GET /api/egitim/kitaplar`) is fetched once and
-cached in `_KITAP_ONBELLEK` for the process lifetime — same pattern as
-`_METIN_ONBELLEK` in `ders_icerigi.py`.
-
-**Every non-`ok` path returns `_SINIRLI_DEVAM`, never raises.** Server
-unreachable, no matching book, `yetersiz_kaynak`, `sayi_kontrolu_reddi`, and
-the server's own `hata` status (its internal exception text is deliberately
-not exposed over the API — "Brain karar verir" — it's in the server's
-`soru_log` instead) all degrade silently; `main.py`'s `speak_error` alarm is
-never triggered by this tool. Timeouts: `GET` 5 s, `POST` 10 s (measured
-worst case 5.3 s, no headroom before 2026-08-11 — raised from 5 s), registry
-`zaman_asimi=16.0` to cover both.
-
-### `pdf_sayfa` — one page number, rendered as an image, no topic matching
-
-**CHANGED 2026-08-14 — rendering moved to `server/icerik.py`.** PyMuPDF/fitz
-is GONE from this board (not a dependency anymore, see `requirements.txt`).
-This file now does `GET /api/egitim/pdf_sayfa?ders&sinif&sayfa`, writes the
-returned PNG bytes to a small **local, disposable, LRU-capped cache**
-(`icerik/onbellek/pdf_sayfa/<ders>_s<sayfa>.png`, `_CACHE_LIMIT = 30` —
-oldest evicted first), then calls `player.show_image(title, path)`. The
-server holds the real, permanent render cache for ALL boards; this board's
-copy is just "what's currently on screen here," safe to lose entirely.
-`ders` is still required (`pdf_sayfa()` refuses without it) — same reasoning
-as `kitap_sorusu`: without it, the board's grade alone could match the
-wrong subject's book. **No** theme/topic matching happens (unlike
-`ders_icerigi`), the page number is used as-is — that part didn't change.
-
-**UI side (`ui.py`)** — unchanged by the server move, still accurate: the
-content-panel overlay has two mutually exclusive display modes —
-`_show_content` (text, `QTextEdit`) and `_show_image` (this tool, `QLabel`
-inside a `QScrollArea`). Zoom is `self._image_zoom: float | None` — `None`
-means "fit to panel width", recomputed on window resize; a number is a
-fixed multiplier set by the `−`/`⛶ SIĞDIR`/`+` buttons above the image and
-left alone on resize once the teacher has manually zoomed. `QScroller.
-grabGesture(..., LeftMouseButtonGesture)` is attempted for touch/drag
-panning on the board; wrapped in `try/except` since it's a nice-to-have,
-not load-bearing — scrollbars work regardless.
-
-### `yks_sorulari` — past exam questions, one at a time, shown as an image
-
-**CHANGED 2026-08-14 — search + session state moved to `server/yks.py`.**
-This file now only does `POST /api/egitim/yks_sorusu` (question text +
-match metadata) and `GET /api/egitim/yks_sayfa` (the PDF page as a PNG,
-written to a local LRU cache exactly like `pdf_sayfa` above — `icerik/
-onbellek/yks_sayfa/`, `_CACHE_LIMIT = 30`). The word-overlap matching
-against `icerik/yks_metin/*.txt` and the "one question at a time, advance
-only on `sonraki=true`" session state (`_OTURUM` in the old client code)
-both moved server-side — **and had to change shape doing it**: a single
-module-level dict was safe when one client process served one board, but
-`server/` is one process serving every board, so the session dict became
-`derslik`-keyed (`_OTURUMLAR`) there. See `server/yks.py`'s own module
-docstring for the current session-state design, not this file.
-
-What's unchanged: the prompt-level rule that advancing to the next question
-is never automatic (`sonraki=true` must be an explicit, commanded turn — see
-core/prompt.txt's SESLİ HİTAP/SORU SUNUM PROTOKOLÜ); there's still no answer
-key in the source PDFs, so the model works the solution itself once asked,
-step by step, rather than treating this as a quiz to withhold answers on;
-and a `ders` hint still just biases matching rather than restricting which
-file is searched (no book/subject filter exists in the YKS archive's
-metadata). If the server has no matching question, this tool degrades the
-same way `ders_icerigi`/`kitap_sorusu` do — tell the model to keep teaching
-from the textbook instead of inventing a question, never raise into the
-session.
-
-### `ders_hafizasi` — recalling a PAST lesson, added 2026-08-12
-
-User request: "geçen ders şöyle yapmıştık" style teacher advisory — Farabi
-should be able to say what a previous lesson on this board covered. Two
-design calls made explicitly (not the obvious defaults):
-
-1. **Not mid-lesson resume.** This is NOT about picking a lesson back up
-   where it left off after a crash/reboot — it's about recalling a
-   *different, earlier* lesson from within a *new* one.
-2. **No separate "summary" storage layer.** `core/transcript.py`'s existing
-   per-lesson files (see above) are the ONLY source — one file, two uses.
-   Summarization happens at answer time, in the model, from the raw fetched
-   text — same "fetch raw, let the model paraphrase" pattern already used by
-   `yks_sorulari`/`kitap_sorusu`, not a new architecture.
-
-**Where the frame gets logged matters.** `transcript.log_frame()` is called
-from `actions/ders_icerigi.py`, not from `main.py`'s
-`_cerceveyi_ogretmenden_guncelle` (the obvious first guess). Reason: that
-main.py function only parses the WRITTEN teacher-panel "ders: X konu: Y"
-syntax. Since this session's SESLİ HİTAP addition, a lesson frame can also
-be set purely by VOICE ("Farabi öğretmen talimatı: ...") — that path never
-touches the regex parser, it goes straight to the model calling
-`ders_icerigi` with resolved `ders`/`konu`. `ders_icerigi()` itself is the
-one point both channels funnel through, so that's where the hook lives.
-
-**Matching**: `_norm`/`_kelimeler` word-overlap, copied a THIRD time (already
-duplicated once between `ders_icerigi.py` and `yks_sorulari.py` before this
-addition) rather than extracted to a shared module — matches this codebase's
-own established precedent for this exact helper pair.
-
-**Always excludes the current session** — compares every candidate file
-against `transcript.session_file()`, Farabi never "recalls" the lesson
-that's still running.
-
-### Server config becomes per-board, not hardcoded (2026-08-12)
-
-Adding this feature's backup call (below) meant a second call site would
-need to know the Brain server's address — `kitap_sorusu.py` already had
-`SUNUCU_URL = "http://127.0.0.1:8000"` hardcoded, fine for one-machine dev,
-not fine once the server moves to the school's server room and boards are
-cloned from a "golden" board image. Fixed by adding `core.tahta.sunucu_url()`
-(reads `config/api_keys.json`'s new `sunucu_url` field, same file `derslik`
-already lives in, falls back to localhost) and switching `kitap_sorusu.py`
-to call it instead of the constant. **Still a landmine for the "clone one
-board's config to N others" plan**: `derslik` and (now) `sunucu_url` both
-live in `config/api_keys.json`, which also holds the Gemini key pool — that
-whole file can't be blindly copied board-to-board, `derslik` at minimum
-needs editing per board after any clone.
-
-### Server backup — `POST /api/egitim/ders_kaydi_yedek`
-
-On session close (`main.py`'s `_dersi_bitir`, renamed 2026-09-01 from
-`_temiz_kapan` — see the "Öğretmen talimat modu" section above for why),
-the just-closed session's
-transcript file is POSTed once to the server, which writes it to
-`server/yedekler/ders_kaydi/<derslik>/<dosya_adi>` (server-side, not tracked
-by `ders_hafizasi.py` or anything else — write-only backup, protects against
-losing a board's own disk, nothing reads it back yet). Silent-failure
-discipline, same as `kitap_sorusu.py` — a backup failing must never surface
-to the classroom. Runs in an executor thread with a 6 s wrap (`asyncio.
-wait_for`) so a slow/unreachable server can't delay shutdown.
-
-**Path traversal was a real, caught bug, not a theoretical one.** First
-version's containment check compared the resolved target path against
-`hedef_dizin` (the *already-derslik-joined* directory) instead of the fixed
-`YEDEK_DIR` — a `derslik` value of `".."` passed the regex allowlist (all
-characters individually valid) and the check, because by the time the check
-ran, `hedef_dizin` had ALREADY been walked one level up by the traversal it
-was supposed to catch. Live-tested: a request with `derslik=".."` wrote a
-file one directory above `yedekler/ders_kaydi/`, outside the intended tree.
-Fixed by checking containment against the ORIGINAL, unwalked `YEDEK_DIR` at
-both the directory and final-file-path steps. Re-tested clean before
-shipping. The regex allowlist alone (`[A-Za-z0-9ÇĞİÖŞÜçğıöşü_.-]+`, no `/`)
-blocks multi-segment traversal but NOT a bare `".."` value — the
-resolve+containment check is load-bearing, not just defense-in-depth.
-
-### 9-A ↔ server code sync — NOT part of the git repo, lives only on this board
-
-**This is infrastructure, not a `client/` tool the model calls — added
-2026-08-17/18, documented here because it lives on and controls THIS board's
-copy of the code.** Not in `docs/mimari.md` yet.
-
-> ⚠️ **RESOLVED 2026-08-30 — pilot period ended, direction reversed back to
-> pull.** Everything below describing 9-A as "the SOURCE of truth, pushes to
-> the server every night" is now HISTORICAL. The user's explicit instruction:
-> "9-A'dan push olayını kaldır serverdan pull etsin, client artık server
-> merkezli çalışacağız." `client/` on the SERVER (`/home/ata/farabi/client/`)
-> is now the one and only source of truth — edits happen there (by hand or by
-> an agent working on the server), every board (9-A included) pulls from it.
-> This matches what `farabi-kurulum.sh` was already built for — see its own
-> section below, now back in active use for 9-A instead of being the
-> "future boards" fallback it was during the pilot.
->
-> **What changed on 9-A, concretely:**
-> - `~/.local/bin/farabiguncelle.sh` was rewritten from a push-wrapper
->   (`farabi-push.sh` + git-commit) to a pull (`rsync -avz --delete` FROM
->   `ata@farabi.local:~/farabi/client/` TO `~/farabi/client/`). Same cron
->   line, unchanged (`0 20 * * *`), so nothing needed to change in `crontab`.
-> - **Exclude list is now symmetric and load-bearing in the OPPOSITE
->   direction than before.** The old pull script generated by
->   `farabi-kurulum.sh` only excluded `config/api_keys.json(.zip)` — that was
->   fine as a *template* but would have been actively destructive run for
->   real here: the server's own `client/` working copy independently has its
->   own `venv/`, `logs/`, `.pytest_cache/`, `__pycache__/`, `memory/` (from
->   development directly on the server machine, unrelated to any board) that
->   don't belong on a board at all. A `--dry-run` caught this BEFORE it ran
->   for real — without the fix it would have deleted 9-A's own `venv/`
->   (breaking `python main.py` outright) and `logs/` (losing local lesson
->   records) on the first pull. The deployed script now excludes the same
->   full list `farabi-push.sh` used (`venv/`, `__pycache__/`, `*.pyc`,
->   `.pytest_cache/`, `logs/`, `icerik/`, `kitaplar/`, `YKS/`, `memory/`,
->   `config/api_keys.json(.zip)`, `okul dosyaları/`, `*.pdf`, `/Farabi.zip`)
->   — **always dry-run a pull script before trusting it against a real
->   board's disk**, the asymmetry between "safe to not-send" and "safe to
->   not-delete-when-absent" is not obvious from the exclude list alone.
-> - `.bashrc`'s `farabi-simdi-gonder` alias (pointed at `farabi-push.sh`) was
->   replaced with `farabi-simdi-guncelle` (points at
->   `~/.local/bin/farabiguncelle.sh`, i.e. triggers a pull by hand).
-> - `~/farabi/farabi-push.sh` itself was **left on disk, untouched, but no
->   longer called by anything** — same "kept for history, not deleted"
->   convention as `tools/*.py` elsewhere in this repo. Its server-side
->   auto-commit-on-push (described below) no longer fires for the same
->   reason: nothing pushes anymore.
-> - Verified end-to-end the same day: `farabiguncelle.sh` run for real once,
->   confirmed 9-A picked up a genuine server-side fix
->   (`actions/pdf_sayfa.py`/`ders_icerigi.py`'s new `derslik` field, see root
->   `CLAUDE.md`'s server/ section) while `venv/`, `logs/`, `icerik/`,
->   `config/api_keys.json` stayed untouched on 9-A's disk.
->
-> **Re-verified 2026-08-31 (SSH, `server/tahta-ssh.sh 9-A`):** `md5sum` over
-> all 61 `.py` files under `~/farabi/client` on 9-A matches this repo's
-> `client/` byte-for-byte, and `~/farabi/client/CLAUDE.md` on the board
-> matched this file too (one line behind — the Ruff-linter correction made
-> the same session, not yet pulled; expected, self-resolves on next
-> `farabiguncelle.sh`). 9-A's real `config/api_keys.json` (not readable by
-> content per this repo's own "Okuma" rule, only checked field-by-field by
-> name) has `derslik=9-A`, `sunucu_url` pointed at the real server,
-> `tahta_anahtari` set, `ders_kipi=ogretmenli`, and none of the five cloud-
-> provider keys (correctly stripped 2026-08-14). **This repo's own local
-> `client/config/api_keys.json` (dated 2026-08-09, `derslik: "10-A"`, no
-> `tahta_anahtari`, still had the five cloud keys) and the equally stale
-> `client/config/api_keys.json.zip` (a zipped backup from 2026-07-31) were
-> deleted (2026-08-09/07-31-dated, both gitignored, neither ever tracked) —
-> confirmed unused first: excluded from `farabiguncelle.sh`'s rsync, no board
-> ever received them.** If you need a working local config again, copy
-> `config/api_keys.example.json` and fill it in by hand — do not treat a
-> stray `api_keys.json` found lying around as ground truth for any board's
-> real config without checking it the way this note did.
->
-> **Open gap, not yet resolved:** the server-side auto-commit that used to
-> give `client/` a git history (`git add -A -- client/ && git commit`,
-> described below) lived entirely on the PUSH path, inside
-> `farabi-push.sh`. Now that boards pull instead, **nothing commits `client/`
-> changes on the server anymore** — a fix made directly in
-> `/home/ata/farabi/client/` (by hand or by an agent) sits uncommitted until
-> someone runs `git add`/`git commit` themselves. Don't assume the
-> "tahta senkron: ..." auto-commit history is still being kept; it stopped
-> the day push stopped. If continuous history matters going forward, this
-> needs its own mechanism (e.g. a server-side cron committing `client/` on a
-> schedule, or just discipline about committing by hand after edits) — not
-> designed yet, flagged here so the gap isn't silently assumed away.
-
-This board (9-A) was previously the **pilot**: it was the SOURCE of truth for
-`client/` code, and PUSHED to the server every night — direction was
-deliberately the opposite of what you'd expect for other boards (see above
-for why this ended). Nothing here touches `farabi-api.service` or restarts
-anything on either machine; it only copies files and (when push was active)
-recorded a git commit. The rest of this section describes the now-inactive
-push mechanism, kept for history:
-
-- **`~/farabi/farabi-push.sh`** (this board, NOT inside the `client/` tree
-  that gets synced — a sibling file, edit it here directly) — `rsync`s this
-  board's `~/farabi/client/` to `ata@farabi.local:~/farabi/client/`.
-  Excludes `venv/`, `__pycache__/`, `.pytest_cache/`, `logs/`, `icerik/`,
-  `kitaplar/`, `YKS/`, `config/api_keys.json(.zip)` (board-specific secret,
-  NEVER sent), `*.pdf`. Does **not** exclude `config/zil.json`/
-  `config/ders_programi.json` — those are school-wide shared, sent on
-  purpose so a newly cloned board picks them up automatically. No
-  `--delete` — a file removed from this board doesn't get removed from the
-  server's copy by this script. **INACTIVE since 2026-08-30** — nothing
-  calls this anymore, see the resolved note above.
-- **`~/farabi/farabi-kurulum.sh`** — the ORIGINAL mechanism, pull-direction
-  (server→board, `--delete`). **This is what 9-A's `farabiguncelle.sh` now
-  runs, in substance** (the deployed script isn't literally re-generated by
-  running this installer — its SSH-key-setup steps 1–2 were skipped since
-  9-A already had a working key — but steps 3–4's script shape is the same
-  pull+delete pattern, with the exclude list expanded per the note above).
-  Still what future new boards should run as-is — see root `CLAUDE.md`'s
-  analysis-report note on this, don't rebuild it.
-- **`~/.local/bin/farabiguncelle.sh`** — cron target (`crontab -l`: `0 20 * *
-  * ~/.local/bin/farabiguncelle.sh`, board-local time — i.e. after the 8th
-  lesson ends at 15:50, well outside teaching hours). **Since 2026-08-30
-  this pulls** (see resolved note above); logs to
-  `~/.local/share/farabi-sync.log` same as before.
-- **`farabi-simdi-gonder`** — a `.bashrc` alias for `~/farabi/farabi-push.sh`,
-  so a push could be triggered by hand without waiting for 20:00. **Replaced
-  2026-08-30 by `farabi-simdi-guncelle`** (triggers a pull instead), see
-  resolved note above.
-- **Server-side auto-commit (added 2026-08-17, INACTIVE since 2026-08-30):**
-  after a real (non-`--dry-run`) push, `farabi-push.sh` SSHed into
-  `farabi.local` and ran `git add -A -- client/ && git commit` if anything
-  under `client/` changed — gave the server's `client/` mirror a real git
-  history of what THIS board pushed, when. **No restart, ever, on either
-  side** — this was deliberate (`FARABİ ASLA DERSİ BOZMAZ`), a code update
-  landing on the server didn't do anything to a running lesson on any board
-  until someone separately decided to act on it. See "Open gap" above — this
-  mechanism has no pull-direction equivalent yet.
-- **Multi-board status (planned, 2026-08-18, IN PROGRESS — check root
-  `CLAUDE.md`/git log for current state before trusting this paragraph):**
-  the goal is a central view of all boards' liveness/version once more
-  boards exist, via a lightweight heartbeat this board would send
-  independently of `main.py` (a separate cron, NOT wired into the Live
-  session — heartbeat failing must never affect a lesson, same principle as
-  the backup above). As of this writing the server side (`tahta_durum`
-  table, `POST /api/client/heartbeat`) exists and is tested; this board's
-  own heartbeat cron may not be set up yet — don't assume it's running
-  without checking `crontab -l` here.
-
-### `site_goster` — deliberately browser-free
-
-A real browser on a classroom board hands students uncontrolled internet (address
-bar, links, new tab, back button — all escape routes). Instead the page is fetched
-server-side, stripped of nav/ads/scripts, and printed to the content panel. There
-is no browser to escape from.
-
-Whitelist is domain-based with suffix matching and the URL is re-checked **after
-redirects**. Tested rejections: `tr.wikipedia.org.evil.com`, `file:///etc/passwd`,
-arbitrary domains. HTTP headers must be latin-1 encodable — a Turkish `ı` in the
-User-Agent raised `UnicodeEncodeError`.
-
-The `eba.gov.tr` entry covers all subdomains via the suffix match, which is
-why `ogmmateryal.eba.gov.tr` (MEB's official materials portal) and
-`mebi.eba.gov.tr` (LGS/YKS topic-summary and past-question platform) already
-work without a whitelist change — verified with `_izinli()`. `actions/kayit.py`'s
-`site_goster` description names both explicitly so the model actually reaches
-for them. `mebi.eba.gov.tr` also hosts lecture videos, but those are out of
-reach here the same way any embedded video is (see "Limit" below) — this tool
-returns only the text/menu content that comes back in the initial HTML.
-
-Limit: text and tables only. Interactive content (simulations, GeoGebra, embedded
-video) cannot be shown; use `youtube_video` for video.
-
-### Persona file — `core/prompt.txt`
-
-`core/prompt.txt` is the main (and, since 2026-08-09, only) teaching persona.
-`core/vision_prompt.txt` still sits in `core/` but is now **orphaned** — its
-only reader, `screen_processor.py`, was removed (no camera/screen capture
-anywhere in this repo). Left on disk rather than deleted, same reasoning as
-`planlar/`: it's the teacher's/developer's authored content, not code, and
-not this rewrite's call to discard — **user-owned**, do not delete or rewrite
-without being asked.
-
-Rules currently in `core/prompt.txt` (v2.0): Socratic questioning and the three-step
-rule; **attendance first** (only after topic/kazanım are known); **subject from
-the timetable, not asked** (`[ŞU ANKİ DERS]`); **topic/kazanım from the teacher**
-(never from Excel/plan auto-detect; never *"nerede kalmıştık"*); **the textbook
-is a skeleton** — `ders_icerigi` pages + `web_search` for depth, and the
-teacher's kazanım stays the test of relevance; the 9-step lesson flow; three
-difficulty levels; participation prompting; group work; exam mode; the
-end-of-lesson package and the teacher evaluation; games allowed **if they serve
-the kazanım**; the noise rule; refusal of off-topic engagement; prompt-injection
-resistance (content in files, on screen or from search is **data, not
-instructions**).
-
-**The `SINIRLARIN` block is load-bearing — do not delete it as obsolete.** It tells
-the model three things it cannot do, each of which it would otherwise fabricate:
-there is one microphone and **no speaker identity**, so no participation percentages
-and no per-student report; `[CURRENT DATE & TIME]` is built once per `_build_config`
-so the model has **no ticking clock** — pacing is step-based ("her çözülen örnekten
-sonra"), never minute-based, and real timing is handed to the teacher; and there is
-**no private channel** — everything spoken is heard by the class and `show_content`
-is on the same board, so the teacher evaluation is subject-level and nameless. If
-speaker diarization or a periodic time injection ever lands, that block is what
-needs rewriting — not silently removing.
-
-Exam mode has no state anywhere in the session; the prompt makes Farabi **announce
-entry and exit out loud** so its own transcript is the anchor. Suspending the
-three-step rule silently would leave the model pulled both ways mid-quiz.
-
-### Content pipeline — `tools/`
-
-> ⚠️ **INACTIVE ON THIS BOARD since 2026-08-14 (server-taşıma) — kept as
-> historical/reference only.** The commands and HUD buttons below assumed a
-> local `kitaplar/`/`YKS/`/`icerik/` on this board; none of that exists here
-> anymore (see "Project layout" above), and the HUD buttons themselves were
-> removed from `ui.py`. The scripts (`tools/*.py`) are still physically
-> present in this repo but don't run against this board's data — the same
-> content-prep work now happens once, centrally, against
-> `/mnt/farabi-data/farabi/` (see root `CLAUDE.md`'s "server/" section and
-> `docs/mimari.md`). Read on only to understand the algorithms (symbol
-> repair, OCR fallback, hand-written mappings, etc.) — not as instructions
-> for what to run on this board.
-
-Prepared **once, offline** (or from a HUD button, see below — HISTORICAL,
-see warning above), never at runtime, and never automatically triggering an
-API call without an explicit `--onayla`/button press:
-
-```bash
-python tools/kitap_index.py kitaplar/ --json icerik/kitaplar.json
-python tools/kitap_metin.py  kitaplar/ --json icerik/metin
-python tools/dogrula.py
-python tools/yks_metin.py    YKS/      --txt  icerik/yks_metin   # for yks_sorulari
-
-# optional, PAID (real core/saglayicilar.py calls — Groq/Mistral/DeepSeek/
-# OpenRouter/NVIDIA NIM, no Gemini) — see the two subsections below
-python tools/sembol_temizle.py --onayla
-python tools/kitap_ozet.py     --onayla
-```
-
-There is no yearly-plan step here anymore — `tools/plan_parse.py` and
-`icerik/plan.json` are gone (see "Project layout" above). A lesson only ever
-needs `kitaplar.json` + `icerik/metin/`.
-
-**`kitap_metin.py` is not optional.** It is what `ders_icerigi` reads at runtime.
-A book missing from `icerik/metin/` still works, but every page selection for it
-opens the PDF with `pdfplumber` in the middle of a lesson. `ls icerik/metin/` is
-the check — anything in `kitaplar/` without a matching JSON is on the slow path.
-
-**Every step above is also a HUD button** (`ui.py`, right panel): `📚 KİTAPLARI
-METNE DÖNÜŞTÜR` (`_kitaplari_donustur`), `📝 YKS SORULARINI METNE DÖNÜŞTÜR`
-(`_yks_donustur`), `🧹 ŞÜPHELİ SEMBOLLERİ TEMİZLE (AI)` (`_sembolleri_temizle`),
-`🗒️ KİTAP ÖZETİ ÇIKAR (AI)` (`_kitap_ozeti_cikar`). The first two share
-`_terminalde_donustur`, the AI-paid two share `_api_calisan_dugmeyi_baslat` —
-both run in a **visible terminal window**, not silently. It used to be
-`subprocess.run(capture_output=True)` — no output until the whole run finished,
-which on a large/scanned book looked like the app had frozen. `_terminalde_calistir`
-(module-level in `ui.py`) launches the script in the first available terminal
-emulator (`x-terminal-emulator`, `gnome-terminal`, `konsole`, `xfce4-terminal`,
-`xterm`) so the teacher sees the script's own progress lines live; falls back
-to the old silent `subprocess.run` only if no terminal is found. This is
-scoped to these admin buttons, not to `_icerik_hazirlik_kontrolu` (the startup
-check) — that one still runs silent/background, because it can fire while the
-HUD is coming up right before a lesson, and a terminal window stealing focus
-over the board at that moment is the same class of harm that got `reminder`
-removed. See "Capability boundary" below for why this doesn't conflict with the
-no-terminal-execution rule. Pressing a paid button **is** the `--onayla`
-confirmation — both scripts are invoked with it already set.
-
-**`_icerik_hazirlik_kontrolu` also refreshes `icerik/kitaplar.json` on every
-startup**, silently, before the two conversion steps: it diffs the PDF
-filenames in `kitaplar/` against the `dosya` fields already in
-`kitaplar.json` and runs `kitap_index.py` only if something's missing
-(`_kitaplar_json_guncelle`). A book dropped into `kitaplar/` becomes
-searchable without anyone remembering to run the indexer by hand — it still
-needs `kitap_metin.py` (button or startup check) before its pages are fast.
-
-**`yks_metin.py` is the same idea for `yks_sorulari`, run separately** — it's
-not part of `dogrula.py`'s gate (that gate validates the *textbook* index, unit
-coverage, theme names; the exam-question archive has no such structure to
-validate). Skipping it just means `yks_sorulari` refuses every call until
-`icerik/yks_metin/` exists — measured: 8 files (~2.8 MB PDFs → text, 1,300
-pages) converted in 4m9s on this dev machine, one-time cost.
-
-**`sembol_temizle.py` is a separate, opt-in, PAID third layer on top of
-`kitap_metin.py`'s two-layer repair** (see below) — it sends each page that
-still carries an ambiguous `#`/`$` to the text model with instructions to
-replace a symbol **only when certain**, and leave it alone otherwise; anything
-left ambiguous still gets the "read this sentence, not the symbol" warning at
-runtime. Deliberately kept out of `dogrula.py` (which is free and instant) and
-out of `kitap_metin.py` (which is free and runs on every conversion) — mixing
-a paid, non-deterministic step into either would make a normal conversion or
-validation run silently cost money.
-
-**Two bugs found in a real run** (02.08.2026, live `--onayla`, real
-DeepSeek/Mistral keys):
-
-- **The "kaç sayfa düzeltildi" counter always reported 0**, even when a page
-  genuinely got fixed (verified: `fizik-10.pdf` s.88 went from `supheli: 1`
-  to `supheli: 0`, `ai_temizlendi: true` — real fix, wrong report). Cause:
-  `kayit["supheli"]` was overwritten with the new count *before* being
-  compared against the old one, so the comparison was against itself and
-  could never be true. Fixed by capturing `eski_supheli` first. The
-  written data was never wrong, only the summary line — worth remembering
-  before assuming a "0 düzeltildi" run did nothing.
-- **A single failing provider call could silently block for minutes**
-  (measured: one page took 464 s with no output) — `openai`'s client
-  retries 429/5xx internally with backoff *before* our own
-  `_zinciri_dene` gets a chance to move to the next provider, so a
-  provider we're about to skip anyway (DeepSeek returning a permanent 402
-  "Insufficient Balance" is never going to succeed by retrying) still ate
-  real wall-clock time on every single call. Fixed in
-  `core/saglayicilar.py._istemci()`: `max_retries=0, timeout=30.0` on the
-  `OpenAI(...)` client — provider-level failover already exists one layer
-  up, the SDK's own retry was pure redundant latency stacked on top of it.
-
-**`kitap_ozet.py` produces `icerik/ozet/<kitap>.json`** — a short book
-summary (from a handful of sample pages) plus a grounded-web-search block of
-enrichment question ideas for the book's chapters (same `google_search` tool
-`web_search.py` uses). Not a new tool the model calls: `ders_icerigi`'s
-`_kitap_ozeti()` reads the summary file if present and prepends it to the
-page content it already returns, so a lesson still costs exactly one tool
-call.
-
-`kitap_index.py` handles "Ünite" (older books) and "Tema" (Maarif Modeli books,
-which put the name inside the header: `1. Tema / Sayılar`), single file or whole
-directory.
-
-**MEB math/physics PDFs have a broken symbol font**: `R"R` should be `R→R`,
-`6c, d !R` should be `∀c, d ∈ R`, `a$c` should be `a·c`. `pdfplumber` and
-`pdftotext` produce identical corruption — it is the PDF. Measured: prose book 0
-occurrences, matematik-9 125, matematik-10 78.
-
-**This is now fixed offline, in text, with no API call** (`tools/kitap_metin.py`),
-and the fix is deliberately two-layer:
-
-- **unambiguous corruption is repaired** — `R"R`→`R→R`, `x!R`→`x ∈ R`, `6x`→`∀x`.
-- **ambiguous corruption is never guessed, only counted** — `#` may be ≤, ≥ or ≠
-  and `$` may be `·` or ≥. `ders_icerigi` reads that count (`supheli`) and appends
-  a warning telling the model not to read the formula symbol by symbol. Teaching
-  an inequality the wrong way round is worse than not showing the symbol at all.
-
-**Do not re-add the image path.** Pages used to be rendered with `pypdfium2` and
-transcribed by Gemini. It burned a real API call per new theme and its measured
-worst case mid-lesson was a 20 s timeout (31.07.2026 live session). `_gorsel_cikar`
-is gone and the note at the foot of `actions/ders_icerigi.py` says so — the broken
-symbols are solved by the two layers above, not by pictures.
-
-**Sayfa metni `PyMuPDF` (fitz) ile çıkarılıyor, `pdfplumber` ile değil** —
-`kitap_metin.py` ve (02.08.2026'dan beri) `kitap_index.py` içinde; diğer
-araçlarda (`file_processor`, `ders_icerigi`, `yks_metin`) `pdfplumber` hâlâ
-duruyor, çünkü onlar tek seferde bir belge işliyor, bir kitaplığın tamamını
-taramıyor. Gerekçe ölçüldü: `pdfplumber`, 300+ sayfalık görsel ağırlıklı
-`tarih-10.pdf`'de (161 MB) her sayfanın ayrıştırılmış nesnelerini önbellekte
-tutup 5+ GB'a çıkıp bu makinede (7,1 GB RAM) OOM'a düşüyordu —
-`sayfa.close()` bile yetmedi. `fitz` aynı kitabı 7,1 sn'de, 246 MB sabit
-bellekle bitiriyor. `kitap_index.py` aynı OOM'u kendi başına, `pdfplumber`
-üzerinde tekrar üretti (ölçüldü: `_kitaplar_json_guncelle`'in ardı ardına
-tetiklediği 3 eşzamanlı süreç ~4,6 GB'a çıkıp makineyi takasa düşürdü) — bu
-hem `fitz`'e geçişi hem `kitap_metin.py`/`yks_metin.py`'deki `fcntl` kilit
-desenini `kitap_index.py`'ye eklemeyi gerektirdi (aynı hedefe iki süreç
-birden yazmasın diye).
-
-**`kitap_index.py`'nin fitz geçişi bir REGRESYON içeriyordu, "tüm özellikleri
-test et" isteği sırasında bulundu.** `indexle()` ünite/tema başlığını
-yalnızca sayfanın İLK SATIRINDAN okuyor. `sayfa.get_text()` (varsayılan,
-`sort=False`) fitz'in PDF'in dahili nesne sırasını izler; birçok kitapta
-sayfa numarası (üstbilgi/kenar boşluğu nesnesi) başlıktan ÖNCE geliyor, bu
-yüzden ilk satır "1. Tema" değil "15" gibi bir sayı oluyordu ve `BOLUM_RE`
-hiç eşleşmiyordu. Ölçüldü: gerçek kitaplıkta (13 kitap) `sort=False` ile
-yalnızca 3'ünde bölüm tespit ediliyordu — **`biyoloji-9.pdf` dahil, daha önce
-(pdfplumber ile) 2/2 doğru tespit edilen bir kitap SIFIRA düşmüştü**, ve bu
-`ders_icerigi`'yi o kitap için tamamen köreltiyordu ("Kitap bölümü
-eşleşmedi"). `sayfa.get_text(sort=True)` (konum sıralı: üstten alta, soldan
-sağa) düzeltti — 9 kitapta iyileşme, hiçbirinde gerileme (`tarih-10.pdf` ve
-`waymark-*.pdf` ikisinde de 0 kaldı, muhtemelen taranmış/düzensiz sayfa
-düzeni, sıralamadan bağımsız bir ayrı sorun). `tests/test_kitap_index_sira.py`
-sentetik bir PDF'le (sayfa numarası nesnesi önce eklenir, başlık nesnesi
-sayfada daha yukarıda ama SONRA eklenir — ölçülen gerçek düzenin taklidi)
-bunu kilitler; `kitaplar/` bir DROP DIRECTORY olduğu (gitignore'da, her
-makinede olmaması normal) için test gerçek bir kitaba bağımlı değil.
-
-**Görsel OCR yedeği var, ama DAR ve SAYFA GÖVDESİNİN üzerine hiç yazmıyor —
-bu, "Do not re-add the image path" ile ÇELİŞMİYOR, farklı bir şey.** Eski yol
-her yeni temada Gemini'ye görüntü gönderiyordu (API, kota, ders-ortası gecikme).
-Bu yol tamamen yerel (`tesseract`), yalnız `kitap_metin.py`'nin offline dönüştürme
-adımında çalışır, asla derste değil. Her sayfada `sayfa.get_images()` ile büyük
-görseller (harita, tablo-görseli, diyagram — <150×150 px ikon/logo elenir) tek
-tek kırpılıp OCR'lanır ve sonuç **gövde metnine EKLENİR**, üzerine yazılmaz;
-`"[SAYFADAKİ GÖRSEL/HARİTA METNİ — OCR ile okundu, hatalı olabilir]"` etiketiyle
-ayrılır — `#`/`$` şüpheli sembol uyarısıyla aynı ilke: belirsiz/hatalı olabilecek
-içerik asla sessizce iyi metinle karıştırılmaz. Ölçüldü ve KASITLI olarak dar:
-tam sayfa OCR, zaten metin İÇEREN bir sayfada (tarih-10.pdf) denendi, sonuç
-`fitz`'in çıkardığından daha kötüydü (tablo çerçeveleri "eT3.", "ee ee ee" gibi
-gürültüye dönüştü) — bu yüzden OCR yalnız görsel dikdörtgenleri hedefler, gövde
-metnini yeniden okumaz. Aynı mekanizma taranmış (metin katmanı hiç olmayan) bir
-sayfayı da ayrıca kod yazmadan kurtarır: öyle bir sayfada gövde tek büyük bir
-görseldir, döngü onu da yakalar. `tesseract`/`tesseract-ocr-tur` sistemde yoksa
-(`sudo apt install tesseract-ocr tesseract-ocr-tur` — pip değil, apt paketi)
-sessizce atlanır, kitap yine dönüşür. Kapatmak için: `--ocr-yok`. Ölçüldü:
-12 kitaplık kitaplığın tamamında görsel OCR toplam ~20 dakika (tek seferlik,
-offline; en ağırı `tarih-10.pdf` ~5 dk, 308 büyük görsel).
-
-The `gorsel` marker itself still exists and is **inert at runtime**: `kitap_index.py`
-still sets `yontem: "gorsel"` on units with ≥3 corrupt symbols, but `ders_icerigi`
-only logs that field. Nothing branches on it. It is an index-quality signal now,
-not an extraction mode — don't wire behaviour back onto it.
-
-Indexing quality varies by publisher and **the gate now measures it**
-(`tools/dogrula.py`). matematik and biyoloji index cleanly. `fizik-10` and
-`cografya-10` do not, and the earlier note here — "page ranges are still right" —
-was wrong for coğrafya: its index is a *single* unit spanning s.9–241, i.e. the
-whole book, which is where the 55.4 s page scan came from. Both are now fixed by
-hand in `icerik/eslemeler/`, which is the supported answer for any book whose
-running headers carry no unit name.
-
-**One cache now, plus one in-process cache:**
-- `icerik/onbellek/_sayfa_secimi.json` — page selection, on disk. Without it every
-  call re-scored all ~86 pages of a theme: 13.3 s versus 0.03 s.
-- `_METIN_ONBELLEK` in `ders_icerigi` — a converted book (0.5–2 MB of JSON) is held
-  in memory for the life of the process; one lesson hits the same book repeatedly.
-
-The `icerik/onbellek/<kitap>-s<ilk>-<son>.md` files are **leftovers from the
-removed Gemini transcription** — nothing reads them. Delete freely. Same for a
-stray `icerik/plan.json` if one is sitting on disk (measured: 3.9M) — debris
-from the removed yearly-plan pipeline (see "Project layout" above); no code
-path reads or writes it anymore.
-
-**A cold page selection is still the slow moment**, and how slow depends on the
-book: a converted book is scored in memory, an unconverted one opens the PDF and
-is bounded by `TARAMA_SINIRI` (60 pages, striding over larger ranges). Either way,
-warm it before a lesson, not during one.
-
-**Do not put textbook content in the system prompt.** The persona is ~1.4k tokens,
-a theme is 13–37k. Content belongs behind a tool call.
-
-### Page selection: hand-written mapping first, word-overlap underneath
-
-> ⚠️ **This algorithm runs in `server/icerik.py` now (2026-08-14), not on
-> this board** — see the `ders_icerigi` section above. Kept here as the
-> current, accurate description of the algorithm itself (nothing about the
-> matching LOGIC changed in the move, only which machine runs it and which
-> `icerik/` it reads).
-
-Where the book index is good, unit-level lookup is deterministic and nothing
-beats it:
-
-```
-teacher konu (+ ders / tema) → book index → volume + pages → icerik/metin
-```
-
-Verified name-for-name for matematik-9 (7/7 across both volumes) and for
-cografya-10 (7/7 against the printed table of contents).
-
-**But "we always know where the answer is" was too strong.** Measured:
-`fizik-10` matched **zero** unit names by header alone because the publisher's
-page headers name every unit `ÖLÇME VE DEĞERLENDİRME`. Name matching fails
-exactly where the publisher is sloppy, and no amount of matcher cleverness
-fixes a name that is not there. The fix is a hand-written mapping
-(`icerik/eslemeler/`) — deterministic, auditable, ~20 minutes per book — and
-it always wins over the auto-index.
-
-**Ranking pages *within* an already-resolved chapter is word-overlap only —
-no semantic/embedding search.** `tools/semantic_index.py` (a local
-`sentence-transformers` embedding index) existed at one point and was
-**removed**: `sentence-transformers`/`torch` are gone from
-`requirements.txt`, and `ders_icerigi._ilgili_sayfalar` has no import to try
-before falling back — the word-overlap scorer against `konu` is the only
-path now. This was a deliberate simplification (lighter board install, one
-fewer subsystem to keep correct), not a regression to route around; do not
-reintroduce a vector index without a concrete, measured reason the
-word-overlap scorer is failing.
-
-Symbol-heavy units are only as good as `kitap_metin.py`'s repair layer (plus
-the optional `tools/sembol_temizle.py` AI pass, see "Content pipeline"
-above) — the ambiguous symbols are flagged rather than silently resolved
-unless that separate, paid step has been run.
-
-### Lesson engine (`core/ders_motoru.py`) — INJECTING (`enjekte=True`)
-
-The lesson flow is code's job, not the model's. The engine owns the step
-(`BEKLIYOR → YOKLAMA → … → OZET → ODEV → BITTI`), the remaining minutes (from
-`zil.ders_durumu()`, which now also returns `kalan_dk` as a number) and a closed
-set of suggestions (`ADIM_OZET`, `FARKLI_ANLATIM`, `KONTROL_SORUSU`,
-`DURAKLAT`).
-
-**Three rules govern injection, each from a real failure** (reported symptom:
-*"açılıyor, konuyu anlatmaya başlayamıyor, sonra tekrar selam veriyor, dinliyor
-düşünüyor dinliyor döngüsü"*):
-
-1. **`turn_complete=True`.** It was sent as `False`, leaving an open user turn;
-   the session sat waiting and the model never got to speak.
-2. **Nothing for the first `ENJEKSIYON_GECIKMESI_SN` (75 s) of a session,** and
-   never while `_is_speaking`. A status block landing on top of the greeting made
-   the model start the greeting over.
-3. **Threshold-based, not per-minute.** `kalan_dk` changes every minute and was
-   part of the signature, so a notice went out every minute. Now the signature
-   uses `_sure_bandi()` (20/10/5/2) plus step and suggestion.
-
-On reconnect the client sends `_oturum_devam_notu()` instead of the opening —
-`[OTURUM DEVAM] … SELAMLAMA YAPMA`. The new session's model remembers nothing and
-the persona tells it to greet, which is the other half of the repeated-greeting
-bug. Stale `mudahale` is also cleared on reconnect (an explicit `duraklat()` is
-not).
-
-**Injection is now ON** (`enjekte=True`). It was an observer first, then turned
-on when the requirement became "Farabi plans and delivers the 40 minutes without
-the teacher steering". That requirement needs the model to know the clock, and
-the engine is the only thing that can tell it — `[CURRENT DATE & TIME]` is built
-once per `_build_config` and never ticks. `[DERS DURUMU]` blocks go in on change
-only (step, 10/5/2-minute thresholds), never periodically; identical state is
-suppressed.
-
-**This is the rewrite CLAUDE.md warned about**: the `SINIRLARIN` clock bullet in
-`core/prompt.txt` used to say "you have no clock, never speak in minutes". It now
-says the remaining time is known **only from `[DERS DURUMU]`**, and step-based
-pacing applies when no such notice has arrived. The speaker-identity and
-private-channel bullets are untouched — those constraints did not change.
-
-**The teacher always wins**: `mudahale()` pauses suggestions, `gec()` forces a
-step. An engine that overrides the teacher is worse than no engine.
+| `zaman_asimi` | `asyncio.wait_for` in `_isci`; on timeout the model is told the resource didn't arrive (the thread itself runs on) |
+| `calisma` | `isci` (thread, awaited with timeout) · `satirici` (inline: `shutdown_farabi`, `talimat_modundan_cik`) · `arkaplan` (thread, **not** awaited — `gorsel_uret`; the tool reports back itself via thread-safe `speak`/`show_image` and enforces its own timeout) |
+| `kip` | which tools are offered per kip; `talimat` is exclusive — normal lesson tools never appear there |
+
+`izin`/`maliyet` are metadata only, nothing enforces them. Tool calls run
+off the receive loop (`_araclari_calistir`), log timing (`ARAÇ ◀ …`), and warn
+over 10 s. Call shape: `fn(parameters=args, player=ui, speak=self.speak)`.
+
+**Server-backed tools fail silent.** Every non-`ok` path returns a
+restrictive "stay inside the known kazanım, invent nothing" text
+(`_SINIRLI_DEVAM`), never raises into the session. That text is binding,
+not permission to improvise.
+
+### Capability boundary — do not cross it
+
+For `ogretmenli`/`ogretmensiz` tools: no app launching, terminal execution,
+OS settings, browser automation, messaging or process management.
+`file_processor` handles documents/images only (code support was removed —
+it once ran uploaded `.py` files). `reminder` and `save_memory` were removed
+and stay removed. The boundary is about `actions/`; `ui.py` shells out only
+for mic calibration.
+
+Known, **deliberate or open** exceptions:
+- **Talimat kip tools** (`web_ac`, `uygulama_ac`, `dosya_ac`,
+  `pencere_kapat`) — user decision, see below. Don't extend that trust to
+  lesson kips without asking.
+- **`geogebra`** — opens a locked `chrome --app` window on a localhost page,
+  all kips (user-approved exception, 2026-09-25).
+- **`yoklama_al`** — `subprocess.Popen`s `tahtayoklama/yoklama.py` (re-added
+  2026-09-02 as a registered tool). ⚠️ It looks for
+  `<client>/../tahtayoklama/yoklama.py`, which exists only on 9-A's full
+  clone; on sparse-checkout boards tahtayoklama lives at `~/tahtayoklama`,
+  so the tool returns "bulunamadı" there.
+- **Open holes, not settled behaviour:** `youtube_video` `play` →
+  `xdg-open` (uncontrolled browser), and `summarize` with `save: true`
+  writes to `~/Desktop` and opens it. `eba` `video` has the same `xdg-open`
+  pattern (EBA is a JS SPA, no scraping possible).
+
+### Öğretmen talimat modu (`KIP_TALIMAT`)
+
+No lesson; teacher voice commands only. Selected with `🎓 ÖĞRENCİ MODU` /
+`👨‍🏫 ÖĞRETMEN MODU` under DERSİ BAŞLAT (both set `ui.talimat_modu`).
+**Defaults to Öğretmen** at launch (Öğrenci in mic-less mode); read at
+connect, locked after DERSİ BAŞLAT.
+
+- `_build_talimat_config()` replaces prompt + frame + kip + language with
+  `_TALIMAT_PERSONASI` only; `_ders_motoru_dongusu()` no-ops; the opening is
+  one line.
+- Tools: `web_ac` (real browser, no whitelist — only `file:`/`javascript:`/
+  `data:` blocked), `uygulama_ac` (hand-written name→command table:
+  `pardus-pen`, `drawing`, `nemo`, `gnome-calculator`, `evince`,
+  `gnome-screenshot` — deliberately not every installed app, no terminal on
+  purpose; add entries by hand), `dosya_ac` (`$HOME` only), `pencere_kapat` (`wmctrl -c` by
+  **title substring**, not PID — `xdg-open` hands off to an existing browser
+  and exits), `talimat_modundan_cik`, plus `pdf_sayfa`, `kitap_sorusu`,
+  `yks_sorulari`, `geogebra`, the two screen tools.
+- **Why allowed:** the mic has no speaker authentication; the user chose
+  "trust the room" knowingly. Don't narrow back to a whitelist.
+- Persona rules that came from the first classroom test: never guess a
+  required parameter, ask; textbook content is never a local file
+  (`pdf_sayfa`/`kitap_sorusu`, not `dosya_ac`); relay what a tool actually
+  returned, never an assumed success.
+- `self._ders_kipi` is recomputed on **every** `_build_config()` from
+  `_ders_kipi_taban` (never mutated) — test fixtures building a bare
+  `FarabiLive.__new__` must set `_ders_kipi_taban` too.
+- Exiting: `talimat_modundan_cik` sets `ui.talimat_modu = False` directly
+  (plain attribute, synchronous) and separately emits `_talimat_cikis_sig`
+  for the button visuals — don't collapse the two (same pattern as
+  `muted` / `_mute_sig` / `_set_muted`). `_TalimatCikisi` is
+  raised from a `tg.create_task()` watcher (not from inside `_execute_tool`,
+  whose try/except swallows it) and `run()` checks
+  `_talimat_cikis_istendi` **before** the backoff logic → immediate
+  reconnect, never logged as an error.
+
+### Tools (current behaviour)
+
+- **`ders_icerigi`** — POSTs `{ders, konu, sinif, tema, derslik}` to
+  `/api/egitim/ders_icerigi`; matching runs in `server/icerik.py`. Call with
+  the **teacher's** ders+konu after the frame is known; no args = book
+  catalogue. Grade defaults from this board's `derslik`
+  (`tahta.sinif_duzeyi()`). It is also where `transcript.log_frame()` is
+  called — the one point both typed and spoken frames pass through.
+- **`kitap_sorusu`** — a concrete question to the server RAG
+  (`/api/egitim/question`); returns a source-checked answer to be read as
+  given. `ders` is **required** (without it a grade-only match picked the
+  wrong subject's book). Book list cached in `_KITAP_ONBELLEK`. Timeouts:
+  GET 5 s, POST 10 s (worst measured 5.3 s), registry `zaman_asimi=16`.
+  Imports `_ders_eslesir` from `ders_icerigi.py` — underscored but shared,
+  don't rename.
+- **`pdf_sayfa`** — one page number, no topic matching, `ders` required.
+  Downloads the PNG (≤30-file LRU cache in `icerik/onbellek/pdf_sayfa/`),
+  shows it, then fetches `/api/egitim/pdf_sayfa_metni` and gives the model
+  the real page text (otherwise it invents content). Sends `derslik` so the
+  server picks the same volume `ders_icerigi` chose.
+- **`yks_sorulari`** — one past exam question at a time as a page image
+  (server `yks.py`, `derslik`-keyed session); advancing needs an explicit
+  `sonraki=true`. No answer key: the model works the solution when asked.
+- **`ders_hafizasi`** — recalls a PAST lesson on this board via
+  `/api/egitim/ders_hafizasi` against the server's backed-up transcripts;
+  the current session's file is excluded.
+- **`site_goster`** — browser-free by design: page fetched, stripped, shown
+  as text. Domain whitelist with suffix match, re-checked **after
+  redirects** (tested rejections: `tr.wikipedia.org.evil.com`,
+  `file:///etc/passwd`); `eba.gov.tr` covers `ogmmateryal.`/`mebi.`. HTTP headers must
+  be latin-1. Text/tables only.
+- **`eba`** — `video` opens via `xdg-open`; `pdf` downloads (eba.gov.tr
+  only) and extracts text **locally** (pdfplumber → PyPDF2), no file written.
+- **`geogebra`** — live GeoGebra: a stdlib HTTP bridge on 127.0.0.1 serves the
+  offline bundle to a `chrome --app` page that long-polls `/komut` and
+  reports per-command results to `/sonuc` (rejected commands go back to the
+  model). Bundle (~120 MB) not in git: pre-copied to
+  `icerik/geogebra/GeoGebra` (`server/geogebra_dagit.sh`), server fallback at
+  `/geogebra/`. Stalled loader → one Chrome restart; every reopen bumps
+  `surum`; delivery is acknowledged and deduped by id. CAS commands only in
+  the classic app. Details: DECISIONS.md 2026-09-25.
+- **`gorsel_uret`** — generates a new image with Gemini Image (same key
+  pool), **client-side only**, `arkaplan` mode; the model gets an immediate
+  "hazırlanıyor" and is told later when it's shown. Saved ≤1600×1200 in
+  `icerik/onbellek/uretilen_gorseller/` (LRU), by real `mime_type`.
+- **`ekran_goruntusu_al` / `ekrandaki_soruyu_oku`** — capture the board's
+  OWN screen only (`primaryScreen().grabWindow(0)`, via `_screenshot_sig` on
+  the GUI thread), LRU 20 in `icerik/onbellek/ekran_goruntusu/`. No camera
+  exists or is planned. Since 2026-09-27 `ekrandaki_soruyu_oku` sends the
+  image **directly to Gemini** as a `send_client_content` user turn
+  (`FarabiLive.ekrani_modele_gonder`, ≤1024px JPEG q70, tagged `[EKRAN]`);
+  `file_processor`'s `ocr` is only the fallback. `send_realtime_input(video=…)`
+  was measured to misread digits on a real board — not used. It runs
+  `arkaplan` (immediate ack, result in a later turn). Before grabbing, Farabi
+  minimises itself if it is the front window (`ui.py::
+  _ekran_goruntusu_yakala`/`_ekran_goruntusu_cek`, prior state restored) and
+  skips capture if the active window title (`xprop`) matches a personal-data
+  filter (yoklama/e-Okul/MEBBİS/tahtayoklama; an `xprop` failure doesn't
+  block). A typed "ekranı oku" (`main.py::_ekran_okuma_komutu_mu`) triggers
+  it directly from `_on_teacher_command` instead of reaching the model.
+- **`file_processor`, `web_search`, `youtube_video`** — text/vision work goes
+  through `core/saglayicilar.py` → server proxy (no Gemini). `youtube-
+  transcript-api` is unpinned and has broken the API once — when touching
+  it, call it with a real video ID.
+
+### Persona — `core/prompt.txt`
+
+User-owned; don't rewrite without being asked. **Do not put textbook
+content in it** — content belongs behind a tool call.
+
+**The `SINIRLARIN` block is load-bearing:** one mic, **no speaker
+identity** (no per-student reports/percentages); remaining time is known
+**only from `[DERS DURUMU]`** (the prompt's clock is built once per connect);
+**no private channel** (teacher evaluation is subject-level and nameless).
+If diarization or a ticking clock ever lands, rewrite that block — don't
+delete it. Exam mode has no session state: Farabi announces entry and exit
+aloud so the transcript is the anchor.
+
+### Lesson engine (`core/ders_motoru.py`, `enjekte=True`)
+
+Code owns the flow (`BEKLIYOR → YOKLAMA → … → OZET → ODEV → BITTI`), the
+remaining minutes (`zil.ders_durumu()['kalan_dk']`) and a closed set of
+suggestions (`ADIM_OZET`, `FARKLI_ANLATIM`, `KONTROL_SORUSU`, `DURAKLAT`). Injection rules, each from a real failure: send
+`turn_complete=True`; nothing in the first `ENJEKSIYON_GECIKMESI_SN` (75 s)
+and never while `_is_speaking`; `[DERS DURUMU]` only on change (step or
+20/10/5/2-minute band via `_sure_bandi()`), never periodic. **The teacher
+always wins:** `gec()` forces a step; `duraklat()` is a latched pause cleared only by `devam`;
+typed commands use the time-limited `mudahale()` (`MUDAHALE_SURESI_DK` = 5).
+
+### Teacher panel (`ui.py`)
+
+Mid-lesson intervention buttons are exactly **DURDUR**, **DEVAM ET** and
+(2026-09-27) **⏹ DERSİ BİTİR** — by decision; everything else is typed.
+DERSİ BİTİR exists because mode/mic choices lock at DERSİ BAŞLAT: it is
+double-tap only, enabled only while a session is open, and goes through
+`ui.on_ders_bitir` → `FarabiLive._on_ders_bitir` → the normal
+`_dersi_bitir()` teardown (re-entry-guarded by `_ders_bitiriliyor`; a tap
+during a reconnect is honoured before the next connect). DERSİ BAŞLAT,
+language, mode and mic-mode buttons are pre-lesson setup, not
+interventions. **Everything typed into
+the input box is a teacher instruction**, sent as `[ÖĞRETMEN KOMUTU] …` via
+`on_teacher_command` → `_on_teacher_command`, which also drives the engine,
+parses `konu:`/`kazanım:`/`ders:`, and writes an `ÖĞRETMEN` line to the
+transcript. The marker is load-bearing: the prompt's `ÖĞRETMEN KOMUTLARI`
+block lets marked instructions override pedagogical defaults ("cevabı
+göster", "sadece ipucu"); spoken words never get it. **No auth on the
+board** — anyone at the touchscreen can type; none is planned.
 
 ### Event bus (`core/olaylar.py`)
 
-In-process `asyncio` fan-out, no broker — 15–20 boards produce a few events per
-second each. Fixed event names (`ARAC_BASLADI`, `ARAC_ZAMAN_ASIMI`,
-`DURUM_DEGISTI`, …); `abone()` rejects unknown ones, because a typo'd
-subscription that never fires is the hardest failure to find. Subscriber
-exceptions are swallowed and logged: a lesson must not stop because a log line
-failed.
+In-process asyncio fan-out, fixed event names (`ARAC_BASLADI`,
+`ARAC_ZAMAN_ASIMI`, `DURUM_DEGISTI`, `OGRETMEN_MUDAHALE`, …); `abone()` rejects unknown
+names (a typo'd subscription is the hardest failure to find); subscriber
+exceptions are swallowed and logged.
 
-### Cache warming (`tools/onbellek_isit.py`) — pay the cost before the lesson
+### Timetable and bells
 
-Measured in a live run (31.07.2026, 00:29): the model called `ders_icerigi` on
-its own for a `gorsel` theme, the uncached Gemini transcription ran past the
-20 s tool timeout, and the class got 20 s of silence followed by a contentless
-continuation. Warming that same kazanım offline took **57.1 s**; the identical
-call afterwards returns in **0.03 s**.
-
-**That original cost is gone with the image path** — warming no longer spends API
-calls. What it warms is `_sayfa_secimi.json`, which matters most for a book
-that has not been through `kitap_metin.py`, since selecting its pages means
-opening the PDF.
-
-**The topic must be given by hand** (`--ders --sinif --konu`) — there is no
-automatic "what's tomorrow's topic" source anymore. The script used to fall
-back to `gunun_adaylari` (yearly-plan candidates) when the timetable didn't
-resolve a topic; that function is gone along with the plan pipeline, and
-warming without a `konu` can't select real pages anyway (it would just
-re-fetch the book catalogue). Whoever runs this — the evening before, e.g.
-via cron — needs the teacher to have already said what topic tomorrow
-covers. **Dry by default** — `--onayla` is still required.
-
-Two symptoms that mean the cache is cold rather than something being broken: a
-`ders_icerigi` timeout in the log, and Farabi telling the class about a
-"teknik aksaklık" (the timeout text now explicitly forbids that phrasing).
-
-### Content validation gate (`tools/dogrula.py`)
-
-Run it after `kitap_index.py`, and before trusting a new book. It fails a
-book when every unit carries the same name, when one unit covers >70% of the
-pages, or when a mapping file is malformed. Exit code 1 on any RED, so an
-installer can gate on it. Free and instant — no API call, no plan/coverage
-check (the yearly-plan pipeline it used to validate against is gone; see
-"Project layout" above). AI-assisted symbol cleanup is a **separate** script
-(`tools/sembol_temizle.py`, paid, opt-in) — deliberately not folded into this
-gate, so running `dogrula.py` never silently costs money.
-
-Bad index data used to surface **in the classroom** as improvisation; this moves
-the failure to a report. A book with a hand-written mapping passes even if its
-auto-index is bad — that is the intended escape hatch.
-
-### Timetable (`core/program.py`, `config/ders_programi.json`)
-
-**This supplies the subject name.** `zil.json` knows bell times only; there is
-no yearly plan anywhere in this repo anymore. The file maps
-`sınıf → gün → ders saati → ders` (a slot may also carry `kip`), so the board
-knows at startup: *3. ders · 9-A · Matematik* — topic and kazanım still empty
-until the teacher provides them.
-
-Chain: `program.simdiki_ders()` → `_programdan_cerceve()` → `current_lesson`
-with `subject` + `period` only.
-
-**No timetable / empty slot:** ask the **teacher** for the subject (and
-topic); do not ask the class and do not invent a subject from anywhere else —
-there is no fallback candidate list. A board without a timetable must still
-teach once the teacher speaks, same principle as `ui.py` surviving a missing
-`zil.json`.
-
-`ders_kipi` reads the **timetable first** (`program.kip()`), then
-`config/api_keys.json` — study hall and make-up periods are a property of the
-schedule.
-
-### Teacher panel (`ui.py`) — three intervention buttons, on purpose
-
-The **intervention** controls in `ÖĞRETMEN PANELİ` are **DURDUR**, **DEVAM
-ET**, and (2026-09-27) **DERSİ BİTİR**. Everything else that touches an
-*already-running* lesson was removed by decision: the virtual teacher plans
-and runs the 40-minute lesson, and a system needing constant teacher
-intervention is a system not doing its job. Anything else the teacher wants
-mid-lesson is typed — the input box already sends teacher instructions.
-DURDUR/DEVAM ET stay as buttons because when they are needed there is no
-time to type (someone walks in, a phone rings).
-
-**DERSİ BİTİR** is a button for a different reason: the mic-mode toggle and
-the öğrenci/öğretmen mode buttons (below) are read only once, at DERSİ
-BAŞLAT, and then lock for the rest of the connection — a teacher who needs
-to flip either mid-lesson has no other way to do it than end the lesson
-(waiting out the 40-minute bell, or rebooting the board, were the only
-alternatives before this button existed). It works like DERSİ BAŞLAT:
-**double tap** only (`_bitir_btn.mouseDoubleClickEvent`, a passing student
-must not end a lesson with one touch), disabled until a session actually
-opens (`_on_gemini_oturum_degisti(acildi=True)`) and disabled again once the
-lesson ends (`_dersi_sifirla_gorunumu`). A tap calls `ui.on_ders_bitir` →
-`FarabiLive._on_ders_bitir`, which schedules the normal `_dersi_bitir()`
-teardown (transcript close + server backup) onto the asyncio loop — same
-"process stays alive, returns to the pre-DERSİ-BAŞLAT state" path as any
-other lesson end, not a special case.
-
-The same grid also holds **DERSİ BAŞLAT**, the **mic-mode toggle**
-(`_mikrofon_mod_btn`, see below), and, since the lesson-language feature
-(see "Lesson language" above), the two language buttons — these are not
-interventions, they are **pre-lesson setup**, made once before the
-connection opens and then locked (they disable themselves the moment DERSİ
-BAŞLAT is pressed, alongside öğrenci/öğretmen mode). That's a different
-category from "the teacher needs to redirect a lesson in progress," so it
-doesn't reopen the "three buttons only" decision above.
-
-**Mic-mode toggle** (`_mikrofon_mod_btn`, 2026-09-27): a single-tap button
-directly under the öğrenci/öğretmen mode row, "🎤 MİKROFONLU" / "🚫 MİKROFONSUZ", that flips
-`self.mikrofonsuz` for the current process only — it never reads or writes
-`config/api_keys.json`; a restart always goes back to the file's `mikrofon`
-value (see the config table above). `main.py` re-reads `ui.mikrofonsuz` at
-every DERSİ BAŞLAT, so no other wiring is needed for the new value to take
-effect. Switching to mikrofonsuz forces `talimat_modu = False` and disables
-`_ogretmen_btn` (talimat/öğretmen mode is voice-only) and turns the mute
-button into the same disabled "🚫 MİKROFONSUZ MOD" look `__init__` uses
-(shared helper `_mute_btn_mikrofonsuz_gorunumu`); switching back to
-mikrofonlu re-enables both but does **not** force `talimat_modu` back to
-`True` — it stays whatever it was left at.
-
-`durdur` is a **latched** pause (`motor.duraklat()`), cleared only by `devam` —
-a lesson that resumes on its own defeats the reason it was stopped. Typed
-commands use the **time-limited** `motor.mudahale()` (`MUDAHALE_SURESI_DK`),
-because with no "devam" for them, a latch would silence the engine for the rest
-of the lesson.
-
-**Everything typed into the input box counts as a teacher instruction.** In a
-classroom the keyboard is at the board: students speak, the teacher types. The
-box is labelled `ÖĞRETMEN GİRİŞİ · YAZILAN = TALİMAT` and its text is sent with
-the same marker as the buttons.
-
-Commands reach the session as `[ÖĞRETMEN KOMUTU] <metin>` through
-`FarabiUI.on_teacher_command` → `FarabiLive._on_teacher_command`, which also
-drives the lesson engine (`mudahale()` / `duraklat()`), parses optional
-`konu:` / `kazanım:` / `ders:` into `_current_lesson`, and emits
-`OGRETMEN_MUDAHALE`.
-
-**The marker is load-bearing.** `core/prompt.txt` has an `ÖĞRETMEN KOMUTLARI`
-block saying marked instructions **override the pedagogical defaults** — "cevabı
-göster" suspends the three-step rule for that turn, "sadece ipucu" holds the
-answer back even in exam mode. Without it the model hedges ("doğrudan vermek
-istemem ama…") instead of complying. A student saying the same words out loud
-gets the normal rules; the marker is what separates them, and it is only ever
-attached by the panel and the input box.
-
-**No auth on the board.** Any student standing at the touchscreen can type into
-the teacher box. There is no role-gating anywhere in this repo and none is
-planned — if that becomes a real problem, it needs a local solution (PIN,
-physical key, teacher-only device), not a server to defer it to.
-
-### Model names (`core/modeller.py` for Live, `core/saglayicilar.py` for everything else)
-
-`gemini-2.5-flash` **was retired mid-flight** (verified 31.07.2026: 404 "no
-longer available", and `gemini-2.5-flash-lite` with it). At the time every
-non-realtime call went through Gemini too, so it broke at once — the visible
-symptom was `ders_icerigi` returning "Kitap içeriği okunamadı" after 17.1 s
-while the class waited, with nothing explaining why. `ders_icerigi` itself
-calls no AI API at all now (see "Content pipeline"), so that specific failure
-mode is gone, but the lesson generalizes: **any** provider can retire a model
-without notice.
-
-`core/modeller.py` now holds only `CANLI_MODEL` (Live audio) — no fallback
-logic left there, because it has exactly one consumer shape (the Live
-session) and no alternative model to fall back to if the Live name breaks.
-`core/saglayicilar.py` holds every other model name, one per
-`(sağlayıcı, model)` pair in `GOREV_ZINCIRLERI`; a bad model id there fails
-that one provider (caught, logged) and the chain moves to the next provider
-— the fallback is provider-level, not a same-provider alternate-model retry
-like Gemini's old `uret()` used to do. Measured for Gemini at the time of
-writing: `gemini-3.6-flash` ✔, `gemini-flash-latest` ✔, `gemini-3.5-flash`
-503, `gemini-2.5-flash*` 404 (kept for history; not relevant to `CANLI_MODEL`,
-which is a different model family).
-
-### Bell schedule (`core/zil.py`, `config/zil.json`)
-
-Real school times from `dersgiriscikis.png`: 1st lesson 08:20, 40-minute lessons,
-10-minute breaks, lunch 12:20–13:00, 8th lesson ends 15:20. Same every day, Mon–Fri.
-`zil.ders_durumu()` distinguishes in-lesson, break, lunch, before-first, after-last
-and non-school-day, returning both a short UI label (`kisa`) and a full sentence
-for the model (`metin`).
-
-**Why it lives in `core/` and not `main.py`.** Two consumers need it: `main.py`
-injects the lesson period into the system prompt, and `ui.py` shows it in the
-date/time panel — and `ui.py` cannot import `main.py` without a circular import.
-`main._ders_saati_durumu()` is now a thin delegate; put new schedule logic in
-`core/zil.py`. `core/tahta.py` is shared for the same reason (prompt + HUD label
-+ `ders_icerigi`), which is why both are in `core/` rather than beside their
-callers.
-
-**Turkish suffix lesson:** phrases were built as `"ilk ders 08:20'te"` and the model
-parroted the wrong suffix (correct `08:20'de`; it depends on the spoken number —
-yirmi**de**, on**da**, kırk**ta**). Solving that in code is brittle. The phrases are
-now **suffix-free** ("ilk dersin başlama saati 08:20") and the model inflects
-correctly on its own. Apply the same approach to any new time or number phrasing.
+- `core/program.py` + `config/ders_programi.json`: `sınıf → gün → ders saati
+  → ders` (+ optional `kip`). `program.simdiki_ders()` →
+  `_programdan_cerceve()` gives subject + period only. Empty slot → ask the
+  teacher; a board without a timetable must still teach.
+- `core/zil.py` + `config/zil.json`: 08:20 start, 40-min lessons, 10-min
+  breaks, lunch 12:20–13:00; `ders_durumu()` returns a UI label (`kisa`) and
+  a model sentence (`metin`). Lives in `core/` because `ui.py` can't import
+  `main.py`. **Keep time phrases suffix-free** ("ilk dersin başlama saati
+  08:20") — the model inflects Turkish suffixes correctly, code doesn't.
+- Both files are gitignored and school-wide; the server keeps separate
+  copies (root `CLAUDE.md`, "üç bağımsız kopya").
 
 ### UI (`ui.py`)
 
-PyQt6, three columns — left: classroom + date/time/lesson panel and system
-metrics; center: animated HUD + `ContentPanel`; right: activity log
-(`DERS KAYDI`), `FileDropZone`, mic-calibration button, text input, mute. States
-shown in Turkish; internal keys unchanged. `F4` mute, `F11` fullscreen.
+Three columns: classroom/date/lesson panel + metrics · animated HUD +
+`ContentPanel` · DERS KAYDI log, drop zone, mic calibration, input, mute.
+`F4` mute, `F11` fullscreen. `HudCanvas` plays `Farabi.gif`, falling back
+to text. Mic calibration button = `_mikrofon_kalibre`. `core.zil`/`core.tahta` are imported in
+`try/except` — missing config leaves panels blank, never crashes. **Window
+size is computed** (94% of `availableGeometry()`), never fixed. Content
+panel has text (`_show_content`) and image (`_show_image`, zoom `None` = fit
+width) modes; the pen/eraser drawing layer (`_CizilebilirGorsel`) is
+button-only, never a model tool, and not saved.
 
-`ui.py` imports `core.zil` and `core.tahta` in `try/except` and keeps running with
-those panels blank when `zil.json` or `derslik` is missing — a board with no
-schedule configured must still teach. An unset classroom shows `DERSLİK TANIMSIZ`
-in red, because a board that does not know its own class also mis-defaults the
-grade in `ders_icerigi`.
+### Logging
 
-**Window size is computed, never fixed.** The old hard-coded 980x700 overflowed
-the screen: under HiDPI the *logical* area is far smaller than the panel size
-suggests (dev machine: 2208x1242 physical → 1104x590 logical at 2x). It now takes
-94% of `availableGeometry()`, clamps to a minimum, and centres on the active
-screen. Don't reintroduce a fixed size — the target boards' resolutions are
-unknown.
+- `logs/ders/<timestamp>_<derslik>.txt` — one file per session (path cached
+  for the process, so reconnects don't fragment it). **Text only, never
+  audio.** Labels ÖĞRENCİ / FARABİ / ÖĞRETMEN (typed input only) / SİSTEM;
+  no student identity. A cut-off turn is flushed as its own line marked
+  `(kesildi)`.
+- `logs/farabi.log` — diagnostics, rotating 5 × 1 MB.
+- Chain-of-thought and serialized tool calls once leaked into the record:
+  `include_thoughts=False` at the source plus `_konusma_temizle()`, which
+  matches **known tool names only** (a generic pattern eats real speech).
 
-`HudCanvas` loads `Farabi.gif`, falling back to drawing the name as text.
+### Providers and quota
 
-When sweeping user-visible strings, remember `grep -i <name>` misses letter-dotted
-forms like `F.A.R.A.B.İ`. Render offscreen and look:
-`QT_QPA_PLATFORM=offscreen python -c "..."` → construct `MainWindow`, `w.grab().save(...)`.
+Among cloud providers Gemini Live is the only realtime option;
+Groq/OpenRouter etc. can't replace the voice path (the planned alternative is
+the local voice node, not another cloud). Every non-realtime text/vision task goes through
+`core/saglayicilar.py` → `server/saglayicilar.py` (chains, cooldowns, model
+IDs live there); `metin_uret`/`gorsel_uret` keep their signatures and raise
+`RuntimeError` on total failure, which callers turn into their own
+"don't invent" text. Providers retire models without notice — check current
+IDs rather than trusting old ones.
 
-### Logging — two separate streams
-
-- **`logs/ders/YYYY-AA-GG.txt`** — the lesson record, kept locally on the board.
-  **Text only; audio is never recorded.** Lines labelled ÖĞRENCİ / FARABİ /
-  **ÖĞRETMEN** / SİSTEM — no student identity (one mic, can't distinguish
-  students; anything spoken is ÖĞRENCİ regardless of who said it).
-  Honours `FARABI_DERS_LOG_DIR`; `tests/conftest.py` points it at a temp dir
-  for the same reason as `FARABI_LOG_DIR` below — a real gap until
-  02.08.2026, when a test writing a real transcript line would have landed
-  in the actual lesson record.
-- **`logs/farabi.log`** — diagnostics, rotating 5 × 1 MB. Honours
-  `FARABI_LOG_DIR`; `tests/conftest.py` points it at a temp dir so pytest runs
-  stop writing "Ders adımı: …" lines into the file you read to find out what
-  happened in a real lesson.
-
-**ÖĞRETMEN is a distinct label from ÖĞRENCİ, and it did not exist until
-02.08.2026.** Only *written* teacher input (panel buttons, the input box —
-anything that goes out as `[ÖĞRETMEN KOMUTU] ...`) gets it; spoken input
-still can't be attributed to the teacher specifically (see SINIRLARIN in
-`core/prompt.txt`) and stays ÖĞRENCİ. Before this, `_on_teacher_command()`
-sent the instruction to the model and showed it on the **on-screen** DERS
-KAYDI panel (`ui.py`, ephemeral) but never called `transcript.log_line()` —
-the persistent daily file only ever showed Farabi's resulting *response*,
-never the teacher's actual instruction that caused it. Found by reading a
-real lesson transcript to debug reported model misbehavior and being unable
-to tell what the teacher had actually typed. Fixed in `_on_teacher_command()`
-(`main.py`): logs `metin` with the `"[ÖĞRETMEN KOMUTU] "` prefix stripped
-(the ÖĞRETMEN label already says that) for every teacher action, including
-DURDUR/DEVAM ET, not only free-typed instructions.
-
-The lesson record once leaked a serialized tool call and the model's **English
-chain-of-thought** about a student ("Struggles with understanding…"). Two defences
-now: `thinking_config(include_thoughts=False)` at the source, and
-`_konusma_temizle()` which strips tool-call-shaped text. The sanitizer targets
-**known tool names only** — a generic pattern would eat ordinary speech.
-
-**A student interrupting mid-answer used to merge two turns into one unreadable
-line.** `_receive_audio` (`main.py`) buffers `out_buf`/`in_buf` per turn and
-only ever flushed them to the transcript on `turn_complete`. On
-`server_content.interrupted` it discarded the unplayed audio queue and logged
-— it did **not** flush or reset the text buffers, so a cut-off turn's partial
-text just sat there and got prepended onto the **next** turn's text at the
-following flush. Measured (02.08.2026, `logs/ders/2026-08-02.txt`, 11:30:22):
-the teacher's "Matematik, permütasyon" landed in the same `FARABİ` line as
-Farabi's previous, cut-off sentence. Fixed by flushing `in_buf`/`out_buf` to
-the transcript (each in its own line, `out_buf`'s marked `(kesildi)`) and
-resetting both to `[]` right in the `interrupted` branch, covered by
-`tests/test_alim_dongusu_kesinti.py` against a fake, finite `session.receive()`
-event sequence (no network).
-
-### Memory — removed from the live path
-
-`save_memory` is no longer in `actions/kayit.py`, `_execute_tool`, or the
-persona tool table. `_build_config` does not inject a memory block. The
-`memory/` package may still sit on disk but must stay unused: a shared classroom
-board cannot hold one student profile, and "where did we leave off" continuity
-confused openings. Do not re-wire it in without a concrete design for how a
-board shared by ~20 students tracks one profile — that problem was never
-solved, not deferred to infrastructure that doesn't exist.
-
-### `youtube_video.py` transcript fetch — library API drift (found by running every feature, not by reading code)
-
-`_get_transcript()` was **completely broken** — `youtube-transcript-api` isn't
-version-pinned in `requirements.txt`, `pip install` pulled 1.2.4, and that
-release removed the classmethod the code called
-(`YouTubeTranscriptApi.list_transcripts(video_id)`) in favor of an instance
-method (`YouTubeTranscriptApi().list(video_id)`); it also changed
-`transcript.fetch()`'s items from dicts (`entry["text"]`) to a
-`FetchedTranscriptSnippet` dataclass (`entry.text`). Every call raised
-`AttributeError` and was swallowed by the function's own `except Exception`,
-so `youtube_video(action="summarize", ...)` silently returned "transcript
-unavailable" for **every** video — this was invisible from `_handle_summarize`'s
-code alone; it only surfaced by actually calling `_get_transcript()` against a
-real video ID during a "run and test every feature" pass (02.08.2026). Fixed
-to the current API; `_scrape_video_info`/`get_info` (no library call, pure
-HTML scraping) was never affected. Same lesson as `core/modeller.py`'s Gemini
-retirement and the `kitap_index.py` fitz-ordering bug above: a dependency
-silently drifting out from under unpinned code is a recurring failure class
-here, not a one-off — when in doubt, actually call the function with real
-input rather than trusting that unchanged code still matches its library's
-current API.
-
-## Provider notes and API quota
-
-> ⚠️ **2026-08-14: the six-provider pool described below lives in
-> `server/saglayicilar.py` now, not `core/saglayicilar.py` on this board.**
-> This board's `core/saglayicilar.py` is just an HTTP client to it (see
-> "Project layout" above). The task→chain table, cooldown logic, and model
-> names below are unchanged in substance — just physically on the server
-> machine, with `server/config/api_keys.json` holding the real keys instead
-> of this board's `config/api_keys.json`. The Gemini-specific parts of this
-> section (Live voice, key pool) are still 100% about THIS board — that part
-> never moved.
-
-Gemini Live is the only realtime option and **that is now its only job in this
-repo**. **Groq and OpenRouter cannot replace it for the voice path** — neither
-offers realtime bidirectional audio, so switching means a second pipeline
-(VAD → STT → LLM → TTS) with manual barge-in and a separate Turkish TTS
-problem. **This is now the permanent decision (2026-08-11), not just a
-practical stopgap** — a local voice pipeline was evaluated and explicitly
-cancelled for this project (see `docs/mimari.md` §14). `main.py`'s main
-session is now the **only** Gemini consumer left
-(`screen_processor.py`'s vision sub-session was the second one, removed
-2026-08-09 — see "Project layout"); see "API key pool" above for the key
-pool it uses.
-
-**Every non-realtime text/vision task moved to `core/saglayicilar.py`** — a
-six-provider pool (Groq, Mistral, DeepSeek, OpenRouter, NVIDIA NIM; Hugging
-Face deliberately excluded, its free-tier limits aren't published/predictable
-enough for anything time-sensitive). All five expose an OpenAI-compatible
-`/chat/completions` endpoint, so one client library (`openai`) covers all of
-them — only `base_url` + `api_key` + `model` change. Consumers:
-
-| Task (`GOREV_ZINCIRLERI` key) | Used by | Primary → fallback |
-|---|---|---|
-| `gorsel` | `file_processor.py` image describe/OCR/analyze (uploaded files) | Groq → NVIDIA NIM |
-| `arama_sentez` | `web_search.py` (all modes), `kitap_ozet.py` enrichment | DeepSeek → (universal: OpenRouter) |
-| `belge_ozet` | `file_processor.py` text tasks (PDF/docx/txt/csv/json/pptx) | DeepSeek → Mistral → (universal) |
-| `video_ozet` | `youtube_video.py` transcript summary | DeepSeek → Groq → (universal) |
-| `kitap_ozet` | `tools/kitap_ozet.py` book summary | NVIDIA NIM → DeepSeek → (universal) |
-| `sembol_duzelt` | `tools/sembol_temizle.py` | DeepSeek → Mistral → (universal) |
-
-"(universal)" = `openrouter/free`, OpenRouter's own auto-router — appended to
-every **text** chain as a last resort (never to `gorsel`: free vision models
-are unreliable enough that a failed image task should surface as a failure,
-not silently degrade). A chain member with no key configured, or that raises
-any exception (429, 5xx, timeout, bad model id), is skipped and the next one
-tried — unlike `core/anahtar.py`'s Gemini pool, **any** exception triggers the
-next provider here, not just quota-shaped ones, because each provider is a
-wholly separate service; a "model not found" on Groq says nothing about
-Mistral. If every provider in a chain fails, `saglayicilar.metin_uret`/
-`gorsel_uret` **raises** — callers get a real exception to catch and turn
-into their own "stay inside what you know, don't invent" fallback text, same
-principle as `ders_icerigi`'s `_SINIRLI_DEVAM`.
-
-**Why `screen_processor.py` was NOT migrated despite being "vision":** it
-opens its own Gemini **Live** sub-session — image in, spoken audio out,
-played directly through the speakers (`calisma="daemon"` in
-`actions/kayit.py`, the tool that "speaks for itself"). That is realtime
-voice synthesis, the same constraint as the main session; none of the five
-providers do it. Only `file_processor.py`'s image actions (a photo of
-homework, uploaded — text out, no speaking) are genuinely vision-to-*text*
-and could move.
-
-**Model names live in `core/saglayicilar.py`, one place, same reasoning as
-`core/modeller.py`'s Gemini deprecation handling** — these providers retire
-models at least as fast as Gemini did (Groq deprecated `llama-3.3-70b-
-versatile` in June 2026). Verify current IDs before assuming: console.groq.com/
-docs/models, api-docs.deepseek.com, docs.mistral.ai/getting-started/models,
-build.nvidia.com, openrouter.ai/models. A stale model id makes that one
-provider fail (caught, logged, next provider tried) — it does not need a
-Gemini-style automatic-fallback layer of its own because the provider-level
-fallback already covers it.
-
-**The biggest cost lever for the voice path is not the model: it is a board
-holding a live audio session all day.** Gate the session on the bell
-schedule and add an idle timeout (`BOSTA_KAPATMA_DK` in `main.py`, currently
-15 minutes) — an unattended board left connected burns quota for nothing.
-
-**Getting through a full teaching day before Gemini quota runs out is a
-per-board key management problem**, not a server problem — see the API key
-pool section above (`core/anahtar.py`). The two things that actually stretch
-a day's quota:
-
-- **Multiple keys across separate Google Cloud projects**, not multiple keys in
-  one project — a spending cap is per project, so keys sharing a project share
-  one cap and rotation just fails over into the same wall faster
-  (`kota_hatasi_mi()` / rotation notes above).
-- **Killing idle sessions** (`BOSTA_KAPATMA_DK`) so quota is spent on lessons
-  actually happening, not on a board sitting connected between periods.
-
-There is no dashboard or budget tracker for either the Gemini pool or the
-six-provider pool yet — if quota exhaustion becomes a recurring problem, the
-next step is watching `farabi.log` for which provider actually rotates in a
-real day and sizing the relevant pool from that measurement, not guessing.
+The biggest cost lever is not the model but **idle sessions**: gate on
+DERSİ BAŞLAT, close on `BOSTA_KAPATMA_DK`. Stretching a day's Gemini quota
+means keys from **separate** Cloud projects. No budget dashboard exists —
+size pools from `farabi.log` measurements, not guesses.
