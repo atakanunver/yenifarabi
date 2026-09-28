@@ -14,20 +14,33 @@ okul operasyon servisleri (yoklama panosu, SMS).
 - Alt projelerin kendi `CLAUDE.md`'leri var: `client/`, `tahtayoklama/`,
   `smssistemi/`, `tahtaayar/`.
 
-## Güncel durum (2026-09-25)
+## Güncel durum (2026-09-28)
 
 - **Farabi client:** 8 tahtada kurulu — 7 sınıf (9-A, 9-B, 10-A, 11-A, 11-B,
   12-A, 12-B) + `fenlab`. Tablo: aşağıda "Ağ Envanteri".
 - **Tahtayoklama:** aynı 8 tahtada kurulu. Tahta tarafı
   `tahtayoklama/yoklama.py`; sunucu tarafı `tahtayoklama/dashboard/`.
+- **Gemini faturalandırma engeli ÇÖZÜLDÜ (2026-09-25, aynı gün):** eski
+  projenin anahtarı 2026-09-22'den beri 403/1008 veriyordu; ayrı projeden
+  yeni tek anahtar 8 kuruluma dağıtıldı, Live bağlantısı fenlab'da
+  doğrulandı (DECISIONS.md 2026-09-25 "…Gemini faturalandırma engeli…").
+  2026-09-27'deki "Farabi susuyor" sorunu faturalandırma DEĞİL,
+  `thinking_config` idi (DECISIONS.md 2026-09-27).
 - **Mikrofonsuz mod** şu an 8 tahtanın hepsinde açık (`api_keys.json::
-  mikrofon`, bkz. DECISIONS.md 2026-09-25 "Gemini faturalandırma engeli").
-- **Yerel sese geçiş sürüyor (dal `yerel-ses-pipecat`, 2026-09-25):**
-  Gemini Live → Pipecat ses düğümü (faster-whisper STT + Piper TTS, bu
-  makinede). Faz 1a (Brain'in OpenAI-uyumlu cephesi `server/ses_cephe.py`,
-  `/v1/*`) commit'li, canlıya ALINMADI (`ses.env` yokken 503 döner). Faz 1b
-  (ses düğümü) planlanıyor, Faz 1c pilot tahta 9-A. Gemini kodu SİLİNMEZ,
-  bayrakla kapatılacak. Planlar: `docs/superpowers/plans/2026-09-25-ses-*`.
+  mikrofon`). Nedeni artık faturalandırma değil, tahta mikrofonlarının
+  bozuk olması (kullanıcı kararı, DECISIONS.md 2026-09-25 config_dagit
+  kaydı). Bu değer yalnızca açılış varsayılanı: `origin/master`'daki
+  bd41c85'ten itibaren panelde 🎤 MİKROFONLU / 🚫 MİKROFONSUZ düğmesi DERSİ
+  BAŞLAT'tan önce yalnızca bellekte değiştirir (dosyaya yazmaz); ders içinde
+  ⏹ DERSİ BİTİR (çift dokunuş) var. Yerel `master` o commit'leri henüz
+  içermiyor (origin/master ile ayrışma, 2026-09-28).
+- ⛔ **Yerel sese geçiş (Pipecat) KALICI OLARAK İPTAL (2026-09-28).**
+  Donanım altyapısı izin vermiyor; Gemini Live ile devam kararı. Kod
+  (`voice_node/`, `server/ses_cephe.py`) 66af43d ile master'dan geri
+  alındı, yalnızca git geçmişinde arşiv (bd9719c, e04e279); planlar
+  `docs/superpowers/plans/2026-09-2{5,6}-ses-*` (arşiv notlu).
+  `farabi-ses`/`farabi-piper` birimleri durduruldu ve devre dışı. Ayrıntı:
+  DECISIONS.md 2026-09-28.
 - **`client/core/prompt.txt` hâlâ client'ta.** Server'a taşınması
   PLANLANDI, YAPILMADI (mimari.md §0).
 - **IP değil hostname/MAC esas alınır.** DHCP kirası bozulunca IP değişiyor
@@ -44,9 +57,10 @@ okul operasyon servisleri (yoklama panosu, SMS).
   / `tahtayoklama/dashboard/scripts/ders_programi_yukle.py` ile senkron
   edilir. Aynı desen `zil.json` için de geçerli.
 
-## Mimari: üç servis + tahta istemcisi
+## Mimari: servisler + tahta istemcisi
 
-Hepsi bu makinede (`farabi.local`), **üç ayrı systemd birimi, üç ayrı venv**.
+Hepsi bu makinede (`farabi.local`), **her servis ayrı systemd birimi, ayrı
+venv**.
 Kod paylaşmazlar, birini deploy etmek diğerini etkilemez; üretime almak =
 ilgili servisi restart etmek. Servisler birleştirilmez; servisler arası bağ =
 HTTP + HMAC.
@@ -69,10 +83,10 @@ HTTP + HMAC.
 
 **Client ↔ Server ayrımı (KESİN, mimari.md §0):** client = yalnızca tahtadaki
 arayüz/etkileşim yüzeyi (Gemini Live ses oturumu dahil); server = beyin (RAG,
-sistem promptu, iş mantığı, sağlayıcı routing). Ses bugün Gemini Live'da,
-client'ta; client'taki tek bulut anahtarı Gemini. 2026-08-11'deki "ses
-kalıcı olarak Gemini'de" kararı 2026-09-25'te kaldırıldı — yerel sese geçiş
-için yukarıdaki "Güncel durum"a bkz.
+sistem promptu, iş mantığı, sağlayıcı routing). Ses kalıcı olarak Gemini
+Live'da, client'ta (2026-08-11 kararı; 2026-09-25'te açılan yerel ses
+denemesi 2026-09-28'de kalıcı iptal edildi); client'taki tek bulut anahtarı
+Gemini.
 
 **Tahtaya dağıtım:** GitHub tek doğru kaynak (`github.com/atakanunver/
 yenifarabi`, PUBLIC). Tahtalar GitHub'dan **doğrudan** çeker, server arada
@@ -324,6 +338,12 @@ devralacak kişi `systemctl status` ile durumu görebilmeli.
 
 - ⛔ **`/api/idari/*` — KALICI OLARAK İPTAL (2026-08-31).** Endpoint
   yazılmayacak, idari tablo/chunk (`chunk_idari`) tasarımı gündemde değil.
+- ⛔ **Yerel STT/TTS / ses düğümü (faster-whisper, Piper, Pipecat) — KALICI
+  OLARAK İPTAL.** İlk karar 2026-08-11; 2026-09-25'te yeniden açıldı,
+  2026-09-28'de donanım yetersizliği nedeniyle tekrar ve kalıcı olarak
+  kapatıldı. Ses Gemini Live'da kalır. Geri alınan kodu (bd9719c,
+  e04e279) geri getirme, `farabi-ses`/`farabi-piper`'ı yeniden
+  etkinleştirme.
 
 ## Ağ Envanteri
 
@@ -371,7 +391,7 @@ buraya şifre yazılmaz.
 
 3. **Farabi sunucu** (bu makine, `ata@farabi.local` / `192.168.23.252`,
    Ubuntu 26.04, Ryzen 9 3900X, 2× RTX 3060, 64 GB RAM, sudo NOPASSWD) —
-   üç servis burada, tahtalara buradan SSH ile bağlanılıyor.
+   tüm servisler burada, tahtalara buradan SSH ile bağlanılıyor.
 
 ## RAG Kuralları (kritik)
 
@@ -412,15 +432,13 @@ Client↔Server event listesi bağlayıcıdır — değişirse `mimari.md`'yi g�
 - **PostgreSQL** → metadata, hash, sınıf, ders, kazanım, sayfa.
   **pgvector** → chunk + embedding. Dosya içeriği DB'ye gömülmez.
 - `chunk_egitim` tek chunk tablosu; `chunk_idari` yok ve olmayacak.
-- Tahta token'ı yalnızca `/api/egitim/*` çağırabilir; `/v1/*` (ses
-  cephesi) ek olarak yalnızca 127.0.0.1'den + ses düğümü bearer token'ıyla.
+- Tahta token'ı yalnızca `/api/egitim/*` çağırabilir.
 
 ## Gizlilik
 
-- **Öğrenci sesi bugün Gemini Live'a (Google bulutu) gidiyor** (2026-08-11
-  kararı). Yerel sese geçişte (dal `yerel-ses-pipecat`) ses bu makinede
-  işlenir, buluta gitmez; ses düğümü transkript/bağlamı journal'a DEBUG
-  seviyesinde dökmemeli (`LOGURU_LEVEL=INFO`).
+- **Öğrenci sesi kalıcı olarak Gemini Live'a (Google bulutu) gidiyor** —
+  bilinçli karar (2026-08-11, mimari.md §14; 2026-09-28'de yeniden
+  teyit edildi).
 - Fiziksel kamera/webcam yok. Ekran görüntüsü zorunlu bir yetenek ama
   yalnızca `QApplication.primaryScreen().grabWindow(0)` — tahtanın o an
   gösterdiği şey, asla kamera/sınıf/öğrenci. Ayrıntı `client/CLAUDE.md`.
