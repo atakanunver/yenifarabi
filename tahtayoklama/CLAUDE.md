@@ -538,7 +538,10 @@ gereği ayrıca onay ister, kendiliğinden yapılmaz.
 **Yerel/edge dashboard ergonomisi.** Servis/donanım durumu için anlık
 "canlı" göstergeler (yeşil pulse nokta) kullanılır — tahta çevrimiçi mi,
 yoklama açık mı gibi. Tablolarda pagination yerine akıcı dikey kaydırma
-ve kompakt filtre alanı tercih edilir.
+ve kompakt filtre alanı tercih edilir. **İstisna:** zamanla sınırsız
+büyüyen rapor tabloları sayfalanır — `/admin/rapor` detay tablosu 100
+satır/sayfa (`admin.py::_sayfala`, kullanıcı kararı, kök DECISIONS.md
+2026-09-28 "Dashboard yük azaltma").
 
 > ⚠️ **Kütüphane kuralı — Kural 8 burada da geçerli.** Dashboard bugün
 > SIFIR dış bağımlılıkla çalışıyor: CDN yok, Tailwind yok, grafik
