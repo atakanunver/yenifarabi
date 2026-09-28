@@ -51,19 +51,38 @@ tahtayoklama/
   kullanılıyor (PyQt6 zaten kurulu olduğu için). `requirements.txt`
   (`PyQt6`, `pdfplumber`) yalnızca dev makinede anlamlı.
 - **Autostart DEĞİL.** `~/Masaüstü/Yoklama.desktop` ile öğretmen elle açar.
-- **Tamamen ağdan izole.** HTTP/socket/network I/O YOK. Tek durum kaynağı
-  tahtanın kendi diskindeki JSON dosyaları.
+- **Ağdan izole; network I/O yok, yalnızca tek-örnek için yerel Unix
+  soketi.** Gerçek ağ trafiği (HTTP/SSH) hiç yok, tek durum kaynağı
+  tahtanın kendi diskindeki JSON dosyaları. Tek örnek koruması
+  (`_tekil_ornek_sunucusu_baslat`, 2026-09-28 eklendi) `QLocalServer`/
+  `QLocalSocket` (PyQt6.QtNetwork) kullanır — bu bir Unix domain soketi,
+  ağa çıkmaz, aynı makinedeki ikinci bir süreçle konuşur; masaüstü
+  simgesine çift dokunulup açılan ikinci pencere artık yeni pencere
+  AÇMAZ, ilk örneği öne getirtip çıkar.
 - **Kayıt tahta kimliğine değil, o an seçili sınıfa göre isimlendirilir** —
   tahta↔sınıf eşlemesi değiştikçe kayıt farklı fiziksel tahtalardan gelebilir;
   hiçbir kod "tahta X = sınıf Y" eşlemesine güvenmemeli, kayıt içeriğindeki
   `sinif` alanı esas alınmalı.
-- **Otomatik sessiz kayıt riski (çözülmedi, bkz. §8):** ders dönemi
-  değiştiğinde önceki dersin hâli otomatik kaydedilir (`_kaydet(sessiz=True)`)
-  — tahta açık bırakılıp kimse dokunmazsa "herkes var" diye gerçek olmayan
-  bir kayıt oluşur, öğretmenin bilerek kaydetmesiyle ayırt edilemez.
+- **Otomatik sessiz kayıt riski ÇÖZÜLDÜ (2026-09-28).** Eskiden ders dönemi
+  değiştiğinde önceki dersin hâli otomatik kaydediliyordu
+  (`_kaydet(sessiz=True)`) — tahta açık bırakılıp kimse dokunmazsa "herkes
+  var" diye gerçek olmayan bir kayıt oluşuyordu, öğretmenin bilerek
+  kaydetmesiyle ayırt edilemiyordu ("panoda yoklama görünmüyor"
+  şikâyetinin kök nedenlerinden biri, ayrıntı kök `DECISIONS.md`
+  2026-09-28). **Çözüm, planlanan `elle_kaydedildi: bool` alanı yerine
+  kök nedeni ortadan kaldırmak oldu:** otomatik/sessiz kayıt yolu
+  `_kaydet`'ten tamamen SİLİNDİ — artık hiçbir otomatik yazma yok, her
+  kayıt zaten öğretmenin elle bastığı kayıttır. Dönem değiştiğinde
+  yalnızca yeni dersin grubu yüklenir. **İkinci kök neden de kapatıldı:**
+  teneffüste (`_aktif_ders_no is None`) öğrenci kartları ve "YOKLAMAYI
+  KAYDET" düğmesi `_girisleri_ayarla` ile devre dışı bırakılır — eskiden
+  teneffüste yapılan işaretlemeler ders başında sıfırlanıp kafa
+  karışıklığına yol açıyordu, artık teneffüste hiç işaretleme yapılamaz.
 - Pencere başlığı tam olarak `"Yoklama"`; 10 dakika kuralı ve kendi kendine
   öne gelme (`_pencereyi_one_getir`) zaten `yoklama.py` içinde var, panonun
-  uzaktan başlatmasıyla çakışmaz.
+  uzaktan başlatmasıyla (`dashboard/uzaktan_baslat.py`, pgrep+wmctrl ile
+  kendi tekil-örnek kontrolünü yapar) çakışmaz — ikisi ayrı mekanizma,
+  biri tahtanın kendi süreci içinde (QLocalServer), diğeri dışarıdan SSH.
 - Sınıf seçme kutusu (`QComboBox`) yalnızca **uygulama açılışında**
   `data/roster/*.json` taranarak dolar — yeni senkronize edilen dosya,
   uygulama zaten açıksa görünmez, öğretmenin kapatıp yeniden açması gerekir.
@@ -373,11 +392,14 @@ talebiyle `--tahta fenlab` ile uygulandı, artık **8/8 tahta aynı ayarda**
 2. ~~`fenlab` güç-düğmesi açık sorusu~~ — **ÇÖZÜLDÜ (2026-09-17)**, bkz. §7 "Tam kurulum" notu.
 3. **Uzaktan Yönetim'de loglama yok, ayrı bir yönetici rolü yok** — bkz. §5
    madde 3 (bilinçli kabul edilmiş risk, ama izlenebilirlik hiç yok).
-4. **Otomatik sessiz kayıt ayrımı (Faz 7, hiç başlanmadı)** — `yoklama.py`'nin
-   dönem geçişindeki sessiz otomatik kaydı ile öğretmenin bilerek
-   kaydetmesi ayırt edilemiyor; çözüm `yoklama.py`'ye (canlı, kullanımda
-   bir dosyaya) `elle_kaydedildi: bool` alanı eklemeyi gerektiriyor — ayrı
-   bir onay/plan konusu, kasıtlı olarak ertelendi.
+4. ~~Otomatik sessiz kayıt ayrımı (Faz 7)~~ — **ÇÖZÜLDÜ (2026-09-28), farklı
+   bir yolla.** Planlanan çözüm (`elle_kaydedildi: bool` alanı ekleyip iki
+   tür kaydı ayırt etmek) yerine kök neden ortadan kaldırıldı: otomatik
+   sessiz kayıt (`_kaydet(sessiz=True)`) tamamen SİLİNDİ, artık hiçbir
+   otomatik yazma yolu yok. Aynı oturumda diğer iki kök neden de
+   kapatıldı: "çift pencere" tek örnek korumasıyla, "teneffüste
+   işaretleme" ise kartların/kaydet düğmesinin teneffüste devre dışı
+   bırakılmasıyla (bkz. §3). Bkz. `yoklama.py` modül docstring'i.
 5. **Harici Windows araçlarıyla ilişki netleşmedi** — bkz. §9.
 6. Küçük iyileştirmeler: `auth.gecerli_oturum` ölü kodu, `/admin/uzaktan`
    401→`/giris` tutarsızlığı, "Yoklama Aç"taki fazladan SSH turu (§5).

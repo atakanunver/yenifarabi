@@ -30,12 +30,31 @@ GÜNCELLEME (2026-08-19, gerçek tahta testi sonrası):
   ders", "08:40 → hâlâ 1. ders (öğrenci geç gelmiş olabilir)" gibi —
   ölçüt basitçe "şu an hangi dersin [başlangıç, bitiş) aralığındayız".
 - **Kayıt artık DERS BAZLI**: `data/kayitlar/<tarih>_<sinif>_ders<no>.json`
-  — bir günde en fazla 8 kayıt (bir tanesi her ders saati için). Dönem
-  değiştiğinde önceki dersin ekrandaki hâli KAYBOLMASIN diye otomatik
-  kaydedilir (öğretmen "Kaydet"e basmayı unutsa bile).
+  — bir günde en fazla 8 kayıt (bir tanesi her ders saati için).
 - **10 dakika kuralı**: bir ders başladıktan 10 dakika sonra hâlâ o ders
   için kayıt yoksa, pencere öne getirilir (`raise_`/`activateWindow`) —
   30 saniyede bir çalışan bir zamanlayıcıyla kontrol edilir.
+
+GÜNCELLEME (2026-09-28, "yoklama panoda görünmüyor" şikâyeti sonrası kök
+neden düzeltmesi — ayrıntı kök `DECISIONS.md` 2026-09-28):
+- **Tek örnek (single instance) koruması eklendi.** Masaüstü simgesine
+  çift dokunulup ikinci bir pencere açılması, dokunulmamış arka plan
+  penceresinin öğretmenin gerçek kaydının üzerine "herkes var" yazmasına
+  yol açan senaryolardan biriydi. Artık ikinci bir başlatma yeni pencere
+  AÇMAZ — zaten çalışan bir örneğe (varsa) `QLocalServer`/`QLocalSocket`
+  (PyQt6.QtNetwork) ile "öne getir" mesajı gönderir ve kendisi hemen çıkar
+  (bkz. `_tekil_ornek_sunucusu_baslat`).
+- **Otomatik sessiz kayıt KALDIRILDI.** Eskiden dönem değiştiğinde önceki
+  dersin ekrandaki hâli `_kaydet(sessiz=True)` ile otomatik yazılıyordu —
+  bu, teneffüste yapılan işaretlemelerin ders başlarken sıfırlanıp sonra
+  otomatik "herkes var" olarak kaydedilmesine yol açıyordu. Artık kayıt
+  YALNIZCA öğretmen "YOKLAMAYI KAYDET"e basınca yazılır; dönem değiştiğinde
+  yalnızca yeni dersin grubu yüklenir, hiçbir dosyaya otomatik yazma olmaz.
+- **Teneffüs/ders saati dışında yoklama alınamaz.** `_aktif_ders_no is
+  None` iken öğrenci kartları ve "YOKLAMAYI KAYDET" düğmesi devre dışı
+  kalır (bkz. `_girisleri_ayarla`) — bu, teneffüste yapılan işaretlemelerin
+  ders başlarken sıfırlanmasının kök nedenini kapatır. Ders başladığında
+  (dönem değişimi ile) tazeden etkinleşir.
 
 VERİ MODELİ:
 - Sınıf listesi (roster): `data/roster/<sinif>.json` — {"sinif": "9-A",
@@ -56,6 +75,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QFontMetrics
+from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -73,6 +93,9 @@ BASE_DIR = Path(__file__).resolve().parent
 ROSTER_DIR = BASE_DIR / "data" / "roster"
 KAYIT_DIR = BASE_DIR / "data" / "kayitlar"
 ZIL_DOSYASI = BASE_DIR / "data" / "zil.json"
+
+# Tek örnek koruması için sabit yerel soket adı — bkz. _tekil_ornek_sunucusu_baslat.
+TEKIL_ORNEK_SUNUCU_ADI = "tahtayoklama-yoklama"
 
 DURUM_SIRASI = ["var", "yok", "izinli"]
 DURUM_RENK = {
@@ -212,6 +235,51 @@ def _ad_sarmala(ad: str, kart_genislik: int, font_pt: int) -> str:
     return "\n".join(satirlar)
 
 
+def _tekil_ornek_sunucusu_baslat(adi: str = TEKIL_ORNEK_SUNUCU_ADI) -> tuple[QLocalServer | None, bool]:
+    """Tek örnek (single instance) koruması — masaüstü simgesine çift
+    dokunulup ikinci bir pencere açılması, dokunulmamış arka plan
+    penceresinin öğretmenin gerçek kaydının üzerine yazmasına yol açıyordu
+    (bkz. modül docstring'i, 2026-09-28). `(sunucu, cikilmali)` döner:
+
+    - `cikilmali=True`: bu ikinci bir örnek — zaten çalışan bir örneğe
+      "öne getir" mesajı gönderildi (ya da gönderilmeye çalışıldı).
+      Çağıran hemen `sys.exit`/`return` etmeli, PENCERE AÇMAMALI.
+    - `cikilmali=False, sunucu is not None`: bu ilk örnek, `sunucu` artık
+      dinlemede — çağıran bu referansı YoklamaPenceresi'ne (ya da en azından
+      `app.exec()` süresince canlı bir yere) vermeli, aksi halde
+      çöp toplayıcı soketi kapatır.
+    - `cikilmali=False, sunucu is None`: soket hiçbir şekilde kurulamadı
+      (beklenmeyen ortam/izin sorunu) — tek-örnek koruması YOK, ama
+      pencere normal açılır (Kural 2, "Farabi asla dersi bozmaz": eksik
+      koruma, hiç açılmayan yoklama penceresinden daha az kötü).
+
+    Sıra kasıtlı: ÖNCE `listen()` denenir. Başarısız olursa ÖNCE `connect`
+    ile gerçekten canlı bir örnek olup olmadığı doğrulanır, `removeServer`
+    yalnızca bağlantı da başarısız olursa (soket kalıntısı/çökmüş önceki
+    örnek) çağrılır — tersi sıra (önce removeServer) çift dokunuşta bir
+    yarış durumu yaratıp iki pencerenin de açılmasına yol açabilirdi."""
+    sunucu = QLocalServer()
+    if sunucu.listen(adi):
+        return sunucu, False
+
+    soket = QLocalSocket()
+    soket.connectToServer(adi)
+    if soket.waitForConnected(200):
+        soket.write(b"one_getir\n")
+        soket.waitForBytesWritten(200)
+        soket.disconnectFromServer()
+        soket.waitForDisconnected(200)
+        return None, True
+
+    # Bağlanılamadı: önceki örnek çökmüş, soket dosyası kalıntı — temizleyip
+    # yeniden dinlemeyi dene.
+    QLocalServer.removeServer(adi)
+    sunucu = QLocalServer()
+    if sunucu.listen(adi):
+        return sunucu, False
+    return None, False
+
+
 class OgrenciKarti(QPushButton):
     """Bir öğrencinin dokunmatik yoklama kartı — üç hâl arasında döner."""
 
@@ -250,15 +318,19 @@ class OgrenciKarti(QPushButton):
         dolgu = 4 if self.height() < MAKS_KART_YUKSEKLIK else 10
         ad_gosterim = _ad_sarmala(self.ad_soyad, self.width(), font_pt)
         self.setText(f"{self.no}. {ad_gosterim}\n[ {DURUM_ETIKET[self.durum]} ]")
+        # QPushButton:disabled seçicisi — teneffüste kartlar devre dışıyken
+        # (bkz. YoklamaPenceresi._girisleri_ayarla) görünüşte de farklı
+        # olsun, aksi halde devre dışı kart etkin karttan ayırt edilemezdi.
         self.setStyleSheet(
-            f"font-size: {font_pt}pt; font-weight: bold; color: white; "
+            f"QPushButton {{ font-size: {font_pt}pt; font-weight: bold; color: white; "
             f"background-color: {DURUM_RENK[self.durum]}; "
-            f"border-radius: 12px; padding: {dolgu}px;"
+            f"border-radius: 12px; padding: {dolgu}px; }}"
+            f"QPushButton:disabled {{ background-color: #95a5a6; color: #ecf0f1; }}"
         )
 
 
 class YoklamaPenceresi(QWidget):
-    def __init__(self):
+    def __init__(self, tekil_ornek_sunucusu: QLocalServer | None = None):
         super().__init__()
         self.setWindowTitle("Yoklama")
         self._kartlar: list[OgrenciKarti] = []
@@ -268,9 +340,26 @@ class YoklamaPenceresi(QWidget):
         self._sinif_degisti()
         self.showFullScreen()
 
+        # Tek örnek koruması — bkz. _tekil_ornek_sunucusu_baslat. Referans
+        # burada tutulmazsa Python çöp toplayıcısı sunucuyu kapatabilir.
+        self._tekil_ornek_sunucusu = tekil_ornek_sunucusu
+        if self._tekil_ornek_sunucusu is not None:
+            self._tekil_ornek_sunucusu.newConnection.connect(self._tekil_ornek_bagli_geldi)
+
         self._zamanlayici = QTimer(self)
         self._zamanlayici.timeout.connect(self._periyodik_kontrol)
         self._zamanlayici.start(KONTROL_ARALIGI_MS)
+
+    def _tekil_ornek_bagli_geldi(self) -> None:
+        """İkinci bir örnek başlatılmaya çalışıldığında (bkz.
+        _tekil_ornek_sunucusu_baslat) çağrılır — mesajın İÇERİĞİ önemli
+        değil, bağlantının kendisi zaten "öne getir" sinyalidir."""
+        if self._tekil_ornek_sunucusu is None:
+            return
+        soket = self._tekil_ornek_sunucusu.nextPendingConnection()
+        if soket is not None:
+            soket.disconnected.connect(soket.deleteLater)
+        self._pencereyi_one_getir()
 
     def _kur_arayuz(self) -> None:
         ana = QVBoxLayout(self)
@@ -311,14 +400,15 @@ class YoklamaPenceresi(QWidget):
         self._kaydirma.setWidget(icerik)
         ana.addWidget(self._kaydirma, stretch=1)
 
-        kaydet = QPushButton("YOKLAMAYI KAYDET")
-        kaydet.setMinimumHeight(70)
-        kaydet.setStyleSheet(
-            "font-size: 17pt; font-weight: bold; color: white; "
-            "background-color: #2980b9; border-radius: 12px;"
+        self.kaydet_dugmesi = QPushButton("YOKLAMAYI KAYDET")
+        self.kaydet_dugmesi.setMinimumHeight(70)
+        self.kaydet_dugmesi.setStyleSheet(
+            "QPushButton { font-size: 17pt; font-weight: bold; color: white; "
+            "background-color: #2980b9; border-radius: 12px; }"
+            "QPushButton:disabled { background-color: #95a5a6; color: #ecf0f1; }"
         )
-        kaydet.clicked.connect(self._kaydet)
-        ana.addWidget(kaydet)
+        self.kaydet_dugmesi.clicked.connect(self._kaydet)
+        ana.addWidget(self.kaydet_dugmesi)
 
     # ------------------------------------------------------------------
     # Dönem/ders takibi
@@ -329,10 +419,11 @@ class YoklamaPenceresi(QWidget):
         yeni_ders_no = _simdiki_ders(self._zil, simdi)
 
         if yeni_ders_no != self._aktif_ders_no:
-            # Dönem değişti — eski dersin ekrandaki hâli kaybolmasın diye
-            # önce otomatik kaydet, sonra yeni dersi yükle.
-            if self._aktif_ders_no is not None:
-                self._kaydet(sessiz=True)
+            # Dönem değişti — YALNIZCA yeni dersin grubu yüklenir. Eskiden
+            # burada önceki dersin hâli otomatik kaydediliyordu
+            # (_kaydet(sessiz=True)); bu KASITLI OLARAK kaldırıldı (bkz.
+            # modül docstring'i, 2026-09-28) — kayıt yalnızca öğretmen
+            # "YOKLAMAYI KAYDET"e basınca yazılır.
             self._aktif_ders_no = yeni_ders_no
             self._ders_grubunu_yukle()
 
@@ -385,6 +476,7 @@ class YoklamaPenceresi(QWidget):
                 f"'{ROSTER_DIR}' altında sınıf listesi bulunamadı — "
                 f"önce pdf_disari_aktar.py ile bir roster oluşturun."
             )
+            self._girisleri_ayarla()
             return
 
         onceki_durumlar: dict[str, str] = {}
@@ -409,7 +501,21 @@ class YoklamaPenceresi(QWidget):
             kart.clicked.connect(self._ozeti_guncelle)
             self._kartlar.append(kart)
             self.izgara.addWidget(kart, idx // sutun, idx % sutun)
+        self._girisleri_ayarla()
         self._ozeti_guncelle()
+
+    def _girisleri_ayarla(self) -> None:
+        """Teneffüste/ders saati dışında (`_aktif_ders_no is None`) öğrenci
+        kartları ve "YOKLAMAYI KAYDET" düğmesi tıklanamaz olur — aksi
+        halde öğretmen teneffüste yaptığı işaretlemeler ders başlayınca
+        sıfırlanıp kafa karışıklığına yol açıyordu (bkz. modül docstring'i,
+        2026-09-28). `_ders_grubunu_yukle` her çağrıldığında (açılış, sınıf
+        değişimi, dönem geçişi) burası da çağrılır, bu yüzden ayrıca bir
+        zamanlayıcı gerekmez."""
+        aktif = self._aktif_ders_no is not None
+        for kart in self._kartlar:
+            kart.setEnabled(aktif)
+        self.kaydet_dugmesi.setEnabled(aktif)
 
     def _izgarayi_yeniden_diz(self) -> None:
         """Kartları yeniden OLUŞTURMADAN (durumları koruyarak) pencere
@@ -432,6 +538,12 @@ class YoklamaPenceresi(QWidget):
         QTimer.singleShot(50, self._izgarayi_yeniden_diz)
 
     def _ozeti_guncelle(self) -> None:
+        if self._aktif_ders_no is None:
+            self.ozet_etiketi.setText(
+                '<span style="color:#000;">Teneffüs / ders saati dışı — '
+                "yoklama ders başlayınca alınır.</span>"
+            )
+            return
         toplam = len(self._kartlar)
         var = sum(1 for k in self._kartlar if k.durum == "var")
         yok = sum(1 for k in self._kartlar if k.durum == "yok")
@@ -453,14 +565,17 @@ class YoklamaPenceresi(QWidget):
             self.showFullScreen()
             self.tam_ekran_dugmesi.setText("⛶ Pencereye Dön")
 
-    def _kaydet(self, sessiz: bool = False) -> None:
+    def _kaydet(self) -> None:
+        """Yoklamayı diske yazar — YALNIZCA bu metot çağrıldığında (yani
+        öğretmen "YOKLAMAYI KAYDET"e bastığında) dosya yazılır/üzerine
+        yazılır; otomatik/sessiz bir çağıran YOKTUR (bkz. modül docstring'i,
+        2026-09-28)."""
         sinif = self.sinif_secici.currentText()
         if not sinif or not self._kartlar or self._aktif_ders_no is None:
-            if not sessiz:
-                QMessageBox.warning(
-                    self, "Kaydedilemedi",
-                    "Şu an ders saati dışındayız, hangi ders için kaydedileceği belli değil."
-                )
+            QMessageBox.warning(
+                self, "Kaydedilemedi",
+                "Şu an ders saati dışındayız, hangi ders için kaydedileceği belli değil."
+            )
             return
         KAYIT_DIR.mkdir(parents=True, exist_ok=True)
         tarih = datetime.now().strftime("%Y-%m-%d")
@@ -473,13 +588,19 @@ class YoklamaPenceresi(QWidget):
         }
         yol = _kayit_yolu(sinif, self._aktif_ders_no, tarih)
         yol.write_text(json.dumps(kayit, ensure_ascii=False, indent=2), encoding="utf-8")
-        if not sessiz:
-            QMessageBox.information(self, "Kaydedildi", f"Yoklama kaydedildi:\n{yol.name}")
+        QMessageBox.information(self, "Kaydedildi", f"Yoklama kaydedildi:\n{yol.name}")
 
 
 def main() -> int:
     app = QApplication(sys.argv)
-    pencere = YoklamaPenceresi()
+
+    # Tek örnek koruması — ikinci bir başlatma (masaüstü simgesine çift
+    # dokunuş) yeni bir pencere AÇMAZ, ilk örneği öne getirtip kendisi çıkar.
+    sunucu, cikilmali = _tekil_ornek_sunucusu_baslat()
+    if cikilmali:
+        return 0
+
+    pencere = YoklamaPenceresi(tekil_ornek_sunucusu=sunucu)
     pencere.show()
     return app.exec()
 

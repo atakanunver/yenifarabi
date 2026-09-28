@@ -377,6 +377,20 @@ thead th .saat { display: block; font-weight: 500; color: var(--renk-metin-cok-s
 .pill-alinmadi { background: var(--renk-amber-zemin); color: var(--renk-amber); }
 .pill-ulasilamaz { background: var(--renk-gri-zemin); color: var(--renk-gri); }
 .pill-atanmamis { background: var(--renk-gri-zemin); color: var(--renk-metin-cok-soluk); font-style: italic; font-weight: 500; }
+/* İzinli öğrenciler — nötr/bilgi anlamı için aynı gri çift (--renk-gri/
+   --renk-gri-zemin) kullanılır (bkz. tasarım standartları "semantik durum
+   renkleri: nötr/bilgi gri"), ama pill-ulasilamaz'la karışmasın diye ince
+   bir iç çerçeve (mevcut --renk-gri'den, yeni renk YOK) eklendi. */
+.pill-izinli {
+  background: var(--renk-gri-zemin);
+  color: var(--renk-gri);
+  white-space: normal;
+  box-shadow: inset 0 0 0 1px var(--renk-gri);
+}
+/* Bir hücrede yok + izinli rozeti yan yana/alt alta gelebilir (bkz.
+   pano.html hucreDoldur) — aralarında nefes payı. */
+.hucre .pill + .pill { margin-left: 0.35rem; }
+.hucre .pill { margin-bottom: 0.25rem; }
 
 .durum-yukleniyor .pill { background: var(--renk-yuzey-2); color: var(--renk-metin-cok-soluk); }
 @keyframes nabiz { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
