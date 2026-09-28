@@ -12,10 +12,10 @@ alt proje bulunuyor.
 |---|---|
 | [`server/`](server) | Farabi'nin "beyni" — FastAPI: RAG (ders kitabı soru-cevap, pgvector + rerank + LLM), PDF/sayfa içeriği, YKS soru bankası, bulut LLM proxy'si, dosya işleme. `farabi-api.service` olarak çalışır. |
 | [`client/`](client) | Akıllı tahtalarda çalışan PyQt6 arayüzü — Gemini Live sesli oturumu, ders akışı, ekran görüntüsü/soru okuma. GitHub'dan doğrudan (sparse-checkout ile) çekilip tahtalara dağıtılır. |
-| [`tahtayoklama/`](tahtayoklama) | Öğrenci yoklama sistemi — tahta tarafı + `dashboard/` (öğretmen/idare paneli, uzaktan tahta yönetimi, sistem durumu). Farabi'den bağımsız, ayrı bir systemd servisi. |
-| [`smssistemi/`](smssistemi) | Okul idaresinin velilere toplu/kişiselleştirilmiş SMS göndermesi için web uygulaması — Huawei HiLink modem üzerinden, Ollama destekli mesaj düzeltme. |
+| [`tahtayoklama/`](tahtayoklama) | Öğrenci yoklama sistemi — tahta tarafı + `dashboard/` (öğretmen/idare paneli, canlı uzaktan tahta yönetimi, anlık ekran görüntüsü/thumbnail balon pencere, sistem durumu). Farabi'den bağımsız, ayrı bir systemd servisi. |
+| [`smssistemi/`](smssistemi) | Okul idaresinin veli/öğrenci/personele toplu/kişiselleştirilmiş SMS göndermesi ve otomatik doğum günü tebrikleri için web uygulaması — Huawei HiLink modem ve Ollama destekli. |
 | [`tahtaayar/`](tahtaayar) | Akıllı tahtaların işletim sistemi/oturum ayarlarını (güç, uyku, ekran karartma) referans duruma getiren ajansız script'ler. |
-| [`mudur/`](mudur) | Müdür yardımcısının kullandığı araçlar (ör. ders programı kaynağı). |
+| [`mudur/`](mudur) | Müdür yardımcısının kullandığı araçlar (ders programı kaynağı, sınıf Excel/PDF listeleri). |
 | [`benchmark/`](benchmark) | RAG retrieval/eşik/katman ölçüm harness'ları — üretim koduna karşı veya bağımsız çalışır. |
 | [`docs/`](docs) | Tasarım kararları ve uygulama planları. |
 
