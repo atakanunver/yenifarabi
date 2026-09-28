@@ -72,8 +72,12 @@ async def _polling_dongusu() -> None:
 async def lifespan(app: FastAPI):
     db.semayi_kur()
     gorev = asyncio.create_task(_polling_dongusu())
+    # Sistem Durumu ölçümleri tek arka plan görevinde toplanır; /api/sistem-durumu
+    # önbellekten okur (bkz. sistem_durumu.py docstring'i).
+    durum_gorevi = asyncio.create_task(sistem_durumu.toplayici_dongusu())
     yield
     gorev.cancel()
+    durum_gorevi.cancel()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -185,14 +189,16 @@ async def api_durum(request: Request, tarih: str | None = None):
 
 
 @app.get("/api/sistem-durumu")
-async def api_sistem_durumu(request: Request):
+async def api_sistem_durumu(request: Request, trend: int = 0):
+    """Salt okunur. `?trend=1` son 30 dk'lık ring buffer'ı da ekler (yalnızca
+    Sistem Durumu sayfası ister; kenar.js'in 30 sn'lik rozet çağrısı hafif kalır)."""
     conn = db.baglanti()
     try:
         if not _oturum_gerekli(request, conn):
             raise HTTPException(401, "Oturum geçersiz.")
     finally:
         conn.close()
-    return JSONResponse(await sistem_durumu.durum_topla())
+    return JSONResponse(await sistem_durumu.durum_topla(trend=bool(trend)))
 
 
 @app.get("/sistem-durumu", response_class=HTMLResponse)
@@ -207,18 +213,36 @@ async def sistem_durumu_sayfa(request: Request):
     return templates.TemplateResponse(request, "sistem_durumu.html", {})
 
 
-@app.get("/dogum", response_class=HTMLResponse)
+@app.get("/dogum")
 async def dogum_sayfa(request: Request):
-    """Yer tutucu — asıl modül (ekle/düzenle/sil + otomatik SMS) ayrı bir
-    plan/onay sonrası gelecek, bkz. docs/superpowers/plans/."""
+    """smssistemi'nin /dogum-gunleri sayfasına kısa ömürlü imzalı token'la yönlendirir."""
     conn = db.baglanti()
     try:
-        token = request.cookies.get(auth.COOKIE_ADI)
-        if not auth.oturum_gecerli_mi(conn, token):
+        if not auth.dogrula(request, conn):
             return RedirectResponse("/giris", status_code=303)
     finally:
         conn.close()
-    return templates.TemplateResponse(request, "dogum.html", {})
+    zaman, imza = auth.sms_sso_token()
+    return RedirectResponse(
+        f"http://farabi.local:8020/sso?t={zaman}&s={imza}&hedef=/dogum-gunleri",
+        status_code=303,
+    )
+
+
+@app.get("/otomasyon-git")
+async def otomasyon_git(request: Request):
+    """smssistemi'nin /otomasyon sayfasına kısa ömürlü imzalı token'la yönlendirir."""
+    conn = db.baglanti()
+    try:
+        if not auth.dogrula(request, conn):
+            return RedirectResponse("/giris", status_code=303)
+    finally:
+        conn.close()
+    zaman, imza = auth.sms_sso_token()
+    return RedirectResponse(
+        f"http://farabi.local:8020/sso?t={zaman}&s={imza}&hedef=/otomasyon",
+        status_code=303,
+    )
 
 
 @app.post("/api/tahta/{tahta_id}/baslat")

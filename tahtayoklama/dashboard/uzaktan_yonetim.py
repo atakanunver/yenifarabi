@@ -11,13 +11,18 @@ aracındaki etapadmin+sudo katmanına burada ihtiyaç yok.
 """
 
 import asyncio
+import base64
+from datetime import datetime
+import io
 import shlex
 import time
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
+from PIL import Image
 
 import auth
 import db
@@ -25,6 +30,8 @@ import ssh_istemci
 import tahta_kaydi
 import uzaktan_baslat
 import zil
+
+_ISTANBUL = ZoneInfo("Europe/Istanbul")
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
@@ -296,3 +303,144 @@ async def duvar_kagidi_route(request: Request):
         sonuclar = [{"tahta": None, "basarili": False, "detay": "Hiçbir tahta seçilmedi."}]
     durumlar = await tum_durumlar()
     return templates.TemplateResponse(request, "uzaktan_yonetim.html", {"tahtalar": durumlar, "sonuclar": sonuclar})
+
+
+# --------------------------------------------------------------------
+# Ekran Görüntüsü (Screenshot) ve Önizleme
+# --------------------------------------------------------------------
+
+def _gorsel_optimize_et(baytlar: bytes, maks_genislik: int = 1280, kalite: int = 75) -> tuple[bytes, str, int | None, int | None]:
+    """Gelen ekran görüntüsünü Pillow ile optimize eder (maksimum genişliğe ölçekler ve JPEG yapar)."""
+    try:
+        with Image.open(io.BytesIO(baytlar)) as img:
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            w, h = img.size
+            if w > maks_genislik:
+                yeni_h = int(h * (maks_genislik / w))
+                img = img.resize((maks_genislik, yeni_h), Image.Resampling.LANCZOS)
+                w, h = img.size
+            cikti = io.BytesIO()
+            img.save(cikti, format="JPEG", quality=kalite, optimize=True)
+            return cikti.getvalue(), "image/jpeg", w, h
+    except Exception:
+        mime = "image/png" if baytlar.startswith(b"\x89PNG") else "image/jpeg"
+        return baytlar, mime, None, None
+
+
+async def _ekran_goruntusu_al(t: dict) -> tuple[bool, bytes, str, int | None, int | None]:
+    """Tahtadan X11 masaüstü ekran görüntüsü alır.
+    Önce DISPLAY=:0 ile import/gnome-screenshot komutunu dener;
+    olmazsa derin X ortamı keşfi ile dener."""
+    user = t["kullanici"]
+    ip = t["ip"]
+
+    # 1. Hızlı yol (standart Pardus X11 ortamı - ~0.5sn)
+    komut = (
+        "export DISPLAY=:0; "
+        f"if [ -f /home/{user}/.Xauthority ]; then export XAUTHORITY=/home/{user}/.Xauthority; fi; "
+        "if command -v import >/dev/null 2>&1; then "
+        "  import -window root -resize 1280x -quality 70 jpg:- 2>/dev/null; "
+        "elif command -v gnome-screenshot >/dev/null 2>&1; then "
+        "  gnome-screenshot --file=/tmp/tahta_ss.png >/dev/null 2>&1 && cat /tmp/tahta_ss.png && rm -f /tmp/tahta_ss.png; "
+        "fi"
+    )
+    sonuc = await ssh_istemci.komut_calistir(ip, user, komut, zaman_asimi=8)
+    if sonuc.basarili and len(sonuc.stdout) > 1000:
+        opt_bayt, mime, w, h = _gorsel_optimize_et(sonuc.stdout)
+        return True, opt_bayt, "", w, h
+
+    # 2. X ortamını derin keşfetme ile yedek deneme
+    ortam = await ssh_istemci.x_ortamini_kesfet(ip, user)
+    if ortam is None:
+        return False, b"", "Tahtaya ulaşılamıyor veya aktif masaüstü oturumu (X11) bulunamadı.", None, None
+
+    display, xauth, _uid = ortam
+    yedek_komut = (
+        f"env DISPLAY={display} XAUTHORITY={xauth} bash -c '"
+        "if command -v import >/dev/null 2>&1; then "
+        "  import -window root -resize 1280x -quality 70 jpg:- 2>/dev/null; "
+        "elif command -v gnome-screenshot >/dev/null 2>&1; then "
+        "  gnome-screenshot --file=/tmp/tahta_ss.png >/dev/null 2>&1 && cat /tmp/tahta_ss.png && rm -f /tmp/tahta_ss.png; "
+        "fi'"
+    )
+    sonuc2 = await ssh_istemci.komut_calistir(ip, user, yedek_komut, zaman_asimi=10)
+    if sonuc2.basarili and len(sonuc2.stdout) > 1000:
+        opt_bayt, mime, w, h = _gorsel_optimize_et(sonuc2.stdout)
+        return True, opt_bayt, "", w, h
+
+    hata = sonuc.stderr.decode("utf-8", errors="replace").strip() or "Ekran görüntüsü alınamadı (tahta kilitli veya kapalı olabilir)."
+    return False, b"", hata, None, None
+
+
+@router.get("/uzaktan/ekran-goruntusu/{tahta_adi}")
+async def ekran_goruntusu_route(request: Request, tahta_adi: str, ham: int = 0):
+    _dogrula(request)
+    tahtalar = tahta_kaydi.tahtalari_yukle()
+    tahta = next((t for t in tahtalar if t["ad"] == tahta_adi), None)
+    if not tahta:
+        raise HTTPException(404, f"Tahta bulunamadı: {tahta_adi}")
+
+    basarili, gorsel_bayt, hata, w, h = await _ekran_goruntusu_al(tahta)
+    if not basarili:
+        if ham:
+            html_hata = f"""<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>{tahta_adi} — Ekran Görüntüsü Alınamadı</title>
+  <style>
+    body {{ font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }}
+    .kutu {{ background: #1e293b; padding: 2.2rem 2.5rem; border-radius: 14px; border: 1px solid #334155; text-align: center; max-width: 480px; box-shadow: 0 15px 35px rgba(0,0,0,0.35); }}
+    h2 {{ margin: 0 0 0.8rem; color: #ef4444; font-size: 1.3rem; font-weight: 700; }}
+    p {{ color: #94a3b8; font-size: 0.95rem; line-height: 1.5; margin: 0.5rem 0 1.8rem; }}
+    .butonlar {{ display: flex; gap: 0.75rem; justify-content: center; }}
+    .btn {{ display: inline-flex; align-items: center; justify-content: center; padding: 0.6rem 1.3rem; background: #2563eb; color: white; border-radius: 8px; font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer; text-decoration: none; }}
+    .btn-ikincil {{ background: #334155; color: #e2e8f0; }}
+    .btn:hover {{ opacity: 0.9; }}
+  </style>
+</head>
+<body>
+  <div class="kutu">
+    <h2>⚠️ {tahta_adi} Ekran Görüntüsü Alınamadı</h2>
+    <p>{hata}</p>
+    <div class="butonlar">
+      <button class="btn" onclick="location.reload()">⟳ Tekrar Dene</button>
+      <button class="btn btn-ikincil" onclick="window.close()">Pencereyi Kapat</button>
+    </div>
+  </div>
+</body>
+</html>"""
+            return HTMLResponse(content=html_hata, status_code=502)
+
+        return JSONResponse(
+            {
+                "basarili": False,
+                "tahta": tahta_adi,
+                "ip": tahta["ip"],
+                "hata": hata,
+            },
+            status_code=502 if ("ulaşıl" in hata.lower() or "kapalı" in hata.lower()) else 500,
+        )
+
+    if ham:
+        headers = {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        }
+        return Response(content=gorsel_bayt, media_type="image/jpeg", headers=headers)
+
+    gorsel_b64 = "data:image/jpeg;base64," + base64.b64encode(gorsel_bayt).decode("ascii")
+    simdi = datetime.now(_ISTANBUL).strftime("%H:%M:%S")
+
+    return JSONResponse({
+        "basarili": True,
+        "tahta": tahta_adi,
+        "ip": tahta["ip"],
+        "zaman": simdi,
+        "gorsel": gorsel_b64,
+        "genislik": w,
+        "yukseklik": h,
+        "boyut_kb": round(len(gorsel_bayt) / 1024, 1),
+    })
