@@ -42,8 +42,9 @@
   </table>
 </div>
 
-<h2>Tarih/sınıf/ders detayı</h2>
+<h2 id="detay">Tarih/sınıf/ders detayı</h2>
 <p class="rapor-aciklama">
+  Toplam {{ toplam_kayit }} kayıt · sayfa {{ sayfa }} / {{ toplam_sayfa }}.
   <a href="/admin/rapor/csv?tip=detay{{ csv_kuyruk }}"><svg class="ikon ikon-kucuk"><use href="#ik-indir"/></svg> CSV indir</a>
 </p>
 <div class="tablo-sarici">
@@ -66,4 +67,19 @@
     </tbody>
   </table>
 </div>
+{% if toplam_sayfa > 1 %}
+<div class="sayfa-gezinme">
+  {% if sayfa > 1 %}
+  <a href="/admin/rapor{{ csv_kuyruk }}&sayfa={{ sayfa - 1 }}#detay">← Önceki</a>
+  {% else %}
+  <span class="sayfa-gezinme-pasif" aria-disabled="true">← Önceki</span>
+  {% endif %}
+  <span class="sayfa-gezinme-durum">{{ sayfa }} / {{ toplam_sayfa }}</span>
+  {% if sayfa < toplam_sayfa %}
+  <a href="/admin/rapor{{ csv_kuyruk }}&sayfa={{ sayfa + 1 }}#detay">Sonraki →</a>
+  {% else %}
+  <span class="sayfa-gezinme-pasif" aria-disabled="true">Sonraki →</span>
+  {% endif %}
+</div>
+{% endif %}
 {% endblock %}

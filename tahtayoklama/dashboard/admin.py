@@ -7,6 +7,7 @@ kendi SQLite DB'sini değiştirir (bkz. CLAUDE.md).
 import csv
 import io
 import json
+import math
 import re
 from datetime import date, timedelta
 
@@ -33,6 +34,7 @@ _DURUM_ETIKETI = {
     "tahta_atanmamis": "Tahta atanmadı",
 }
 _RAPOR_VARSAYILAN_GUN = 30
+_RAPOR_SAYFA_BOYUTU = 100
 
 
 def _oturum_sarti(request: Request, conn) -> None:
@@ -389,8 +391,30 @@ def _devamsizlik_sayaci(satirlar: list[dict]) -> list[dict]:
     return liste
 
 
+def _sayfala(satirlar: list, sayfa: str | None, boyut: int) -> tuple[list, int, int]:
+    """(dilim, geçerli_sayfa, toplam_sayfa). Geçersiz/eksik/aralık dışı sayfa
+    değeri en yakın geçerli sayfaya kıstırılır; boş listede (…, 1, 1)."""
+    toplam_sayfa = max(1, math.ceil(len(satirlar) / boyut)) if satirlar else 1
+    try:
+        sayfa_int = int(sayfa) if sayfa else 1
+    except ValueError:
+        sayfa_int = 1
+    if sayfa_int < 1:
+        sayfa_int = 1
+    elif sayfa_int > toplam_sayfa:
+        sayfa_int = toplam_sayfa
+    baslangic = (sayfa_int - 1) * boyut
+    return satirlar[baslangic:baslangic + boyut], sayfa_int, toplam_sayfa
+
+
 @router.get("/rapor", response_class=HTMLResponse)
-async def rapor(request: Request, baslangic: str | None = None, bitis: str | None = None, sinif_id: str | None = None):
+async def rapor(
+    request: Request,
+    baslangic: str | None = None,
+    bitis: str | None = None,
+    sinif_id: str | None = None,
+    sayfa: str | None = None,
+):
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
@@ -405,6 +429,7 @@ async def rapor(request: Request, baslangic: str | None = None, bitis: str | Non
 
         detay = _rapor_verisi(conn, b, s, sinif_ad)
         devamsizlik = _devamsizlik_sayaci(detay)
+        detay_sayfasi, sayfa_int, toplam_sayfa = _sayfala(detay, sayfa, _RAPOR_SAYFA_BOYUTU)
     finally:
         conn.close()
 
@@ -412,7 +437,8 @@ async def rapor(request: Request, baslangic: str | None = None, bitis: str | Non
         request, "admin_rapor.html",
         {
             "baslangic": b, "bitis": s, "siniflar": siniflar, "sinif_id": sinif_id_int,
-            "detay": detay, "devamsizlik": devamsizlik,
+            "detay": detay_sayfasi, "devamsizlik": devamsizlik,
+            "sayfa": sayfa_int, "toplam_sayfa": toplam_sayfa, "toplam_kayit": len(detay),
         },
     )
 

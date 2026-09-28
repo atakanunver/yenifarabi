@@ -363,6 +363,7 @@ document.getElementById('trend-izgara').addEventListener('pointerleave', () => {
 });
 
 async function durumGuncelle() {
+  if (document.hidden) return;
   let veri;
   try {
     const yanit = await fetch('/api/sistem-durumu?trend=1');
@@ -430,5 +431,6 @@ async function durumGuncelle() {
 
 durumGuncelle();
 setInterval(durumGuncelle, 15000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) durumGuncelle(); });
 </script>
 {% endblock %}

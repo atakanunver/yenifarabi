@@ -550,6 +550,33 @@ thead th .saat { display: block; font-weight: 500; color: var(--renk-metin-cok-s
 .rapor-aciklama { color: var(--renk-metin-soluk); font-size: 0.86rem; }
 .rapor-aciklama a { color: var(--renk-birincil-koyu); font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; }
 .rapor-aciklama a:hover { text-decoration: underline; }
+
+/* ---------- Rapor: sayfa gezinme ---------- */
+.sayfa-gezinme {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 0.9rem;
+  padding: 0.7rem;
+  background: var(--renk-yuzey);
+  border: 1px solid var(--renk-kenar);
+  border-radius: var(--yaricap);
+}
+.sayfa-gezinme a {
+  color: var(--renk-birincil-koyu);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.sayfa-gezinme a:hover { text-decoration: underline; }
+.sayfa-gezinme-pasif {
+  color: var(--renk-metin-cok-soluk);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.sayfa-gezinme-durum { color: var(--renk-metin-soluk); font-size: 0.85rem; font-weight: 600; }
 .yeni-form button {
   padding: 0.55rem 1.2rem;
   border: none;

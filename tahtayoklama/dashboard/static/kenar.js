@@ -28,6 +28,7 @@
   if (!SICAKLIK_ALANI) return; // giriş sayfası gibi sidebar'sız sayfalarda yok
 
   function miniDurumGuncelle() {
+    if (document.hidden) return;
     fetch('/api/sistem-durumu').then(function (r) {
       if (!r.ok) throw new Error('durum alınamadı');
       return r.json();
@@ -45,4 +46,7 @@
   }
   miniDurumGuncelle();
   setInterval(miniDurumGuncelle, 30000);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) miniDurumGuncelle();
+  });
 })();
