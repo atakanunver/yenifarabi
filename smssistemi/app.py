@@ -5,6 +5,8 @@ dizininden, kendi venv'i içinde). tahtayoklama/dashboard'dan BAĞIMSIZ —
 bkz. docs/superpowers/specs/2026-09-19-smssistemi-design.md.
 """
 
+import asyncio
+from contextlib import asynccontextmanager
 import json
 import threading
 import urllib.request
@@ -17,10 +19,23 @@ from fastapi.templating import Jinja2Templates
 
 import auth
 import db
+import dogum_mantik
 import gonderim
+import otomasyon
 import sms_gonderici
+import yoklama_kaynak
+import yoklama_mantik
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db.semayi_kur()
+    gorev = asyncio.create_task(otomasyon.otomasyon_arkaplan_dongusu())
+    yield
+    gorev.cancel()
+
+
+app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
@@ -71,9 +86,6 @@ def ollama_mesaj_duzelt(taslak: str) -> str:
         return duzeltilmis
 
 
-@app.on_event("startup")
-def _baslangic() -> None:
-    db.semayi_kur()
 
 
 def _oturum_sarti(request: Request, conn) -> None:
@@ -112,8 +124,8 @@ async def giris_gonder(request: Request, sifre: str = Form(...)):
 
 
 @app.get("/sso")
-async def sso_giris(request: Request, t: str, s: str):
-    """Dashboard'daki /sms-git'ten gelen kısa ömürlü imzalı token'la
+async def sso_giris(request: Request, t: str, s: str, hedef: str = "/"):
+    """Dashboard'daki /sms-git'ten veya /dogum'dan gelen kısa ömürlü imzalı token'la
     giriş — kullanıcı dashboard'da zaten kimlik doğrulamışsa smssistemi
     şifresini tekrar girmez."""
     if not auth.sso_dogrula(t, s):
@@ -123,7 +135,8 @@ async def sso_giris(request: Request, t: str, s: str):
         token = auth.oturum_olustur(conn)
     finally:
         conn.close()
-    yanit = RedirectResponse("/", status_code=303)
+    guvenli_hedef = hedef if (hedef.startswith("/") and not hedef.startswith("//")) else "/"
+    yanit = RedirectResponse(guvenli_hedef, status_code=303)
     yanit.set_cookie(auth.COOKIE_ADI, token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 30)
     return yanit
 
@@ -240,7 +253,8 @@ async def api_mesaj_duzelt(request: Request):
         return JSONResponse({"hata": "Düzeltilecek taslak mesaj boş olamaz."}, status_code=400)
 
     try:
-        duzeltilmis = ollama_mesaj_duzelt(taslak)
+        # urllib senkron (30 sn'ye kadar) — thread'e alınmazsa tüm 8020 donar.
+        duzeltilmis = await asyncio.to_thread(ollama_mesaj_duzelt, taslak)
         return JSONResponse({"duzeltilmis": duzeltilmis})
     except Exception as e:
         return JSONResponse({"hata": f"Yapay zeka servisi yanıt vermedi: {e}"}, status_code=502)
@@ -524,8 +538,301 @@ async def rehber_telefonlar(request: Request, sinif_id: int | None = None, tur: 
                     "tur": k["tur"],
                     "ogrenci_kisi_id": k["ogrenci_kisi_id"],
                     "ogrenci_ad": k["ogrenci_ad"],
+                    "okul_no": k.get("okul_no"),
+                    "veli_rol": k.get("veli_rol"),
                 }
                 for k in kisiler
             ]
         }
     )
+
+
+# --- Yoklama SMS Modülü ------------------------------------------------------
+# Gönderim İÇİN YENİ BİR YOL YOK: sayfa, alıcı veli id'lerini mevcut
+# `POST /gonder`'e post eder. Böylece `/durum/{id}`, `/kayitlar`, `/durdur` ve
+# `/tekrar-gonder` bedavaya gelir ve riskli gönderim yolunda tek satır yeni kod
+# çalışmaz (plan 2026-09-23, kullanıcı kararı: "önce liste + onay").
+
+
+@app.get("/yoklama-sms", response_class=HTMLResponse)
+async def yoklama_sms(
+    request: Request,
+    tarih: str | None = None,
+    esik: int | None = None,
+    mesaj: str | None = None,
+):
+    conn = db.baglanti()
+    try:
+        yonlendirme = _oturum_yoksa_giris(request, conn)
+        if yonlendirme is not None:
+            return yonlendirme
+        hata = None
+        ozet = None
+        try:
+            ozet = yoklama_mantik.devamsiz_ozet(
+                conn,
+                tarih=tarih,
+                esik=esik if esik is not None else yoklama_mantik.ESIK_VARSAYILAN,
+            )
+        except yoklama_kaynak.YoklamaKaynakYok as exc:
+            # Pano DB'si okunamıyorsa sayfa 500 vermez — Farabi'nin "servis
+            # çökse de iş durmaz" ilkesinin buradaki karşılığı.
+            hata = str(exc)
+    finally:
+        conn.close()
+
+    return templates.TemplateResponse(
+        request,
+        "yoklama_sms.html",
+        {
+            "ozet": ozet,
+            "hata": hata,
+            "mesaj": mesaj,
+            "sablon_varsayilan": yoklama_mantik.SABLON_VARSAYILAN,
+            "esik_min": yoklama_mantik.ESIK_MIN,
+            "esik_max": yoklama_mantik.ESIK_MAX,
+            "bugun": yoklama_mantik.bugun_istanbul().isoformat(),
+        },
+    )
+
+
+@app.post("/yoklama-sms/sablon")
+async def yoklama_sablon_kaydet(request: Request, yoklama_sms_sablonu: str = Form(...)):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        db.ayar_yaz(conn, yoklama_mantik.AYAR_SABLON, yoklama_sms_sablonu.strip())
+    finally:
+        conn.close()
+
+    return RedirectResponse("/yoklama-sms?mesaj=sablon_kaydedildi", status_code=303)
+
+
+# --- Otomasyon Modülü (Sabah 09:00 İlk Ders Devamsızlık SMS) -----------------
+
+
+@app.get("/otomasyon", response_class=HTMLResponse)
+async def otomasyon_sayfa(request: Request, mesaj: str | None = None):
+    conn = db.baglanti()
+    try:
+        yonlendirme = _oturum_yoksa_giris(request, conn)
+        if yonlendirme is not None:
+            return yonlendirme
+        aktif = db.ayar_oku(conn, otomasyon.AYAR_AKTIF) or "0"
+        sablon = otomasyon.sablonu_oku(conn)
+        son_sonuc = otomasyon.son_sonuc_oku(conn)
+        hata = None
+        derleme = None
+        try:
+            derleme = otomasyon.ilk_ders_devamsizlar(conn)
+        except Exception as exc:
+            hata = f"Yoklama panosu verisi okunamadı: {exc}"
+            derleme = {
+                "tarih": otomasyon.bugun_istanbul().isoformat(),
+                "dahil_siniflar": [],
+                "haric_siniflar": [],
+                "ogrenciler": [],
+                "gonderilecek_smsler": [],
+                "toplam_ogrenci": 0,
+                "toplam_veli_sms": 0,
+                "telefonsuz_sayisi": 0,
+                "eslesmeyen_sayisi": 0,
+                "izinli_sayisi": 0,
+                "ulasilabilir_ogrenci": 0,
+            }
+    finally:
+        conn.close()
+
+    return templates.TemplateResponse(
+        request,
+        "otomasyon.html",
+        {
+            "aktif": aktif,
+            "sablon": sablon,
+            "son_sonuc": son_sonuc,
+            "derleme": derleme,
+            "mesaj": mesaj,
+            "hata": hata,
+        },
+    )
+
+
+@app.post("/otomasyon/durum-degistir")
+async def otomasyon_durum_degistir(request: Request, aktif: str = Form("0")):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        yeni_deger = "1" if aktif == "1" else "0"
+        db.ayar_yaz(conn, otomasyon.AYAR_AKTIF, yeni_deger)
+    finally:
+        conn.close()
+
+    return RedirectResponse("/otomasyon?mesaj=durum_degisti", status_code=303)
+
+
+@app.post("/otomasyon/ayarlar")
+async def otomasyon_ayarlar_kaydet(request: Request, sablon: str = Form(...)):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        db.ayar_yaz(conn, otomasyon.AYAR_SABLON, sablon.strip())
+    finally:
+        conn.close()
+
+    return RedirectResponse("/otomasyon?mesaj=ayarlar_kaydedildi", status_code=303)
+
+
+@app.post("/otomasyon/calistir")
+async def otomasyon_manuel_calistir(request: Request):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+    finally:
+        conn.close()
+
+    # Gönderim dakikalarca sürebilir — event loop'u bloklamasın (bkz. otomasyon_calistir_thread).
+    sonuc = await asyncio.to_thread(
+        otomasyon.otomasyon_calistir_thread, kuru=False, tetikleyen="manuel_arayuz"
+    )
+
+    if sonuc.get("durum") == "zaten_calisti":
+        return RedirectResponse("/otomasyon?mesaj=zaten_calisti", status_code=303)
+    if sonuc.get("durum") == "calisiyor":
+        return RedirectResponse("/otomasyon?mesaj=calisiyor", status_code=303)
+    return RedirectResponse("/otomasyon?mesaj=gonderildi", status_code=303)
+
+
+@app.get("/api/otomasyon/durum")
+async def api_otomasyon_durum(request: Request):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        aktif = db.ayar_oku(conn, otomasyon.AYAR_AKTIF) or "0"
+        sablon = otomasyon.sablonu_oku(conn)
+        son_tarih = db.ayar_oku(conn, otomasyon.AYAR_SON_TARIH) or ""
+        son_sonuc = otomasyon.son_sonuc_oku(conn)
+    finally:
+        conn.close()
+
+    return JSONResponse(
+        {
+            "aktif": aktif,
+            "sablon": sablon,
+            "son_tarih": son_tarih,
+            "son_sonuc": son_sonuc,
+        }
+    )
+
+
+# --- Doğum Günleri Modülü ----------------------------------------------------
+
+
+@app.get("/dogum-gunleri", response_class=HTMLResponse)
+async def dogum_gunleri(
+    request: Request,
+    sinif_id: int | None = None,
+    tur: str | None = None,
+    durum: str | None = None,
+    mesaj: str | None = None,
+):
+    conn = db.baglanti()
+    try:
+        yonlendirme = _oturum_yoksa_giris(request, conn)
+        if yonlendirme is not None:
+            return yonlendirme
+        stats = dogum_mantik.dogum_gunu_istatistikleri(conn)
+        siniflar = db.siniflar_listele(conn)
+        kisiler = db.kisiler_listele(conn, sinif_id=sinif_id, tur=tur)
+        if durum == "tanimli":
+            kisiler = [k for k in kisiler if k.get("dogum_tarihi")]
+        elif durum == "eksik":
+            kisiler = [k for k in kisiler if not k.get("dogum_tarihi")]
+    finally:
+        conn.close()
+
+    return templates.TemplateResponse(
+        request,
+        "dogum_gunleri.html",
+        {
+            "stats": stats,
+            "siniflar": siniflar,
+            "kisiler": kisiler,
+            "secili_sinif_id": sinif_id,
+            "secili_tur": tur,
+            "secili_durum": durum,
+            "mesaj": mesaj,
+        },
+    )
+
+
+@app.get("/dogum-gunleri/ice-aktar", response_class=HTMLResponse)
+async def dogum_ice_aktar_sayfa(request: Request):
+    conn = db.baglanti()
+    try:
+        yonlendirme = _oturum_yoksa_giris(request, conn)
+        if yonlendirme is not None:
+            return yonlendirme
+        analiz = dogum_mantik.excel_analiz_et(conn=conn)
+    finally:
+        conn.close()
+
+    return templates.TemplateResponse(
+        request,
+        "dogum_ice_aktar.html",
+        {"analiz": analiz},
+    )
+
+
+@app.post("/dogum-gunleri/ice-aktar")
+async def dogum_ice_aktar_uygula(request: Request):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        form = await request.form()
+        secilen_personeller = form.getlist("personel")
+        secilen_ayrilanlar = form.getlist("ayrilan")
+        dogum_mantik.aktarim_uygula(
+            conn,
+            secilen_personeller=secilen_personeller,
+            secilen_ayrilanlar=secilen_ayrilanlar,
+        )
+    finally:
+        conn.close()
+
+    return RedirectResponse("/dogum-gunleri?mesaj=aktarildi", status_code=303)
+
+
+@app.post("/dogum-gunleri/kisi/{kisi_id}/tarih")
+async def dogum_kisi_tarih_kaydet(
+    request: Request,
+    kisi_id: int,
+    dogum_tarihi: str | None = Form(None),
+):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        iso = dogum_tarihi.strip() if dogum_tarihi and dogum_tarihi.strip() else None
+        db.kisi_dogum_tarihi_guncelle(conn, kisi_id, iso)
+    finally:
+        conn.close()
+
+    return RedirectResponse("/dogum-gunleri?mesaj=tarih_kaydedildi", status_code=303)
+
+
+@app.post("/dogum-gunleri/ayarlar")
+async def dogum_ayarlar_kaydet(
+    request: Request,
+    sms_otomatik: str = Form("0"),
+    dogum_sms_sablonu: str = Form(...),
+):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        oto = "1" if sms_otomatik == "1" else "0"
+        db.ayar_yaz(conn, "sms_otomatik", oto)
+        db.ayar_yaz(conn, "dogum_sms_sablonu", dogum_sms_sablonu.strip())
+    finally:
+        conn.close()
+
+    return RedirectResponse("/dogum-gunleri?mesaj=ayarlar_kaydedildi", status_code=303)
+

@@ -1,0 +1,343 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Doğum Günleri — SMS Sistemi{% endblock %}
+{% block icerik %}
+<div class="sayfa-baslik-sarici">
+  <div>
+    <h1><svg class="ikon"><use href="#ik-pasta"/></svg> Doğum Günleri Yönetimi</h1>
+    <p class="ipucu">Öğrenci ve personel doğum günleri, yaklaşan kutlamalar ve otomatik SMS ayarları.</p>
+  </div>
+  <div class="sayfa-eylemler">
+    <a href="/dogum-gunleri/ice-aktar" class="ikincil-btn">
+      <svg class="ikon"><use href="#ik-pasta"/></svg> Excel'den İçe Aktar / Eşleştir
+    </a>
+  </div>
+</div>
+
+{% if mesaj %}
+  {% if mesaj == "aktarildi" %}
+    <div class="uyari-kutusu basari">
+      <strong>Başarılı!</strong> Excel doğum günü verileri sisteme başarıyla aktarıldı.
+    </div>
+  {% elif mesaj == "ayarlar_kaydedildi" %}
+    <div class="uyari-kutusu basari">
+      <strong>Kaydedildi!</strong> Doğum günü SMS ayarları güncellendi.
+    </div>
+  {% elif mesaj == "tarih_kaydedildi" %}
+    <div class="uyari-kutusu basari">
+      Doğum tarihi başarıyla güncellendi.
+    </div>
+  {% endif %}
+{% endif %}
+
+<!-- KPI ŞERİDİ -->
+<div class="kpi-grid">
+  <div class="kpi-karti">
+    <span class="kpi-etiket">Toplam Kayıt</span>
+    <span class="kpi-deger">{{ stats.toplam }}</span>
+    <span class="kpi-alt">{{ stats.ogrenci_sayisi }} Öğrenci • {{ stats.personel_sayisi }} Personel</span>
+  </div>
+  <div class="kpi-karti kpi-yesil">
+    <span class="kpi-etiket">Doğum Tarihi Kayıtlı</span>
+    <span class="kpi-deger">{{ stats.tanimli }}</span>
+    <span class="kpi-alt">{% if stats.toplam > 0 %}%{{ ((stats.tanimli / stats.toplam) * 100)|round|int }} tamamlandı{% else %}0{% endif %}</span>
+  </div>
+  <div class="kpi-karti kpi-turuncu clickable" onclick="filtreleEksikler()" title="Doğum tarihi eksik olanları filtrelemek için tıklayın">
+    <span class="kpi-etiket">Doğum Tarihi Eksik</span>
+    <span class="kpi-deger">{{ stats.eksik }}</span>
+    <span class="kpi-alt">Filtrelemek için tıkla &darr;</span>
+  </div>
+  <div class="kpi-karti">
+    <span class="kpi-etiket">Bu Ay Doğanlar</span>
+    <span class="kpi-deger">{{ stats.bu_ay_sayisi }}</span>
+    <span class="kpi-alt">Bu takvim ayı içinde</span>
+  </div>
+  <div class="kpi-karti {% if stats.bugun_sayisi > 0 %}kpi-mavi{% endif %}">
+    <span class="kpi-etiket">Bugün Doğanlar</span>
+    <span class="kpi-deger">{{ stats.bugun_sayisi }}</span>
+    <span class="kpi-alt">Bugün kutlanacak</span>
+  </div>
+</div>
+
+<!-- BUGÜN DOĞANLAR ÖZEL PANOLARI -->
+{% if stats.bugun_sayisi > 0 %}
+<section class="kart-vurgulu kart-mavi">
+  <div class="bolum-ust">
+    <div>
+      <h2><svg class="ikon"><use href="#ik-pasta"/></svg> Bugün Doğum Günü Olanlar 🎉</h2>
+      <p class="bolum-aciklama">Aşağıdaki kişilerin bugün doğum günü! Tebrik mesajı gönderebilir veya listeyi inceleyebilirsiniz.</p>
+    </div>
+  </div>
+  <div class="bugun-liste">
+    {% for b in stats.bugun_doganlar %}
+    <div class="bugun-kisi-karti">
+      <div class="bugun-avatar">
+        <svg class="ikon"><use href="#ik-pasta"/></svg>
+      </div>
+      <div class="bugun-bilgi">
+        <strong>{{ b.ad_soyad }}</strong>
+        <span>
+          <span class="sinif-rozet">{{ b.sinif_ad }}</span>
+          {% if b.tur == 'personel' %}<span class="rozet rozet-mavi">Personel</span>{% endif %}
+          • {{ b.dogum_tarihi }}
+        </span>
+      </div>
+      <div class="bugun-eylem">
+        {% if b.telefon %}
+          <span class="rozet rozet-yesil">Telefon: {{ b.telefon }}</span>
+        {% else %}
+          <span class="rozet rozet-turuncu">Telefonsuz</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- YAKLAŞAN DOĞUM GÜNLERİ -->
+<section>
+  <div class="bolum-ust">
+    <div>
+      <h2>Yaklaşan Doğum Günleri</h2>
+      <p class="bolum-aciklama">Önümüzdeki günlerde doğum günü kutlayacak kişiler.</p>
+    </div>
+    <div class="sekme-butonlar">
+      <button type="button" class="sekme-btn aktif" id="sekme-btn-7" onclick="sekmeDegistir(7)">Önümüzdeki 7 Gün ({{ stats.yaklasan_7|length }})</button>
+      <button type="button" class="sekme-btn" id="sekme-btn-30" onclick="sekmeDegistir(30)">Önümüzdeki 30 Gün ({{ stats.yaklasan_30|length }})</button>
+    </div>
+  </div>
+
+  <div id="yaklasan-icerik-7" class="yaklasan-izgara">
+    {% if stats.yaklasan_7|length == 0 %}
+      <p class="ipucu" style="padding: 12px 0;">Önümüzdeki 7 gün içinde doğum günü olan kimse yok.</p>
+    {% else %}
+      {% for y in stats.yaklasan_7 %}
+      <div class="yaklasan-kart">
+        <div class="yaklasan-gun-rozet {% if y.kalan_gun == 0 %}gun-bugun{% elif y.kalan_gun == 1 %}gun-yarin{% endif %}">
+          {% if y.kalan_gun == 0 %}BUGÜN{% elif y.kalan_gun == 1 %}YARIN{% else %}{{ y.kalan_gun }} gün sonra{% endif %}
+        </div>
+        <div class="yaklasan-detay">
+          <strong>{{ y.ad_soyad }}</strong>
+          <span class="kisi-alt">
+            <span class="sinif-rozet">{{ y.sinif_ad }}</span>
+            • {{ y.yeni_yas }} yaşına giriyor
+          </span>
+        </div>
+      </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <div id="yaklasan-icerik-30" class="yaklasan-izgara" style="display: none;">
+    {% if stats.yaklasan_30|length == 0 %}
+      <p class="ipucu" style="padding: 12px 0;">Önümüzdeki 30 gün içinde doğum günü olan kimse yok.</p>
+    {% else %}
+      {% for y in stats.yaklasan_30 %}
+      <div class="yaklasan-kart">
+        <div class="yaklasan-gun-rozet {% if y.kalan_gun == 0 %}gun-bugun{% elif y.kalan_gun == 1 %}gun-yarin{% endif %}">
+          {% if y.kalan_gun == 0 %}BUGÜN{% elif y.kalan_gun == 1 %}YARIN{% else %}{{ y.kalan_gun }} gün sonra{% endif %}
+        </div>
+        <div class="yaklasan-detay">
+          <strong>{{ y.ad_soyad }}</strong>
+          <span class="kisi-alt">
+            <span class="sinif-rozet">{{ y.sinif_ad }}</span>
+            • {{ y.yeni_yas }} yaşına giriyor
+          </span>
+        </div>
+      </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+</section>
+
+<!-- OTOMATİK SMS AYARLARI -->
+<section>
+  <h2>Otomatik Doğum Günü SMS Ayarları</h2>
+  <p class="ipucu">
+    Her sabah 08:15'te doğum günü olan kişilere otomatik tebrik SMS'i gönderilir.
+    Telefonu olmayan kişilere gönderim yapılmaz.
+  </p>
+
+  <form method="post" action="/dogum-gunleri/ayarlar" class="ayar-form">
+    <div class="ayar-satir">
+      <label class="ayar-baslik">Otomatik Gönderim Durumu</label>
+      <div class="radyo-grup">
+        <label class="radyo-etiket">
+          <input type="radio" name="sms_otomatik" value="0" {% if stats.sms_otomatik != '1' %}checked{% endif %}>
+          <span class="rozet rozet-turuncu">KAPALI (Güvenli)</span>
+        </label>
+        <label class="radyo-etiket">
+          <input type="radio" name="sms_otomatik" value="1" {% if stats.sms_otomatik == '1' %}checked{% endif %}>
+          <span class="rozet rozet-yesil">AÇIK (Otomatik Gönder)</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="ayar-satir">
+      <label class="ayar-baslik" for="sablon-metin">SMS Şablon Metni</label>
+      <p class="ipucu"><code>{isim}</code> yer tutucusu yerine kişinin adı otomatik yazılır.</p>
+      <textarea id="sablon-metin" name="dogum_sms_sablonu" rows="3" required oninput="sayacGuncelle(this.value)">{{ stats.dogum_sms_sablonu }}</textarea>
+      <div class="karakter-sayac-serit">
+        <span id="karakter-bilgi">0 karakter • 1 SMS</span>
+        <span id="ascii-uyari" class="rozet rozet-gri">ASCII Güvenli</span>
+      </div>
+    </div>
+
+    <button type="submit">Ayarları Kaydet</button>
+  </form>
+</section>
+
+<!-- KİŞİ LİSTESİ VE DOĞUM TARİHİ DÜZENLEME -->
+<section>
+  <div class="bolum-ust">
+    <div>
+      <h2>Kişiler ve Doğum Tarihleri ({{ kisiler|length }})</h2>
+      <p class="ipucu">Tarihi eksik olan öğrencilerin doğum tarihlerini buradan doğrudan girebilirsiniz.</p>
+    </div>
+  </div>
+
+  <form method="get" action="/dogum-gunleri" class="filtre-form">
+    <label>Sınıf
+      <select name="sinif_id" onchange="this.form.submit()">
+        <option value="">Tüm Sınıflar</option>
+        {% for s in siniflar %}
+        <option value="{{ s.id }}" {% if secili_sinif_id == s.id %}selected{% endif %}>{{ s.ad }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Tür
+      <select name="tur" onchange="this.form.submit()">
+        <option value="">Tümü</option>
+        <option value="ogrenci" {% if secili_tur == "ogrenci" %}selected{% endif %}>Öğrenci</option>
+        <option value="personel" {% if secili_tur == "personel" %}selected{% endif %}>Personel</option>
+      </select>
+    </label>
+    <label>Durum
+      <select name="durum" id="filtre-durum" onchange="this.form.submit()">
+        <option value="">Tümü</option>
+        <option value="tanimli" {% if secili_durum == "tanimli" %}selected{% endif %}>Doğum Tarihi Kayıtlı</option>
+        <option value="eksik" {% if secili_durum == "eksik" %}selected{% endif %}>Doğum Tarihi Eksik</option>
+      </select>
+    </label>
+    <label style="flex: 2 1 200px;">Hızlı Arama
+      <input type="text" id="tablo-ara" placeholder="Ad Soyad ile anlık filtrele..." oninput="tabloFiltrele(this.value)">
+    </label>
+  </form>
+
+  <table class="dogum-tablosu" id="ana-tablo">
+    <thead>
+      <tr>
+        <th>Adı Soyadı</th>
+        <th>Sınıfı</th>
+        <th>Türü</th>
+        <th>Telefon</th>
+        <th>Doğum Tarihi</th>
+        <th>İşlem</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for k in kisiler %}
+      <tr class="tablo-satir" data-ad="{{ k.ad_soyad|lower }}">
+        <td>
+          <strong>{{ k.ad_soyad }}</strong>
+        </td>
+        <td><span class="sinif-rozet">{{ k.sinif_ad }}</span></td>
+        <td>
+          {% if k.tur == 'personel' %}
+            <span class="rozet rozet-mavi">Personel</span>
+          {% else %}
+            <span class="rozet rozet-gri">Öğrenci</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if k.telefon %}
+            <span class="tel-metin">{{ k.telefon }}</span>
+          {% else %}
+            <span class="rozet rozet-turuncu" style="font-size: 0.75rem;">Telefonsuz</span>
+          {% endif %}
+        </td>
+        <td>
+          <form id="tarih-form-{{ k.id }}" method="post" action="/dogum-gunleri/kisi/{{ k.id }}/tarih" class="satir-tarih-form">
+            <input type="date" name="dogum_tarihi" value="{{ k.dogum_tarihi or '' }}" class="tarih-input">
+          </form>
+        </td>
+        <td class="satir-eylemler">
+          <button form="tarih-form-{{ k.id }}" type="submit" class="kucuk-btn">Kaydet</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<script>
+function sekmeDegistir(gun) {
+  const c7 = document.getElementById('yaklasan-icerik-7');
+  const c30 = document.getElementById('yaklasan-icerik-30');
+  const b7 = document.getElementById('sekme-btn-7');
+  const b30 = document.getElementById('sekme-btn-30');
+
+  if (gun === 7) {
+    c7.style.display = 'grid';
+    c30.style.display = 'none';
+    b7.classList.add('aktif');
+    b30.classList.remove('aktif');
+  } else {
+    c7.style.display = 'none';
+    c30.style.display = 'grid';
+    b30.classList.add('aktif');
+    b7.classList.remove('aktif');
+  }
+}
+
+function sayacGuncelle(metin) {
+  const sayacEl = document.getElementById('karakter-bilgi');
+  const asciiEl = document.getElementById('ascii-uyari');
+  const len = metin.length;
+
+  // ASCII mi kontrolü
+  let isAscii = true;
+  for (let i = 0; i < metin.length; i++) {
+    if (metin.charCodeAt(i) > 127) {
+      isAscii = false;
+      break;
+    }
+  }
+
+  let segment = 1;
+  if (isAscii) {
+    segment = len <= 160 ? 1 : Math.ceil(len / 153);
+    asciiEl.textContent = 'ASCII (160 karaktere kadar 1 SMS)';
+    asciiEl.className = 'rozet rozet-yesil';
+  } else {
+    segment = len <= 70 ? 1 : Math.ceil(len / 67);
+    asciiEl.textContent = 'Türkçe/UCS2 Karakter (70 karaktere kadar 1 SMS)';
+    asciiEl.className = 'rozet rozet-turuncu';
+  }
+
+  sayacEl.textContent = `${len} karakter • ${segment} SMS segmenti`;
+}
+
+function tabloFiltrele(metin) {
+  const q = metin.trim().toLowerCase();
+  document.querySelectorAll('.tablo-satir').forEach(satir => {
+    const ad = satir.getAttribute('data-ad') || '';
+    satir.style.display = ad.includes(q) ? '' : 'none';
+  });
+}
+
+function filtreleEksikler() {
+  const d = document.getElementById('filtre-durum');
+  if (d) {
+    d.value = 'eksik';
+    d.form.submit();
+  }
+}
+
+// Başlangıçta sayaç çalıştır
+document.addEventListener('DOMContentLoaded', () => {
+  const s = document.getElementById('sablon-metin');
+  if (s) sayacGuncelle(s.value);
+});
+</script>
+{% endblock %}

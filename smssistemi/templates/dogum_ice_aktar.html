@@ -1,0 +1,161 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Excel İçe Aktar ve Eşleştir — Doğum Günleri{% endblock %}
+{% block icerik %}
+<div class="sayfa-baslik-sarici">
+  <div>
+    <h1><svg class="ikon"><use href="#ik-pasta"/></svg> Excel'den Doğum Günlerini İçe Aktar</h1>
+    <p class="ipucu"><code>Dogum.xlsx</code> dosyasındaki veriler analiz edildi ve akıllıca ayrıştırıldı.</p>
+  </div>
+  <div>
+    <a href="/dogum-gunleri" class="ikincil-btn">Vazgeç ve Geri Dön</a>
+  </div>
+</div>
+
+{% if analiz.hata %}
+  <div class="uyari-kutusu hata">
+    <strong>Hata:</strong> {{ analiz.hata }}
+  </div>
+{% else %}
+
+<form method="post" action="/dogum-gunleri/ice-aktar" id="ice-aktar-form">
+  <!-- GRUP 1: ZATEN ÖĞRENCİMİZ OLANLAR (ONAYA SUNULMAZ) -->
+  <section class="kart-vurgulu kart-yesil">
+    <div class="bolum-ust">
+      <div>
+        <span class="rozet rozet-yesil">Otomatik Eşleşti</span>
+        <h2>Zaten Öğrencimiz Olanlar ({{ analiz.eslesen_ogrenciler|length }} Öğrenci)</h2>
+        <p class="bolum-aciklama">
+          Sistemde kayıtlı 101 aktif öğrencimizden <strong>{{ analiz.eslesen_ogrenciler|length }}</strong>'i ile ad-soyad olarak birebir eşleşti.
+          Bu öğrencilerin doğum tarihleri <strong>otomatik olarak güncellenecektir</strong> (onayınıza gerek yoktur).
+        </p>
+      </div>
+      <button type="button" class="kucuk-btn" onclick="toggleListe('liste-ogrenci', this)">Listeyi Göster</button>
+    </div>
+
+    <div id="liste-ogrenci" class="gizli-liste">
+      <table class="kucuk-tablo">
+        <thead>
+          <tr><th>Adı Soyadı</th><th>Sınıfı</th><th>Doğum Tarihi</th><th>Yaş</th></tr>
+        </thead>
+        <tbody>
+          {% for o in analiz.eslesen_ogrenciler %}
+          <tr>
+            <td><strong>{{ o.ad_soyad }}</strong></td>
+            <td><span class="sinif-rozet">{{ o.sinif_ad }}</span></td>
+            <td>{{ o.yeni_dogum_tarihi }}</td>
+            <td>{{ o.yas }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- GRUP 2: PERSONEL ADAYLARI (KOLAY ONAY) -->
+  <section class="kart-vurgulu kart-mavi">
+    <div class="bolum-ust">
+      <div>
+        <span class="rozet rozet-mavi">Personel Onayı</span>
+        <h2>Personel Adayları ({{ analiz.personel_adaylari|length }} Kişi)</h2>
+        <p class="bolum-aciklama">
+          Doğum yılı 2004 ve öncesi olan çalışan/öğretmen adayları. Kurumda aktif olarak görev yapan personeli onaylayın.
+          Ayrılan personel varsa işaretini kaldırabilirsiniz.
+        </p>
+      </div>
+      <div class="toplu-eylem-butonlar">
+        <button type="button" class="kucuk-btn" onclick="secimAyarla('personel-chk', true)">Tümünü Seç</button>
+        <button type="button" class="kucuk-btn" onclick="secimAyarla('personel-chk', false)">Temizle</button>
+      </div>
+    </div>
+
+    <div class="secim-grid">
+      {% for p in analiz.personel_adaylari %}
+      <label class="secim-karti">
+        <input type="checkbox" name="personel" value="{{ p.ad_soyad }}" class="personel-chk" checked>
+        <div class="secim-karti-icerik">
+          <span class="kisi-ad">{{ p.ad_soyad }}</span>
+          <span class="kisi-alt">
+            {{ p.dogum_tarihi }} • {{ p.yas }} Yaşında
+            {% if p.zaten_kayitli %}<span class="rozet rozet-gri">Zaten Kayıtlı</span>{% endif %}
+          </span>
+        </div>
+      </label>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- GRUP 3: AYRILAN / LİSTEDE OLMAYANLAR (HUMAN AYIKLASIN, VARSAYILAN SEÇİLİ DEĞİL) -->
+  <section class="kart-vurgulu kart-turuncu">
+    <div class="bolum-ust">
+      <div>
+        <span class="rozet rozet-turuncu">Kurumda Olmayan / Mezun</span>
+        <h2>Kurumdan Ayrılan veya Listede Olmayanlar ({{ analiz.ayrilan_ogrenci_adaylari|length }} Kişi)</h2>
+        <p class="bolum-aciklama">
+          Doğum yılı 2005 ve sonrası olan fakat şu anki 101 kişilik aktif öğrenci listesinde <strong>yer almayan</strong> kişiler (muhtemelen mezunlar veya nakiller).
+          <strong>Varsayılan olarak hiçbiri seçili değildir</strong>. Sistemde olması gerektiğini düşündüğünüz birisi varsa işaretleyebilirsiniz.
+        </p>
+      </div>
+      <div class="toplu-eylem-butonlar">
+        <button type="button" class="kucuk-btn" onclick="secimAyarla('ayrilan-chk', true)">Tümünü Seç</button>
+        <button type="button" class="kucuk-btn" onclick="secimAyarla('ayrilan-chk', false)">Temizle</button>
+      </div>
+    </div>
+
+    <div class="filtre-arama-kutusu">
+      <input type="text" id="ayrilan-ara" placeholder="İsimle ara..." oninput="filtreleAyrilanlar(this.value)">
+    </div>
+
+    <div class="secim-grid" id="ayrilanlar-grid">
+      {% for a in analiz.ayrilan_ogrenci_adaylari %}
+      <label class="secim-karti secim-karti-soluk ayrilan-karti" data-ad="{{ a.ad_soyad|lower }}">
+        <input type="checkbox" name="ayrilan" value="{{ a.ad_soyad }}" class="ayrilan-chk">
+        <div class="secim-karti-icerik">
+          <span class="kisi-ad">{{ a.ad_soyad }}</span>
+          <span class="kisi-alt">{{ a.dogum_tarihi }} • {{ a.yas }} Yaşında</span>
+        </div>
+      </label>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="form-onay-cubuk">
+    <button type="submit" class="buyuk-onay-btn">
+      <svg class="ikon"><use href="#ik-pasta"/></svg>
+      Seçilenleri Veritabanına Aktar ve Tamamla
+    </button>
+    <a href="/dogum-gunleri" class="ikincil-btn">Vazgeç</a>
+  </div>
+</form>
+
+<script>
+function toggleListe(id, btn) {
+  const el = document.getElementById(id);
+  if (el.style.display === 'block') {
+    el.style.display = 'none';
+    btn.textContent = 'Listeyi Göster';
+  } else {
+    el.style.display = 'block';
+    btn.textContent = 'Listeyi Gizle';
+  }
+}
+
+function secimAyarla(className, durum) {
+  document.querySelectorAll('.' + className).forEach(chk => {
+    // Sadece görünür olanları etkile (arama filtresi aktifse)
+    const kart = chk.closest('.secim-karti');
+    if (!kart || kart.style.display !== 'none') {
+      chk.checked = durum;
+    }
+  });
+}
+
+function filtreleAyrilanlar(metin) {
+  const q = metin.trim().toLowerCase();
+  document.querySelectorAll('.ayrilan-karti').forEach(k => {
+    const ad = k.getAttribute('data-ad') || '';
+    k.style.display = ad.includes(q) ? 'flex' : 'none';
+  });
+}
+</script>
+{% endif %}
+{% endblock %}

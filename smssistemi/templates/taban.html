@@ -13,6 +13,9 @@
   <nav>
     <a href="/" class="{{ 'aktif' if request.url.path == '/' else '' }}"><svg class="ikon"><use href="#ik-gonder"/></svg> Gönder</a>
     <a href="/rehber" class="{{ 'aktif' if request.url.path == '/rehber' else '' }}"><svg class="ikon"><use href="#ik-kullanicilar"/></svg> Rehber</a>
+    <a href="/dogum-gunleri" class="{{ 'aktif' if request.url.path.startswith('/dogum-gunleri') else '' }}"><svg class="ikon"><use href="#ik-pasta"/></svg> Doğum Günleri</a>
+    <a href="/yoklama-sms" class="{{ 'aktif' if request.url.path.startswith('/yoklama-sms') else '' }}"><svg class="ikon"><use href="#ik-onay"/></svg> Yoklama SMS</a>
+    <a href="/otomasyon" class="{{ 'aktif' if request.url.path.startswith('/otomasyon') else '' }}"><svg class="ikon"><use href="#ik-kaydirici"/></svg> Otomasyon</a>
     <a href="/kayitlar" class="{{ 'aktif' if request.url.path == '/kayitlar' else '' }}"><svg class="ikon"><use href="#ik-saat"/></svg> Kayıtlar</a>
   </nav>
   <form method="post" action="/cikis" class="cikis-form">

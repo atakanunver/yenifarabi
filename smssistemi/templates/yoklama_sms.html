@@ -1,0 +1,274 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Yoklama SMS — SMS Sistemi{% endblock %}
+{% block icerik %}
+
+<h1>Yoklama SMS</h1>
+
+{% if mesaj == "sablon_kaydedildi" %}
+  <div class="uyari-kutusu basari"><svg class="ikon"><use href="#ik-onay"/></svg> Mesaj şablonu kaydedildi.</div>
+{% endif %}
+
+{% if hata %}
+  <div class="uyari-kutusu hata">
+    <svg class="ikon"><use href="#ik-uyari"/></svg>
+    Yoklama verisi okunamadı: {{ hata }}
+  </div>
+  <p class="ipucu">Yoklama panosu (<code>farabi-yoklama-dashboard.service</code>) çalışmıyor
+  veya veritabanı taşınmış olabilir. SMS sisteminin diğer bölümleri bundan etkilenmez.</p>
+{% else %}
+
+<!-- FİLTRE: tarih + eşik -->
+<section>
+  <form method="get" action="/yoklama-sms" class="filtre-form">
+    <label>
+      Tarih
+      <input type="date" name="tarih" value="{{ ozet.tarih }}" max="{{ bugun }}" onchange="this.form.submit()">
+    </label>
+    <label>
+      En az kaç derste yok
+      <input type="number" name="esik" value="{{ ozet.esik }}" min="{{ esik_min }}" max="{{ esik_max }}" step="1">
+    </label>
+    <button type="submit" class="kucuk-btn"><svg class="ikon"><use href="#ik-filtre"/></svg> Listeyi güncelle</button>
+    {% if not ozet.bugun_mu %}
+      <span class="rozet rozet-mavi">Geçmiş tarih görüntüleniyor</span>
+    {% endif %}
+  </form>
+  <p class="ipucu">
+    Bir öğrenci, yoklaması alınan derslerin <strong>en az {{ ozet.esik }} tanesinde</strong>
+    yok görünüyorsa listeye girer. İzinli görünen dersler “yok” sayılmaz.
+  </p>
+</section>
+
+<!-- KPI -->
+<div class="kpi-grid">
+  <div class="kpi-karti kpi-turuncu">
+    <span class="kpi-etiket">Devamsız öğrenci</span>
+    <span class="kpi-deger">{{ ozet.devamsiz_sayisi }}</span>
+    <span class="kpi-alt">{{ ozet.dahil_sinif_sayisi }} sınıfta yoklama alındı</span>
+  </div>
+  <div class="kpi-karti kpi-yesil">
+    <span class="kpi-etiket">Ulaşılabilir veli</span>
+    <span class="kpi-deger">{{ ozet.veli_sayisi }}</span>
+    <span class="kpi-alt">{{ ozet.ulasilabilir_sayisi }} öğrencinin velisi</span>
+  </div>
+  <div class="kpi-karti kpi-turuncu">
+    <span class="kpi-etiket">Veli telefonu yok</span>
+    <span class="kpi-deger">{{ ozet.telefonsuz_sayisi + ozet.eslesmeyen_sayisi }}</span>
+    <span class="kpi-alt">SMS gönderilemez, listede işaretli</span>
+  </div>
+  <div class="kpi-karti kpi-mavi">
+    <span class="kpi-etiket">Hariç tutulan sınıf</span>
+    <span class="kpi-deger">{{ ozet.haric_siniflar|length }}</span>
+    <span class="kpi-alt">Yoklaması eksik, SMS gönderilmez</span>
+  </div>
+</div>
+
+<!-- HARİÇ TUTULAN SINIFLAR -->
+{% if ozet.haric_siniflar %}
+<div class="uyari-kutusu">
+  <div>
+    <strong><svg class="ikon"><use href="#ik-uyari"/></svg> Bu sınıflar listeye dahil edilmedi</strong>
+    <p class="bolum-aciklama">Yoklaması alınmadığı için kimin geldiği bilinmiyor —
+    bu sınıflardan <strong>hiç kimseye SMS gönderilmez</strong>.</p>
+    <ul>
+      {% for h in ozet.haric_siniflar %}
+        <li><span class="sinif-rozet">{{ h.sinif }}</span> — {{ h.aciklama }}{% if h.ders_sayisi %} ({{ h.ders_sayisi }} ders){% endif %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<!-- LİSTE + GÖNDERİM -->
+<form method="post" action="/gonder" id="yoklama-form">
+  <input type="hidden" name="secilen_kisi_ids" id="secilen-kisi-ids" value="">
+
+  <section>
+    <div class="bolum-ust">
+      <div>
+        <h2><svg class="ikon"><use href="#ik-kullanicilar"/></svg> Devamsız öğrenciler</h2>
+        <p class="bolum-aciklama">Gönderilecek velileri işaretleyin. İzinli öğrenciler
+        varsayılan olarak seçili gelmez.</p>
+      </div>
+    </div>
+
+    {% if ozet.ogrenciler %}
+    <table>
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="tumunu-sec" title="Tümünü seç"></th>
+          <th>Sınıf</th>
+          <th>Öğrenci</th>
+          <th>Yok / Alınan</th>
+          <th>Veli</th>
+          <th>Telefon</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in ozet.ogrenciler %}
+          {% if o.veliler %}
+            {% for v in o.veliler %}
+            <tr>
+              <td>
+                <input type="checkbox" class="veli-secim" value="{{ v.id }}"
+                       {% if not o.izinli_mi %}checked{% endif %}>
+              </td>
+              <td><span class="sinif-rozet">{{ o.sinif }}</span></td>
+              <td>
+                {{ o.ad_soyad }}
+                {% if o.izinli_mi %}<span class="rozet rozet-mavi">İzinli</span>{% endif %}
+              </td>
+              <td>{{ o.yok_sayisi }} / {{ o.alinan_sayisi }}</td>
+              <td>{{ v.ad_soyad }}</td>
+              <td>{{ v.telefon }}</td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td><input type="checkbox" disabled></td>
+              <td><span class="sinif-rozet">{{ o.sinif }}</span></td>
+              <td>
+                {{ o.ad_soyad }}
+                {% if o.izinli_mi %}<span class="rozet rozet-mavi">İzinli</span>{% endif %}
+              </td>
+              <td>{{ o.yok_sayisi }} / {{ o.alinan_sayisi }}</td>
+              <td colspan="2">
+                {% if o.eslesme_durumu == 'eslesmedi' %}
+                  <span class="rozet rozet-gri">Veli telefonu yoktur</span>
+                  {% if o.eslesme_notu %}<span class="ipucu">{{ o.eslesme_notu }}</span>{% endif %}
+                {% else %}
+                  <span class="rozet rozet-turuncu">Veli telefonu yoktur</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <p class="ipucu">
+        {% if ozet.dahil_sinif_sayisi %}
+          Bu tarihte eşiği ({{ ozet.esik }} ders) aşan devamsız öğrenci yok.
+          Eşiği düşürerek daha az ders kaçıranları da görebilirsiniz.
+        {% else %}
+          Bu tarihte hiçbir sınıfın yoklaması alınmamış — değerlendirilecek veri yok.
+        {% endif %}
+      </p>
+    {% endif %}
+  </section>
+
+  <!-- MESAJ -->
+  <section>
+    <div class="bolum-ust">
+      <div>
+        <h2><svg class="ikon"><use href="#ik-zarf"/></svg> Mesaj</h2>
+        <p class="bolum-aciklama">
+          <code>{isim}</code> velinin adına, <code>{ogrenci_adi}</code> öğrencinin adına dönüşür.
+        </p>
+      </div>
+    </div>
+
+    <textarea name="mesaj" id="yoklama-mesaj" rows="3" required>{{ ozet.sablon }}</textarea>
+    <p class="ipucu" id="mesaj-sayac"></p>
+
+    <label>
+      Mesajlar arası bekleme (sn)
+      <input type="number" name="bekleme_sn" value="2" min="0.5" step="0.5">
+    </label>
+
+    <div class="bolum-ust">
+      {% if ozet.bugun_mu %}
+      <button type="submit" id="gonder-btn">
+        <svg class="ikon"><use href="#ik-gonder"/></svg>
+        <span id="gonder-etiket">Seçili velilere gönder</span>
+      </button>
+      {% else %}
+      {# Geçmiş tarihte gönderim kapalı: mesaj metni "bugün okula gelmemiştir"
+         diyor, {{ ozet.tarih }} listesiyle gönderilirse veliye yanlış gün
+         bildirilmiş olur. Liste yalnızca inceleme amaçlı görünür. #}
+      <div class="uyari-kutusu">
+        <svg class="ikon"><use href="#ik-uyari"/></svg>
+        <strong>Geçmiş tarihte gönderim kapalı.</strong>
+        Mesaj metni “bugün okula gelmemiştir” diyor; {{ ozet.tarih }} listesiyle
+        gönderilirse veliye yanlış gün bildirilir. Bu liste yalnızca inceleme içindir —
+        göndermek için tarihi bugüne alın.
+      </div>
+      {% endif %}
+    </div>
+  </section>
+</form>
+
+<!-- ŞABLONU KAYDET -->
+<section>
+  <form method="post" action="/yoklama-sms/sablon">
+    <h2><svg class="ikon"><use href="#ik-kaydirici"/></svg> Varsayılan şablon</h2>
+    <p class="bolum-aciklama">Buraya kaydedilen metin, sayfa her açıldığında hazır gelir.</p>
+    <textarea name="yoklama_sms_sablonu" rows="3" required>{{ ozet.sablon }}</textarea>
+    <button type="submit" class="kucuk-btn">Şablonu kaydet</button>
+    <p class="ipucu">Varsayılan: {{ sablon_varsayilan }}</p>
+  </form>
+</section>
+
+<script>
+(function () {
+  const form = document.getElementById("yoklama-form");
+  if (!form) return;
+  const gizli = document.getElementById("secilen-kisi-ids");
+  const tumu = document.getElementById("tumunu-sec");
+  const kutular = () => Array.from(document.querySelectorAll(".veli-secim"));
+  const etiket = document.getElementById("gonder-etiket");
+  const btn = document.getElementById("gonder-btn");
+  // Geçmiş tarihte gönder butonu hiç basılmaz — seçim/sayaç mantığı da atlanır.
+  const gonderilebilir = btn !== null;
+  const mesaj = document.getElementById("yoklama-mesaj");
+  const sayac = document.getElementById("mesaj-sayac");
+
+  function secililer() {
+    return kutular().filter((k) => k.checked).map((k) => k.value);
+  }
+
+  function tazele() {
+    if (!gonderilebilir) return;
+    const secili = secililer();
+    gizli.value = secili.join(",");
+    etiket.textContent = secili.length
+      ? secili.length + " veliye gönder"
+      : "Seçili velilere gönder";
+    btn.disabled = secili.length === 0;
+  }
+
+  function sayacTazele() {
+    // Türkçe karakterli SMS UCS2 ile gider: 70 karakter/SMS. Yer tutucular
+    // isimlerle dolacağı için gerçek uzunluk buradakinden bir miktar fazla olur.
+    const metin = mesaj.value;
+    const turkce = /[^\x00-\x7F]/.test(metin);
+    const limit = turkce ? 70 : 160;
+    const adet = Math.max(1, Math.ceil(metin.length / limit));
+    sayac.textContent =
+      metin.length + " karakter · " + (turkce ? "Türkçe (UCS2)" : "ASCII") +
+      " · alıcı başına ~" + adet + " SMS" +
+      " · yer tutucular isimlerle dolunca uzayabilir";
+  }
+
+  form.addEventListener("submit", function (e) {
+    tazele();
+    if (!gizli.value) {
+      e.preventDefault();
+      alert("Gönderilecek veli seçilmedi.");
+    }
+  });
+  kutular().forEach((k) => k.addEventListener("change", tazele));
+  if (tumu) {
+    tumu.addEventListener("change", function () {
+      kutular().forEach((k) => { k.checked = tumu.checked; });
+      tazele();
+    });
+  }
+  mesaj.addEventListener("input", sayacTazele);
+  tazele();
+  sayacTazele();
+})();
+</script>
+
+{% endif %}
+{% endblock %}

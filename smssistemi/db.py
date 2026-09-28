@@ -24,7 +24,9 @@ _KISILER_TABLO_GOVDESI = """(
     sinif_id        INTEGER NOT NULL REFERENCES siniflar (id),
     tur             TEXT NOT NULL CHECK (tur IN ('ogrenci', 'veli', 'personel')),
     ogrenci_kisi_id INTEGER REFERENCES kisiler (id),
-    dogum_tarihi    TEXT
+    dogum_tarihi    TEXT,
+    okul_no         INTEGER,
+    veli_rol        TEXT
 )"""
 
 SEMA = f"""
@@ -75,6 +77,12 @@ _AYARLAR_VARSAYILAN = {
     "dogum_sms_sablonu": (
         "Sevgili {isim}, dogum gununuzu kutlar, saglikli ve mutlu bir yil dileriz. Okul Idaresi"
     ),
+    "otomasyon_ilk_ders_aktif": "0",  # KAPALI — ilk kurulumda pasif, kullanıcı butondan açar
+    "otomasyon_ilk_ders_sablonu": (
+        "Sayın {isim}, öğrenciniz {ogrenci_adi} sabah ilk saate gelmemiştir. Bilginize."
+    ),
+    "otomasyon_ilk_ders_son_tarih": "",
+    "otomasyon_ilk_ders_son_sonuc": "",
 }
 
 
@@ -157,6 +165,12 @@ def semayi_kur() -> None:
         mevcut_sutunlar = [r["name"] for r in conn.execute("PRAGMA table_info(kisiler)").fetchall()]
         if "dogum_tarihi" not in mevcut_sutunlar:
             conn.execute("ALTER TABLE kisiler ADD COLUMN dogum_tarihi TEXT")
+            conn.commit()
+        if "okul_no" not in mevcut_sutunlar:
+            conn.execute("ALTER TABLE kisiler ADD COLUMN okul_no INTEGER")
+            conn.commit()
+        if "veli_rol" not in mevcut_sutunlar:
+            conn.execute("ALTER TABLE kisiler ADD COLUMN veli_rol TEXT")
             conn.commit()
 
         if conn.execute("SELECT COUNT(*) FROM siniflar").fetchone()[0] == 0:
@@ -273,10 +287,13 @@ def kisi_ekle(
     sinif_id: int,
     tur: str,
     ogrenci_kisi_id: int | None = None,
+    okul_no: int | None = None,
+    veli_rol: str | None = None,
 ) -> int:
     imlec = conn.execute(
-        "INSERT INTO kisiler (ad_soyad, telefon, sinif_id, tur, ogrenci_kisi_id) VALUES (?, ?, ?, ?, ?)",
-        (ad_soyad, telefon or None, sinif_id, tur, ogrenci_kisi_id),
+        "INSERT INTO kisiler (ad_soyad, telefon, sinif_id, tur, ogrenci_kisi_id, okul_no, veli_rol) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (ad_soyad, telefon or None, sinif_id, tur, ogrenci_kisi_id, okul_no, veli_rol),
     )
     conn.commit()
     return imlec.lastrowid
@@ -290,10 +307,13 @@ def kisi_guncelle(
     sinif_id: int,
     tur: str,
     ogrenci_kisi_id: int | None = None,
+    okul_no: int | None = None,
+    veli_rol: str | None = None,
 ) -> None:
     conn.execute(
-        "UPDATE kisiler SET ad_soyad = ?, telefon = ?, sinif_id = ?, tur = ?, ogrenci_kisi_id = ? WHERE id = ?",
-        (ad_soyad, telefon or None, sinif_id, tur, ogrenci_kisi_id, kisi_id),
+        "UPDATE kisiler SET ad_soyad = ?, telefon = ?, sinif_id = ?, tur = ?, "
+        "ogrenci_kisi_id = ?, okul_no = ?, veli_rol = ? WHERE id = ?",
+        (ad_soyad, telefon or None, sinif_id, tur, ogrenci_kisi_id, okul_no, veli_rol, kisi_id),
     )
     conn.commit()
 
@@ -316,7 +336,7 @@ def kisi_bul_isimle(conn: sqlite3.Connection, ad_soyad: str, sinif_id: int, tur:
     """Toplu yüklemede eşleştirme için — isim/sınıf/tür birebir (boşluk/büyük-küçük
     harf ve Türkçe karakter farkı gözetmeksizin) eşleşen kişiyi bulur."""
     satir = conn.execute(
-        "SELECT id, ad_soyad, telefon, sinif_id, tur, ogrenci_kisi_id FROM kisiler "
+        "SELECT id, ad_soyad, telefon, sinif_id, tur, ogrenci_kisi_id, okul_no, veli_rol FROM kisiler "
         "WHERE sinif_id = ? AND tur = ? AND tr_norm(ad_soyad) = tr_norm(?)",
         (sinif_id, tur, ad_soyad),
     ).fetchone()
@@ -337,7 +357,7 @@ def kisiler_listele(
     kosul_str = f"WHERE {' AND '.join(kosullar)}" if kosullar else ""
     satirlar = conn.execute(
         f"SELECT k.id, k.ad_soyad, k.telefon, k.tur, k.sinif_id, k.ogrenci_kisi_id, "
-        f"k.dogum_tarihi, s.ad AS sinif_ad, ogr.ad_soyad AS ogrenci_ad "
+        f"k.dogum_tarihi, k.okul_no, k.veli_rol, s.ad AS sinif_ad, ogr.ad_soyad AS ogrenci_ad "
         f"FROM kisiler k "
         f"JOIN siniflar s ON s.id = k.sinif_id "
         f"LEFT JOIN kisiler ogr ON ogr.id = k.ogrenci_kisi_id "
@@ -349,7 +369,7 @@ def kisiler_listele(
 
 def sinif_bazli_ogrenciler(conn: sqlite3.Connection) -> dict[int, list[dict]]:
     satirlar = conn.execute(
-        "SELECT id, ad_soyad, sinif_id FROM kisiler WHERE tur = 'ogrenci' ORDER BY ad_soyad"
+        "SELECT id, ad_soyad, sinif_id, okul_no FROM kisiler WHERE tur = 'ogrenci' ORDER BY ad_soyad"
     ).fetchall()
     sonuc: dict[int, list[dict]] = {}
     for r in satirlar:
@@ -363,7 +383,7 @@ def kisiler_id_ile(conn: sqlite3.Connection, kisi_ids: list[int]) -> list[dict]:
     yer_tutucular = ",".join("?" for _ in kisi_ids)
     satirlar = conn.execute(
         f"SELECT k.id, k.ad_soyad, k.telefon, k.tur, k.sinif_id, k.ogrenci_kisi_id, "
-        f"s.ad AS sinif_ad, ogr.ad_soyad AS ogrenci_ad "
+        f"k.okul_no, k.veli_rol, s.ad AS sinif_ad, ogr.ad_soyad AS ogrenci_ad "
         f"FROM kisiler k "
         f"JOIN siniflar s ON s.id = k.sinif_id "
         f"LEFT JOIN kisiler ogr ON ogr.id = k.ogrenci_kisi_id "
@@ -385,6 +405,20 @@ def kisiler_telefonlu(conn: sqlite3.Connection, sinif_id: int, tur: str) -> list
 
 
 # --- Ayarlar (global anahtar/değer) --------------------------------------
+
+
+def veliler_ogrenci_ile(conn: sqlite3.Connection, ogrenci_kisi_id: int) -> list[dict]:
+    """Bir öğrenciye bağlı, TELEFONU OLAN velileri döndürür (Yoklama SMS modülü).
+    Bir öğrencinin birden çok velisi olabilir (anne/baba için ayrı satır açar);
+    rehberde tekil alıcıdırlar. Telefonsuzlar burada süzülür — çağıran taraf
+    'veli telefonu yoktur' durumunu boş listeden anlar."""
+    satirlar = conn.execute(
+        "SELECT id, ad_soyad, telefon, veli_rol FROM kisiler "
+        "WHERE tur = 'veli' AND ogrenci_kisi_id = ? "
+        "AND telefon IS NOT NULL AND telefon != '' ORDER BY id",
+        (ogrenci_kisi_id,),
+    ).fetchall()
+    return [dict(r) for r in satirlar]
 
 
 def ayar_oku(conn: sqlite3.Connection, anahtar: str) -> str | None:

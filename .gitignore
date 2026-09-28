@@ -128,3 +128,10 @@ tahtayoklama/dashboard/config/sms_sso.json
 # dosyalar GERÇEK ÖĞRENCİ ADI/SINIF verisi içeriyor (2026-09-20'de bulundu,
 # `9-A.xlsx`) — tahtayoklama/data/roster ile aynı KVKK hassasiyeti.
 smssistemi/ornek/
+
+# smssistemi/velitelefon/ ve ilgili tek kullanımlık import script'i/testi —
+# gerçek öğrenci/veli kişisel verisi (ad, telefon, doğum tarihi) içeriyor,
+# repo PUBLIC (2026-09-28).
+smssistemi/velitelefon/
+smssistemi/scripts/velitelefon_ice_aktar.py
+smssistemi/test_velitelefon_ice_aktar.py

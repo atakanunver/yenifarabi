@@ -18,8 +18,10 @@ yok. `auth.py`/`db.py` dashboard'daki aynı isimli dosyaların desenini takip
 eder ama satır satır bağımsız kopyadır — biri değişince diğeri otomatik
 güncellenmez, bu bilinçli bir karar (yukarıdaki spec, "Kullanıcı kararları").
 Dashboard'la tek bağlantı noktası `pano.html`'deki bir nav linki.
+**TEK İSTİSNA (2026-09-23):** Yoklama SMS modülü panonun DB'sini salt-okunur
+okuyor — aşağıdaki "Yoklama SMS Modülü" bölümüne bak.
 
-## Durum (2026-09-19)
+## Durum (2026-09-23 / Güncel)
 
 Üretimde çalışıyor. `farabi-smssistemi.service` aktif (port 8020),
 `app.py` + `templates/`/`static/` yazıldı, gerçek bir SMS ucu ucuna
@@ -31,12 +33,95 @@ gitignore'lu, kod/DB paylaşımı yok.
 
 **Rehber (telefon defteri) eklendi:** `siniflar` (bu yıl için 9-A..12-B,
 ekle/sil yapılabilir) + `kisiler` (ad_soyad, telefon [boş olabilir],
-sinif_id, tur='ogrenci'|'veli', ogrenci_kisi_id [nullable FK → kisiler.id,
-yalnızca veliler için öğrenci bağlantısı]) tabloları, `/rehber` sayfası
-(CRUD + elle öğrenci seçici dropdown + CSV/Excel toplu yükleme — veli
-yüklemesinde "Öğrenci Adı" sütunuyla aynı sınıftaki öğrenci otomatik eşleşir,
-eşleşmeyenler yükleme özetinde "eşleşmedi: N" olarak gösterilir ve tablodan
-elle bağlanabilir).
+sinif_id, tur='ogrenci'|'veli'|'personel', ogrenci_kisi_id [nullable FK → kisiler.id,
+yalnızca veliler için öğrenci bağlantısı], dogum_tarihi [ISO YYYY-MM-DD],
+okul_no [INTEGER], veli_rol [TEXT: 'Anne'|'Baba'|'Teyze'|'Anneanne']) tabloları, `/rehber` sayfası.
+
+**Tüm Sınıfların Veli & Öğrenci Telefonları Baştan Aktarıldı (`scripts/velitelefon_ice_aktar.py` — 2026-09-24):**
+- Kaynak: `velitelefon/` dizinindeki 7 sınıf Excel dosyası (`9-A.xlsx`, `9-B.xlsx`, `10-A.xlsx`, `11-A.xlsx`, `11-B.xlsx`, `12-A.xlsx`, `12-B.xlsx`).
+- 102 öğrencinin okul numaraları (`okul_no`), kendi telefonları (92 adet) ve veli telefonları (191 adet) ilişkisel olarak sıfırdan kuruldu.
+- Çift Veli İlişkisi: 89 öğrencinin hem Anne hem Baba olmak üzere 2 velisi, 13 öğrencinin 1 velisi oluşturuldu. Birincil veli Excel'deki gerçek adıyla, ikincisi `{Öğrenci Adı} Babası` / `{Öğrenci Adı} Annesi` formatında kaydedildi.
+- Kardeşler: Her veli satırı tek bir öğrenciye `ogrenci_kisi_id` ile bağlandı (SMS kişiselleştirmede doğru çocuğun adının geçmesi için).
+- İsimler Türkçe Title Case (Baş Harfleri Büyük) olarak normalize edildi.
+- 12-B'de yanlış tür ile girilmiş bir kayıt (öğrenci yerine veli/baba olması gereken bir isim öğrenci olarak girilmişti) temizlendi; yerine doğru öğrenci eklendi, yanlış girilen isim baba olarak kaydedildi.
+- 11-A'ya geçen bir öğrenci güncel sınıfına taşındı.
+- Doğrulanmış doğum tarihleri (99 öğrenci, 23 personel) eksiksiz korundu. Toplam: 102 öğrenci, 191 veli, 23 personel (316 kişi).
+
+**Doğum Günleri Modülü (2026-09-20/21 eklendi):**
+- Sayfalar: `/dogum-gunleri` (yaklaşan ve bugünkü doğum günleri panosu, personel/öğrenci filtresi, doğrudan doğum tarihi düzenleme, otomatik SMS ayarları şalteri) ve `/dogum-gunleri/ice-aktar` (Excel analizi, 3 kategoriye ayırma).
+- Yaş Kuralı & İş Mantığı (`dogum_mantik.py`):
+  - 13–19 yaş: Aktif öğrenci (101 mevcut öğrenciyle eşleşenler doğrudan bağlanır, onay gerekmez).
+  - 20 yaş ve üzeri: Personel adayı (varsayılan seçili, `tur='personel'`, Personel sınıfına eklenir).
+  - Listede olmayan eski/ayrılan öğrenciler: Ayrılan öğrenci adayı (varsayılan seçili DEĞİL, DB temiz tutulur).
+- Dashboard Entegrasyonu: Tahtayoklama panosunda sol menüye "Doğum Günleri" linki (`/dogum`) eklendi; HMAC-imzalı SSO ile `:8020/dogum-gunleri` sayfasına şifresiz, doğrudan geçiş sağlar.
+
+**Sınıf Excel & PDF İçe Aktarım ve Doğrulama (`scripts/sinif_bilgi_ice_aktar.py` — 2026-09-21):**
+- `/home/ata/farabi/mudur/SINIF/` altındaki dosyaları işler (`9-LAR.xlsx`, `10-LAR.xlsx`, `11ler.xlsx`, `12ler.xlsx`, `10-A.xlsx`, `12-A.xlsx`, `9A.PDF`, `9B.PDF`).
+- 101 aktif öğrencinin 99'unun doğum tarihi karşılaştırmalı olarak doğrulanıp kaydedildi.
+- 10-A ve 12-A sınıflarının öğrenci telefonları (23 adet) ve veli telefonları (45 adet, `ogrenci_kisi_id` ile bağlı) aktarıldı.
+- Tekrarlayan/mükerrer kayıt engelleme: İkinci kez çalıştırıldığında 0 ekleme yapar, veritabanında 0 mükerrer numara garantilenir.
+
+**Yoklama SMS Modülü (2026-09-23 eklendi):**
+- Sayfa: `/yoklama-sms` — bugün devamsız olan öğrencileri, eşleşen veli
+  telefonlarını ve hazır mesaj şablonunu listeler. Kullanıcı gözden geçirip
+  gönderir; **otomatik/zamanlanmış gönderim YOK** (kullanıcı kararı).
+- **Gönderim için yeni kod yolu yazılmadı:** sayfa, seçili veli id'lerini mevcut
+  `POST /gonder`'e post eder — `/durum/{id}`, `/kayitlar`, `/durdur`,
+  `/tekrar-gonder` bu sayede bedavaya gelir.
+- Devamsız tanımı (`yoklama_mantik.py`): **bugün en az N derste yok**,
+  varsayılan `N=4`, sayfadan değiştirilebilir. 1. derse bakmak geç gelen
+  öğrencinin velisine yanlış SMS gönderirdi.
+- ⚠️ **Yoklaması alınmamış / tahtası ulaşılamaz sınıf listeye GİRMEZ**, ayrı bir
+  uyarı kutusunda sebebiyle gösterilir. Panonun `yoklayici.py:126`'sı
+  `alindi` olmayan her satıra boş isim dizisi yazdığı için "kimse yok değil" ile
+  "yoklama hiç alınmadı" ayırt edilemez — bu ayrım yapılmazsa 12-A'nın
+  2026-09-22'de yaşadığı gibi bir heartbeat kopmasında tüm sınıfın velisine
+  "okula gelmedi" SMS'i giderdi.
+- İzinli ders "yok" sayılmaz; gün içinde izinli görünen öğrenci varsayılan
+  seçili gelmez. Velisi/telefonu bulunamayan öğrenci "Veli telefonu yoktur"
+  etiketiyle listede KALIR, gönderimde pas geçilir (sessizce düşürülmez).
+- İsim eşleştirme sınıf kapsamlıdır (aynı ad iki sınıfta olabilir). İsim başka
+  bir sınıfta bulunursa SMS yine gönderilmez ama sebep satırda yazılır —
+  2026-09-23'te canlı veride gerçekten bulundu (panoda 11-A, rehberde 11-B).
+- Şablon `ayarlar` tablosunda (`yoklama_sms_sablonu`), `{isim}`/`{ogrenci_adi}`
+  yer tutucularıyla. Varsayılan: "Sayın {isim}, öğrenciniz {ogrenci_adi} bugün
+  **derslere katılmamıştır**. Bilginize."
+  ⚠️ "okula gelmemiştir" DEĞİL — bilinçli: eşik kuralı kısmi devamsızlığı da
+  kapsıyor (canlı örnek: 6 dersin 4'ünde yok, 2 derse girmiş), o öğrencinin
+  velisine "okula gelmedi" demek yanlış bilgi olurdu.
+- **Geçmiş tarihte gönderim KAPALI** (buton hiç basılmaz): mesaj "bugün" diyor,
+  eski bir listeyle gönderilirse veliye yanlış gün bildirilirdi. Geçmiş tarih
+  yalnızca inceleme için görüntülenir.
+- **Veli ilişkisi (2026-09-23'te doğrulandı):** bir öğrencinin BİRDEN ÇOK velisi
+  olabilir ve hepsine ayrı SMS gider (canlıda 21 öğrencinin 2 velisi var).
+  Tersi tekil: bir veli SATIRI tek bir `ogrenci_kisi_id` taşır — kardeşler için
+  aynı kişi iki ayrı satır olarak girilir, her çocuk için ayrı SMS alır. Rehberde
+  "aynı veli" diye birleşik bir kavram yok. Mükerrer (öğrenci, telefon) çifti
+  canlıda 0.
+
+**İlk Ders Otomasyon Modülü (2026-09-24 eklendi — `otomasyon.py`):**
+- **Amaç:** Okul günleri (Pazartesi-Cuma) sabah 09:00'da yoklama veritabanını kontrol ederek 1. derse gelmeyen öğrencilerin anne ve babalarına otomatik SMS gönderimi.
+- **Güvenlik & Fail-Closed:** Yalnızca 1. derste `durum == 'alindi'` olan sınıflar taranır. Tahtası kapalı veya yoklaması alınmamış sınıflar hariç tutulur. İzinli öğrenciler devamsız sayılmaz.
+- **İdempotency:** `otomasyon_ilk_ders_son_tarih` ayarı ile aynı gün mükerrer çalışması kesin olarak engellenir.
+- **Arayüz (`/otomasyon`):**
+  - Otomasyon açma/kapatma butonu (`otomasyon_ilk_ders_aktif`, varsayılan '0' KAPALI).
+  - Varsayılan şablon düzenleyici: "Sayın {isim}, öğrenciniz {ogrenci_adi} sabah ilk saate gelmemiştir. Bilginize."
+  - Yapay Zeka ile Mesaj Düzenleme butonu (`/api/mesaj-duzelt`).
+  - Bugünkü 1. ders canlı simülasyonu / test önizlemesi ve manuel gönderim butonu.
+- **Dashboard Entegrasyonu:**
+  - Tahtayoklama panosunda menüye "SMS Otomasyonu" linki (`/otomasyon-git`) eklendi; HMAC-imzalı SSO ile doğrudan `:8020/otomasyon` sayfasına geçiş sağlar.
+- **Arka Plan Servisi:** FastAPI `lifespan` döngüsünde 30 saniyede bir saati kontrol eden asenkron zamanlayıcı görevi (`otomasyon.otomasyon_arkaplan_dongusu`).
+
+> ⚠️ **"Kasıtlı olarak bağımsız" kuralının TEK İSTİSNASI burasıdır.**
+> `yoklama_kaynak.py`, yoklama panosunun veritabanını
+> (`tahtayoklama/dashboard/veri/yoklama_pano.db`) `mode=ro` ile **doğrudan**
+> okur. Alternatif (panoya HMAC imzalı `/api/devamsiz` endpoint'i) kullanıcıya
+> sunuldu ve doğrudan okuma seçildi — gerekçe kök `DECISIONS.md` 2026-09-23
+> kaydında. Sapmanın yarıçapı bilerek tek dosyaya hapsedildi: panonun şemasını
+> bilen tek modül `yoklama_kaynak.py`, HTTP+HMAC'e geçilmek istenirse yalnızca
+> `gunun_satirlari`'nın gövdesi değişir. **Panonun `yoklama_onbellek` şeması
+> değişirse burası sessizce kırılır** — `test_yoklama_mantik.py`'deki
+> `_PANO_SEMA` sabiti o şemanın kopyasıdır, birlikte güncellenmeli.
 
 **Gönderim & Kişiselleştirme & Yapay Zeka:**
 - `gonder.html` 2 panelli arayüze kavuştu: Sağ panelde Sınıf+Tür filtresi ile

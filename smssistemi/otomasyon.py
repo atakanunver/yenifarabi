@@ -1,0 +1,403 @@
+"""Sabah 09:00 İlk Ders Devamsızlık SMS Otomasyonu ve Zamanlayıcı Servisi.
+
+Pazartesi-Cuma günleri sabah 09:00'da yoklama veritabanını kontrol ederek,
+1. derse gelmeyen öğrencilerin velilerine (anne ve baba) otomatik bilgilendirme
+SMS'i gönderir.
+
+Tasarım ve Güvenlik İlkeleri:
+1. Yalnızca 1. derste `durum == 'alindi'` olan sınıflar işlenir. Yoklaması
+   alınmamış veya tahtasına ulaşılamamış sınıflar hariç tutulur (yanlış SMS önleme).
+2. İzinli öğrenciler (`izinli_isimleri`) devamsız sayılmaz, SMS gönderilmez.
+3. Bir öğrencinin kayıtlı her iki velisine de (anne ve baba) kişiselleştirilmiş
+   ayrı SMS gider.
+4. Aynı gün içinde mükerrer gönderim yapılmaz (idempotent; `otomasyon_ilk_ders_son_tarih`).
+5. Arayüzden tek tıkla açılıp kapatılabilir (`otomasyon_ilk_ders_aktif`).
+6. Kuru çalıştırma (dry-run / simülasyon) desteği ile test edilebilir.
+"""
+
+import asyncio
+import json
+import logging
+import re
+import threading
+import uuid
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
+
+import db
+import gonderim
+import sms_gonderici
+import yoklama_kaynak
+
+logger = logging.getLogger("smssistemi.otomasyon")
+
+_ISTANBUL = ZoneInfo("Europe/Istanbul")
+
+AYAR_AKTIF = "otomasyon_ilk_ders_aktif"
+AYAR_SABLON = "otomasyon_ilk_ders_sablonu"
+AYAR_SON_TARIH = "otomasyon_ilk_ders_son_tarih"
+AYAR_SON_SONUC = "otomasyon_ilk_ders_son_sonuc"
+
+VARSAYILAN_SABLON = "Sayın {isim}, öğrenciniz {ogrenci_adi} sabah ilk saate gelmemiştir. Bilginize."
+
+_COZULMEMIS_ISIM_RE = re.compile(r"^No\s+\d+$")
+
+_DURUM_ACIKLAMA = {
+    "alinmadi": "Yoklama alınmamış",
+    "tahta_ulasilamaz": "Tahta ulaşılamadı",
+    "henuz_baslamadi": "Dersler henüz başlamadı",
+    "tahta_atanmamis": "Sınıfa tahta atanmamış",
+    "ders_yok_o_gun": "O gün ders yok",
+    "veri_yok": "Panoda 1. derse ait kayıt yok",
+}
+
+ESLESME_TAMAM = "tamam"
+ESLESME_TELEFONSUZ = "telefonsuz"
+ESLESME_YOK = "eslesmedi"
+
+
+def bugun_istanbul() -> date:
+    return datetime.now(_ISTANBUL).date()
+
+
+def simdi_istanbul() -> datetime:
+    return datetime.now(_ISTANBUL)
+
+
+def okul_gunu_mu(hedef_tarih: date) -> bool:
+    """Pazartesi=0 ... Cuma=4 okul günüdür (Cumartesi-Pazar False döner)."""
+    return hedef_tarih.weekday() in (0, 1, 2, 3, 4)
+
+
+def sablonu_oku(conn) -> str:
+    return db.ayar_oku(conn, AYAR_SABLON) or VARSAYILAN_SABLON
+
+
+def otomasyon_aktif_mi(conn) -> bool:
+    return db.ayar_oku(conn, AYAR_AKTIF) == "1"
+
+
+def son_sonuc_oku(conn) -> dict | None:
+    ham = db.ayar_oku(conn, AYAR_SON_SONUC)
+    if not ham:
+        return None
+    try:
+        return json.loads(ham)
+    except Exception:
+        return None
+
+
+def _ogrenciyi_eslestir(
+    conn, ad_soyad: str, sinif_id: int | None, sinif_adi_ile: dict[int, str]
+) -> tuple[str, dict | None, list[dict], str | None]:
+    """İsim -> rehberdeki öğrenci -> telefonlu veliler.
+    Döner: (eslesme_durumu, ogrenci|None, veliler, not).
+    """
+    if _COZULMEMIS_ISIM_RE.match(ad_soyad.strip()):
+        return ESLESME_YOK, None, [], "Panoda öğrenci numarası çözülememiş"
+    if sinif_id is None:
+        return ESLESME_YOK, None, [], "Bu sınıf rehberde kayıtlı değil"
+
+    ogrenci = db.kisi_bul_isimle(conn, ad_soyad, sinif_id, "ogrenci")
+    if ogrenci is None:
+        baska = db.kisi_bul_isimle_sinifsiz(conn, ad_soyad, "ogrenci")
+        if baska is not None:
+            baska_sinif = sinif_adi_ile.get(baska["sinif_id"], "?")
+            return ESLESME_YOK, None, [], f"Rehberde {baska_sinif} sınıfında kayıtlı"
+        return ESLESME_YOK, None, [], "Rehberde bu isimde öğrenci yok"
+
+    veliler = db.veliler_ogrenci_ile(conn, ogrenci["id"])
+    if not veliler:
+        return ESLESME_TELEFONSUZ, ogrenci, [], None
+    return ESLESME_TAMAM, ogrenci, veliler, None
+
+
+def ilk_ders_devamsizlar(
+    conn, tarih: str | None = None, sablon: str | None = None
+) -> dict:
+    """1. ders devamsızlık özetini derler.
+    
+    Yalnızca `ders_no == 1` ve `durum == 'alindi'` olan sınıflar işleme alınır.
+    İzinli öğrenciler yok sayılmaz.
+    """
+    hedef_tarih = tarih or bugun_istanbul().isoformat()
+    mesaj_sablonu = sablon or sablonu_oku(conn)
+
+    siniflar = db.siniflar_listele(conn)
+    sinif_id_ile = {s["ad"]: s["id"] for s in siniflar}
+    sinif_adi_ile = {s["id"]: s["ad"] for s in siniflar}
+
+    satirlar = yoklama_kaynak.gunun_satirlari(hedef_tarih)
+    ilk_ders_satirlari = [s for s in satirlar if s.get("ders_no") == 1]
+
+    gorulen_siniflar: dict[str, dict] = {}
+    for s in ilk_ders_satirlari:
+        gorulen_siniflar[s["sinif"]] = s
+
+    dahil_siniflar: list[str] = []
+    haric_siniflar: list[dict] = []
+
+    for sinif_ad in sorted(sinif_id_ile.keys(), key=db._sinif_sira_anahtari):
+        if not db._SINIF_AD_RE.match(sinif_ad):
+            continue  # Personel / Bilinmeyen Sınıf
+        satir = gorulen_siniflar.get(sinif_ad)
+        if not satir:
+            haric_siniflar.append(
+                {
+                    "sinif": sinif_ad,
+                    "sebep": "veri_yok",
+                    "aciklama": _DURUM_ACIKLAMA["veri_yok"],
+                }
+            )
+        elif satir["durum"] != yoklama_kaynak.DURUM_ALINDI:
+            sebep = satir["durum"]
+            haric_siniflar.append(
+                {
+                    "sinif": sinif_ad,
+                    "sebep": sebep,
+                    "aciklama": _DURUM_ACIKLAMA.get(sebep, sebep),
+                }
+            )
+        else:
+            dahil_siniflar.append(sinif_ad)
+
+    ogrenciler: list[dict] = []
+    gonderilecek_smsler: list[dict] = []
+    izinli_sayisi = 0
+
+    for sinif_ad in dahil_siniflar:
+        satir = gorulen_siniflar[sinif_ad]
+        izinliler = set(satir.get("izinli_isimleri", []))
+        yoklar = satir.get("yok_isimleri", [])
+
+        for ad_soyad in yoklar:
+            if ad_soyad in izinliler:
+                izinli_sayisi += 1
+                continue
+
+            durum, ogrenci, veliler, not_metni = _ogrenciyi_eslestir(
+                conn, ad_soyad, sinif_id_ile.get(sinif_ad), sinif_adi_ile
+            )
+
+            ogrenci_kayit = {
+                "sinif": sinif_ad,
+                "ad_soyad": ad_soyad,
+                "eslesme_durumu": durum,
+                "eslesme_notu": not_metni,
+                "ogrenci_kisi_id": ogrenci["id"] if ogrenci else None,
+                "veliler": veliler,
+            }
+            ogrenciler.append(ogrenci_kayit)
+
+            if durum == ESLESME_TAMAM:
+                for v in veliler:
+                    kisisel_mesaj = gonderim.kisisellestir(
+                        mesaj_sablonu, v["ad_soyad"], ogrenci["ad_soyad"]
+                    )
+                    gonderilecek_smsler.append(
+                        {
+                            "veli_kisi_id": v["id"],
+                            "veli_ad": v["ad_soyad"],
+                            "veli_telefon": v["telefon"],
+                            "veli_rol": v.get("veli_rol"),
+                            "ogrenci_ad": ogrenci["ad_soyad"],
+                            "sinif": sinif_ad,
+                            "mesaj": kisisel_mesaj,
+                        }
+                    )
+
+    ogrenciler.sort(key=lambda o: (db._sinif_sira_anahtari(o["sinif"]), o["ad_soyad"]))
+    gonderilecek_smsler.sort(
+        key=lambda s: (db._sinif_sira_anahtari(s["sinif"]), s["ogrenci_ad"], s["veli_ad"])
+    )
+
+    return {
+        "tarih": hedef_tarih,
+        "bugun_mu": hedef_tarih == bugun_istanbul().isoformat(),
+        "sablon": mesaj_sablonu,
+        "dahil_siniflar": dahil_siniflar,
+        "haric_siniflar": haric_siniflar,
+        "ogrenciler": ogrenciler,
+        "gonderilecek_smsler": gonderilecek_smsler,
+        "toplam_ogrenci": len(ogrenciler),
+        "ulasilabilir_ogrenci": sum(
+            1 for o in ogrenciler if o["eslesme_durumu"] == ESLESME_TAMAM
+        ),
+        "toplam_veli_sms": len(gonderilecek_smsler),
+        "telefonsuz_sayisi": sum(
+            1 for o in ogrenciler if o["eslesme_durumu"] == ESLESME_TELEFONSUZ
+        ),
+        "eslesmeyen_sayisi": sum(
+            1 for o in ogrenciler if o["eslesme_durumu"] == ESLESME_YOK
+        ),
+        "izinli_sayisi": izinli_sayisi,
+    }
+
+
+def otomasyon_calistir(
+    conn,
+    kuru: bool = False,
+    tetikleyen: str = "otomasyon",
+    tarih: str | None = None,
+    bekleme_sn: float = 2.0,
+) -> dict:
+    """1. ders devamsızlık SMS servisini yürütür.
+    
+    kuru=True ise gerçek SMS göndermez ve son çalışma tarihini güncellemez.
+    kuru=False ise gönderim yapar, veritabanına loglar ve son çalışma tarihini kaydeder.
+    """
+    hedef_tarih = tarih or bugun_istanbul().isoformat()
+    son_tarih = db.ayar_oku(conn, AYAR_SON_TARIH)
+
+    if not kuru and son_tarih == hedef_tarih and tetikleyen == "otomatik_zamanlayici":
+        logger.info(f"Otomasyon {hedef_tarih} için zaten çalışmış, mükerrer gönderim atlandı.")
+        return {
+            "durum": "zaten_calisti",
+            "mesaj": f"{hedef_tarih} tarihinde otomasyon zaten çalıştırılmış.",
+            "tarih": hedef_tarih,
+        }
+
+    derleme = ilk_ders_devamsizlar(conn, tarih=hedef_tarih)
+    gonderilecekler = derleme["gonderilecek_smsler"]
+
+    if kuru:
+        return {
+            "durum": "simulasyon",
+            "kuru_calistirma": True,
+            "tarih": hedef_tarih,
+            "derleme": derleme,
+            "gonderilecek_adet": len(gonderilecekler),
+        }
+
+    gonderim_id = f"oto1_{uuid.uuid4().hex[:8]}"
+    basarili_sayisi = 0
+    hatali_sayisi = 0
+
+    if gonderilecekler:
+        logger.info(
+            f"Otomasyon ({tetikleyen}) başlatılıyor: {len(gonderilecekler)} veliye SMS gönderilecek. "
+            f"Gonderim ID: {gonderim_id}"
+        )
+        kisiler_listesi = [
+            (item["veli_ad"], item["veli_telefon"], item["mesaj"])
+            for item in gonderilecekler
+        ]
+
+        def _kaydet(isim: str, telefon: str, mesaj: str, durum: str, hata_metni: str | None) -> None:
+            nonlocal basarili_sayisi, hatali_sayisi
+            if durum == "gonderildi":
+                basarili_sayisi += 1
+            else:
+                hatali_sayisi += 1
+            db.gonderim_kaydet(conn, gonderim_id, isim, telefon, mesaj, durum, hata_metni)
+
+        try:
+            ayarlar = sms_gonderici.modem_ayarlarini_yukle()
+            sms_gonderici.toplu_gonder(
+                ayarlar,
+                kisiler_listesi,
+                _kaydet,
+                # None verilince toplu_gonder ilk `.is_set()`te AttributeError
+                # fırlatıp HİÇ SMS göndermiyordu (2026-09-25'te bulundu). Otomasyonun
+                # durdurma düğmesi yok — hiç set edilmeyen bir Event yeterli.
+                durdur_bayragi=threading.Event(),
+                bekleme_sn=bekleme_sn,
+            )
+        except Exception as exc:
+            logger.error(f"Otomasyon SMS gönderiminde hata oluştu: {exc}")
+            # Tüm kalanları hata olarak kaydet
+            for k in kisiler_listesi:
+                _kaydet(k[0], k[1], k[2], "hata", str(exc))
+
+    db.ayar_yaz(conn, AYAR_SON_TARIH, hedef_tarih)
+    sonuc_ozet = {
+        "gonderim_id": gonderim_id,
+        "tarih": hedef_tarih,
+        "calisma_zamani": simdi_istanbul().strftime("%Y-%m-%d %H:%M:%S"),
+        "tetikleyen": tetikleyen,
+        "ogrenci_sayisi": derleme["toplam_ogrenci"],
+        "veli_sms_sayisi": len(gonderilecekler),
+        "basarili_sayisi": basarili_sayisi,
+        "hatali_sayisi": hatali_sayisi,
+        "dahil_sinif_sayisi": len(derleme["dahil_siniflar"]),
+        "haric_sinif_sayisi": len(derleme["haric_siniflar"]),
+        "durum": "tamamlandi",
+    }
+    db.ayar_yaz(conn, AYAR_SON_SONUC, json.dumps(sonuc_ozet, ensure_ascii=False))
+
+    return {
+        "durum": "tamamlandi",
+        "gonderim_id": gonderim_id,
+        "ozet": sonuc_ozet,
+        "derleme": derleme,
+    }
+
+
+# 2026-09-25: gönderim (`toplu_gonder`: SMS başına time.sleep + 8 bağlantı
+# denemesi) async route/döngü İÇİNDEN doğrudan çağrılınca tüm 8020 event
+# loop'unu gönderim bitene kadar donduruyordu. Artık asyncio.to_thread ile
+# ayrı thread'de koşuyor. sqlite3 bağlantısı oluşturulduğu thread'e bağlı
+# olduğu için bağlantı thread'in İÇİNDE açılır. Kilit: otomatik zamanlayıcı
+# ile manuel tetik artık aynı anda koşabildiği için, aynı velilere iki kez
+# SMS gitmesini engeller (manuel tetik günlük idempotency kontrolünü
+# bilerek atlıyor — bkz. otomasyon_calistir).
+_CALISMA_KILIDI = threading.Lock()
+
+
+def otomasyon_calistir_thread(**kwargs) -> dict:
+    """`await asyncio.to_thread(otomasyon_calistir_thread, ...)` için."""
+    if not _CALISMA_KILIDI.acquire(blocking=False):
+        return {"durum": "calisiyor", "mesaj": "Otomasyon şu anda zaten çalışıyor."}
+    try:
+        conn = db.baglanti()
+        try:
+            return otomasyon_calistir(conn, **kwargs)
+        finally:
+            conn.close()
+    finally:
+        _CALISMA_KILIDI.release()
+
+
+async def otomasyon_arkaplan_dongusu() -> None:
+    """Arka planda koşan zamanlayıcı döngüsü.
+    
+    Her 30 saniyede bir İstanbul saatini kontrol eder.
+    Hafta içi okul günlerinde (Pzt-Cum) saat 09:00 - 09:10 penceresinde
+    otomasyon aktif ve o gün henüz çalışmamışsa devreye girer.
+    """
+    logger.info("Otomasyon arka plan zamanlayıcı döngüsü başlatıldı.")
+    while True:
+        try:
+            await asyncio.sleep(30)
+            simdi = simdi_istanbul()
+            bugun = simdi.date()
+
+            # Hafta sonu mu?
+            if not okul_gunu_mu(bugun):
+                continue
+
+            # 09:00 - 09:10 zaman penceresi
+            if not (simdi.hour == 9 and 0 <= simdi.minute <= 10):
+                continue
+
+            conn = db.baglanti()
+            try:
+                if not otomasyon_aktif_mi(conn):
+                    continue
+
+                son_tarih = db.ayar_oku(conn, AYAR_SON_TARIH)
+                if son_tarih == bugun.isoformat():
+                    continue  # Bugün zaten çalışmış
+
+                logger.info(f"Saat {simdi.strftime('%H:%M:%S')} - 09:00 Yoklama Otomasyonu tetikleniyor...")
+                await asyncio.to_thread(
+                    otomasyon_calistir_thread, kuru=False, tetikleyen="otomatik_zamanlayici"
+                )
+            finally:
+                conn.close()
+
+        except asyncio.CancelledError:
+            logger.info("Otomasyon arka plan döngüsü durduruldu.")
+            break
+        except Exception as e:
+            logger.error(f"Otomasyon arka plan döngüsünde beklenmeyen hata: {e}", exc_info=True)

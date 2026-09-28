@@ -52,6 +52,7 @@
       <select name="tur">
         <option value="">Hepsi</option>
         <option value="ogrenci" {% if secili_tur == "ogrenci" %}selected{% endif %}>Öğrenci</option>
+        <option value="personel" {% if secili_tur == "personel" %}selected{% endif %}>Personel</option>
         <option value="veli" {% if secili_tur == "veli" %}selected{% endif %}>Veli</option>
       </select>
     </label>
@@ -80,6 +81,7 @@
         <td>
           <select form="duzenle-{{ k.id }}" name="tur">
             <option value="ogrenci" {% if k.tur == "ogrenci" %}selected{% endif %}>Öğrenci</option>
+            <option value="personel" {% if k.tur == "personel" %}selected{% endif %}>Personel</option>
             <option value="veli" {% if k.tur == "veli" %}selected{% endif %}>Veli</option>
           </select>
         </td>
@@ -125,6 +127,7 @@
     <label>Tür
       <select name="tur">
         <option value="ogrenci" {% if secili_tur == "ogrenci" %}selected{% endif %}>Öğrenci</option>
+        <option value="personel" {% if secili_tur == "personel" %}selected{% endif %}>Personel</option>
         <option value="veli" {% if secili_tur == "veli" %}selected{% endif %}>Veli</option>
       </select>
     </label>
@@ -147,6 +150,7 @@
     <label>Tür
       <select name="tur">
         <option value="ogrenci" {% if secili_tur == "ogrenci" %}selected{% endif %}>Öğrenci</option>
+        <option value="personel" {% if secili_tur == "personel" %}selected{% endif %}>Personel</option>
         <option value="veli" {% if secili_tur == "veli" %}selected{% endif %}>Veli</option>
       </select>
     </label>
