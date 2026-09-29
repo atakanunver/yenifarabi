@@ -20,12 +20,9 @@ okul operasyon servisleri (yoklama panosu, SMS).
   12-A, 12-B) + `fenlab`. Tablo: aşağıda "Ağ Envanteri".
 - **Tahtayoklama:** aynı 8 tahtada kurulu. Tahta tarafı
   `tahtayoklama/yoklama.py`; sunucu tarafı `tahtayoklama/dashboard/`.
-- **Gemini faturalandırma engeli ÇÖZÜLDÜ (2026-09-25, aynı gün):** eski
-  projenin anahtarı 2026-09-22'den beri 403/1008 veriyordu; ayrı projeden
-  yeni tek anahtar 8 kuruluma dağıtıldı, Live bağlantısı fenlab'da
-  doğrulandı (DECISIONS.md 2026-09-25 "…Gemini faturalandırma engeli…").
-  2026-09-27'deki "Farabi susuyor" sorunu faturalandırma DEĞİL,
-  `thinking_config` idi (DECISIONS.md 2026-09-27).
+- **Gemini anahtarı:** 8 kurulumda tek, çalışan anahtar (faturalandırma
+  engeli 2026-09-25'te çözüldü). "Farabi susuyor" belirtisi faturalandırma
+  değil `thinking_config` olabilir — DECISIONS.md 2026-09-25 / 2026-09-27.
 - **Mikrofonsuz mod** şu an 8 tahtanın hepsinde açık (`api_keys.json::
   mikrofon`). Nedeni artık faturalandırma değil, tahta mikrofonlarının
   bozuk olması (kullanıcı kararı, DECISIONS.md 2026-09-25 config_dagit
@@ -33,15 +30,14 @@ okul operasyon servisleri (yoklama panosu, SMS).
   MİKROFONSUZ düğmesi DERSİ BAŞLAT'tan önce yalnızca bellekte değiştirir
   (dosyaya yazmaz), yeniden başlatınca dosyadakine döner. Ders içi düğmeler:
   DURDUR, DEVAM ET, ⏹ DERSİ BİTİR (çift dokunuş, 2026-09-27).
-- ⛔ **Yerel sese geçiş (Pipecat) KALICI OLARAK İPTAL (2026-09-28).**
-  Donanım altyapısı izin vermiyor; Gemini Live ile devam kararı. Kod
-  (`voice_node/`, `server/ses_cephe.py`) 66af43d ile master'dan geri
-  alındı, yalnızca git geçmişinde arşiv (bd9719c, e04e279); planlar
-  `docs/superpowers/plans/2026-09-2{5,6}-ses-*` (arşiv notlu).
-  `farabi-ses`/`farabi-piper` birimleri durduruldu ve devre dışı. Ayrıntı:
-  DECISIONS.md 2026-09-28.
+- ⛔ **Yerel ses (Pipecat) KALICI OLARAK İPTAL (2026-09-28)** — bkz.
+  "Şu An Yapılmayacaklar"; ayrıntı DECISIONS.md 2026-09-28.
 - **`client/core/prompt.txt` hâlâ client'ta.** Server'a taşınması
   PLANLANDI, YAPILMADI (mimari.md §0).
+- **Tahta gece/sabah bakımı PLANLANDI, UYGULANMADI.** Spec
+  `docs/superpowers/specs/2026-09-28-tahta-gece-sabah-bakim-design.md`,
+  plan `docs/superpowers/plans/2026-09-29-tahta-gece-sabah-bakim.md`;
+  `tahtayoklama/dashboard/tahta_bakim.py` henüz yok (2026-09-29).
 - **IP değil hostname/MAC esas alınır.** DHCP kirası bozulunca IP değişiyor
   (12-A, 2026-09-22). Kanonik kayıt `server/tahtalar.json`. Bir tahtanın IP'si
   değişirse **üç yer** güncellenir: `server/tahtalar.json`, dashboard SQLite
@@ -284,8 +280,8 @@ bozabilir.
 .venv-tools/bin/ruff check smssistemi/app.py      # yalnızca dokunduğun dosya
 ```
 
-⚠️ **Sıfır hata beklenmiyor — 2026-09-22 taban çizgisi 480 bulgu**
-(`smssistemi` hariç 448, `smssistemi` 32). Değişiklikten önce ve sonra
+⚠️ **Sıfır hata beklenmiyor — 2026-09-29 taban çizgisi 504 bulgu**
+(`smssistemi` hariç 464, `smssistemi` 40; 2026-09-22'de 480 idi). Değişiklikten önce ve sonra
 çalıştırıp **farkı** oku ya da yalnızca dokunduğun dosyayı ver. Birikmiş
 yığını topluca temizlemek Kural 6 kapsamında ayrı iş. `mudur/` ve `dogum/`
 bilinçli olarak kapsam dışı.
@@ -511,6 +507,9 @@ vision görü yeteneği kazandırabilirsin.
   `webmimari.md`, `raganaliz.txt` — **tarihli anlık görüntüler**, güncel
   durum değil; çelişkide bu dosya + DECISIONS.md esas. `package.json`/
   `node_modules` yalnızca `@google/gemini-cli` içindir, projenin kodu değil.
+  **Gemini CLI bu projede kullanılmaz** (2026-09-29 kararı): yapılandırması
+  (`~/.gemini/`) Claude Code'a import edilmez. Bu, ses için kullanılan
+  Gemini Live'ı etkilemez.
 
 ## Araçlar / Eklentiler
 
