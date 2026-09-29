@@ -203,6 +203,12 @@ venv/bin/python -m pytest tests/ -q   # test (pytest requirements.txt'te YOK, ge
 python tools/dogrula.py       # içerik doğrulama kapısı
 ```
 
+⚠️ `farabi.local`'da `client/venv` **yok** (2026-09-28 itibarıyla) —
+yukarıdaki komutlar burada doğrudan çalışmaz. Client testi ya önce
+buradaki venv'i kurup pytest'i elle ekleyerek ya da bir tahtada
+(`server/tahta-ssh.sh <derslik> "cd ~/farabi/client && venv/bin/python -m
+pytest tests/ -q"`; 9-A'da yol `~/farabi/repo/client`) koşulur.
+
 `server/` — `farabi-api.service`
 (`WorkingDirectory=/home/ata/farabi/server`,
 `ExecStart=.../server/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000`).
@@ -500,6 +506,11 @@ vision görü yeteneği kazandırabilirsin.
   karartma) referans duruma getiren ajansız script'ler.
 - `docs/superpowers/{specs,plans}/` — superpowers becerilerinin ürettiği
   belgeler buraya yazılır (`<TARİH>-<konu>-design.md`, `<TARİH>-<konu>.md`).
+- Kökteki `plan.md` (2026-09-02 PDF/vision analizi + uygulama günlüğü),
+  `sorunlar.md` (2026-09-13 RAG/veri kontrolü), `eylulanaliz.md`,
+  `webmimari.md`, `raganaliz.txt` — **tarihli anlık görüntüler**, güncel
+  durum değil; çelişkide bu dosya + DECISIONS.md esas. `package.json`/
+  `node_modules` yalnızca `@google/gemini-cli` içindir, projenin kodu değil.
 
 ## Araçlar / Eklentiler
 
