@@ -121,6 +121,51 @@ olarak DOKUNULMADI** — pilot tahta ve kendine özgü bir klasör yapısı var
 (`~/farabi/repo/client`, bkz. kök `CLAUDE.md`); otomatik girişin orada
 istenip istenmediği kullanıcıya sorulacak.
 
+> ⚠️ **Güncel durum (2026-09-29): yukarıdaki "9-A'ya dokunulmadı" notu
+> ESKİDİ.** 9-A'da `50-tahta-autologin.conf` artık kurulu ve çalışıyor
+> (`--sadece-kontrol`: 6/6 fix uygulanmış); 9-A diğer sınıf tahtalarıyla
+> aynı referans durumda. Bkz. aşağıdaki "2026-09-29 ham karşılaştırması".
+
+## 2026-09-29 ham karşılaştırması — fix script'inin GÖRMEDİĞİ farklar
+
+`tahta_fix_uygula.py --sadece-kontrol` yalnızca `DUZELTMELER` listesindeki
+6 maddeye bakar; "hepsi ✓" tahtaların AYNI olduğu anlamına gelmez. 9-A'da
+her şey ✓ görünürken şikâyetlerin gerçek nedenleri listede olmayan yerlerdeydi
+ve ancak tahtalar arası ham karşılaştırmayla (sistem birimleri, sudoers,
+`/var/log/lightdm/lightdm.log`, `loginctl`, `gsettings list-recursively`)
+bulundu. Ayrıntı: `DECISIONS.md` 2026-09-29.
+
+- **9-A `x11vnc.service` (KALDIRILDI):** yalnızca 9-A'da elle eklenmiş,
+  hatalı tanımlı bir VNC birimi (`Type=forking` + `-bg -loop`) 90 sn'de bir
+  zaman aşımına düşüp yeniden başlıyor, her seferinde `:0`'ın klavye
+  eşlemesine dokunuyordu → fare/klavye/dokunmatik kilitlenmesi. Dosya
+  `/root/x11vnc.service.kaldirildi-20260929`'da. Hiçbir tahtada ayrı bir
+  VNC birimi olmamalı (Veyon'un kendi x11vnc'si, port 11200, ayrı ve
+  normal).
+- **"Otomatik giriş yok" = kilit ekranı:** autologin çalışsa bile oturum
+  sonradan kilitlenirse (`lightdm.log`: `Seat seat0: Locking`,
+  `custom-screensaver-command = 'dm-tool lock'`) LightDM greeter VT8'de
+  öne geçer, `ogretmen` oturumu VT7'de arkada kalır — öğretmen parola
+  ekranı görür. Teşhis: `loginctl show-session <id> -p Active` (kullanıcı
+  oturumu `Active=no`, `c1` greeter `Active=yes`). Kurtarma, `etapadmin`
+  ile: `sudo loginctl activate <ogretmen-oturum-id>`. Kilidi 9-A'da neyin
+  tetiklediği bulunamadı.
+- **Sudo (EŞİTLENDİ):** referans durum — `/etc/sudoers.d/farabi-nopasswd`
+  = `etapadmin ALL=(ALL) NOPASSWD: ALL`, `ogretmen` `sudo` grubunda DEĞİL,
+  `ogretmen` için `sudo -n` başarısız. 9-A tersti (`ogretmen` NOPASSWD +
+  `sudo` grubu, `etapadmin` parolalı); 2026-09-29'da kullanıcı kararıyla
+  referansa getirildi. 11-A'da `/etc/sudoers.d/farabi-nopasswd` dosyası
+  hiç yok (2026-09-29 taraması; `etapadmin`'in orada nasıl sudo aldığı
+  doğrulanmadı) — dokunulmadı.
+- **fenlab:** `veyon-watchdog.timer` yok (diğer 8 tahtada var),
+  `sleep-display-battery` 0 (diğerlerinde 600, prizde etkisiz) — ikisine de
+  dokunulmadı.
+
+Tekrar kullanılabilir yöntem: aynı salt-okunur tarama script'ini birkaç
+tahtada çalıştırıp çıktıları `diff`'lemek (referans olarak 9-B/12-B).
+`ogretmen` sistem journal'ını ve `/var/log/lightdm/`'i okuyamaz — bunlar
+için `etapadmin`+`sudo` gerekir.
+
 ## Bilinen sınırlar
 
 - `cinnamon_guc_tusu_yoksay` aktif bir `ogretmen` masaüstü oturumu
@@ -153,8 +198,11 @@ kapsamında YAPILMADI.
 - `zil.json` / `ders_programi.json` dağıtımı →
   `tahtayoklama/dashboard/scripts/zil_yukle.py` (taşınmadı — bu,
   tahtayoklama'nın kendi veri akışı, OS provizyonu değil)
-- `ogretmen` kullanıcısının NOPASSWD asimetrisi (bazı tahtalarda `sudo -n`
-  parolasız çalışıyor, bazılarında çalışmıyor) **normalleştirilmedi** —
-  bu bir güvenlik kararı, provizyon temizliği değil; bilerek dokunulmadı.
+- ~~`ogretmen` kullanıcısının NOPASSWD asimetrisi normalleştirilmedi~~ —
+  **2026-09-29'da kullanıcı kararıyla ÇÖZÜLDÜ:** asimetrinin kaynağı
+  yalnızca 9-A'ydı (`ogretmen` NOPASSWD); artık 8 tahtanın hiçbirinde
+  `ogretmen` sudo'lu değil. Yukarıdaki "2026-09-29 ham karşılaştırması"na
+  bkz. Hâlâ `DUZELTMELER`'e eklenmedi (sudoers'a dokunan otomatik fix ayrı
+  karar ister).
 - `sleep-inactive-ac-type` — 2026-09-15 taramasında 7 tahtada da zaten
   `'nothing'` bulundu, ayrı bir fix'e gerek kalmadı.
