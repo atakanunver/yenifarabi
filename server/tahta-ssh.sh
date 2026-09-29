@@ -15,9 +15,11 @@
 # 2026-08-22: --admin eklendi — paket kurulumu/sistem değişikliği gibi işler
 # için etapadmin kullanılır, ogretmen'e sudo verilmez (kasıtlı ayrım, bkz.
 # tahtalar.json açıklaması). etapadmin'in sudo'su NOPASSWD DEĞİL her tahtada
-# — bazılarında (9-A, 231, 233, 236) sudo hâlâ parola istiyor, bazılarında
-# (240, 242) istemiyor; bu script sudo'yu kendisi çağırmaz, komutunuzda
-# gerekirse parolayı siz yönetin (bkz. tahtalar.json açıklaması).
+# — 2026-09-29 ölçümü (`sudo -n true`): 9-A, 9-B, 10-A, 11-B, 12-B parolasız;
+# 11-A, 12-A, fenlab parola istiyor (tahta-234/235/236 ölçülemedi, ağda
+# değil). 9-A o gün diğerleriyle eşitlendi (bkz. DECISIONS.md 2026-09-29).
+# Bu script sudo'yu kendisi çağırmaz, komutunuzda gerekirse parolayı siz
+# yönetin (bkz. tahtalar.json açıklaması).
 #
 # Örnek — bir tahtaya push tetikleme (9-A zaten kendi farabi-simdi-gonder
 # alias'ına sahip, ama uzaktan da tetiklenebilir):

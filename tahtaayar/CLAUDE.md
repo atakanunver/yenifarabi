@@ -154,9 +154,12 @@ bulundu. Ayrıntı: `DECISIONS.md` 2026-09-29.
   = `etapadmin ALL=(ALL) NOPASSWD: ALL`, `ogretmen` `sudo` grubunda DEĞİL,
   `ogretmen` için `sudo -n` başarısız. 9-A tersti (`ogretmen` NOPASSWD +
   `sudo` grubu, `etapadmin` parolalı); 2026-09-29'da kullanıcı kararıyla
-  referansa getirildi. 11-A'da `/etc/sudoers.d/farabi-nopasswd` dosyası
-  hiç yok (2026-09-29 taraması; `etapadmin`'in orada nasıl sudo aldığı
-  doğrulanmadı) — dokunulmadı.
+  referansa getirildi. `etapadmin` için parolasız sudo HER tahtada yok —
+  2026-09-29 ölçümü (`sudo -n true`): 9-A, 9-B, 10-A, 11-B, 12-B parolasız;
+  11-A (`farabi-nopasswd` dosyası hiç yok), 12-A, fenlab (dosya var ama
+  parola istiyor, içeriği okunmadı) parolalı. `ogretmen` hiçbirinde
+  sudo'lu değil. Parolalı tahtalara dokunulmadı; script'ler zaten
+  `gizli.json::etapadmin_sifre` ile `sudo -S`'e düşüyor.
 - **fenlab:** `veyon-watchdog.timer` yok (diğer 8 tahtada var),
   `sleep-display-battery` 0 (diğerlerinde 600, prizde etkisiz) — ikisine de
   dokunulmadı.
