@@ -1,7 +1,7 @@
 # Tahta gece/sabah bakımı — tasarım
 
 - **Tarih:** 2026-09-28
-- **Durum:** Tasarım onaylandı (kullanıcı, 2026-09-28). Uygulama planı yazılmadı.
+- **Durum:** Tasarım onaylandı (kullanıcı, 2026-09-28). Plan: `docs/superpowers/plans/2026-09-29-tahta-gece-sabah-bakim.md`.
 - **Kapsam:** `tahtayoklama/dashboard/` (yeni modül + CLI + tablo + durum
   kartı) ve sunucuda iki systemd timer. Tahtalara yeni yazılım/birim
   KURULMAZ.
@@ -99,10 +99,12 @@ Her tahta için:
      diğerlerinde `~/farabi/client/logs/`.
 3. **Kayıt:** bulgular `tahta_bakim`'a yazılır (reboot'tan ÖNCE — tahta
    geri gelmese bile rapor kalır).
-4. **Ders kilidi:** `zil.okul_gunu_mu(bugün)` ve `zil.simdiki_ders() is not
-   None` ise reboot YAPILMAZ, `detay`'a "ders sürüyor, reboot atlandı"
-   yazılır. (21:00'de normalde ders yok; kilit elle çalıştırmaya/saat
-   kaymasına karşı.)
+4. **Okul saati kilidi:** okul günü ve `zil.ilk_ders_saati()` ≤ şimdi <
+   `zil.son_ders_bitis_saati()` (bugün 08:10–15:50, teneffüsler DAHİL) ise
+   reboot YAPILMAZ, `detay`'a "Okul saati içinde, reboot atlandı" yazılır.
+   (2026-09-29 plan aşamasında "şu an ders var mı" kilidinden genişletildi:
+   teneffüste `simdiki_ders` None döndüğü için elle çalıştırma tahtaları
+   teneffüste yeniden başlatabilirdi.)
 5. **Reboot:** `etapadmin` + `sudo systemctl reboot`.
 6. **Geri gelmesini bekle:** 5 sn aralıkla SSH dene, en fazla 360 sn.
    Gelmezse → `geri_gelmedi`, dur. Gelince X oturumu için 20 sn bekle.
@@ -119,7 +121,7 @@ Her tahta için:
 ### 4.2 Sabah (07:00)
 
 1. Erişim yoksa → `kapali` (Wake-on-LAN kapsam dışı).
-2. Ders kilidi (4.1 adım 4 ile aynı).
+2. Okul saati kilidi (4.1 adım 4 ile aynı).
 3. Reboot → geri gelmesini bekle (4.1 adım 5–6).
 4. **Sabah modu:** root: governor ← `performance`, `scaling_max_freq` ←
    `cpuinfo_max_freq`. `ogretmen`: `pkill -f '[e]ta-screen-cover'`
@@ -169,21 +171,21 @@ CREATE TABLE IF NOT EXISTS tahta_bakim (
 | Durum | Davranış |
 |---|---|
 | Tahta kapalı/ulaşılamaz | `kapali`, reboot denenmez |
-| Ders sürüyor | reboot atlanır, rapor yazılır |
+| Okul saati (08:10–15:50) | reboot atlanır, rapor yazılır |
 | Reboot sonrası 360 sn'de gelmedi | `geri_gelmedi` |
 | sudo başarısız (NOPASSWD yok + parola yok/yanlış) | CPU adımı atlanır → `hata`; karartma/DPMS yine denenir |
 | X oturumu yok (9-A, oturum açılmamış) | karartma/DPMS atlanır, detayda not |
 | Script çökmesi | yakalanan istisna o tahtada `hata`; diğer tahtalar sürer; systemd journal'da iz |
 | Aynı anda iki çalışma | CLI dosya kilidiyle (`flock`) ikinciyi reddeder |
 
-Kural 2: işler ders dışı saatlerde; ders kilidi ek güvence. Tahtadaki
+Kural 2: işler ders dışı saatlerde; okul saati kilidi ek güvence. Tahtadaki
 Farabi client/yoklama bu işten habersizdir, yalnızca normal açılışla
 yeniden başlar.
 
 ## 8. Test ve devreye alma
 
 - `unittest` (dashboard deseni, pytest değil): kritik/uyarı kalıp
-  sınıflandırması, temiz/kirli önceki açılış tespiti, ders kilidi, hedef
+  sınıflandırması, temiz/kirli önceki açılış tespiti, okul saati kilidi, hedef
   tahta filtresi (`tahta-` hariç), DB kaydı + UTC→İstanbul gösterimi,
   sahte `ssh_istemci` ile adım sırası (tarama → kayıt → reboot → bekle →
   mod) ve hata dalları.
