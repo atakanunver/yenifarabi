@@ -8,6 +8,8 @@ bkz. docs/superpowers/specs/2026-09-19-smssistemi-design.md.
 import asyncio
 from contextlib import asynccontextmanager
 import json
+import logging
+import sys
 import threading
 import urllib.request
 import uuid
@@ -25,6 +27,27 @@ import otomasyon
 import sms_gonderici
 import yoklama_kaynak
 import yoklama_mantik
+
+
+def log_ayarla() -> None:
+    """`smssistemi.*` logger'larını INFO düzeyinde stderr'e (→ journal) yazdırır.
+
+    uvicorn yalnızca kendi logger'larını yapılandırır; kökte handler olmadığı
+    için `smssistemi.otomasyon`'un INFO satırları ("tetikleniyor" dahil)
+    kayboluyordu (2026-09-29). Kök logger'a dokunulmaz (başka kütüphanelerin
+    gürültüsü girmesin), `propagate=False` ile de satırlar iki kez basılmaz.
+    Zaman damgası yok — journal kendisi ekliyor. İdempotent.
+    """
+    lg = logging.getLogger("smssistemi")
+    lg.setLevel(logging.INFO)
+    lg.propagate = False
+    if not lg.handlers:
+        h = logging.StreamHandler(sys.stderr)
+        h.setFormatter(logging.Formatter("%(levelname)s: [%(name)s] %(message)s"))
+        lg.addHandler(h)
+
+
+log_ayarla()
 
 
 @asynccontextmanager
