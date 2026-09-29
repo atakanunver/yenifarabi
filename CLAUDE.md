@@ -160,6 +160,10 @@ Detay `client/CLAUDE.md`'de. Özet:
   görevler (`gorsel`, `arama_sentez`, `video_ozet`, `sembol_duzelt`,
   `soru_taslak`, `kitap_ozet`) bulut öncelikli.
 - `config/api_keys.json` (gitignore'lu) — bulut anahtarları + `board_keys`.
+  `saglayicilar.py` anahtarı YALNIZCA buradan okur, kökteki `apikeys.env`'den
+  değil: 2026-09-29'a kadar bu dosyada yalnızca `board_keys` vardı ve tüm
+  bulut zincirleri sessizce anahtarsızdı (DECISIONS.md 2026-09-29). Yeni
+  anahtar `apikeys.env`'e eklenirse buraya da yazılmalı.
   `.gitignore` desen tabanlı (`*.env`, `**/api_keys*`,
   `!**/api_keys.example.json`); yeni anahtar dosyası bırakırken `git
   check-ignore` ile doğrula.
@@ -446,11 +450,14 @@ Client↔Server event listesi bağlayıcıdır — değişirse `mimari.md`'yi g�
 - Ham ses diske yazılmaz — Gemini Live'ın transkripsiyonu client'ta kalır,
   Brain'e yalnızca metin gider.
 - Öğrenci kimliği tutulmaz. Anonim "öğrenci sordu".
-- **Eğitim İÇERİĞİ (kitap metni, RAG cevabı) dış bulut AI servisine
-  gönderilmez** — Brain (Ollama, embedding, reranker, PostgreSQL/pgvector)
-  tamamen yerel. Ses bu kuralın dışında. Metin/görsel yardımcı görevler
-  (bkz. `server/saglayicilar.py`) bulut sağlayıcılara server üzerinden
-  gider; anahtarlar client diskinde durmaz.
+- **Kitap metni buluta gidebilir (2026-09-29 kararı):** MEB kitapları halka
+  açık; ders planı, sayfa görseli ayrıştırma (formül/tablo), özet gibi
+  kitap içeriğiyle çalışan görevler bulut sağlayıcılara (`server/
+  saglayicilar.py`, server üzerinden; anahtarlar client diskinde durmaz)
+  gönderilebilir. **Hâlâ yerel:** RAG soru-cevabının LLM adımı
+  (`rag.py` → Ollama; buluta taşımak ayrı karar + 40 soruluk ölçüm ister),
+  embedding/reranker/pgvector. **Asla buluta gitmez:** öğrenci/veli
+  verisi (yoklama, roster, SMS rehberi). Ses zaten Gemini Live'da.
 
 ## Loglama — iki tablo, karıştırma
 
