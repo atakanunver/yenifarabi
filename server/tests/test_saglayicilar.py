@@ -210,3 +210,46 @@ class TestGorevZincirleri:
 
     def test_gorsel_zinciri_evrensel_yedekte_yok(self):
         assert sg._EVRENSEL_METIN_YEDEK[0] not in dict(sg.GOREV_ZINCIRLERI["gorsel"])
+
+
+class TestDersPlaniZinciri:
+    """2026-09-29 ölçümü: qwen2.5:14b ders planında yetersiz (8k context'e
+    sıkışıyor, fizik hataları) — zincirde BİLEREK yok. DeepSeek bir planı
+    ~26 sn'de üretiyor; varsayılan 30 sn istemci zaman aşımı sınırda, bu
+    görev 120 sn alır. Diğer görevlerin çağrı imzası değişmemeli."""
+
+    def test_zincir_bulutla_baslar_ollama_icermez(self):
+        zincir = sg.GOREV_ZINCIRLERI["ders_plani"]
+        assert zincir[0] == ("deepseek", "deepseek-v4-flash")
+        assert all(s != "ollama" for s, _ in zincir)
+
+    def test_ders_plani_120_sn_zaman_asimi_gecirir(self, monkeypatch):
+        gorulen = {}
+
+        class _Kayitci:
+            def __init__(self):
+                self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+            def _create(self, model, messages, **kw):
+                gorulen.update(kw)
+                return _sahte_yanit("plan")
+
+        monkeypatch.setattr(sg, "_istemci", lambda saglayici: _Kayitci())
+        assert sg.metin_uret("ders_plani", "istem", "sistem") == "plan"
+        assert gorulen.get("timeout") == 120.0
+
+    def test_diger_gorevlere_timeout_gecmez(self, monkeypatch):
+        gorulen = {}
+
+        class _Kayitci:
+            def __init__(self):
+                self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+            def _create(self, model, messages, **kw):
+                gorulen.update(kw)
+                return _sahte_yanit("ok")
+
+        monkeypatch.setitem(sg.GOREV_ZINCIRLERI, "test_gorev", [("groq", "m")])
+        monkeypatch.setattr(sg, "_istemci", lambda saglayici: _Kayitci())
+        sg.metin_uret("test_gorev", "istem")
+        assert "timeout" not in gorulen

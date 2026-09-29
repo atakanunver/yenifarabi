@@ -131,6 +131,24 @@ GOREV_ZINCIRLERI: dict[str, list[tuple[str, str]]] = {
         ("groq",     "openai/gpt-oss-120b"),
         ("ollama",   "qwen2.5:14b"),
     ],
+    "ders_plani": [
+        # 2026-09-29 (DECISIONS.md): Fizik 10 s.14-22 ölçümü — deepseek en
+        # iyi (25,9 sn, atıflar doğru), groq iyi+hızlı (6,2 sn), cohere
+        # yüzeysel ama çalışıyor. Ollama BİLEREK yok: qwen2.5:14b 8k
+        # context'e sıkışıp yarım ve fizik hatalı plan üretti; yanlış plan
+        # hiç plandan kötü (status="hata" döner, öğretmen tekrar dener).
+        ("deepseek", "deepseek-v4-flash"),
+        ("groq",     "openai/gpt-oss-120b"),
+        ("cohere",   "command-a-03-2025"),
+    ],
+}
+
+# Görev bazlı istek zaman aşımı (sn). `_istemci`'nin 30 sn varsayılanı kısa
+# yanıtlar için ölçüldü; uzun çıktı üreten görevler burada genişletilir.
+# `create(..., timeout=)` YALNIZCA listedeki görevlere geçer — diğer
+# görevlerin çağrı imzası (ve test sahteleri) değişmez.
+GOREV_ZAMAN_ASIMI_SN: dict[str, float] = {
+    "ders_plani": 120.0,  # deepseek ölçülen 25,9 sn / ~5,9k çıktı token'ı
 }
 
 _EVRENSEL_METIN_YEDEK = ("openrouter", "openrouter/free")
@@ -198,6 +216,8 @@ def _zinciri_dene(gorev: str, mesajlar: list[dict], evrensel_yedek: bool = True)
             if saglayici == "ollama" and not any(m.get("role") == "system" for m in mesajlar):
                 gonderilecek = [{"role": "system", "content": _OLLAMA_VARSAYILAN_SISTEM}] + mesajlar
             ekstra = {"temperature": 0.2} if saglayici == "ollama" else {}
+            if gorev in GOREV_ZAMAN_ASIMI_SN:
+                ekstra["timeout"] = GOREV_ZAMAN_ASIMI_SN[gorev]
             yanit = istemci.chat.completions.create(model=model, messages=gonderilecek, **ekstra)
             metin = (yanit.choices[0].message.content or "").strip()
             if metin:
