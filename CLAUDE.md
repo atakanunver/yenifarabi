@@ -505,11 +505,11 @@ vision görü yeteneği kazandırabilirsin.
 - Kökteki `plan.md` (2026-09-02 PDF/vision analizi + uygulama günlüğü),
   `sorunlar.md` (2026-09-13 RAG/veri kontrolü), `eylulanaliz.md`,
   `webmimari.md`, `raganaliz.txt` — **tarihli anlık görüntüler**, güncel
-  durum değil; çelişkide bu dosya + DECISIONS.md esas. `package.json`/
-  `node_modules` yalnızca `@google/gemini-cli` içindir, projenin kodu değil.
-  **Gemini CLI bu projede kullanılmaz** (2026-09-29 kararı): yapılandırması
-  (`~/.gemini/`) Claude Code'a import edilmez. Bu, ses için kullanılan
-  Gemini Live'ı etkilemez.
+  durum değil; çelişkide bu dosya + DECISIONS.md esas.
+- **Gemini CLI bu projede kullanılmaz** (2026-09-29 kararı): kökteki
+  `package.json`/`package-lock.json`/`node_modules` (yalnızca
+  `@google/gemini-cli` içindi) silindi, `~/.gemini/` yapılandırması Claude
+  Code'a import edilmez. Bu, ses için kullanılan Gemini Live'ı etkilemez.
 
 ## Araçlar / Eklentiler
 
