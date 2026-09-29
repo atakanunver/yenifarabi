@@ -29,6 +29,7 @@ import ders_hafizasi
 import dosya
 import icerik
 import proxy
+import ders_plani
 import yks
 from rag import EMBED_MODEL, RERANK_MODEL, RagMotoru
 from version import VERSION, major_version
@@ -94,6 +95,7 @@ app = FastAPI(title="Farabi Brain API", lifespan=lifespan)
 app.include_router(icerik.router)
 app.include_router(yks.router)
 app.include_router(proxy.router)
+app.include_router(ders_plani.router)
 app.include_router(dosya.router)
 # 10 tahtaya ölçekleme (analiz raporu §5/§6) — durum["hazir"]'a bağlı değil,
 # yalnızca kendi tablosunu okur/yazar, RAG modeli gerekmez.
