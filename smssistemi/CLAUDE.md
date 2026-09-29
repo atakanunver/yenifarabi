@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Müdür PC masaüstündeki Tkinter tabanlı `sms sistemi` (Huawei HiLink modem
 üzerinden toplu SMS) uygulamasının web eşdeğeri. Farabi sunucusunda
-(`farabi.local`) bağımsız bir FastAPI servisi olarak çalışacak — okul
+(`farabi.local`) bağımsız bir FastAPI servisi olarak çalışır — okul
 idaresinin öğrenci velilerine toplu/kişiselleştirilmiş SMS göndermesini
 sağlar.
 
@@ -18,10 +18,12 @@ yok. `auth.py`/`db.py` dashboard'daki aynı isimli dosyaların desenini takip
 eder ama satır satır bağımsız kopyadır — biri değişince diğeri otomatik
 güncellenmez, bu bilinçli bir karar (yukarıdaki spec, "Kullanıcı kararları").
 Dashboard'la tek bağlantı noktası `pano.html`'deki bir nav linki.
-**TEK İSTİSNA (2026-09-23):** Yoklama SMS modülü panonun DB'sini salt-okunur
-okuyor — aşağıdaki "Yoklama SMS Modülü" bölümüne bak.
+**TEK İSTİSNA (2026-09-23):** panonun DB'si salt-okunur okunuyor —
+`yoklama_kaynak.py` üzerinden; onu kullananlar `/yoklama-sms`
+(`yoklama_mantik.py`) VE İlk Ders Otomasyonu (`otomasyon.py`). Aşağıdaki
+"Yoklama SMS Modülü" bölümüne bak.
 
-## Durum (2026-09-23 / Güncel)
+## Durum (2026-09-28 / Güncel)
 
 Üretimde çalışıyor. `farabi-smssistemi.service` aktif (port 8020),
 `app.py` + `templates/`/`static/` yazıldı, gerçek bir SMS ucu ucuna
@@ -102,7 +104,7 @@ okul_no [INTEGER], veli_rol [TEXT: 'Anne'|'Baba'|'Teyze'|'Anneanne']) tabloları
 **İlk Ders Otomasyon Modülü (2026-09-24 eklendi — `otomasyon.py`):**
 - **Amaç:** Okul günleri (Pazartesi-Cuma) sabah 09:00'da yoklama veritabanını kontrol ederek 1. derse gelmeyen öğrencilerin anne ve babalarına otomatik SMS gönderimi.
 - **Güvenlik & Fail-Closed:** Yalnızca 1. derste `durum == 'alindi'` olan sınıflar taranır. Tahtası kapalı veya yoklaması alınmamış sınıflar hariç tutulur. İzinli öğrenciler devamsız sayılmaz.
-- **İdempotency:** `otomasyon_ilk_ders_son_tarih` ayarı ile aynı gün mükerrer çalışması kesin olarak engellenir.
+- **İdempotency:** `otomasyon_ilk_ders_son_tarih` ayarı ile aynı gün mükerrer çalışması kesin olarak engellenir. İstisna: hiçbir `send_sms` denenmediyse (proxy/modem bağlantısı hiç kurulamadı, satırlar "BAĞLANTI HATASI" önekli) son tarih yazılmaz ve pencere içinde yeniden denenir. Koşulu "hiç başarılı yok"a genişletme — mükerrer SMS riski (DECISIONS.md 2026-09-28).
 - **Arayüz (`/otomasyon`):**
   - Otomasyon açma/kapatma butonu (`otomasyon_ilk_ders_aktif`, varsayılan '0' KAPALI).
   - Varsayılan şablon düzenleyici: "Sayın {isim}, öğrenciniz {ogrenci_adi} sabah ilk saate gelmemiştir. Bilginize."
@@ -110,7 +112,10 @@ okul_no [INTEGER], veli_rol [TEXT: 'Anne'|'Baba'|'Teyze'|'Anneanne']) tabloları
   - Bugünkü 1. ders canlı simülasyonu / test önizlemesi ve manuel gönderim butonu.
 - **Dashboard Entegrasyonu:**
   - Tahtayoklama panosunda menüye "SMS Otomasyonu" linki (`/otomasyon-git`) eklendi; HMAC-imzalı SSO ile doğrudan `:8020/otomasyon` sayfasına geçiş sağlar.
-- **Arka Plan Servisi:** FastAPI `lifespan` döngüsünde 30 saniyede bir saati kontrol eden asenkron zamanlayıcı görevi (`otomasyon.otomasyon_arkaplan_dongusu`).
+- **Arka Plan Servisi:** FastAPI `lifespan` döngüsünde 30 saniyede bir saati kontrol eden asenkron zamanlayıcı görevi (`otomasyon.otomasyon_arkaplan_dongusu`). Tetik penceresi İstanbul saatiyle 09:00–09:10 (`zoneinfo`, `simdi_istanbul()`); servis bu aralıkta kapalıysa o gün çalışmaz. Görev uvicorn sürecinin içinde koşar — birden çok worker ile başlatılırsa her biri kendi döngüsünü açar, mükerrer gönderimi yalnızca `…_son_tarih` ayarı engeller.
+- ⚠️ **Yoklama SMS'ten farklı gönderim yolu:** otomasyon `POST /gonder`'i KULLANMAZ; `otomasyon_calistir` doğrudan `sms_gonderici`'yi kendi thread'inde çağırıp satırları kendisi `gonderimler`'e yazar. Gönderim mantığında (normalizasyon, UCS2/7-bit, kayıt formatı) yapılan bir değişiklik iki yolda da kontrol edilmeli.
+
+**Doğum günü `sms_otomatik` şalteri yalnızca ayar olarak var:** `/dogum-gunleri/ayarlar` `sms_otomatik` ve `dogum_sms_sablonu`'nu `ayarlar` tablosuna yazar, ama (2026-09-28 itibarıyla) bu değeri okuyup doğum günü SMS'i gönderen bir döngü/görev YOK — `lifespan`'daki tek arka plan görevi ilk ders otomasyonu. Şalteri açmak hiçbir şey göndermez.
 
 > ⚠️ **"Kasıtlı olarak bağımsız" kuralının TEK İSTİSNASI burasıdır.**
 > `yoklama_kaynak.py`, yoklama panosunun veritabanını
@@ -156,16 +161,22 @@ venv/bin/python -m pytest test_db.py::test_semayi_kur_ve_gonderim_kaydet -q  # t
 
 venv/bin/python scripts/sifre_belirle.py        # ortak giriş şifresini belirler, config/gizli.json'a yazar (ilk kurulumda zorunlu)
 
-uvicorn app:app --reload --port 8020            # geliştirmede elle çalıştır (app.py yazıldıktan sonra)
+venv/bin/uvicorn app:app --reload --port 8020   # geliştirmede elle (DİKKAT: lifespan otomasyon döngüsünü de başlatır)
+
+# Bir kerelik veri aktarım script'leri — --kuru-calistir destekleyenlerde önce onu çalıştır
+venv/bin/python scripts/dogum_ice_aktar.py --kuru-calistir
 ```
 
 Üretimde `farabi-smssistemi.service` adıyla systemd altında, port `8020`'de
-çalışıyor (`sudo systemctl status/restart farabi-smssistemi`).
+çalışıyor (`sudo systemctl status/restart farabi-smssistemi`, log:
+`journalctl -u farabi-smssistemi.service`). Bu dizin canlı üretim — kod
+değişikliği restart'a kadar yayına girmez.
 
 Lint: kök `/home/ata/farabi/CLAUDE.md`'deki Ruff kuralı geçerli
-(`.venv-tools/bin/ruff check ... smssistemi`) — o listede `smssistemi` henüz
-yok, eklenmesi gerekebilir; aynı temkinli prosedür (önce check, F8xx öncelik,
-büyük ölçekli otomatik düzeltme yok) burada da uygulanır.
+(`../.venv-tools/bin/ruff check .` ya da yalnızca dokunduğun dosya);
+2026-09-22 taban çizgisi `smssistemi` için 32 bulgu — farkı oku. Aynı
+temkinli prosedür (önce check, F8xx öncelik, büyük ölçekli otomatik
+düzeltme yok) burada da uygulanır.
 
 ## Mimari (özet — ayrıntı için spec dosyası)
 
@@ -225,13 +236,17 @@ kullanılıyor.
   ikinci istekte `ConnectionReset`/`ReadTimeout` veriyordu; her istekten
   sonra adapter havuzu kapatılıp sonraki isteğin taze bağlantı açması
   zorlanıyor (bkz. yukarıdaki "Mimari" ve `DECISIONS.md` 2026-09-20).
-- `app.py` — route'lar üç grup: giriş/SSO (`/giris`, `/sso`, `/cikis`),
+- `app.py` — route grupları: giriş/SSO (`/giris`, `/sso`, `/cikis`),
   gönderim (`/`, `/gonder`, `/durum/{id}`, `/api/durum/{id}`,
-  `/durdur/{id}`, `/tekrar-gonder/{id}`, `/kayitlar`, `/api/mesaj-duzelt`)
-  ve rehber (`/rehber` + `/rehber/kisi|sinif/...` CRUD +
+  `/durdur/{id}`, `/tekrar-gonder/{id}`, `/kayitlar`, `/api/mesaj-duzelt`),
+  rehber (`/rehber` + `/rehber/kisi|sinif/...` CRUD +
   `/rehber/yukle` + `/api/rehber/kisiler`, JS panelinin kişi listesini
-  buradan çeker). Her route kendi `db.baglanti()`'sini açıp `finally`'de
-  kapatır — bağlantı paylaşılmaz.
+  buradan çeker), `/yoklama-sms*`, `/otomasyon*` + `/api/otomasyon/durum`,
+  `/dogum-gunleri*`. İş mantığı route'ta değil, saf modüllerde:
+  `yoklama_mantik.py`, `otomasyon.py`, `dogum_mantik.py`, `gonderim.py` —
+  testler de bu ayrımı izler (`test_<modül>.py` saf mantık,
+  `test_<modül>_app.py` route). Her route kendi `db.baglanti()`'sini açıp
+  `finally`'de kapatır — bağlantı paylaşılmaz.
 - `config/gizli.json`, `config/modem.json`, `config/sso.json`, `veri/` —
   hepsi gitignore'lu, asla okuma/commit etme (kök CLAUDE.md'nin "Okuma"
   kısıtına ek).

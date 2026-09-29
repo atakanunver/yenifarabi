@@ -126,13 +126,28 @@ def toplu_gonder(
     try:
         connection = _baglan(ayarlar)
     except Exception as exc:  # noqa: BLE001 - birkaç denemeden sonra hala basarisiz
-        sonuc_callback("", "", "", "hata", f"BAĞLANTI HATASI: {exc}")
+        # 2026-09-28: tek bir bos satir yerine HER alici kendi isim/telefon/
+        # mesajiyla "hata" kaydediliyor — aksi halde telefon="" oldugu icin
+        # db.gonderim_basarisizlari() (telefon != '' filtresi) hicbirini
+        # /tekrar-gonder ile yeniden deneyemiyordu (DECISIONS.md 2026-09-28).
+        hata_metni = f"BAĞLANTI HATASI: {exc}"
+        for isim, telefon, mesaj in kisiler:
+            sonuc_callback(isim, telefon, mesaj, "hata", hata_metni)
         return
+
+    # `kaydedilen`: sonuc_callback'e fiilen verilmis (basarili ya da
+    # kendi try/except'inde yakalanmis hatali) alici sayisi — telefona gore
+    # degil INDEKSE gore takip edilir, cunku kardesler ayni telefonu
+    # paylasabilir (bkz. CLAUDE.md smssistemi bolumu). durdur_bayragi ile
+    # durdurulan aliciler bu sayaca hic girmez, bilerek kayitsiz kalir.
+    kaydedilen = 0
+    durduruldu = False
     try:
         with connection:
             client = Client(connection)
             for i, (isim, telefon, mesaj) in enumerate(kisiler):
                 if durdur_bayragi.is_set():
+                    durduruldu = True
                     break
                 mode = TextModeEnum.SEVEN_BIT if is_ascii(mesaj) else TextModeEnum.UCS2
                 try:
@@ -140,7 +155,15 @@ def toplu_gonder(
                     sonuc_callback(isim, telefon, mesaj, "gonderildi", None)
                 except Exception as exc:  # noqa: BLE001 - modem API'si spesifik olmayan hatalar fırlatabiliyor
                     sonuc_callback(isim, telefon, mesaj, "hata", str(exc))
+                kaydedilen = i + 1
                 if i < len(kisiler) - 1 and not durdur_bayragi.is_set():
                     time.sleep(bekleme_sn)
     except Exception as exc:  # noqa: BLE001 - baglanti kurulduktan sonraki genel hata
-        sonuc_callback("", "", "", "hata", f"BAĞLANTI HATASI (gönderim sırasında): {exc}")
+        # `with connection:` bloğundan çıkışta (ör. modemden logout isteği)
+        # da bu hataya düşülebilir — kullanıcı DURDUR'a bastıysa (durduruldu)
+        # kalanları hiç kaydetme, mevcut durdurma davranışı korunur.
+        if durduruldu:
+            return
+        hata_metni = f"BAĞLANTI HATASI (gönderim sırasında): {exc}"
+        for isim, telefon, mesaj in kisiler[kaydedilen:]:
+            sonuc_callback(isim, telefon, mesaj, "hata", hata_metni)

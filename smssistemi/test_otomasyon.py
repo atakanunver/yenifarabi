@@ -184,6 +184,113 @@ def test_otomasyon_calistir_canli_ve_idempotent(test_db, monkeypatch):
     assert len(gonderilenler) == 1
 
 
+def test_otomasyon_baglanti_hatasinda_son_tarih_yazilmaz_ve_tekrar_dener(test_db, monkeypatch):
+    """2026-09-28 canlı olayının regresyon testi: Müdür PC proxy'si
+    düşünce (_baglan hep başarısız), otomasyon o gün için AYAR_SON_TARIH'i
+    YAZMAMALI — aksi halde arka plan döngüsü 09:00-09:10 penceresinde bir
+    daha denemiyordu. Her alıcı kendi telefonuyla 'hata' kaydedilmeli ki
+    /tekrar-gonder ile kurtarılabilsin (db.gonderim_basarisizlari telefon
+    boşları filtreler)."""
+    siniflar = {s["ad"]: s["id"] for s in db.siniflar_listele(test_db)}
+    sinif_9a = siniflar["9-A"]
+    ogr_id = db.kisi_ekle(test_db, "Deniz Aras", None, sinif_9a, "ogrenci", okul_no=105)
+    db.kisi_ekle(
+        test_db, "Selin Aras", "05329998877", sinif_9a, "veli", ogrenci_kisi_id=ogr_id, veli_rol="anne"
+    )
+    monkeypatch.setattr(yoklama_kaynak, "gunun_satirlari", lambda tarih: [{
+        "sinif": "9-A", "ders_no": 1, "durum": "alindi", "yok_isimleri": ["Deniz Aras"],
+        "izinli_isimleri": [], "kaydedilme_saati": "08:30",
+    }])
+    monkeypatch.setattr(otomasyon.sms_gonderici, "modem_ayarlarini_yukle", lambda: {})
+    monkeypatch.setattr(
+        otomasyon.sms_gonderici, "_baglan",
+        lambda ayarlar: (_ for _ in ()).throw(RuntimeError("proxy erişilemedi")),
+    )
+
+    sonuc1 = otomasyon.otomasyon_calistir(
+        test_db, kuru=False, tetikleyen="otomatik_zamanlayici", tarih="2026-09-28", bekleme_sn=0
+    )
+
+    assert sonuc1["durum"] == "basarisiz"
+    assert sonuc1["ozet"]["basarili_sayisi"] == 0
+    assert sonuc1["ozet"]["hatali_sayisi"] == 1
+
+    # Son tarih YAZILMADI — mükerrer gönderim önleyici tetiklenmemeli.
+    assert db.ayar_oku(test_db, otomasyon.AYAR_SON_TARIH) == ""
+    son_sonuc = json.loads(db.ayar_oku(test_db, otomasyon.AYAR_SON_SONUC))
+    assert son_sonuc["durum"] == "basarisiz"
+
+    # Kaydedilen satır telefon dolu — /tekrar-gonder ile kurtarılabilir.
+    basarisizlar = db.gonderim_basarisizlari(test_db, sonuc1["gonderim_id"])
+    assert basarisizlar == [("Selin Aras", "05329998877", basarisizlar[0][2])]
+
+    # İkinci (30 sn sonraki) otomatik deneme "zaten_calisti" DEMEMELİ, tekrar denemeli.
+    sonuc2 = otomasyon.otomasyon_calistir(
+        test_db, kuru=False, tetikleyen="otomatik_zamanlayici", tarih="2026-09-28", bekleme_sn=0
+    )
+    assert sonuc2["durum"] != "zaten_calisti"
+
+
+def test_otomasyon_kismi_basaridan_sonra_son_tarih_yazilir(test_db, monkeypatch):
+    """En az bir SMS gittiyse (kısmi başarı dahil) mükerrer gönderimi
+    önlemek için son tarih yine de yazılmalı."""
+    siniflar = {s["ad"]: s["id"] for s in db.siniflar_listele(test_db)}
+    sinif_9a = siniflar["9-A"]
+    ogr1 = db.kisi_ekle(test_db, "Deniz Aras", None, sinif_9a, "ogrenci", okul_no=105)
+    db.kisi_ekle(test_db, "Selin Aras", "05329998877", sinif_9a, "veli", ogrenci_kisi_id=ogr1, veli_rol="anne")
+    ogr2 = db.kisi_ekle(test_db, "Kaan Öz", None, sinif_9a, "ogrenci", okul_no=106)
+    db.kisi_ekle(test_db, "Berk Öz", "05329998866", sinif_9a, "veli", ogrenci_kisi_id=ogr2, veli_rol="baba")
+    monkeypatch.setattr(yoklama_kaynak, "gunun_satirlari", lambda tarih: [{
+        "sinif": "9-A", "ders_no": 1, "durum": "alindi",
+        "yok_isimleri": ["Deniz Aras", "Kaan Öz"],
+        "izinli_isimleri": [], "kaydedilme_saati": "08:30",
+    }])
+
+    def mock_toplu_gonder(ayarlar, kisiler, callback, durdur_bayragi, bekleme_sn):
+        # İlk alıcıya gider, ikincide bağlantı tamamen kopar (toplu_gonder
+        # kendi içinde kalanları "hata" kaydeder — burada da aynısını simüle et).
+        callback(*kisiler[0], "gonderildi", None)
+        callback(*kisiler[1], "hata", "BAĞLANTI HATASI (gönderim sırasında): koptu")
+
+    monkeypatch.setattr(otomasyon.sms_gonderici, "toplu_gonder", mock_toplu_gonder)
+
+    sonuc = otomasyon.otomasyon_calistir(
+        test_db, kuru=False, tetikleyen="otomatik_zamanlayici", tarih="2026-09-25", bekleme_sn=0
+    )
+
+    assert sonuc["durum"] == "tamamlandi"
+    assert sonuc["ozet"]["basarili_sayisi"] == 1
+    assert sonuc["ozet"]["hatali_sayisi"] == 1
+    assert db.ayar_oku(test_db, otomasyon.AYAR_SON_TARIH) == "2026-09-25"
+
+
+def test_otomasyon_sms_denendi_ama_hepsi_hata_ise_son_tarih_yazilir(test_db, monkeypatch):
+    """Bağlantı kuruldu, send_sms her alıcıda hata verdi (ör. modem kabul edip
+    zaman aşımına düştü — SMS aslında gitmiş olabilir). Bu durumda 09:00-09:10
+    döngüsü yeniden DENEMEMELİ, yoksa veliye 30 sn'de bir mükerrer SMS gider.
+    Yeniden deneme yalnızca hiçbir SMS denenmediyse (bağlantı hatası) yapılır."""
+    siniflar = {s["ad"]: s["id"] for s in db.siniflar_listele(test_db)}
+    ogr = db.kisi_ekle(test_db, "Deniz Aras", None, siniflar["9-A"], "ogrenci", okul_no=105)
+    db.kisi_ekle(test_db, "Selin Aras", "05329998877", siniflar["9-A"], "veli", ogrenci_kisi_id=ogr, veli_rol="anne")
+    monkeypatch.setattr(yoklama_kaynak, "gunun_satirlari", lambda tarih: [{
+        "sinif": "9-A", "ders_no": 1, "durum": "alindi", "yok_isimleri": ["Deniz Aras"],
+        "izinli_isimleri": [], "kaydedilme_saati": "08:30",
+    }])
+
+    def mock_toplu_gonder(ayarlar, kisiler, callback, durdur_bayragi, bekleme_sn):
+        callback(*kisiler[0], "hata", "Read timed out")
+
+    monkeypatch.setattr(otomasyon.sms_gonderici, "toplu_gonder", mock_toplu_gonder)
+
+    sonuc = otomasyon.otomasyon_calistir(
+        test_db, kuru=False, tetikleyen="otomatik_zamanlayici", tarih="2026-09-25", bekleme_sn=0
+    )
+
+    assert sonuc["ozet"]["basarili_sayisi"] == 0
+    assert sonuc["durum"] == "tamamlandi"
+    assert db.ayar_oku(test_db, otomasyon.AYAR_SON_TARIH) == "2026-09-25"
+
+
 def test_otomasyon_gercek_toplu_gonder_ile_sms_gonderir(test_db, monkeypatch):
     """toplu_gonder MOCK'LANMADAN (yalnızca modem bağlantısı sahte): 2026-09-25'e
     kadar otomasyon durdur_bayragi=None veriyordu, toplu_gonder ilk .is_set()'te

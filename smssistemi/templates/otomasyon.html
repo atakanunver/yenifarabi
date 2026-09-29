@@ -20,6 +20,8 @@
   <div class="uyari-kutusu basari"><svg class="ikon"><use href="#ik-onay"/></svg> Otomasyon çalışma durumu güncellendi.</div>
 {% elif mesaj == "gonderildi" %}
   <div class="uyari-kutusu basari"><svg class="ikon"><use href="#ik-onay"/></svg> 1. ders devamsızlık SMS servisi başarıyla çalıştırıldı ve SMS'ler gönderildi.</div>
+{% elif mesaj == "basarisiz" %}
+  <div class="uyari-kutusu hata"><svg class="ikon"><use href="#ik-uyari"/></svg> Gönderim denendi ama muhtemelen bir bağlantı sorunu yüzünden hiçbir SMS gönderilemedi. Son çalışma tarihi kaydedilmedi; otomatik zamanlayıcı 09:00-09:10 penceresinde tekrar deneyecek.</div>
 {% elif mesaj == "zaten_calisti" %}
   <div class="uyari-kutusu"><svg class="ikon"><use href="#ik-uyari"/></svg> Bu servis bugün için zaten daha önce çalıştırılmıştı. Mükerrer gönderim yapılmadı.</div>
 {% elif mesaj == "calisiyor" %}

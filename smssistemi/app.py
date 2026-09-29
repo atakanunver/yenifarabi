@@ -699,6 +699,8 @@ async def otomasyon_manuel_calistir(request: Request):
         return RedirectResponse("/otomasyon?mesaj=zaten_calisti", status_code=303)
     if sonuc.get("durum") == "calisiyor":
         return RedirectResponse("/otomasyon?mesaj=calisiyor", status_code=303)
+    if sonuc.get("durum") == "basarisiz":
+        return RedirectResponse("/otomasyon?mesaj=basarisiz", status_code=303)
     return RedirectResponse("/otomasyon?mesaj=gonderildi", status_code=303)
 
 

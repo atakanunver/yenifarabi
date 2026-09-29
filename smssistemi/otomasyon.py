@@ -272,6 +272,7 @@ def otomasyon_calistir(
     gonderim_id = f"oto1_{uuid.uuid4().hex[:8]}"
     basarili_sayisi = 0
     hatali_sayisi = 0
+    sms_denendi = False
 
     if gonderilecekler:
         logger.info(
@@ -284,11 +285,16 @@ def otomasyon_calistir(
         ]
 
         def _kaydet(isim: str, telefon: str, mesaj: str, durum: str, hata_metni: str | None) -> None:
-            nonlocal basarili_sayisi, hatali_sayisi
+            nonlocal basarili_sayisi, hatali_sayisi, sms_denendi
             if durum == "gonderildi":
                 basarili_sayisi += 1
             else:
                 hatali_sayisi += 1
+            # "BAĞLANTI HATASI" önekli satırları toplu_gonder yalnızca send_sms
+            # HİÇ çağrılmadan kaydeder; diğer her satır modemin SMS'i almış
+            # olabileceği bir denemedir.
+            if durum == "gonderildi" or not (hata_metni or "").startswith("BAĞLANTI HATASI"):
+                sms_denendi = True
             db.gonderim_kaydet(conn, gonderim_id, isim, telefon, mesaj, durum, hata_metni)
 
         try:
@@ -304,12 +310,33 @@ def otomasyon_calistir(
                 bekleme_sn=bekleme_sn,
             )
         except Exception as exc:
+            # 2026-09-28'den sonra toplu_gonder bağlantı hatalarında artık
+            # kendisi her aliciyi tek tek "hata" kaydediyor ve normalde
+            # buraya düşmüyor — yine de beklenmeyen bir hata (ör. bug)
+            # fırlatırsa yalnızca HENÜZ kaydedilmemiş kalanları işaretle,
+            # zaten _kaydet'ten geçmiş olanları ÇİFT KAYDETME.
             logger.error(f"Otomasyon SMS gönderiminde hata oluştu: {exc}")
-            # Tüm kalanları hata olarak kaydet
-            for k in kisiler_listesi:
+            kaydedilen = basarili_sayisi + hatali_sayisi
+            for k in kisiler_listesi[kaydedilen:]:
                 _kaydet(k[0], k[1], k[2], "hata", str(exc))
 
-    db.ayar_yaz(conn, AYAR_SON_TARIH, hedef_tarih)
+    # 2026-09-28: hiç SMS gitmediyse (basarili_sayisi == 0, ör. proxy
+    # düşükken tüm gönderim "hata" ile sonuçlandı) AYAR_SON_TARIH YAZILMAZ —
+    # aksi halde `otomasyon_arkaplan_dongusu`'nun 09:00-09:10 penceresindeki
+    # 30 saniyelik tekrar deneme döngüsü "bugün zaten çalışmış" sanıp asla
+    # tekrar denemiyordu (DECISIONS.md 2026-09-28). En az bir SMS gittiyse
+    # (kısmi başarı dahil) mükerrer gönderimi önlemek için son tarih yine de
+    # yazılır. gonderilecekler boşsa (gönderilecek kimse yoktu) davranış
+    # değişmez, son tarih her zaman yazılır.
+    # Koşul "hiç SMS DENENMEDİ" (sms_denendi) — "hiç başarılı yok" değil:
+    # send_sms zaman aşımı gibi hatalarda modem SMS'i göndermiş olabilir,
+    # o durumda tekrar denemek veliye 30 sn'de bir mükerrer SMS demektir.
+    sonuc_durum = "tamamlandi"
+    if gonderilecekler and not sms_denendi:
+        sonuc_durum = "basarisiz"
+    else:
+        db.ayar_yaz(conn, AYAR_SON_TARIH, hedef_tarih)
+
     sonuc_ozet = {
         "gonderim_id": gonderim_id,
         "tarih": hedef_tarih,
@@ -321,12 +348,12 @@ def otomasyon_calistir(
         "hatali_sayisi": hatali_sayisi,
         "dahil_sinif_sayisi": len(derleme["dahil_siniflar"]),
         "haric_sinif_sayisi": len(derleme["haric_siniflar"]),
-        "durum": "tamamlandi",
+        "durum": sonuc_durum,
     }
     db.ayar_yaz(conn, AYAR_SON_SONUC, json.dumps(sonuc_ozet, ensure_ascii=False))
 
     return {
-        "durum": "tamamlandi",
+        "durum": sonuc_durum,
         "gonderim_id": gonderim_id,
         "ozet": sonuc_ozet,
         "derleme": derleme,

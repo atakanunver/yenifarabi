@@ -17,6 +17,53 @@ def test_semayi_kur_ve_gonderim_kaydet(tmp_path, monkeypatch):
     assert satirlar[1]["hata_metni"] == "baglanti hatasi"
 
 
+def test_utc_str_to_istanbul_str_donusturur():
+    # Istanbul UTC+3 (DST yok, 2026 itibariyle sabit) — gün taşması dahil.
+    assert db.utc_str_to_istanbul_str("2026-09-28 22:30:00") == "2026-09-29 01:30:00"
+    assert db.utc_str_to_istanbul_str("2026-09-28 07:00:00") == "2026-09-28 10:00:00"
+
+
+def test_utc_str_to_istanbul_str_bos_ve_gecersiz_degeri_oldugu_gibi_dondurur():
+    assert db.utc_str_to_istanbul_str(None) is None
+    assert db.utc_str_to_istanbul_str("") == ""
+    assert db.utc_str_to_istanbul_str("gecersiz-tarih") == "gecersiz-tarih"
+
+
+def test_gonderim_satirlari_zamani_istanbula_cevirir(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test_zaman.db")
+    db.semayi_kur()
+    conn = db.baglanti()
+    conn.execute(
+        "INSERT INTO gonderimler (gonderim_id, isim, telefon, mesaj, durum, zaman) "
+        "VALUES ('b1', 'A', '0555', 'm', 'gonderildi', '2026-09-28 07:00:00')"
+    )
+    conn.commit()
+    satirlar = db.gonderim_satirlari(conn, "b1")
+    conn.close()
+    assert satirlar[0]["zaman"] == "2026-09-28 10:00:00"
+
+
+def test_gonderim_ozetleri_ilk_zamani_istanbula_cevirir_siralama_utc_kalir(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test_zaman2.db")
+    db.semayi_kur()
+    conn = db.baglanti()
+    conn.execute(
+        "INSERT INTO gonderimler (gonderim_id, isim, telefon, mesaj, durum, zaman) "
+        "VALUES ('eski', 'A', '0555', 'm', 'gonderildi', '2026-09-28 06:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO gonderimler (gonderim_id, isim, telefon, mesaj, durum, zaman) "
+        "VALUES ('yeni', 'B', '0556', 'm', 'gonderildi', '2026-09-28 08:00:00')"
+    )
+    conn.commit()
+    ozetler = db.gonderim_ozetleri(conn)
+    conn.close()
+    # ORDER BY ilk_zaman DESC (ham UTC) — en yeni (yeni) önce gelmeli.
+    assert [o["gonderim_id"] for o in ozetler] == ["yeni", "eski"]
+    assert ozetler[0]["ilk_zaman"] == "2026-09-28 11:00:00"
+    assert ozetler[1]["ilk_zaman"] == "2026-09-28 09:00:00"
+
+
 def test_gonderim_ozetleri_gruplar_ve_sayar(tmp_path, monkeypatch):
     monkeypatch.setattr(db, "DB_YOLU", tmp_path / "test2.db")
     db.semayi_kur()

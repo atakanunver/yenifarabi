@@ -137,6 +137,34 @@ async def test_otomasyon_manuel_calistir(test_db, pano, monkeypatch):
 
 
 @pytest.mark.anyio
+async def test_otomasyon_manuel_calistir_baglanti_hatasinda_basarisiz_mesaji_doner(test_db, pano, monkeypatch):
+    """2026-09-28 regresyonu: otomasyon_calistir 'basarisiz' dönerse
+    route bunu ayrı bir mesajla yönlendirmeli (aksi halde manuel sayfa
+    hiçbir SMS gitmemişken bile 'başarıyla gönderildi' gösteriyordu)."""
+    from datetime import date
+
+    # otomasyon_calistir tarihi bugun_istanbul()'dan alır; pano satırı TARIH'e
+    # yazıldığı için "bugün" sabitlenmezse test yalnızca TARIH günü geçer.
+    monkeypatch.setattr(otomasyon, "bugun_istanbul", lambda: date.fromisoformat(TARIH))
+    pano("9-A", 1, "alindi", yok=["Murat Polat"])
+    sinif_9a = [s["id"] for s in db.siniflar_listele(test_db) if s["ad"] == "9-A"][0]
+    ogr_id = db.kisi_ekle(test_db, "Murat Polat", None, sinif_9a, "ogrenci")
+    db.kisi_ekle(test_db, "Zeynep Polat", "05321110099", sinif_9a, "veli", ogrenci_kisi_id=ogr_id)
+
+    def mock_toplu_gonder(ayarlar, kisiler, callback, durdur_bayragi, bekleme_sn):
+        for isim, tel, msg in kisiler:
+            callback(isim, tel, msg, "hata", "BAĞLANTI HATASI: proxy erişilemedi")
+
+    monkeypatch.setattr(otomasyon.sms_gonderici, "toplu_gonder", mock_toplu_gonder)
+
+    req = _sahte_oturum_request(test_db)
+    resp = await app.otomasyon_manuel_calistir(req)
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/otomasyon?mesaj=basarisiz"
+    assert db.ayar_oku(test_db, otomasyon.AYAR_SON_TARIH) == ""
+
+
+@pytest.mark.anyio
 async def test_api_otomasyon_durum(test_db):
     req = _sahte_oturum_request(test_db)
     db.ayar_yaz(test_db, otomasyon.AYAR_AKTIF, "1")

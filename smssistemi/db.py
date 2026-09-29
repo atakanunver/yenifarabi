@@ -12,6 +12,25 @@ from zoneinfo import ZoneInfo
 DB_YOLU = Path(__file__).resolve().parent / "veri" / "smssistemi.db"
 YEDEK_DIZINI = Path(__file__).resolve().parent / "veri" / "yedek"
 _ISTANBUL = ZoneInfo("Europe/Istanbul")
+_UTC = ZoneInfo("UTC")
+
+
+def utc_str_to_istanbul_str(deger: str | None) -> str | None:
+    """`gonderimler.zaman`/`ilk_zaman` gibi `datetime('now')` (UTC, bkz.
+    SEMA) ile yazılmış 'YYYY-MM-DD HH:MM:SS' damgalarını, YALNIZCA
+    GÖRÜNTÜLEME için Europe/Istanbul'a çevirir. DB'deki ham değer hiç
+    değişmez — karşılaştırma/sıralama/idempotency kontrolleri (ör.
+    oturum süresi, `otomasyon_ilk_ders_son_tarih`) hâlâ UTC ile çalışır,
+    yalnızca kullanıcıya dönen satırlarda (gonderim_satirlari,
+    gonderim_ozetleri) çağrılır. Ayrıştırılamayan/boş değer olduğu gibi
+    döner (savunmacı — 2026-09-28 saat karmaşası kaydı, DECISIONS.md)."""
+    if not deger:
+        return deger
+    try:
+        an = datetime.strptime(deger, "%Y-%m-%d %H:%M:%S").replace(tzinfo=_UTC)
+    except ValueError:
+        return deger
+    return an.astimezone(_ISTANBUL).strftime("%Y-%m-%d %H:%M:%S")
 
 # `kisiler` tablosunun KANONİK gövdesi — tek yerden yönetilir, hem SEMA
 # (sıfırdan kurulumda) hem migration (eski kurulumu bu şekle getirirken)
@@ -211,10 +230,15 @@ def gonderim_satirlari(conn: sqlite3.Connection, gonderim_id: str) -> list[dict]
         "WHERE gonderim_id = ? ORDER BY id",
         (gonderim_id,),
     ).fetchall()
-    return [dict(r) for r in satirlar]
+    sonuc = [dict(r) for r in satirlar]
+    for r in sonuc:
+        r["zaman"] = utc_str_to_istanbul_str(r["zaman"])
+    return sonuc
 
 
 def gonderim_ozetleri(conn: sqlite3.Connection, limit: int = 30) -> list[dict]:
+    # Sıralama (ORDER BY) ham UTC dizgisi üzerinde yapılır — kronolojik sıra
+    # dönüşümden etkilenmez, yalnızca sonuçtaki görüntü metni çevrilir.
     satirlar = conn.execute(
         "SELECT gonderim_id, "
         "MIN(zaman) AS ilk_zaman, "
@@ -224,7 +248,10 @@ def gonderim_ozetleri(conn: sqlite3.Connection, limit: int = 30) -> list[dict]:
         "FROM gonderimler GROUP BY gonderim_id ORDER BY ilk_zaman DESC LIMIT ?",
         (limit,),
     ).fetchall()
-    return [dict(r) for r in satirlar]
+    sonuc = [dict(r) for r in satirlar]
+    for r in sonuc:
+        r["ilk_zaman"] = utc_str_to_istanbul_str(r["ilk_zaman"])
+    return sonuc
 
 
 def gonderim_basarisizlari(conn: sqlite3.Connection, gonderim_id: str) -> list[tuple[str, str, str]]:
