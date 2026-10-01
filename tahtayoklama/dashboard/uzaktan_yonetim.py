@@ -62,9 +62,43 @@ def _dogrula(request: Request) -> None:
     conn = db.baglanti()
     try:
         if not auth.dogrula(request, conn):
+            # Tarayıcı sayfa isteği → ana pano gibi /giris'e yönlendir;
+            # API/otomasyon istekleri eski 401'i almaya devam eder.
+            if "text/html" in request.headers.get("accept", ""):
+                raise HTTPException(303, headers={"Location": "/giris"})
             raise HTTPException(401, "Oturum geçersiz.")
     finally:
         conn.close()
+
+
+def _denetim_yaz(request: Request, eylem: str, sonuclar: list[dict]) -> None:
+    """Uzaktan eylemi uzaktan_denetim tablosuna yazar. Yalnızca eylem adı,
+    tahta adları ve ok/hata durumu saklanır (URL, dosya adı/içeriği asla).
+    Log hatası eylemi ASLA engellemez veya değiştirmez."""
+    try:
+        zaman = datetime.now(_ISTANBUL).isoformat(timespec="seconds")
+        istemci_ip = request.client.host if request.client else None
+        adlar = [r["tahta"] for r in sonuclar if r.get("tahta") is not None]
+        tahtalar = ",".join(adlar)
+        if adlar:
+            sonuc = ",".join(
+                f"{r['tahta']}:{'ok' if r.get('basarili') else 'hata'}"
+                for r in sonuclar if r.get("tahta") is not None
+            )
+        else:
+            sonuc = "secim_yok"
+        conn = db.baglanti()
+        try:
+            conn.execute(
+                "INSERT INTO uzaktan_denetim (zaman, istemci_ip, eylem, tahtalar, sonuc) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (zaman, istemci_ip, eylem, tahtalar, sonuc),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:
+        pass
 
 
 def _url_normallestir(ham: str) -> str:
@@ -235,7 +269,7 @@ async def uzaktan_sayfa(request: Request):
     return templates.TemplateResponse(request, "uzaktan_yonetim.html", {"tahtalar": tahtalar, "sonuclar": None})
 
 
-async def _eylem_calistir_ve_render(request: Request, eylem) -> HTMLResponse:
+async def _eylem_calistir_ve_render(request: Request, eylem, eylem_adi: str) -> HTMLResponse:
     _dogrula(request)
     form = await request.form()
     secilenler = set(form.getlist("tahta"))
@@ -244,38 +278,39 @@ async def _eylem_calistir_ve_render(request: Request, eylem) -> HTMLResponse:
         sonuclar = list(await asyncio.gather(*(eylem(t, form) for t in hedefler)))
     else:
         sonuclar = [{"tahta": None, "basarili": False, "detay": "Hiçbir tahta seçilmedi."}]
+    _denetim_yaz(request, eylem_adi, sonuclar)
     durumlar = await tum_durumlar()
     return templates.TemplateResponse(request, "uzaktan_yonetim.html", {"tahtalar": durumlar, "sonuclar": sonuclar})
 
 
 @router.post("/uzaktan/yoklama-ac", response_class=HTMLResponse)
 async def yoklama_ac_route(request: Request):
-    return await _eylem_calistir_ve_render(request, _yoklama_ac_tek)
+    return await _eylem_calistir_ve_render(request, _yoklama_ac_tek, "yoklama_ac")
 
 
 @router.post("/uzaktan/yoklama-kapat", response_class=HTMLResponse)
 async def yoklama_kapat_route(request: Request):
-    return await _eylem_calistir_ve_render(request, _yoklama_kapat_tek)
+    return await _eylem_calistir_ve_render(request, _yoklama_kapat_tek, "yoklama_kapat")
 
 
 @router.post("/uzaktan/web-ac", response_class=HTMLResponse)
 async def web_ac_route(request: Request):
-    return await _eylem_calistir_ve_render(request, _web_ac_tek)
+    return await _eylem_calistir_ve_render(request, _web_ac_tek, "web_ac")
 
 
 @router.post("/uzaktan/chrome-kapat", response_class=HTMLResponse)
 async def chrome_kapat_route(request: Request):
-    return await _eylem_calistir_ve_render(request, _chrome_kapat_tek)
+    return await _eylem_calistir_ve_render(request, _chrome_kapat_tek, "chrome_kapat")
 
 
 @router.post("/uzaktan/ekran-karart", response_class=HTMLResponse)
 async def ekran_karart_route(request: Request):
-    return await _eylem_calistir_ve_render(request, _ekran_karart_tek)
+    return await _eylem_calistir_ve_render(request, _ekran_karart_tek, "ekran_karart")
 
 
 @router.post("/uzaktan/ekran-kaldir", response_class=HTMLResponse)
 async def ekran_kaldir_route(request: Request):
-    return await _eylem_calistir_ve_render(request, _ekran_kaldir_tek)
+    return await _eylem_calistir_ve_render(request, _ekran_kaldir_tek, "ekran_kaldir")
 
 
 @router.post("/uzaktan/duvar-kagidi", response_class=HTMLResponse)
@@ -301,6 +336,7 @@ async def duvar_kagidi_route(request: Request):
         sonuclar = list(await asyncio.gather(*(_duvar_kagidi_tek(t, icerik, uzanti) for t in hedefler)))
     else:
         sonuclar = [{"tahta": None, "basarili": False, "detay": "Hiçbir tahta seçilmedi."}]
+    _denetim_yaz(request, "duvar_kagidi", sonuclar)
     durumlar = await tum_durumlar()
     return templates.TemplateResponse(request, "uzaktan_yonetim.html", {"tahtalar": durumlar, "sonuclar": sonuclar})
 

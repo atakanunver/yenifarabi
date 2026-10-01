@@ -186,14 +186,20 @@ iyileştirilebilecek noktalar:
    route tarafından çağrılmıyor — ölü kod. Repodaki her route (bu dosya
    dahil) `auth.dogrula()` + elle `raise HTTPException(401,...)` desenini
    tekrarlıyor. Ya `gecerli_oturum` silinmeli ya da route'lar ona taşınmalı.
+   **ÇÖZÜLDÜ (2026-10-01): fonksiyon silindi.**
 2. `/admin/uzaktan*` route'ları oturumsuz istekte çıplak 401 döndürüyor,
    ana pano (`/`) gibi `/giris`'e yönlendirmiyor (bu, `admin.py`'nin zaten
    yerleşik davranışı — yeni bir hata değil, ama tutarsız).
+   **ÇÖZÜLDÜ (2026-10-01):** `uzaktan_yonetim._dogrula` tarayıcı
+   isteğinde (`Accept: text/html`) 303 → `/giris`, API/JSON'da hâlâ 401.
 3. **Loglama yok:** hiçbir uzaktan yönetim eylemi (kim, ne zaman, hangi
    tahtaya, hangi eylemi yaptı) kaydedilmiyor. Ortak şifreyle giren HERKES
    fiziksel tahtaları etkileyebildiği için (bilinçli kabul edilmiş risk,
    tasarım belgesinde de yazılı) en azından basit bir log satırı eklenmesi
-   önerilir.
+   önerilir. **ÇÖZÜLDÜ (2026-10-01):** `uzaktan_denetim` tablosu
+   (`yoklama_pano.db`) — zaman (+03:00), istemci IP, eylem, tahtalar,
+   tahta başına ok/hata. URL/dosya adı/içerik yazılmaz; log hatası eylemi
+   engellemez (`uzaktan_yonetim._denetim_yaz`).
 4. Küçük verimsizlik: "Yoklama Aç" eylemi `_python_yolu_bul()` ve
    `uzaktan_baslat.baslat()` içindeki `x_ortamini_kesfet()` olmak üzere
    art arda 2 SSH round-trip yapıyor (sonuç doğru, yalnızca ~1 tur fazladan
@@ -401,8 +407,9 @@ talebiyle `--tahta fenlab` ile uygulandı, artık **8/8 tahta aynı ayarda**
    işaretleme" ise kartların/kaydet düğmesinin teneffüste devre dışı
    bırakılmasıyla (bkz. §3). Bkz. `yoklama.py` modül docstring'i.
 5. **Harici Windows araçlarıyla ilişki netleşmedi** — bkz. §9.
-6. Küçük iyileştirmeler: `auth.gecerli_oturum` ölü kodu, `/admin/uzaktan`
-   401→`/giris` tutarsızlığı, "Yoklama Aç"taki fazladan SSH turu (§5).
+6. Küçük iyileştirmeler: "Yoklama Aç"taki fazladan SSH turu (§5).
+   (`auth.gecerli_oturum` ölü kodu ve `/admin/uzaktan` 401→`/giris`
+   tutarsızlığı 2026-10-01'de çözüldü.)
 
 ## 9. Harici tahta yönetim programları (kullanıcının Windows PC'si)
 

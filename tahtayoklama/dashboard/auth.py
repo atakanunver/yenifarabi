@@ -80,14 +80,6 @@ def dogrula(request: Request, conn) -> bool:
     return oturum_gecerli_mi(conn, token)
 
 
-def gecerli_oturum(request: Request, conn) -> None:
-    """FastAPI dependency — korumalı route'larda kullanılır. Geçersiz/eksik
-    çerezde 401 fırlatır (app.py bunu /giris'e yönlendirmeye çevirir)."""
-    token = request.cookies.get(COOKIE_ADI)
-    if not oturum_gecerli_mi(conn, token):
-        raise HTTPException(401, "Oturum geçersiz veya süresi dolmuş.")
-
-
 def sms_sso_token() -> tuple[str, str]:
     """smssistemi'nin /sso'suna kısa ömürlü, imzalı bir geçiş token'ı
     üretir — dashboard'da zaten kimlik doğrulamış kullanıcı smssistemi

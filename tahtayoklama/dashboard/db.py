@@ -64,6 +64,19 @@ CREATE TABLE IF NOT EXISTS oturumlar (
     olusturma_zamani TEXT NOT NULL DEFAULT (datetime('now')),
     son_gorulme   TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Uzaktan yönetim denetim kaydı. `zaman` İstanbul ofsetiyle (+03:00) açıkça
+-- yazılır (diğer tablolar UTC datetime('now') kullanır). Kullanıcı sütunu
+-- yok: şifre ortak. Hassas veri tutulmaz (şifre, dosya içeriği, URL, sorgu
+-- parametresi yazılmaz).
+CREATE TABLE IF NOT EXISTS uzaktan_denetim (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    zaman      TEXT NOT NULL,
+    istemci_ip TEXT,
+    eylem      TEXT NOT NULL,
+    tahtalar   TEXT NOT NULL,
+    sonuc      TEXT NOT NULL
+);
 """
 
 
