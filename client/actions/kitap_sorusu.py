@@ -123,9 +123,14 @@ def kitap_sorusu(parameters: dict | None = None, player=None, speak=None, **_) -
         kaynaklar = veri.get("sources") or []
         kaynak_metni = ""
         if kaynaklar:
-            sayfalar_sirali = dict.fromkeys(str(k["page"]) for k in kaynaklar)  # tekrarsız, sıra korunur
+            sayfalar_sirali = {}  # tekrarsız, sıra korunur; değer = sayfada tablo kaynağı var mı
+            for k in kaynaklar:
+                sayfa = str(k["page"])
+                # "(tablo)" işareti sunucunun sources[].tur alanından gelir (chunk_tablo kaynağı); alan yoksa metin sayılır
+                sayfalar_sirali[sayfa] = sayfalar_sirali.get(sayfa, False) or k.get("tur") == "tablo"
             kitap_adi = kaynaklar[0].get("book", "")
-            kaynak_metni = f"\n\nKaynak: {kitap_adi}, s. {', '.join(sayfalar_sirali)}"
+            sayfa_metni = ", ".join(s + (" (tablo)" if t else "") for s, t in sayfalar_sirali.items())
+            kaynak_metni = f"\n\nKaynak: {kitap_adi}, s. {sayfa_metni}"
         log(f"[Kitap Sorusu] ok · {veri.get('latency_ms')}ms")
         sonuc = (veri.get("answer") or "").strip() + kaynak_metni
         if player is not None and hasattr(player, "show_content"):
