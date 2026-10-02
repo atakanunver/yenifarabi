@@ -80,6 +80,7 @@ tahtayoklama/data/kayitlar/
 # değil, gerçek kod — bunlar takip edilir, ürettikleri PDF/JSON/MD hâlâ hariç.
 mudur/*
 !mudur/*.py
+!mudur/CLAUDE.md
 
 # network.txt — 10 tahtanın IP/MAC/SSH bilgileri, etapadmin/ogretmen
 # şifrelerini AÇIK METİN içeriyor (2026-08-23) — .env ile aynı hassasiyette,

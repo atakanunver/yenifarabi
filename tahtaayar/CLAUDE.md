@@ -174,14 +174,17 @@ için `etapadmin`+`sudo` gerekir.
 - `cinnamon_guc_tusu_yoksay` aktif bir `ogretmen` masaüstü oturumu
   (`/run/user/$(id -u)/bus` soketi) gerektirir — sıfırdan kurulmuş, hiç
   giriş yapılmamış bir tahtada bu fix "uygulanamadı" raporlar; o tahtada
-  script ilk öğretmen girişinden SONRA tekrar çalıştırılmalı. Diğer üç fix
-  (root, `etapadmin`+sudo) bu koşula tabi değil.
+  script ilk öğretmen girişinden SONRA tekrar çalıştırılmalı. `DUZELTMELER`'deki
+  6 fix'in 4'ü root (`etapadmin`+sudo: `guc_tusu_yoksay`,
+  `guc_tusu_uzun_basis_yoksay`, `uyku_hedefleri_maskeli`, `otomatik_giris`)
+  ve bu koşula tabi değil; `ekran_karartma` da kullanıcı düzeyi
+  (`root_gerekli=False`).
 - Fiziksel güç tuşu davranışı SSH ile doğrulanamaz — yukarıya bkz.
-- `tahta-234`/`tahta-235`/`tahta-236`/`tahta-244` sınıf değil (fen-lab/
-  kütüphane/spor odası ya da eski/boşa çıkmış kayıt, bkz.
-  `tahtayoklama/CLAUDE.md` "Faz 6"), `server/tahtalar.json`'da kayıtlı ama
-  genelde ağda değil — script'in bunlar için "kontrol edilemedi" raporlaması
-  normaldir.
+- `tahta-234`/`tahta-235`/`tahta-236` sınıf değil (sınıfı atanmamış,
+  client kurulu değil), `server/tahtalar.json`'da kayıtlı ama genelde ağda
+  değil — script'in bunlar için "kontrol edilemedi" raporlaması normaldir.
+  (Eski `tahta-244` 2026-09-17'de `fenlab` oldu; artık 8 kurulu tahtadan
+  biri ve diğerleri gibi kontrol edilir.)
 
 ## Tırmanma yolu (belgelendi, ŞİMDİ UYGULANMADI)
 

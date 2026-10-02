@@ -37,19 +37,44 @@ repo genelindeki "Docker yok, hafif tut" konvansiyonuna uygun.
 tahtayoklama/
 ├── yoklama.py            — tahtada çalışan PyQt6 GUI
 ├── pdf_disari_aktar.py   — e-Okul/MEB PDF çıktısını roster JSON'a çevirir
+├── test_yoklama.py       — yoklama.py testleri (pytest, ayrı dev venv — aşağıya bkz.)
 ├── data/                 — DEV kopyası; tahtalarda ~ogretmen/tahtayoklama/data/ olarak yaşar
 │   ├── roster/<sinif>.json       — sınıf listesi ({"sinif", "ogrenciler": [{"no","ad_soyad","cinsiyet"}]})
-│   ├── kayitlar/<tarih>_<sinif>_ders<no>.json — yoklama kaydı
-│   └── zil.json                  — ders saati çizelgesi, Farabi'nin client/config/zil.json'undan KASITLI BAĞIMSIZ kopya
+│   ├── kayitlar/<tarih>_<sinif>_ders<no>.json — yoklama kaydı (yalnızca tahtalarda; burada gitignore'lu)
+│   ├── zil.json                  — ders saati çizelgesi; tahtaların client/config/zil.json'unun KAYNAĞI (server/config_dagit.sh, scripts/zil_yukle.py dağıtır)
+│   └── ders_programi.json / .md  — panonun ders etiketi kopyası (scripts/ders_programi_yukle.py üretir; mudur/ kopyasından bilinçli bağımsız)
 └── dashboard/              — merkezi web panosu (bkz. §4)
 ```
 
+## Komutlar
+
+```bash
+cd tahtayoklama/dashboard
+venv/bin/uvicorn app:app --reload --port 8010          # geliştirmede elle (lifespan polling'i de başlatır)
+venv/bin/python -m unittest discover -p 'test_*.py'    # tüm testler — pytest DEĞİL, venv'de pytest yok
+venv/bin/python -m unittest test_uzaktan_ekran -v      # tek dosya (modül adı, .py YOK)
+venv/bin/python -m unittest test_uzaktan_ekran.TestUzaktanEkran.test_route_gecersiz_tahta   # tek test
+venv/bin/python scripts/sifre_belirle.py               # ortak pano şifresi → config/gizli.json
+
+sudo systemctl restart farabi-yoklama-dashboard.service   # yalnızca ders saatleri DIŞINDA (§10)
+```
+
+Yeni dashboard testi var olan `unittest.TestCase` desenini sürdürür.
+`tahtayoklama/test_yoklama.py` (tahta tarafı GUI) ise **pytest** ve
+`tahtayoklama/venv`'de pytest yok — PyQt6+pytest kurulu ayrı bir dev
+venv'de: `QT_QPA_PLATFORM=offscreen <venv>/bin/python -m pytest
+tahtayoklama/test_yoklama.py -q`.
+
 ## 3. `yoklama.py` — tahta deployment gerçeği
 
-- **Kendi venv'i YOK.** Tahtalarda `Exec=/home/ogretmen/farabi/client/venv/bin/python
-  /home/ogretmen/tahtayoklama/yoklama.py` — Farabi'nin client venv'i
-  kullanılıyor (PyQt6 zaten kurulu olduğu için). `requirements.txt`
-  (`PyQt6`, `pdfplumber`) yalnızca dev makinede anlamlı.
+- **Python yolu tahtadan tahtaya farklı (2026-10-01'de canlı doğrulandı).**
+  9-A dışındaki tahtalarda kendi venv'i var: `Exec=/home/ogretmen/
+  tahtayoklama/venv/bin/python /home/ogretmen/tahtayoklama/yoklama.py`.
+  Yalnızca **9-A** Farabi'nin client venv'ini paylaşıyor
+  (`/home/ogretmen/farabi/repo/client/venv/bin/python`). Uzaktan başlatma
+  bu yüzden yolu sabit kodlamaz, adayları dener
+  (`uzaktan_yonetim._PYTHON_ADAYLARI`, DB'de `tahtalar.python_yolu`).
+  `requirements.txt`: `PyQt6`, `pdfplumber`.
 - **Autostart DEĞİL.** `~/Masaüstü/Yoklama.desktop` ile öğretmen elle açar.
 - **Ağdan izole; network I/O yok, yalnızca tek-örnek için yerel Unix
   soketi.** Gerçek ağ trafiği (HTTP/SSH) hiç yok, tek durum kaynağı
@@ -104,6 +129,7 @@ YAPILMAZ** — pano kendi tahta/sınıf kaydını tutar.
 | `tahtalar` | ad, ip, ssh_kullanici, python_yolu, sinif_id FK (NULL=atanmamış), aktif — **yalnızca bu DB'de**, `server/tahtalar.json`'a yazılmaz |
 | `yoklama_onbellek` | tarih+sinif+ders_no UNIQUE; durum (`alindi`\|`alinmadi`\|`henuz_baslamadi`\|`tahta_ulasilamaz`\|`ders_yok_o_gun`\|`tahta_atanmamis`); yok/izinli isimleri JSON; sinif alanı FK DEĞİL (kasıtlı — silinen sınıfta bile geçmiş veri okunabilir kalsın) |
 | `oturumlar` | token, tek ortak şifreyle giriş (`auth.py`, scrypt hash) |
+| `uzaktan_denetim` | (2026-10-01) her uzaktan eylem: `zaman` (İstanbul, değerde +03:00 — diğer tablolar UTC), `istemci_ip`, `eylem`, `tahtalar`, `sonuc` (`9-A:ok,9-B:hata` / `secim_yok`). Kullanıcı sütunu yok (ortak şifre); URL/dosya adı/içerik yazılmaz |
 
 ### Ana bileşenler
 
@@ -116,6 +142,9 @@ YAPILMAZ** — pano kendi tahta/sınıf kaydını tutar.
 | `admin.py` | `/admin/tahtalar`, `/admin/siniflar`, `/admin/siniflar/{id}/ogrenciler`, `/admin/rapor` — tahta↔sınıf atama, roster düzenleme/senkron, devamsızlık raporu+CSV |
 | `uzaktan_yonetim.py`, `uzaktan_baslat.py`, `tahta_kaydi.py` | Faz 6 — bkz. §5 |
 | `ders_programi.py` | pano hücrelerindeki ders kısa adı etiketi (MAT, İNG, ...) |
+| `db.py`, `auth.py` | SQLite şema/bağlantı; tek ortak şifre (scrypt) + `oturumlar`, smssistemi SSO token imzalama (`config/sms_sso.json`) |
+| `sistem_durumu.py` | `/sistem-durumu` — bkz. §4.1 |
+| `static/kenar.js`, `static/tema.js` | kenar menü + üç tema geçişi |
 
 **Polling penceresi:** Pazartesi-Cuma, ilk dersten ~20dk önce - son dersten
 ~20dk sonra arasında ~2 dakikada bir; pencere dışında SSH trafiği yok.
@@ -256,6 +285,11 @@ Kullanıcı isteği: `http://farabi.local:8010/admin/uzaktan` bölümünde tablo
   - `uzaktan_yonetim.html`: Tabloya son sütun olarak `<th>Screenshot</th>` eklendi.
   - Satır yüksekliğini veya sütun genişliklerini kesinlikle bozmayan, `.pill` ile aynı yükseklik ve font boyutuna sahip `.ss-link-btn` tasarlandı (`target="_blank"`, rel="noopener noreferrer").
   - Tablo içine görsel veya thumbnail gömülmez; satır kayması, taşma veya modal pencere karmaşası yoktur. Ulaşılamayan tahtalar için sade bir `—` işareti gösterilir.
+- **Erişim / denetim (2026-10-01):** oturumsuz tarayıcı isteği
+  (`Accept: text/html`, ör. `?ham=1` yeni sekme) `/giris`'e 303 ile
+  yönlenir, JSON isteği 401 alır (`uzaktan_yonetim._dogrula`). Ekran
+  görüntüsü ve sayfa görüntüleme denetime YAZILMAZ; yalnızca eylemler
+  (`_denetim_yaz`, test: `test_uzaktan_denetim.py`, 7 test).
 - **Testler:** `test_uzaktan_ekran.py` (9/9 test): JSON yanıtı, binary `?ham=1` akışı, hata anında HTML yanıtı, `import` -> `gnome-screenshot` fallback mekanizması, 401 yetkisiz erişim, 404 bilinmeyen tahta ve çevrimdışı tahta durumları test edilmiştir.
 
 ## 6. Tahta envanteri ve canlı durum (2026-09-17'de doğrulandı)
@@ -388,16 +422,13 @@ talebiyle `--tahta fenlab` ile uygulandı, artık **8/8 tahta aynı ayarda**
 
 ## 8. Bilinen riskler / açık işler (öncelik sırasıyla)
 
-1. **Commit edilmemiş değişiklikler, 2 gündür bekliyor (kaybolma riski).**
-   `dashboard/static/pano.css` + 7 `templates/*.html` (koyu/yumuşak tema
-   sistemi) değiştirilmiş; `static/tema.js` ve
-   `dashboard/yedek/2026-09-15_tema_oncesi/` (değişiklik öncesi elle
-   alınmış yedek) izlenmiyor. Değişiklik tutarlı görünüyor (tüm ilgili
-   şablonlarda `tema.js`/`data-tema` kullanımı var) — kullanıcı onayı ile
-   commit edilmesi önerilir.
+1. ~~Commit edilmemiş tema değişiklikleri~~ — **ÇÖZÜLDÜ:** `pano.css`,
+   şablonlar ve `static/tema.js` commit'li (2026-10-01'de `git status`
+   temiz). `dashboard/yedek/` bilinçli olarak izlenmiyor.
 2. ~~`fenlab` güç-düğmesi açık sorusu~~ — **ÇÖZÜLDÜ (2026-09-17)**, bkz. §7 "Tam kurulum" notu.
-3. **Uzaktan Yönetim'de loglama yok, ayrı bir yönetici rolü yok** — bkz. §5
-   madde 3 (bilinçli kabul edilmiş risk, ama izlenebilirlik hiç yok).
+3. **Uzaktan Yönetim'de ayrı bir yönetici rolü yok** (bilinçli kabul
+   edilmiş risk). Loglama eksiği **2026-10-01'de çözüldü**:
+   `uzaktan_denetim` tablosu (§4 şema, §5).
 4. ~~Otomatik sessiz kayıt ayrımı (Faz 7)~~ — **ÇÖZÜLDÜ (2026-09-28), farklı
    bir yolla.** Planlanan çözüm (`elle_kaydedildi: bool` alanı ekleyip iki
    tür kaydı ayırt etmek) yerine kök neden ortadan kaldırıldı: otomatik
@@ -461,6 +492,11 @@ hiçbiri crontab/systemd timer'a bağlı değil:
 - **`zil_yukle.py`** — kaynağı `mudur/giris cikis saatleri.jpg`, elle okunup
   `VARSAYILAN_SAATLER` sabitine gömülü. `--no-dagit` verilmedikçe
   `server/tahtalar.json`'daki her tahtaya SCP ile yazar.
+- **`ilk_yukleme.py`** — tek seferlik DB tohumlama (`server/tahtalar.json`
+  + `data/roster/` + `config/networkobjects.seed.json`). İdempotent DEĞİL:
+  dolu DB'de UNIQUE hatası verir — üretim DB'sinde çalıştırma.
+- **`sifre_belirle.py`** — ortak pano şifresinin hash'ini
+  `config/gizli.json`'a yazar.
 - `tahta_fix_uygula.py` buradan **taşındı** → `tahtaayar/tahta_fix_uygula.py`
   (OS/oturum provizyonu `client/` ve `tahtayoklama/` ortak katmanı olduğu
   için üst düzey klasöre alındı, kopya bırakılmadı).

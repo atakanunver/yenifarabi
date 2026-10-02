@@ -152,8 +152,10 @@ resets the backoff. Invariants, each a past bug:
   same pool.
 
 **Rotation only helps across separate Google Cloud projects** — a spending
-cap is per project. (Current outage: see DECISIONS.md 2026-09-25, billing
-block.)
+cap is per project. (The 2026-09-22 billing block was resolved 2026-09-25
+with a new key; all 8 boards share one working key. If Farabi goes silent,
+suspect `thinking_config`/config fields before billing — DECISIONS.md
+2026-09-27.)
 
 ### Mic-less mode (`mikrofon: false`, 2026-09-25 — on all boards now)
 
@@ -195,8 +197,11 @@ each finished turn (Live goes silent without user audio). Ends at
 1. `_log_startup_banner()` — model, prompt size, tool count, the **actual
    default** audio devices (`sd.default.device`), frame, kip, classroom.
 2. `_build_config()` — time, lesson frame (or `[KONU BEKLENİYOR]`), kip
-   block, `[DERSLİK]`, `core/prompt.txt`, language directive,
-   `thinking_config(include_thoughts=False)`. No student-memory block.
+   block, `[DERSLİK]`, `core/prompt.txt`, language directive. **No
+   `thinking_config`** — it silenced the Live model (every turn 0 bytes of
+   audio, DECISIONS.md 2026-09-27); `tests/test_oturum_yapilandirmasi.py`
+   expects `thinking_config is None` in both `_build_config` and
+   `_build_talimat_config`. No student-memory block.
    **Both `system_instruction` and `tools` must actually reach
    `LiveConnectConfig`** — each was silently missing once, and the model then
    either had no persona or *narrated* calling tools that didn't exist.
@@ -332,7 +337,10 @@ connect, locked after DERSİ BAŞLAT.
 - **`kitap_sorusu`** — a concrete question to the server RAG
   (`/api/egitim/question`); returns a source-checked answer to be read as
   given. `ders` is **required** (without it a grade-only match picked the
-  wrong subject's book). Book list cached in `_KITAP_ONBELLEK`. Timeouts:
+  wrong subject's book). The `Kaynak: …, s. …` line dedupes pages and marks
+  a page ` (tablo)` when any of its sources has server `sources[].tur ==
+  "tablo"` (chunk_tablo); a missing `tur` counts as text (2026-10-01).
+  Book list cached in `_KITAP_ONBELLEK`. Timeouts:
   GET 5 s, POST 10 s (worst measured 5.3 s), registry `zaman_asimi=16`.
   Imports `_ders_eslesir` from `ders_icerigi.py` — underscored but shared,
   don't rename.
@@ -470,15 +478,16 @@ button-only, never a model tool, and not saved.
   no student identity. A cut-off turn is flushed as its own line marked
   `(kesildi)`.
 - `logs/farabi.log` — diagnostics, rotating 5 × 1 MB.
-- Chain-of-thought and serialized tool calls once leaked into the record:
-  `include_thoughts=False` at the source plus `_konusma_temizle()`, which
-  matches **known tool names only** (a generic pattern eats real speech).
+- Chain-of-thought and serialized tool calls once leaked into the record.
+  Since `thinking_config` was removed (2026-09-27) the **only** defence is
+  `_konusma_temizle()` (`_THOUGHT_RE` + tool-call pattern), which matches
+  **known tool names only** (a generic pattern eats real speech).
 
 ### Providers and quota
 
 Among cloud providers Gemini Live is the only realtime option;
-Groq/OpenRouter etc. can't replace the voice path (the planned alternative is
-the local voice node, not another cloud). Every non-realtime text/vision task goes through
+Groq/OpenRouter etc. can't replace the voice path, and the local voice node
+was permanently cancelled (2026-09-28) — voice stays on Gemini Live. Every non-realtime text/vision task goes through
 `core/saglayicilar.py` → `server/saglayicilar.py` (chains, cooldowns, model
 IDs live there); `metin_uret`/`gorsel_uret` keep their signatures and raise
 `RuntimeError` on total failure, which callers turn into their own

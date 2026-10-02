@@ -11,10 +11,12 @@ okul operasyon servisleri (yoklama panosu, SMS).
   **2026-09-13'te donmuş**, sonraki değişiklikleri yansıtmaz; çelişkide BU
   dosya esas. Dosya kaybolursa yeniden üretme: `git show
   3f26d71^:docs/mimari.md` ile geri al.
-- Alt projelerin kendi `CLAUDE.md`'leri var: `client/`, `tahtayoklama/`,
-  `smssistemi/`, `tahtaayar/`.
+- **Her alt projenin kendi `CLAUDE.md`'si var** (komutlar + o projenin
+  ayrıntısı orada; o dizinde çalışırken otomatik yüklenir): `client/`,
+  `server/`, `tahtayoklama/`, `smssistemi/`, `tahtaayar/`, `benchmark/`,
+  `mudur/`, `dogum/`. Bu dosya ortak kurallar + servisler arası resim.
 
-## Güncel durum (2026-09-28)
+## Güncel durum (2026-10-01)
 
 - **Farabi client:** 8 tahtada kurulu — 7 sınıf (9-A, 9-B, 10-A, 11-A, 11-B,
   12-A, 12-B) + `fenlab`. Tablo: aşağıda "Ağ Envanteri".
@@ -37,20 +39,30 @@ okul operasyon servisleri (yoklama panosu, SMS).
 - **Tahta gece/sabah bakımı PLANLANDI, UYGULANMADI.** Spec
   `docs/superpowers/specs/2026-09-28-tahta-gece-sabah-bakim-design.md`,
   plan `docs/superpowers/plans/2026-09-29-tahta-gece-sabah-bakim.md`;
-  `tahtayoklama/dashboard/tahta_bakim.py` henüz yok (2026-09-29).
+  `tahtayoklama/dashboard/tahta_bakim.py` henüz yok (2026-10-01).
+- **Ders planı hattı Faz A tamam (2026-09-30):** `POST /api/egitim/
+  ders_plani` (`server/ders_plani.py`, bulut zinciri deepseek > groq >
+  cohere, Ollama bilerek yok). Client tarafı henüz bağlı değil.
+- **Uzaktan yönetim denetim kaydı (2026-10-01):** her `/admin/uzaktan`
+  eylemi dashboard'un `uzaktan_denetim` tablosuna yazılır; oturumsuz
+  tarayıcı isteği `/giris`'e yönlenir. Ayrıntı `tahtayoklama/CLAUDE.md` §5.
 - **IP değil hostname/MAC esas alınır.** DHCP kirası bozulunca IP değişiyor
   (12-A, 2026-09-22). Kanonik kayıt `server/tahtalar.json`. Bir tahtanın IP'si
-  değişirse **üç yer** güncellenir: `server/tahtalar.json`, dashboard SQLite
-  `tahtalar` tablosu (yoklama + uzaktan yönetim buradan okur), bu dosyadaki
-  tablo.
-- ⚠️ **Ders programı ve zil saatleri üç bağımsız kopya:**
-  `mudur/ders_programi.json` (müdür yardımcısının kaynağı),
-  `tahtayoklama/data/ders_programi.json` (dashboard'un kendi kopyası —
-  `dashboard/ders_programi.py` docstring'i bilinçli bağımsız olduğunu
-  söylüyor) ve her tahtanın `client/config/ders_programi.json`'ı. Biri
-  değişince diğerleri OTOMATİK güncellenmez — `mudur/ders_programi_yukle.py`
-  / `tahtayoklama/dashboard/scripts/ders_programi_yukle.py` ile senkron
-  edilir. Aynı desen `zil.json` için de geçerli.
+  değişirse **üç yer** güncellenir: `server/tahtalar.json` (uzaktan yönetim,
+  `config_dagit.sh`, `tahta-ssh.sh`, `tahtaayar` buradan okur), dashboard
+  SQLite `tahtalar` tablosu (yoklama polling'i, panodaki "başlat" ve roster
+  yükleme buradan okur), bu dosyadaki tablo.
+- ⚠️ **Ders programı ve zil saatleri birden çok kopya, otomatik senkron
+  yok:**
+  - Ders programı: `mudur/ders_programi.json` (kaynak) → tahtaların
+    `client/config/ders_programi.json`'ı (`mudur/ders_programi_yukle.py`
+    ya da `server/config_dagit.sh` dağıtır). `tahtayoklama/data/
+    ders_programi.json` dashboard'un bilinçli bağımsız kopyası (pano
+    etiketi), `tahtayoklama/dashboard/scripts/ders_programi_yukle.py` ile
+    aynı PDF'ten ayrıca üretilir.
+  - Zil: `tahtayoklama/data/zil.json` kaynak → tahtaların
+    `client/config/zil.json` + `~/tahtayoklama/data/zil.json`'ı
+    (`server/config_dagit.sh` ya da `dashboard/scripts/zil_yukle.py`).
 
 ## Mimari: servisler + tahta istemcisi
 
@@ -70,7 +82,7 @@ HTTP + HMAC.
 - **Tek bilinçli DB paylaşımı istisnası:** smssistemi'nin `/yoklama-sms`'i
   dashboard'un `yoklama_pano.db`'sini **salt-okunur, doğrudan** okur (bkz.
   DECISIONS.md 2026-09-23). Dashboard ↔ smssistemi başka bağı yok: HMAC SSO
-  köprüsü (`/dogum`, `/sms-git`).
+  köprüsü (`/sms-git`, `/dogum`, `/otomasyon-git` → smssistemi `/sso`).
 - **Uzaktan yönetim** (`/admin/uzaktan`): ekran karart/kaldır, yoklama
   aç/kapat, duvar kağıdı, anlık ekran görüntüsü (`GET /admin/uzaktan/
   ekran-goruntusu/{tahta_adi}?ham=1`), çoklu tahta seçimi. Tahtaya doğrudan
@@ -134,41 +146,22 @@ Detay `client/CLAUDE.md`'de. Özet:
 
 ### `server/` — FastAPI Brain
 
-- `main.py`/`rag.py`/`db.py` — `/health`, `/ready`, `POST
-  /api/egitim/question`, `GET /api/egitim/kitaplar`, `POST
-  /api/egitim/ders_kaydi_yedek`.
-- `icerik.py` — `POST /api/egitim/ders_icerigi`, `GET /api/egitim/pdf_sayfa`
-  (PyMuPDF → PNG), `GET /api/egitim/pdf_sayfa_metni`. Aynı ders için birden
-  fazla cilt olabilir (ör. `matematik_9.pdf` / `matematik_9_2.pdf`):
-  `ders_icerigi`'nin seçtiği kitap `_SON_KITAP`'ta (derslik anahtarlı)
-  tutulur, `pdf_sayfa` onu tercih eder — bu senkron bozulursa tahtadaki
-  sayfa ile Farabi'nin okuduğu ayrışır.
-- `yks.py` — `POST /api/egitim/yks_sorusu`, `GET /api/egitim/yks_sayfa`;
-  sıralı sunum oturumu `derslik` anahtarlı `_OTURUMLAR`'da (tek süreç tüm
-  tahtalara hizmet ediyor, modül-seviyesi global kullanma).
-- `saglayicilar.py` + `proxy.py` — bulut sağlayıcı havuzu
-  (Groq/Mistral/DeepSeek/OpenRouter/NVIDIA, `GOREV_ZINCIRLERI`) ve HTTP yüzü
-  (`/api/egitim/metin_uret`, `/api/egitim/gorsel_uret`). `gorsel` zinciri:
-  `mistral/pixtral-12b-2409` → `mistral/mistral-medium-latest` →
-  `nvidia/meta/llama-3.2-11b-vision-instruct`. **NVIDIA bu ağdan güvenilmez**
-  (metin modelleri 410/timeout). Ollama'ya giden çağrılarda sistem mesajı
-  şart (`_OLLAMA_VARSAYILAN_SISTEM`, yoksa Türkçe→Çince kayma).
-- `dosya.py` — `POST /api/egitim/dosya_isle`, `GET
-  /api/egitim/dosya_indir/{id}/{ad}` (24 saatte silinir). `belge_ozet`
-  (metin özeti) ÖNCE yerel Ollama, bulut yalnızca yedek; görsel özet yalnızca
-  bulut (yerel vision modeli yok, eklemek Kural 8 onayı ister). Diğer
-  görevler (`gorsel`, `arama_sentez`, `video_ozet`, `sembol_duzelt`,
-  `soru_taslak`, `kitap_ozet`) bulut öncelikli.
-- `config/api_keys.json` (gitignore'lu) — bulut anahtarları + `board_keys`.
-  `saglayicilar.py` anahtarı YALNIZCA buradan okur, kökteki `apikeys.env`'den
-  değil: 2026-09-29'a kadar bu dosyada yalnızca `board_keys` vardı ve tüm
-  bulut zincirleri sessizce anahtarsızdı (DECISIONS.md 2026-09-29). Yeni
-  anahtar `apikeys.env`'e eklenirse buraya da yazılmalı.
+Detay (uç nokta tablosu, tahta script'leri, değişirken bozulmaması
+gerekenler) `server/CLAUDE.md`'de. Servisler arası resim için bilinmesi
+gerekenler:
+
+- Uçlar `/api/egitim/*` (tahta auth'lu) + `/api/client/{heartbeat,durum}`
+  + `/health`, `/ready`. RAG yalnızca `/api/egitim/question`; içerik/PDF
+  (`icerik.py`), YKS (`yks.py`), bulut LLM proxy (`saglayicilar.py` +
+  `proxy.py`), ders planı (`ders_plani.py`), geçmiş ders hatırlama
+  (`ders_hafizasi.py`), dosya işleme (`dosya.py`) ayrı router'lar.
+- Tek süreç tüm tahtalara hizmet eder: oturum durumu `derslik` anahtarlı
+  tutulur (`icerik.py::_SON_KITAP`, `yks.py::_OTURUMLAR`).
+- Bulut anahtarları YALNIZCA `server/config/api_keys.json`'dan okunur
+  (kökteki `apikeys.env`'den değil; yeni anahtar ikisine de yazılır).
   `.gitignore` desen tabanlı (`*.env`, `**/api_keys*`,
-  `!**/api_keys.example.json`); yeni anahtar dosyası bırakırken `git
-  check-ignore` ile doğrula.
-- Tahta işlemleri script'leri: `tahta-ssh.sh [--admin] <derslik>`,
-  `farabi-kurulum.sh`, `config_dagit.sh`.
+  `!**/api_keys.example.json`) — yeni anahtar dosyasını `git check-ignore`
+  ile doğrula.
 
 ### Sunucu ortamı — tuzaklar
 
@@ -192,84 +185,29 @@ Detay `client/CLAUDE.md`'de. Özet:
 
 ## Komutlar
 
-Client kodu `client/` altında — detaylı komutlar, kurallar, bilinen sorunlar
-için `@client/CLAUDE.md` (BU CLIENT KLASÖRÜ TAHTALARA SSH ÜZERİNDEN GÖNDERİLECEK GÜNCELLEMELER BÖYLE YAPILACAK)
+Her projenin tam komut seti (tek test çalıştırma dahil) kendi
+`CLAUDE.md`'sinde. Burada yalnızca alt dizine girmeden önce ısıran
+tuzaklar:
 
-```bash
-cd client
-python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
-python main.py               # client çalıştır
-venv/bin/python -m pytest tests/ -q   # test (pytest requirements.txt'te YOK, geliştirici makinesine elle kurulur)
-python tools/dogrula.py       # içerik doğrulama kapısı
-```
+| Proje | Test | Üretime alma |
+|---|---|---|
+| `server/` | `venv/bin/python -m pytest tests/ -q` | `sudo systemctl restart farabi-api.service` |
+| `tahtayoklama/dashboard/` | ⚠️ **pytest DEĞİL:** `venv/bin/python -m unittest discover -p 'test_*.py'` (venv'de pytest yok) | `sudo systemctl restart farabi-yoklama-dashboard.service` |
+| `smssistemi/` | `venv/bin/python -m pytest -q` | `sudo systemctl restart farabi-smssistemi.service` |
+| `client/` | ⚠️ `farabi.local`'da `client/venv` **yok** — testi tahtada koş: `server/tahta-ssh.sh <derslik> "cd ~/farabi/client && venv/bin/python -m pytest tests/ -q"` (9-A'da `~/farabi/repo/client`) | GitHub'a push; tahtalar `farabiguncelle.sh` ile her gün 20:00'de çeker |
+| `benchmark/` | ölçüm script'leri, pytest yok; `requirements.txt` yok, yalnızca `requirements.lock.txt` | — |
 
-⚠️ `farabi.local`'da `client/venv` **yok** (2026-09-28 itibarıyla) —
-yukarıdaki komutlar burada doğrudan çalışmaz. Client testi ya önce
-buradaki venv'i kurup pytest'i elle ekleyerek ya da bir tahtada
-(`server/tahta-ssh.sh <derslik> "cd ~/farabi/client && venv/bin/python -m
-pytest tests/ -q"`; 9-A'da yol `~/farabi/repo/client`) koşulur.
-
-`server/` — `farabi-api.service`
-(`WorkingDirectory=/home/ata/farabi/server`,
-`ExecStart=.../server/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000`).
-
-```bash
-cd server
-python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
-venv/bin/uvicorn main:app --reload --port 8000   # geliştirmede elle çalıştır
-venv/bin/python -m pytest tests/ -q              # test (pytest requirements.lock.txt'te, venv'de kurulu)
-venv/bin/python -m pytest tests/test_icerik.py -q          # tek dosya
-venv/bin/python -m pytest "tests/test_icerik.py::TestKitapBul" -q  # tek sınıf
-
-sudo systemctl status farabi-api.service          # üretim servisi durumu
-sudo systemctl restart farabi-api.service         # kod değişikliğinden sonra üretime almak için
-journalctl -u farabi-api.service                  # server logu (dosya log YOK, yalnızca journal)
-```
-
-`benchmark/` — Faz 0a/R-4 retrieval ölçüm harness'ları, pytest'e bağlı
-DEĞİL, her script bağımsız CLI. `rag_test.py` üretimin gerçek
-`server/rag.py::RagMotoru`'sunu import eder; `recall_test.py`/
-`katman_test.py` pipeline'ı kendi başına yeniden uygular (neden ayrı
-oldukları `rag_test.py` docstring'inde; fark varsa `rag_test.py` esas).
-
-```bash
-cd benchmark
-python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
-venv/bin/python rag_test.py          # üretim RAG koduna karşı ölçüm (soru seti argümanla verilir, script docstring'ine bkz.)
-venv/bin/python recall_test.py       # Recall@4/rerank/eşik/MRR, üretimden bağımsız model
-venv/bin/python katman_test.py       # iki katmanlı halüsinasyon savunması simülasyonu
-```
-
-`tahtayoklama/dashboard/` — ⚠️ **pytest DEĞİL, `unittest`** (venv'de pytest
-yok, çağırmak "No module named pytest" verir). Yeni testte var olan
-`unittest.TestCase` desenini sürdür.
-
-```bash
-cd tahtayoklama/dashboard
-venv/bin/uvicorn app:app --reload --port 8010          # geliştirmede elle
-venv/bin/python -m unittest discover -p 'test_*.py'    # tüm testler
-venv/bin/python -m unittest test_uzaktan_ekran -v      # tek dosya (modül adı, .py YOK)
-venv/bin/python -m unittest test_uzaktan_ekran.TestUzaktanEkran.test_route_gecersiz_tahta
-
-sudo systemctl restart farabi-yoklama-dashboard.service
-```
-
-`smssistemi/` — pytest, düz `test_*.py` dosyaları (tüm komutlar
-`smssistemi/CLAUDE.md`'de).
-
-```bash
-cd smssistemi
-venv/bin/python -m pytest -q
-sudo systemctl restart farabi-smssistemi.service
-```
-
-Tahtaya komut / log okuma:
+**Client güncellemesi SSH ile kopyalanmaz** — kod yalnızca GitHub
+üzerinden gider (bkz. "Tahtaya dağıtım"). SSH yalnızca gitignore'lu ayar
+dağıtımı, teşhis ve log okuma için:
 
 ```bash
 server/tahta-ssh.sh <derslik> "<komut>"          # ogretmen olarak
 server/tahta-ssh.sh --admin <derslik> "<komut>"  # etapadmin (sudo)
 server/config_dagit.sh --kuru                    # gitignore'lu ayar dağıtımı, önce kuru çalıştır
 ```
+
+Server logu yalnızca `journalctl -u farabi-api.service` (dosya log yok).
 
 ### Lint: Ruff
 
@@ -284,9 +222,10 @@ bozabilir.
 .venv-tools/bin/ruff check smssistemi/app.py      # yalnızca dokunduğun dosya
 ```
 
-⚠️ **Sıfır hata beklenmiyor — 2026-09-29 taban çizgisi 504 bulgu**
-(`smssistemi` hariç 464, `smssistemi` 40; 2026-09-22'de 480 idi). Değişiklikten önce ve sonra
-çalıştırıp **farkı** oku ya da yalnızca dokunduğun dosyayı ver. Birikmiş
+⚠️ **Sıfır bulgu beklenmiyor** (birikmiş yüzlerce stil bulgusu var; tarihli
+sayımlar DECISIONS.md'de). Kural: **gerçek hata sınıfı (F821/F811/F632)
+sıfır kalmalı** ve değişiklik toplam sayıyı artırmamalı. Değişiklikten önce
+ve sonra çalıştırıp **farkı** oku ya da yalnızca dokunduğun dosyayı ver. Birikmiş
 yığını topluca temizlemek Kural 6 kapsamında ayrı iş. `mudur/` ve `dogum/`
 bilinçli olarak kapsam dışı.
 
@@ -465,7 +404,10 @@ Client↔Server event listesi bağlayıcıdır — değişirse `mimari.md`'yi g�
 - `soru_log` → soru/cevap metni **yalnızca** şu durumlarda: düşük skorlu `ok`,
   `yetersiz_kaynak`, `sayi_kontrolu_reddi`, `iptal`, `hata`.
   Başarılı+yüksek skorlu cevaplarda metin saklanmaz.
-  derste konuşulan şeyler metin olarak tutulur loglamaya dahil edilir.
+- **Derste konuşulanlar ayrıca metin olarak tutulur** — bu `soru_log`
+  değil, ders transkripti: tahtada `client/logs/ders/*.txt`, ders sonunda
+  `server/yedekler/ders_kaydi/<derslik>/` altına yedeklenir (yalnızca
+  metin, ses yok, öğrenci kimliği yok). Loglamanın bilinçli parçası.
 - `soru_log` **süre sınırı olmadan** tutulur (bilinçli karar, 2026-08-18);
   otomatik silme mekanizması yok ve olmamalı, aksi istenmedikçe.
 
@@ -489,13 +431,31 @@ Client↔Server event listesi bağlayıcıdır — değişirse `mimari.md`'yi g�
 
 ## Okuma
 
-Şunları okuma: `*.pdf`, `data/`, `models/`, `*.onnx`, `venv/`, `__pycache__/`,
-`client/config/api_keys.json*`, `server/config/api_keys.json*`,
-`/mnt/farabi-data/farabi/` (kitap/YKS PDF'leri ve türetilmiş içerik — telifli/
-büyük).
-pdf içerikleri sayfa sayfa parcalayıp ekranda gösterebilirsin ders anında 
-gemini live bunları okuyabilir.hatta gemini live tablo yorumlara görsel
-vision görü yeteneği kazandırabilirsin.
+Şunları okuma: `data/`, `models/`, `*.onnx`, `venv/`, `__pycache__/`,
+`client/config/api_keys.json*`, `server/config/api_keys.json*`, `*.env`,
+`network.txt`, servislerin `config/gizli.json`'ları.
+
+### PDF'ler — okunabilir, özetlenebilir (2026-10-02 kuralı)
+
+- **Ders kitabı, YKS ve diğer halka açık PDF'ler** (`/mnt/farabi-data/
+  farabi/kitaplar/`, `yks/`, `mudur/siniflar.pdf`, `Farabi.pdf` gibi)
+  okunabilir ve özetlenebilir. Gerekçe "Gizlilik"teki 2026-09-29 kararı:
+  MEB kitapları halka açık, kitap metni buluta gidebilir.
+- Hedefli oku: ilgili sayfa aralığını ver (Read aracı istek başına en çok
+  20 sayfa); bütün kitabı bağlama dökme. Türetilmiş metin zaten
+  `icerik/{metin,ozet,yks_metin}/` altında — önce oraya bak.
+- Üretilen özetler veri diskine yazılır (`/mnt/farabi-data/farabi/icerik/
+  ozet/`), public repoya değil.
+- **İstisna — kişisel veri içeren PDF/Excel okunmaz:** `mudur/SINIF/`
+  (öğrenci listeleri, telefonlar, doğum tarihleri), e-Okul roster
+  çıktıları, yoklama/SMS dışa aktarımları. Okumak içeriği buluta gönderir;
+  "Asla buluta gitmez" kuralı geçerli.
+- **Ürün yönü:** PDF içerikleri sayfa sayfa ayrıştırılıp tahtada
+  gösterilebilir (`pdf_sayfa` + `pdf_sayfa_metni` bunu zaten yapıyor);
+  ders anında Gemini Live bu sayfaları okuyabilir. Tablo/şekil yorumu için
+  sayfa görselini Gemini'ye vision girdisi olarak vermek açık bir
+  geliştirme yönü (`ekrandaki_soruyu_oku`'nun `send_client_content`
+  deseni örnek).
 
 ## Diğer dizinler
 

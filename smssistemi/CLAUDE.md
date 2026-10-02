@@ -17,13 +17,14 @@ Tasarım kararları ve mimari gerekçe: `../docs/superpowers/specs/2026-09-19-sm
 yok. `auth.py`/`db.py` dashboard'daki aynı isimli dosyaların desenini takip
 eder ama satır satır bağımsız kopyadır — biri değişince diğeri otomatik
 güncellenmez, bu bilinçli bir karar (yukarıdaki spec, "Kullanıcı kararları").
-Dashboard'la tek bağlantı noktası `pano.html`'deki bir nav linki.
+Dashboard'la bağlantı: panonun menüsündeki linkler + HMAC imzalı SSO
+köprüsü (`/sms-git`, `/dogum`, `/otomasyon-git` → `/sso`).
 **TEK İSTİSNA (2026-09-23):** panonun DB'si salt-okunur okunuyor —
 `yoklama_kaynak.py` üzerinden; onu kullananlar `/yoklama-sms`
 (`yoklama_mantik.py`) VE İlk Ders Otomasyonu (`otomasyon.py`). Aşağıdaki
 "Yoklama SMS Modülü" bölümüne bak.
 
-## Durum (2026-09-28 / Güncel)
+## Durum (2026-10-01 / Güncel)
 
 Üretimde çalışıyor. `farabi-smssistemi.service` aktif (port 8020),
 `app.py` + `templates/`/`static/` yazıldı, gerçek bir SMS ucu ucuna
@@ -32,6 +33,12 @@ doğrulandı (bkz. kök `DECISIONS.md`). Dashboard'dan tek tıkla giriş
 kısa ömürlü (30sn) HMAC-imzalı token — paylaşılan anahtar
 `config/sso.json` (~dashboard'daki `config/sms_sso.json` eşi),
 gitignore'lu, kod/DB paylaşımı yok.
+
+**Loglama (2026-09-29):** `app.py::log_ayarla()` yalnızca `smssistemi.*`
+logger ağacını INFO düzeyinde stderr'e (→ journal) bağlar, kök logger'a
+dokunmaz. Otomasyonun gerçekten kendiliğinden çalıştığının kanıtı journal'daki
+"tetikleniyor" satırı + `otomasyon_ilk_ders_son_sonuc.tetikleyen ==
+"otomatik_zamanlayici"`. Test: `test_log_ayari.py`.
 
 **Rehber (telefon defteri) eklendi:** `siniflar` (bu yıl için 9-A..12-B,
 ekle/sil yapılabilir) + `kisiler` (ad_soyad, telefon [boş olabilir],
@@ -155,7 +162,7 @@ genel bir güvenlik payı olarak.
 
 ```bash
 python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt -r requirements-dev.txt
-venv/bin/python -m pytest -q                    # tüm testler (düz dosyalar: test_*.py, tests/ dizini yok)
+venv/bin/python -m pytest -q                    # tüm testler (düz dosyalar: test_*.py, tests/ dizini yok) — 2026-10-01: 122 geçti
 venv/bin/python -m pytest test_db.py -q         # tek dosya
 venv/bin/python -m pytest test_db.py::test_semayi_kur_ve_gonderim_kaydet -q  # tek test
 
@@ -174,7 +181,10 @@ değişikliği restart'a kadar yayına girmez.
 
 Lint: kök `/home/ata/farabi/CLAUDE.md`'deki Ruff kuralı geçerli
 (`../.venv-tools/bin/ruff check .` ya da yalnızca dokunduğun dosya);
-2026-09-22 taban çizgisi `smssistemi` için 32 bulgu — farkı oku. Aynı
+2026-10-01 taban çizgisi `smssistemi` için 40 bulgu — farkı oku.
+⚠️ `test_otomasyon*.py` gitignore'lu `config/modem.json`'a bağımlı;
+worktree'de koşulursa 4 test düşer (ana kopyada koş ya da `config/`'e geçici
+symlink). Aynı
 temkinli prosedür (önce check, F8xx öncelik, büyük ölçekli otomatik
 düzeltme yok) burada da uygulanır.
 
