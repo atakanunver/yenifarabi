@@ -33,8 +33,13 @@ okur, **çözmeye kalkışmaz** — öğrenciden cevap ya da öğretmenden talim
 | 📺 Video desteği | YouTube ve EBA'da konu anlatım videosu bulma/açma, YouTube özeti |
 | 📖 EBA soru PDF'i | EBA bağlantısından soru/çalışma kâğıdı PDF'i indirip metnini tahtaya basar (tarayıcı açmaz) |
 | ⏰ Zil farkındalığı | Kaçıncı derste olduğunu, teneffüsü, öğle arasını bilir |
-| 🎛️ Öğretmen paneli | **DURDUR** · **DEVAM ET** · yazılan her şey talimat |
-| 📝 Ders kaydı | Konuşulanların VE öğretmenin yazılı talimatlarının dosyaya kaydı (ses kaydı yok) |
+| 🎛️ Öğretmen paneli | **DURDUR** · **DEVAM ET** · **⏹ DERSİ BİTİR** (çift dokunuş) · yazılan her şey talimat |
+| 📝 Ders kaydı | Konuşulanların VE öğretmenin yazılı talimatlarının dosyaya kaydı (ses kaydı yok); ders sonunda sunucuya yedeklenir |
+| ❓ Kitap sorusu | Somut soruyu sunucudaki RAG'a sorar; yalnızca kitaptan, kaynak sayfasıyla cevap (`s. 84`, tablodan geldiyse `s. 84 (tablo)`) |
+| 🧠 Ders hafızası | Bu tahtada işlenmiş geçmiş dersleri hatırlar (sunucudaki yedek kayıtlardan) |
+| 📐 GeoGebra | Canlı GeoGebra penceresinde çizim/hesap (kilitli `chrome --app`) |
+| 🖥️ Ekranı oku | Tahtanın KENDİ ekranındaki soruyu görüntü olarak modele verir (kamera yok) |
+| 🎨 Görsel üret | Gemini Image ile ders görseli üretir |
 
 ## Ders dili
 
@@ -79,303 +84,189 @@ oyalama reddedilir.
 Bu yaklaşım **Türkiye Yüzyılı Maarif Modeli**'nin öğretmen rolüyle örtüşür: ezber
 yerine araştırma ve keşif, bütüncül gelişim, süreç odaklı değerlendirme.
 
+## Mikrofonsuz mod
+
+Tahta mikrofonları donanımsal olarak yetersiz olduğu için (aşağıya bkz.)
+**şu an 8 tahtanın hepsinde mikrofonsuz mod açık** (`config/api_keys.json::
+mikrofon: false`). Bu modda DERSİ BAŞLAT ders/konu/kazanımı yazılı sorar,
+Farabi her turdan sonra kendiliğinden devam eder, ders 40 dakikada ya da
+zilden 2 dk önce biter. Paneldeki **🎤 MİKROFONLU / 🚫 MİKROFONSUZ** düğmesi
+yalnızca açılış varsayılanını bellekte değiştirir (dosyaya yazmaz).
+
+## Öğretmen talimat modu
+
+Ders dışı kullanım: **👨‍🏫 ÖĞRETMEN MODU**'nda öğretmen sesle tek cümlelik
+komutlar verir (web sayfası aç, uygulama aç, dosya aç, pencere kapat, kitap
+sayfası göster…). Ders kipleri bu araçları görmez. Mikrofonsuz modda bu mod
+kilitlidir (sesle çalışır).
+
 ## Güvenlik sınırı
 
-Farabi uygulama açamaz, terminal komutu çalıştıramaz, işletim sistemi ayarlarını
-değiştiremez, tarayıcı süremez, mesaj gönderemez, dosya yönetemez. Bu eksik bir
-özellik değil, bilinçli bir sınırdır: çocukların gözetimsiz konuştuğu bir cihazda
-kabuk komutu çalıştırabilen bir araç bulunmamalıdır. Kamera da yoktur — 2026-08-09'da
-kaldırıldı, hiçbir aşamada kullanılmıyor.
+Ders kiplerinde (öğretmenli/öğretmensiz) Farabi terminal komutu
+çalıştıramaz, işletim sistemi ayarlarını değiştiremez, tarayıcı süremez,
+mesaj gönderemez, dosya yönetemez. Bu eksik bir özellik değil, bilinçli bir
+sınırdır: çocukların konuştuğu bir cihazda kabuk komutu çalıştırabilen bir
+araç bulunmamalıdır. Kamera yoktur; ekran görüntüsü yalnızca tahtanın kendi
+ekranıdır ve yoklama/e-Okul/MEBBİS penceresi öndeyse alınmaz.
 
-Site gösterme aracı **tarayıcı açmaz** — sayfayı sunucu tarafında çekip
-tahtaya metin/tablo olarak basar; kaçılacak bir tarayıcı yoktur.
+Site gösterme aracı **tarayıcı açmaz** — sayfayı çekip tahtaya metin/tablo
+olarak basar.
 
-**Üç istisna, üçü de video/dosya açma eylemlerinde:** `youtube_video`'nun
-oynatma eylemi videoyu sistem tarayıcısında açar (`xdg-open`), özet çıkarma
-eylemi de (kaydet seçeneğiyle) özeti `~/Desktop`'a yazıp bir metin
-düzenleyiciyle açar; `eba`'nın video eylemi de aynı şekilde `xdg-open` ile
-sistem tarayıcısını açar (EBA'da gömme/oynatma imkânı yok). Üçü de yukarıdaki
-sınırın dışında kalır ve tahtada kontrolsüz bir pencere açılabilir; henüz
-düzeltilmedi — bkz. `CLAUDE.md`, "Capability boundary" bölümü. `eba`'nın PDF
-eylemi bu istisnaya girmez: dosya sunucu tarafında indirilip metni çıkarılır,
-tarayıcı açılmaz, disk yazılmaz.
+**Bilinçli ya da açık istisnalar:**
+- **Talimat modu araçları** (`web_ac`, `uygulama_ac`, `dosya_ac`,
+  `pencere_kapat`) — kullanıcı kararı, yalnızca talimat modunda.
+- **`geogebra`** — localhost'taki kilitli bir `chrome --app` penceresi açar
+  (onaylı istisna).
+- **`yoklama_al`** — yoklama ekranını başlatır; yalnızca 9-A'nın tam klon
+  yapısında yolu bulur, diğer tahtalarda "bulunamadı" der.
+- **Açık delikler:** `youtube_video`'nun oynatma eylemi ve `eba`'nın video
+  eylemi `xdg-open` ile sistem tarayıcısını açar; YouTube özetinin
+  "kaydet" seçeneği `~/Desktop`'a yazar. Ayrıntı: `CLAUDE.md`, "Capability
+  boundary".
+
+## Mimari: ince istemci, sunucu beyin
+
+Tahtadaki bu uygulama yalnızca **arayüz + Gemini Live ses oturumu**dur.
+Ağır işlerin hepsi okul sunucusunda (`farabi.local`, depodaki `server/`):
+kitap/YKS içeriği, sayfa görüntüsü, RAG soru-cevap, bulut metin/görsel
+sağlayıcıları, dosya işleme, geçmiş ders hafızası. Tahtanın kendi kitap/YKS
+deposu **yoktur**; yalnızca `icerik/onbellek/` altında küçük, silinebilir
+önbellekler durur. Sunucuya ulaşılamazsa araçlar sessizce kısıtlayıcı bir
+metne düşer — **Farabi asla dersi bozmaz**.
+
+Her sunucu isteği tahta anahtarıyla (`X-Farabi-Board-Key`) gider; anahtar
+yoksa sunucu 401 döner.
 
 ## Dosya yapısı
 
 ```
 main.py                 Live oturumu, araç dağıtımı, ses döngüleri, ders açılışı
-ui.py                   PyQt6 arayüz (üç kolonlu HUD)
-setup.py                pip install; kurulumun geri kalanı config/*.example
-                        dosyalarını kopyalamaktan ibaret (aşağıya bakın)
-farabi_start.sh         venv + başlatma sarmalayıcısı
+ui.py                   PyQt6 arayüz (üç kolonlu HUD, öğretmen paneli, kalem/silgi)
+setup.py                pip kurulumu
+farabi_start.sh         venv içinden main.py'yi başlatır
+update_farabi.sh        client checkout'u için git fetch + güncelleme yardımcısı
 Farabi.gif              HUD animasyonu (yer tutucu, serbestçe değiştirilebilir)
 dersgiriscikis.png      okulun zil çizelgesi fotoğrafı
 
-actions/                araçlar; bildirimler kayit.py'de. Kamera/ekran yakalama
-                        yok (screen_processor.py 2026-08-09'da kaldırıldı)
-  kayit.py                ARAÇ KAYDI — bildirim, zaman aşımı, izin, maliyet
-  ders_icerigi.py         öğretmen konusuna göre kitap sayfaları
-  yks_sorulari.py         konuyla ilgili YKS (TYT/AYT) çıkmış sorusu — yalnız
-                          soru metni, çözüm var; çözümü model öğrenciye sorar sonra kendisi anlatır
-  file_processor.py       belge ve görsel işleme (AI kısmı Gemini DIŞI — bkz. altta)
-  youtube_video.py        ders videosu bulma/açma/özeti (AI kısmı Gemini DIŞI)
-  eba.py                  EBA videosu açma + soru PDF'i indirip metnini gösterme
-                          (2026-08-09 eklendi)
-  web_search.py           web araması — DDG (ücretsiz) + AI sentezi (Gemini DIŞI)
-  site_goster.py          izinli kaynak siteler — tarayıcısız, sunucu tarafında
-                          çekilip metin/tablo olarak basılır
+actions/                modelin çağırdığı araçlar; tek kayıt kaynağı kayit.py
+  kayit.py                ARAÇ KAYDI — bildirim, zaman aşımı, kip, çalışma biçimi
+  ders_icerigi.py         konu anlatımı için kitap sayfa metni (sunucu)
+  kitap_sorusu.py         RAG ile kaynaklı soru-cevap (sunucu)
+  pdf_sayfa.py            kitap sayfasının görüntüsü + metni (sunucu)
+  yks_sorulari.py         çıkmış YKS sorusu, sayfa görüntüsü olarak (sunucu)
+  ders_hafizasi.py        bu tahtadaki geçmiş dersler (sunucu)
+  file_processor.py       belge/görsel işleme (sunucu sağlayıcıları, Gemini DIŞI)
+  web_search.py           web araması + sentez (sunucu sağlayıcıları)
+  youtube_video.py        ders videosu bulma/açma/özeti
+  eba.py                  EBA videosu + soru PDF'i metni
+  site_goster.py          izinli siteler, tarayıcısız
+  geogebra.py             canlı GeoGebra köprüsü
+  gorsel_uret.py          Gemini Image ile görsel (arka planda)
+  ekran_goruntusu_al.py / ekrandaki_soruyu_oku.py   tahtanın kendi ekranı
+  web_ac.py / uygulama_ac.py / dosya_ac.py / pencere_kapat.py   talimat modu
+  yoklama_al.py           yoklama ekranını açar
 
 core/
-  prompt.txt              öğretmen personası (v2.0)
-  program.py              ders programı: gün × saat × sınıf → hangi ders
-  vision_prompt.txt       artık kullanılmıyor (yalnız screen_processor.py
-                          okuyordu, o kaldırıldı) — kullanıcı içeriği olduğu
-                          için silinmedi, sorulmadan silinmez/değiştirilmez
-  ders_motoru.py          DERS MOTORU — deterministik durum makinesi
+  prompt.txt              öğretmen personası (v2.0) — kullanıcıya ait
+  vision_prompt.txt, prompteski.txt   kodda okunmuyor, kullanıcıya ait — silinmez
+  ders_motoru.py          ders motoru — deterministik durum makinesi
   olaylar.py              tahta içi olay veri yolu
+  program.py              ders programı: sınıf × gün × saat → ders (+ kip)
   zil.py                  zil çizelgesi ve ders saati durumu
-  tahta.py                bu tahta hangi derslikte
-  modeller.py             canlı ses model adı (yalnızca Gemini Live)
-  anahtar.py              Gemini API anahtar havuzu (yalnızca canlı ses için)
-  saglayicilar.py         Gemini DIŞI 6 sağlayıcılı havuz (Groq, Mistral,
-                          DeepSeek, OpenRouter, NVIDIA NIM) — ders anlatımı
-                          dışındaki tüm metin/görsel işler buradan geçer
-  logger.py               tanı logu
-  transcript.py           ders kaydı
+  tahta.py                tahta kimliği: derslik, sınıf düzeyi, sunucu adresi,
+                          mikrofon, tahta anahtarı başlıkları
+  anahtar.py              Gemini API anahtar havuzu (yalnızca canlı ses)
+  saglayicilar.py         sunucunun sağlayıcı havuzuna ince HTTP vekili
+  modeller.py             canlı ses model adı
+  transcript.py           ders kaydı (yalnızca metin)
+  logger.py               tanı logu (5 × 1 MB dönen)
+  version.py              istemci sürümü (sunucunun /api/version'ı ile karşılaştırılır)
 
-tools/                    ÇEVRİMDIŞI hazırlık betikleri (ders sırasında değil),
-                          çoğu ui.py'deki bir düğmeden de tetiklenebilir
-  kitap_index.py            ders kitabı PDF    → icerik/kitaplar.json
-  kitap_metin.py            PDF → icerik/metin/<kitap>.json (zorunlu yol)
-  dogrula.py                İÇERİK DOĞRULAMA KAPISI — kitap indeksi + elle
-                            eşlemeler; ücretsiz, anında, API çağrısı yok
-  sembol_temizle.py         İSTEĞE BAĞLI, ÜCRETLİ: şüpheli '#'/'$' sembollerini
-                            yapay zeka ile temizler (yalnız emin olduğunda)
-  kitap_ozet.py             İSTEĞE BAĞLI, ÜCRETLİ: kitap özeti + internetten
-                            zenginleştirme sorusu fikirleri üretir
-  onbellek_isit.py          verilen bir ders+konu için sayfa seçimini ısıtır
-  mikrofon_test.py          tahta başına mikrofon ölçümü
-  yks_metin.py              YKS PDF → icerik/yks_metin/<dosya>.txt (zorunlu
-                            yol için yks_sorulari; kelime puanlaması kullanır)
+tools/                    ÇEVRİMDIŞI içerik hazırlama — SUNUCUDA koşar
+                          (/mnt/farabi-data/farabi/), tahtada değil. Tahtada
+                          yalnızca dogrula.py ve mikrofon_test.py işe yarar.
 tests/                    pytest — ağ yok, model yok
-
-config/
-  api_keys.json           API anahtarı, derslik, ders kipi   (gitignore)
-  api_keys.example.json   aynı biçim, şablon olarak — kurulum sihirbazı yok,
-                          elle kopyalanır
-  zil.json                zil çizelgesi                      (gitignore)
-  zil.example.json        aynı değerler, şablon olarak
-  ders_programi.json      okulun ders programı               (gitignore)
-  ders_programi.example.json   aynı biçim, şablon olarak
-
-planlar/                  MEB yıllık plan .xlsx — yalnızca ARŞİV, hiçbir kod
-                          yolu tarafından okunmuyor (bkz. planlar/BURAYA_NE_KONUR.md)
-kitaplar/                 ders kitabı PDF'leri — BURAYA ATILIR
-YKS/                      YKS (TYT/AYT) çıkmış sınav soruları — BURAYA ATILIR,
-                          kitaplar/ ile aynı mantık; tools/yks_metin.py düz
-                          metne çevirir, yks_sorulari bunu okur
-icerik/                   üretilen indeks + önbellek    (gitignore)
-  eslemeler/*.json          ELLE yazılan tema→sayfa eşlemeleri (depoda durur)
-  metin/<kitap>.json        kitap sayfa metni (gitignore) — tools/kitap_metin.py
-                            üretir, ders_icerigi bunu okur
-  ozet/<kitap>.json          İSTEĞE BAĞLI kitap özeti (gitignore) — tools/kitap_ozet.py
-                            üretir, ders_icerigi varsa başa ekler
-  yks_metin/<dosya>.txt      YKS PDF'lerinin düz metni (gitignore) — tools/yks_metin.py
-                            üretir, yks_sorulari okur
-logs/                     ders kayıtları + tanı logu    (gitignore)
+config/                   gerçek JSON'lar gitignore'lu, *.example.json şablonlar
+memory/                   KULLANILMIYOR (eski paket) — yeniden bağlanmaz
+planlar/                  MEB yıllık plan .xlsx — yalnızca arşiv
+icerik/onbellek/          geçici önbellekler (pdf_sayfa, yks_sayfa, ekran, görsel)
+logs/                     ders/*.txt kayıtları + farabi.log (gitignore)
 ```
 
-Kitap verisi tek yönde akar: `kitaplar/` → `tools/` → `icerik/` → çalışma anında
-`ders_icerigi`. PDF'ler ders sırasında açılmamalı (`kitap_metin.py` önce
-çalıştırılır). Yıllık plan artık hiçbir kod yolunda yok — ders yalnızca
-kitaplar üzerinden işlenir: konu/kazanım öğretmenden gelir, doğrudan kitaba
-bakılır.
-
 ## Kurulum
+
+Tahtaya kurulum depodaki `server/farabi-kurulum.sh` betiğiyle yapılır;
+betik **tahtada, `ogretmen` olarak** çalıştırılır (GitHub'dan `client/`'ı
+sparse-checkout ile klonlar, venv'i `requirements.lock.txt`'ten kurar,
+masaüstü kısayolunu, günlük güncelleme ve 15 dakikalık heartbeat cron'larını
+ekler):
+
+```bash
+bash farabi-kurulum.sh <derslik> <sunucu_url> <tahta_anahtari>
+# tahta_anahtari = sunucudaki board_keys[derslik] ile birebir aynı
+```
+
+Tahtada güncelleme: `~/.local/bin/farabiguncelle.sh` (`git fetch` + `git
+reset --hard origin/master`, her gün cron'la). İstisna: 9-A tam klon
+yapısını korur (`~/farabi/repo/client`).
+
+Elle geliştirme kurulumu:
 
 ```bash
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 python main.py
+pip install pytest && python -m pytest tests/ -q     # yalnızca geliştirme
 ```
 
-Testler (geliştirme; `pytest` tahta kurulumunda gerekmez):
+`config/api_keys.json` elle oluşturulur (`api_keys.example.json`'dan) —
+**hiçbir arayüz bu dosyayı yazmaz**. Alanlar: `gemini_api_keys`, `derslik`
+(örn. `"9-A"`, tahtadan tahtaya kopyalanmaz), `sunucu_url`, `tahta_anahtari`,
+`ders_kipi`, `mikrofon`, `os_system`. Ortak alanlar (Gemini anahtarı,
+`mikrofon`, `sunucu_url`) sunucudan `server/config_dagit.sh` ile dağıtılır.
+`zil.json` ve `ders_programi.json` da gitignore'lu, aynı yolla gelir.
 
-```bash
-pip install pytest && python -m pytest tests/ -q
-```
+**Gemini yalnızca canlı ses (ve görsel üretme) için gerekli.** Diğer bütün
+metin/görsel işler (web arama sentezi, belge/video özeti, resim analizi)
+sunucunun sağlayıcı havuzundan geçer; bulut anahtarları tahtada durmaz.
 
-Okula özel iki dosya, örneklerinden kopyalanır:
+Oturumu öğretmen **DERSİ BAŞLAT** ile açar (çift dokunuş); boşta kalan
+oturum 15 dakikada kapanır.
 
-```bash
-cp config/zil.example.json           config/zil.json            # zil saatleri
-cp config/ders_programi.example.json config/ders_programi.json  # ders programı
-```
+## Kitap ve YKS içeriği
 
-`config/api_keys.json` de aynı şekilde elle oluşturulur — örneği kopyalayın:
+Kitap PDF'leri, sayfa metinleri, YKS arşivi ve RAG indeksi **sunucuda**
+hazırlanır ve tutulur (`/mnt/farabi-data/farabi/`, PostgreSQL + pgvector).
+Tahtaya bir şey kopyalanmaz; yeni bir kitap sunucuya eklendiğinde bütün
+tahtalar onu hemen görür. Hazırlama betikleri `tools/` altında ama sunucuda
+çalıştırılır; ayrıntı kök `CLAUDE.md`.
 
-```bash
-cp config/api_keys.example.json config/api_keys.json
-```
-
-ve içine gerçek Gemini API anahtarınızı (`gemini_api_keys`), tahtanın bulunduğu
-sınıfı (`derslik`, örn. `"9-A"`) ve ders kipini (`ders_kipi`) yazın. **Otomatik
-bir ilk-kurulum penceresi yoktur** — eskiden dosya eksikse bir "İLK KURULUM"
-penceresi çıkıp tek bir anahtar + işletim sistemiyle dosyayı SIFIRDAN
-yazıyordu, bu da elle girilmiş `derslik`/`ders_kipi`/anahtar havuzunu sessizce
-siliyordu. O pencere kaldırıldı: dosya eksikse ya da anahtar taşımıyorsa Farabi
-DERS KAYDI panelinde bir hata satırı gösterir ve dosyanın elle
-tamamlanmasını bekler; hiçbir şeyi kendi yazmaz. Program + derslik olmadan
-Farabi hangi sınıfta ve derste olduğunu bilemez; o durumda **öğretmene**
-sorar (sınıfa değil).
-
-**Gemini yalnızca canlı sesli ders için gerekli.** Ders anlatımı dışındaki her
-şey — web arama sentezi, belge/video özeti, kitap özeti, şüpheli sembol
-düzeltme, yüklenen resim analizi — altı farklı ücretsiz/ucuz sağlayıcıya
-dağıtılmış durumda (`core/saglayicilar.py`): `groq_api_key`, `mistral_api_key`,
-`deepseek_api_key`, `openrouter_api_key`, `nvidia_api_key`. Hiçbiri zorunlu
-değil — boş bırakılan bir sağlayıcı sırasıyla atlanır, o görevin zincirindeki
-bir sonrakine geçilir; hepsi boşsa o görev başarısız olur ve ilgili araç
-"sınırlı devam et" mesajıyla döner, sessizce uydurma yanıt üretmez. Anahtarları
-almak için: [console.groq.com/keys](https://console.groq.com/keys),
-[console.mistral.ai](https://console.mistral.ai/),
-[platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys),
-[openrouter.ai/settings/keys](https://openrouter.ai/settings/keys),
-[build.nvidia.com](https://build.nvidia.com) (`nvapi-...` ile başlar).
-
-Dosya hazır olduktan sonra Farabi'yi başlatın (yeniden başlatma gerekir —
-dosya çalışırken izlenmez). Oturumu öğretmen **DERSİ BAŞLAT** ile açar (çift
-tık).
-
-## Kitap indeksini hazırlama
-
-Kitap içeriği çalışma anında değil, **bir kez önceden** hazırlanır — elle
-komut satırından, ya da HUD'daki düğmelerden (sağ panel):
-
-```bash
-# Ders kitaplarını toplu indeksle
-python tools/kitap_index.py kitaplar/ --json icerik/kitaplar.json
-
-# ZORUNLU: sayfa metnini çıkar (ders_icerigi bunu okur)
-python tools/kitap_metin.py kitaplar/ --json icerik/metin
-
-# ZORUNLU: üretilen indeksi doğrula (bozuk indeks sınıfta doğaçlama olur)
-python tools/dogrula.py
-```
-
-Program her açılışta `kitaplar/` klasörünü de kendisi kontrol eder: yeni bir
-PDF eklenmişse `icerik/kitaplar.json`'u arka planda, sessizce günceller
-(`ui.py`, `_kitaplar_json_guncelle`) — elle `kitap_index.py` çalıştırmayı
-unutmak bir kitabı görünmez bırakmaz. Sayfa metnini çıkarma
-(`kitap_metin.py`) da aynı açılış kontrolünde eksik kitaplar için otomatik
-tetiklenir; HUD'daki **📚 KİTAPLARI METNE DÖNÜŞTÜR** düğmesi aynı işi görünür
-bir terminalde, ilerlemeyi göstererek çalıştırır.
-
-**Doğrulama kapısı ne yakalar:** bir kitabın bütün ünitelerinin aynı adı
-taşıması, tek bölümün kitabın tamamını kaplaması, bozuk eşleme dosyaları.
-RED alan kitap için `icerik/eslemeler/<kitap>.json` dosyasına elle tema→sayfa
-eşlemesi yazılır; elle eşleme otomatik indeksin önüne geçer. Ücretsiz ve
-anında — API çağrısı yapmaz.
-
-Öğretmen konu verdikten sonra Farabi `ders_icerigi` ile ilgili sayfaları getirir.
-Sayfa seçimi kelime-örtüşme yöntemiyle yapılır (semantik/embedding arama
-kaldırıldı — `sentence-transformers`/`torch` bağımlılığı yok, kurulum daha
-hafif). Matematik gibi sembol yoğun kitaplarda bozuk fontlar `kitap_metin.py`
-içinde metin olarak onarılır (API çağrısı yok); yalnızca EMİN OLUNAMAYAN
-semboller ('#', '$') değiştirilmeden bırakılır ve sayılır.
-
-**İsteğe bağlı, ÜCRETLİ adımlar (HUD düğmesi ya da elle, `--onayla` gerekir):**
-
-```bash
-# Emin olunan şüpheli sembolleri yapay zeka ile düzelt
-python tools/sembol_temizle.py --onayla
-
-# Kitap özeti + internetten zenginleştirme soru fikirleri üret
-python tools/kitap_ozet.py --onayla
-```
-
-İkisi de `core/saglayicilar.py` üzerinden gerçek API çağrısı yapar (Gemini
-DEĞİL — DeepSeek/Mistral/NVIDIA NIM, bkz. yukarıdaki "Gemini yalnızca canlı
-sesli ders için gerekli"); HUD'daki karşılıkları **🧹 ŞÜPHELİ SEMBOLLERİ
-TEMİZLE (AI)** ve **🗒️ KİTAP ÖZETİ ÇIKAR (AI)** düğmeleridir — düğmeye basmak
-`--onayla` onayı yerine geçer. Kitap özeti üretildiyse `ders_icerigi` onu
-ilgili sayfaların başına otomatik ekler; yeni bir araç değildir, model hâlâ
-tek bir çağrıyla içeriği alır.
-
-## Çıkmış YKS sorularını hazırlama
-
-`YKS/` klasörüne atılan geçmiş sınav PDF'leri de çalışma anında değil, önceden
-düz metne çevrilir — kitap indeksiyle aynı mantık, farklı yol. Elle:
-
-```bash
-python tools/yks_metin.py YKS/ --txt icerik/yks_metin
-```
-
-ya da HUD'daki **📝 YKS SORULARINI METNE DÖNÜŞTÜR** düğmesinden (görünür bir
-terminalde, kitap dönüştürmeyle aynı akış).
-
-Bu **zorunludur**: `yks_sorulari` aracı `icerik/yks_metin/` boşsa doğaçlama
-yapmaz, "arşiv hazır değil" der ve kitaptan anlatmaya devam eder. Dönüştürme
-tamamen yerel (`pdfplumber`, API çağrısı yok); ölçülen süre bu geliştirme
-makinesinde 8 dosya (~1.300 sayfa) için 4 dakika 9 saniye, bir kerelik bedel.
-
-Öğretmen ya da öğrenci "bu konuda çıkmış soru var mı" dediğinde Farabi bu
-arşivden konuya en yakın sayfayı kelime örtüşmesiyle bulur ve **sınıfa okuyup
-çözümü kendisi anlatır** — kaynak PDF'lerde yazılı çözüm yok (yalnızca soru),
-o yüzden çözmek modelin işidir.
+Şu an 25 kitap kayıtlı (9. ve 10. sınıf çoğu ders; 11. sınıfta Coğrafya,
+Fizik, Kimya, Tarih, Temel Matematik, TDE; 12. sınıfta İnkılap Tarihi).
 
 ## Bilinen sorunlar
 
-- **Dahili mikrofon sınıf için yetersiz — harici mikrofon gerekiyor.** Ölçüldü:
-  sessiz oda rms 8-16, konuşma rms 200-450; sağlıklı aralık 1500-8000. Mikrofon
-  bozuk değil, sesi ~10 kat düşük seviyede yakalıyor. Kazanç yükseltmek
-  çözmüyor, gürültü tabanını da aynı oranda yükseltiyor. Her tahtaya USB
-  konferans ya da tavan mikrofonu gerekir.
-  Doğrulama: `python tools/mikrofon_test.py --karsilastir` (oran 3x altındaysa
-  o tahta derse hazır değil).
-- **11 ve 12. sınıfın ders kitabı yok.** Elde olan PDF'ler `kitaplar/` altına
-  konup `kitap_index.py` + `kitap_metin.py` çalıştırılınca bağlanır. Kod sorunu
-  değil, veri eksiği.
-- **Bazı kitapların otomatik indeksi bozuk çıkıyor** — `fizik-10` ve
-  `cografya-10` ölçüldü ve `icerik/eslemeler/` altında elle eşlendi. Yeni bir
-  kitap eklendiğinde `tools/dogrula.py` çalıştırılmalı.
-- **Yeni bir konu ilk çağrıldığında sayfa taraması sürebilir** (önbelleksiz
-  kitapta). Ders öncesinde `tools/onbellek_isit.py --ders ... --sinif ...
-  --konu ... --onayla` ile ısıtın (konu elle verilir, hiçbir yerde otomatik
-  tespit edilmez).
+- **Dahili mikrofon sınıf için yetersiz — harici mikrofon gerekiyor.**
+  Konuşma rms 200-450; sağlıklı aralık 1500-8000. Kazanç yükseltmek
+  çözmüyor, gürültü tabanını da aynı oranda yükseltiyor. Bu yüzden
+  mikrofonsuz mod açık. Doğrulama: `python tools/mikrofon_test.py
+  --karsilastir` (oran 3x altındaysa o tahta derse hazır değil).
+- **11. sınıf Biyoloji ve İngilizce kitabı yok**, 12. sınıfta yalnızca
+  İnkılap Tarihi var. Kod sorunu değil, veri eksiği (sunucuya eklenir).
+- **`fenlab` tahtası sınıf düzeyini bilmez** (`derslik: "fenlab"`) — kitap
+  ararken öğretmene sınıfı sorar.
+- **9-A'da Farabi konuşurken zaman zaman tekleme** — kök nedeni bulunamadı.
 - **Ders programı elle yazılır** (`config/ders_programi.json`). Yazılmazsa
   Farabi ders adını öğretmene sorar.
 - **Öğretmen panelinde kimlik doğrulama yok.** Tahtanın başındaki herkes
-  yazı kutusuna talimat yazabilir. Çözülmedi, planlanmıyor da — gerçek bir
-  sorun olursa yerel bir çözüm gerekir (PIN, fiziksel anahtar, öğretmene özel
-  cihaz), merkezi bir sunucuya ertelenecek bir şey değil.
-- **HUD animasyonu yer tutucu.** `Farabi.gif` değiştirilebilir, kod değişikliği
-  gerekmez.
-- **`sembol_temizle.py` ve `kitap_ozet.py` gerçek API parası harcar.** Kuru
-  çalışma varsayılan (`--onayla` gerekir); HUD düğmesine basmak onay yerine
-  geçer, yani düğmeye her basış ücretlidir — teneffüste rastgele denemeyin.
-- **Gün boyu API kotası tek anahtarla zorlanabilir.** Her tahta kendi
-  `config/api_keys.json` dosyasındaki `gemini_api_keys` havuzunu kullanır;
-  havuz ayrı Google Cloud projelerine yayılmadıkça rotasyon aynı aylık
-  harcama tavanına düşer (bkz. `CLAUDE.md`, "API key pool"). Boşta kalan
-  oturumu kapatan `BOSTA_KAPATMA_DK` (15 dk) zaten var; kota sık dolan bir
-  tahtada önce bunun çalıştığını, sonra anahtar havuzunun proje sayısını
-  kontrol edin. Bu yalnızca CANLI SES (Gemini) için geçerli.
-- **Altı sağlayıcılı havuzun (`core/saglayicilar.py`) da kendi ücretsiz kota
-  sınırları var** (ör. OpenRouter günde 50-1000 istek, NVIDIA NIM ~40
-  istek/dk) — bir sağlayıcı kotası dolarsa o görev zincirindeki sıradaki
-  sağlayıcıya otomatik geçilir, tek bir sağlayıcının kotası tüm sistemi
-  durdurmaz. Yine de tüm sağlayıcılar aynı anda dolarsa (yoğun kullanım,
-  büyük bir belge yığını vb.) ilgili araç "sınırlı devam et" mesajıyla döner.
+  yazı kutusuna talimat yazabilir; planlanmıyor.
+- **Gemini kotası proje başınadır.** Anahtar havuzu ancak ayrı Google Cloud
+  projelerine yayılırsa günlük tavanı genişletir. En büyük maliyet kaldıracı
+  boşta kalan oturumlar (`BOSTA_KAPATMA_DK` = 15).
 
 ## Proje durumu
 
-Tahta istemcisi (bu depo) çalışıyor. Linux'ta uçtan uca doğrulandı — temiz
-kurulum, canlı oturum, araç çağrıları, ders kaydı. Gerçek akıllı tahta
-donanımında (dokunmatik) ve güvenilir mikrofon girişinde saha testi bekliyor.
-Kamera kullanılmıyor, test kapsamında değil.
-
-Her tahta bağımsız çalışır: kendi config dosyaları, kendi API anahtarları,
-kendi yerel içerik indeksi. Merkezi bir sunucu üzerinden yönetim denendi,
-sonra bilinçli olarak vazgeçildi — bu depoda ya da dokümantasyonda "faz 2
-sunucu" gibi bir çerçeve yeniden kurulmamalı.
+8 tahtada kurulu ve çalışıyor (9-A, 9-B, 10-A, 11-A, 11-B, 12-A, 12-B,
+fenlab). Ses kalıcı olarak Gemini Live'da (yerel ses denemesi 2026-09-28'de
+kalıcı iptal). Sunucu tarafı, dağıtım ve kurallar için kök `CLAUDE.md` ve
+`DECISIONS.md` esas.
