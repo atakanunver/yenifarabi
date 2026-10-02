@@ -16,7 +16,7 @@ from google import genai
 from google.genai import types
 from PIL import Image
 from ui import FarabiUI
-from core import transcript, zil, tahta, anahtar, olaylar, program
+from core import transcript, zil, tahta, anahtar, olaylar, program, kullanim
 from core.ders_motoru import DersMotoru
 from core.logger import get_logger, log_path
 
@@ -418,6 +418,11 @@ class FarabiLive:
     _miksiz_kapanis_gonderildi = False
 
     def __init__(self, ui: FarabiUI):
+        # Gemini token sayaçları (bkz. core/kullanim.py): bağlantı başına ve
+        # ders başına. `__new__` ile kurulan test nesneleri için
+        # `_kullanim_kaydet` bunları tembel de oluşturur.
+        self._kullanim_baglanti = kullanim.Sayac()
+        self._kullanim_ders = kullanim.Sayac()
         self.ui             = ui
         self.session        = None
         self.audio_in_queue = None
@@ -1497,6 +1502,37 @@ class FarabiLive:
             log.exception("Mikrofon hatası: %s", e)
             raise
 
+    def _kullanim_sayaclari(self):
+        """(bağlantı, ders) sayaçları; yoksa tembel oluşturur (`__new__` testleri)."""
+        if getattr(self, "_kullanim_baglanti", None) is None:
+            self._kullanim_baglanti = kullanim.Sayac()
+        if getattr(self, "_kullanim_ders", None) is None:
+            self._kullanim_ders = kullanim.Sayac()
+        return self._kullanim_baglanti, self._kullanim_ders
+
+    def _kullanim_kaydet(self, usage) -> None:
+        """Bir `usage_metadata` mesajını sayaçlara ekler ve loglar. Hata ne
+        olursa olsun yutulur — ölçüm yüzünden alım döngüsü/ders ASLA bozulmaz."""
+        try:
+            baglanti, ders = self._kullanim_sayaclari()
+            d = baglanti.ekle(usage)
+            ders.ekle(usage)
+            log.info("TOKEN tur=%d %s", getattr(self, "_tur_no", 0), kullanim.satir(d))
+        except Exception as e:
+            log.warning("Token kaydı atlandı: %s", e)
+
+    def _kullanim_baglanti_ozeti(self) -> None:
+        """Kapanan bağlantının token özetini loglar (yutulur)."""
+        try:
+            baglanti, _ = self._kullanim_sayaclari()
+            if not baglanti.bos:
+                log.info("TOKEN BAĞLANTI ÖZETİ: %s", baglanti.ozet())
+                # Sıfırla: sonraki bağlantı açılmadan düşerse finally aynı
+                # özeti ikinci kez yazmasın.
+                baglanti.sifirla()
+        except Exception as e:
+            log.warning("Token bağlantı özeti atlandı: %s", e)
+
     async def _receive_audio(self):
         log.debug("Alım görevi başladı.")
         out_buf, in_buf = [], []
@@ -1509,6 +1545,9 @@ class FarabiLive:
                         if self._turn_done_event and self._turn_done_event.is_set():
                             self._turn_done_event.clear()
                         self.audio_in_queue.put_nowait(response.data)
+
+                    if getattr(response, "usage_metadata", None):
+                        self._kullanim_kaydet(response.usage_metadata)
 
                     if response.server_content:
                         sc = response.server_content
@@ -2267,6 +2306,17 @@ class FarabiLive:
             log.info("Ders zaten bitiriliyor, ikinci istek yoksayıldı: %s", sebep)
             return
         self._ders_bitiriliyor = True
+        # Ders token özeti: kayıt kapanmadan ve sunucuya yedeklenmeden ÖNCE
+        # yazılmalı ki satır yedeğe de girsin.
+        try:
+            _, ders = self._kullanim_sayaclari()
+            if not ders.bos:
+                ozet = ders.ozet()
+                log.info("TOKEN DERS ÖZETİ: %s", ozet)
+                transcript.log_line("sistem", f"Gemini token kullanımı: {ozet}")
+                ders.sifirla()
+        except Exception as e:
+            log.warning("Token ders özeti atlandı: %s", e)
         try:
             transcript.log_line("sistem", f"— Oturum kapandı ({sebep}) —")
             transcript.log_session_end()
@@ -2377,6 +2427,10 @@ class FarabiLive:
                         self._ders_bitti_event.set()
 
                     log.info("Oturum açıldı. (anahtar %s)", anahtar.durum())
+                    try:
+                        self._kullanim_sayaclari()[0].sifirla()
+                    except Exception as e:
+                        log.warning("Token sayacı sıfırlanamadı: %s", e)
                     if fail_streak:
                         log.info("Bağlantı %d denemeden sonra düzeldi.", fail_streak)
                     fail_streak = 0
@@ -2507,6 +2561,7 @@ class FarabiLive:
                     self.ui.write_log("SYS: Tüm anahtarlarda kota dolu.")
             finally:
                 self.session = None
+                self._kullanim_baglanti_ozeti()
                 self.ui.oturum_kapandi()
 
             self.set_speaking(False)

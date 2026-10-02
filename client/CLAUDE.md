@@ -478,6 +478,15 @@ button-only, never a model tool, and not saved.
   no student identity. A cut-off turn is flushed as its own line marked
   `(kesildi)`.
 - `logs/farabi.log` — diagnostics, rotating 5 × 1 MB.
+- **Gemini token usage** (`core/kullanim.py`, 2026-10-02): every Live message
+  carrying `usage_metadata` logs a `TOKEN tur=… girdi=… yanit=… toplam=…`
+  line to `farabi.log`; `TOKEN BAĞLANTI ÖZETİ` per connection close and
+  `TOKEN DERS ÖZETİ` per lesson, the latter also written as one SİSTEM line
+  (`Gemini token kullanımı: …`) into the lesson record so it reaches
+  `server/yedekler/ders_kaydi/`. Messages are summed as-is (no dedupe) —
+  whether Live sends one usage message per turn or several is **unverified**,
+  so read `en_buyuk_baglam` for the context trend, not the summed `girdi`.
+  All of it is wrapped to never raise into the receive loop.
 - Chain-of-thought and serialized tool calls once leaked into the record.
   Since `thinking_config` was removed (2026-09-27) the **only** defence is
   `_konusma_temizle()` (`_THOUGHT_RE` + tool-call pattern), which matches
