@@ -142,7 +142,7 @@ def _sayilar_kaynakta_mi(cevap: str, kaynak_metin: str) -> bool:
 
 class RagMotoru:
     def __init__(self, embed_model, reranker, ollama_host: str = "127.0.0.1:11434",
-                 model: str = "qwen2.5:14b"):
+                 model: str = "farabi-qwen3.8:27b"):
         self.embed_model = embed_model
         self.reranker = reranker
         self.ollama_host = ollama_host
@@ -189,6 +189,9 @@ class RagMotoru:
         payload = {
             "model": self.model,
             "stream": False,
+            # qwen3.x varsayılan olarak düşünür; 30 sn zaman aşımını ve "≤3
+            # cümle" kuralını korumak için kapalı (2026-10-02).
+            "think": False,
             "options": {"temperature": 0.2},
             "messages": [
                 {"role": "system", "content": sistem},

@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Farabi
 
 Sınıf akıllı tahtalarında çalışan sesli ders asistanı + aynı sunucuda koşan
@@ -16,8 +20,23 @@ okul operasyon servisleri (yoklama panosu, SMS).
   `server/`, `tahtayoklama/`, `smssistemi/`, `tahtaayar/`, `benchmark/`,
   `mudur/`, `dogum/`. Bu dosya ortak kurallar + servisler arası resim.
 
-## Güncel durum (2026-10-01)
+## Güncel durum (2026-10-03)
 
+- ⛔ **RAG KAPALI (2026-10-03, kullanıcı kararı):** `server/main.py::
+  RAG_AKTIF = False` — embedding/reranker yüklenmez, GPU'da RAG yok; DB ve
+  kod diskte. `/api/egitim/question` `status="hata"` döner, tahtadaki
+  `kitap_sorusu` sessizce kısıtlı metne düşer. İki GPU tamamen Ollama'nın.
+  Aşağıdaki "RAG Kuralları" RAG geri açılırsa geçerli. Ayrıntı DECISIONS.md
+  2026-10-03.
+- **Yerel LLM `farabi-qwen3.8:27b`** (2026-10-03, eski `qwen2.5:14b`'nin
+  yerine): Qwen3.8 27B Q4_K_M, yalnızca metin, iki RTX 3060'a yayılı,
+  %100 GPU, süresiz bellekte (açılışta ön yüklenir). Farabi sistem promptu
+  `server/ollama/farabi-qwen3.8-27b.Modelfile`'da. `qwen2.5:14b` adı geçiş
+  için bu modele takma ad (eski ağırlıklar silindi). Çağıran
+  kod düşünmeyi kapatmalı (`think:false` / `reasoning_effort="none"`).
+- **2026-10-02:** her alt projeye kendi `CLAUDE.md`'si eklendi; client
+  Gemini Live token kullanımını `farabi.log`'a `TOKEN` satırları olarak
+  yazıyor (ayrıntı `client/CLAUDE.md`).
 - **Farabi client:** 8 tahtada kurulu — 7 sınıf (9-A, 9-B, 10-A, 11-A, 11-B,
   12-A, 12-B) + `fenlab`. Tablo: aşağıda "Ağ Envanteri".
 - **Tahtayoklama:** aynı 8 tahtada kurulu. Tahta tarafı
@@ -74,10 +93,10 @@ HTTP + HMAC.
 
 | Servis | Dizin | Port | Ne yapar |
 |---|---|---|---|
-| `farabi-api` ("Brain") | `server/` | 8000 | RAG, kitap içeriği/PDF render, YKS, bulut LLM proxy, dosya işleme, tahta auth |
+| `farabi-api` ("Brain") | `server/` | 8000 | RAG (şu an kapalı), kitap içeriği/PDF render, YKS, bulut LLM proxy, dosya işleme, tahta auth |
 | `farabi-yoklama-dashboard` | `tahtayoklama/dashboard/` | 8010 | yoklama, roster, zil/ders programı, uzaktan yönetim (`/admin/uzaktan`) |
 | `farabi-smssistemi` | `smssistemi/` | 8020 | toplu/kişisel SMS, rehber, Doğum Günleri, Yoklama SMS |
-| `ollama` | — | 11434 | `qwen2.5:14b`, LAN'a açık, paylaşılan yerel LLM |
+| `ollama` | — | 11434 | `farabi-qwen3.8:27b` (iki GPU), LAN'a açık, paylaşılan yerel LLM; başka model adı istenirse Farabi modeli bellekten atılır |
 
 - **Tek bilinçli DB paylaşımı istisnası:** smssistemi'nin `/yoklama-sms`'i
   dashboard'un `yoklama_pano.db`'sini **salt-okunur, doğrudan** okur (bkz.
@@ -117,32 +136,12 @@ dönüş: servis override'ına `Environment="FARABI_AUTH_REQUIRED=0"`.
 
 ### `client/` — PyQt6 tahta istemcisi
 
-Detay `client/CLAUDE.md`'de. Özet:
-
-- `main.py` (`FarabiLive`: Gemini Live oturumu, araç dağıtımı, ders açılışı),
-  `ui.py` (`FarabiUI`/`MainWindow` HUD; kalem/silgi çizim katmanı
-  `_CizilebilirGorsel` — yalnızca butonla açılır, LLM tool'u DEĞİL, çizim
-  kaydedilmez).
-- `core/` — `ders_motoru.py`, `olaylar.py` (event bus), `program.py`,
-  `zil.py`, `anahtar.py` (Gemini anahtar havuzu), `transcript.py`,
-  `tahta.py`, `saglayicilar.py` (sağlayıcı havuzu DEĞİL — server'a ince HTTP
-  proxy; `metin_uret`/`gorsel_uret` imzaları korunmuş).
-- `actions/` — modelin çağırdığı araçlar, tek kaynak `kayit.py`. Server'a
-  bağlı olanlar sunucu ulaşılamazsa sessizce kısıtlayıcı metne düşer, ders
-  bozulmaz. `kitap_sorusu` (RAG ile kaynaklı soru-cevap) ≠ `ders_icerigi`
-  (konu anlatımı için sayfa metni) — karıştırma. `pdf_sayfa` PNG'yi
-  indirip ≤30 dosyalık önbelleğe yazar, sonra `pdf_sayfa_metni` ile sayfa
-  metnini modele verir. `ekran_goruntusu_al`/`ekrandaki_soruyu_oku` yalnızca
-  tahtanın kendi ekranını yakalar (webcam yok; eski `screen_processor.py`
-  ayrı, kaldırılmış bir modüldü).
-- `tools/` — çevrimdışı içerik hazırlama script'leri (kitap/YKS PDF → JSON);
-  tahtada koşmaz, bu makinede `/mnt/farabi-data/farabi/` verisiyle çalışır.
-  `dogrula.py` ve `mikrofon_test.py` hâlâ kullanılır.
-- `config/` — gerçek JSON'lar gitignore'lu, `.example.json` şablonlar
-  committed. Client'ta yalnızca `gemini_api_keys`, `derslik`, `sunucu_url`,
-  `ders_kipi`, `os_system`, `mikrofon`, `tahta_anahtari` kalır.
-- `planlar/` koda bağlı değil, arşiv. Client'ın kendi kitap/YKS deposu YOK;
-  yalnızca `icerik/onbellek/{pdf_sayfa,yks_sayfa}/` geçici önbelleği.
+Detay (modül haritası, araçlar, `config/` alanları) `client/CLAUDE.md`'de.
+Servisler arası resim için: `main.py` Gemini Live oturumunu ve araç
+dağıtımını yönetir; modelin çağırdığı araçların tek kaynağı
+`actions/kayit.py`; `core/saglayicilar.py` sağlayıcı havuzu DEĞİL, server'a
+ince HTTP proxy. Server'a bağlı araçlar sunucu ulaşılamazsa sessizce
+kısıtlayıcı metne düşer (Kural 2). Client'ın kendi kitap/YKS deposu yok.
 
 ### `server/` — FastAPI Brain
 
@@ -165,13 +164,18 @@ gerekenler:
 
 ### Sunucu ortamı — tuzaklar
 
-- **GPU:** 2× RTX 3060 12GB, her servis kendi kartına sabit:
-  `farabi-api` → `CUDA_VISIBLE_DEVICES=0` (embedding+reranker), `ollama` →
-  `1` (context 8192'ye düşürüldü, tek karta sığsın diye). İkisinde de
+- **GPU:** 2× RTX 3060 12GB, **ikisi de Ollama'nın** (2026-10-03):
+  `ollama.service.d/override.conf` → `CUDA_VISIBLE_DEVICES=0,1` (ana
+  birimdeki `=1`'i ezer), context 8192. `farabi-api` GPU kullanmıyor
+  (`RAG_AKTIF=False`); RAG geri açılırsa embedding+reranker (fp16) GPU 0'a
+  biner ve 27B model tamamen sığmaz (DECISIONS.md 2026-10-03).
   `CUDA_DEVICE_ORDER=PCI_BUS_ID` şart — yoksa CUDA numaralandırması
-  `nvidia-smi`'ninkiyle ters çıkıp iki servis aynı karta düşebiliyor.
-  2026-09-02 ölçümü: GPU 0'da yük altında ~7 GB boş, GPU 1 dolu. Yeni GPU işi
-  planlanırken o an `nvidia-smi` ile yeniden ölç.
+  `nvidia-smi`'ninkiyle ters çıkabiliyor. 2026-10-03 ölçümü: model 66/66
+  katman GPU'da, kart başına ~3 GB boş. Yeni GPU işi planlanırken o an
+  `nvidia-smi` ile yeniden ölç.
+- **Ollama model indirme proxy'den `ollama pull` ile ÇALIŞMIYOR** (paralel
+  parça bağlantıları EOF ile kesiliyor); blob'lar tek akışla curl ile
+  indirilip elle yerleştirilir — DECISIONS.md 2026-10-03.
 - **Okul ağı SSL-inceleme yapıyor (MEB-CERT-TTVPN).** Sertifika sistem güven
   deposuna VE her venv'in `certifi`'sine eklendi — yeni venv kurulursa
   certifi'ye tekrar eklenmeli, yoksa bulut çağrıları ve HF Hub kırılır.
@@ -338,6 +342,8 @@ buraya şifre yazılmaz.
    tüm servisler burada, tahtalara buradan SSH ile bağlanılıyor.
 
 ## RAG Kuralları (kritik)
+
+> ⛔ RAG 2026-10-03'ten beri kapalı (`RAG_AKTIF = False`); bu kurallar geri açılınca geçerli.
 
 - Cevap **sadece** retrieval sonucundan üretilir. Serbest üretim yok.
 - Ana savunma: skor eşiğin altındaysa LLM'e hiç gitme → "Bu konu ders kitabında

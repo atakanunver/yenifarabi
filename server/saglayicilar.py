@@ -96,7 +96,7 @@ GOREV_ZINCIRLERI: dict[str, list[tuple[str, str]]] = {
         # Ollama kullanilsin"). Bulut saglayicilar fallback olarak kaldi --
         # Ollama servisi cokerse/yanit vermezse zincir otomatik oraya duser
         # (mimari.md SS2 "Farabi asla dersi bozmaz" ile ayni desen).
-        ("ollama",   "qwen2.5:14b"),
+        ("ollama",   "farabi-qwen3.8:27b"),
         ("deepseek", "deepseek-v4-flash"),
         ("mistral",  "mistral-medium-latest"),
     ],
@@ -113,7 +113,7 @@ GOREV_ZINCIRLERI: dict[str, list[tuple[str, str]]] = {
         # ölçülmüş çalışan bir basamak kondu (groq, 0,8 sn).
         ("groq",     "openai/gpt-oss-120b"),
         ("deepseek", "deepseek-v4-flash"),
-        ("ollama",   "qwen2.5:14b"),
+        ("ollama",   "farabi-qwen3.8:27b"),
     ],
     "sembol_duzelt": [
         ("deepseek", "deepseek-v4-flash"),
@@ -129,7 +129,7 @@ GOREV_ZINCIRLERI: dict[str, list[tuple[str, str]]] = {
         # 2026-09-02: aynı ölü nvidia modeli (410) burada da vardı — bkz.
         # kitap_ozet'in yukarıdaki notu. Ölçülmüş çalışan basamakla değişti.
         ("groq",     "openai/gpt-oss-120b"),
-        ("ollama",   "qwen2.5:14b"),
+        ("ollama",   "farabi-qwen3.8:27b"),
     ],
     "ders_plani": [
         # 2026-09-29 (DECISIONS.md): Fizik 10 s.14-22 ölçümü — deepseek en
@@ -178,21 +178,6 @@ def _istemci(saglayici: str):
                   api_key=anahtar, max_retries=0, timeout=30.0)
 
 
-# 2026-08-25: qwen2.5:14b sistem mesajı olmadan çağrıldığında (bulut
-# sağlayıcılarda sorun yaratmayan, ama bu modelde gözlenen bir davranış)
-# yanıtın ortasında dile geçiş yapabiliyor (ör. Türkçe istemde Çince'ye
-# kayma) — canlıda `belge_ozet` görevi Ollama'yı birincil sağlayıcı yapınca
-# bulundu (bkz. raganaliz.txt). Bulut sağlayıcılar zaten örtük olarak
-# isteğin dilinde cevap veriyordu, yalnızca Ollama'ya özel bir varsayılan
-# sistem mesajı ekleniyor — diğer sağlayıcıların davranışı değişmiyor.
-# 2026-09-20: Okul ortamı ve pedagojik dil tutarlılığı için güçlendirildi.
-_OLLAMA_VARSAYILAN_SISTEM = (
-    "Sen bir okul ve eğitim asistanısın. Tüm düşünme ve yanıt sürecini duru, "
-    "akıcı, kurallı ve zengin bir Türkçe ile yürüt. Başka hiçbir dile geçme. "
-    "Öğretmen ve öğrencilere uygun pedagojik, net, öz ve resmi bir dille yaz."
-)
-
-
 def _zinciri_dene(gorev: str, mesajlar: list[dict], evrensel_yedek: bool = True) -> str:
     if gorev not in GOREV_ZINCIRLERI:
         raise RuntimeError(f"Tanımsız görev: '{gorev}'")
@@ -213,9 +198,12 @@ def _zinciri_dene(gorev: str, mesajlar: list[dict], evrensel_yedek: bool = True)
             continue
         try:
             gonderilecek = mesajlar
-            if saglayici == "ollama" and not any(m.get("role") == "system" for m in mesajlar):
-                gonderilecek = [{"role": "system", "content": _OLLAMA_VARSAYILAN_SISTEM}] + mesajlar
-            ekstra = {"temperature": 0.2} if saglayici == "ollama" else {}
+            # 2026-10-02: Ollama'ya varsayılan sistem mesajı EKLENMİYOR —
+            # sistem mesajı yoksa modelin kendi SYSTEM'i (Farabi promptu,
+            # server/ollama/farabi-qwen3.8-27b.Modelfile) devreye girer.
+            # Düşünme kapalı (reasoning_effort="none" → think=false).
+            ekstra = ({"temperature": 0.2, "reasoning_effort": "none"}
+                      if saglayici == "ollama" else {})
             if gorev in GOREV_ZAMAN_ASIMI_SN:
                 ekstra["timeout"] = GOREV_ZAMAN_ASIMI_SN[gorev]
             yanit = istemci.chat.completions.create(model=model, messages=gonderilecek, **ekstra)

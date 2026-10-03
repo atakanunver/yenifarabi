@@ -32,8 +32,11 @@ journalctl -u farabi-api.service            # tek log kaynağı — dosya log YO
 
 ## Yapı ve uç noktalar
 
-`main.py` lifespan'da modelleri (`BAAI/bge-m3` + `BAAI/bge-reranker-v2-m3`,
-`CUDA_VISIBLE_DEVICES=0`) yükler, sonra `durum["hazir"] = True`. Yalnızca
+⛔ **RAG kapalı (2026-10-03):** `main.py::RAG_AKTIF = False` — modeller
+yüklenmez, `/api/egitim/question` `status="hata"` döner (DECISIONS.md
+2026-10-03). `True` iken `main.py` lifespan'da modelleri (`BAAI/bge-m3` +
+`BAAI/bge-reranker-v2-m3`, fp16, `CUDA_VISIBLE_DEVICES=0`) yükler. Her iki
+durumda da sonra `durum["hazir"] = True`. Yalnızca
 RAG uçları (`/api/egitim/question`) bu bayrağa bağlıdır; aşağıdaki
 router'lar RAG modeli gerektirmez, kendi dosya/DB/anahtar kontrollerini
 kendileri yapar.
@@ -72,8 +75,13 @@ paketi, öğrenci verisi değil); dizin yoksa yol hiç bağlanmaz.
 - `gorsel` zinciri: `mistral/pixtral-12b-2409` → `mistral/mistral-medium-latest`
   → `nvidia/meta/llama-3.2-11b-vision-instruct`. **NVIDIA bu ağdan
   güvenilmez** (410/timeout). openrouter anahtarı yok.
-- Ollama çağrılarında sistem mesajı şart (`_OLLAMA_VARSAYILAN_SISTEM`) —
-  yoksa Türkçe → Çince kayma.
+- Ollama (`farabi-qwen3.8:27b`): sistem mesajı olmayan isteklerde modelin
+  kendi `SYSTEM`'i (Farabi promptu, `ollama/farabi-qwen3.8-27b.Modelfile`)
+  uygulanır; `saglayicilar.py` artık varsayılan sistem mesajı eklemiyor
+  (`_OLLAMA_VARSAYILAN_SISTEM` 2026-10-03'te silindi). Düşünme her çağrıda
+  kapalı olmalı: yerel API `"think": False`, `/v1` `reasoning_effort="none"`.
+  Modelfile değişince `ollama create farabi-qwen3.8:27b -f
+  ollama/farabi-qwen3.8-27b.Modelfile` (servis restart gerekmez).
 - `dosya.py` `belge_ozet`: önce yerel Ollama, bulut yedek; görsel özet
   yalnızca bulut (yerel vision modeli eklemek Kural 8 onayı ister).
 
