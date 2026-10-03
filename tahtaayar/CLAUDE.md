@@ -212,3 +212,23 @@ kapsamında YAPILMADI.
   karar ister).
 - `sleep-inactive-ac-type` — 2026-09-15 taramasında 7 tahtada da zaten
   `'nothing'` bulundu, ayrı bir fix'e gerek kalmadı.
+
+## reboot_sudoers (2026-10-03)
+
+`DUZELTMELER`'in son girdisi: `/etc/sudoers.d/farabi-reboot` içine
+`etapadmin ALL=(root) NOPASSWD: /usr/bin/systemctl reboot` yazar — `etapadmin`
+YALNIZCA bu tek komutu parolasız çalıştırabilir. Neden: Open WebUI "Farabi
+Yönetim" aracı → dashboard `/api/ajan/yeniden-baslat`
+(`tahtayoklama/dashboard/tahta_yeniden_baslat.py`) tahtada `sudo -n
+/usr/bin/systemctl reboot` çalıştırıyor; 11-A, 12-A ve fenlab'da sudo parola
+istiyordu. Kural geçici dosyada `visudo -cf` ile doğrulanmadan kurulmaz.
+Komut metni dashboard'dakiyle birebir olmalı (sudoers argüman eşleşmesi tam).
+
+Kullanıcı çalıştırır (önce kontrol):
+
+    python3 tahtaayar/tahta_fix_uygula.py --sadece-kontrol
+    python3 tahtaayar/tahta_fix_uygula.py --duzeltme reboot_sudoers
+
+Geri alma (tahtada): `sudo rm /etc/sudoers.d/farabi-reboot`
+
+Test: `cd tahtaayar && python3 -m unittest test_tahta_fix_uygula -v`

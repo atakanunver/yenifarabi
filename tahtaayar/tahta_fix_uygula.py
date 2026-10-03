@@ -154,6 +154,14 @@ _AUTOLOGIN_SATIRLAR = (
     "autologin-session=cinnamon",
 )
 
+# Open WebUI "Farabi Yönetim" aracı → dashboard /api/ajan/yeniden-baslat
+# (tahtayoklama/dashboard/tahta_yeniden_baslat.py) etapadmin olarak YALNIZCA bu
+# komutu parolasız çalıştırabilsin. Komut metni oradaki ile BİREBİR aynı olmalı
+# (sudoers argüman eşleşmesi tam). 2026-10-03, kullanıcı kararı.
+_REBOOT_SUDOERS_DOSYA = "/etc/sudoers.d/farabi-reboot"
+_REBOOT_SUDOERS_SATIR = "etapadmin ALL=(root) NOPASSWD: /usr/bin/systemctl reboot"
+
+
 DUZELTMELER = [
     Duzeltme(
         ad="guc_tusu_yoksay",
@@ -238,6 +246,21 @@ DUZELTMELER = [
         uygula_komutu=(
             _OGRETMEN_OTURUM_ONEKI
             + f"gsettings set {_CINNAMON_GUC_SEMASI} sleep-display-ac {EKRAN_KARARTMA_SN}"
+        ),
+    ),
+    Duzeltme(
+        ad="reboot_sudoers",
+        aciklama="etapadmin yalnızca 'systemctl reboot'u parolasız çalıştırabilsin (uzaktan yeniden başlatma)",
+        kontrol_komutu=(
+            f"grep -qxF '{_REBOOT_SUDOERS_SATIR}' {_REBOOT_SUDOERS_DOSYA} 2>/dev/null && echo var || echo yok"
+        ),
+        beklenen=b"var",
+        uygula_komutu=(
+            "test -x /usr/bin/systemctl"
+            f" && printf '%s\\n' '{_REBOOT_SUDOERS_SATIR}' > /root/farabi-reboot.tmp"
+            " && visudo -cf /root/farabi-reboot.tmp"
+            f" && install -m 0440 -o root -g root /root/farabi-reboot.tmp {_REBOOT_SUDOERS_DOSYA}"
+            " && rm -f /root/farabi-reboot.tmp"
         ),
     ),
 ]
