@@ -96,6 +96,10 @@ def semayi_kur() -> None:
     conn = baglanti()
     try:
         conn.executescript(SEMA)
+        # Makine API'si (/api/ajan) çağıranı: panel çağrılarında NULL kalır.
+        sutunlar = [r["name"] for r in conn.execute("PRAGMA table_info(uzaktan_denetim)")]
+        if "kaynak" not in sutunlar:
+            conn.execute("ALTER TABLE uzaktan_denetim ADD COLUMN kaynak TEXT")
         conn.commit()
     finally:
         conn.close()

@@ -71,7 +71,7 @@ def _dogrula(request: Request) -> None:
         conn.close()
 
 
-def _denetim_yaz(request: Request, eylem: str, sonuclar: list[dict]) -> None:
+def _denetim_yaz(request: Request, eylem: str, sonuclar: list[dict], kaynak: str | None = None) -> None:
     """Uzaktan eylemi uzaktan_denetim tablosuna yazar. Yalnızca eylem adı,
     tahta adları ve ok/hata durumu saklanır (URL, dosya adı/içeriği asla).
     Log hatası eylemi ASLA engellemez veya değiştirmez."""
@@ -90,9 +90,9 @@ def _denetim_yaz(request: Request, eylem: str, sonuclar: list[dict]) -> None:
         conn = db.baglanti()
         try:
             conn.execute(
-                "INSERT INTO uzaktan_denetim (zaman, istemci_ip, eylem, tahtalar, sonuc) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (zaman, istemci_ip, eylem, tahtalar, sonuc),
+                "INSERT INTO uzaktan_denetim (zaman, istemci_ip, eylem, tahtalar, sonuc, kaynak) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (zaman, istemci_ip, eylem, tahtalar, sonuc, kaynak),
             )
             conn.commit()
         finally:
@@ -256,6 +256,19 @@ async def _duvar_kagidi_tek(t: dict, icerik: bytes, uzanti: str) -> dict:
     )
     sonuc = await ssh_istemci.komut_calistir(t["ip"], t["kullanici"], komut)
     return {"tahta": t["ad"], "basarili": sonuc.basarili, "detay": "Duvar kağıdı değiştirildi." if sonuc.basarili else sonuc.stderr.decode(errors="replace")[:200]}
+
+
+# Makine API'si (ajan_api.py) için ad → eylem haritası. Duvar kağıdı YOK.
+# Eylemler (t, form) alır; form yerine .get() destekleyen düz dict verilebilir
+# (yalnızca web_ac "url" okur).
+EYLEMLER = {
+    "yoklama_ac": _yoklama_ac_tek,
+    "yoklama_kapat": _yoklama_kapat_tek,
+    "web_ac": _web_ac_tek,
+    "chrome_kapat": _chrome_kapat_tek,
+    "ekran_karart": _ekran_karart_tek,
+    "ekran_kaldir": _ekran_kaldir_tek,
+}
 
 
 # --------------------------------------------------------------------

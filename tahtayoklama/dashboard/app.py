@@ -17,6 +17,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.gzip import GZipMiddleware
 
 import admin
+import ajan_api
 import auth
 import db
 import ders_programi
@@ -86,6 +87,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=6)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(admin.router)
 app.include_router(uzaktan_yonetim.router)
+app.include_router(ajan_api.router)
 
 
 @app.get("/giris", response_class=HTMLResponse)
@@ -160,6 +162,25 @@ async def api_yenile(request: Request, tarih: str | None = None):
     return JSONResponse({"basarili": True, "tarih": hedef})
 
 
+def _durum_satirlari(conn, hedef_tarih: date) -> list[dict]:
+    """Verilen tarihin yoklama önbelleği satırları (+ ders_kisa_adi) —
+    /api/durum ve /api/ajan/yoklama ortak kullanır."""
+    satirlar = conn.execute(
+        "SELECT sinif, ders_no, durum, yok_isimleri, izinli_isimleri, "
+        "kaynak_tahta, kaydedilme_saati, guncelleme_zamani "
+        "FROM yoklama_onbellek WHERE tarih = ?",
+        (hedef_tarih.isoformat(),),
+    ).fetchall()
+    sonuc = []
+    for s in satirlar:
+        satir = dict(s)
+        satir["ders_kisa_adi"] = ders_programi.ders_kisa_adi(
+            satir["sinif"], hedef_tarih, satir["ders_no"]
+        )
+        sonuc.append(satir)
+    return sonuc
+
+
 @app.get("/api/durum")
 async def api_durum(request: Request, tarih: str | None = None):
     conn = db.baglanti()
@@ -171,22 +192,10 @@ async def api_durum(request: Request, tarih: str | None = None):
             ssh_istemci.tarih_dogrula(hedef)
         except ValueError:
             raise HTTPException(400, "Geçersiz tarih formatı, YYYY-MM-DD bekleniyor.")
-        satirlar = conn.execute(
-            "SELECT sinif, ders_no, durum, yok_isimleri, izinli_isimleri, "
-            "kaynak_tahta, kaydedilme_saati, guncelleme_zamani "
-            "FROM yoklama_onbellek WHERE tarih = ?",
-            (hedef,),
-        ).fetchall()
+        hedef_tarih = date.fromisoformat(hedef)
+        sonuc = _durum_satirlari(conn, hedef_tarih)
     finally:
         conn.close()
-    hedef_tarih = date.fromisoformat(hedef)
-    sonuc = []
-    for s in satirlar:
-        satir = dict(s)
-        satir["ders_kisa_adi"] = ders_programi.ders_kisa_adi(
-            satir["sinif"], hedef_tarih, satir["ders_no"]
-        )
-        sonuc.append(satir)
     return JSONResponse({"tarih": hedef, "satirlar": sonuc})
 
 

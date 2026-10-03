@@ -19,9 +19,13 @@ _AD_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 class SSHSonuc:
-    __slots__ = ("basarili", "stdout", "stderr", "zaman_asimi")
+    __slots__ = ("basarili", "stdout", "stderr", "zaman_asimi", "cikis_kodu")
 
-    def __init__(self, basarili: bool, stdout: bytes, stderr: bytes, zaman_asimi: bool = False):
+    def __init__(self, basarili: bool, stdout: bytes, stderr: bytes, zaman_asimi: bool = False,
+                 cikis_kodu: int | None = None):
+        # cikis_kodu: ssh sürecinin çıkış kodu (255 = bağlantı hatası/koptu);
+        # süreç başlatılamadıysa ya da zaman aşımında None.
+        self.cikis_kodu = cikis_kodu
         self.basarili = basarili
         self.stdout = stdout
         self.stderr = stderr
@@ -82,7 +86,7 @@ async def komut_calistir(
         await proc.wait()
         return SSHSonuc(False, b"", b"zaman_asimi", zaman_asimi=True)
 
-    return SSHSonuc(proc.returncode == 0, stdout, stderr)
+    return SSHSonuc(proc.returncode == 0, stdout, stderr, cikis_kodu=proc.returncode)
 
 
 async def scp_gonder(ip: str, kullanici: str, yerel_yol: Path, uzak_yol: str,
