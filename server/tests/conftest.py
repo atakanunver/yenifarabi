@@ -28,9 +28,11 @@ class SahteEmbed:
     def __init__(self, patlat: Exception | None = None):
         self.patlat = patlat
         self.cagrildi = 0
+        self.son_soru = None
 
     def encode(self, soru, normalize_embeddings=False):
         self.cagrildi += 1
+        self.son_soru = soru
         if self.patlat:
             raise self.patlat
         return [0.0] * 1024
@@ -69,12 +71,20 @@ class _SahteImlec:
 
     def execute(self, sql, params=None):
         self._b.sorgular.append((sql, params))
+        if self._b.patlat_sql and self._b.patlat_sql in sql:
+            raise self._b.patlat
         if "FROM chunk_egitim" in sql:
             self._sonuc = list(self._b.metin_satirlari)
         elif "FROM chunk_tablo" in sql:
             if self._b.tablo_patlat:
                 raise self._b.tablo_patlat
             self._sonuc = list(self._b.tablo_satirlari)
+        elif "FROM chunk_idari" in sql:
+            self._sonuc = list(self._b.idari_satirlari)
+        elif "FROM idari_belge" in sql:
+            self._sonuc = list(self._b.idari_belge_satirlari)
+        elif "FROM kitap" in sql:
+            self._sonuc = list(self._b.kitap_satirlari)
         else:                                    # INSERT (metrik / soru_log)
             self._sonuc = []
 
@@ -95,10 +105,17 @@ class SahteBaglanti:
     """
 
     def __init__(self, metin_satirlari=(), tablo_satirlari=(),
-                 tablo_patlat: Exception | None = None):
+                 tablo_patlat: Exception | None = None, *,
+                 idari_satirlari=(), idari_belge_satirlari=(), kitap_satirlari=(),
+                 patlat_sql: str | None = None, patlat: Exception | None = None):
         self.metin_satirlari = list(metin_satirlari)
         self.tablo_satirlari = list(tablo_satirlari)
         self.tablo_patlat = tablo_patlat
+        self.idari_satirlari = list(idari_satirlari)
+        self.idari_belge_satirlari = list(idari_belge_satirlari)
+        self.kitap_satirlari = list(kitap_satirlari)
+        self.patlat_sql = patlat_sql      # bu alt dizeyi içeren SQL `patlat`ı fırlatır
+        self.patlat = patlat
         self.sorgular = []        # [(sql, params), ...]
         self.commit_sayisi = 0
         self.rollback_sayisi = 0

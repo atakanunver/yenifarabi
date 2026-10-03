@@ -113,6 +113,22 @@ RERANK_METIN_KARAKTER = 4000
 # FAZ 1 öncesi davranışa döndürür, DB'ye dokunmadan.
 TABLO_KAYNAGI = True
 
+# ── Open WebUI arama yolu (2026-10-03) ────────────────────────────────────
+# Yeniden sıralama YOK (kullanıcı kararı C): CPU'da 20 adayın rerank'i
+# medyan 9,9 sn sürdü; vektör-only recall@4 28/35 (rerank'li 32/35),
+# biyoloji-9 40 soru — DECISIONS.md 2026-10-03.
+# kaynak → (chunk tablosu, kaynak kolonu). SQL'e yalnızca bu beyaz
+# listeden isim girer (enjeksiyon yok).
+_ARAMA_TABLOLARI = {
+    "egitim": ("chunk_egitim", "kitap_id"),
+    "idari": ("chunk_idari", "belge_id"),
+}
+# Kosinüs benzerliği (1 - mesafe) eşiği — altındaysa "zayif": filtre modele
+# "kaynakta bulunamadı" notu düşer (cevap yine verilir). Değer
+# benchmark/recall_test.py --esik 0.55 ölçümünden (2026-08-11, %90 doğru
+# tespit, biyoloji-9). Yeni kitaplarda yeniden gözden geçirilmeli.
+ESIK_BENZERLIK = 0.55
+
 _SAYI_RE = re.compile(r"\d+(?:[.,]\d+)?")
 
 SISTEM_SABLON = """Sen Farabi'sin; lise düzeyindeki öğretmen ve öğrencilere akıllı tahta üzerinden yardımcı olan MEB müfredatına hakim bir ders asistanısın.
@@ -184,6 +200,79 @@ class RagMotoru:
             metin = (f"Tablo: {bas}. {ozet}" if bas else f"Tablo. {ozet}")
             normal.append((_id, sayfa, metin, mesafe))
         return normal
+
+    def _aday_getir(self, conn, kaynak: str, kaynak_idler: list[int], vektor, k: int):
+        tablo, kolon = _ARAMA_TABLOLARI[kaynak]
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT id, sayfa_no, metin, embedding <=> %s AS mesafe, {kolon}
+                FROM {tablo}
+                WHERE {kolon} = ANY(%s)
+                ORDER BY mesafe
+                LIMIT %s
+                """,
+                (vektor, list(kaynak_idler), k),
+            )
+            return cur.fetchall()  # [(id, sayfa_no, metin, mesafe, kaynak_id), ...]
+
+    def _tablo_aday_getir(self, conn, kitap_idler: list[int], vektor, k: int):
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, sayfa_no, baslik, metin_ozet, embedding <=> %s AS mesafe, kitap_id
+                FROM chunk_tablo
+                WHERE kitap_id = ANY(%s)
+                ORDER BY mesafe
+                LIMIT %s
+                """,
+                (vektor, list(kitap_idler), k),
+            )
+            satirlar = cur.fetchall()
+        sonuc = []
+        for _id, sayfa, baslik, ozet, mesafe, kitap_id in satirlar:
+            bas = (baslik or "").strip()
+            sonuc.append((_id, sayfa, f"Tablo: {bas}. {ozet}" if bas else f"Tablo. {ozet}",
+                          mesafe, kitap_id))
+        return sonuc
+
+    def ara(self, conn, kaynak: str, kaynak_idler: list[int], soru: str) -> dict:
+        """Yalnızca vektör araması — LLM ve reranker YOK (Open WebUI filtresi,
+        webui.py). Hiçbir tabloya YAZMAZ; loglamayı çağıran yapar. Tahta yolu
+        (`sorgula`) bunu KULLANMAZ (Kural 5)."""
+        if kaynak not in _ARAMA_TABLOLARI:
+            raise ValueError(f"bilinmeyen kaynak: {kaynak!r}")
+        bos = {"parcalar": [], "retrieval_ms": None, "rerank_ms": None, "en_iyi_skor": None}
+        if not kaynak_idler:
+            return {"durum": "zayif", **bos}
+
+        t0 = time.perf_counter()
+        try:
+            vektor = self.embed_model.encode(soru, normalize_embeddings=True)
+            # (id, sayfa, metin, mesafe, tur, kaynak_id)
+            adaylar = [(c[0], c[1], c[2], c[3], "metin", c[4])
+                       for c in self._aday_getir(conn, kaynak, kaynak_idler, vektor, TOP_N)]
+            if kaynak == "egitim" and TABLO_KAYNAGI:
+                try:
+                    adaylar += [(c[0], c[1], c[2], c[3], "tablo", c[4])
+                                for c in self._tablo_aday_getir(conn, kaynak_idler, vektor, TOP_N)]
+                except Exception:  # noqa: BLE001 — tablo araması yardımcı kaynak; hata olursa yalnızca metinle devam
+                    conn.rollback()
+        except Exception as e:  # noqa: BLE001 — arama hatası durum="hata" olarak döner
+            return {"durum": "hata", **bos, "hata": f"{type(e).__name__}: {e}"}
+        retrieval_ms = int((time.perf_counter() - t0) * 1000)
+
+        if not adaylar:
+            return {"durum": "zayif", **bos, "retrieval_ms": retrieval_ms}
+
+        secilen = sorted(adaylar, key=lambda c: c[3])[:TOP_N]
+        en_iyi = round(1 - float(secilen[0][3]), 4)
+        ortak = {"retrieval_ms": retrieval_ms, "rerank_ms": None, "en_iyi_skor": en_iyi}
+        if en_iyi < ESIK_BENZERLIK:
+            return {"durum": "zayif", "parcalar": [], **ortak}
+        parcalar = [{"kaynak_id": int(c[5]), "sayfa": int(c[1]), "metin": c[2],
+                     "skor": round(1 - float(c[3]), 4), "tur": c[4]} for c in secilen]
+        return {"durum": "ok", "parcalar": parcalar, **ortak}
 
     def _llm_cevap(self, sistem: str, soru: str, timeout: float = 30.0) -> str:
         payload = {

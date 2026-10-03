@@ -601,7 +601,7 @@ SELECT json_build_object(
       'llm_p50', percentile_cont(0.5) WITHIN GROUP (ORDER BY llm_toplam_ms) FILTER (WHERE sonuc = 'ok'),
       'toplam_p50', percentile_cont(0.5) WITHIN GROUP (ORDER BY toplam_ms) FILTER (WHERE sonuc = 'ok'),
       'toplam_p90', percentile_cont(0.9) WITHIN GROUP (ORDER BY toplam_ms) FILTER (WHERE sonuc = 'ok'))
-    FROM metrik WHERE ts > now() - interval '24 hours'),
+    FROM metrik WHERE ts > now() - interval '24 hours' AND coalesce(sonuc, '') NOT LIKE 'webui_%'),
   'rag_7g', (SELECT json_build_object(
       'n', count(*),
       'n_ok', count(*) FILTER (WHERE sonuc = 'ok'),
@@ -610,14 +610,15 @@ SELECT json_build_object(
       'llm_p50', percentile_cont(0.5) WITHIN GROUP (ORDER BY llm_toplam_ms) FILTER (WHERE sonuc = 'ok'),
       'toplam_p50', percentile_cont(0.5) WITHIN GROUP (ORDER BY toplam_ms) FILTER (WHERE sonuc = 'ok'),
       'toplam_p90', percentile_cont(0.9) WITHIN GROUP (ORDER BY toplam_ms) FILTER (WHERE sonuc = 'ok'))
-    FROM metrik WHERE ts > now() - interval '7 days'),
+    FROM metrik WHERE ts > now() - interval '7 days' AND coalesce(sonuc, '') NOT LIKE 'webui_%'),
   'rag_son', (SELECT row_to_json(m) FROM (
       SELECT extract(epoch FROM ts)::bigint AS zaman, sonuc, retrieval_ms, rerank_ms,
              llm_toplam_ms, toplam_ms
-      FROM metrik ORDER BY id DESC LIMIT 1) m),
+      FROM metrik WHERE coalesce(sonuc, '') NOT LIKE 'webui_%' ORDER BY id DESC LIMIT 1) m),
   'rag_30dk', (SELECT coalesce(json_agg(json_build_array(extract(epoch FROM ts)::bigint, toplam_ms)
                                         ORDER BY ts), '[]'::json)
-               FROM metrik WHERE ts > now() - interval '30 minutes' AND toplam_ms IS NOT NULL)
+               FROM metrik WHERE ts > now() - interval '30 minutes' AND toplam_ms IS NOT NULL
+                     AND coalesce(sonuc, '') NOT LIKE 'webui_%')
 )
 """
 

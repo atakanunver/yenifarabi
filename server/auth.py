@@ -115,3 +115,18 @@ def dogrula_tahta(
 
     log.warning("board authentication failure — geçersiz %s", HEADER_ADI)
     raise HTTPException(status_code=401, detail=f"Geçersiz {HEADER_ADI}")
+
+
+WEBUI_HEADER_ADI = "X-Farabi-WebUI-Key"
+
+
+def webui_anahtari() -> str | None:
+    """Open WebUI filtresinin anahtarı — `api_keys.json::webui_key`
+    (2026-10-03). Tahta anahtarlarından AYRI: biri diğerinin ucunu açamaz.
+    Yoksa None → /api/webui/ara herkese 401 (fail-closed)."""
+    try:
+        veri = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 — okunamayan/bozuk config → fail-closed (None → 401)
+        return None
+    deger = str(veri.get("webui_key") or "").strip()
+    return deger or None

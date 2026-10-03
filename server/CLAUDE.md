@@ -11,7 +11,7 @@ FastAPI, port 8000). Mimari, kurallar, gizlilik ve RAG kuralları kök
 
 ```bash
 venv/bin/uvicorn main:app --reload --port 8000             # geliştirmede elle
-venv/bin/python -m pytest tests/ -q                        # 121 test (2026-10-02), GPU/DB'ye dokunmaz
+venv/bin/python -m pytest tests/ -q                        # testler, GPU/DB'ye dokunmaz
 venv/bin/python -m pytest tests/test_icerik.py -q          # tek dosya
 venv/bin/python -m pytest "tests/test_icerik.py::TestKitapBul" -q   # tek sınıf
 
@@ -26,20 +26,19 @@ journalctl -u farabi-api.service            # tek log kaynağı — dosya log YO
 - `tests/conftest.py` sahte embedding/reranker/psycopg2 bağlantısı verir
   (`RagMotoru` yapıcısı zaten enjeksiyonlu) — yeni test gerçek GPU/DB'ye
   gitmemeli, bu sahteleri kullan.
-- Restart sonrası ilk RAG sorusu soğuk GPU yüzünden ~13 sn sürerdi;
-  `lifespan` bu yüzden bir ısınma embed+rerank'i çalıştırır (DB'ye
-  yazmadan). Restart'tan hemen sonra yavaş ilk yanıt beklenebilir.
+- `lifespan` açılışta bir ısınma embed'i (reranker yüklüyse rerank'i de)
+  çalıştırır (DB'ye yazmadan); restart'tan hemen sonra yavaş ilk yanıt
+  beklenebilir.
 
 ## Yapı ve uç noktalar
 
-⛔ **RAG kapalı (2026-10-03):** `main.py::RAG_AKTIF = False` — modeller
-yüklenmez, `/api/egitim/question` `status="hata"` döner (DECISIONS.md
-2026-10-03). `True` iken `main.py` lifespan'da modelleri (`BAAI/bge-m3` +
-`BAAI/bge-reranker-v2-m3`, fp16, `CUDA_VISIBLE_DEVICES=0`) yükler. Her iki
-durumda da sonra `durum["hazir"] = True`. Yalnızca
-RAG uçları (`/api/egitim/question`) bu bayrağa bağlıdır; aşağıdaki
-router'lar RAG modeli gerektirmez, kendi dosya/DB/anahtar kontrollerini
-kendileri yapar.
+**RAG (2026-10-03): bge-m3 CPU'da, reranker yok.** `main.py::RAG_AKTIF =
+True`, `RERANK_YUKLE = False` — yalnızca `BAAI/bge-m3` (`EMBED_DEVICE =
+"cpu"`) yüklenir. `/api/egitim/question` reranker'sız çalışamadığı için
+`status="hata"` döner (DECISIONS.md 2026-10-03); Open WebUI yolu
+(`webui.py` → `RagMotoru.ara`) yalnızca vektör aramasıdır. Her durumda
+sonra `durum["hazir"] = True`. Aşağıdaki router'lar RAG modeli gerektirmez,
+kendi dosya/DB/anahtar kontrollerini kendileri yapar.
 
 | Dosya | Uçlar / görev |
 |---|---|
@@ -47,6 +46,8 @@ kendileri yapar.
 | `icerik.py` | `POST /api/egitim/ders_icerigi`, `GET /api/egitim/pdf_sayfa` (PyMuPDF → PNG), `GET /api/egitim/pdf_sayfa_metni`. `DATA_DIR = /mnt/farabi-data/farabi` tek sabit |
 | `yks.py` | `POST /api/egitim/yks_sorusu`, `GET /api/egitim/yks_sayfa` |
 | `saglayicilar.py` + `proxy.py` | bulut sağlayıcı havuzu (`GOREV_ZINCIRLERI`) + `POST /api/egitim/metin_uret`, `/gorsel_uret` |
+| `webui.py` | `POST /api/webui/ara` — Open WebUI filtresinin kaynak araması (LLM yok), `X-Farabi-WebUI-Key` (`config/api_keys.json::webui_key`), yalnızca `metrik`'e `webui_*` yazar |
+| `idari_yukle.py` + `schema_idari.sql` | mevzuat → `idari_belge`/`chunk_idari` (`--kuru` önce; OCR tesseract). `HF_HUB_OFFLINE=1 venv/bin/python idari_yukle.py --kuru`, sonra `--kuru` olmadan; şema: `sudo -u postgres psql -d farabi -v ON_ERROR_STOP=1 < schema_idari.sql` (stdin; postgres `/home/ata`'yı okuyamaz). Tam yükleme CPU'yu doyurur → `taskset -c 6-11` |
 | `ders_plani.py` | `POST /api/egitim/ders_plani` — 40 dk ders planı, önbellekli, kaynak dışı sayı uyarısı, görev zaman aşımı 120 sn, zincir deepseek > groq > cohere (Ollama bilerek yok). Client'a henüz bağlı değil |
 | `ders_hafizasi.py` | `POST /api/egitim/ders_hafizasi` — `yedekler/ders_kaydi/<derslik>/` dosyalarından geçmiş ders hatırlama |
 | `dosya.py` | `POST /api/egitim/dosya_isle`, `GET /api/egitim/dosya_indir/{id}/{ad}` (24 saatte silinir) |

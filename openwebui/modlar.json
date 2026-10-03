@@ -1,0 +1,16 @@
+[
+  {"id": "farabi", "ad": "Farabi", "aciklama": "Genel asistan — tüm ders kitaplarından kaynak gösterir.", "kapsam": "genel", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "genel.md"},
+  {"id": "farabi-derin", "ad": "Farabi – Derin Düşünme", "aciklama": "Daha yavaş, daha dikkatli: uzun plan ve zor problemler için.", "kapsam": "genel", "think": true, "gruplar": ["Öğretmenler", "İdare"], "ek": "derin.md"},
+  {"id": "farabi-kimya", "ad": "Kimya Öğretmeni", "aciklama": "Kimya 9-10-11 kitaplarına dayanır.", "kapsam": "kimya", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "kimya.md"},
+  {"id": "farabi-fizik", "ad": "Fizik Öğretmeni", "aciklama": "Fizik 9-10-11 kitaplarına dayanır.", "kapsam": "fizik", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "fizik.md"},
+  {"id": "farabi-biyoloji", "ad": "Biyoloji Öğretmeni", "aciklama": "Biyoloji 9-10 kitaplarına dayanır.", "kapsam": "biyoloji", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "biyoloji.md"},
+  {"id": "farabi-matematik", "ad": "Matematik Öğretmeni", "aciklama": "Matematik 9-10 ve Temel Matematik 11 kitaplarına dayanır.", "kapsam": "matematik", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "matematik.md"},
+  {"id": "farabi-edebiyat", "ad": "Edebiyat Öğretmeni", "aciklama": "Türk Dili ve Edebiyatı 9-10-11 kitaplarına dayanır.", "kapsam": "edebiyat", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "edebiyat.md"},
+  {"id": "farabi-ingilizce", "ad": "İngilizce Öğretmeni", "aciklama": "Waymark 9 kitabına dayanır.", "kapsam": "ingilizce", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "ingilizce.md"},
+  {"id": "farabi-almanca", "ad": "Almanca Öğretmeni", "aciklama": "Sistemde Almanca kitabı yok — genel bilgiyle çalışır.", "kapsam": null, "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "almanca.md"},
+  {"id": "farabi-felsefe", "ad": "Felsefe Öğretmeni", "aciklama": "Felsefe 10 kitabına dayanır.", "kapsam": "felsefe", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "felsefe.md"},
+  {"id": "farabi-din", "ad": "Din Kültürü Öğretmeni", "aciklama": "Din Kültürü ve Ahlak Bilgisi 9 kitabına dayanır.", "kapsam": "din", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "din.md"},
+  {"id": "farabi-tarih", "ad": "Tarih Öğretmeni", "aciklama": "Tarih 9-10-11 ve İnkılap Tarihi 12 kitaplarına dayanır.", "kapsam": "tarih", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "tarih.md"},
+  {"id": "farabi-cografya", "ad": "Coğrafya Öğretmeni", "aciklama": "Coğrafya 9-10-11 kitaplarına dayanır.", "kapsam": "cografya", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "cografya.md"},
+  {"id": "farabi-mudur-yrd", "ad": "Müdür Yardımcısı", "aciklama": "Mevzuat ve resmî yazışma — yalnızca idare.", "kapsam": "idari", "think": false, "gruplar": ["İdare"], "ek": "mudur_yrd.md"}
+]

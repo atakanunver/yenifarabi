@@ -22,12 +22,19 @@ okul operasyon servisleri (yoklama panosu, SMS).
 
 ## Güncel durum (2026-10-03)
 
-- ⛔ **RAG KAPALI (2026-10-03, kullanıcı kararı):** `server/main.py::
-  RAG_AKTIF = False` — embedding/reranker yüklenmez, GPU'da RAG yok; DB ve
-  kod diskte. `/api/egitim/question` `status="hata"` döner, tahtadaki
-  `kitap_sorusu` sessizce kısıtlı metne düşer. İki GPU tamamen Ollama'nın.
-  Aşağıdaki "RAG Kuralları" RAG geri açılırsa geçerli. Ayrıntı DECISIONS.md
-  2026-10-03.
+- **RAG kısmen açık (2026-10-03, ikinci karar):** `server/main.py::
+  RAG_AKTIF = True` ama yalnızca bge-m3 **CPU**'da; reranker YÜKLENMEZ
+  (`RERANK_YUKLE = False`, CPU'da ~10 sn/soru ölçüldü). Open WebUI Farabi
+  modları (`POST /api/webui/ara`) yalnızca vektör aramasıyla çalışır;
+  tahtadaki `kitap_sorusu` (`/api/egitim/question`) eskisi gibi `hata`
+  döner. İki GPU Ollama'da. Ölçüm DECISIONS.md 2026-10-03.
+- **Open WebUI = "Farabi" (port 80, 2026-10-03):** 14 mod (branş öğretmenleri,
+  Derin Düşünme, Müdür Yardımcısı — yalnızca İdare), `farabi_kaynak` inlet
+  filtresi, ortak `Öğretmen`/`İdare` hesapları + tahtalar için yönetici
+  olmayan `tahta` hesabı. Kaynak: `openwebui/` (`kur.py` tekrar
+  çalıştırılabilir; promptlar `openwebui/promptlar/`; şifreler yalnızca
+  gitignore'lu `openwebui/.env`). Spec/plan:
+  `docs/superpowers/{specs,plans}/2026-10-03-openwebui-farabi-modlar*`.
 - **Yerel LLM `qwen3.8:27b`** (2026-10-03): Ollama'daki TEK model — özel
   `farabi-qwen3.8:27b` ve `qwen2.5:14b` takma adı kaldırıldı, başka model
   kurulmaz. Bağlam 16384 (`OLLAMA_CONTEXT_LENGTH`, ollama.service) + KV
@@ -97,10 +104,11 @@ HTTP + HMAC.
 
 | Servis | Dizin | Port | Ne yapar |
 |---|---|---|---|
-| `farabi-api` ("Brain") | `server/` | 8000 | RAG (şu an kapalı), kitap içeriği/PDF render, YKS, bulut LLM proxy, dosya işleme, tahta auth |
+| `farabi-api` ("Brain") | `server/` | 8000 | RAG (CPU, reranker yok), Open WebUI kaynak araması, kitap içeriği/PDF render, YKS, bulut LLM proxy, dosya işleme, tahta auth |
 | `farabi-yoklama-dashboard` | `tahtayoklama/dashboard/` | 8010 | yoklama, roster, zil/ders programı, uzaktan yönetim (`/admin/uzaktan`) |
 | `farabi-smssistemi` | `smssistemi/` | 8020 | toplu/kişisel SMS, rehber, Doğum Günleri, Yoklama SMS |
 | `ollama` | — | 11434 | `qwen3.8:27b` (iki GPU, tek model), LAN'a açık, paylaşılan yerel LLM |
+| `open-webui` | `/opt/open-webui` (kurulum `openwebui/kur.py`) | 80 | "Farabi" sohbet arayüzü — öğretmen/idare modları, kaynaklı cevap |
 
 - **Tek bilinçli DB paylaşımı istisnası:** smssistemi'nin `/yoklama-sms`'i
   dashboard'un `yoklama_pano.db`'sini **salt-okunur, doğrudan** okur (bkz.
@@ -154,7 +162,7 @@ gerekenler) `server/CLAUDE.md`'de. Servisler arası resim için bilinmesi
 gerekenler:
 
 - Uçlar `/api/egitim/*` (tahta auth'lu) + `/api/client/{heartbeat,durum}`
-  + `/health`, `/ready`. RAG yalnızca `/api/egitim/question`; içerik/PDF
+  + `/health`, `/ready`. RAG: `/api/egitim/question` (reranker yok → `hata`) ve Open WebUI için `POST /api/webui/ara` (`webui.py`, ayrı anahtar); içerik/PDF
   (`icerik.py`), YKS (`yks.py`), bulut LLM proxy (`saglayicilar.py` +
   `proxy.py`), ders planı (`ders_plani.py`), geçmiş ders hatırlama
   (`ders_hafizasi.py`), dosya işleme (`dosya.py`) ayrı router'lar.
@@ -170,9 +178,9 @@ gerekenler:
 
 - **GPU:** 2× RTX 3060 12GB, **ikisi de Ollama'nın** (2026-10-03):
   `ollama.service.d/override.conf` → `CUDA_VISIBLE_DEVICES=0,1` (ana
-  birimdeki `=1`'i ezer), context 8192. `farabi-api` GPU kullanmıyor
-  (`RAG_AKTIF=False`); RAG geri açılırsa embedding+reranker (fp16) GPU 0'a
-  biner ve 27B model tamamen sığmaz (DECISIONS.md 2026-10-03).
+  birimdeki `=1`'i ezer), context 16384. `farabi-api` GPU kullanmıyor
+  (bge-m3 CPU'da); embedding/reranker GPU'ya alınırsa GPU 0'a biner ve 27B
+  model tamamen sığmaz (DECISIONS.md 2026-10-03).
   `CUDA_DEVICE_ORDER=PCI_BUS_ID` şart — yoksa CUDA numaralandırması
   `nvidia-smi`'ninkiyle ters çıkabiliyor. 2026-10-03 ölçümü: model 66/66
   katman GPU'da, kart başına ~3 GB boş. Yeni GPU işi planlanırken o an
@@ -288,8 +296,6 @@ devralacak kişi `systemctl status` ile durumu görebilmeli.
 
 ## Şu An Yapılmayacaklar
 
-- ⛔ **`/api/idari/*` — KALICI OLARAK İPTAL (2026-08-31).** Endpoint
-  yazılmayacak, idari tablo/chunk (`chunk_idari`) tasarımı gündemde değil.
 - ⛔ **Yerel STT/TTS / ses düğümü (faster-whisper, Piper, Pipecat) — KALICI
   OLARAK İPTAL.** İlk karar 2026-08-11; 2026-09-25'te yeniden açıldı,
   2026-09-28'de donanım yetersizliği nedeniyle tekrar ve kalıcı olarak
@@ -347,7 +353,7 @@ buraya şifre yazılmaz.
 
 ## RAG Kuralları (kritik)
 
-> ⛔ RAG 2026-10-03'ten beri kapalı (`RAG_AKTIF = False`); bu kurallar geri açılınca geçerli.
+> ⚠️ 2026-10-03'ten beri RAG yalnızca bge-m3 CPU'da, reranker yok (`RERANK_YUKLE = False`); rerank/eşik (`ESIK_RERANK`) maddeleri reranker geri açılınca geçerli, Open WebUI yolu kosinüs eşiği (`ESIK_BENZERLIK` 0,55) kullanır.
 
 - Cevap **sadece** retrieval sonucundan üretilir. Serbest üretim yok.
 - Ana savunma: skor eşiğin altındaysa LLM'e hiç gitme → "Bu konu ders kitabında
@@ -385,7 +391,12 @@ Client↔Server event listesi bağlayıcıdır — değişirse `mimari.md`'yi g�
   değişir).
 - **PostgreSQL** → metadata, hash, sınıf, ders, kazanım, sayfa.
   **pgvector** → chunk + embedding. Dosya içeriği DB'ye gömülmez.
-- `chunk_egitim` tek chunk tablosu; `chunk_idari` yok ve olmayacak.
+- Chunk tabloları: `chunk_egitim` (ders kitapları) + `chunk_idari` (mevzuat,
+  yönetmelik, yönerge — Open WebUI Müdür Yardımcısı modu için). 2026-08-31'deki
+  "`/api/idari/*` ve `chunk_idari` kalıcı iptal" kararı **2026-10-03'te
+  kullanıcı kararıyla kaldırıldı** (DECISIONS.md 2026-10-03). `chunk_idari`
+  dolu (20 belge, 1485 parça; `server/idari_yukle.py`) — tasarım:
+  `docs/superpowers/specs/`.
 - Tahta token'ı yalnızca `/api/egitim/*` çağırabilir.
 
 ## Gizlilik

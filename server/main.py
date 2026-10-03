@@ -30,6 +30,7 @@ import dosya
 import icerik
 import proxy
 import ders_plani
+import webui
 import yks
 from rag import EMBED_MODEL, RERANK_MODEL, RagMotoru
 from version import VERSION, major_version
@@ -56,10 +57,21 @@ DB_USER = "farabi"
 # diskte kalır; /api/egitim/question "hata" döner, tahtadaki kitap_sorusu
 # sessizce kısıtlı metne düşer (ders bozulmaz). Geri açmak: True + restart
 # (ve Ollama'nın GPU 0 payını yeniden değerlendir — DECISIONS.md).
-RAG_AKTIF = False
+#
+# 2026-10-03 (ikinci karar, kullanıcı): RAG CPU'da yeniden AÇIK — iki GPU
+# Ollama'da kalır. Open WebUI Farabi modları /api/webui/ara üzerinden
+# kitap/mevzuat parçası alır (docs/superpowers/specs/2026-10-03-openwebui-
+# farabi-modlar-design.md). CPU ölçümü DECISIONS.md 2026-10-03'te.
+RAG_AKTIF = True
 
-EMBED_DEVICE = "cuda:0"
-RERANK_DEVICE = "cuda:0"
+EMBED_DEVICE = "cpu"
+RERANK_DEVICE = "cpu"
+# Reranker YÜKLENMEZ (2026-10-03, kullanıcı kararı C): CPU'da 20 adayın
+# rerank'i medyan 9,9 sn sürdü (DECISIONS.md). Open WebUI yalnızca vektör
+# aramasıyla çalışır (RagMotoru.ara). Tahta yolu (sorgula) reranker'sız
+# çalışamaz → /api/egitim/question bugünkü gibi "hata" döner (davranış
+# değişmez). Geri açmak: True + restart (CPU'da ~10 sn/soru).
+RERANK_YUKLE = False
 
 durum: dict = {"hazir": False, "motor": None}
 
@@ -67,16 +79,26 @@ durum: dict = {"hazir": False, "motor": None}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if RAG_AKTIF:
-        print(f"Modeller yükleniyor: {EMBED_MODEL} ({EMBED_DEVICE}), {RERANK_MODEL} ({RERANK_DEVICE})…")
+        if RERANK_YUKLE:
+            print(f"Modeller yükleniyor: {EMBED_MODEL} ({EMBED_DEVICE}), {RERANK_MODEL} ({RERANK_DEVICE})…")
+        else:
+            print(f"Modeller yükleniyor: {EMBED_MODEL} ({EMBED_DEVICE}); reranker yüklenmedi (RERANK_YUKLE=False)…")
         # fp16 (2026-10-03): GPU 0'ı Ollama (qwen3.8:27b, iki karta
         # yayılı) ile paylaşıyor; fp32'de ikisi ~4,5-5,7 GB tutuyordu, model
         # tamamen GPU'ya sığmıyordu. BAAI'nin kendi örnekleri de bu modelleri
         # fp16 çalıştırır; 40 soruluk ölçümle doğrulandı (DECISIONS.md). Sorgu
         # vektörü pgvector'a giderken float32'ye çevrilir (pgvector.Vector).
-        embed_model = SentenceTransformer(EMBED_MODEL, device=EMBED_DEVICE).half()
-        reranker = CrossEncoder(RERANK_MODEL, device=RERANK_DEVICE)
-        reranker.model.half()
+        embed_model = SentenceTransformer(EMBED_MODEL, device=EMBED_DEVICE)
+        if EMBED_DEVICE.startswith("cuda"):
+            # fp16 yalnızca GPU'da anlamlı; CPU'da fp32 kalır.
+            embed_model.half()
+        reranker = None
+        if RERANK_YUKLE:
+            reranker = CrossEncoder(RERANK_MODEL, device=RERANK_DEVICE)
+            if RERANK_DEVICE.startswith("cuda"):
+                reranker.model.half()
         durum["motor"] = RagMotoru(embed_model, reranker)
+        webui.MOTOR = durum["motor"]
 
         # Isınma sorgusu — ölçüldü (2026-08-13): servis yeniden başladıktan
         # sonraki İLK gerçek soru ~13.6sn sürüyor (sonrakiler ~0.85sn), muhtemelen
@@ -89,10 +111,11 @@ async def lifespan(app: FastAPI):
         # istek gerçek sorgu istatistiklerini kirletmesin diye.
         try:
             _t0 = time.perf_counter()
-            print("Isınma sorgusu: embed+rerank modelleri ilk kez GPU'da çalıştırılıyor…")
+            print("Isınma sorgusu: modeller ilk kez çalıştırılıyor…")
             embed_model.encode("ısınma sorgusu", normalize_embeddings=True)
-            reranker.predict([("ısınma sorgusu", "ısınma için örnek kaynak metni.")])
-            print(f"Isınma tamamlandı ({time.perf_counter() - _t0:.1f}sn) — modeller GPU'da hazır.")
+            if reranker is not None:
+                reranker.predict([("ısınma sorgusu", "ısınma için örnek kaynak metni.")])
+            print(f"Isınma tamamlandı ({time.perf_counter() - _t0:.1f}sn) — gömme modeli {EMBED_DEVICE}'da hazır.")
         except Exception as e:
             print(f"UYARI: ısınma sorgusu başarısız oldu ({type(e).__name__}: {e}) — ilk gerçek istek yavaş olabilir.")
 
@@ -121,6 +144,9 @@ app.include_router(client_durum.router)
 # ders_hafizasi taşıması (2026-08-18) — durum["hazir"]'a bağlı değil, yalnızca
 # yedekler/ders_kaydi/ dosyalarını okur, RAG modeli gerekmez.
 app.include_router(ders_hafizasi.router)
+# Open WebUI Farabi modları (2026-10-03) — kendi anahtarıyla korunur
+# (webui.webui_anahtari_dogrula), tahta auth'una bağlı DEĞİL.
+app.include_router(webui.router)
 # GeoGebra çevrimdışı paketi (2026-09-25) — client/actions/geogebra.py'nin
 # yerel köprüsü dosyaları buradan çekip tahtada önbelleğe alır (paket ~120 MB,
 # git'e girmez, her tahtaya ayrı kopyalanmaz). Auth YOK, bilerek: içerik
@@ -264,7 +290,9 @@ def soru_sor(istek: SoruIstek):
         sinif, ders = row
         kitap_adi = f"{sinif}. Sınıf {ders}"
 
-        if durum["motor"] is None:  # RAG_AKTIF=False
+        if durum["motor"] is None or durum["motor"].reranker is None:
+            # RAG kapalı ya da reranker yüklenmedi (2026-10-03 kararı C) —
+            # tahta yolu reranker'sız çalışmaz; bugünkü davranış korunur.
             return SoruYanit(status="hata", latency_ms=0, request_id=request_id)
         sonuc = durum["motor"].sorgula(conn, istek.kitap_id, istek.soru, sinif=sinif, ders=ders)
 

@@ -73,5 +73,12 @@ class TestTopla(unittest.TestCase):
         self.assertFalse(any("192.168.8." in str(h) for h in hedefler))
 
 
+class TestDbSorguRag(unittest.TestCase):
+    def test_rag_istatistikleri_webui_satirlarini_dislar(self):
+        # rag_24s, rag_7g, rag_son, rag_30dk — dördü de metrik'ten okur
+        self.assertEqual(sd._DB_SORGU.count("FROM metrik"), 4)
+        self.assertEqual(sd._DB_SORGU.count("coalesce(sonuc, '') NOT LIKE 'webui_%'"), 4)
+
+
 if __name__ == "__main__":
     unittest.main()
