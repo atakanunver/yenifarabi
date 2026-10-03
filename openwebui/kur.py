@@ -102,14 +102,14 @@ def gorev_model_govdesi(grup_idleri: dict[str, str]) -> dict:
 
 
 def yonetim_model_govdesi() -> dict:
-    """Gizli, yalnızca admin modeli (access_grants boş: yalnızca sahip/admin görür) — Farabi Yönetim
+    """Yalnızca admin modeli (access_grants boş: yalnızca sahip/admin görür; hidden DEĞİL, admin seçicide görmeli) — Farabi Yönetim
     aracını kullanır. Çekirdek (öğretmen) prompt'u eklenmez, filtre yok. Open WebUI yerleşik araçları
     kapalı: meta.capabilities.builtin_tools False (middleware.py use_builtin_tools kapısı) ve ayrıca
     meta.builtinTools[kategori] False (utils/tools.py get_builtin_tools). params["think"] False,
     routers/ollama.py'de payload köküne taşınır (gorev_model_govdesi ile aynı gerekçe)."""
     return {"id": YONETIM_MODEL_ID, "base_model_id": TABAN_MODEL, "name": "Farabi Yönetim",
             "meta": {"description": "Yalnızca yönetici: tahta durumu, uzaktan eylem, yeniden başlatma, yoklama sorgusu.",
-                     "hidden": True, "toolIds": [ARAC_ID],
+                     "toolIds": [ARAC_ID],
                      "capabilities": {"builtin_tools": False},
                      "builtinTools": {k: False for k in BUILTIN_KATEGORILER}},
             "params": {"system": (KOK / "promptlar" / "yonetim.md").read_text(encoding="utf-8"),

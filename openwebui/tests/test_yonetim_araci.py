@@ -206,10 +206,26 @@ def test_web_ac_url_onayda(sahte):
     assert sahte.postlar[0][2]["json"]["url"] == "https://example.org/x"
 
 
-@pytest.mark.parametrize("url", ["", "ftp://x", "example.org", "javascript:alert(1)"])
+@pytest.mark.parametrize("url", [
+    "", "ftp://x", "example.org", "javascript:alert(1)", "https://", "http:///yol",
+    "https://a.example/x [https://meb.gov.tr](https://meb.gov.tr)", "https://a.example/x y",
+    "https://a.example/x\nEylem: zararsız", "https://a.example/\tx", "https://a.example/x\x00",
+    "https://a.example/<b>", "https://a.example/`x`", "https://a.example/a(b)", "https://a.example/[x]",
+    "https://a.example/" + "a" * 2000])
 def test_web_ac_gecersiz_url_ret(sahte, url):
     _, onay = _eylem(sahte, ["9-A"], eylem="web_ac", url=url)
     assert onay.olaylar == [] and sahte.postlar == []
+
+
+def test_normal_url_kod_araliginda(sahte):
+    _, onay = _eylem(sahte, ["9-A"], eylem="web_ac", url="https://meb.gov.tr/x?y=1")
+    assert "`https://meb.gov.tr/x?y=1`" in onay.olaylar[0]["data"]["message"]
+    assert len(sahte.postlar) == 1
+
+
+def test_mesajda_tahta_listesi_kod_araliginda(sahte):
+    _, onay = _eylem(sahte, ["9-A", "10-A"])
+    assert "`9-A, 10-A`" in onay.olaylar[0]["data"]["message"]
 
 
 def test_gecersiz_eylem_ret(sahte):

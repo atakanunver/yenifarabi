@@ -107,7 +107,7 @@ def test_yonetim_modeli():
     assert "UYDURMA" in g["params"]["system"]
     assert g["meta"]["capabilities"]["builtin_tools"] is False
     assert g["meta"]["builtinTools"] and not any(g["meta"]["builtinTools"].values())
-    assert "hidden" in g["meta"] and g["meta"]["hidden"] is True
+    assert not g["meta"].get("hidden")  # admin model seçicide görebilmeli
 
 
 def test_yonetim_modeli_modlar_json_ve_siralamada_degil():

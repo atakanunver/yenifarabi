@@ -11,6 +11,7 @@ description: YALNIZCA YÖNETİCİ. Akıllı tahtaların durumunu sorgular, uzakt
 
 import re
 from typing import Literal
+from urllib.parse import urlsplit
 
 import httpx
 from pydantic import BaseModel
@@ -56,6 +57,27 @@ def tahtalari_coz(istenen: list[str], kayit: list[str]) -> tuple[list[str], list
         else:
             secili.add(k)
     return [k for k in kayit if k in secili], bilinmeyen
+
+
+URL_MAKS = 2000
+_URL_YASAK = re.compile(r"[\s\x00-\x1f\x7f\[\]()<>`]")
+
+
+def url_gecerli_mi(url) -> bool:
+    """http(s) mutlak adres; boşluk/kontrol karakteri ve Markdown/HTML'de anlamlı [ ] ( ) < > ` yok
+    (onay penceresi mesajı Markdown olarak işlenir). Bu karakterler gerekiyorsa %-kodlanmalıdır."""
+    if not isinstance(url, str) or not url or len(url) > URL_MAKS or _URL_YASAK.search(url):
+        return False
+    try:
+        parca = urlsplit(url)
+    except ValueError:
+        return False
+    return parca.scheme in ("http", "https") and bool(parca.netloc)
+
+
+def _kod(metin: str) -> str:
+    """Markdown satır içi kod aralığı (ters tırnaklar atılır)."""
+    return "`" + str(metin).replace("`", "") + "`"
 
 
 def _yonetici_mi(user) -> bool:
@@ -278,12 +300,13 @@ class Tools:
         secili, hata = await self._hedefler(__user__, tahtalar)
         if hata:
             return hata
-        if eylem == "web_ac" and not (isinstance(url, str) and url.startswith(("http://", "https://"))):
-            return "web_ac için http:// ya da https:// ile başlayan bir url gerekli. Hiçbir işlem yapılmadı."
-        mesaj = f"Eylem: {EYLEM_ADLARI[eylem]}\nTahtalar: {', '.join(secili)}"
+        if eylem == "web_ac" and not url_gecerli_mi(url):
+            return ("web_ac için geçerli bir http:// ya da https:// adresi gerekli (boşluk, satır sonu ve "
+                    "[ ] ( ) < > ` karakterleri olmamalı; gerekirse %-kodlayın). Hiçbir işlem yapılmadı.")
+        mesaj = f"Eylem: {_kod(EYLEM_ADLARI[eylem])}\nTahtalar: {_kod(', '.join(secili))}"
         govde = {"eylem": eylem, "tahtalar": secili}
         if eylem == "web_ac":
-            mesaj += f"\nAdres: {url}"
+            mesaj += f"\nAdres: {_kod(url)}"
             govde["url"] = url
         return await self._onayli(
             __user__, __event_emitter__, __event_call__,
@@ -302,7 +325,7 @@ class Tools:
         secili, hata = await self._hedefler(__user__, tahtalar)
         if hata:
             return hata
-        mesaj = (f"Eylem: Tahtaları yeniden başlat\nTahtalar: {', '.join(secili)}\n"
+        mesaj = (f"Eylem: `Tahtaları yeniden başlat`\nTahtalar: {_kod(', '.join(secili))}\n"
                  "Okul saatinde (ders günü ilk dersten son derse kadar) sunucu reddeder.")
         if "9-A" in secili:
             mesaj += "\n9-A açılışta giriş ekranında kalır (otomatik giriş yok)."
