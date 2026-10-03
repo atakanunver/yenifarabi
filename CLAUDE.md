@@ -28,12 +28,13 @@ okul operasyon servisleri (yoklama panosu, SMS).
   `kitap_sorusu` sessizce kısıtlı metne düşer. İki GPU tamamen Ollama'nın.
   Aşağıdaki "RAG Kuralları" RAG geri açılırsa geçerli. Ayrıntı DECISIONS.md
   2026-10-03.
-- **Yerel LLM `farabi-qwen3.8:27b`** (2026-10-03, eski `qwen2.5:14b`'nin
-  yerine): Qwen3.8 27B Q4_K_M, yalnızca metin, iki RTX 3060'a yayılı,
-  %100 GPU, süresiz bellekte (açılışta ön yüklenir). Farabi sistem promptu
-  `server/ollama/farabi-qwen3.8-27b.Modelfile`'da. `qwen2.5:14b` adı geçiş
-  için bu modele takma ad (eski ağırlıklar silindi). Çağıran
-  kod düşünmeyi kapatmalı (`think:false` / `reasoning_effort="none"`).
+- **Yerel LLM `qwen3.8:27b`** (2026-10-03): Ollama'daki TEK model — özel
+  `farabi-qwen3.8:27b` ve `qwen2.5:14b` takma adı kaldırıldı, başka model
+  kurulmaz. %100 GPU (iki RTX 3060), süresiz bellekte (`OLLAMA_KEEP_ALIVE=-1`
+  + açılışta `/usr/local/bin/farabi-ollama-onyukle.sh`). Farabi sistem promptu
+  `server/ollama/farabi_sistem.txt`'te; `server/saglayicilar.py` sistem
+  mesajı olmayan Ollama isteklerine ekler. Çağıran kod düşünmeyi kapatmalı
+  (`think:false` / `reasoning_effort="none"`).
 - **2026-10-02:** her alt projeye kendi `CLAUDE.md`'si eklendi; client
   Gemini Live token kullanımını `farabi.log`'a `TOKEN` satırları olarak
   yazıyor (ayrıntı `client/CLAUDE.md`).
@@ -96,7 +97,7 @@ HTTP + HMAC.
 | `farabi-api` ("Brain") | `server/` | 8000 | RAG (şu an kapalı), kitap içeriği/PDF render, YKS, bulut LLM proxy, dosya işleme, tahta auth |
 | `farabi-yoklama-dashboard` | `tahtayoklama/dashboard/` | 8010 | yoklama, roster, zil/ders programı, uzaktan yönetim (`/admin/uzaktan`) |
 | `farabi-smssistemi` | `smssistemi/` | 8020 | toplu/kişisel SMS, rehber, Doğum Günleri, Yoklama SMS |
-| `ollama` | — | 11434 | `farabi-qwen3.8:27b` (iki GPU), LAN'a açık, paylaşılan yerel LLM; başka model adı istenirse Farabi modeli bellekten atılır |
+| `ollama` | — | 11434 | `qwen3.8:27b` (iki GPU, tek model), LAN'a açık, paylaşılan yerel LLM |
 
 - **Tek bilinçli DB paylaşımı istisnası:** smssistemi'nin `/yoklama-sms`'i
   dashboard'un `yoklama_pano.db`'sini **salt-okunur, doğrudan** okur (bkz.

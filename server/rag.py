@@ -142,7 +142,7 @@ def _sayilar_kaynakta_mi(cevap: str, kaynak_metin: str) -> bool:
 
 class RagMotoru:
     def __init__(self, embed_model, reranker, ollama_host: str = "127.0.0.1:11434",
-                 model: str = "farabi-qwen3.8:27b"):
+                 model: str = "qwen3.8:27b"):
         self.embed_model = embed_model
         self.reranker = reranker
         self.ollama_host = ollama_host

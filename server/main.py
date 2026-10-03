@@ -51,7 +51,7 @@ DB_USER = "farabi"
 # CUDA_DEVICE_ORDER açıkça PCI_BUS_ID'ye sabitlendi, "cuda:0" ne demek
 # belirsiz kalmasın.
 # 2026-10-03 (kullanıcı kararı): RAG GPU'dan kaldırıldı — iki RTX 3060
-# tamamen Ollama'ya (farabi-qwen3.8:27b) ayrıldı, öncelik Ollama. False iken
+# tamamen Ollama'ya (qwen3.8:27b) ayrıldı, öncelik Ollama. False iken
 # embedding/reranker hiç yüklenmez (GPU'ya dokunulmaz), veritabanı ve kod
 # diskte kalır; /api/egitim/question "hata" döner, tahtadaki kitap_sorusu
 # sessizce kısıtlı metne düşer (ders bozulmaz). Geri açmak: True + restart
@@ -68,7 +68,7 @@ durum: dict = {"hazir": False, "motor": None}
 async def lifespan(app: FastAPI):
     if RAG_AKTIF:
         print(f"Modeller yükleniyor: {EMBED_MODEL} ({EMBED_DEVICE}), {RERANK_MODEL} ({RERANK_DEVICE})…")
-        # fp16 (2026-10-03): GPU 0'ı Ollama (farabi-qwen3.8:27b, iki karta
+        # fp16 (2026-10-03): GPU 0'ı Ollama (qwen3.8:27b, iki karta
         # yayılı) ile paylaşıyor; fp32'de ikisi ~4,5-5,7 GB tutuyordu, model
         # tamamen GPU'ya sığmıyordu. BAAI'nin kendi örnekleri de bu modelleri
         # fp16 çalıştırır; 40 soruluk ölçümle doğrulandı (DECISIONS.md). Sorgu

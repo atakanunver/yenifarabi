@@ -21,6 +21,11 @@ log = logging.getLogger("saglayicilar")
 
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
+# 2026-10-03: Farabi promptu eskiden özel `farabi-qwen3.8:27b` modelinin
+# Modelfile SYSTEM'iydi; o model kaldırıldı (yalnızca düz qwen3.8:27b kaldı),
+# prompt buradan okunup sistem mesajı yoksa Ollama isteklerine eklenir.
+FARABI_SISTEM_PATH = BASE_DIR / "ollama" / "farabi_sistem.txt"
+FARABI_SISTEM_MESAJI = FARABI_SISTEM_PATH.read_text(encoding="utf-8")
 
 SOGUMA_SURESI_SN: float = 4 * 60 * 60
 _son_basarisizlik: dict[str, float] = {}
@@ -96,7 +101,7 @@ GOREV_ZINCIRLERI: dict[str, list[tuple[str, str]]] = {
         # Ollama kullanilsin"). Bulut saglayicilar fallback olarak kaldi --
         # Ollama servisi cokerse/yanit vermezse zincir otomatik oraya duser
         # (mimari.md SS2 "Farabi asla dersi bozmaz" ile ayni desen).
-        ("ollama",   "farabi-qwen3.8:27b"),
+        ("ollama",   "qwen3.8:27b"),
         ("deepseek", "deepseek-v4-flash"),
         ("mistral",  "mistral-medium-latest"),
     ],
@@ -113,7 +118,7 @@ GOREV_ZINCIRLERI: dict[str, list[tuple[str, str]]] = {
         # ölçülmüş çalışan bir basamak kondu (groq, 0,8 sn).
         ("groq",     "openai/gpt-oss-120b"),
         ("deepseek", "deepseek-v4-flash"),
-        ("ollama",   "farabi-qwen3.8:27b"),
+        ("ollama",   "qwen3.8:27b"),
     ],
     "sembol_duzelt": [
         ("deepseek", "deepseek-v4-flash"),
@@ -129,7 +134,7 @@ GOREV_ZINCIRLERI: dict[str, list[tuple[str, str]]] = {
         # 2026-09-02: aynı ölü nvidia modeli (410) burada da vardı — bkz.
         # kitap_ozet'in yukarıdaki notu. Ölçülmüş çalışan basamakla değişti.
         ("groq",     "openai/gpt-oss-120b"),
-        ("ollama",   "farabi-qwen3.8:27b"),
+        ("ollama",   "qwen3.8:27b"),
     ],
     "ders_plani": [
         # 2026-09-29 (DECISIONS.md): Fizik 10 s.14-22 ölçümü — deepseek en
@@ -198,10 +203,11 @@ def _zinciri_dene(gorev: str, mesajlar: list[dict], evrensel_yedek: bool = True)
             continue
         try:
             gonderilecek = mesajlar
-            # 2026-10-02: Ollama'ya varsayılan sistem mesajı EKLENMİYOR —
-            # sistem mesajı yoksa modelin kendi SYSTEM'i (Farabi promptu,
-            # server/ollama/farabi-qwen3.8-27b.Modelfile) devreye girer.
+            # Ollama: istek kendi sistem mesajını taşımıyorsa Farabi promptu
+            # (FARABI_SISTEM_MESAJI) eklenir — eski Modelfile SYSTEM davranışı.
             # Düşünme kapalı (reasoning_effort="none" → think=false).
+            if saglayici == "ollama" and not any(m.get("role") == "system" for m in mesajlar):
+                gonderilecek = [{"role": "system", "content": FARABI_SISTEM_MESAJI}] + mesajlar
             ekstra = ({"temperature": 0.2, "reasoning_effort": "none"}
                       if saglayici == "ollama" else {})
             if gorev in GOREV_ZAMAN_ASIMI_SN:

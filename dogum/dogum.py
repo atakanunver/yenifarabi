@@ -41,11 +41,11 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 KULLANICI_IDS = [7637440640, 5583784403]
 EXCEL_DOSYASI = str(Path(__file__).resolve().parent / "Dogum.xlsx")
 
-# Doğum günü mesajları artık yerel Ollama (qwen2.5:14b, farabi.local) ile
+# Doğum günü mesajları artık yerel Ollama (qwen3.8:27b, farabi.local) ile
 # üretiliyor — bulut anahtarı gerekmiyor. server/saglayicilar.py'deki
 # OpenAI-uyumlu Ollama entegrasyon deseniyle aynı (base_url + "ollama" anahtarı).
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434/v1")
-OLLAMA_MODEL = "qwen2.5:14b"
+OLLAMA_MODEL = "qwen3.8:27b"
 _OLLAMA_SISTEM_MESAJI = (
     "Sadece Türkçe cevap ver. Başka hiçbir dile geçme. Kısa ve net yaz."
 )
@@ -115,7 +115,7 @@ def _ollama_istemcisi():
 
 
 def _tek_kisi_mesaji(client, tam_ad: str) -> str:
-    """Tek bir kişi için Ollama (qwen2.5:14b) ile kişiye özel Türkçe doğum günü mesajı üretir."""
+    """Tek bir kişi için Ollama (qwen3.8:27b) ile kişiye özel Türkçe doğum günü mesajı üretir."""
     yedek = f"Nice mutlu, sağlıklı ve huzurlu yıllara {tam_ad}! 🥳"
 
     if client is None:
@@ -137,6 +137,7 @@ def _tek_kisi_mesaji(client, tam_ad: str) -> str:
             ],
             temperature=1.1,
             max_tokens=200,
+            reasoning_effort="none",  # qwen3.8 düşünme kapalı (think=false)
         )
         metin = (yanit.choices[0].message.content or "").strip().strip('"').strip()
         if metin:

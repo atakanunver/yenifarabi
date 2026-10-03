@@ -1818,3 +1818,7 @@ capability Farabi's own actions should have. Deleted from the repo; will
 disappear from 9-A on its next `farabiguncelle.sh` pull. If yoklama
 integration is wanted later, it needs a real `Arac(...)` entry and an
 explicit capability-boundary decision, not a resurrected copy of this file.
+
+## 2026-10-03 - Ollama'da tek model: qwen3.8:27b
+- `qwen2.5:14b` takma adı ve özel `farabi-qwen3.8:27b` (yalnızca metin Modelfile) silindi; tüm kod (saglayicilar, rag, smssistemi, dogum) düz `qwen3.8:27b` kullanıyor. Farabi SYSTEM promptu `server/ollama/farabi_sistem.txt`'e taşındı, `saglayicilar.py` sistem mesajı olmayan Ollama isteklerine ekliyor. Açılış ön yükleme betiği (`/usr/local/bin/farabi-ollama-onyukle.sh`) da qwen3.8:27b'ye çevrildi.
+- Neden: kullanıcı kararı — keep-alive tek model, başka model yok. Farklı model adı istemek kalıcı modeli GPU'dan atıyordu (dogum.py testinde görüldü). mmproj'lu düz qwen3.8:27b şu an %100 GPU'ya sığıyor (RAG kaldırıldığı için).
