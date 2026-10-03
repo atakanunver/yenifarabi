@@ -142,7 +142,7 @@ def test_ajan_anahtari_oku(tmp_path, monkeypatch):
     assert kur.ajan_anahtari_oku() == "abc"
 
 
-def _main_calistir(monkeypatch, anahtar, capsys):
+def _main_calistir(monkeypatch, anahtar, capsys, ek=None):
     cagrilar = []
 
     class A(SahteApi):
@@ -158,6 +158,9 @@ def _main_calistir(monkeypatch, anahtar, capsys):
     monkeypatch.setattr(kur, "modelleri_kur", lambda *a: ["farabi"])
     monkeypatch.setattr(kur, "ayarlari_kur", lambda *a: None)
     monkeypatch.setattr(kur, "ajan_anahtari_oku", lambda: anahtar)
+    monkeypatch.setattr(kur, "kimlik_ayarlarini_kur", lambda api: None)
+    if ek:
+        ek()
     monkeypatch.setattr(kur.json, "loads", lambda s: {"webui_key": "w"})
     monkeypatch.setattr(kur.Path, "read_text", lambda self, **k: "{}")
     monkeypatch.setattr(kur.sys, "argv", ["kur.py"])
@@ -177,3 +180,60 @@ def test_main_ajan_json_varsa_kurar(monkeypatch, capsys):
     assert "/api/v1/tools/create" in yollar and "/api/v1/models/create" in yollar
     model = next(c[2] for c in cagrilar if c[1] == "/api/v1/models/create")
     assert model["id"] == "farabi-yonetim"
+
+
+# --- Kimlik ayarları (C1) ve sıralama ---
+
+ADMIN_CFG = {"SHOW_ADMIN_DETAILS": True, "WEBUI_URL": "http://x", "ENABLE_SIGNUP": True,
+             "DEFAULT_USER_ROLE": "admin", "JWT_EXPIRES_IN": "4w", "ENABLE_FOLDERS": True}
+
+
+class CfgApi:
+    def __init__(self, cfg):
+        self.cfg, self.cagrilar = cfg, []
+
+    def __call__(self, yontem, yol, govde=None, yazma=True):
+        self.cagrilar.append((yontem, yol, govde))
+        return self.cfg if yontem == "GET" else {}
+
+
+def test_kimlik_ayarlari_yalniz_iki_alan_degisir():
+    api = CfgApi(dict(ADMIN_CFG))
+    kur.kimlik_ayarlarini_kur(api)
+    posts = [c for c in api.cagrilar if c[0] == "POST"]
+    assert len(posts) == 1 and posts[0][1] == "/api/v1/auths/admin/config"
+    beklenen = dict(ADMIN_CFG, ENABLE_SIGNUP=False, DEFAULT_USER_ROLE="user")
+    assert posts[0][2] == beklenen
+
+
+def test_kimlik_ayarlari_okunamazsa_durur():
+    with pytest.raises(SystemExit):
+        kur.kimlik_ayarlarini_kur(CfgApi(None))
+
+
+def test_main_kimlik_hesaplardan_once(monkeypatch, capsys):
+    sira = []
+
+    def ek():
+        monkeypatch.setattr(kur, "kimlik_ayarlarini_kur", lambda api: sira.append("kimlik"))
+        monkeypatch.setattr(kur, "hesaplari_kur", lambda *a: sira.append("hesap"))
+        monkeypatch.setattr(kur, "ayarlari_kur", lambda *a: sira.append("ayar"))
+        monkeypatch.setattr(kur, "yonetimi_kur", lambda *a: sira.append("yonetim"))
+    _main_calistir(monkeypatch, "anahtar", capsys, ek)
+    assert sira == ["kimlik", "hesap", "ayar", "yonetim"]
+
+
+@pytest.mark.parametrize("icerik", ["{bozuk", "{}", '{"anahtar": ""}', "[]", '{"anahtar": 5}'])
+def test_ajan_anahtari_bozuksa_none(tmp_path, monkeypatch, icerik):
+    monkeypatch.setattr(kur, "KOK", tmp_path / "openwebui")
+    p = tmp_path / "tahtayoklama/dashboard/config"
+    p.mkdir(parents=True)
+    (p / "ajan.json").write_text(icerik, encoding="utf-8")
+    assert kur.ajan_anahtari_oku() is None
+
+
+def test_yonetimi_kur_bozuk_ajan_json_cokmez(monkeypatch, capsys):
+    monkeypatch.setattr(kur, "ajan_anahtari_oku", lambda: None)
+    api = SahteApi()
+    kur.yonetimi_kur(api)
+    assert api.cagrilar == [] and "atlandı" in capsys.readouterr().out

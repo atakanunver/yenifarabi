@@ -211,10 +211,17 @@ def test_web_ac_url_onayda(sahte):
     "https://a.example/x [https://meb.gov.tr](https://meb.gov.tr)", "https://a.example/x y",
     "https://a.example/x\nEylem: zararsız", "https://a.example/\tx", "https://a.example/x\x00",
     "https://a.example/<b>", "https://a.example/`x`", "https://a.example/a(b)", "https://a.example/[x]",
-    "https://a.example/" + "a" * 2000])
+    "https://a.example/" + "a" * 2000,
+    "https://a.example/x\u202e", "https://a.example/x\u200b", "https://a.example/x\u00a0",
+    "https://a.example/x\u2028", "https://örnek.com"])
 def test_web_ac_gecersiz_url_ret(sahte, url):
     _, onay = _eylem(sahte, ["9-A"], eylem="web_ac", url=url)
     assert onay.olaylar == [] and sahte.postlar == []
+
+
+def test_punycode_url_kabul(sahte):
+    _, onay = _eylem(sahte, ["9-A"], eylem="web_ac", url="https://xn--rnek-zoa.com")
+    assert len(sahte.postlar) == 1 and len(onay.olaylar) == 1
 
 
 def test_normal_url_kod_araliginda(sahte):
@@ -280,8 +287,16 @@ def test_ag_istisnasi_kisa_hata_sizinti_yok(sahte):
     sahte.istisna = RuntimeError("baglanti 192.168.5.23 GIZLI-ANAHTAR-123 patladi")
     cikti, _ = _eylem(sahte, ["9-A"])
     assert "192.168" not in cikti and "GIZLI" not in cikti and "patladi" not in cikti
-    assert "hata" in cikti.lower() or "ulaşılamadı" in cikti.lower() or "erişilemedi" in cikti.lower()
+    assert "Sonuç alınamadı" in cikti and "işlem yapılmış olabilir" in cikti and "tahta_durumu" in cikti
+    assert "ulaşılamadı" not in cikti
     assert not re.search(r"\d+\.\d+\.\d+\.\d+", cikti)
+
+
+def test_yeniden_baslat_ag_istisnasi_sonuc_belirsiz(sahte):
+    sahte.istisna = RuntimeError("zaman asimi")
+    cikti = _calistir(_arac().tahtalari_yeniden_baslat(["9-A"], __user__=ADMIN, __event_call__=Onay(True)))
+    assert "Sonuç alınamadı" in cikti and "işlem yapılmış olabilir" in cikti and "tahta_durumu" in cikti
+    assert "ulaşılamadı" not in cikti
 
 
 def test_okuma_ag_istisnasi(sahte):

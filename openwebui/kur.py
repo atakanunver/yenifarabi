@@ -190,9 +190,11 @@ def filtreyi_kur(api: Api, webui_key: str) -> None:
 def ajan_anahtari_oku() -> str | None:
     """Dashboard'un /api/ajan anahtarı (gitignore'lu); dosya yoksa None."""
     yol = KOK.parent / "tahtayoklama/dashboard/config/ajan.json"
-    if not yol.exists():
+    try:
+        anahtar = json.loads(yol.read_text(encoding="utf-8"))["anahtar"]
+    except (OSError, ValueError, KeyError, TypeError):  # yok / bozuk JSON / anahtar yok
         return None
-    return json.loads(yol.read_text(encoding="utf-8"))["anahtar"]
+    return anahtar if isinstance(anahtar, str) and anahtar.strip() else None
 
 
 def araci_kur(api: Api, ajan_key: str) -> None:
@@ -217,7 +219,7 @@ def model_yaz(api: Api, govde: dict) -> bool:
 def yonetimi_kur(api: Api) -> None:
     ajan_key = ajan_anahtari_oku()
     if ajan_key is None:
-        print("uyarı: ajan.json yok, Farabi Yönetim atlandı "
+        print("uyarı: ajan.json yok ya da geçersiz (anahtar boş/eksik), Farabi Yönetim atlandı "
               "(önce tahtayoklama/dashboard/scripts/ajan_anahtari_olustur.py)")
         return
     araci_kur(api, ajan_key)
@@ -243,6 +245,18 @@ def modelleri_kur(api: Api, grup_idleri: dict[str, str]) -> list[str]:
     return [m["id"] for m in modlar]
 
 
+def kimlik_ayarlarini_kur(api: Api) -> None:
+    """Kayıt kapalı + varsayılan rol "user" (aksi halde LAN'daki herkes hesap/admin açabilir).
+    Open WebUI routers/auths.py: GET/POST /api/v1/auths/admin/config; POST gövdesi AdminConfig'in
+    tüm zorunlu alanlarını ister, bu yüzden GET çıktısı değiştirilip tam geri gönderilir."""
+    cfg = api("GET", "/api/v1/auths/admin/config", yazma=False)
+    if not cfg:
+        raise SystemExit("kimlik ayarları okunamadı (/api/v1/auths/admin/config); kayıt kapatılamadı.")
+    cfg.update({"ENABLE_SIGNUP": False, "DEFAULT_USER_ROLE": "user"})
+    api("POST", "/api/v1/auths/admin/config", cfg)
+    print("kimlik: kayıt kapalı, varsayılan rol user")
+
+
 def ayarlari_kur(api: Api, mod_idleri: list[str]) -> None:
     cfg = api("GET", "/api/v1/configs/models") or {}
     cfg.update({"DEFAULT_MODELS": "farabi", "MODEL_ORDER_LIST": mod_idleri})
@@ -263,12 +277,13 @@ def main() -> int:
     api = Api(env.get("OPENWEBUI_URL", "http://127.0.0.1:80"), env["OPENWEBUI_API_KEY"], a.kuru)
     if api("GET", "/api/v1/auths/", yazma=False) is None:
         raise SystemExit("API anahtarı geçersiz ya da API anahtarları kapalı.")
+    kimlik_ayarlarini_kur(api)
     grup_idleri = gruplari_kur(api)
     hesaplari_kur(api, env, grup_idleri)
     filtreyi_kur(api, webui_key)
     mod_idleri = modelleri_kur(api, grup_idleri)
-    yonetimi_kur(api)
     ayarlari_kur(api, mod_idleri)
+    yonetimi_kur(api)  # en sonda: ajan.json/araç hatası yukarıdaki adımları engellemesin
     print("tamam")
     return 0
 

@@ -59,6 +59,9 @@ def tahtalari_coz(istenen: list[str], kayit: list[str]) -> tuple[list[str], list
     return [k for k in kayit if k in secili], bilinmeyen
 
 
+POST_BELIRSIZ = ("Sonuç alınamadı; işlem yapılmış olabilir. "
+                 "Tekrar denemeden önce `tahta_durumu` ile kontrol edin.")
+
 URL_MAKS = 2000
 _URL_YASAK = re.compile(r"[\s\x00-\x1f\x7f\[\]()<>`]")
 
@@ -66,7 +69,10 @@ _URL_YASAK = re.compile(r"[\s\x00-\x1f\x7f\[\]()<>`]")
 def url_gecerli_mi(url) -> bool:
     """http(s) mutlak adres; boşluk/kontrol karakteri ve Markdown/HTML'de anlamlı [ ] ( ) < > ` yok
     (onay penceresi mesajı Markdown olarak işlenir). Bu karakterler gerekiyorsa %-kodlanmalıdır."""
-    if not isinstance(url, str) or not url or len(url) > URL_MAKS or _URL_YASAK.search(url):
+    # ASCII dışı yok: bidi/sıfır genişlik/C1 karakterleri onay penceresinde yanıltıcı görünebilir;
+    # IDN alan adları punycode (xn--) ile yazılmalı.
+    if (not isinstance(url, str) or not url or len(url) > URL_MAKS or not url.isascii()
+            or _URL_YASAK.search(url)):
         return False
     try:
         parca = urlsplit(url)
@@ -160,13 +166,14 @@ class Tools:
         return "\n".join(satirlar) or "Sonuç dönmedi."
 
     def _yanit_yorumla(self, y) -> str:
+        """Onaydan SONRA yapılan POST yanıtı: ağ hatası/bozuk gövde = sonuç belirsiz (işlem yapılmış olabilir)."""
         if y is None:
-            return AG_HATASI
+            return POST_BELIRSIZ
         if y.status_code == 200:
             v = self._json(y)
             if isinstance(v, dict):
                 return self._sonuc_metni(v.get("sonuclar"))
-            return AG_HATASI
+            return POST_BELIRSIZ
         if y.status_code == 409:
             return "Şu an okul saati; yeniden başlatma reddedildi."
         if y.status_code == 400:
