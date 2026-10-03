@@ -33,6 +33,12 @@ HESAPLAR = [  # (ad, e-posta, .env anahtarı, grup)
     ("Farabi Tahta", "tahta@farabi.local", "TAHTA_SIFRE", "Öğretmenler"),  # akıllı tahtalar için ortak hesap
 ]
 GOREV_MODEL_ID = "farabi-gorev"  # yalnızca arka plan görevleri (başlık) için, düşünme kapalı
+ARAC_ID = "farabi_yonetim"  # yalnızca admin: tahta yönetimi aracı (Tool)
+YONETIM_MODEL_ID = "farabi-yonetim"
+# Open WebUI utils/tools.py get_builtin_tools: meta.builtinTools[kategori] (varsayılan True).
+BUILTIN_KATEGORILER = ("time", "memory", "chats", "notes", "knowledge", "channels", "web_search",
+                       "image_generation", "code_interpreter", "files", "tasks", "automations",
+                       "calendar", "notifications", "subagents")
 
 
 def env_oku(yol: Path) -> dict[str, str]:
@@ -93,6 +99,22 @@ def gorev_model_govdesi(grup_idleri: dict[str, str]) -> dict:
             "access_grants": [{"principal_type": "group", "principal_id": grup_idleri[g],
                                "permission": "read"} for g in GRUPLAR],
             "is_active": True}
+
+
+def yonetim_model_govdesi() -> dict:
+    """Gizli, yalnızca admin modeli (access_grants boş: yalnızca sahip/admin görür) — Farabi Yönetim
+    aracını kullanır. Çekirdek (öğretmen) prompt'u eklenmez, filtre yok. Open WebUI yerleşik araçları
+    kapalı: meta.capabilities.builtin_tools False (middleware.py use_builtin_tools kapısı) ve ayrıca
+    meta.builtinTools[kategori] False (utils/tools.py get_builtin_tools). params["think"] False,
+    routers/ollama.py'de payload köküne taşınır (gorev_model_govdesi ile aynı gerekçe)."""
+    return {"id": YONETIM_MODEL_ID, "base_model_id": TABAN_MODEL, "name": "Farabi Yönetim",
+            "meta": {"description": "Yalnızca yönetici: tahta durumu, uzaktan eylem, yeniden başlatma, yoklama sorgusu.",
+                     "hidden": True, "toolIds": [ARAC_ID],
+                     "capabilities": {"builtin_tools": False},
+                     "builtinTools": {k: False for k in BUILTIN_KATEGORILER}},
+            "params": {"system": (KOK / "promptlar" / "yonetim.md").read_text(encoding="utf-8"),
+                       "function_calling": "native", "think": False},
+            "access_grants": [], "is_active": True}
 
 
 class Api:
@@ -165,6 +187,44 @@ def filtreyi_kur(api: Api, webui_key: str) -> None:
     print("filtre kuruldu: farabi_kaynak")
 
 
+def ajan_anahtari_oku() -> str | None:
+    """Dashboard'un /api/ajan anahtarı (gitignore'lu); dosya yoksa None."""
+    yol = KOK.parent / "tahtayoklama/dashboard/config/ajan.json"
+    if not yol.exists():
+        return None
+    return json.loads(yol.read_text(encoding="utf-8"))["anahtar"]
+
+
+def araci_kur(api: Api, ajan_key: str) -> None:
+    icerik = (KOK / "farabi_yonetim_araci.py").read_text(encoding="utf-8")
+    govde = {"id": ARAC_ID, "name": "Farabi Yönetim", "content": icerik,
+             "meta": {"description": "Yalnızca yönetici: tahta durumu, uzaktan eylem, yeniden başlatma (onaylı)."},
+             "access_grants": []}
+    var = api("GET", f"/api/v1/tools/id/{ARAC_ID}")
+    api("POST", f"/api/v1/tools/id/{ARAC_ID}/update" if var else "/api/v1/tools/create", govde)
+    api("POST", f"/api/v1/tools/id/{ARAC_ID}/access/update", {"access_grants": []})  # yalnızca admin
+    api("POST", f"/api/v1/tools/id/{ARAC_ID}/valves/update",
+        {"api_url": "http://127.0.0.1:8010/api/ajan", "api_key": ajan_key, "zaman_asimi_sn": 60.0})
+    print(f"araç kuruldu: {ARAC_ID}")
+
+
+def model_yaz(api: Api, govde: dict) -> bool:
+    var = api("GET", "/api/v1/models/model?" + urllib.parse.urlencode({"id": govde["id"]}))
+    api("POST", "/api/v1/models/model/update" if var else "/api/v1/models/create", govde)
+    return bool(var)
+
+
+def yonetimi_kur(api: Api) -> None:
+    ajan_key = ajan_anahtari_oku()
+    if ajan_key is None:
+        print("uyarı: ajan.json yok, Farabi Yönetim atlandı "
+              "(önce tahtayoklama/dashboard/scripts/ajan_anahtari_olustur.py)")
+        return
+    araci_kur(api, ajan_key)
+    guncellendi = model_yaz(api, yonetim_model_govdesi())
+    print(f"model {'güncellendi' if guncellendi else 'oluşturuldu'}: Farabi Yönetim")
+
+
 def modelleri_kur(api: Api, grup_idleri: dict[str, str]) -> list[str]:
     cekirdek = (KOK / "promptlar" / "cekirdek.md").read_text(encoding="utf-8")
     modlar = json.loads((KOK / "modlar.json").read_text(encoding="utf-8"))
@@ -207,6 +267,7 @@ def main() -> int:
     hesaplari_kur(api, env, grup_idleri)
     filtreyi_kur(api, webui_key)
     mod_idleri = modelleri_kur(api, grup_idleri)
+    yonetimi_kur(api)
     ayarlari_kur(api, mod_idleri)
     print("tamam")
     return 0
