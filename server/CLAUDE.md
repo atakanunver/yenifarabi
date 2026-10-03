@@ -75,15 +75,15 @@ paketi, öğrenci verisi değil); dizin yoksa yol hiç bağlanmaz.
 - `gorsel` zinciri: `mistral/pixtral-12b-2409` → `mistral/mistral-medium-latest`
   → `nvidia/meta/llama-3.2-11b-vision-instruct`. **NVIDIA bu ağdan
   güvenilmez** (410/timeout). openrouter anahtarı yok.
-- Ollama (`farabi-qwen3.8:27b`): sistem mesajı olmayan isteklerde modelin
-  kendi `SYSTEM`'i (Farabi promptu, `ollama/farabi-qwen3.8-27b.Modelfile`)
-  uygulanır; `saglayicilar.py` artık varsayılan sistem mesajı eklemiyor
-  (`_OLLAMA_VARSAYILAN_SISTEM` 2026-10-03'te silindi). Düşünme her çağrıda
-  kapalı olmalı: yerel API `"think": False`, `/v1` `reasoning_effort="none"`.
-  Modelfile değişince `ollama create farabi-qwen3.8:27b -f
-  ollama/farabi-qwen3.8-27b.Modelfile` (servis restart gerekmez).
-- `dosya.py` `belge_ozet`: önce yerel Ollama, bulut yedek; görsel özet
-  yalnızca bulut (yerel vision modeli eklemek Kural 8 onayı ister).
+- Ollama (`qwen3.8:27b`, tek model): sistem mesajı olmayan isteklere
+  `saglayicilar.py` Farabi promptunu (`ollama/farabi_sistem.txt`) ekler;
+  prompt değişince `farabi-api` restart gerekir (modül açılışta okur).
+  Düşünme her çağrıda kapalı olmalı: yerel API `"think": False`, `/v1`
+  `reasoning_effort="none"`.
+- `dosya.py` `belge_ozet`: önce yerel Ollama, bulut yedek — tahtadan
+  yüklenen belgeler eğitim amaçlı, buluta gidebilir (resmî yazılar bu
+  yoldan değil EBYS botundan geçer, o yalnızca yerel; DECISIONS.md
+  2026-10-03). Görsel özet yalnızca bulut.
 
 ## Tahta işlem script'leri
 

@@ -30,7 +30,10 @@ okul operasyon servisleri (yoklama panosu, SMS).
   2026-10-03.
 - **Yerel LLM `qwen3.8:27b`** (2026-10-03): Ollama'daki TEK model — özel
   `farabi-qwen3.8:27b` ve `qwen2.5:14b` takma adı kaldırıldı, başka model
-  kurulmaz. %100 GPU (iki RTX 3060), süresiz bellekte (`OLLAMA_KEEP_ALIVE=-1`
+  kurulmaz. Bağlam 16384 (`OLLAMA_CONTEXT_LENGTH`, ollama.service) + KV
+  cache q8_0 (`ollama.service.d/zz-kvtest.conf`) → %100 GPU, 32-42 tok/s
+  (f16 KV'de %6 CPU'ya taşıyordu; 32k f16 %11 CPU). İki RTX 3060,
+  süresiz bellekte (`OLLAMA_KEEP_ALIVE=-1`
   + açılışta `/usr/local/bin/farabi-ollama-onyukle.sh`). Farabi sistem promptu
   `server/ollama/farabi_sistem.txt`'te; `server/saglayicilar.py` sistem
   mesajı olmayan Ollama isteklerine ekler. Çağıran kod düşünmeyi kapatmalı
