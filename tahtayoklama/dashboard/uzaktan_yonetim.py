@@ -82,7 +82,7 @@ def _denetim_yaz(request: Request, eylem: str, sonuclar: list[dict], kaynak: str
         tahtalar = ",".join(adlar)
         if adlar:
             sonuc = ",".join(
-                f"{r['tahta']}:{'ok' if r.get('basarili') else 'hata'}"
+                f"{r['tahta']}:{r.get('denetim_kodu') or ('ok' if r.get('basarili') else 'hata')}"
                 for r in sonuclar if r.get("tahta") is not None
             )
         else:

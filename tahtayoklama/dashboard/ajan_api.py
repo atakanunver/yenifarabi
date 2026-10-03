@@ -95,6 +95,17 @@ def _sebep(sonuc: dict) -> str:
     return "hata"
 
 
+async def _paralel_calistir(hedefler: list[dict], islem) -> list[dict]:
+    """Tahtalarda paralel çalıştırır; bir tahtadaki beklenmeyen istisna o
+    tahtayı `hata` yapar, diğerlerini ve denetim kaydını engellemez
+    (istisna metni dışarı çıkmaz)."""
+    sonuclar = await asyncio.gather(*(islem(t) for t in hedefler), return_exceptions=True)
+    return [
+        {"tahta": t["ad"], "basarili": False, "sebep": "hata"} if isinstance(r, BaseException) else r
+        for t, r in zip(hedefler, sonuclar)
+    ]
+
+
 def _ozet(sonuc: dict) -> dict:
     ozet = {"tahta": sonuc["tahta"], "basarili": bool(sonuc["basarili"]), "sebep": sonuc.get("sebep") or _sebep(sonuc)}
     if "uyari" in sonuc:
@@ -182,7 +193,7 @@ async def eylem(request: Request):
     if not isinstance(url, str) or len(url) > _URL_MAKS:
         raise HTTPException(400, "Geçersiz url.")
     fonksiyon = uzaktan_yonetim.EYLEMLER[ad]
-    ham = list(await asyncio.gather(*(fonksiyon(t, {"url": url}) for t in hedefler)))
+    ham = await _paralel_calistir(hedefler, lambda t: fonksiyon(t, {"url": url}))
     uzaktan_yonetim._denetim_yaz(request, f"ajan:{ad}", ham, kaynak=_kaynak(request))
     return JSONResponse({"sonuclar": [_ozet(r) for r in ham]})
 
@@ -193,10 +204,15 @@ async def yeniden_baslat(request: Request):
     veri = await _govde(request)
     hedefler = _hedefleri_coz(veri)
     if tahta_yeniden_baslat.ders_saatinde_mi():
+        uzaktan_yonetim._denetim_yaz(
+            request, "ajan:yeniden_baslat",
+            [{"tahta": t["ad"], "basarili": False, "denetim_kodu": "ders_saati"} for t in hedefler],
+            kaynak=_kaynak(request),
+        )
         return JSONResponse(
             {"durum": "ders_saati", "mesaj": "Ders saatinde tahtalar yeniden başlatılamaz."},
             status_code=409,
         )
-    ham = list(await asyncio.gather(*(tahta_yeniden_baslat.yeniden_baslat_tek(t) for t in hedefler)))
+    ham = await _paralel_calistir(hedefler, tahta_yeniden_baslat.yeniden_baslat_tek)
     uzaktan_yonetim._denetim_yaz(request, "ajan:yeniden_baslat", ham, kaynak=_kaynak(request))
     return JSONResponse({"sonuclar": [_ozet(r) for r in ham]})

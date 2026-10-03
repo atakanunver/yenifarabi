@@ -52,22 +52,25 @@ async def yeniden_baslat_tek(t: dict) -> dict:
     if not t.get("admin"):
         return _sonuc(t, False, "izin_yok")
 
+    # Bekleme kontrolü + işaretleme ATOMİK (arada await yok): aynı tahta için
+    # eşzamanlı iki istek de ön kontrolü geçip ikinci reboot göndermesin.
     simdi = time.monotonic()
     son = _SON_ISTEK.get(ad)
     if son is not None and simdi - son < BEKLEME_SN:
         return _sonuc(t, False, "bekleme")
+    _SON_ISTEK[ad] = simdi
 
     # Ön kontrol: sudoers kuralı gerçekten var mı? Reboot komutu ÇAĞRILMAZ.
     kontrol = await ssh_istemci.komut_calistir(t["ip"], t["admin"], _SUDO_KONTROL_KOMUTU, zaman_asimi=8)
     if not kontrol.basarili:
+        # Başarısız ön kontrol bekleme süresi başlatmaz.
+        _SON_ISTEK.pop(ad, None)
         if kontrol.zaman_asimi:
             return _sonuc(t, False, "zaman_asimi")
         if kontrol.cikis_kodu in (None, _SSH_BAGLANTI_HATASI):
             return _sonuc(t, False, "ulasilamadi")
         return _sonuc(t, False, "izin_yok")
 
-    # Bekleme süresini SSH'tan ÖNCE işaretle: paralel/yarışan ikinci istek
-    # aynı tahtaya ikinci reboot göndermesin.
     _SON_ISTEK[ad] = time.monotonic()
     sonuc = await ssh_istemci.komut_calistir(t["ip"], t["admin"], _REBOOT_KOMUTU, zaman_asimi=10)
     # Reboot başlayınca SSH oturumu kopar → 255 beklenen bir sonuç.

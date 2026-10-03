@@ -278,6 +278,19 @@ class TestEylem(_Temel):
             yanit = self._cagir({"eylem": "ekran_karart", "tahtalar": ["9-A"]})
         self.assertEqual(json.loads(yanit.body)["sonuclar"][0]["sebep"], "oturum_yok")
 
+    def test_istisna_hata_ve_denetim(self):
+        async def sahte(ip, kul, komut, **kw):
+            if ip == "10.9.9.2":
+                raise RuntimeError("gizli")
+            return _ok()
+        with patch("ssh_istemci.komut_calistir", side_effect=sahte):
+            yanit = self._cagir({"eylem": "chrome_kapat", "tahtalar": ["9-A", "9-B"]})
+        self.assertEqual(yanit.status_code, 200)
+        r = {x["tahta"]: x for x in json.loads(yanit.body)["sonuclar"]}
+        self.assertEqual(r["9-B"]["sebep"], "hata")
+        self.assertTrue(r["9-A"]["basarili"])
+        self.assertEqual(self._denetim()[0]["sonuc"], "9-A:ok,9-B:hata")
+
     def test_eylemler_haritasi(self):
         self.assertEqual(set(uzaktan_yonetim.EYLEMLER), {
             "yoklama_ac", "yoklama_kapat", "web_ac", "chrome_kapat", "ekran_karart", "ekran_kaldir"})
@@ -349,6 +362,28 @@ class TestYenidenBaslatTek(_Temel):
         k.assert_not_called()
         self.assertEqual((r["basarili"], r["sebep"]), (False, "bekleme"))
 
+    def test_eszamanli_iki_istek_tek_reboot(self):
+        komutlar = []
+
+        async def sahte(ip, kul, komut, **kw):
+            komutlar.append(komut)
+            await asyncio.sleep(0.01)
+            return _ok()
+
+        async def ikili():
+            return await asyncio.gather(ty.yeniden_baslat_tek(TAHTALAR[1]), ty.yeniden_baslat_tek(TAHTALAR[1]))
+
+        with patch("ssh_istemci.komut_calistir", side_effect=sahte):
+            r = asyncio.run(ikili())
+        self.assertEqual(sorted(x["sebep"] for x in r), ["bekleme", "tamam"])
+        self.assertEqual([k for k in komutlar if k == "sudo -n /usr/bin/systemctl reboot"].__len__(), 1)
+
+    def test_basarisiz_onkontrol_bekleme_baslatmaz(self):
+        self._tek(TAHTALAR[1], [_yok(1, b"x")])
+        self.assertNotIn("9-B", ty._SON_ISTEK)
+        r, _ = self._tek(TAHTALAR[1], [_ok(), _ok()])
+        self.assertEqual(r["sebep"], "tamam")
+
     def test_bekleme_suresi_dolunca_tekrar_olur(self):
         with patch("tahta_yeniden_baslat.time.monotonic", return_value=1000.0):
             self._tek(TAHTALAR[1], [_ok(), _ok()])
@@ -374,7 +409,32 @@ class TestYenidenBaslatRoute(_Temel):
         k.assert_not_called()
         self.assertEqual(yanit.status_code, 409)
         self.assertEqual(json.loads(yanit.body)["durum"], "ders_saati")
+        satirlar = self._denetim()
+        self.assertEqual(len(satirlar), 1)
+        self.assertEqual(satirlar[0]["eylem"], "ajan:yeniden_baslat")
+        self.assertEqual(satirlar[0]["kaynak"], "ajan")
+        self.assertEqual(satirlar[0]["sonuc"], "9-B:ders_saati")
+
+    def test_400_denetim_yazmaz(self):
+        with patch("tahta_yeniden_baslat.ders_saatinde_mi", return_value=True):
+            with self.assertRaises(HTTPException):
+                self._cagir({"tahtalar": ["yok"]})
         self.assertEqual(self._denetim(), [])
+
+    def test_istisna_hata_ve_denetim(self):
+        async def sahte(ip, kul, komut, **kw):
+            if ip == "10.9.9.2":
+                raise RuntimeError("gizli 10.9.9.2")
+            return _ok()
+        with patch("tahta_yeniden_baslat.ders_saatinde_mi", return_value=False), \
+             patch("ssh_istemci.komut_calistir", side_effect=sahte):
+            yanit = self._cagir({"tahtalar": ["9-A", "9-B"]})
+        self.assertEqual(yanit.status_code, 200)
+        r = {x["tahta"]: x for x in json.loads(yanit.body)["sonuclar"]}
+        self.assertEqual(r["9-B"], {"tahta": "9-B", "basarili": False, "sebep": "hata"})
+        self.assertTrue(r["9-A"]["basarili"])
+        self.assertNotIn("gizli", yanit.body.decode())
+        self.assertEqual(self._denetim()[0]["sonuc"], "9-A:ok,9-B:hata")
 
     def test_bilinmeyen_tahta_400(self):
         with patch("tahta_yeniden_baslat.ders_saatinde_mi", return_value=False), \
