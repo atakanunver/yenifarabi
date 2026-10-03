@@ -96,7 +96,7 @@ karşılanıyor.
 
 ## 2026-09-22'de eklenen iki fix
 
-`DUZELTMELER` listesi 4'ten 6'ya çıktı:
+`DUZELTMELER` listesi 4'ten 6'ya çıktı (2026-10-03'te `reboot_sudoers` ile 7):
 
 - **`otomatik_giris`** (root) — `/etc/lightdm/lightdm.conf.d/50-tahta-autologin.conf`
   drop-in dosyasıyla `ogretmen` oturumu parola sorulmadan açılır. İçerik
@@ -123,13 +123,13 @@ istenip istenmediği kullanıcıya sorulacak.
 
 > ⚠️ **Güncel durum (2026-09-29): yukarıdaki "9-A'ya dokunulmadı" notu
 > ESKİDİ.** 9-A'da `50-tahta-autologin.conf` artık kurulu ve çalışıyor
-> (`--sadece-kontrol`: 6/6 fix uygulanmış); 9-A diğer sınıf tahtalarıyla
+> (`--sadece-kontrol`: o gün 6/6 fix uygulanmış; şimdi liste 7 madde); 9-A diğer sınıf tahtalarıyla
 > aynı referans durumda. Bkz. aşağıdaki "2026-09-29 ham karşılaştırması".
 
 ## 2026-09-29 ham karşılaştırması — fix script'inin GÖRMEDİĞİ farklar
 
 `tahta_fix_uygula.py --sadece-kontrol` yalnızca `DUZELTMELER` listesindeki
-6 maddeye bakar; "hepsi ✓" tahtaların AYNI olduğu anlamına gelmez. 9-A'da
+7 maddeye bakar; "hepsi ✓" tahtaların AYNI olduğu anlamına gelmez. 9-A'da
 her şey ✓ görünürken şikâyetlerin gerçek nedenleri listede olmayan yerlerdeydi
 ve ancak tahtalar arası ham karşılaştırmayla (sistem birimleri, sudoers,
 `/var/log/lightdm/lightdm.log`, `loginctl`, `gsettings list-recursively`)
@@ -175,8 +175,9 @@ için `etapadmin`+`sudo` gerekir.
   (`/run/user/$(id -u)/bus` soketi) gerektirir — sıfırdan kurulmuş, hiç
   giriş yapılmamış bir tahtada bu fix "uygulanamadı" raporlar; o tahtada
   script ilk öğretmen girişinden SONRA tekrar çalıştırılmalı. `DUZELTMELER`'deki
-  6 fix'in 4'ü root (`etapadmin`+sudo: `guc_tusu_yoksay`,
-  `guc_tusu_uzun_basis_yoksay`, `uyku_hedefleri_maskeli`, `otomatik_giris`)
+  7 fix'in 5'i root (`etapadmin`+sudo: `guc_tusu_yoksay`,
+  `guc_tusu_uzun_basis_yoksay`, `uyku_hedefleri_maskeli`, `otomatik_giris`,
+  `reboot_sudoers`)
   ve bu koşula tabi değil; `ekran_karartma` da kullanıcı düzeyi
   (`root_gerekli=False`).
 - Fiziksel güç tuşu davranışı SSH ile doğrulanamaz — yukarıya bkz.
@@ -208,8 +209,9 @@ kapsamında YAPILMADI.
   **2026-09-29'da kullanıcı kararıyla ÇÖZÜLDÜ:** asimetrinin kaynağı
   yalnızca 9-A'ydı (`ogretmen` NOPASSWD); artık 8 tahtanın hiçbirinde
   `ogretmen` sudo'lu değil. Yukarıdaki "2026-09-29 ham karşılaştırması"na
-  bkz. Hâlâ `DUZELTMELER`'e eklenmedi (sudoers'a dokunan otomatik fix ayrı
-  karar ister).
+  bkz. `ogretmen` sudo'su için otomatik fix YOK (`DUZELTMELER`'deki tek sudoers
+  fix'i `reboot_sudoers`: `etapadmin`, tek komut — aşağıya bkz.; sudoers'a dokunan
+  başka otomatik fix ayrı karar ister).
 - `sleep-inactive-ac-type` — 2026-09-15 taramasında 7 tahtada da zaten
   `'nothing'` bulundu, ayrı bir fix'e gerek kalmadı.
 
@@ -230,5 +232,10 @@ Kullanıcı çalıştırır (önce kontrol):
     python3 tahtaayar/tahta_fix_uygula.py --duzeltme reboot_sudoers
 
 Geri alma (tahtada): `sudo rm /etc/sudoers.d/farabi-reboot`
+
+⚠️ `--sadece-kontrol` `reboot_sudoers` için yalnızca DOSYANIN içeriğini kontrol eder
+(`grep` ile satır var mı); sudo'nun o kuralı gerçekten etkin saydığını göstermez
+(başka bir sudoers dosyası/sıra, dosya izni vb. etkiler). Etkin yetki tahtada
+`etapadmin` olarak `sudo -n -l /usr/bin/systemctl reboot` ile doğrulanmalı.
 
 Test: `cd tahtaayar && python3 -m unittest test_tahta_fix_uygula -v`

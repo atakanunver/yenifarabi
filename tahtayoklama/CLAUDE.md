@@ -129,7 +129,7 @@ YAPILMAZ** — pano kendi tahta/sınıf kaydını tutar.
 | `tahtalar` | ad, ip, ssh_kullanici, python_yolu, sinif_id FK (NULL=atanmamış), aktif — **yalnızca bu DB'de**, `server/tahtalar.json`'a yazılmaz |
 | `yoklama_onbellek` | tarih+sinif+ders_no UNIQUE; durum (`alindi`\|`alinmadi`\|`henuz_baslamadi`\|`tahta_ulasilamaz`\|`ders_yok_o_gun`\|`tahta_atanmamis`); yok/izinli isimleri JSON; sinif alanı FK DEĞİL (kasıtlı — silinen sınıfta bile geçmiş veri okunabilir kalsın) |
 | `oturumlar` | token, tek ortak şifreyle giriş (`auth.py`, scrypt hash) |
-| `uzaktan_denetim` | (2026-10-01) her uzaktan eylem: `zaman` (İstanbul, değerde +03:00 — diğer tablolar UTC), `istemci_ip`, `eylem`, `tahtalar`, `sonuc` (`9-A:ok,9-B:hata` / `secim_yok`). Kullanıcı sütunu yok (ortak şifre); URL/dosya adı/içerik yazılmaz |
+| `uzaktan_denetim` | (2026-10-01) her uzaktan eylem: `zaman` (İstanbul, değerde +03:00 — diğer tablolar UTC), `istemci_ip`, `eylem`, `tahtalar`, `sonuc` (`9-A:ok,9-B:hata` / `secim_yok` / `<tahta>:ders_saati` = okul saatinde reddedilen yeniden başlatma), `kaynak` (2026-10-03; `/api/ajan` çağrılarında `openwebui:<e-posta>`, panelden gelenlerde boş). `eylem` adları ajan çağrılarında `ajan:<eylem>` (`ajan:yeniden_baslat` dahil). Kullanıcı sütunu yok (ortak şifre); URL/dosya adı/içerik yazılmaz |
 
 ### Ana bileşenler
 
@@ -141,6 +141,7 @@ YAPILMAZ** — pano kendi tahta/sınıf kaydını tutar.
 | `zil.py` | `data/zil.json` okuma + ders-zamanlama, `Europe/Istanbul` saat dilimine sabit; `gun_adi_buyuk()` (2026-09-17 eklendi) — büyük harf Türkçe gün adı, `.upper()` DEĞİL sabit sözlük kullanır (Türkçe "İ" locale hatasından kaçınmak için) |
 | `admin.py` | `/admin/tahtalar`, `/admin/siniflar`, `/admin/siniflar/{id}/ogrenciler`, `/admin/rapor` — tahta↔sınıf atama, roster düzenleme/senkron, devamsızlık raporu+CSV |
 | `uzaktan_yonetim.py`, `uzaktan_baslat.py`, `tahta_kaydi.py` | Faz 6 — bkz. §5 |
+| `ajan_api.py`, `tahta_yeniden_baslat.py` | `/api/ajan/*` makine API'si ve tahta yeniden başlatma (Open WebUI "Farabi Yönetim" aracı için) — bkz. §5.2 |
 | `ders_programi.py` | pano hücrelerindeki ders kısa adı etiketi (MAT, İNG, ...) |
 | `db.py`, `auth.py` | SQLite şema/bağlantı; tek ortak şifre (scrypt) + `oturumlar`, smssistemi SSO token imzalama (`config/sms_sso.json`) |
 | `sistem_durumu.py` | `/sistem-durumu` — bkz. §4.1 |
@@ -291,6 +292,25 @@ Kullanıcı isteği: `http://farabi.local:8010/admin/uzaktan` bölümünde tablo
   görüntüsü ve sayfa görüntüleme denetime YAZILMAZ; yalnızca eylemler
   (`_denetim_yaz`, test: `test_uzaktan_denetim.py`, 7 test).
 - **Testler:** `test_uzaktan_ekran.py` (9/9 test): JSON yanıtı, binary `?ham=1` akışı, hata anında HTML yanıtı, `import` -> `gnome-screenshot` fallback mekanizması, 401 yetkisiz erişim, 404 bilinmeyen tahta ve çevrimdışı tahta durumları test edilmiştir.
+
+### 5.2 Makine API'si (`/api/ajan`) — Open WebUI aracı için (2026-10-03)
+
+`ajan_api.py` (router `/api/ajan`), `tahta_yeniden_baslat.py`. Tek istemci: Open WebUI
+"Farabi Yönetim" aracı (`openwebui/farabi_yonetim_araci.py`, yalnızca admin).
+
+- **Uçlar:** `GET /tahtalar[?canli=1]`, `GET /sistem`, `GET /yoklama[?tarih=&sinif=]`,
+  `POST /eylem` (`uzaktan_yonetim.EYLEMLER`), `POST /yeniden-baslat`.
+- **Kimlik:** yalnızca 127.0.0.1/::1 VE `X-Farabi-Ajan-Key` (`config/ajan.json`,
+  gitignore'lu, her istekte okunur). Oturum çerezi GEÇMEZ.
+- **Yanıtlarda IP/MAC/kullanıcı adı/SSH ayrıntısı/ham hata metni yok** (LLM görmemeli);
+  yalnızca tahta adı + izin verilen alanlar.
+- Bilinmeyen tahta adı → 400 (`bilinmeyen` listesiyle); hiçbir şey çalıştırılmaz.
+- **Yeniden başlatma:** okul saatinde 409 (`ders_saatinde_mi`: ders günü ilk dersin
+  başlangıcı – son dersin bitişi, teneffüs/öğle arası DAHİL, atlama yok); tahta başına
+  120 sn bekleme (`BEKLEME_SN`, atomik); 9-A için "otomatik giriş yok" uyarısı döner.
+  Tahtada `etapadmin` + `sudo -n /usr/bin/systemctl reboot` (kural: tahtaayar `reboot_sudoers`).
+- **Denetim:** her çağrı `uzaktan_denetim`'e yazılır (`ajan:<eylem>`, `kaynak`);
+  reddedilen yeniden başlatma `<tahta>:ders_saati` koduyla.
 
 ## 6. Tahta envanteri ve canlı durum (2026-09-17'de doğrulandı)
 
@@ -497,6 +517,10 @@ hiçbiri crontab/systemd timer'a bağlı değil:
   dolu DB'de UNIQUE hatası verir — üretim DB'sinde çalıştırma.
 - **`sifre_belirle.py`** — ortak pano şifresinin hash'ini
   `config/gizli.json`'a yazar.
+- **`ajan_anahtari_olustur.py`** — `/api/ajan` anahtarını `config/ajan.json`'a (0600)
+  yazar; dosya varsa `--zorla` olmadan üzerine yazmaz, anahtarı ekrana basmaz.
+  `--zorla` ile yeniden üretilirse `openwebui/kur.py` tekrar çalıştırılmalı
+  (aracın valve'ındaki anahtar eskir).
 - `tahta_fix_uygula.py` buradan **taşındı** → `tahtaayar/tahta_fix_uygula.py`
   (OS/oturum provizyonu `client/` ve `tahtayoklama/` ortak katmanı olduğu
   için üst düzey klasöre alındı, kopya bırakılmadı).

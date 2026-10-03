@@ -39,6 +39,10 @@
 | TTS (dış makine) | `chatterbox-tts.service` @ debian | 5002 | uzak: `/opt/chatterbox-tts/tts_server.py` | `GET /saglik` → `{"durum":"ok"}` (yalnızca bu) |
 | SMS gateway (dış) | WifiHttpProxy @ Müdür PC | 8080 | — | yok; `/` → 407 = proxy ayakta |
 
+Dashboard (8010) ek uçları: `/api/ajan/*` (`GET tahtalar|sistem|yoklama`, `POST eylem|yeniden-baslat`) —
+makine API'si, yalnızca 127.0.0.1 + `X-Farabi-Ajan-Key`; Open WebUI "Farabi Yönetim" aracı kullanır
+(`tahtayoklama/CLAUDE.md` §5.2).
+
 Diğer dinleyen portlar: 22 (ssh), 53 (resolved), 9749 (codebase-memory, geliştirme aracı).
 Reverse proxy (nginx/caddy) **yok** — servisler doğrudan uvicorn ile 0.0.0.0'a açılıyor.
 

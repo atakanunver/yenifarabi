@@ -35,6 +35,10 @@ okul operasyon servisleri (yoklama panosu, SMS).
   çalıştırılabilir; promptlar `openwebui/promptlar/`; şifreler yalnızca
   gitignore'lu `openwebui/.env`). Spec/plan:
   `docs/superpowers/{specs,plans}/2026-10-03-openwebui-farabi-modlar*`.
+  Ek: yalnızca-admin `farabi-yonetim` modeli + `farabi_yonetim` aracı
+  (tahta durumu/eylem/yeniden başlatma; her değiştiren eylem onay
+  penceresinden geçer). `kur.py` her çalışışında kayıt kapalı + varsayılan
+  rol `user` ayarını zorlar.
 - **Yerel LLM `qwen3.8:27b`** (2026-10-03): Ollama'daki TEK model — özel
   `farabi-qwen3.8:27b` ve `qwen2.5:14b` takma adı kaldırıldı, başka model
   kurulmaz. Bağlam 16384 (`OLLAMA_CONTEXT_LENGTH`, ollama.service) + KV
@@ -100,12 +104,12 @@ Hepsi bu makinede (`farabi.local`), **her servis ayrı systemd birimi, ayrı
 venv**.
 Kod paylaşmazlar, birini deploy etmek diğerini etkilemez; üretime almak =
 ilgili servisi restart etmek. Servisler birleştirilmez; servisler arası bağ =
-HTTP + HMAC.
+HTTP + HMAC/paylaşılan anahtar.
 
 | Servis | Dizin | Port | Ne yapar |
 |---|---|---|---|
 | `farabi-api` ("Brain") | `server/` | 8000 | RAG (CPU, reranker yok), Open WebUI kaynak araması, kitap içeriği/PDF render, YKS, bulut LLM proxy, dosya işleme, tahta auth |
-| `farabi-yoklama-dashboard` | `tahtayoklama/dashboard/` | 8010 | yoklama, roster, zil/ders programı, uzaktan yönetim (`/admin/uzaktan`) |
+| `farabi-yoklama-dashboard` | `tahtayoklama/dashboard/` | 8010 | yoklama, roster, zil/ders programı, uzaktan yönetim (`/admin/uzaktan`); `/api/ajan` makine API'si (yalnızca 127.0.0.1 + `X-Farabi-Ajan-Key`; anahtar gitignore'lu `tahtayoklama/dashboard/config/ajan.json`; Open WebUI "Farabi Yönetim" aracı kullanır) |
 | `farabi-smssistemi` | `smssistemi/` | 8020 | toplu/kişisel SMS, rehber, Doğum Günleri, Yoklama SMS |
 | `ollama` | — | 11434 | `qwen3.8:27b` (iki GPU, tek model), LAN'a açık, paylaşılan yerel LLM |
 | `open-webui` | `/opt/open-webui` (kurulum `openwebui/kur.py`) | 80 | "Farabi" sohbet arayüzü — öğretmen/idare modları, kaynaklı cevap |
@@ -117,7 +121,9 @@ HTTP + HMAC.
 - **Uzaktan yönetim** (`/admin/uzaktan`): ekran karart/kaldır, yoklama
   aç/kapat, duvar kağıdı, anlık ekran görüntüsü (`GET /admin/uzaktan/
   ekran-goruntusu/{tahta_adi}?ham=1`), çoklu tahta seçimi. Tahtaya doğrudan
-  `ogretmen` olarak SSH (`~/.ssh/id_ed25519_tahta`), sudo gerektirmez.
+  `ogretmen` olarak SSH (`~/.ssh/id_ed25519_tahta`), sudo gerektirmez. İstisna: yeniden
+  başlatma `etapadmin` + dar sudoers ile (`/etc/sudoers.d/farabi-reboot`, tahtaayar
+  `reboot_sudoers`), okul saatinde reddedilir.
 
 **Client ↔ Server ayrımı (KESİN, mimari.md §0):** client = yalnızca tahtadaki
 arayüz/etkileşim yüzeyi (Gemini Live ses oturumu dahil); server = beyin (RAG,
