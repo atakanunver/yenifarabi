@@ -45,7 +45,7 @@ SERVISLER = {
     "farabi": ["ollama", "farabi-api", "open-webui", "postgresql@18-main",
                "farabi-yoklama-dashboard", "chrony"],
     "debian": ["chatterbox-tts", "ollama", "ssh"],
-    "bilgehan": ["ssh", "nvidia-persistenced", "ollama", "chrony"],
+    "bilgehan": ["ssh", "nvidia-persistenced", "farabi-embed", "ollama", "chrony"],
 }
 
 

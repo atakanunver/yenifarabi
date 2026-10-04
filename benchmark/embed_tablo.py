@@ -29,7 +29,10 @@ from pathlib import Path
 import psycopg2
 import psycopg2.extras
 from pgvector.psycopg2 import register_vector
-from sentence_transformers import SentenceTransformer
+import sys
+# 2026-10-04: gömme bilgehan GPU'sunda (server/uzak_model.py) — Farabi CPU'su RAG için kullanılmaz.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "server"))
+import uzak_model  # noqa: E402
 
 MODEL_ADI = "BAAI/bge-m3"
 
@@ -77,7 +80,7 @@ def main() -> int:
         return 0
 
     print(f"Model yükleniyor ({MODEL_ADI}, CPU)…")
-    model = SentenceTransformer(MODEL_ADI, device="cpu")
+    model = uzak_model.toplu_gomme_modeli(MODEL_ADI)
 
     conn = psycopg2.connect(host=a.db_host, dbname=a.db_name, user=a.db_user)
     register_vector(conn)

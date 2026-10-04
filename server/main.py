@@ -11,6 +11,7 @@ metin tabanlı RAG cevabı üretir.
 (server/ dizininden, flat import'lar bu yüzden paket değil doğrudan modül.)
 """
 
+import os
 import re
 import time
 import uuid
@@ -29,6 +30,7 @@ import ders_hafizasi
 import dosya
 import icerik
 import proxy
+import uzak_model
 import ders_plani
 import webui
 import yks
@@ -73,6 +75,14 @@ RERANK_DEVICE = "cpu"
 # değişmez). Geri açmak: True + restart (CPU'da ~10 sn/soru).
 RERANK_YUKLE = False
 
+# 2026-10-04: bge-m3 + reranker bilgehan'ın GTX 1660 Ti'sinde (farabi-embed,
+# kaynak `embed_servisi/`). URL/anahtar systemd drop-in'inden gelir
+# (/etc/systemd/system/farabi-api.service.d/embed.conf — anahtar repoya
+# girmez). URL boşsa eski davranış: yerel CPU, RERANK_YUKLE'ye göre.
+# Ayarlıysa gömme + rerank tamamen uzakta (aşağıdaki lifespan notu).
+UZAK_EMBED_URL = os.environ.get("FARABI_EMBED_URL", "").strip()
+UZAK_EMBED_ANAHTAR = os.environ.get("FARABI_EMBED_ANAHTAR", "")
+
 durum: dict = {"hazir": False, "motor": None}
 
 
@@ -88,12 +98,20 @@ async def lifespan(app: FastAPI):
         # tamamen GPU'ya sığmıyordu. BAAI'nin kendi örnekleri de bu modelleri
         # fp16 çalıştırır; 40 soruluk ölçümle doğrulandı (DECISIONS.md). Sorgu
         # vektörü pgvector'a giderken float32'ye çevrilir (pgvector.Vector).
-        embed_model = SentenceTransformer(EMBED_MODEL, device=EMBED_DEVICE)
-        if EMBED_DEVICE.startswith("cuda"):
-            # fp16 yalnızca GPU'da anlamlı; CPU'da fp32 kalır.
-            embed_model.half()
         reranker = None
-        if RERANK_YUKLE:
+        if UZAK_EMBED_URL:
+            # 2026-10-04 (kullanıcı kararı): "Farabi CPU boşta kalsın, tüm RAG
+            # bilgehan'da" — gömme de rerank de uzakta, Farabi'de HİÇ model
+            # yüklenmez (yerel geri dönüş yok). bilgehan kapalıysa arama
+            # "hata" döner: Open WebUI kaynaksız sürer, tahta kısıtlı metne düşer.
+            embed_model, reranker = uzak_model.olustur(UZAK_EMBED_URL, UZAK_EMBED_ANAHTAR)
+            print(f"Uzak gömme + rerank: {UZAK_EMBED_URL} — Farabi'de model yüklenmedi")
+        else:
+            embed_model = SentenceTransformer(EMBED_MODEL, device=EMBED_DEVICE)
+            if EMBED_DEVICE.startswith("cuda"):
+                # fp16 yalnızca GPU'da anlamlı; CPU'da fp32 kalır.
+                embed_model.half()
+        if not UZAK_EMBED_URL and RERANK_YUKLE:
             reranker = CrossEncoder(RERANK_MODEL, device=RERANK_DEVICE)
             if RERANK_DEVICE.startswith("cuda"):
                 reranker.model.half()
@@ -115,7 +133,7 @@ async def lifespan(app: FastAPI):
             embed_model.encode("ısınma sorgusu", normalize_embeddings=True)
             if reranker is not None:
                 reranker.predict([("ısınma sorgusu", "ısınma için örnek kaynak metni.")])
-            print(f"Isınma tamamlandı ({time.perf_counter() - _t0:.1f}sn) — gömme modeli {EMBED_DEVICE}'da hazır.")
+            print(f"Isınma tamamlandı ({time.perf_counter() - _t0:.1f}sn) — gömme {UZAK_EMBED_URL or EMBED_DEVICE} hazır.")
         except Exception as e:
             print(f"UYARI: ısınma sorgusu başarısız oldu ({type(e).__name__}: {e}) — ilk gerçek istek yavaş olabilir.")
 

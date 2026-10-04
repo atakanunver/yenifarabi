@@ -209,6 +209,9 @@ def main() -> int:
     ap.add_argument("--rapor-cikti")
     ap.add_argument("--etiket", default="", help="rapora yazılacak serbest not")
     ap.add_argument("--karsilastir", nargs=2, metavar=("ONCE", "SONRA"))
+    ap.add_argument("--uzak-rerank", metavar="URL",
+                    help="reranker'ı farabi-embed servisinden kullan (örn. http://bilgehan.local:8040); "
+                         "anahtar FARABI_EMBED_ANAHTAR ortam değişkeninden")
     ap.add_argument("--db-host", default="127.0.0.1")
     ap.add_argument("--db-name", default="farabi")
     ap.add_argument("--db-user", default="farabi")
@@ -227,8 +230,16 @@ def main() -> int:
     print(f"Modeller CPU'ya yükleniyor ({rag.EMBED_MODEL} + {rag.RERANK_MODEL})…")
     from sentence_transformers import CrossEncoder, SentenceTransformer
     t0 = time.perf_counter()
-    motor = rag.RagMotoru(SentenceTransformer(rag.EMBED_MODEL, device="cpu"),
-                          CrossEncoder(rag.RERANK_MODEL, device="cpu"))
+    if a.uzak_rerank:
+        # Üretimle aynı düzen (2026-10-04): gömme yerel CPU, rerank uzak GPU.
+        import os
+
+        import uzak_model
+        _, reranker = uzak_model.olustur(a.uzak_rerank, os.environ.get("FARABI_EMBED_ANAHTAR", ""))
+        print(f"  reranker UZAK: {a.uzak_rerank}")
+    else:
+        reranker = CrossEncoder(rag.RERANK_MODEL, device="cpu")
+    motor = rag.RagMotoru(SentenceTransformer(rag.EMBED_MODEL, device="cpu"), reranker)
     print(f"  yüklendi ({time.perf_counter()-t0:.1f} sn)")
 
     if a.llm_atla:

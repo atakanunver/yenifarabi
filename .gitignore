@@ -13,6 +13,7 @@ client/config/api_keys.json.zip
 client/config/zil.json
 client/config/ders_programi.json
 server/config/api_keys.json
+server/config/embed.json
 
 # 2026-09-02: yukarıdaki iki satır TAM YOL olduğu için yalnızca o iki dosyayı
 # koruyordu — yan yana duran `api_keys.json.bak`, `api_keys_yeni ….txt`,
@@ -137,6 +138,7 @@ smssistemi/velitelefon/
 smssistemi/scripts/velitelefon_ice_aktar.py
 smssistemi/test_velitelefon_ice_aktar.py
 tahtayoklama/dashboard/config/ajan.json
+tahtayoklama/dashboard/config/okul.json
 
 # Orkestra (delege.sh) görev kartları ve dış ajan sonuçları — public repoya gitmez
 .ajan/

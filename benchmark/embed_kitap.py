@@ -35,7 +35,10 @@ import psycopg2
 import psycopg2.extras
 from pgvector.psycopg2 import register_vector
 from transformers import AutoTokenizer
-from sentence_transformers import SentenceTransformer
+import sys
+# 2026-10-04: gömme bilgehan GPU'sunda (server/uzak_model.py) — Farabi CPU'su RAG için kullanılmaz.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "server"))
+import uzak_model  # noqa: E402
 
 MODEL_ADI = "BAAI/bge-m3"
 CHUNK_TOKEN = 400
@@ -129,7 +132,7 @@ def main() -> int:
 
     print(f"Tokenizer + model yükleniyor ({MODEL_ADI}, CPU)…")
     tokenizer = AutoTokenizer.from_pretrained(MODEL_ADI)
-    model = SentenceTransformer(MODEL_ADI, device="cpu")
+    model = uzak_model.toplu_gomme_modeli(MODEL_ADI)
 
     # ── Chunk'lama: sayfa sırasına göre, sayfa sınırı aşılmaz ──────────────
     chunklar = []  # (sayfa_no, metin)

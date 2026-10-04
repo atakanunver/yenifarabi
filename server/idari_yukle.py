@@ -150,11 +150,11 @@ def main() -> int:
 
     import psycopg2
     from pgvector.psycopg2 import register_vector
-    from sentence_transformers import SentenceTransformer
+    import uzak_model  # 2026-10-04: gömme bilgehan GPU'sunda
     from transformers import AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_ADI)
-    model = SentenceTransformer(MODEL_ADI, device="cpu")
+    model = uzak_model.toplu_gomme_modeli(MODEL_ADI)
     ortusme = int(CHUNK_TOKEN * ORTUSME_ORANI)
     conn = psycopg2.connect(host="127.0.0.1", dbname="farabi", user="farabi")
     register_vector(conn)
