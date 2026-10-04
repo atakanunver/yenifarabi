@@ -28,6 +28,14 @@
         </a>
       </div>
       <div class="kenar-grup">
+        <span class="kenar-baslik">Yapay Zeka</span>
+        {# Open WebUI aynı sunucuda port 80'de; host'u istekten alıyoruz ki
+           farabi.local yerine IP ile açanlarda da çalışsın. #}
+        <a href="http://{{ request.url.hostname }}/" target="_blank" rel="noopener" class="ai-buton">
+          <svg class="ikon"><use href="#ik-yildiz"/></svg> Atos Yapay Zeka <svg class="ikon ikon-kucuk ikon-disa"><use href="#ik-ok-sag"/></svg>
+        </a>
+      </div>
+      <div class="kenar-grup">
         <span class="kenar-baslik">Yoklama Yönetimi</span>
         <a href="/admin/tahtalar" class="{{ 'aktif' if request.url.path.startswith('/admin/tahtalar') else '' }}">
           <svg class="ikon"><use href="#ik-monitor"/></svg> Tahtalar
@@ -74,13 +82,13 @@
       </div>
     </nav>
     <div class="kenar-alt">
-      <div class="mini-durum" id="mini-durum" title="Sunucu durumu — ayrıntı için Sistem Durumu'na git">
+      <button type="button" class="mini-durum" id="mini-durum" title="Sunucu durumunu yüklemek için tıkla">
         <svg class="ikon ikon-kucuk"><use href="#ik-termometre"/></svg>
         <span id="mini-durum-sicaklik">—</span>
         <span class="mini-durum-ayrac">·</span>
         <span class="mini-durum-nokta" id="mini-durum-nokta"></span>
-        <span id="mini-durum-servis">—</span>
-      </div>
+        <span id="mini-durum-servis">Durumu göster</span>
+      </button>
       <div class="tema-secici">
         <button type="button" data-tema="klasik" title="Açık tema"><svg class="ikon"><use href="#ik-gunes"/></svg></button>
         <button type="button" data-tema="yumusak" title="Orta tema"><svg class="ikon"><use href="#ik-bulut"/></svg></button>

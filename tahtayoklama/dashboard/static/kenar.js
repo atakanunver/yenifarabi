@@ -44,9 +44,24 @@
       NOKTA.className = 'mini-durum-nokta nokta-gri';
     });
   }
-  miniDurumGuncelle();
-  setInterval(miniDurumGuncelle, 30000);
-  document.addEventListener('visibilitychange', function () {
-    if (!document.hidden) miniDurumGuncelle();
+  // İlk açılışta sunucu durumu ÇEKİLMEZ (ana sayfa yalnızca yoklamayı
+  // yüklesin — 2026-10-03 kullanıcı isteği). Rozete tıklanınca ya da
+  // Sistem Durumu sayfasındayken başlar, sonra 30 sn'de bir yenilenir.
+  var basladi = false;
+  function baslat() {
+    if (basladi) return;
+    basladi = true;
+    document.getElementById('mini-durum').title = "Sunucu durumu — ayrıntı için Sistem Durumu'na git";
+    SERVIS_ALANI.textContent = 'yükleniyor…';
+    miniDurumGuncelle();
+    setInterval(miniDurumGuncelle, 30000);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) miniDurumGuncelle();
+    });
+  }
+  document.getElementById('mini-durum').addEventListener('click', function () {
+    if (basladi) window.location = '/sistem-durumu';
+    else baslat();
   });
+  if (window.location.pathname.indexOf('/sistem-durumu') === 0) baslat();
 })();

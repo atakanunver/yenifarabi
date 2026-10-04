@@ -188,6 +188,12 @@ body {
 }
 .kenar-nav a:hover { background: var(--renk-yuzey-2); color: var(--renk-metin); }
 .kenar-nav a.aktif { background: var(--renk-birincil-zemin); color: var(--renk-birincil-koyu); }
+.kenar-nav a.ai-buton {
+  background: var(--renk-birincil-zemin);
+  color: var(--renk-birincil-koyu);
+  border: 1px solid var(--renk-birincil-koyu);
+}
+.kenar-nav a.ai-buton:hover { filter: brightness(0.96); }
 
 .kenar-alt {
   border-top: 1px solid var(--renk-kenar);
@@ -207,7 +213,11 @@ body {
   border: 1px solid var(--renk-kenar);
   border-radius: 9px;
   padding: 0.5rem 0.65rem;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
 }
+.mini-durum:hover { color: var(--renk-metin); }
 .mini-durum-ayrac { color: var(--renk-metin-cok-soluk); }
 .mini-durum-nokta {
   width: 0.5rem;
