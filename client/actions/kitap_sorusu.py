@@ -28,7 +28,7 @@ from core.tahta import auth_headers as _auth_headers
 from core.tahta import sunucu_url as _sunucu_url
 
 ZAMAN_ASIMI_GET  = 5.0            # kitap listesi küçük, hızlı
-ZAMAN_ASIMI_POST = 10.0           # ölçüm: soru başına 1-5sn, en kötü 5,3sn görüldü — pay bırakıldı
+ZAMAN_ASIMI_POST = 35.0           # 2026-10-04: qwen3.8:27b cevabı 12-20 sn + uzak rerank ~1 sn; sunucunun LLM zaman aşımı 30 sn (rag.py) — onun biraz üstü
 
 _SINIRLI_DEVAM = (
     "KISIT: Kitap sorusu sunucusuna ulaşılamadı ya da eşleşen kitap "
