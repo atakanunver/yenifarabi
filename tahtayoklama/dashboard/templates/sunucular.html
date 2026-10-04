@@ -1,0 +1,234 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Sunucular — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Sunucular{% endblock %}
+
+{% block ust_sag %}
+<span id="son-guncelleme-durum"></span>
+<button type="button" class="sunucu-yenile" id="yenile-dugme" title="Şimdi yenile">
+  <svg class="ikon ikon-kucuk"><use href="#ik-yenile"/></svg> Yenile
+</button>
+{% endblock %}
+
+{% block icerik %}
+<p class="rapor-aciklama">Okul sunucularının donanım, servis ve proxy durumu.
+   Ölçümler 60 saniye önbelleklidir; sayfa 60 saniyede bir yenilenir. Proxy
+   açıkken makinenin apt/pip/curl/HuggingFace ve Ollama trafiği Müdür PC'nin
+   Wi-Fi'sinden çıkar; GitHub SSH tüneli her zaman açıktır. Farabi'de ders
+   saatinde (08:00–17:00) Ollama'nın yeniden başlatılması 17:05'e ertelenir.</p>
+
+<div class="sunucu-listesi" id="sunucu-listesi">
+  <p class="rapor-aciklama">Okunuyor…</p>
+</div>
+
+<h2>Özel servisler</h2>
+<div class="sunucu-listesi" id="ozel-listesi">
+  <p class="rapor-aciklama">Okunuyor…</p>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+const LISTE = document.getElementById('sunucu-listesi');
+const OZEL = document.getElementById('ozel-listesi');
+const SON = document.getElementById('son-guncelleme-durum');
+const PROXY_ETIKET = { acik: 'Proxy açık', kapali: 'Proxy kapalı', kismi: 'Proxy kısmi' };
+const PROXY_RENK = { acik: 'nokta-yesil', kapali: 'nokta-gri', kismi: 'nokta-amber' };
+let islemde = false;
+
+function el(etiket, sinif, metin) {
+  const e = document.createElement(etiket);
+  if (sinif) e.className = sinif;
+  if (metin !== undefined && metin !== null) e.textContent = metin;
+  return e;
+}
+
+function nokta(renk) { return el('span', 'mini-durum-nokta ' + renk); }
+
+function sure(sn) {
+  if (sn == null) return '—';
+  const g = Math.floor(sn / 86400), s = Math.floor((sn % 86400) / 3600), d = Math.floor((sn % 3600) / 60);
+  return g ? `${g} g ${s} sa` : (s ? `${s} sa ${d} dk` : `${d} dk`);
+}
+
+function gib(mib) { return (mib / 1024).toFixed(1) + ' GB'; }
+
+function olcum(baslik, deger, alt, durum) {
+  const k = el('div', 'sunucu-olcum' + (durum ? ' olcum-' + durum : ''));
+  k.append(el('span', 'durum-kart-baslik', baslik), el('span', 'sunucu-olcum-deger', deger));
+  if (alt) k.append(el('span', 'durum-kart-alt', alt));
+  return k;
+}
+
+function cubuk(oran) {
+  const c = el('div', 'sunucu-cubuk');
+  const i = el('span');
+  i.style.width = Math.min(100, Math.max(0, oran * 100)).toFixed(0) + '%';
+  if (oran > 0.9) i.className = 'dolu-kritik'; else if (oran > 0.75) i.className = 'dolu-uyari';
+  c.append(i);
+  return c;
+}
+
+function proxyAlani(m) {
+  const kutu = el('div', 'sunucu-proxy');
+  const p = m.proxy || {};
+  const rozet = el('span', 'sunucu-rozet');
+  rozet.append(nokta(PROXY_RENK[p.durum] || 'nokta-gri'), document.createTextNode(PROXY_ETIKET[p.durum] || 'Proxy ?'));
+  kutu.append(rozet);
+  const parcalar = [];
+  if (p.profil !== undefined) parcalar.push('sistem ' + (p.profil ? '✓' : '✗'));
+  if (p.apt !== undefined) parcalar.push('apt ' + (p.apt ? '✓' : '✗'));
+  if (p.ollama !== null && p.ollama !== undefined) parcalar.push('ollama ' + (p.ollama ? '✓' : '✗'));
+  if (parcalar.length) kutu.append(el('span', 'durum-kart-alt', parcalar.join(' · ')));
+  if (p.ollama_restart_bekliyor) kutu.append(el('span', 'sunucu-uyari-metin', 'Ollama restart 17:05\'te'));
+  if (!m.proxy_dugmesi) return kutu;
+
+  const hedef = p.durum === 'acik' ? 'kapat' : 'ac';
+  const dugme = el('button', 'sunucu-dugme', hedef === 'ac' ? 'Proxy aç' : 'Proxy kapat');
+  dugme.type = 'button';
+  dugme.disabled = islemde;
+  const onay = el('div', 'sunucu-onay gizli');
+  const soru = el('span', null, `${m.ad} için proxy ${hedef === 'ac' ? 'AÇILSIN' : 'KAPATILSIN'} mı?` +
+    (m.anahtar === 'farabi' ? ' (Ollama yeniden başlar — ders saatindeyse 17:05\'e ertelenir)' : ''));
+  const evet = el('button', 'sunucu-dugme sunucu-dugme-onay', 'Evet');
+  const vazgec = el('button', 'sunucu-dugme sunucu-dugme-ikincil', 'Vazgeç');
+  evet.type = vazgec.type = 'button';
+  onay.append(soru, evet, vazgec);
+  dugme.addEventListener('click', () => { onay.classList.remove('gizli'); dugme.classList.add('gizli'); });
+  vazgec.addEventListener('click', () => { onay.classList.add('gizli'); dugme.classList.remove('gizli'); });
+  evet.addEventListener('click', () => proxyDegistir(m, hedef, onay));
+  kutu.append(dugme, onay);
+  return kutu;
+}
+
+async function proxyDegistir(m, eylem, onay) {
+  islemde = true;
+  onay.replaceChildren(el('span', 'soluk', "Uygulanıyor… (Ollama restart'ı birkaç dakika sürebilir)"));
+  let mesaj, basarili = false;
+  try {
+    const y = await fetch(`/api/sunucular/${encodeURIComponent(m.anahtar)}/proxy`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eylem }),
+    });
+    const v = await y.json().catch(() => ({}));
+    basarili = y.ok && v.basarili;
+    mesaj = basarili ? (v.mesajlar || []).join(' ') : (v.hata || v.detail || `HTTP ${y.status}`);
+  } catch (e) {
+    mesaj = 'Sonuç alınamadı — işlem yapılmış olabilir, durumu yenileyip kontrol edin.';
+  }
+  islemde = false;
+  await yukle(true);
+  const kart = document.querySelector(`[data-makine="${m.anahtar}"] .sunucu-proxy`);
+  if (kart) kart.append(el('div', basarili ? 'sunucu-sonuc sonuc-ok' : 'sunucu-sonuc sonuc-hata', mesaj));
+}
+
+function makineKarti(m) {
+  const kart = el('section', 'sunucu-kart');
+  kart.dataset.makine = m.anahtar;
+  const ust = el('div', 'sunucu-kart-ust');
+  const ad = el('div', 'sunucu-kart-ad');
+  ad.append(nokta(m.ulasilabilir ? 'nokta-yesil' : 'nokta-kirmizi'), el('strong', null, m.ad), el('span', 'soluk', m.rol));
+  ust.append(ad);
+  kart.append(ust);
+
+  if (!m.ulasilabilir) {
+    kart.append(el('p', 'sunucu-hata', 'Ulaşılamıyor: ' + (m.hata || 'bilinmeyen hata')));
+    return kart;
+  }
+  ust.append(proxyAlani(m));
+
+  const izgara = el('div', 'sunucu-olcumler');
+  const ram = m.ram, disk = m.disk;
+  const yuk = m.load ? m.load[0] / (m.cpu_cekirdek || 1) : 0;
+  izgara.append(
+    olcum('Yük (1 dk)', m.load ? m.load[0].toFixed(2) : '—', `${m.cpu_cekirdek} çekirdek`, yuk > 1 ? 'uyari' : null),
+    olcum('RAM', `${gib(ram.kullanilan_mib)} / ${gib(ram.toplam_mib)}`,
+      ram.swap_toplam_mib ? `swap ${gib(ram.swap_kullanilan_mib)} / ${gib(ram.swap_toplam_mib)}` : 'swap yok',
+      ram.kullanilan_mib / ram.toplam_mib > 0.9 ? 'hata' : null),
+    olcum('Disk /', `%${disk.yuzde}`, `${disk.kullanilan_gib} / ${disk.toplam_gib} GB`, disk.yuzde > 90 ? 'hata' : null),
+    olcum('Çalışma', sure(m.uptime_sn), m.cpu_model || ''),
+    olcum('Saat (NTP)', m.ntp && m.ntp.senkron ? 'Senkron' : 'Senkron DEĞİL', m.ntp ? m.ntp.leap : '',
+      m.ntp && m.ntp.senkron ? null : 'hata'),
+  );
+  kart.append(izgara);
+
+  if (m.gpu && m.gpu.length) {
+    const gpular = el('div', 'sunucu-gpu-listesi');
+    for (const g of m.gpu) {
+      const satir = el('div', 'sunucu-gpu');
+      const bas = el('div', 'sunucu-gpu-ust');
+      bas.append(el('span', 'servis-adi', `GPU${g.indeks} · ${g.ad}`),
+        el('span', 'soluk', `${g.vram_kullanilan_mib} / ${g.vram_toplam_mib} MiB · ${g.sicaklik_c}°C · %${g.kullanim_yuzde}`));
+      satir.append(bas, cubuk(g.vram_kullanilan_mib / g.vram_toplam_mib));
+      gpular.append(satir);
+    }
+    kart.append(gpular);
+  }
+
+  if (m.servisler && m.servisler.length) {
+    const sl = el('div', 'sunucu-servisler');
+    for (const s of m.servisler) {
+      const r = el('span', 'sunucu-servis');
+      r.append(nokta(s.durum === 'active' ? 'nokta-yesil' : 'nokta-kirmizi'), document.createTextNode(s.ad));
+      if (s.durum !== 'active') r.append(el('span', 'soluk', ' ' + s.durum));
+      sl.append(r);
+    }
+    kart.append(sl);
+  }
+  return kart;
+}
+
+function chatterboxKarti(c) {
+  const kart = el('section', 'sunucu-kart');
+  const ust = el('div', 'sunucu-kart-ust');
+  const ad = el('div', 'sunucu-kart-ad');
+  const saglikli = c.ulasilabilir && c.model_yuklu && !c.son_hata;
+  ad.append(nokta(!c.ulasilabilir ? 'nokta-kirmizi' : (saglikli ? 'nokta-yesil' : 'nokta-amber')),
+    el('strong', null, 'Chatterbox TTS'), el('span', 'soluk', 'debian :5002 — EBYS + zil anonsları'));
+  ust.append(ad);
+  kart.append(ust);
+  if (!c.ulasilabilir) {
+    kart.append(el('p', 'sunucu-hata', 'Ulaşılamıyor: ' + (c.hata || '')));
+    return kart;
+  }
+  const s = c.sayaclar || {};
+  const izgara = el('div', 'sunucu-olcumler');
+  izgara.append(
+    olcum('Model', c.model_yuklu ? 'Yüklü' : 'YÜKLÜ DEĞİL', `ses: ${c.referans_ses}`, c.model_yuklu ? null : 'hata'),
+    olcum('Çalışma', sure(c.calisma_suresi_sn), `yanıt ${c.ms} ms`),
+    olcum('Üretim', String(s.uretim ?? 0), `${s.istek ?? 0} istek · ${s.onbellek_hit ?? 0} önbellekten`),
+    olcum('Ort. süre', c.ort_uretim_sn != null ? c.ort_uretim_sn + ' sn' : '—',
+      c.ort_rtf != null ? `RTF ${c.ort_rtf} (son ${c.son_uretim_sayisi})` : 'henüz üretim yok'),
+    olcum('Kuyruk kesilen', String(s.kuyruk_kesilen ?? 0), c.kuyruk_temizleme ? 'boğulma temizliği açık' : 'temizlik KAPALI',
+      c.kuyruk_temizleme ? null : 'uyari'),
+    olcum('Hata', String(s.hata ?? 0), c.son_hata ? 'son: ' + c.son_hata : 'hata yok', s.hata ? 'hata' : null),
+  );
+  kart.append(izgara);
+  if (c.gpu) {
+    const g = c.gpu;
+    const satir = el('div', 'sunucu-gpu');
+    const bas = el('div', 'sunucu-gpu-ust');
+    bas.append(el('span', 'servis-adi', g.ad), el('span', 'soluk', `${g.vram_kullanilan_mib} / ${g.vram_toplam_mib} MiB (süreç görünümü)`));
+    satir.append(bas, cubuk(g.vram_kullanilan_mib / g.vram_toplam_mib));
+    kart.append(satir);
+  }
+  return kart;
+}
+
+async function yukle(yenile) {
+  if (islemde) return;
+  try {
+    const y = await fetch('/api/sunucular' + (yenile ? '?yenile=1' : ''));
+    if (y.status === 401) { window.location = '/giris'; return; }
+    const v = await y.json();
+    LISTE.replaceChildren(...v.makineler.map(makineKarti));
+    OZEL.replaceChildren(chatterboxKarti(v.chatterbox));
+    SON.textContent = 'Ölçüm: ' + new Date(v.zaman).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul' });
+  } catch (e) {
+    SON.textContent = 'Okunamadı';
+  }
+}
+
+document.getElementById('yenile-dugme').addEventListener('click', () => yukle(true));
+yukle(false);
+setInterval(() => { if (!document.hidden) yukle(false); }, 60000);
+</script>
+{% endblock %}

@@ -1,0 +1,10 @@
+#!/bin/sh
+# authorized_keys command= hedefi: Farabi dashboard'unun sunucu_izleme anahtari
+# yalnizca bu uc alt komutu calistirabilir (bkz. okul-sunucu).
+case "$SSH_ORIGINAL_COMMAND" in
+    durum|proxy-ac|proxy-kapat)
+        exec sudo -n /usr/local/sbin/okul-sunucu "$SSH_ORIGINAL_COMMAND" ;;
+    *)
+        echo '{"hata":"izin verilmeyen komut"}'
+        exit 1 ;;
+esac

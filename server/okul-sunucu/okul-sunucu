@@ -1,0 +1,297 @@
+#!/usr/bin/python3
+"""okul-sunucu — okul sunucularının durum raporu + Müdür PC proxy anahtarı.
+
+Kurulum yeri: /usr/local/sbin/okul-sunucu (root:root 755). Root ile çalışır
+(dashboard sudoers'taki tek-komut kuralıyla `sudo -n` çağırır).
+
+  okul-sunucu durum        → JSON durum raporu (salt okunur)
+  okul-sunucu proxy-ac     → sistem geneli proxy (profile.d + apt + varsa Ollama)
+  okul-sunucu proxy-kapat  → bunları geri alır
+
+Proxy URL'si (parolalı) KODDA DEĞİL: /etc/okul-sunucu.conf (root:root 600)
+içinde `PROXY_URL=...` satırı. Bu dosyanın kaynağı public repoda durduğu için
+parola buraya asla yazılmamalı.
+
+GitHub SSH ProxyCommand (~/.ssh/config) bu betiğin kapsamı DIŞINDA — o tünel
+her zaman açık kalır (kapanırsa okul LAN'ından git hiç çalışmaz).
+
+Ollama: proxy.conf değişirse Ollama'nın yeniden başlaması gerekir (model
+VRAM'dan düşer). 08:00–17:00 (Europe/Istanbul) arasında restart YAPILMAZ,
+bugün 17:05'e tek seferlik bir systemd timer'ı ile ertelenir.
+"""
+
+import datetime
+import json
+import os
+import shutil
+import socket
+import subprocess
+import sys
+import zoneinfo
+
+KONF = "/etc/okul-sunucu.conf"
+PROFIL = "/etc/profile.d/okul-proxy.sh"
+APT = "/etc/apt/apt.conf.d/95okul-proxy"
+OLLAMA_DROPIN = "/etc/systemd/system/ollama.service.d/proxy.conf"
+ERTELEME_BIRIMI = "okul-proxy-ollama-restart"
+NO_PROXY = "localhost,127.0.0.1,192.168.0.0/16,.local"
+TZ = zoneinfo.ZoneInfo("Europe/Istanbul")
+DERS_BASLANGIC, DERS_BITIS = datetime.time(8, 0), datetime.time(17, 0)
+ERTELEME_SAATI = "17:05:00"
+
+# Makineye göre izlenen servisler (hostname → birim listesi). Listede olmayan
+# makinede yalnızca ssh. "ollama" kurulu değilse raporda atlanır.
+SERVISLER = {
+    "farabi": ["ollama", "farabi-api", "open-webui", "postgresql@18-main",
+               "farabi-yoklama-dashboard", "chrony"],
+    "debian": ["chatterbox-tts", "ollama", "ssh"],
+    "bilgehan": ["ssh", "nvidia-persistenced", "ollama", "chrony"],
+}
+
+
+def _calistir(*args: str, zaman_asimi: float = 10) -> tuple[int, str]:
+    try:
+        p = subprocess.run(args, capture_output=True, text=True, timeout=zaman_asimi, check=False)
+        return p.returncode, p.stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return -1, ""
+
+
+def _proxy_url() -> str:
+    try:
+        with open(KONF, encoding="utf-8") as f:
+            for satir in f:
+                satir = satir.strip()
+                if satir.startswith("PROXY_URL="):
+                    return satir.split("=", 1)[1].strip().strip('"')
+    except OSError:
+        pass
+    raise SystemExit(f"HATA: {KONF} içinde PROXY_URL yok")
+
+
+def _birim_var(birim: str) -> bool:
+    # list-unit-files şablon örneklerini (postgresql@18-main) göstermiyor.
+    _, cikti = _calistir("systemctl", "show", "-p", "LoadState", "--value", f"{birim}.service")
+    return cikti.strip() not in ("", "not-found")
+
+
+def _ders_saati(simdi: datetime.datetime | None = None) -> bool:
+    simdi = simdi or datetime.datetime.now(TZ)
+    return simdi.weekday() < 5 and DERS_BASLANGIC <= simdi.time() < DERS_BITIS
+
+
+def _erteleme_bekliyor() -> bool:
+    kod, _ = _calistir("systemctl", "is-active", "--quiet", f"{ERTELEME_BIRIMI}.timer")
+    return kod == 0
+
+
+# ---------------------------------------------------------------- durum
+
+def _bellek() -> dict:
+    d = {}
+    with open("/proc/meminfo") as f:
+        for satir in f:
+            ad, deger = satir.split(":", 1)
+            d[ad] = int(deger.split()[0]) // 1024  # MiB
+    return {
+        "toplam_mib": d["MemTotal"],
+        "kullanilan_mib": d["MemTotal"] - d["MemAvailable"],
+        "swap_toplam_mib": d["SwapTotal"],
+        "swap_kullanilan_mib": d["SwapTotal"] - d["SwapFree"],
+    }
+
+
+def _cpu_model() -> str | None:
+    try:
+        with open("/proc/cpuinfo") as f:
+            for satir in f:
+                if satir.startswith("model name"):
+                    return satir.split(":", 1)[1].strip()
+    except OSError:
+        pass
+    return None
+
+
+def _gpular() -> list[dict]:
+    if not shutil.which("nvidia-smi"):
+        return []
+    kod, cikti = _calistir(
+        "nvidia-smi",
+        "--query-gpu=index,name,memory.used,memory.total,temperature.gpu,utilization.gpu",
+        "--format=csv,noheader,nounits",
+    )
+    if kod != 0:
+        return []
+    gpular = []
+    for satir in cikti.strip().splitlines():
+        p = [x.strip() for x in satir.split(",")]
+        if len(p) < 6:
+            continue
+
+        def sayi(x):
+            try:
+                return int(float(x))
+            except ValueError:
+                return None
+
+        gpular.append({"indeks": sayi(p[0]), "ad": p[1], "vram_kullanilan_mib": sayi(p[2]),
+                       "vram_toplam_mib": sayi(p[3]), "sicaklik_c": sayi(p[4]),
+                       "kullanim_yuzde": sayi(p[5])})
+    return gpular
+
+
+def _ntp() -> dict:
+    kod, cikti = _calistir("chronyc", "tracking")
+    leap = None
+    for satir in cikti.splitlines():
+        if satir.startswith("Leap status"):
+            leap = satir.split(":", 1)[1].strip()
+    return {"senkron": leap == "Normal", "leap": leap}
+
+
+def _servisler(makine: str) -> list[dict]:
+    sonuc = []
+    for birim in SERVISLER.get(makine, ["ssh"]):
+        if not _birim_var(birim):
+            continue
+        _, durum = _calistir("systemctl", "is-active", f"{birim}.service")
+        sonuc.append({"ad": birim, "durum": durum.strip() or "bilinmiyor"})
+    return sonuc
+
+
+def _proxy_durumu() -> dict:
+    ollama_var = _birim_var("ollama")
+    parcalar = {
+        "profil": os.path.exists(PROFIL),
+        "apt": os.path.exists(APT),
+        "ollama": os.path.exists(OLLAMA_DROPIN) if ollama_var else None,
+    }
+    acik = [v for v in parcalar.values() if v is not None]
+    genel = "acik" if all(acik) else ("kapali" if not any(acik) else "kismi")
+    return {"durum": genel, **parcalar, "ollama_restart_bekliyor": _erteleme_bekliyor()}
+
+
+def durum() -> dict:
+    makine = socket.gethostname()
+    with open("/proc/uptime") as f:
+        uptime = float(f.read().split()[0])
+    disk = shutil.disk_usage("/")
+    return {
+        "makine": makine,
+        "zaman": datetime.datetime.now(TZ).isoformat(timespec="seconds"),
+        "uptime_sn": int(uptime),
+        "load": list(os.getloadavg()),
+        "cpu_cekirdek": os.cpu_count(),
+        "cpu_model": _cpu_model(),
+        "ram": _bellek(),
+        "disk": {"toplam_gib": round(disk.total / 2**30, 1), "kullanilan_gib": round(disk.used / 2**30, 1),
+                 "yuzde": round(disk.used / disk.total * 100, 1)},
+        "gpu": _gpular(),
+        "ntp": _ntp(),
+        "servisler": _servisler(makine),
+        "proxy": _proxy_durumu(),
+    }
+
+
+# ---------------------------------------------------------------- proxy
+
+def _yaz(yol: str, icerik: str) -> bool:
+    """Dosyayı yazar; içerik zaten aynıysa dokunmaz. Değişti mi döner."""
+    try:
+        with open(yol, encoding="utf-8") as f:
+            if f.read() == icerik:
+                return False
+    except OSError:
+        pass
+    os.makedirs(os.path.dirname(yol), exist_ok=True)
+    gecici = yol + ".tmp"
+    with open(gecici, "w", encoding="utf-8") as f:
+        f.write(icerik)
+    os.chmod(gecici, 0o644 if yol != OLLAMA_DROPIN else 0o600)
+    os.replace(gecici, yol)
+    return True
+
+
+def _sil(yol: str) -> bool:
+    try:
+        os.remove(yol)
+        return True
+    except FileNotFoundError:
+        return False
+
+
+def _ollama_yeniden_baslat(mesajlar: list[str]) -> None:
+    _calistir("systemctl", "daemon-reload")
+    if _ders_saati():
+        if _erteleme_bekliyor():
+            mesajlar.append("Ollama restart'ı zaten 17:05'e ertelenmiş.")
+            return
+        bugun = datetime.datetime.now(TZ).date().isoformat()
+        kod, _ = _calistir(
+            "systemd-run", f"--unit={ERTELEME_BIRIMI}",
+            f"--on-calendar={bugun} {ERTELEME_SAATI} Europe/Istanbul",
+            "--timer-property=RemainAfterElapse=no",
+            "/bin/systemctl", "restart", "ollama.service",
+        )
+        mesajlar.append("Ders saati: Ollama restart'ı 17:05'e ertelendi."
+                        if kod == 0 else "UYARI: Ollama restart ertelenemedi.")
+        return
+    kod, _ = _calistir("systemctl", "restart", "ollama.service", zaman_asimi=200)
+    mesajlar.append("Ollama yeniden başlatıldı." if kod == 0 else "UYARI: Ollama restart başarısız.")
+
+
+def proxy_ac() -> list[str]:
+    url = _proxy_url()
+    mesajlar = []
+    profil = "".join(f'export {ad}="{url}"\n' for ad in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY"))
+    profil += f'export no_proxy="{NO_PROXY}"\nexport NO_PROXY="{NO_PROXY}"\n'
+    _yaz(PROFIL, "# okul-sunucu tarafından yönetilir — elle düzenlemeyin\n" + profil)
+    _yaz(APT, f'Acquire::http::Proxy "{url}";\nAcquire::https::Proxy "{url}";\n')
+    mesajlar.append("Sistem geneli proxy (profile.d + apt) AÇIK.")
+    if _birim_var("ollama"):
+        icerik = ("[Service]\n"
+                  f'Environment="HTTP_PROXY={url}"\n'
+                  f'Environment="HTTPS_PROXY={url}"\n'
+                  'Environment="NO_PROXY=localhost,127.0.0.1"\n')
+        if _yaz(OLLAMA_DROPIN, icerik):
+            _ollama_yeniden_baslat(mesajlar)
+        else:
+            mesajlar.append("Ollama proxy'si zaten açıktı, restart gerekmedi.")
+    return mesajlar
+
+
+def proxy_kapat() -> list[str]:
+    mesajlar = []
+    _sil(PROFIL)
+    _sil(APT)
+    mesajlar.append("Sistem geneli proxy (profile.d + apt) KAPALI.")
+    if _birim_var("ollama"):
+        if _sil(OLLAMA_DROPIN):
+            _ollama_yeniden_baslat(mesajlar)
+        else:
+            mesajlar.append("Ollama proxy'si zaten kapalıydı.")
+    return mesajlar
+
+
+def main(argv: list[str]) -> int:
+    komut = argv[1] if len(argv) > 1 else "durum"
+    if komut not in ("durum", "proxy-ac", "proxy-kapat"):
+        print(json.dumps({"hata": f"bilinmeyen komut: {komut}"}))
+        return 2
+    if os.geteuid() != 0:
+        print(json.dumps({"hata": "root gerekli (sudo -n /usr/local/sbin/okul-sunucu)"}))
+        return 1
+    mesajlar = []
+    if komut == "proxy-ac":
+        mesajlar = proxy_ac()
+    elif komut == "proxy-kapat":
+        mesajlar = proxy_kapat()
+    sonuc = durum()
+    if mesajlar:
+        sonuc["mesajlar"] = mesajlar
+    print(json.dumps(sonuc, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

@@ -1,0 +1,2 @@
+# okul-sunucu: dashboard'un durum/proxy anahtari (tek komut, NOPASSWD)
+ata ALL=(root) NOPASSWD: /usr/local/sbin/okul-sunucu

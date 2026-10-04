@@ -23,6 +23,7 @@ import db
 import ders_programi
 import sistem_durumu
 import ssh_istemci
+import sunucular
 import uzaktan_baslat
 import uzaktan_yonetim
 import yoklayici
@@ -88,6 +89,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(admin.router)
 app.include_router(uzaktan_yonetim.router)
 app.include_router(ajan_api.router)
+app.include_router(sunucular.router)
 
 
 @app.get("/giris", response_class=HTMLResponse)

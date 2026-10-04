@@ -991,3 +991,64 @@ main form > button[type=submit]:disabled { background: var(--renk-gri-zemin); co
   .rag-satir { grid-template-columns: 7.5rem 1fr 4.5rem; gap: 0.5rem; }
   .iki-sutun { grid-template-columns: 1fr; }
 }
+
+/* ---------- Sunucular sayfası (2026-10-04) ---------- */
+.sunucu-listesi { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1rem; margin-bottom: 1.75rem; }
+.sunucu-kart {
+  background: var(--renk-yuzey);
+  border: 1px solid var(--renk-kenar);
+  border-radius: var(--yaricap-buyuk);
+  padding: 1rem 1.15rem;
+  box-shadow: var(--renk-golge);
+  display: flex; flex-direction: column; gap: 0.85rem; min-width: 0;
+}
+.sunucu-kart-ust { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap; }
+.sunucu-kart-ad { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.sunucu-kart-ad strong { font-size: 1.05rem; }
+.sunucu-kart-ad .soluk { font-size: 0.8rem; }
+.sunucu-proxy { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; text-align: right; }
+.sunucu-rozet {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: var(--renk-yuzey-2); border: 1px solid var(--renk-kenar);
+  border-radius: 999px; padding: 0.2rem 0.65rem; font-size: 0.78rem; font-weight: 700;
+}
+.sunucu-uyari-metin { font-size: 0.75rem; color: var(--renk-amber); font-weight: 700; }
+.sunucu-dugme, .sunucu-yenile {
+  background: var(--renk-birincil); color: #fff; border: 0; border-radius: var(--yaricap);
+  padding: 0.4rem 0.8rem; font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 0.35rem;
+}
+.sunucu-dugme:hover, .sunucu-yenile:hover { background: var(--renk-birincil-koyu); }
+.sunucu-dugme:disabled { opacity: 0.5; cursor: wait; }
+.sunucu-dugme-onay { background: var(--renk-kirmizi); }
+.sunucu-dugme-ikincil { background: var(--renk-gri-zemin); color: var(--renk-metin); }
+.sunucu-onay { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.4rem; font-size: 0.8rem; max-width: 22rem; }
+.sunucu-sonuc { font-size: 0.78rem; padding: 0.35rem 0.55rem; border-radius: var(--yaricap); max-width: 22rem; }
+.sonuc-ok { background: var(--renk-yesil-zemin); color: var(--renk-yesil); }
+.sonuc-hata { background: var(--renk-kirmizi-zemin); color: var(--renk-kirmizi); }
+.sunucu-hata { color: var(--renk-kirmizi); font-size: 0.85rem; margin: 0; }
+.sunucu-olcumler { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.5rem; }
+.sunucu-olcum {
+  display: flex; flex-direction: column; gap: 0.15rem; min-width: 0;
+  background: var(--renk-yuzey-2); border-radius: var(--yaricap); padding: 0.5rem 0.65rem;
+  border-left: 3px solid transparent;
+}
+.sunucu-olcum.olcum-uyari { border-left-color: var(--renk-amber); }
+.sunucu-olcum.olcum-hata { border-left-color: var(--renk-kirmizi); }
+.sunucu-olcum-deger { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em; }
+.sunucu-olcum .durum-kart-alt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sunucu-gpu-listesi { display: flex; flex-direction: column; gap: 0.55rem; }
+.sunucu-gpu-ust { display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; font-size: 0.8rem; margin-bottom: 0.25rem; }
+.sunucu-cubuk { height: 0.45rem; background: var(--renk-gri-zemin); border-radius: 999px; overflow: hidden; }
+.sunucu-cubuk span { display: block; height: 100%; background: var(--renk-birincil); }
+.sunucu-cubuk span.dolu-uyari { background: var(--renk-amber); }
+.sunucu-cubuk span.dolu-kritik { background: var(--renk-kirmizi); }
+.sunucu-servisler { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.sunucu-servis {
+  display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.78rem;
+  background: var(--renk-yuzey-2); border: 1px solid var(--renk-kenar); border-radius: 999px; padding: 0.15rem 0.6rem;
+}
+@media (max-width: 480px) {
+  .sunucu-listesi { grid-template-columns: 1fr; }
+  .sunucu-proxy { align-items: flex-start; text-align: left; }
+}
