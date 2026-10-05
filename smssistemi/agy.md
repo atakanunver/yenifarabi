@@ -1,0 +1,1 @@
+/home/ata/farabi/agy.md

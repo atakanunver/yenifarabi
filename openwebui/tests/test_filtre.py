@@ -16,8 +16,19 @@ def _govde(icerik="mol nedir", sistem=None):
     return {"model": "farabi-kimya", "messages": m}
 
 
+ZAMAN = "Şu an (Türkiye saati): 5 Ekim 2026 Pazartesi, saat 08:20 — 1. ders saati."
+
+
+def _yalniz_zaman(g, orijinal):
+    """Arama sonucu eklenmediğinde gövdede yalnızca zaman satırı olmalı."""
+    assert g["messages"][0] == {"role": "system", "content": ZAMAN}
+    assert g["messages"][1:] == orijinal
+    return True
+
+
 def _filtre(sonuc=OK, gecikme=0.0, cagrilar=None):
     f = ff.Filter()
+    f._zaman = lambda: ZAMAN
 
     def _sahte_ara(kapsam, soru):
         if cagrilar is not None:
@@ -53,15 +64,16 @@ def test_zayif_sonucta_genel_bilgi_notu():
 
 def test_hata_sonucunda_mesajlar_degismez():
     g = _calistir(_filtre({"durum": "hata", "parcalar": []}), _govde())
-    assert g["messages"] == _govde()["messages"]
+    assert _yalniz_zaman(g, _govde()["messages"])
 
 
 def test_api_ulasilamazsa_govde_degismez():
     f = ff.Filter()
     f.valves.api_url = "http://127.0.0.1:9/api/webui/ara"   # kapalı port
     f.valves.zaman_asimi_sn = 1.0
+    f._zaman = lambda: ZAMAN
     g = _calistir(f, _govde())
-    assert g["messages"] == _govde()["messages"]
+    assert _yalniz_zaman(g, _govde()["messages"])
 
 
 def test_gorev_isteginde_arama_yapilmaz():
@@ -136,13 +148,13 @@ def test_eszamanli_iki_istek_birbirini_beklemez():
 
 def test_api_liste_dondururse_govde_degismez():
     g = _calistir(_filtre(["x"]), _govde())
-    assert g["messages"] == _govde()["messages"]
+    assert _yalniz_zaman(g, _govde()["messages"])
 
 
 def test_bozuk_parcalar_hata_firlatmaz():
     sonuc = {"durum": "ok", "parcalar": [{"kaynak": "K"}, {"metin": None}, "bozuk"]}
     g = _calistir(_filtre(sonuc), _govde())
-    assert g["messages"] == _govde()["messages"]
+    assert _yalniz_zaman(g, _govde()["messages"])
     karisik = {"durum": "ok", "parcalar": ["bozuk", {"kaynak": "K1", "metin": "iyi"}]}
     g = _calistir(_filtre(karisik), _govde())
     assert "[1] K1" in g["messages"][0]["content"]
@@ -186,3 +198,55 @@ def test_ara_proxy_kullanmaz(monkeypatch):
     monkeypatch.setattr(urllib.request, "build_opener", build_opener)
     assert ff.Filter()._ara("kimya", "x") == {"durum": "ok", "parcalar": []}
     assert gorulen["proxies"] == [{}] and gorulen["acici"]
+
+
+# --- 2026-10-04: tarih/saat + kaynak önceliği -----------------------------
+
+def test_zaman_satiri_kaynaktan_once_tek_sistem_mesaji():
+    g = _calistir(_filtre(), _govde(sistem="Sen Farabi'sin."))
+    sistem = [m for m in g["messages"] if m["role"] == "system"]
+    assert len(sistem) == 1
+    icerik = sistem[0]["content"]
+    assert icerik.startswith("Sen Farabi'sin.")
+    assert icerik.index(ZAMAN) < icerik.index("Kimya 10, s. 84")
+
+
+def test_kapsamsiz_modda_da_zaman_eklenir():
+    c = []
+    g = _calistir(_filtre(cagrilar=c), _govde(), model=ALMANCA)
+    assert c == [] and ZAMAN in g["messages"][0]["content"]
+
+
+def test_gorev_isteginde_zaman_eklenmez():
+    g = _calistir(_filtre(), _govde(), meta={"task": "title_generation"})
+    assert g["messages"] == _govde()["messages"]
+
+
+def test_zaman_api_ulasilamazsa_yerel_saat():
+    f = ff.Filter()
+    f.valves.okul_url = "http://127.0.0.1:9/api/okul"   # kapalı port
+    metin = f._zaman()
+    assert metin.startswith("Şu an (Türkiye saati): ") and "saat " in metin
+    assert any(g in metin for g in ff.GUNLER) and any(a in metin for a in ff.AYLAR)
+
+
+def test_yerel_zaman_metni_turkce():
+    from datetime import datetime
+    an = datetime(2026, 10, 4, 21, 5, tzinfo=ff.ISTANBUL)
+    assert ff.yerel_zaman_metni(an) == "Şu an (Türkiye saati): 4 Ekim 2026 Pazar, saat 21:05."
+
+
+def test_giris_kaynak_onceligi_ve_uydurma_yasagi():
+    assert "belgelerde bulamadım" in ff.GIRIS
+    assert "uydurma" in ff.GIRIS.lower()
+    assert "önce" in ff.GIRIS.lower()
+
+
+def test_zaman_hatasi_sohbeti_bozmaz():
+    f = _filtre()
+
+    def patla():
+        raise RuntimeError("x")
+    f._zaman = patla
+    g = _calistir(f, _govde())
+    assert "Kimya 10, s. 84" in g["messages"][0]["content"]

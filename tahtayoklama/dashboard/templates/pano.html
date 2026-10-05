@@ -13,13 +13,50 @@
 {% endblock %}
 
 {% block icerik %}
+<!-- Özet İstatistik Kartları -->
+<div class="pano-ozet" id="pano-ozet">
+  <div class="pano-ozet-kart">
+    <div class="pano-ozet-ikon ozet-ikon-sinif"><svg class="ikon"><use href="#ik-kullanicilar"/></svg></div>
+    <div class="pano-ozet-bilgi">
+      <span class="pano-ozet-baslik">Aktif Sınıflar</span>
+      <span class="pano-ozet-sayi" id="ozet-toplam-sinif">{{ siniflar|length }}</span>
+    </div>
+  </div>
+  <div class="pano-ozet-kart">
+    <div class="pano-ozet-ikon ozet-ikon-tam"><svg class="ikon"><use href="#ik-onay"/></svg></div>
+    <div class="pano-ozet-bilgi">
+      <span class="pano-ozet-baslik">Eksiksiz Dersler</span>
+      <span class="pano-ozet-sayi" id="ozet-tam-ders">—</span>
+    </div>
+  </div>
+  <div class="pano-ozet-kart">
+    <div class="pano-ozet-ikon ozet-ikon-yok"><svg class="ikon"><use href="#ik-kapat"/></svg></div>
+    <div class="pano-ozet-bilgi">
+      <span class="pano-ozet-baslik">Devamsız / İzinli</span>
+      <span class="pano-ozet-sayi" id="ozet-yok-ders">—</span>
+    </div>
+  </div>
+  <div class="pano-ozet-kart">
+    <div class="pano-ozet-ikon ozet-ikon-alinmadi"><svg class="ikon"><use href="#ik-kaydirici"/></svg></div>
+    <div class="pano-ozet-bilgi">
+      <span class="pano-ozet-baslik">Bekleyen Yoklama</span>
+      <span class="pano-ozet-sayi" id="ozet-bekleyen-ders">—</span>
+    </div>
+  </div>
+</div>
+
 <div class="tablo-sarici">
   <table id="pano-tablo">
     <thead>
       <tr>
-        <th>Sınıf</th>
+        <th class="sinif-baslik">Sınıf</th>
         {% for ders in ders_saatleri %}
-        <th>{{ ders.no }}. ders<br><span class="saat">{{ ders.baslangic }}</span></th>
+        <th class="th-ders" data-ders-no="{{ ders.no }}" data-baslangic="{{ ders.baslangic }}" data-bitis="{{ ders.bitis }}">
+          <div class="th-ders-ic">
+            <span class="ders-no">{{ ders.no }}. ders</span>
+            <span class="saat">{{ ders.baslangic }}</span>
+          </div>
+        </th>
         {% endfor %}
       </tr>
     </thead>
@@ -112,6 +149,32 @@ function hucreDoldur(hucre, satir) {
   hucre.onclick = tiklanabilir ? () => uzaktanBaslat(hucre) : null;
 }
 
+function aktifDersiGuncelle() {
+  const bugunTarih = TARIH_SECICI.max;
+  const secilenTarih = TARIH_SECICI.value;
+  const bugunMu = (!secilenTarih || secilenTarih === bugunTarih);
+  const simdi = new Date();
+  const simdikiSaat = String(simdi.getHours()).padStart(2, '0') + ':' + String(simdi.getMinutes()).padStart(2, '0');
+
+  document.querySelectorAll('.th-ders').forEach(th => {
+    const bas = th.dataset.baslangic;
+    const bit = th.dataset.bitis;
+    const aktifMi = bugunMu && bas && bit && (simdikiSaat >= bas && simdikiSaat <= bit);
+    th.classList.toggle('aktif-ders-sutun', aktifMi);
+    let rozet = th.querySelector('.aktif-ders-rozet');
+    if (aktifMi) {
+      if (!rozet) {
+        rozet = document.createElement('span');
+        rozet.className = 'aktif-ders-rozet';
+        rozet.textContent = 'Şu an';
+        th.querySelector('.th-ders-ic')?.appendChild(rozet);
+      }
+    } else if (rozet) {
+      rozet.remove();
+    }
+  });
+}
+
 async function tabloyuGuncelle() {
   if (document.hidden) return;
   const tarih = TARIH_SECICI.value;
@@ -119,10 +182,40 @@ async function tabloyuGuncelle() {
   if (!yanit.ok) { toastGoster('Durum alınamadı.', true); return; }
   const veri = await yanit.json();
   const bulunanlar = new Set();
+  let tamSayac = 0;
+  let yokSayac = 0;
+  let bekleyenSayac = 0;
+
   for (const satir of veri.satirlar) {
     const hucre = document.getElementById(`hucre-${satir.sinif}-${satir.ders_no}`);
-    if (hucre) { hucreDoldur(hucre, satir); bulunanlar.add(hucre.id); }
+    if (hucre) {
+      hucreDoldur(hucre, satir);
+      bulunanlar.add(hucre.id);
+
+      let yokIsimleri = [];
+      let izinliIsimleri = [];
+      try { yokIsimleri = JSON.parse(satir.yok_isimleri || '[]'); } catch (e) {}
+      try { izinliIsimleri = JSON.parse(satir.izinli_isimleri || '[]'); } catch (e) {}
+
+      if (satir.durum === 'alindi') {
+        if (yokIsimleri.length > 0 || izinliIsimleri.length > 0) {
+          yokSayac++;
+        } else {
+          tamSayac++;
+        }
+      } else if (satir.durum === 'alinmadi') {
+        bekleyenSayac++;
+      }
+    }
   }
+
+  const elTam = document.getElementById('ozet-tam-ders');
+  if (elTam) elTam.textContent = tamSayac;
+  const elYok = document.getElementById('ozet-yok-ders');
+  if (elYok) elYok.textContent = yokSayac;
+  const elBekleyen = document.getElementById('ozet-bekleyen-ders');
+  if (elBekleyen) elBekleyen.textContent = bekleyenSayac;
+
   document.querySelectorAll('.hucre').forEach(h => {
     if (!bulunanlar.has(h.id) && h.classList.contains('durum-yukleniyor')) {
       h.classList.remove('durum-yukleniyor');
@@ -130,6 +223,7 @@ async function tabloyuGuncelle() {
     }
   });
   SON_GUNCELLEME.textContent = 'Son güncelleme: ' + new Date().toLocaleTimeString('tr-TR');
+  aktifDersiGuncelle();
 }
 
 SIMDI_YENILE.addEventListener('click', async () => {
@@ -180,6 +274,7 @@ TARIH_SECICI.addEventListener('change', () => {
 
 tabloyuGuncelle();
 YENILEME_ZAMANLAYICI = setInterval(tabloyuGuncelle, 60000);
+setInterval(aktifDersiGuncelle, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) tabloyuGuncelle(); });
 </script>
 {% endblock %}

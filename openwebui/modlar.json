@@ -1,5 +1,5 @@
 [
-  {"id": "farabi", "ad": "Farabi", "aciklama": "Genel asistan — tüm ders kitaplarından kaynak gösterir.", "kapsam": "genel", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "genel.md"},
+  {"id": "farabi", "ad": "Farabi", "aciklama": "Genel asistan — ders kitapları ve okul mevzuatından kaynak gösterir; ders programına bakar.", "kapsam": "genel", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "genel.md"},
   {"id": "farabi-derin", "ad": "Farabi – Derin Düşünme", "aciklama": "Daha yavaş, daha dikkatli: uzun plan ve zor problemler için.", "kapsam": "genel", "think": true, "gruplar": ["Öğretmenler", "İdare"], "ek": "derin.md"},
   {"id": "farabi-kimya", "ad": "Kimya Öğretmeni", "aciklama": "Kimya 9-10-11 kitaplarına dayanır.", "kapsam": "kimya", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "kimya.md"},
   {"id": "farabi-fizik", "ad": "Fizik Öğretmeni", "aciklama": "Fizik 9-10-11 kitaplarına dayanır.", "kapsam": "fizik", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "fizik.md"},

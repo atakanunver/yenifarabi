@@ -1,0 +1,240 @@
+/* =====================================================================
+   Farabi teması — Open WebUI (farabi.local:80) için özel CSS
+   ---------------------------------------------------------------------
+   KAYNAK DOSYA BU: /home/ata/farabi/webui-tema/custom.css
+   Kurulum: /home/ata/farabi/webui-tema/kur.sh  (ayrıntı README.md)
+
+   Yaklaşım: Open WebUI Tailwind v4 kullanıyor; renkler @layer içinde
+   CSS değişkeni. Bu dosya katmansız olduğu için değişkenleri ezer →
+   gri skalayı lacivert tonuna çevirmek tüm arayüzü yeniden boyar.
+   Doğrudan kurallar sadece kararlı id'lere (#sidebar, #auth-page,
+   #chat-input-container ...) yazılır; svelte-xxxx sınıflarına asla.
+   ⚠️ Tailwind'in !important yardımcılarını (örn. !bg-gray-50) normal
+   kural yenemez — o yüzden zemin tonları background-color yerine
+   background-image ile bindirilir.
+   Dış font/@import YOK: okul ağı filtreli, Google Fonts'a erişim yok.
+   ===================================================================== */
+
+/* ---------- 1. Renk belirteçleri ---------- */
+:root {
+  /* Farabi paleti — yoklama panosundaki (pano.css) birincil renkle uyumlu */
+  --farabi-lacivert: #1f2a6b;
+  --farabi-cini: #4f5eff;          /* pano.css --renk-birincil */
+  --farabi-cini-koyu: #3c48d6;     /* pano.css --renk-birincil-koyu */
+  --farabi-altin: #c69a3c;
+  --farabi-altin-acik: #e6c77a;
+  --farabi-parsomen: #fbf8f1;
+  --farabi-murekkep: #1c2233;
+  --farabi-halka: 0 0 0 3px rgba(79, 94, 255, 0.18);
+
+  /* Gri skala → hafif lacivert tonlu (hue 270). Açık modda yüzeyler,
+     koyu modda gece mavisi zemin olur. */
+  --color-gray-50: oklch(97.9% 0.006 270);
+  --color-gray-100: oklch(95.2% 0.009 270);
+  --color-gray-200: oklch(91.6% 0.012 270);
+  --color-gray-300: oklch(85% 0.016 270);
+  --color-gray-400: oklch(75.5% 0.021 270);
+  --color-gray-500: oklch(64% 0.026 270);
+  --color-gray-600: oklch(50.5% 0.031 270);
+  --color-gray-700: oklch(41% 0.035 270);
+  --color-gray-800: oklch(30.5% 0.036 270);
+  --color-gray-850: oklch(25.5% 0.035 270);
+  --color-gray-900: oklch(20.5% 0.032 270);
+  --color-gray-950: oklch(16.5% 0.03 270);
+
+  /* Saf beyaz yerine sıcak parşömen beyazı */
+  --color-white: oklch(99.2% 0.004 85);
+
+  /* 8 köşeli yıldız (Rub-ül-hizb) deseni — açık ve koyu için iki renk */
+  --farabi-desen-acik: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%231f2a6b' stroke-opacity='.045' stroke-width='1'%3E%3Crect x='18' y='18' width='28' height='28'/%3E%3Crect x='18' y='18' width='28' height='28' transform='rotate(45 32 32)'/%3E%3Ccircle cx='32' cy='32' r='6'/%3E%3Cpath d='M0 0l8 8M64 0l-8 8M0 64l8-8M64 64l-8-8'/%3E%3C/g%3E%3C/svg%3E");
+  --farabi-desen-koyu: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23e6c77a' stroke-opacity='.07' stroke-width='1'%3E%3Crect x='18' y='18' width='28' height='28'/%3E%3Crect x='18' y='18' width='28' height='28' transform='rotate(45 32 32)'/%3E%3Ccircle cx='32' cy='32' r='6'/%3E%3Cpath d='M0 0l8 8M64 0l-8 8M0 64l8-8M64 64l-8-8'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ---------- 2. Genel ---------- */
+::selection {
+  background: rgba(198, 154, 60, 0.32);
+}
+
+* {
+  scrollbar-color: var(--color-gray-300) transparent;
+}
+.dark * {
+  scrollbar-color: var(--color-gray-700) transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--farabi-cini);
+  outline-offset: 2px;
+}
+
+/* ---------- 3. Kenar çubuğu ---------- */
+#sidebar {
+  background-image:
+    linear-gradient(180deg, rgba(79, 94, 255, 0.05), rgba(198, 154, 60, 0.04)),
+    var(--farabi-desen-acik);
+  border-right: 1px solid rgba(31, 42, 107, 0.07);
+}
+.dark #sidebar {
+  background-image:
+    linear-gradient(180deg, rgba(79, 94, 255, 0.07), rgba(16, 20, 48, 0.25)),
+    var(--farabi-desen-koyu);
+  border-right-color: rgba(230, 199, 122, 0.08);
+}
+
+/* Kenar çubuğundaki ad — altın varak yazı */
+#sidebar-webui-name {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Noto Serif", Georgia, serif;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
+  background: linear-gradient(100deg, var(--farabi-lacivert) 0%, var(--farabi-cini-koyu) 55%, var(--farabi-altin) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+.dark #sidebar-webui-name {
+  background-image: linear-gradient(100deg, var(--farabi-altin-acik) 0%, #f4e4b8 50%, var(--farabi-altin) 100%);
+}
+
+/* Yeni sohbet düğmesi — ince altın vurgu */
+#sidebar-new-chat-button:hover {
+  box-shadow: inset 2px 0 0 var(--farabi-altin);
+}
+
+/* Seçili/üzerine gelinen sohbet satırı */
+#sidebar-chat-item:hover,
+#sidebar-chat-item.bg-gray-100,
+#sidebar-chat-item.dark\:bg-gray-900 {
+  box-shadow: inset 2px 0 0 var(--farabi-cini);
+}
+
+/* ---------- 4. Sohbet alanı ---------- */
+/* Boş/uzun sohbetlerde çok silik desen zemin */
+#messages-container {
+  background-image: var(--farabi-desen-acik);
+  background-attachment: local;
+}
+.dark #messages-container {
+  background-image: var(--farabi-desen-koyu);
+}
+
+/* Kullanıcı mesaj balonu — çini mavisine çalan ton, sağda altın çizgi */
+.chat-user .rounded-3xl {
+  background-image: linear-gradient(135deg, rgba(79, 94, 255, 0.10), rgba(79, 94, 255, 0.04));
+  box-shadow: inset 0 0 0 1px rgba(79, 94, 255, 0.12), inset -3px 0 0 rgba(198, 154, 60, 0.55);
+}
+.dark .chat-user .rounded-3xl {
+  background-image: linear-gradient(135deg, rgba(79, 94, 255, 0.22), rgba(79, 94, 255, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(124, 136, 255, 0.18), inset -3px 0 0 rgba(230, 199, 122, 0.55);
+}
+
+/* Asistan yanıtındaki bağlantılar ve vurgular */
+#response-content-container a {
+  color: var(--farabi-cini-koyu);
+  text-decoration-color: rgba(198, 154, 60, 0.6);
+  text-underline-offset: 3px;
+}
+.dark #response-content-container a {
+  color: #a9b2ff;
+}
+#response-content-container blockquote {
+  border-left-color: var(--farabi-altin) !important;
+}
+#response-content-container strong {
+  color: var(--farabi-lacivert);
+}
+.dark #response-content-container strong {
+  color: #f1e3bd;
+}
+
+/* ---------- 5. Mesaj kutusu ---------- */
+#chat-input-container {
+  position: relative;
+  border-color: rgba(31, 42, 107, 0.12) !important;
+  box-shadow:
+    0 1px 2px rgba(23, 30, 55, 0.04),
+    0 8px 28px rgba(31, 42, 107, 0.08);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+#chat-input-container:focus-within {
+  border-color: rgba(79, 94, 255, 0.45) !important;
+  box-shadow: var(--farabi-halka), 0 8px 28px rgba(31, 42, 107, 0.1);
+}
+.dark #chat-input-container {
+  border-color: rgba(230, 199, 122, 0.12) !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+.dark #chat-input-container:focus-within {
+  border-color: rgba(124, 136, 255, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(124, 136, 255, 0.18), 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* Gönder düğmesi (yalnızca etkinken — boşken gri kalır) */
+#send-message-button.bg-black {
+  background-image: linear-gradient(135deg, var(--farabi-cini) 0%, var(--farabi-cini-koyu) 60%, var(--farabi-lacivert) 100%);
+  color: #fff !important;
+  box-shadow: 0 2px 10px rgba(79, 94, 255, 0.35);
+}
+#send-message-button.bg-black:hover {
+  box-shadow: 0 2px 14px rgba(79, 94, 255, 0.5), 0 0 0 2px rgba(198, 154, 60, 0.45);
+}
+
+/* ---------- 6. Giriş (auth) sayfası ---------- */
+#auth-page > div:first-child {
+  background-image:
+    radial-gradient(1200px 600px at 15% -10%, rgba(79, 94, 255, 0.14), transparent 60%),
+    radial-gradient(900px 500px at 110% 110%, rgba(198, 154, 60, 0.14), transparent 60%),
+    var(--farabi-desen-acik);
+}
+.dark #auth-page > div:first-child {
+  background-color: var(--color-gray-950) !important;
+  background-image:
+    radial-gradient(1200px 600px at 15% -10%, rgba(79, 94, 255, 0.22), transparent 60%),
+    radial-gradient(900px 500px at 110% 110%, rgba(198, 154, 60, 0.16), transparent 60%),
+    var(--farabi-desen-koyu);
+}
+
+/* Alt imza: "FARABİ · Muallim-i Sânî" */
+#auth-page::after {
+  content: "FARABİ  ·  Muallim-i Sânî";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  text-align: center;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Noto Serif", Georgia, serif;
+  font-size: 13px;
+  letter-spacing: 0.28em;
+  color: var(--farabi-altin);
+  opacity: 0.85;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Giriş formundaki birincil düğme (Tailwind: bg-gray-700/900 dark:bg-gray-100) */
+#auth-page button[type="submit"] {
+  background-image: linear-gradient(135deg, var(--farabi-cini) 0%, var(--farabi-cini-koyu) 60%, var(--farabi-lacivert) 100%);
+  color: #fff !important;
+  box-shadow: 0 4px 16px rgba(79, 94, 255, 0.3);
+}
+#auth-page button[type="submit"]:hover {
+  box-shadow: 0 4px 18px rgba(79, 94, 255, 0.45), 0 0 0 2px rgba(198, 154, 60, 0.45);
+}
+
+#auth-page input:not([type="checkbox"]) {
+  border-bottom: 1px solid rgba(31, 42, 107, 0.15);
+  padding-bottom: 4px;
+  transition: border-color 0.2s ease;
+}
+.dark #auth-page input:not([type="checkbox"]) {
+  border-bottom-color: rgba(230, 199, 122, 0.18);
+}
+#auth-page input:not([type="checkbox"]):focus {
+  border-bottom-color: var(--farabi-cini);
+}
+
+/* ---------- 7. Hareket azaltma ---------- */
+@media (prefers-reduced-motion: reduce) {
+  #chat-input-container {
+    transition: none;
+  }
+}

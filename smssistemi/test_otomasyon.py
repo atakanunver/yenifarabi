@@ -327,3 +327,159 @@ def test_otomasyon_gercek_toplu_gonder_ile_sms_gonderir(test_db, monkeypatch):
     assert gonderilen == [["05329998877"]]
     assert sonuc["ozet"]["basarili_sayisi"] == 1
     assert sonuc["ozet"]["hatali_sayisi"] == 0
+
+
+def test_ogle_devamsizlar_ve_veliler(test_db, monkeypatch):
+    """Öğleden sonra 6. ders devamsızlık derlemesi, sabah durumu kontrolü ve veli eşleştirme."""
+    siniflar = {s["ad"]: s["id"] for s in db.siniflar_listele(test_db)}
+    sinif_9a = siniflar["9-A"]
+
+    # 9-A: Ali Kaya (1. derste de yok, 6. derste de yok -> tüm gün yok)
+    ali_id = db.kisi_ekle(test_db, "Ali Kaya", None, sinif_9a, "ogrenci", okul_no=201)
+    db.kisi_ekle(test_db, "Fatma Kaya", "05321112233", sinif_9a, "veli", ogrenci_kisi_id=ali_id, veli_rol="anne")
+    db.kisi_ekle(test_db, "Mehmet Kaya", "05322223344", sinif_9a, "veli", ogrenci_kisi_id=ali_id, veli_rol="baba")
+
+    # 9-A: Selin Yılmaz (1. derste VARDI, 6. derste yok -> öğleden sonra kaçan)
+    selin_id = db.kisi_ekle(test_db, "Selin Yılmaz", None, sinif_9a, "ogrenci", okul_no=202)
+    db.kisi_ekle(test_db, "Murat Yılmaz", "05325556677", sinif_9a, "veli", ogrenci_kisi_id=selin_id, veli_rol="baba")
+
+    # 9-A: Can Demir (6. derste izinli -> SMS gitmemeli)
+    can_id = db.kisi_ekle(test_db, "Can Demir", None, sinif_9a, "ogrenci", okul_no=203)
+    db.kisi_ekle(test_db, "Ayşe Demir", "05323334455", sinif_9a, "veli", ogrenci_kisi_id=can_id, veli_rol="anne")
+
+    sahte_satirlar = [
+        # 1. ders satırları: Ali Kaya yok
+        {
+            "sinif": "9-A",
+            "ders_no": 1,
+            "durum": "alindi",
+            "yok_isimleri": ["Ali Kaya"],
+            "izinli_isimleri": [],
+            "kaydedilme_saati": "08:30",
+        },
+        # 6. ders satırları: 9-A'da Ali Kaya, Selin Yılmaz ve Can Demir yok (Can Demir izinli)
+        {
+            "sinif": "9-A",
+            "ders_no": 6,
+            "durum": "alindi",
+            "yok_isimleri": ["Ali Kaya", "Selin Yılmaz", "Can Demir"],
+            "izinli_isimleri": ["Can Demir"],
+            "kaydedilme_saati": "13:40",
+        },
+        # 10-A 6. ders: tahta_ulasilamaz (HARİÇ TUTULMALI)
+        {
+            "sinif": "10-A",
+            "ders_no": 6,
+            "durum": "tahta_ulasilamaz",
+            "yok_isimleri": ["Ahmet Yılmaz"],
+            "izinli_isimleri": [],
+            "kaydedilme_saati": "13:35",
+        },
+    ]
+
+    monkeypatch.setattr(yoklama_kaynak, "gunun_satirlari", lambda tarih: sahte_satirlar)
+
+    sonuc = otomasyon.ogle_devamsizlar(test_db, "2026-09-25")
+
+    assert "9-A" in sonuc["dahil_siniflar"]
+    haric_isimler = [h["sinif"] for h in sonuc["haric_siniflar"]]
+    assert "10-A" in haric_isimler
+
+    assert sonuc["ders_no"] == 6
+    assert sonuc["izinli_sayisi"] == 1
+    assert sonuc["yalnizca_ogle_sayisi"] == 1  # Yalnızca Selin Yılmaz
+
+    ogrenciler_dict = {o["ad_soyad"]: o for o in sonuc["ogrenciler"]}
+    assert "Ali Kaya" in ogrenciler_dict
+    assert "Selin Yılmaz" in ogrenciler_dict
+    assert "Can Demir" not in ogrenciler_dict
+
+    # Sabah durumu kontrolleri
+    assert ogrenciler_dict["Ali Kaya"]["sabah_da_yok"] is True
+    assert ogrenciler_dict["Selin Yılmaz"]["sabah_da_yok"] is False
+
+    # SMS'ler: Ali Kaya'nın 2 velisi + Selin'in 1 velisi = 3 SMS
+    smsler = sonuc["gonderilecek_smsler"]
+    assert len(smsler) == 3
+    veli_adlari = {s["veli_ad"] for s in smsler}
+    assert "Fatma Kaya" in veli_adlari
+    assert "Mehmet Kaya" in veli_adlari
+    assert "Murat Yılmaz" in veli_adlari
+
+    for s in smsler:
+        assert "öğleden sonra" in s["mesaj"]
+
+
+def test_otomasyon_calistir_ogle_canli_ve_idempotent(test_db, monkeypatch):
+    """Öğle otomasyonunun çalışması, oto6_ ön eki, bağımsız son tarih ve mükerrer engeli."""
+    siniflar = {s["ad"]: s["id"] for s in db.siniflar_listele(test_db)}
+    sinif_9a = siniflar["9-A"]
+
+    ogr_id = db.kisi_ekle(test_db, "Deniz Aras", None, sinif_9a, "ogrenci", okul_no=105)
+    db.kisi_ekle(test_db, "Selin Aras", "05329998877", sinif_9a, "veli", ogrenci_kisi_id=ogr_id, veli_rol="anne")
+
+    sahte_satirlar = [
+        {
+            "sinif": "9-A",
+            "ders_no": 6,
+            "durum": "alindi",
+            "yok_isimleri": ["Deniz Aras"],
+            "izinli_isimleri": [],
+            "kaydedilme_saati": "13:38",
+        }
+    ]
+    monkeypatch.setattr(yoklama_kaynak, "gunun_satirlari", lambda tarih: sahte_satirlar)
+
+    gonderilenler = []
+
+    def mock_toplu_gonder(ayarlar, kisiler, callback, durdur_bayragi, bekleme_sn):
+        for isim, tel, msg in kisiler:
+            gonderilenler.append((isim, tel, msg))
+            callback(isim, tel, msg, "gonderildi", None)
+
+    monkeypatch.setattr(otomasyon.sms_gonderici, "toplu_gonder", mock_toplu_gonder)
+
+    # 1. Kuru çalıştırma
+    sonuc_kuru = otomasyon.otomasyon_calistir(test_db, kuru=True, servis="ogle", tarih="2026-09-25")
+    assert sonuc_kuru["durum"] == "simulasyon"
+    assert sonuc_kuru["servis"] == "ogle"
+    assert db.ayar_oku(test_db, otomasyon.AYAR_OGLE_SON_TARIH) == ""
+
+    # 2. Canlı çalıştırma
+    sonuc1 = otomasyon.otomasyon_calistir(
+        test_db, kuru=False, tetikleyen="otomatik_zamanlayici", servis="ogle", tarih="2026-09-25"
+    )
+    assert sonuc1["durum"] == "tamamlandi"
+    assert sonuc1["gonderim_id"].startswith("oto6_")
+    assert sonuc1["servis"] == "ogle"
+    assert len(gonderilenler) == 1
+    assert db.ayar_oku(test_db, otomasyon.AYAR_OGLE_SON_TARIH) == "2026-09-25"
+
+    son_sonuc = json.loads(db.ayar_oku(test_db, otomasyon.AYAR_OGLE_SON_SONUC))
+    assert son_sonuc["veli_sms_sayisi"] == 1
+    assert son_sonuc["servis"] == "ogle"
+
+    # 3. İkinci çalıştırma (idempotency)
+    sonuc2 = otomasyon.otomasyon_calistir(
+        test_db, kuru=False, tetikleyen="otomatik_zamanlayici", servis="ogle", tarih="2026-09-25"
+    )
+    assert sonuc2["durum"] == "zaten_calisti"
+    assert len(gonderilenler) == 1  # Tekrar SMS göndermedi
+
+
+def test_sabah_ve_ogle_otomasyonlari_birbirinden_bagimsiz(test_db, monkeypatch):
+    """Sabah otomasyonu çalışmış olsa bile öğle otomasyonu engellenmez; durumlar bağımsızdır."""
+    monkeypatch.setattr(yoklama_kaynak, "gunun_satirlari", lambda tarih: [])
+
+    # Sabahı çalışmış olarak işaretle
+    db.ayar_yaz(test_db, otomasyon.AYAR_SON_TARIH, "2026-09-25")
+    assert db.ayar_oku(test_db, otomasyon.AYAR_SON_TARIH) == "2026-09-25"
+    assert db.ayar_oku(test_db, otomasyon.AYAR_OGLE_SON_TARIH) == ""
+
+    # Öğle servisini çalıştır: sabahın bitmiş olması öğleyi bloklamamalı
+    sonuc = otomasyon.otomasyon_calistir(
+        test_db, kuru=False, tetikleyen="otomatik_zamanlayici", servis="ogle", tarih="2026-09-25"
+    )
+    assert sonuc["durum"] == "tamamlandi"
+    assert db.ayar_oku(test_db, otomasyon.AYAR_OGLE_SON_TARIH) == "2026-09-25"
+

@@ -10,6 +10,13 @@ dönen parçalar sistem mesajına eklenir. LLM'e GİTMEZ (RagMotoru.ara).
   tahta sorularına ayrılmış, öğretmen soruları oraya YAZILMAZ.
 - Hata: her durumda 200 + durum="hata" — filtre aramasız devam eder,
   Open WebUI asla düşmez.
+- 2026-10-04: `genel` kapsamı (Farabi, Derin Düşünme modları) kitaplara EK
+  OLARAK mevzuatta (idari) da arar — "öğretmen geç gelirse ne olur?" gibi
+  sorular varsayılan modda mevzuata hiç ulaşmıyordu. İki kaynak ayrı aranır
+  (her biri kendi eşiğiyle), parçalar skora göre birleşip ilk TOP_N alınır.
+- 2026-10-04: reranker (bilgehan, uzak_model.py) yüklüyse kosinüs eşiğini
+  geçen birleşim onunla yeniden sıralanır ve ESIK_RERANK uygulanır; reranker
+  hata verirse (bilgehan kapalı) kosinüs sırasıyla devam edilir.
 """
 
 from __future__ import annotations
@@ -21,6 +28,7 @@ import time
 
 import auth
 import db
+import rag
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
@@ -124,6 +132,9 @@ def _metrik_yaz(conn, sonuc: dict, toplam_ms: int) -> None:
         conn.rollback()
 
 
+ESIK_RERANK_WEBUI = 0.25
+
+
 @router.post("/api/webui/ara", dependencies=[Depends(webui_anahtari_dogrula)])
 def ara(istek: AraIstek):
     if istek.kapsam not in KAPSAMLAR:
@@ -133,19 +144,19 @@ def ara(istek: AraIstek):
         return {"durum": "hata", "parcalar": [], "sure_ms": 0}
 
     soru = istek.soru[:SORU_AZAMI]
-    etiketler: dict[int, str] = {}
     toplam_ms = 0
     try:  # bağlantı alınamazsa (havuz tükenmesi) da 200 + hata dön
         with db.baglanti() as conn:
             try:
-                if istek.kapsam == "idari":
-                    etiketler = _idari_belgeler(conn)
-                    kaynak = "idari"
-                else:
+                aramalar = []  # [(kaynak, {kaynak_id: etiket})]
+                if istek.kapsam != "idari":
                     sinif = istek.sinif if istek.sinif is not None else sinif_cikar(soru)
-                    etiketler = _kitaplar(conn, KAPSAM_DERSLER[istek.kapsam], sinif)
-                    kaynak = "egitim"
-                sonuc = MOTOR.ara(conn, kaynak, list(etiketler), soru)
+                    aramalar.append(("egitim", _kitaplar(conn, KAPSAM_DERSLER[istek.kapsam], sinif)))
+                if istek.kapsam in ("idari", "genel"):
+                    aramalar.append(("idari", _idari_belgeler(conn)))
+                sonuc = _birlestir([
+                    (MOTOR.ara(conn, kaynak, list(etiketler), soru, k=15, esik=0.38), etiketler)
+                    for kaynak, etiketler in aramalar], getattr(MOTOR, "reranker", None), soru)
             except Exception as e:  # noqa: BLE001 — arama hatası 200 + durum="hata"
                 conn.rollback()
                 log.warning("webui arama hatası: %s: %s", type(e).__name__, e)
@@ -162,8 +173,43 @@ def ara(istek: AraIstek):
         return {"durum": "hata", "parcalar": [], "sure_ms": int((time.perf_counter() - t0) * 1000)}
 
     parcalar = [
-        {"kaynak": f"{etiketler.get(p['kaynak_id'], '?')}, s. {p['sayfa']}",
+        {"kaynak": f"{p['etiket']}, s. {p['sayfa']}",
          "sayfa": p["sayfa"], "metin": p["metin"], "skor": p["skor"]}
         for p in sonuc.get("parcalar", [])
     ]
     return {"durum": sonuc["durum"], "parcalar": parcalar, "sure_ms": toplam_ms}
+
+
+def _birlestir(sonuclar: list[tuple[dict, dict[int, str]]], reranker=None, soru: str = "") -> dict:
+    """Kaynak başına RagMotoru.ara sonuçlarını tek sonuca çevirir. Kitap ve
+    belge id'leri çakışabildiği için etiket burada, birleşimden ÖNCE çözülür.
+    Durum: herhangi biri ok → ok; değilse herhangi biri zayıf → zayıf; → hata."""
+    parcalar, durumlar, retrieval, skorlar = [], [], 0, []
+    for sonuc, etiketler in sonuclar:
+        durumlar.append(sonuc["durum"])
+        retrieval += sonuc.get("retrieval_ms") or 0
+        if sonuc.get("en_iyi_skor") is not None:
+            skorlar.append(sonuc["en_iyi_skor"])
+        for p in sonuc.get("parcalar", []):
+            parcalar.append({**p, "etiket": etiketler.get(p["kaynak_id"], "?")})
+    parcalar.sort(key=lambda p: p["skor"], reverse=True)
+    durum = "ok" if "ok" in durumlar else ("zayif" if "zayif" in durumlar else "hata")
+    rerank_ms = None
+    if durum == "ok" and reranker is not None and parcalar:
+        t0 = time.perf_counter()
+        try:
+            ciftler = [(soru, p["metin"][:rag.RERANK_TABLO_KARAKTER if p.get("tur") == "tablo"
+                                         else rag.RERANK_METIN_KARAKTER]) for p in parcalar]
+            yeni = [float(x) for x in reranker.predict(ciftler)]
+            rerank_ms = int((time.perf_counter() - t0) * 1000)
+            parcalar = sorted(({**p, "skor": round(sk, 4)} for p, sk in zip(parcalar, yeni)),
+                              key=lambda p: p["skor"], reverse=True)
+            skorlar = [parcalar[0]["skor"]]
+            parcalar = [p for p in parcalar if p["skor"] >= ESIK_RERANK_WEBUI]
+            if not parcalar:
+                durum = "zayif"
+        except Exception as e:  # noqa: BLE001 — bilgehan kapalı vb.: kosinüs sırasıyla devam
+            log.warning("webui rerank atlandı: %s", type(e).__name__)
+    return {"durum": durum, "parcalar": parcalar[:rag.TOP_N] if durum == "ok" else [],
+            "retrieval_ms": retrieval or None, "rerank_ms": rerank_ms,
+            "en_iyi_skor": max(skorlar) if skorlar else None}

@@ -237,3 +237,65 @@ def test_yonetimi_kur_bozuk_ajan_json_cokmez(monkeypatch, capsys):
     api = SahteApi()
     kur.yonetimi_kur(api)
     assert api.cagrilar == [] and "atlandı" in capsys.readouterr().out
+
+
+# --- 2026-10-04: Okul Bilgisi aracı ---
+
+def test_model_aracsiz_eskisi_gibi():
+    g = kur.model_govdesi(MOD, "c", "e", GRUPLAR)
+    assert "toolIds" not in g["meta"] and "function_calling" not in g["params"]
+
+
+def test_model_okul_araciyla_native_ve_yerlesik_araclar_kapali():
+    g = kur.model_govdesi(MOD, "c", "e", GRUPLAR, arac_idleri=[kur.OKUL_ARAC_ID])
+    assert g["meta"]["toolIds"] == ["farabi_okul"]
+    assert g["params"]["function_calling"] == "native"
+    assert g["meta"]["capabilities"]["builtin_tools"] is False
+    assert not any(g["meta"]["builtinTools"].values())
+    assert g["meta"]["filterIds"] == ["farabi_kaynak"]
+
+
+def test_okul_ayari_oku(tmp_path, monkeypatch):
+    monkeypatch.setattr(kur, "KOK", tmp_path / "openwebui")
+    assert kur.okul_ayari_oku() is None
+    p = tmp_path / "tahtayoklama/dashboard/config"
+    p.mkdir(parents=True)
+    (p / "okul.json").write_text('{"anahtar": "k", "ogrenci_izinli": ["a@b"]}', encoding="utf-8")
+    assert kur.okul_ayari_oku() == {"anahtar": "k", "ogrenci_izinli": ["a@b"]}
+    (p / "okul.json").write_text('{"anahtar": ""}', encoding="utf-8")
+    assert kur.okul_ayari_oku() is None
+
+
+@pytest.mark.parametrize("var", [True, False])
+def test_okul_araci_kur(var):
+    api = SahteApi(var)
+    kur.okul_araci_kur(api, {"anahtar": "OKUL", "ogrenci_izinli": ["idare@farabi.local", "x@y"]}, GRUPLAR)
+    posts = [(y, g) for m, y, g in api.cagrilar if m == "POST"]
+    yol, govde = posts[0]
+    assert yol == ("/api/v1/tools/id/farabi_okul/update" if var else "/api/v1/tools/create")
+    assert govde["content"] == (kur.KOK / "farabi_okul_araci.py").read_text(encoding="utf-8")
+    erisim = dict(posts)["/api/v1/tools/id/farabi_okul/access/update"]["access_grants"]
+    assert sorted(a["principal_id"] for a in erisim) == ["g-idr", "g-ogr"]
+    assert dict(posts)["/api/v1/tools/id/farabi_okul/valves/update"] == {
+        "api_url": "http://127.0.0.1:8010/api/okul", "api_key": "OKUL",
+        "ogrenci_izinli": "idare@farabi.local,x@y", "zaman_asimi_sn": 15.0}
+
+
+def test_tahta_hesabi_izinli_listeye_girmez():
+    liste = kur.ogrenci_izinli_liste(["idare@farabi.local", "tahta@farabi.local"], ["k@okul"])
+    assert "tahta@farabi.local" not in liste and liste == ["idare@farabi.local", "k@okul"]
+
+
+def test_filtre_okul_valfleri():
+    api = SahteApi(True)
+    kur.filtreyi_kur(api, "WEBUI", {"anahtar": "OKUL"})
+    valf = next(g for m, y, g in api.cagrilar if y.endswith("/valves/update"))
+    assert valf["okul_key"] == "OKUL" and valf["okul_url"] == "http://127.0.0.1:8010/api/okul"
+    assert valf["api_key"] == "WEBUI"
+
+
+def test_filtre_okul_ayari_yoksa_bos_anahtar():
+    api = SahteApi(True)
+    kur.filtreyi_kur(api, "WEBUI", None)
+    valf = next(g for m, y, g in api.cagrilar if y.endswith("/valves/update"))
+    assert valf["okul_key"] == ""

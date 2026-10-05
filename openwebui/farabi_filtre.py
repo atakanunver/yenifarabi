@@ -1,8 +1,8 @@
 """
 title: Farabi Kaynak Arama
 author: Farabi (Şehit Murat Ustaoğlu Anadolu Lisesi)
-version: 0.1.0
-description: Farabi modlarında her kullanıcı mesajı için ders kitabı/mevzuat parçalarını farabi-api'den (/api/webui/ara) getirip sistem mesajına ekler; düşünme varsayılanını moddan ayarlar.
+version: 0.2.0
+description: Farabi modlarında her mesaja Türkiye saatiyle tarih/saat/ders saati ekler; ders kitabı/mevzuat parçalarını farabi-api'den (/api/webui/ara) getirip sistem mesajına ekler; düşünme varsayılanını moddan ayarlar.
 """
 
 # Tasarım: docs/superpowers/specs/2026-10-03-openwebui-farabi-modlar-design.md §3.4
@@ -12,18 +12,48 @@ description: Farabi modlarında her kullanıcı mesajı için ders kitabı/mevzu
 import asyncio
 import json
 import urllib.request
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field
 
 BLOK_AZAMI_KARAKTER = 7500  # ~2.500 token — 16k bağlamın payı
 
-GIRIS = ("Aşağıdaki kaynak parçaları kullanıcının son mesajı için okulun arama sisteminden geldi. "
-         "Yalnızca soruyla ilgiliyse kullan. Kullandığın bilginin sonunda kaynağı köşeli parantezle "
-         "belirt, örneğin [Kimya 10, s. 84]. Parçalarda olmayan sayfa numarası uydurma.")
-ZAYIF_NOTU = ("Not: Bu mesaj için kitaplarda/mevzuatta yeni bir kaynak parçası bulunamadı. "
-              "Önceki cevaplarında kaynak gösterdiysen onlara dayanmaya devam edebilirsin; "
-              "yeni bilgi ekliyorsan bunun kitaba/mevzuata dayanmadığını açıkça söyle ve "
-              "sayfa numarası uydurma.")
+# 2026-10-04 (kullanıcı isteği): okul/mevzuat/ders sorularında yerel belgeler
+# ÖNCELİKLİ — model eskiden "yalnızca ilgiliyse kullan" deyip genel bilgiyle
+# cevap verebiliyordu.
+GIRIS = ("Aşağıdaki kaynak parçaları kullanıcının mesajı için okulun resmî belgelerinden "
+         "(ders kitapları ve mevzuat) geldi. Karşındaki kullanıcı doğrudan bir öğretmen "
+         "veya okul idarecisidir (müdür / müdür yardımcısı). Onlara tam yetkili, saygın "
+         "ve yetkin bir meslektaş olarak yardımcı ol. Asla 'okul idaresine sor', 'müdürlüğe git' "
+         "gibi yönlendirmeler yapma; doğrudan idari ve pedagojik çözümü sun. Okul, mevzuat, "
+         "yönetmelik ve ders sorularında ÖNCE bu parçalara dayan. Sorunun cevabı parçalarda "
+         "yoksa \"belgelerde bulamadım\" diyerek genel mevzuat bilgini aktar; tahmin yürütme, "
+         "madde/sayfa/sayı uydurma. Kullandığın bilginin sonunda kaynağı köşeli parantezle belirt, "
+         "örneğin [657 Sayılı Devlet Memurları Kanunu, s. 16].")
+
+ZAYIF_NOTU = ("Karşındaki kullanıcı okulumuzun öğretmeni veya okul idarecisidir (müdür / "
+              "müdür yardımcısı). Ona tam yetkili, uzman ve çözüm odaklı bir çalışma arkadaşı "
+              "olarak doğrudan ve net yardımcı ol. Asla 'okul idaresine sor', 'müdürlüğe başvur', "
+              "'idareye dilekçe yaz' gibi yönlendirmeler yapma, çünkü soruyu soran zaten okul "
+              "idaresi veya eğitimcidir. Bu mesaj için kitaplarda/mevzuatta yeni bir kaynak parçası "
+              "bulunamadı. Önceki cevaplarında kaynak gösterdiysen onlara dayanmaya devam edebilirsin; "
+              "genel mevzuat (657 Sayılı DMK, MEB Ortaöğretim Kurumları Yönetmeliği vb.) ve okul "
+              "işleyişi hakkında doğrudan açık ve yetkin bilgi ver, ancak elinde kesin belge yoksa "
+              "hayali madde numarası veya sayfa numarası uydurma.")
+
+
+ISTANBUL = ZoneInfo("Europe/Istanbul")
+GUNLER = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+AYLAR = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos",
+         "Eylül", "Ekim", "Kasım", "Aralık"]
+
+
+def yerel_zaman_metni(an: datetime | None = None) -> str:
+    """Okul API'sine ulaşılamazsa (ders saati bilgisi olmadan) kullanılan metin."""
+    an = an or datetime.now(ISTANBUL)
+    return (f"Şu an (Türkiye saati): {an.day} {AYLAR[an.month - 1]} {an.year} "
+            f"{GUNLER[an.isoweekday() - 1]}, saat {an:%H:%M}.")
 
 
 def son_kullanici_mesaji(messages: list) -> str:
@@ -79,6 +109,9 @@ class Filter:
         api_url: str = Field(default="http://127.0.0.1:8000/api/webui/ara")
         api_key: str = Field(default="")
         zaman_asimi_sn: float = Field(default=8.0)
+        # Dashboard /api/okul (tarih + ders saati); yalnızca localhost + anahtar.
+        okul_url: str = Field(default="http://127.0.0.1:8010/api/okul")
+        okul_key: str = Field(default="")
 
     def __init__(self):
         self.valves = self.Valves()
@@ -100,6 +133,21 @@ class Filter:
         except Exception as e:  # noqa: BLE001 — arama hatası sohbeti bozmamalı, kaynaksız devam
             print(f"[farabi_kaynak] arama başarısız: {type(e).__name__}: {e}")
             return None
+
+    def _zaman(self) -> str:
+        """Tarih/saat + o anki ders saati. Bloklayan çağrı (to_thread ile).
+        Okul API'si yoksa yerel saat (ders bilgisi olmadan) — asla istisna atmaz."""
+        try:
+            istek = urllib.request.Request(self.valves.okul_url.rstrip("/") + "/simdi",
+                                           headers={"X-Farabi-Okul-Key": self.valves.okul_key})
+            acici = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with acici.open(istek, timeout=2.0) as r:
+                metin = json.load(r).get("metin")
+            if isinstance(metin, str) and metin.startswith("Şu an"):
+                return metin
+        except Exception:  # noqa: BLE001 — zaman bilgisi yardımcı; yerel saate düş
+            pass
+        return yerel_zaman_metni()
 
     async def inlet(self, body: dict, __model__: dict | None = None,
                     __metadata__: dict | None = None) -> dict:
@@ -125,13 +173,23 @@ class Filter:
             body["options"] = {**secenekler, "think": bool(meta["farabi_think"])}
 
         kapsam = meta.get("farabi_kapsam")
-        if not kapsam:
-            return body
         soru = son_kullanici_mesaji(body.get("messages"))
-        if not soru:
-            return body
 
-        sonuc = await asyncio.to_thread(self._ara, kapsam, soru)
+        async def _zaman_guvenli():
+            try:
+                return await asyncio.to_thread(self._zaman)
+            except Exception:  # noqa: BLE001 — test/yama kaynaklı istisna bile sohbeti bozmasın
+                return None
+
+        async def _hic():
+            return None
+
+        # Zaman ve kaynak araması paralel — toplam gecikme ikisinin en uzunu.
+        zaman, sonuc = await asyncio.gather(
+            _zaman_guvenli(),
+            asyncio.to_thread(self._ara, kapsam, soru) if (kapsam and soru) else _hic())
+        if zaman:
+            sistem_mesajina_ekle(body, zaman)
         try:
             blok = kaynak_blogu(sonuc) if sonuc else None
             if blok:

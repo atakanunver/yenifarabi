@@ -1,0 +1,1099 @@
+{
+  "zaman": "2026-10-04T18:13:54.513530+00:00",
+  "etiket": "llm-atla uzak 3060 fp16",
+  "harness": "rag_test.py (GERÇEK server/rag.py)",
+  "kitap_id": 1,
+  "llm_atlandi": true,
+  "yutulan_insert": 43,
+  "rag_ayarlari": {
+    "TOP_K": 20,
+    "TOP_N": 4,
+    "ESIK_RERANK": 0.5,
+    "TABLO_KAYNAGI": true,
+    "TOP_K_TABLO": 10,
+    "RERANK_TABLO_KARAKTER": 1200,
+    "RERANK_METIN_KARAKTER": 4000
+  },
+  "ozet": {
+    "A": {
+      "n": 17,
+      "recall_at_4": 1.0,
+      "top1_dogru_oran": 0.8823529411764706,
+      "yetersiz_kaynak_orani": 0.0,
+      "medyan_ms": 512
+    },
+    "B": {
+      "n": 18,
+      "recall_at_4": 0.9444444444444444,
+      "top1_dogru_oran": 0.8333333333333334,
+      "yetersiz_kaynak_orani": 0.0,
+      "medyan_ms": 577.0
+    },
+    "C": {
+      "n": 5,
+      "recall_at_4": null,
+      "top1_dogru_oran": null,
+      "yetersiz_kaynak_orani": 0.4,
+      "medyan_ms": 579
+    },
+    "TOPLAM": {
+      "n": 40,
+      "recall_at_4": 0.9714285714285714,
+      "top1_dogru_oran": 0.8571428571428571,
+      "yetersiz_kaynak_orani": 0.05,
+      "medyan_ms": 559.5
+    }
+  },
+  "kayitlar": [
+    {
+      "soru": "Hastalık etmenlerinin bulaşma yollarının keşfinde önemli rol oynayan bilim insanı kimdir?",
+      "grup": "A",
+      "dogru_sayfa": 19,
+      "status": "ok",
+      "sayfalar": [
+        19,
+        19,
+        20,
+        22
+      ],
+      "chunk_idler": [
+        593,
+        594,
+        596,
+        600
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 678
+    },
+    {
+      "soru": "DNA’nın yapı ve işlevlerinin keşfi sürecinde bilim insanları arasında hangi tür biyomolekülün genetik bilgiyi taşıdığı t",
+      "grup": "A",
+      "dogru_sayfa": 26,
+      "status": "ok",
+      "sayfalar": [
+        26,
+        26,
+        19,
+        19
+      ],
+      "chunk_idler": [
+        608,
+        607,
+        595,
+        594
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 531
+    },
+    {
+      "soru": "Bilimsel araştırmaların bilim etiğine uygunluğu ile ilgili bilgi toplayabilmenin amacı nedir?",
+      "grup": "A",
+      "dogru_sayfa": 33,
+      "status": "ok",
+      "sayfalar": [
+        33,
+        33,
+        173,
+        32
+      ],
+      "chunk_idler": [
+        622,
+        -8,
+        870,
+        620
+      ],
+      "turler": [
+        "metin",
+        "tablo",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 509
+    },
+    {
+      "soru": "Virüslerin canlı veya cansız olarak sınıflandırılamama nedenleri nedir?",
+      "grup": "A",
+      "dogru_sayfa": 43,
+      "status": "ok",
+      "sayfalar": [
+        43,
+        43,
+        42,
+        43
+      ],
+      "chunk_idler": [
+        640,
+        -12,
+        638,
+        639
+      ],
+      "turler": [
+        "metin",
+        "tablo",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 512
+    },
+    {
+      "soru": "Arkeler ve bu canlılardan elde edilen enzimler; çevresel kirlilikle mücadelede, biyoyakıt üretimi gibi biyoteknolojik ve",
+      "grup": "A",
+      "dogru_sayfa": 53,
+      "status": "ok",
+      "sayfalar": [
+        53,
+        65,
+        66,
+        52
+      ],
+      "chunk_idler": [
+        656,
+        683,
+        684,
+        654
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 539
+    },
+    {
+      "soru": "İstilacı tür nedir?",
+      "grup": "A",
+      "dogru_sayfa": 61,
+      "status": "ok",
+      "sayfalar": [
+        61,
+        61,
+        46,
+        54
+      ],
+      "chunk_idler": [
+        675,
+        674,
+        645,
+        -16
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "tablo"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 701
+    },
+    {
+      "soru": "Nuh’un Gemisi Ulusal Biyolojik Çeşitlilik Veri Tabanı hangi yıl başlatıldı ve kaç türün envanteri toplanmıştır?",
+      "grup": "A",
+      "dogru_sayfa": 69,
+      "status": "ok",
+      "sayfalar": [
+        69,
+        70,
+        176,
+        176
+      ],
+      "chunk_idler": [
+        691,
+        692,
+        873,
+        -59
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "tablo"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 752
+    },
+    {
+      "soru": "Biyolojik organizasyon basamakları nedir?",
+      "grup": "A",
+      "dogru_sayfa": 82,
+      "status": "ok",
+      "sayfalar": [
+        152,
+        82,
+        82,
+        164
+      ],
+      "chunk_idler": [
+        837,
+        711,
+        -23,
+        855
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "tablo",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": false,
+      "toplam_ms": 490
+    },
+    {
+      "soru": "Organik moleküller nelerdir?",
+      "grup": "A",
+      "dogru_sayfa": 92,
+      "status": "ok",
+      "sayfalar": [
+        92,
+        111,
+        91,
+        92
+      ],
+      "chunk_idler": [
+        726,
+        -33,
+        723,
+        725
+      ],
+      "turler": [
+        "metin",
+        "tablo",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 506
+    },
+    {
+      "soru": "Amino asitlerin yapı taşı olan iki grupu hangi madde olarak içerir?",
+      "grup": "A",
+      "dogru_sayfa": 99,
+      "status": "ok",
+      "sayfalar": [
+        99,
+        99,
+        105,
+        150
+      ],
+      "chunk_idler": [
+        742,
+        741,
+        751,
+        834
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 512
+    },
+    {
+      "soru": "A vitamini nerede bulunur?",
+      "grup": "A",
+      "dogru_sayfa": 107,
+      "status": "ok",
+      "sayfalar": [
+        107,
+        107,
+        107,
+        108
+      ],
+      "chunk_idler": [
+        756,
+        757,
+        755,
+        758
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 510
+    },
+    {
+      "soru": "Katalaz enziminin aktivitesini belirlemeye yönelik deneyde hangi malzemeler kullanılır",
+      "grup": "A",
+      "dogru_sayfa": 116,
+      "status": "ok",
+      "sayfalar": [
+        116,
+        117,
+        117,
+        116
+      ],
+      "chunk_idler": [
+        772,
+        775,
+        -38,
+        -36
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "tablo",
+        "tablo"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 512
+    },
+    {
+      "soru": "Hayvan hücre zarının çift katmanlı yapısı ve kimyasal içeriği nedir?",
+      "grup": "A",
+      "dogru_sayfa": 125,
+      "status": "ok",
+      "sayfalar": [
+        125,
+        125,
+        127,
+        124
+      ],
+      "chunk_idler": [
+        792,
+        791,
+        796,
+        789
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 510
+    },
+    {
+      "soru": "Hücre zarından madde geçişlerinin niteliklerini belirlemek ve madde geçişlerini molekül büyüklüğü, enerji gereksinimi, g",
+      "grup": "A",
+      "dogru_sayfa": 134,
+      "status": "ok",
+      "sayfalar": [
+        134,
+        137,
+        134,
+        136
+      ],
+      "chunk_idler": [
+        809,
+        812,
+        -43,
+        811
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "tablo",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 568
+    },
+    {
+      "soru": "Çiğ sütün taşınma ve saklanma koşulları pH değişikliğini etkiler mi?",
+      "grup": "A",
+      "dogru_sayfa": 159,
+      "status": "ok",
+      "sayfalar": [
+        159,
+        159,
+        160,
+        159
+      ],
+      "chunk_idler": [
+        849,
+        848,
+        850,
+        -55
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "tablo"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 510
+    },
+    {
+      "soru": "Biyoloji alanında dönüm noktası olarak görülen keşif ve çalışmalardan hangileri insanlığa hangi katkıları sunmuştur ve b",
+      "grup": "B",
+      "dogru_sayfa": 20,
+      "status": "ok",
+      "sayfalar": [
+        20,
+        21,
+        19,
+        18
+      ],
+      "chunk_idler": [
+        596,
+        598,
+        594,
+        592
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 571
+    },
+    {
+      "soru": "Yaşamın temel özelliklerini (anabolizma, katabolizma, ATP, homeostaz vb.) ve bu süreçlerin birleştiği hücre yapısını, or",
+      "grup": "B",
+      "dogru_sayfa": 45,
+      "status": "ok",
+      "sayfalar": [
+        38,
+        35,
+        48,
+        36
+      ],
+      "chunk_idler": [
+        630,
+        625,
+        648,
+        626
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": false,
+      "top1_dogru": false,
+      "toplam_ms": 584
+    },
+    {
+      "soru": "Hayvanlar âleminde sinir sisteminin görüldüğü ilk grup olan sölenterlerin en belirgin özelliği nedir?",
+      "grup": "B",
+      "dogru_sayfa": 59,
+      "status": "ok",
+      "sayfalar": [
+        59,
+        151,
+        59,
+        60
+      ],
+      "chunk_idler": [
+        669,
+        835,
+        670,
+        671
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 559
+    },
+    {
+      "soru": "Biyoloji öğretmeni öğrencilerden canlıların ortak özelliklerinden birini seçerek o özellikle ilgili bildiklerini yazmala",
+      "grup": "B",
+      "dogru_sayfa": 75,
+      "status": "ok",
+      "sayfalar": [
+        75,
+        35,
+        47,
+        48
+      ],
+      "chunk_idler": [
+        702,
+        625,
+        647,
+        648
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 574
+    },
+    {
+      "soru": "Suyun yoğunluk, çözücülük ve yüzey gerilimi gibi özelliklerinin günlük hayattaki örnekleri nelerdir ve bu deneyler hangi",
+      "grup": "B",
+      "dogru_sayfa": 85,
+      "status": "ok",
+      "sayfalar": [
+        88,
+        85,
+        86,
+        87
+      ],
+      "chunk_idler": [
+        718,
+        715,
+        716,
+        717
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": false,
+      "toplam_ms": 536
+    },
+    {
+      "soru": "Lipitlerin biyolojik görevleri nelerdir ve yağ asitleri nasıl sınıflandırılır?",
+      "grup": "B",
+      "dogru_sayfa": 97,
+      "status": "ok",
+      "sayfalar": [
+        97,
+        98,
+        97,
+        98
+      ],
+      "chunk_idler": [
+        736,
+        738,
+        735,
+        740
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 522
+    },
+    {
+      "soru": "Vitaminler ve DNA/RNA arasındaki ilişkiyi açıklayınız, vitaminlerin özellikleri ve fonksiyonları ile DNA/RNA'nın yapısı ",
+      "grup": "B",
+      "dogru_sayfa": 106,
+      "status": "ok",
+      "sayfalar": [
+        106,
+        106,
+        107,
+        105
+      ],
+      "chunk_idler": [
+        753,
+        754,
+        755,
+        752
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 546
+    },
+    {
+      "soru": "Prokaryot ve ökaryot hücrelerin genel yapısını, hücreyi oluşturan alt birimleri ve bu birimler arasındaki ilişkileri dah",
+      "grup": "B",
+      "dogru_sayfa": 120,
+      "status": "ok",
+      "sayfalar": [
+        120,
+        121,
+        121,
+        124
+      ],
+      "chunk_idler": [
+        781,
+        783,
+        -40,
+        789
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "tablo",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 571
+    },
+    {
+      "soru": "Hücre zarından madde geçişleri hangi ölçütler göre sınıflandırılır?",
+      "grup": "B",
+      "dogru_sayfa": 133,
+      "status": "ok",
+      "sayfalar": [
+        134,
+        142,
+        137,
+        136
+      ],
+      "chunk_idler": [
+        809,
+        822,
+        812,
+        811
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 542
+    },
+    {
+      "soru": "Ateş karıncalarının su üzerinde nasıl kaldıklarının araştırılmasında hangi faktörlerin önemli olduğu ve bu faktörlerin n",
+      "grup": "B",
+      "dogru_sayfa": 155,
+      "status": "ok",
+      "sayfalar": [
+        155,
+        87,
+        88,
+        86
+      ],
+      "chunk_idler": [
+        841,
+        717,
+        718,
+        -27
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "tablo"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 619
+    },
+    {
+      "soru": "Öğrencilerin kendilerini değerlendirmeleri için hangi kriterlere göre puanlama ve öz değerlendirme formları oluşturulmuş",
+      "grup": "B",
+      "dogru_sayfa": 169,
+      "status": "ok",
+      "sayfalar": [
+        179,
+        170,
+        183,
+        168
+      ],
+      "chunk_idler": [
+        879,
+        867,
+        884,
+        863
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": false,
+      "toplam_ms": 546
+    },
+    {
+      "soru": "Öğrencilerin biyoloji dersinde yaptıkları bir deneyin planlanması, veri toplama, analiz ve raporlama aşamalarında hangi ",
+      "grup": "B",
+      "dogru_sayfa": 180,
+      "status": "ok",
+      "sayfalar": [
+        180,
+        184,
+        180,
+        184
+      ],
+      "chunk_idler": [
+        -62,
+        -63,
+        881,
+        885
+      ],
+      "turler": [
+        "tablo",
+        "tablo",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 580
+    },
+    {
+      "soru": "Tarım alanlarının yakın veya uzak çevresindeki bitkilerin biyolojik çeşitlilik ve ekosistem sağlığı üzerindeki etkileri ",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "status": "yetersiz_kaynak",
+      "sayfalar": [],
+      "chunk_idler": [],
+      "turler": [],
+      "recall_at_4": null,
+      "top1_dogru": null,
+      "toplam_ms": 560
+    },
+    {
+      "soru": "Tohumlu bitkilerle tohumsuz bitkiler arasındaki evrimsel farklılıkların, bitkilerin yaşam ortamlarına ve adaptasyonların",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "status": "ok",
+      "sayfalar": [
+        57,
+        57,
+        65,
+        40
+      ],
+      "chunk_idler": [
+        665,
+        664,
+        682,
+        634
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": null,
+      "top1_dogru": null,
+      "toplam_ms": 579
+    },
+    {
+      "soru": "Canlılar için suyun vazgeçilmez olmasının ve minerallerin canlı yaşamındaki önemlerinin, ekosistemlerin devamlılığı ve b",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "status": "ok",
+      "sayfalar": [
+        83,
+        83,
+        88,
+        88
+      ],
+      "chunk_idler": [
+        712,
+        713,
+        718,
+        719
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": null,
+      "top1_dogru": null,
+      "toplam_ms": 559
+    },
+    {
+      "soru": "Urasilin DNA'da bulunmaması, genômik DNA'nın uzun vadeli mutasyon oranını nasıl düşürerek evolutif avantaj sağlar?",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "status": "yetersiz_kaynak",
+      "sayfalar": [],
+      "chunk_idler": [],
+      "turler": [],
+      "recall_at_4": null,
+      "top1_dogru": null,
+      "toplam_ms": 794
+    },
+    {
+      "soru": "Amip hücresinde kontraktil kofulun ve yalancı ayakların işbirliğinin besin alımı ve hücreyi dış çevreye karşı savunma me",
+      "grup": "C",
+      "dogru_sayfa": null,
+      "status": "ok",
+      "sayfalar": [
+        129,
+        129,
+        141,
+        186
+      ],
+      "chunk_idler": [
+        801,
+        800,
+        821,
+        -64
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "tablo"
+      ],
+      "recall_at_4": null,
+      "top1_dogru": null,
+      "toplam_ms": 644
+    },
+    {
+      "soru": "Tabloda verilen köpek, kızıl tilki, çöl tilkisi, karaçam, fıstık çamı ve karadut örneklerinden hangileri aynı aileye ait",
+      "grup": "B",
+      "dogru_sayfa": 76,
+      "status": "ok",
+      "sayfalar": [
+        76,
+        76,
+        76,
+        64
+      ],
+      "chunk_idler": [
+        -22,
+        704,
+        703,
+        680
+      ],
+      "turler": [
+        "tablo",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 646
+    },
+    {
+      "soru": "Virüslerin canlı mı cansız mı olduğu tartışmalıdır. Canlıların ortak özellikleri (hücresel yapı, beslenme, büyüme-gelişm",
+      "grup": "B",
+      "dogru_sayfa": 42,
+      "status": "ok",
+      "sayfalar": [
+        42,
+        43,
+        43,
+        35
+      ],
+      "chunk_idler": [
+        638,
+        640,
+        639,
+        625
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 608
+    },
+    {
+      "soru": "Bakteriler, arkeler ve ökaryotik canlıların hücre yapıları temel olarak nasıl farklılık gösterir? Bu farklılık, canlılar",
+      "grup": "B",
+      "dogru_sayfa": 52,
+      "status": "ok",
+      "sayfalar": [
+        51,
+        52,
+        53,
+        124
+      ],
+      "chunk_idler": [
+        653,
+        654,
+        656,
+        789
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 605
+    },
+    {
+      "soru": "Biyoçeşitlilik kavramı hangi organizasyon düzeylerini (genler, bireyler, türler, popülasyonlar, komünite, ekosistemler) ",
+      "grup": "B",
+      "dogru_sayfa": 67,
+      "status": "ok",
+      "sayfalar": [
+        67,
+        152,
+        80,
+        68
+      ],
+      "chunk_idler": [
+        686,
+        837,
+        708,
+        688
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 641
+    },
+    {
+      "soru": "D vitamininin vücutta aktifleşme süreci (deri → karaciğer → böbrek, UVB ile sentez) ile B vitamininin görevi (enerji met",
+      "grup": "B",
+      "dogru_sayfa": 108,
+      "status": "ok",
+      "sayfalar": [
+        108,
+        107,
+        108,
+        107
+      ],
+      "chunk_idler": [
+        758,
+        756,
+        759,
+        755
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 643
+    },
+    {
+      "soru": "Organizma düzeyine kadar olan organizasyon basamakları (hücre→doku→organ→sistem→organizma) genel olarak nasıl işler? Sün",
+      "grup": "B",
+      "dogru_sayfa": 151,
+      "status": "ok",
+      "sayfalar": [
+        151,
+        82,
+        151,
+        153
+      ],
+      "chunk_idler": [
+        835,
+        -23,
+        836,
+        838
+      ],
+      "turler": [
+        "metin",
+        "tablo",
+        "metin",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 625
+    },
+    {
+      "soru": "Biyosfer nedir?",
+      "grup": "A",
+      "dogru_sayfa": 165,
+      "status": "ok",
+      "sayfalar": [
+        152,
+        165,
+        16,
+        166
+      ],
+      "chunk_idler": [
+        837,
+        857,
+        -3,
+        859
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "tablo",
+        "metin"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": false,
+      "toplam_ms": 512
+    },
+    {
+      "soru": "Mutasyon nedir?",
+      "grup": "A",
+      "dogru_sayfa": 166,
+      "status": "ok",
+      "sayfalar": [
+        166,
+        40,
+        40,
+        42
+      ],
+      "chunk_idler": [
+        859,
+        634,
+        635,
+        -11
+      ],
+      "turler": [
+        "metin",
+        "metin",
+        "metin",
+        "tablo"
+      ],
+      "recall_at_4": true,
+      "top1_dogru": true,
+      "toplam_ms": 514
+    }
+  ]
+}

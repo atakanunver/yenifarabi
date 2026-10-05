@@ -108,19 +108,24 @@ okul_no [INTEGER], veli_rol [TEXT: 'Anne'|'Baba'|'Teyze'|'Anneanne']) tabloları
   "aynı veli" diye birleşik bir kavram yok. Mükerrer (öğrenci, telefon) çifti
   canlıda 0.
 
-**İlk Ders Otomasyon Modülü (2026-09-24 eklendi — `otomasyon.py`):**
-- **Amaç:** Okul günleri (Pazartesi-Cuma) sabah 09:00'da yoklama veritabanını kontrol ederek 1. derse gelmeyen öğrencilerin anne ve babalarına otomatik SMS gönderimi.
-- **Güvenlik & Fail-Closed:** Yalnızca 1. derste `durum == 'alindi'` olan sınıflar taranır. Tahtası kapalı veya yoklaması alınmamış sınıflar hariç tutulur. İzinli öğrenciler devamsız sayılmaz.
-- **İdempotency:** `otomasyon_ilk_ders_son_tarih` ayarı ile aynı gün mükerrer çalışması kesin olarak engellenir. İstisna: hiçbir `send_sms` denenmediyse (proxy/modem bağlantısı hiç kurulamadı, satırlar "BAĞLANTI HATASI" önekli) son tarih yazılmaz ve pencere içinde yeniden denenir. Koşulu "hiç başarılı yok"a genişletme — mükerrer SMS riski (DECISIONS.md 2026-09-28).
+**Devamsızlık SMS Otomasyon Modülü (2026-09-24 ilk ders, 2026-10-04 öğleden sonra eklendi — `otomasyon.py`):**
+- **Amaç:** Okul günleri (Pazartesi-Cuma) yoklama veritabanını kontrol ederek:
+  1. Sabah 09:00'da 1. derse gelmeyen öğrencilerin anne ve babalarına otomatik SMS gönderir.
+  2. Öğleden sonra 14:00'te öğleden sonraki derse (6. ders: 13:30 - 14:10) gelmeyen öğrencilerin anne ve babalarına otomatik SMS gönderir.
+- **Güvenlik & Fail-Closed:** Yalnızca ilgili derste (1 veya 6) `durum == 'alindi'` olan sınıflar taranır. Tahtası kapalı veya yoklaması alınmamış sınıflar hariç tutulur. İzinli öğrenciler devamsız sayılmaz.
+- **İdempotency:** `otomasyon_ilk_ders_son_tarih` ve `otomasyon_ogle_son_tarih` ayarları ile aynı gün mükerrer çalışmalar kesin olarak engellenir. İki servis birbirinden bağımsızdır (sabahın çalışması öğleyi engellemez). İstisna: hiçbir `send_sms` denenmediyse (proxy/modem bağlantısı hiç kurulamadı, satırlar "BAĞLANTI HATASI" önekli) son tarih yazılmaz ve pencere içinde yeniden denenir. Koşulu "hiç başarılı yok"a genişletme — mükerrer SMS riski (DECISIONS.md 2026-09-28).
 - **Arayüz (`/otomasyon`):**
-  - Otomasyon açma/kapatma butonu (`otomasyon_ilk_ders_aktif`, varsayılan '0' KAPALI).
-  - Varsayılan şablon düzenleyici: "Sayın {isim}, öğrenciniz {ogrenci_adi} sabah ilk saate gelmemiştir. Bilginize."
+  - Üstte sekmeler: "☀️ Sabah 09:00 Servisi (1. Ders)" ve "🌤️ Öğleden Sonra 14:00 Servisi (6. Ders)".
+  - Her iki servis için bağımsız açma/kapatma şalteri (`otomasyon_ilk_ders_aktif`, `otomasyon_ogle_aktif`, varsayılan '0' KAPALI).
+  - Ayrı varsayılan şablon düzenleyicileri:
+    - Sabah: "Sayın {isim}, öğrenciniz {ogrenci_adi} sabah ilk saate gelmemiştir. Bilginize."
+    - Öğle: "Sayın {isim}, öğrenciniz {ogrenci_adi} öğleden sonra derslere gelmemiştir. Bilginize."
   - Yapay Zeka ile Mesaj Düzenleme butonu (`/api/mesaj-duzelt`).
-  - Bugünkü 1. ders canlı simülasyonu / test önizlemesi ve manuel gönderim butonu.
+  - Bugünkü ders canlı simülasyonu / test önizlemesi (öğle sekmesinde "Tüm Gün Yok" vs "Öğleden Sonra Gelmedi / Kaçtı" rozeti gösterilir) ve manuel gönderim butonu.
 - **Dashboard Entegrasyonu:**
   - Tahtayoklama panosunda menüye "SMS Otomasyonu" linki (`/otomasyon-git`) eklendi; HMAC-imzalı SSO ile doğrudan `:8020/otomasyon` sayfasına geçiş sağlar.
-- **Arka Plan Servisi:** FastAPI `lifespan` döngüsünde 30 saniyede bir saati kontrol eden asenkron zamanlayıcı görevi (`otomasyon.otomasyon_arkaplan_dongusu`). Tetik penceresi İstanbul saatiyle 09:00–09:10 (`zoneinfo`, `simdi_istanbul()`); servis bu aralıkta kapalıysa o gün çalışmaz. Görev uvicorn sürecinin içinde koşar — birden çok worker ile başlatılırsa her biri kendi döngüsünü açar, mükerrer gönderimi yalnızca `…_son_tarih` ayarı engeller.
-- ⚠️ **Yoklama SMS'ten farklı gönderim yolu:** otomasyon `POST /gonder`'i KULLANMAZ; `otomasyon_calistir` doğrudan `sms_gonderici`'yi kendi thread'inde çağırıp satırları kendisi `gonderimler`'e yazar. Gönderim mantığında (normalizasyon, UCS2/7-bit, kayıt formatı) yapılan bir değişiklik iki yolda da kontrol edilmeli.
+- **Arka Plan Servisi:** FastAPI `lifespan` döngüsünde 30 saniyede bir saati kontrol eden asenkron zamanlayıcı görevi (`otomasyon.otomasyon_arkaplan_dongusu`). Tetik pencereleri İstanbul saatiyle 09:00–09:10 (1. ders) ve 14:00–14:10 (6. ders); servis bu aralıklarda kapalıysa o gün çalışmaz. Görev uvicorn sürecinin içinde koşar — birden çok worker ile başlatılırsa her biri kendi döngüsünü açar, mükerrer gönderimi yalnızca `…_son_tarih` ayarları engeller.
+- ⚠️ **Yoklama SMS'ten farklı gönderim yolu:** otomasyon `POST /gonder`'i KULLANMAZ; `otomasyon_calistir` doğrudan `sms_gonderici`'yi kendi thread'inde çağırıp satırları kendisi `gonderimler`'e yazar (`oto1_...` sabah, `oto6_...` öğle). Gönderim mantığında (normalizasyon, UCS2/7-bit, kayıt formatı) yapılan bir değişiklik iki yolda da kontrol edilmeli.
 
 **Doğum günü `sms_otomatik` şalteri yalnızca ayar olarak var:** `/dogum-gunleri/ayarlar` `sms_otomatik` ve `dogum_sms_sablonu`'nu `ayarlar` tablosuna yazar, ama (2026-09-28 itibarıyla) bu değeri okuyup doğum günü SMS'i gönderen bir döngü/görev YOK — `lifespan`'daki tek arka plan görevi ilk ders otomasyonu. Şalteri açmak hiçbir şey göndermez.
 
@@ -162,7 +167,7 @@ genel bir güvenlik payı olarak.
 
 ```bash
 python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt -r requirements-dev.txt
-venv/bin/python -m pytest -q                    # tüm testler (düz dosyalar: test_*.py, tests/ dizini yok) — 2026-10-01: 122 geçti
+venv/bin/python -m pytest -q                    # tüm testler (düz dosyalar: test_*.py, tests/ dizini yok) — 2026-10-04: 130 geçti
 venv/bin/python -m pytest test_db.py -q         # tek dosya
 venv/bin/python -m pytest test_db.py::test_semayi_kur_ve_gonderim_kaydet -q  # tek test
 

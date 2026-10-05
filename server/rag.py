@@ -130,6 +130,11 @@ _ARAMA_TABLOLARI = {
 ESIK_BENZERLIK = 0.55
 
 _SAYI_RE = re.compile(r"\d+(?:[.,]\d+)?")
+_DURAK_KELIMELER = {
+    "icin", "olan", "veya", "gibi", "kadar", "nedir", "nelerdir", "nasil",
+    "buna", "gore", "olur", "diye", "yapan", "eder", "biri", "için",
+    "nasıl", "göre", "hakkında", "ile", "ve", "bir", "bu", "şu", "ne"
+}
 
 SISTEM_SABLON = """Sen Farabi'sin; lise düzeyindeki öğretmen ve öğrencilere akıllı tahta üzerinden yardımcı olan MEB müfredatına hakim bir ders asistanısın.
 SADECE aşağıdaki KAYNAK METİN'e dayanarak, sorulan soruyu doğrudan ve Türkçe olarak cevapla.
@@ -236,7 +241,8 @@ class RagMotoru:
                           mesafe, kitap_id))
         return sonuc
 
-    def ara(self, conn, kaynak: str, kaynak_idler: list[int], soru: str) -> dict:
+    def ara(self, conn, kaynak: str, kaynak_idler: list[int], soru: str,
+            k: int = TOP_N, esik: float = ESIK_BENZERLIK) -> dict:
         """Yalnızca vektör araması — LLM ve reranker YOK (Open WebUI filtresi,
         webui.py). Hiçbir tabloya YAZMAZ; loglamayı çağıran yapar. Tahta yolu
         (`sorgula`) bunu KULLANMAZ (Kural 5)."""
@@ -249,15 +255,41 @@ class RagMotoru:
         t0 = time.perf_counter()
         try:
             vektor = self.embed_model.encode(soru, normalize_embeddings=True)
-            # (id, sayfa, metin, mesafe, tur, kaynak_id)
-            adaylar = [(c[0], c[1], c[2], c[3], "metin", c[4])
-                       for c in self._aday_getir(conn, kaynak, kaynak_idler, vektor, TOP_N)]
+            aday_sozluk: dict[int, tuple] = {}
+            for c in self._aday_getir(conn, kaynak, kaynak_idler, vektor, k):
+                aday_sozluk[c[0]] = (c[0], c[1], c[2], c[3], "metin", c[4])
             if kaynak == "egitim" and TABLO_KAYNAGI:
                 try:
-                    adaylar += [(c[0], c[1], c[2], c[3], "tablo", c[4])
-                                for c in self._tablo_aday_getir(conn, kaynak_idler, vektor, TOP_N)]
+                    for c in self._tablo_aday_getir(conn, kaynak_idler, vektor, k):
+                        if c[0] not in aday_sozluk or c[3] < aday_sozluk[c[0]][3]:
+                            aday_sozluk[c[0]] = (c[0], c[1], c[2], c[3], "tablo", c[4])
                 except Exception:  # noqa: BLE001 — tablo araması yardımcı kaynak; hata olursa yalnızca metinle devam
                     conn.rollback()
+
+            # Hibrit arama: k > TOP_N ise soru içindeki kanun/madde no veya anahtar kelimeleri de tara
+            if k > TOP_N:
+                tablo, kolon = _ARAMA_TABLOLARI[kaynak]
+                kelimeler = [w for w in re.findall(r"[A-Za-zÇĞİÖŞÜçğıöşü0-9]{3,}", soru)
+                             if w.lower() not in _DURAK_KELIMELER]
+                for term in kelimeler[:3]:
+                    try:
+                        with conn.cursor() as cur:
+                            cur.execute(
+                                f"""
+                                SELECT id, sayfa_no, metin, embedding <=> %s AS mesafe, {kolon}
+                                FROM {tablo}
+                                WHERE {kolon} = ANY(%s) AND metin ILIKE %s
+                                LIMIT 4
+                                """,
+                                (vektor, list(kaynak_idler), f"%{term}%"),
+                            )
+                            for c in cur.fetchall():
+                                if c[0] not in aday_sozluk:
+                                    aday_sozluk[c[0]] = (c[0], c[1], c[2], c[3], "metin", c[4])
+                    except Exception:  # noqa: BLE001
+                        conn.rollback()
+
+            adaylar = list(aday_sozluk.values())
         except Exception as e:  # noqa: BLE001 — arama hatası durum="hata" olarak döner
             return {"durum": "hata", **bos, "hata": f"{type(e).__name__}: {e}"}
         retrieval_ms = int((time.perf_counter() - t0) * 1000)
@@ -265,10 +297,10 @@ class RagMotoru:
         if not adaylar:
             return {"durum": "zayif", **bos, "retrieval_ms": retrieval_ms}
 
-        secilen = sorted(adaylar, key=lambda c: c[3])[:TOP_N]
+        secilen = sorted(adaylar, key=lambda c: c[3])[:k]
         en_iyi = round(1 - float(secilen[0][3]), 4)
         ortak = {"retrieval_ms": retrieval_ms, "rerank_ms": None, "en_iyi_skor": en_iyi}
-        if en_iyi < ESIK_BENZERLIK:
+        if en_iyi < esik:
             return {"durum": "zayif", "parcalar": [], **ortak}
         parcalar = [{"kaynak_id": int(c[5]), "sayfa": int(c[1]), "metin": c[2],
                      "skor": round(1 - float(c[3]), 4), "tur": c[4]} for c in secilen]

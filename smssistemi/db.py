@@ -102,6 +102,12 @@ _AYARLAR_VARSAYILAN = {
     ),
     "otomasyon_ilk_ders_son_tarih": "",
     "otomasyon_ilk_ders_son_sonuc": "",
+    "otomasyon_ogle_aktif": "0",  # KAPALI — ilk kurulumda pasif, kullanıcı butondan açar
+    "otomasyon_ogle_sablonu": (
+        "Sayın {isim}, öğrenciniz {ogrenci_adi} öğleden sonra derslere gelmemiştir. Bilginize."
+    ),
+    "otomasyon_ogle_son_tarih": "",
+    "otomasyon_ogle_son_sonuc": "",
 }
 
 

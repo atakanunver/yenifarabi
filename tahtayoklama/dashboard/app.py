@@ -18,6 +18,7 @@ from starlette.middleware.gzip import GZipMiddleware
 
 import admin
 import ajan_api
+import okul_bilgisi
 import auth
 import db
 import ders_programi
@@ -89,6 +90,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(admin.router)
 app.include_router(uzaktan_yonetim.router)
 app.include_router(ajan_api.router)
+app.include_router(okul_bilgisi.router)
 app.include_router(sunucular.router)
 
 

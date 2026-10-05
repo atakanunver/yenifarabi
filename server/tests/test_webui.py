@@ -169,3 +169,86 @@ def test_baglanti_alinamazsa_200_hata_metriksiz(kur, monkeypatch):
 ])
 def test_sinif_cikar(soru, beklenen):
     assert webui.sinif_cikar(soru) == beklenen
+
+
+class TestGenelKitapMevzuat:
+    """2026-10-04: genel kapsam (farabi, farabi-derin) hem kitaplarda hem mevzuatta arar."""
+
+    def _conn(self, metin=(), idari=()):
+        return SahteBaglanti(list(metin), kitap_satirlari=KITAPLAR, idari_satirlari=list(idari),
+                             idari_belge_satirlari=[(2, "Ortaöğretim Kurumları Yönetmeliği")])
+
+    def test_iki_kaynak_birlikte_skora_gore(self, kur):
+        ist, conn = kur(self._conn([_m(1, 84, "Mol", 9, mesafe=0.30)],
+                                   [_m(5, 12, "Geç gelen öğretmen", 2, mesafe=0.10)]))
+        y = _post(ist, {"kapsam": "genel", "soru": "öğretmen geç gelirse"}).json()
+        assert y["durum"] == "ok"
+        assert [p["kaynak"] for p in y["parcalar"]] == [
+            "Ortaöğretim Kurumları Yönetmeliği, s. 12", "Kimya 10, s. 84"]
+        assert any("FROM chunk_egitim" in q[0] for q in conn.sorgular)
+        assert any("FROM chunk_idari" in q[0] for q in conn.sorgular)
+
+    def test_yalniz_mevzuat_eslesirse_ok(self, kur):
+        ist, _ = kur(self._conn([_m(1, 84, "x", 9, mesafe=0.9)],
+                                [_m(5, 12, "Madde", 2, mesafe=0.1)]))
+        y = _post(ist, {"kapsam": "genel", "soru": "devamsızlık"}).json()
+        assert y["durum"] == "ok" and y["parcalar"][0]["kaynak"].startswith("Ortaöğretim")
+
+    def test_ikisi_de_zayifsa_zayif(self, kur):
+        ist, _ = kur(self._conn([_m(1, 84, "x", 9, mesafe=0.9)], [_m(5, 12, "y", 2, mesafe=0.9)]))
+        assert _post(ist, {"kapsam": "genel", "soru": "x"}).json()["durum"] == "zayif"
+
+    def test_en_fazla_top_n_parca(self, kur):
+        metin = [_m(i, i, f"m{i}", 9, mesafe=0.1 + i / 100) for i in range(1, 5)]
+        idari = [_m(10 + i, i, f"i{i}", 2, mesafe=0.1 + i / 100) for i in range(1, 5)]
+        ist, _ = kur(self._conn(metin, idari))
+        assert len(_post(ist, {"kapsam": "genel", "soru": "x"}).json()["parcalar"]) == rag.TOP_N
+
+    def test_metrik_tek_satir(self, kur):
+        ist, conn = kur(self._conn([_m(1, 84, "Mol", 9)], [_m(5, 12, "Madde", 2)]))
+        _post(ist, {"kapsam": "genel", "soru": "x"})
+        assert len(conn.metrik_kayitlari()) == 1
+
+    def test_kimya_kapsami_mevzuata_bakmaz(self, kur):
+        ist, conn = kur(self._conn([_m(1, 84, "Mol", 9)], [_m(5, 12, "Madde", 2)]))
+        _post(ist, {"kapsam": "kimya", "soru": "mol"})
+        assert not any("FROM chunk_idari" in q[0] for q in conn.sorgular)
+
+
+class TestWebuiRerank:
+    """2026-10-04: reranker (bilgehan) varsa birleşik sonuç onunla sıralanır,
+    ESIK_RERANK uygulanır; hata verirse kosinüs yoluna düşülür."""
+
+    def _kur(self, kur, skorlar=None, patlat=None):
+        from conftest import SahteReranker
+        conn = SahteBaglanti([_m(1, 84, "Mol", 9, mesafe=0.10)], kitap_satirlari=KITAPLAR,
+                             idari_satirlari=[_m(5, 12, "Geç gelen öğretmen", 2, mesafe=0.30)],
+                             idari_belge_satirlari=[(2, "Ortaöğretim Kurumları Yönetmeliği")])
+        ist, conn = kur(conn)
+        webui.MOTOR.reranker = SahteReranker(skorlar if skorlar is not None else 0.9, patlat=patlat)
+        return ist, conn
+
+    def test_rerank_sirasi_kosinusu_ezer(self, kur):
+        ist, _ = self._kur(kur, skorlar=[0.2, 0.95])  # sıra: kosinüs birleşimi (Mol, Geç gelen)
+        y = _post(ist, {"kapsam": "genel", "soru": "öğretmen geç gelirse"}).json()
+        assert y["durum"] == "ok"
+        assert [p["kaynak"] for p in y["parcalar"]] == ["Ortaöğretim Kurumları Yönetmeliği, s. 12"]
+        assert y["parcalar"][0]["skor"] == 0.95
+
+    def test_rerank_esik_alti_zayif(self, kur):
+        ist, _ = self._kur(kur, skorlar=0.1)
+        assert _post(ist, {"kapsam": "genel", "soru": "x"}).json()["durum"] == "zayif"
+
+    def test_rerank_hatasinda_kosinus_yolu(self, kur):
+        ist, _ = self._kur(kur, patlat=ConnectionError("bilgehan kapalı"))
+        y = _post(ist, {"kapsam": "genel", "soru": "x"}).json()
+        assert y["durum"] == "ok"
+        assert [p["kaynak"] for p in y["parcalar"]] == [
+            "Kimya 10, s. 84", "Ortaöğretim Kurumları Yönetmeliği, s. 12"]
+
+    def test_rerank_tek_kaynakta_da_uygulanir_ve_metrige_yazilir(self, kur):
+        ist, conn = self._kur(kur, skorlar=[0.8])
+        y = _post(ist, {"kapsam": "kimya", "soru": "mol"}).json()
+        assert y["parcalar"][0]["skor"] == 0.8
+        (_sql, params), = conn.metrik_kayitlari()
+        assert params[2] is not None  # rerank_ms

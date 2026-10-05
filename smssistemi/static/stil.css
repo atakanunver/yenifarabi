@@ -452,3 +452,9 @@ main { padding: 20px; max-width: 1140px; margin: 0 auto; }
   font-family: inherit; margin: 4px 0 0;
 }
 
+.sablon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 12px; }
+@media (max-width: 900px) {
+  .sablon-grid { grid-template-columns: 1fr; }
+}
+
+

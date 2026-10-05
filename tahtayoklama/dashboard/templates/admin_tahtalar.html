@@ -22,10 +22,16 @@
     <tbody>
       {% for t in tahtalar %}
       <tr class="{{ 'pasif' if not t.aktif else '' }}">
-        <td>{{ t.ad }}</td>
+        <td><strong>{{ t.ad }}</strong></td>
         <td class="mono">{{ t.ip }}</td>
         <td class="mono">{{ t.mac or '—' }}</td>
-        <td class="sinif-etiket">{{ t.sinif_adi or '— atanmadı —' }}</td>
+        <td>
+          {% if t.sinif_adi %}
+          <span class="etiket">{{ t.sinif_adi }}</span>
+          {% else %}
+          <span class="sinif-etiket">— atanmadı —</span>
+          {% endif %}
+        </td>
         <td>
           <form method="post" action="/admin/tahtalar/{{ t.id }}" class="satir-form">
             <select name="sinif_id">

@@ -35,6 +35,10 @@ HESAPLAR = [  # (ad, e-posta, .env anahtarı, grup)
 GOREV_MODEL_ID = "farabi-gorev"  # yalnızca arka plan görevleri (başlık) için, düşünme kapalı
 ARAC_ID = "farabi_yonetim"  # yalnızca admin: tahta yönetimi aracı (Tool)
 YONETIM_MODEL_ID = "farabi-yonetim"
+# 2026-10-04: ders programı + (yalnızca İdare/Öğretmen) öğrenci bilgisi aracı, tüm modlarda.
+OKUL_ARAC_ID = "farabi_okul"
+OKUL_API_URL = "http://127.0.0.1:8010/api/okul"
+TAHTA_EPOSTA = "tahta@farabi.local"  # öğrenci verisine ASLA erişmez (kullanıcı kararı)
 # Open WebUI utils/tools.py get_builtin_tools: meta.builtinTools[kategori] (varsayılan True).
 BUILTIN_KATEGORILER = ("time", "memory", "chats", "notes", "knowledge", "channels", "web_search",
                        "image_generation", "code_interpreter", "files", "tasks", "automations",
@@ -57,8 +61,9 @@ def mevcut_ogretmenler(env: dict) -> list[str]:
     return [a.strip() for a in env.get("MEVCUT_OGRETMENLER", "").split(",") if a.strip()]
 
 
-def model_govdesi(mod: dict, cekirdek: str, ek: str, grup_idleri: dict[str, str]) -> dict:
-    return {
+def model_govdesi(mod: dict, cekirdek: str, ek: str, grup_idleri: dict[str, str],
+                  arac_idleri=()) -> dict:
+    govde = {
         "id": mod["id"],
         "base_model_id": TABAN_MODEL,
         "name": mod["ad"],
@@ -75,6 +80,14 @@ def model_govdesi(mod: dict, cekirdek: str, ek: str, grup_idleri: dict[str, str]
                            "permission": "read"} for g in mod["gruplar"]],
         "is_active": True,
     }
+    if arac_idleri:
+        # Okul Bilgisi aracı: native araç çağrısı; Open WebUI yerleşik araçları
+        # (bellek, sohbetler, web...) kapalı — yonetim_model_govdesi ile aynı gerekçe.
+        govde["meta"].update({"toolIds": list(arac_idleri),
+                              "capabilities": {"builtin_tools": False},
+                              "builtinTools": {k: False for k in BUILTIN_KATEGORILER}})
+        govde["params"]["function_calling"] = "native"
+    return govde
 
 
 def ham_model_govdesi(grup_idleri: dict[str, str]) -> dict:
@@ -173,7 +186,7 @@ def hesaplari_kur(api: Api, env: dict, grup_idleri: dict[str, str]) -> None:
                 print(f"mevcut hesap Öğretmenler'e eklendi: {ad}")
 
 
-def filtreyi_kur(api: Api, webui_key: str) -> None:
+def filtreyi_kur(api: Api, webui_key: str, okul: dict | None = None) -> None:
     icerik = (KOK / "farabi_filtre.py").read_text(encoding="utf-8")
     govde = {"id": FILTRE_ID, "name": "Farabi Kaynak Arama", "content": icerik,
              "meta": {"description": "Farabi modları için kitap/mevzuat parçası ekler."}}
@@ -183,8 +196,68 @@ def filtreyi_kur(api: Api, webui_key: str) -> None:
     if simdi and not simdi.get("is_active"):
         api("POST", f"/api/v1/functions/id/{FILTRE_ID}/toggle")
     api("POST", f"/api/v1/functions/id/{FILTRE_ID}/valves/update",
-        {"api_url": "http://127.0.0.1:8000/api/webui/ara", "api_key": webui_key, "zaman_asimi_sn": 8.0})
+        {"api_url": "http://127.0.0.1:8000/api/webui/ara", "api_key": webui_key, "zaman_asimi_sn": 8.0,
+         "okul_url": OKUL_API_URL, "okul_key": (okul or {}).get("anahtar", "")})
     print("filtre kuruldu: farabi_kaynak")
+
+
+def okul_ayari_oku() -> dict | None:
+    """Dashboard'un /api/okul ayarı (config/okul.json, gitignore'lu); yoksa/bozuksa None."""
+    yol = KOK.parent / "tahtayoklama/dashboard/config/okul.json"
+    try:
+        veri = json.loads(yol.read_text(encoding="utf-8"))
+        if not isinstance(veri.get("anahtar"), str) or not veri["anahtar"].strip():
+            return None
+    except (OSError, ValueError, AttributeError):
+        return None
+    return veri
+
+
+def ogrenci_izinli_liste(dosyadaki: list, kisisel: list[str]) -> list[str]:
+    """okul.json listesi + kişisel öğretmen hesapları; tahta hesabı her durumda dışarıda."""
+    cikti = []
+    for e in list(dosyadaki or []) + list(kisisel):
+        e = str(e).strip().lower()
+        if e and e != TAHTA_EPOSTA and e not in cikti:
+            cikti.append(e)
+    return cikti
+
+
+def okul_araci_kur(api: Api, okul: dict, grup_idleri: dict[str, str]) -> None:
+    icerik = (KOK / "farabi_okul_araci.py").read_text(encoding="utf-8")
+    erisim = [{"principal_type": "group", "principal_id": grup_idleri[g], "permission": "read"}
+              for g in GRUPLAR]
+    govde = {"id": OKUL_ARAC_ID, "name": "Okul Bilgisi", "content": icerik,
+             "meta": {"description": "Ders programı ve (İdare/Öğretmen) öğrenci bilgisi."},
+             "access_grants": erisim}
+    var = api("GET", f"/api/v1/tools/id/{OKUL_ARAC_ID}")
+    api("POST", f"/api/v1/tools/id/{OKUL_ARAC_ID}/update" if var else "/api/v1/tools/create", govde)
+    api("POST", f"/api/v1/tools/id/{OKUL_ARAC_ID}/access/update", {"access_grants": erisim})
+    api("POST", f"/api/v1/tools/id/{OKUL_ARAC_ID}/valves/update",
+        {"api_url": OKUL_API_URL, "api_key": okul["anahtar"],
+         "ogrenci_izinli": ",".join(okul.get("ogrenci_izinli") or []), "zaman_asimi_sn": 15.0})
+    print(f"araç kuruldu: {OKUL_ARAC_ID}")
+
+
+def okulu_hazirla(api: Api, env: dict, grup_idleri: dict[str, str]) -> dict | None:
+    """okul.json'u okur, kişisel öğretmen hesaplarının e-postalarını öğrenci izin
+    listesine ekleyip dosyaya geri yazar (sunucu aynı listeyi kullanır), aracı kurar."""
+    okul = okul_ayari_oku()
+    if okul is None:
+        print("uyarı: okul.json yok ya da geçersiz, Okul Bilgisi atlandı "
+              "(önce tahtayoklama/dashboard/scripts/okul_anahtari_olustur.py)")
+        return None
+    kisisel = []
+    for ad in mevcut_ogretmenler(env):
+        kisisel += [u["email"] for u in kullanici_bul(api, ad)
+                    if u.get("name") == ad and u.get("email") and u.get("role") != "admin"]
+    okul["ogrenci_izinli"] = ogrenci_izinli_liste(okul.get("ogrenci_izinli"), kisisel)
+    if not api.kuru:
+        yol = KOK.parent / "tahtayoklama/dashboard/config/okul.json"
+        yol.write_text(json.dumps(okul, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        yol.chmod(0o600)
+    okul_araci_kur(api, okul, grup_idleri)
+    return okul
 
 
 def ajan_anahtari_oku() -> str | None:
@@ -227,12 +300,12 @@ def yonetimi_kur(api: Api) -> None:
     print(f"model {'güncellendi' if guncellendi else 'oluşturuldu'}: Farabi Yönetim")
 
 
-def modelleri_kur(api: Api, grup_idleri: dict[str, str]) -> list[str]:
+def modelleri_kur(api: Api, grup_idleri: dict[str, str], arac_idleri=()) -> list[str]:
     cekirdek = (KOK / "promptlar" / "cekirdek.md").read_text(encoding="utf-8")
     modlar = json.loads((KOK / "modlar.json").read_text(encoding="utf-8"))
     for mod in modlar:
         ek = (KOK / "promptlar" / mod["ek"]).read_text(encoding="utf-8")
-        govde = model_govdesi(mod, cekirdek, ek, grup_idleri)
+        govde = model_govdesi(mod, cekirdek, ek, grup_idleri, arac_idleri)
         var = api("GET", "/api/v1/models/model?" + urllib.parse.urlencode({"id": mod["id"]}))
         api("POST", "/api/v1/models/model/update" if var else "/api/v1/models/create", govde)
         print(f"model {'güncellendi' if var else 'oluşturuldu'}: {mod['ad']}")
@@ -280,8 +353,9 @@ def main() -> int:
     kimlik_ayarlarini_kur(api)
     grup_idleri = gruplari_kur(api)
     hesaplari_kur(api, env, grup_idleri)
-    filtreyi_kur(api, webui_key)
-    mod_idleri = modelleri_kur(api, grup_idleri)
+    okul = okulu_hazirla(api, env, grup_idleri)
+    filtreyi_kur(api, webui_key, okul)
+    mod_idleri = modelleri_kur(api, grup_idleri, [OKUL_ARAC_ID] if okul else ())
     ayarlari_kur(api, mod_idleri)
     yonetimi_kur(api)  # en sonda: ajan.json/araç hatası yukarıdaki adımları engellemesin
     print("tamam")

@@ -131,6 +131,22 @@ async def tum_durumlar() -> list[dict]:
     return list(await asyncio.gather(*(_tahta_durumu(t) for t in tahtalar)))
 
 
+_onbellek_durumlar: list[dict] | None = None
+_onbellek_zamani = 0.0
+_DURUM_ONBELLEK_SN = 45
+_kilit = asyncio.Lock()
+
+
+async def durumlar_al(yenile: bool = False) -> list[dict]:
+    global _onbellek_durumlar, _onbellek_zamani
+    async with _kilit:
+        simdi = time.monotonic()
+        if yenile or _onbellek_durumlar is None or (simdi - _onbellek_zamani > _DURUM_ONBELLEK_SN):
+            _onbellek_durumlar = await tum_durumlar()
+            _onbellek_zamani = simdi
+        return _onbellek_durumlar
+
+
 # --------------------------------------------------------------------
 # Tek tahta üzerinde çalışan eylemler — hepsi (t, form) alır, ortak
 # çalıştırıcı (_eylem_calistir_ve_render) tarafından paralel çağrılır.
@@ -275,11 +291,25 @@ EYLEMLER = {
 # Route'lar
 # --------------------------------------------------------------------
 
-@router.get("/uzaktan", response_class=HTMLResponse)
-async def uzaktan_sayfa(request: Request):
+@router.get("/uzaktan/api/durumlar")
+async def api_uzaktan_durumlar(request: Request, yenile: int = 0):
     _dogrula(request)
-    tahtalar = await tum_durumlar()
-    return templates.TemplateResponse(request, "uzaktan_yonetim.html", {"tahtalar": tahtalar, "sonuclar": None})
+    durumlar = await durumlar_al(yenile=bool(yenile))
+    return JSONResponse({"tahtalar": durumlar, "onbellek": not bool(yenile)})
+
+
+@router.get("/uzaktan", response_class=HTMLResponse)
+async def uzaktan_sayfa(request: Request, yenile: int = 0):
+    _dogrula(request)
+    if _onbellek_durumlar is not None and not yenile:
+        tahtalar = _onbellek_durumlar
+        yukleniyor = False
+    else:
+        # Hızlı iskelet: sayfa beklemeden 1 ms'de render edilir; durumlar arka planda doldurulur
+        ham = tahta_kaydi.tahtalari_yukle()
+        tahtalar = [{**t, "ulasilabilir": None, "oturum": "yukleniyor", "yoklama": False, "chrome": False, "karartildi": False} for t in ham]
+        yukleniyor = True
+    return templates.TemplateResponse(request, "uzaktan_yonetim.html", {"tahtalar": tahtalar, "yukleniyor": yukleniyor, "sonuclar": None})
 
 
 async def _eylem_calistir_ve_render(request: Request, eylem, eylem_adi: str) -> HTMLResponse:
@@ -292,8 +322,8 @@ async def _eylem_calistir_ve_render(request: Request, eylem, eylem_adi: str) -> 
     else:
         sonuclar = [{"tahta": None, "basarili": False, "detay": "Hiçbir tahta seçilmedi."}]
     _denetim_yaz(request, eylem_adi, sonuclar)
-    durumlar = await tum_durumlar()
-    return templates.TemplateResponse(request, "uzaktan_yonetim.html", {"tahtalar": durumlar, "sonuclar": sonuclar})
+    durumlar = await durumlar_al(yenile=True)
+    return templates.TemplateResponse(request, "uzaktan_yonetim.html", {"tahtalar": durumlar, "yukleniyor": False, "sonuclar": sonuclar})
 
 
 @router.post("/uzaktan/yoklama-ac", response_class=HTMLResponse)

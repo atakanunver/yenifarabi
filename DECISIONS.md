@@ -1,3 +1,12 @@
+## 2026-10-04 - smssistemi: 14:00 Öğleden sonra devamsızlık SMS otomasyonu eklendi
+- **Ne yapıldı:** Sabah 09:00 ilk ders otomasyonunun (`otomasyon.py`) mimarisi ve fail-closed güvenlik kuralları korunarak, öğleden sonra gelmeyen öğrenciler için saat 14:00'te (6. ders: 13:30–14:10) çalışan ikinci bir bağımsız devamsızlık SMS servisi kuruldu.
+- **Detaylar:**
+  1. Mantık (`otomasyon.py`): `devamsizlar_derle` fonksiyonu genelleştirildi; `ders_no=6` ile 6. derste `durum == 'alindi'` olan sınıfları tarar. Sabah 1. dersle karşılaştırarak öğrencinin tüm gün mü yoksa yalnızca öğleden sonra mı gelmediğini (`sabah_da_yok`) tespit eder.
+  2. Güvenlik & İdempotency: Sabah ve öğle servisleri birbirinden tamamen bağımsızdır (`otomasyon_ilk_ders_son_tarih` vs `otomasyon_ogle_son_tarih`). Gönderim ID öneki `oto6_`.
+  3. Zamanlayıcı: FastAPI `lifespan`'ındaki `otomasyon_arkaplan_dongusu` içine 14:00–14:10 penceresi eklendi (Pzt-Cum).
+  4. Arayüz (`/otomasyon`): Üstte "☀️ Sabah 09:00 Servisi (1. Ders)" ve "🌤️ Öğleden Sonra 14:00 Servisi (6. Ders)" sekmeleri; her servisin bağımsız açma/kapatma şalteri, ayrı şablonu ("Sayın {isim}, öğrenciniz {ogrenci_adi} öğleden sonra derslere gelmemiştir. Bilginize."), canlı simülasyonu ve manuel gönderim butonu.
+  5. Testler: 8 yeni birim ve route testi eklendi; toplam test sayısı 122'den 130'a yükseldi, tümü başarıyla geçti.
+
 ## 2026-10-03 - Open WebUI "Farabi Yönetim" aracı → dashboard /api/ajan
 - Karar: Open WebUI aracı dashboard koduna bağlanmaz; localhost-only + `X-Farabi-Ajan-Key` korumalı JSON API (`/api/ajan`) üzerinden konuşur (servis sınırı korunur, kod paylaşımı yok). Sırlar (SSH anahtarı, IP, parola) sunucuda kalır; LLM yalnızca tahta adını görür — SSH/IP bilgisi memory/wiki'ye KONMADI (kullanıcı kararı).
 - Güvenlik: yalnızca admin (araç + `farabi-yonetim` modeli `access_grants` boş + araçta rol kontrolü); her değiştiren eylem onay penceresi (`__event_call__`, yalnızca `True` kabul). Reboot ayrı modülde (`tahta_yeniden_baslat.py`), okul saatinde reddedilir, tahta başına 120 sn bekleme; tahtada dar sudoers kuralı (`etapadmin` yalnızca `systemctl reboot`). Kural 2026-10-03'te 7 tahtaya kuruldu (9-A, 9-B, 10-A, 11-B, 12-A, 12-B, fenlab; `tahta_fix_uygula.py --duzeltme reboot_sudoers`), etkin yetki her birinde `sudo -n -l /usr/bin/systemctl reboot` ile doğrulandı — 12-A ve fenlab'da genel sudo hâlâ parolalı, yani orada yalnızca bu dar kural etkin. **Bekleyen:** 11-A (o an kapalıydı) ve tahta-234/235/236 — açılınca aynı komut tekrar çalıştırılmalı.
@@ -1884,3 +1893,17 @@ explicit capability-boundary decision, not a resurrected copy of this file.
 - Toplama istek üzerine + 60 sn önbellek (sistem_durumu'ndaki sürekli döngü bilerek yok): sekme kapalıyken hedeflerin auth loguna dakikada bir SSH girişi düşmesin.
 - Tuzak: yeni bir router kendi `Jinja2Templates`'ini kuruyorsa `gun_adi_buyuk` global'ini de eklemeli (taban.html kullanıyor) — yoksa sayfa 500 verir; `test_sunucular.test_sayfa_render_edilir` bunu yakalar.
 - Bekleyen: Farabi→debian/bilgehan `~/.ssh/sunucu_izleme` anahtarı (command= kısıtlı) henüz kurulmadı — kurulana kadar o iki kart "anahtar kurulmamış" gösterir, bilgehan proxy düğmesi çalışmaz.
+
+## 2026-10-04 - Open WebUI RAG altyapısı düzeltildi + Dashboard 8010 modern tasarımı ve hızlandırması
+- **Open WebUI RAG Arama ve Persona İyileştirmesi:**
+  - `server/rag.py` ve `server/webui.py`: Aday havuzu `k=15`'e çıkarıldı. Kanun ve yönetmelik maddeleri (657, KHK vb.) için pgvector'e hibrit ILIKE anahtar kelime eşleştirmesi eklendi. Vektör aday eşiği `esik=0.38`'e indirildi.
+  - `server/webui.py`: Bilgehan yeniden sıralayıcı (reranker) eşiği `ESIK_RERANK_WEBUI = 0.25` olarak ayarlandı (önceki 0.50 eşiği mevzuat parçalarını eliyordu).
+  - `openwebui/farabi_filtre.py` & promptlar (`cekirdek.md`, `genel.md`, `mudur_yrd.md`): Farabi'nin kullanıcıyı (öğretmen / müdür / müdür yardımcısı) tanıması sağlandı. Farabi artık tam yetkili dijital meslektaş olarak yanıt veriyor; "okul idaresine sor", "müdürlüğe git" ya da "RAG sisteminde bulunamadı" gibi kalıplar yasaklandı. `openwebui/kur.py` ile tüm modeller senkronize edildi.
+- **Yoklama Dashboard (`http://farabi.local:8010/`) Geç Yüklenme Çözümü:**
+  - `/admin/uzaktan` sayfasındaki senkron SSH bloklaması (3.3 - 5.6 sn) kaldırıldı: 45 saniyelik thread-safe durum önbelleği ve asenkron istemci uç noktası (`/admin/uzaktan/api/durumlar`) eklendi. Sayfa açılışı 3.3 saniyeden **14 milisaniyeye (200x hızlanma)** indi. İstemci taraflı iskelet yükleyici ile durumlar arka planda dolduruluyor.
+- **Tüm Dashboardlar İçin Modern Web Tasarımı (`tahtayoklama/dashboard/`):**
+  - `pano.css`: Klasik (slate/indigo), Koyu (deep navy/slate) ve Yumuşak (warm paper) temalar için modern renk paleti, çok katmanlı kart gölgeleri, pürüzsüz kaydırma çubukları (custom scrollbar) ve duyarlı arayüz tasarlandı.
+  - `pano.html`: Sayfa üstüne 4 adet KPI özet kartı eklendi (Aktif Sınıflar, Eksiksiz Dersler, Devamsız/İzinli, Bekleyen Yoklama). Yoklama durumu değiştikçe ve periyodik yenilemelerde bu sayaçlar anlık olarak güncelleniyor.
+  - Aktif ders saati vurgusu eklendi (`.aktif-ders-sutun`, `.aktif-ders-rozet`): Zil saatlerine göre o an işlenen ders tablosunda otomatik vurgulanıyor.
+  - Durum rozetleri (`.pill`), iskelet yükleme ışıltısı (`@keyframes iskelet-isilti`), tablo satır geçişleri ve uzaktan yönetim butonları modernize edildi.
+  - Tüm test paketleri (190 server, 148 openwebui, 114 dashboard, 130 smssistemi — toplam 582 test) eksiksiz geçti.
