@@ -72,11 +72,20 @@ def soru_ekle(conn, birim_id, s: dict) -> int:
     return sid
 
 
+# En az onaylı sorusu olan (sınıf, ders) önce; eşitlikte yüksek sınıf önce.
+DENETLENECEK_SQL = (
+    "SELECT s.*, b.metin AS birim_metin FROM soru s JOIN kaynak_birim b ON b.id = s.birim_id "
+    "LEFT JOIN (SELECT ders, sinif, count(*) AS n FROM soru WHERE durum = 'onayli' "
+    "GROUP BY ders, sinif) o ON o.ders = s.ders AND o.sinif = s.sinif "
+    "WHERE s.durum = 'uretildi' "
+    "ORDER BY COALESCE(o.n, 0), s.sinif DESC, s.ders, s.birim_id, s.id LIMIT %s"
+)
+
+
 def denetlenecekler(conn, limit: int) -> list[dict]:
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
-            "SELECT s.*, b.metin AS birim_metin FROM soru s JOIN kaynak_birim b ON b.id = s.birim_id "
-            "WHERE s.durum = 'uretildi' ORDER BY s.birim_id, s.id LIMIT %s",
+            DENETLENECEK_SQL,
             (limit,),
         )
         return list(cur.fetchall())

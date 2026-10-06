@@ -2,10 +2,12 @@
 
 kur      şemayı kurar
 katalog  kaynak birimlerini ekler (GPU kullanmaz)
-uret     ders saati dışında birimleri yerel Ollama ile işler (pencere kapanınca çıkar);
-         bütün birimler bitince AGY denetimini BİR KEZ başlatır
-denetle  AGY ile tüm 'uretildi' soruları tek seferde denetler (elle de çalıştırılabilir)
-durum    özet sayılar"""
+uret     ders saati dışında çalışır. Başlangıçta ve (pencere hâlâ açıksa) üretim
+         döngüsü bitince SINIRLI artımlı AGY denetimi yapar (en az onaylı soru olan
+         (sınıf, ders) önce); bütün birimler bitince kalan her şeyi denetler.
+         Her pakette ders saati yeniden kontrol edilir.
+denetle  AGY ile tüm 'uretildi' soruları tek seferde denetler (elle; sınırsız)
+durum    özet sayılar (sınıf başına onaylı dahil)"""
 
 import sys
 import time
@@ -17,10 +19,17 @@ from soruhavuzu import denetci, kaynaklar, tekrar, uretici, vt, zaman
 
 VERI = Path("/mnt/farabi-data/farabi")
 
+# Artımlı denetim bütçesi (uret içinde, tur başına); hangisi önce dolarsa durur.
+DENETIM_AZAMI_PAKET = 8  # paket = 100 soru
+DENETIM_AZAMI_DK = 45
+
 
 def uret(conn) -> None:
     eleyici = tekrar.Eleyici(tekrar._gomucu())
     eleyici.yukle(conn)
+    # Hafta içi pencere sabah 07:30'da kapandığı için döngü sonunda denetime zaman kalmaz;
+    # bu yüzden üretimden ÖNCE de (ders saati dışındayken) sınırlı bir dilim denetlenir.
+    denetle(conn, DENETIM_AZAMI_PAKET, DENETIM_AZAMI_DK, ders_saati_kontrol=True)
     while zaman.uretim_serbest():
         birim = vt.siradaki_birim(conn)
         if birim is None:
@@ -28,7 +37,7 @@ def uret(conn) -> None:
                 "[uret] bütün birimler işlendi — AGY tek seferlik denetim başlıyor",
                 flush=True,
             )
-            denetle(conn)
+            denetle(conn, ders_saati_kontrol=True)
             return
         t0 = time.perf_counter()
         try:
@@ -53,12 +62,35 @@ def uret(conn) -> None:
                 f"[uret] HATA {birim['anahtar']}: {type(e).__name__}: {e}", flush=True
             )
     print("[uret] ders saati penceresi — durduruldu", flush=True)
+    denetle(conn, DENETIM_AZAMI_PAKET, DENETIM_AZAMI_DK, ders_saati_kontrol=True)
 
 
-def denetle(conn) -> None:
+def denetle(
+    conn,
+    azami_paket: int | None = None,
+    azami_dk: float | None = None,
+    ders_saati_kontrol: bool = False,
+    paket_fn=None,
+    simdi=time.monotonic,
+) -> None:
+    """azami_paket/azami_dk verilirse sınırlı çalışır; ders_saati_kontrol=True ise her
+    paketten önce zaman.uretim_serbest() bakılır ve ders saati başlayınca hemen durulur."""
+    paket_fn = paket_fn or denetci.paket_denetle
     ardisik_bos = 0
+    paket_sayisi = 0
+    t0 = simdi()
     while True:
-        n = denetci.paket_denetle(conn)
+        if ders_saati_kontrol and not zaman.uretim_serbest():
+            print("[denetle] ders saati — durduruldu", flush=True)
+            return
+        if azami_paket is not None and paket_sayisi >= azami_paket:
+            print(f"[denetle] paket sınırı ({azami_paket}) doldu", flush=True)
+            return
+        if azami_dk is not None and (simdi() - t0) >= azami_dk * 60:
+            print(f"[denetle] süre sınırı ({azami_dk} dk) doldu", flush=True)
+            return
+        n = paket_fn(conn)
+        paket_sayisi += 1
         if n == 0 and not vt.denetlenecekler(conn, 1):
             print("[denetle] denetlenecek soru kalmadı", flush=True)
             return
@@ -83,6 +115,12 @@ def durum(conn) -> None:
         )
         for satir in cur.fetchall():
             print("soru", *satir)
+        cur.execute(
+            "SELECT sinif, count(*) FILTER (WHERE durum='onayli'), "
+            "count(*) FILTER (WHERE durum='uretildi') FROM soru GROUP BY 1 ORDER BY 1"
+        )
+        for sinif, onayli, bekleyen in cur.fetchall():
+            print(f"sinif {sinif}: onaylı {onayli}, denetim bekleyen {bekleyen}")
 
 
 def main() -> int:

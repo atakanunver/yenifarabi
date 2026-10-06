@@ -28,3 +28,15 @@ def test_soru_ekle_ve_denetim(conn):
     ] == "kaynak metin"
     vt.denetim_yaz(conn, sid, "onayli", "doğru")
     assert vt.denetlenecekler(conn, 20) == []
+
+
+def test_denetlenecekler_en_az_onayli_grup_once(conn):
+    b1 = vt.birim_ekle(conn, "kitap", "k:1", "matematik", 9, "E", "m")
+    b2 = vt.birim_ekle(conn, "kitap", "k:2", "fizik", 12, "E", "m")
+    # matematik 9: 2 onaylı (kaynak birim 1, düşük id), fizik 12: 0 onaylı
+    for i in range(2):
+        s = vt.soru_ekle(conn, b1, {**ORNEK_SORU, "ders": "matematik", "sinif": 9, "soru": f"o{i}"})
+        vt.denetim_yaz(conn, s, "onayli", "ok")
+    m = vt.soru_ekle(conn, b1, {**ORNEK_SORU, "ders": "matematik", "sinif": 9, "soru": "bekleyen"})
+    f = vt.soru_ekle(conn, b2, {**ORNEK_SORU, "ders": "fizik", "sinif": 12, "soru": "f"})
+    assert [p["id"] for p in vt.denetlenecekler(conn, 10)] == [f, m]
