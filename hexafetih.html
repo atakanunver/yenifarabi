@@ -444,8 +444,8 @@
     }
 
     function sesClick() {
-      sesBaslat();
       try {
+        sesBaslat();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = 'triangle';
@@ -814,8 +814,11 @@
       } catch (err) {
         console.error("Hamle gönderme hatası:", err);
         hataLogla("Hamle Hatası: " + err.message);
+      } finally {
+        hamleGonderiliyor = false;
       }
     }
+
 
     // --- ZAFER KONTROLÜ ---
     function zaferKontrol(zorla) {
