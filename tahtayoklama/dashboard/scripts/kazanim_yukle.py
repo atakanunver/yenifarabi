@@ -120,6 +120,8 @@ ESLEME = [
     ("edebiyat/10.sınıflar edebiyat.pdf", 10, EDEB, None, "2026-10-06: .doc yerine PDF konuldu"),
     ("edebiyat/11.SINIFLAR TDE YILLIK PLANI 2026 - 2027 (1).docx", 11, EDEB, None, ""),
     ("edebiyat/12.SINIFLAR TDE YILLIK PLANI.pdf", 12, EDEB, None, "2026-10-06: .doc yerine PDF konuldu"),
+    ("felsefe yok/felsefe-unitelendirilmis-yillik-plan (1).docx", 10, "felsefe", None,
+     "iki 10. sınıf planından 18. haftası boş (okul takvimiyle uyumlu) olan seçildi (2026-10-06)"),
     ("fizik/9.sınıf fizik yıllık plan.docx", 9, "fizik", None, ""),
     ("fizik/10.sınıf fizik yıllık plan.docx", 10, "fizik", None, ""),
     ("fizik/11.sınıf fizik yıllık plan.docx", 11, "fizik", None, ""),
@@ -180,6 +182,7 @@ CUMLE_KES = {(10, "ortak türk tarihi")}
 
 # Zaman çizelgesinde karşılığı olmayan / yinelenen dosyalar (neden ile).
 ATLANAN = {
+    "felsefe yok/felsefe-unitelendirilmis-yillik-plan.docx": "10. sınıf felsefe ikinci şablon — 18. haftadan itibaren okul takviminden 1 hafta önde, (1)'li kullanıldı",
     "beden eğitimi 10 eksik/12. sınıf beden eğitimi.docx": "12. sınıf beden eğitimi yinelenen plan (standart adlı olan kullanıldı)",
     "görsel sanatlar/11 görsel sanatlar feride.docx": "11. sınıf görsel sanatlar yinelenen plan (cigdem-ince kullanıldı)",
     "edebiyat/11.SINIFLAR TDE YILLIK PLANI SEÇMELİ.docx": "SEÇMELİ varyant",
@@ -323,6 +326,9 @@ _BECERI_ORTA_RE = re.compile(rf"\s(?:{BECERI_ETIKETI})\s+(?=Students|[A-Z]{{1,5}
 _CUMLE_SONU_RE = re.compile(r"(?<=[a-zçğıöşü])\.\s+(?=[A-ZÇĞİÖŞÜ])")
 
 
+_YAPISIK_KOD = re.compile(r"(?<=[.!?])[A-ZÇĞİÖŞÜ]{2,6}\.\d{1,2}\.\d{1,2}\.\d{1,2}\.")
+
+
 def ilk_kazanim(ham: str, cumle_kes: bool = False) -> str:
     """Hücredeki İLK kazanım. Kural sırası: ilk paragraf (kısa etiket satırıysa
     sonraki satırla birleşir); paragrafta kod yoksa ama ilk 100 karakterde bir
@@ -363,7 +369,13 @@ def ilk_kazanim(ham: str, cumle_kes: bool = False) -> str:
     km = KOD_BASTA_RE.match(metin)
     if km:  # "9.1.1.Gerçek" -> "9.1.1. Gerçek"
         metin = metin[:km.end()] + " " + metin[km.end():]
-    return kisalt(temizle(metin))
+    # Kaynakta boşluksuz yapışık ikinci kazanım ("…yorumlayabilme.FEL.10.2.2. …",
+    # 2026-10-06 felsefe 10): baştaki koddan SONRA gelen ilk kodda kes.
+    metin = temizle(metin)
+    ikinci = _YAPISIK_KOD.search(metin, 1)
+    if ikinci:
+        metin = metin[:ikinci.start()].rstrip()
+    return kisalt(metin)
 
 
 _YER_TUTUCU_RE = re.compile(
