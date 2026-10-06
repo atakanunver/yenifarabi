@@ -36,7 +36,7 @@ from PyQt6.QtGui import (
     QShortcut,
 )
 from PyQt6.QtWidgets import (
-    QApplication, QDialog, QFileDialog, QFrame, QGridLayout, QHBoxLayout,
+    QApplication, QFileDialog, QFrame, QGridLayout, QHBoxLayout,
     QLabel, QLineEdit, QMainWindow, QPushButton, QScrollArea, QSizePolicy,
     QTextEdit, QVBoxLayout, QWidget,
 )
@@ -1144,15 +1144,6 @@ class MainWindow(QMainWindow):
         # düğmenin tıklanmış gelmesini istedi — normal dersi başlatmak için
         # öğretmenin DERSİ BAŞLAT'tan önce bilerek KAPATMASI gerekir.
         self.talimat_modu: bool = True
-        # Mikrofonsuz mod (2026-09-25, tahta mikrofonları bozuk): config'te
-        # "mikrofon": false. Öğretmen modu yalnızca SESLİ komutla çalıştığı
-        # için bu tahtada seçilemez; varsayılan ÖĞRENCİ olur. Konu DERSİ
-        # BAŞLAT'ta yazılı alınır (`_KonuDiyalogu`) ve main.py run() içinde
-        # `baslangic_cercevesi`'ni okur.
-        self.mikrofonsuz: bool = bool(tahta and not tahta.mikrofon_var())
-        self.baslangic_cercevesi: dict | None = None
-        if self.mikrofonsuz:
-            self.talimat_modu = False
         self._kazanim_metni: str = ""
         self._duraklatildi: bool = False
         # Günün plan adayları — "dersi değiştir" bunlardan seçtirir.
@@ -1714,8 +1705,6 @@ class MainWindow(QMainWindow):
         self._mute_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._mute_btn.clicked.connect(self._toggle_mute)
         self._style_mute_btn()
-        if self.mikrofonsuz:
-            self._mute_btn_mikrofonsuz_gorunumu()
         lay.addWidget(self._mute_btn)
 
         self._kalibre_btn = self._arac_dugmesi(lay, "📊  MİKROFONU KALİBRE ET")
@@ -1768,12 +1757,10 @@ class MainWindow(QMainWindow):
     # Durdur/devam düğme olarak kalır çünkü acil olduğu an klavyeye yazacak
     # vakit yoktur: sınıfa biri girer, telefon çalar, öğrenci fenalaşır.
     #
-    # DERSİ BİTİR (2026-09-27) de aynı gerekçeyle düğme: mikrofon modu ve
-    # öğretmen/öğrenci modu yalnızca DERSİ BAŞLAT'tan önce seçilir ve bir kez
-    # bağlanınca kilitlenir (bkz. self.mikrofonsuz, self.talimat_modu) — bir
-    # ders sırasında bunları değiştirmek isteyen öğretmenin tek yolu dersi
-    # burada bitirmekti; öncesinde bunun için ya zilin 40 dakikayı doldurmasını
-    # ya da tahtanın yeniden başlatılmasını beklemek gerekiyordu.
+    # DERSİ BİTİR (2026-09-27) de aynı gerekçeyle düğme: öğretmen/öğrenci modu
+    # yalnızca DERSİ BAŞLAT'tan önce seçilir ve bir kez bağlanınca kilitlenir
+    # (bkz. self.talimat_modu) — ders sırasında bunu değiştirmek isteyen
+    # öğretmenin tek yolu dersi burada bitirmektir.
     OGRETMEN_KOMUTLARI = [
         ("⏸  DURDUR", "durdur",
          "Dersi burada duraklat. Konuşmayı bitir, yeni konu açma, soru sorma "
@@ -1869,10 +1856,6 @@ class MainWindow(QMainWindow):
         self._ogretmen_btn.clicked.connect(lambda: self._talimat_modu_degistir(True))
         izgara.addWidget(self._ogrenci_btn, 3, 0)
         izgara.addWidget(self._ogretmen_btn, 3, 1)
-        if self.mikrofonsuz:
-            self._ogretmen_btn.setEnabled(False)
-            self._ogretmen_btn.setToolTip(
-                "Mikrofonsuz modda kullanılamaz — öğretmen modu sesli komutla çalışır.")
         self._talimat_modu_dugmesini_boya()
 
         # ── Ders dili ─────────────────────────────────────────────────────
@@ -1893,23 +1876,6 @@ class MainWindow(QMainWindow):
         izgara.addWidget(self._dil_btns["de"], 5, 1)
         self._dil_dugmelerini_boya()
 
-        # ── Mikrofon modu (2026-09-27) ────────────────────────────────────
-        # DERSİ BAŞLAT'tan ÖNCE dokunmatik geçiş — tahta mikrofonlarının
-        # çoğu bozuk olduğu için config'teki "mikrofon" değeri (bkz.
-        # self.mikrofonsuz tanımındaki not) çoğu tahtada zaten false, ama
-        # bir mikrofon takılan/tamir edilen tahtada öğretmenin ayar dosyasını
-        # elle değiştirip tahtayı yeniden başlatmadan MİKROFONLU dersi
-        # deneyebilmesi gerekiyor — ve tersi. Yalnızca bellek içi (Kural:
-        # UI api_keys.json'a asla yazmaz) — yeniden başlatınca dosyadaki
-        # değere döner.
-        self._mikrofon_mod_btn = QPushButton()
-        self._mikrofon_mod_btn.setFixedHeight(24)
-        self._mikrofon_mod_btn.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
-        self._mikrofon_mod_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._mikrofon_mod_btn.setStyleSheet(stil)
-        self._mikrofon_mod_btn.clicked.connect(self._mikrofon_modu_degistir)
-        izgara.addWidget(self._mikrofon_mod_btn, 4, 0, 1, 2)   # mod düğmelerinin hemen altı
-        self._mikrofon_mod_dugmesini_boya()
         return izgara
 
     def _talimat_modu_degistir(self, acik: bool) -> None:
@@ -1928,43 +1894,6 @@ class MainWindow(QMainWindow):
         """
         self._ogrenci_btn.setStyleSheet(self._ogretmen_btn_stili if self.talimat_modu else secili_stil)
         self._ogretmen_btn.setStyleSheet(secili_stil if self.talimat_modu else self._ogretmen_btn_stili)
-
-    def _mikrofon_modu_degistir(self) -> None:
-        """Mikrofonlu/mikrofonsuz arasında DERSİ BAŞLAT'tan ÖNCE dokunmatik
-        geçiş. Yalnızca `self.mikrofonsuz`'u değiştirir — HİÇBİR dosyaya
-        yazmaz (bkz. bu düğmenin üstündeki yorum). main.py bu değeri her
-        DERSİ BAŞLAT'ta yeniden okur (`self.ui.mikrofonsuz`), o yüzden
-        burada başka bir şey tetiklemeye gerek yok."""
-        self.mikrofonsuz = not self.mikrofonsuz
-        self._mikrofon_mod_dugmesini_boya()
-        if self.mikrofonsuz:
-            # Öğretmen modu yalnızca sesli komutla çalışır — mikrofon
-            # yoksa seçilemez, bkz. yukarıdaki ÖĞRETMEN MODU notu.
-            self.talimat_modu = False
-            self._talimat_modu_dugmesini_boya()
-            self._ogretmen_btn.setEnabled(False)
-            self._ogretmen_btn.setToolTip(
-                "Mikrofonsuz modda kullanılamaz — öğretmen modu sesli komutla çalışır.")
-            self._muted = False
-            self.hud.muted = False
-            self._mute_btn_mikrofonsuz_gorunumu()
-            self._log.append_log(
-                "SYS: Mikrofon modu — MİKROFONSUZ (bu oturum için; yeniden "
-                "başlatınca ayar dosyasındaki değere döner).")
-        else:
-            self._ogretmen_btn.setEnabled(True)
-            self._ogretmen_btn.setToolTip("")
-            self._mute_btn.setEnabled(True)
-            self._style_mute_btn()
-            self._log.append_log(
-                "SYS: Mikrofon modu — MİKROFONLU (bu oturum için; yeniden "
-                "başlatınca ayar dosyasındaki değere döner).")
-
-    def _mikrofon_mod_dugmesini_boya(self) -> None:
-        if self.mikrofonsuz:
-            self._mikrofon_mod_btn.setText("🚫  MİKROFONSUZ")
-        else:
-            self._mikrofon_mod_btn.setText("🎤  MİKROFONLU")
 
     def _dil_dugmelerini_boya(self) -> None:
         secili_stil = f"""
@@ -2000,39 +1929,14 @@ class MainWindow(QMainWindow):
             self._log.append_log(
                 "SYS: DERSİ BAŞLAT tıklandı ama oturum henüz hazır değil.")
             return
-        if self.mikrofonsuz and not self.talimat_modu:
-            # Konu sesle söylenemez — başlamadan önce yazılı alınır. Vazgeçilirse
-            # ders başlamaz (bağlantı açılmaz, ücret yok).
-            diyalog = _KonuDiyalogu(self, varsayilan_ders=self._programdaki_ders())
-            if diyalog.exec() != QDialog.DialogCode.Accepted:
-                self._log.append_log("SYS: Ders başlatılmadı — konu girilmedi.")
-                return
-            self.baslangic_cercevesi = diyalog.cerceve()
-            self._log.append_log("ÖĞRETMEN: " + " · ".join(
-                f"{k}: {v}" for k, v in self.baslangic_cercevesi.items() if v))
-        else:
-            # Aynı süreçte önceki mikrofonsuz dersin yazılı konusu bu derse
-            # taşınmasın (main.py her DERSİ BAŞLAT'ta bunu okur).
-            self.baslangic_cercevesi = None
         self._baslat_btn.setEnabled(False)
         self._baslat_btn.setText("⏳  ISINIYOR…")
         for b in self._dil_btns.values():          # dil artık değişemez, bkz. yukarıdaki not
             b.setEnabled(False)
         self._ogrenci_btn.setEnabled(False)         # mod artık değişemez, bkz. yukarıdaki not
         self._ogretmen_btn.setEnabled(False)
-        self._mikrofon_mod_btn.setEnabled(False)    # mikrofon modu artık değişemez, aynı gerekçe
         self._log.append_log("SYS: Ders başlatılıyor (öğretmen) — bağlanılıyor…")
         threading.Thread(target=self.on_session_start, daemon=True).start()
-
-    @staticmethod
-    def _programdaki_ders() -> str:
-        """Ders programı bu saat için bir ders veriyorsa adı (yoksa boş)."""
-        try:
-            from core import program
-            slot = program.simdiki_ders()
-            return (slot or {}).get("ders", "") or ""
-        except Exception:
-            return ""
 
     def _dersi_bitir_istendi(self) -> None:
         """Öğretmen DERSİ BİTİR'e çift tıkladı. `on_ders_bitir` main.py'de
@@ -2714,8 +2618,6 @@ class MainWindow(QMainWindow):
     # tek bir yerde (bkz. docs/mimari.md, server/icerik.py).
 
     def _toggle_mute(self):
-        if self.mikrofonsuz:        # F4 de dahil: açılacak mikrofon yok
-            return
         self._muted = not self._muted
         self.hud.muted = self._muted
         self._style_mute_btn()
@@ -2743,7 +2645,6 @@ class MainWindow(QMainWindow):
         self._talimat_modu_dugmesini_boya()
         self._ogrenci_btn.setEnabled(False)
         self._ogretmen_btn.setEnabled(False)
-        self._mikrofon_mod_btn.setEnabled(False)   # zaten kilitliydi, tutarlılık için
 
     def _dersi_sifirla_gorunumu(self) -> None:
         """Slot for `_ders_bitti_sig` — main.py'nin `_ders_bitti_istendi`
@@ -2759,26 +2660,11 @@ class MainWindow(QMainWindow):
         for b in self._dil_btns.values():
             b.setEnabled(True)
         self._ogrenci_btn.setEnabled(True)
-        self._ogretmen_btn.setEnabled(not self.mikrofonsuz)
-        self._mikrofon_mod_btn.setEnabled(True)
+        self._ogretmen_btn.setEnabled(True)
         self._bitir_btn.setEnabled(False)
         self._duraklatildi = False
         self._durdur_gorunumu()
         self._log.append_log("SYS: Ders bitti — yeni ders için hazır.")
-
-    def _mute_btn_mikrofonsuz_gorunumu(self) -> None:
-        """Mikrofonsuz moddaki mute düğmesi görünümü — hem __init__'te hem
-        `_mikrofon_modu_degistir()`'de kullanılır (ikisi de aynı hâli
-        üretir, tekrarı önlemek için tek yerde). Yeşil "açık" görünümü
-        yanıltıcı olurdu — nötr, pasif görünüm."""
-        self._mute_btn.setText("🚫  MİKROFONSUZ MOD")
-        self._mute_btn.setEnabled(False)
-        self._mute_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: {C.PANEL}; color: {C.TEXT_MED};
-                border: 1px dashed {C.BORDER_B}; border-radius: 3px;
-            }}
-        """)
 
     def _style_mute_btn(self):
         if self._muted:
@@ -2849,75 +2735,6 @@ class _RootShim:
         self._app.exec()
     def protocol(self, *_):
         pass
-
-
-class _KonuDiyalogu(QDialog):
-    """
-    Mikrofonsuz modda DERSİ BAŞLAT'ın sorduğu ders/konu/kazanım kutusu.
-
-    Konu zorunlu: konusuz başlayan ders ya sesli cevap bekler (mikrofon yok)
-    ya da konu uydurur — ikisi de kabul edilemez. Ders adı programdan dolu
-    gelebilir; kazanım isteğe bağlı.
-    """
-
-    def __init__(self, parent=None, varsayilan_ders: str = ""):
-        super().__init__(parent)
-        self.setWindowTitle("Bugünkü ders")
-        self.setModal(True)
-        self.setStyleSheet(f"""
-            QDialog {{ background: {C.PANEL}; }}
-            QLabel {{ color: {C.TEXT}; }}
-            QLineEdit {{
-                background: {C.BG}; color: {C.TEXT};
-                border: 1px solid {C.BORDER_B}; border-radius: 3px; padding: 6px;
-            }}
-            QLineEdit:focus {{ border: 1px solid {C.PRI}; }}
-            QPushButton {{
-                background: {C.PANEL2}; color: {C.TEXT};
-                border: 1px solid {C.BORDER_B}; border-radius: 3px; padding: 8px 16px;
-            }}
-            QPushButton:disabled {{ color: {C.TEXT_DIM}; border-color: {C.BORDER}; }}
-        """)
-        lay = QVBoxLayout(self)
-        bilgi = QLabel("Mikrofonsuz mod: Farabi konuyu duyamaz.\n"
-                       "Konuyu yazın, DERSİ BAŞLAT'a basınca doğrudan anlatmaya başlar.")
-        bilgi.setWordWrap(True)
-        lay.addWidget(bilgi)
-
-        self._alanlar: dict[str, QLineEdit] = {}
-        for anahtar_, etiket, ipucu in (
-            ("ders", "Ders", "ör. Fizik"),
-            ("konu", "Konu (zorunlu)", "ör. Newton'un hareket yasaları"),
-            ("kazanim", "Kazanım (isteğe bağlı)", ""),
-        ):
-            lay.addWidget(QLabel(etiket))
-            alan = QLineEdit()
-            alan.setPlaceholderText(ipucu)
-            alan.setMinimumWidth(420)
-            lay.addWidget(alan)
-            self._alanlar[anahtar_] = alan
-        self._alanlar["ders"].setText(varsayilan_ders)
-
-        satir = QHBoxLayout()
-        vazgec = QPushButton("Vazgeç")
-        vazgec.clicked.connect(self.reject)
-        self._tamam = QPushButton("▶  DERSİ BAŞLAT")
-        self._tamam.setDefault(True)
-        self._tamam.clicked.connect(self.accept)
-        satir.addWidget(vazgec)
-        satir.addStretch(1)
-        satir.addWidget(self._tamam)
-        lay.addLayout(satir)
-
-        self._alanlar["konu"].textChanged.connect(self._tamam_durumu)
-        self._tamam_durumu()
-        (self._alanlar["konu"] if varsayilan_ders else self._alanlar["ders"]).setFocus()
-
-    def _tamam_durumu(self) -> None:
-        self._tamam.setEnabled(bool(self._alanlar["konu"].text().strip()))
-
-    def cerceve(self) -> dict:
-        return {k: a.text().strip() for k, a in self._alanlar.items()}
 
 
 class FarabiUI:
@@ -3026,16 +2843,6 @@ class FarabiUI:
         """'tr' (varsayılan) | 'en' | 'de' — DERSİ BAŞLAT'tan önce panelde
         seçilir, main.py yalnız ilk bağlantıda (_build_config) okur."""
         return self._win.ders_dili
-
-    @property
-    def mikrofonsuz(self) -> bool:
-        """Config'te "mikrofon": false — main.py ses girişini hiç açmaz."""
-        return self._win.mikrofonsuz
-
-    @property
-    def baslangic_cercevesi(self) -> dict | None:
-        """Mikrofonsuz modda DERSİ BAŞLAT'ta yazılan {ders, konu, kazanim}."""
-        return self._win.baslangic_cercevesi
 
     @property
     def talimat_modu(self) -> bool:

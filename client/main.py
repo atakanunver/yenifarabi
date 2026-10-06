@@ -199,33 +199,6 @@ _TALIMAT_PERSONASI = (
 # bütün geceyi bağlı geçirir.
 BOSTA_KAPATMA_DK = 15
 
-# Mikrofonsuz modda (config "mikrofon": false) zil çizelgesi yoksa dersin
-# ne zaman biteceğini bilen başka bir şey yok — otomatik devam sonsuza kadar
-# sürmesin diye bu kadar dakika sonra model dersi özetleyip kapatır.
-MIKSIZ_DERS_DK = 40
-# Zil çizelgesi varsa kalan süre bu kadar dakikaya inince kapanışa geçilir.
-MIKSIZ_KAPANIS_KALAN_DK = 2
-
-MIKSIZ_KURALLARI = (
-    "[MİKROFONSUZ MOD — YUKARIDAKİ KURALLARDAN ÖNCE GELİR]\n"
-    "Bu tahtanın mikrofonu yok: sınıfı ve öğretmeni DUYAMAZSIN, sana sesli "
-    "hiçbir cevap gelmeyecek. Dersi tek yönlü, akıcı bir anlatım olarak işle.\n"
-    "- Bu modda şu kurallar ASKIDADIR: YOKLAMA (dersin ilk işi değil, hiç "
-    "alınmaz), ÜÇ ADIM KURALI ve 'birlikte çözüm' (öğrenciden cevap "
-    "beklenmez, çözümü sen gösterirsin), ÖĞRENCİ ETKİLEŞİMİ VE KATILIM, "
-    "GRUP ÇALIŞMASI, KALABALIK VE GÜRÜLTÜ uyarıları ve sınıfa sesli söz "
-    "verdiren her şey.\n"
-    "- Yoklama alma, kimseden sesli cevap bekleme, 'duyamadım' ya da 'kimse "
-    "cevap vermedi' deme.\n"
-    "- Soru sorabilirsin ama cevabı kendin ver: soruyu sor, 'Bir düşünün…' "
-    "diyerek kısa bir an ver, sonra cevabı kendin açıkla ve devam et.\n"
-    "- Her konuşma turunu anlamlı bir parçayla bitir (bir tanım, bir örnek, "
-    "bir çözüm). Sistem sana [DEVAM] gönderdiğinde kaldığın yerden bir "
-    "sonraki adıma geç; önceki söylediklerini tekrar etme.\n"
-    "- Öğretmen sana yalnızca YAZILI talimat gönderebilir ([ÖĞRETMEN KOMUTU]); "
-    "geldiğinde öncelik onundur.\n"
-)
-
 
 def _ders_kipi() -> str:
     """
@@ -408,17 +381,9 @@ _TOOL_ADLARI = kayit.adlar()
 
 class FarabiLive:
 
-    # Mikrofonsuz mod sayaçları — sınıf düzeyinde ki `__new__` ile kurulan
-    # test nesneleri (bkz. tests/) de bunları taşısın.
-    _mikrofonsuz = False
+    # Sınıf düzeyinde: `__new__` ile kurulan test nesneleri (bkz. tests/)
+    # de taşısın (TOKEN log satırı kullanır).
     _tur_no = 0                      # tamamlanan model turu sayısı
-    _devam_son_tur = 0               # [DEVAM] en son hangi tura gönderildi
-    _son_tur_ts = 0.0                # son turn_complete (duvar saati)
-    _sessizlik_ts = 0.0              # Farabi'nin sesi en son ne zaman bitti
-    _arac_suruyor = 0                # yanıtı bekleyen araç çağrısı sayısı
-    _son_tur_konustu = True          # son tur sesli bir şey söyledi mi
-    _miksiz_baslangic = 0.0
-    _miksiz_kapanis_gonderildi = False
 
     def __init__(self, ui: FarabiUI):
         # Gemini token sayaçları (bkz. core/kullanim.py): bağlantı başına ve
@@ -441,10 +406,6 @@ class FarabiLive:
         # `_video_icin_duraklat`); DEVAM ET bunu da geri açmalı, yoksa
         # öğretmen video bitince mikrofonu ayrıca elle açmak zorunda kalır.
         self._video_yuzunden_susturuldu = False
-        # Mikrofonsuz mod (bkz. MIKSIZ_KURALLARI, `_devam_karari`). Ayar
-        # UI'dan okunur; DERSİ BAŞLAT anında run() içinde tazelenir. Sayaçların
-        # varsayılanları sınıf düzeyinde (yukarıda, `class FarabiLive` başı).
-        self._mikrofonsuz = bool(getattr(self.ui, "mikrofonsuz", False))
         # Oturumu öğretmen başlatır; olay run() içinde kurulur (loop gerekiyor).
         self._oturum_izni: asyncio.Event | None = None
         # Talimat modundan sesle çıkış — run() içinde her bağlantıda
@@ -462,7 +423,7 @@ class FarabiLive:
         self._ders_bitti_istendi = False
         # _dersi_bitir() yeniden girişe kapalı: `_ders_bitti_istendi` ancak
         # 6 sn'lik yedeklemeden SONRA True oluyor; o pencerede gelen ikinci
-        # çağrı (çift tık, zil, boşta, MIKSIZ süre) bayrağı run()'ın
+        # çağrı (çift tık, zil, boşta) bayrağı run()'ın
         # sıfırlamasından sonra yeniden True yapıp bir sonraki dersi açılır
         # açılmaz bitirirdi. Yalnızca run()'ın ders-bitti dalında temizlenir.
         self._ders_bitiriliyor = False
@@ -724,35 +685,6 @@ class FarabiLive:
             cerceve.update(sonuc)
             log.info("Çerçeveye plan kazanımı işlendi: %s", sonuc["kazanim"])
 
-    def _baslangic_cercevesini_uygula(self) -> None:
-        """
-        Mikrofonsuz modda DERSİ BAŞLAT'ta yazılan ders/konu/kazanımı çerçeveye
-        işle. Ders adı boş bırakıldıysa programdan geleni korur.
-        """
-        c = getattr(self.ui, "baslangic_cercevesi", None) or {}
-        if not any(c.values()):
-            return
-        if self._current_lesson is None:
-            self._current_lesson = {
-                "subject": "", "unit": "", "topic": "", "kazanim": "",
-                "kazanim_kodu": "", "kazanimlar": [], "period": None,
-            }
-        for alan, kaynak in (("subject", "ders"), ("topic", "konu"),
-                             ("kazanim", "kazanim")):
-            deger = (c.get(kaynak) or "").strip()
-            if deger:
-                self._current_lesson[alan] = deger
-                if alan == "kazanim":
-                    self._kazanimi_ogretmene_al()
-        log.info("Çerçeve DERSİ BAŞLAT'tan alındı: ders=%s konu=%s",
-                 self._current_lesson.get("subject"),
-                 self._current_lesson.get("topic"))
-        try:
-            transcript.log_line("ogretmen", "Ders çerçevesi: " + " · ".join(
-                f"{k}: {v}" for k, v in c.items() if v))
-        except Exception as e:
-            log.debug("Çerçeve ders kaydına yazılamadı: %s", e)
-
     def _kazanimi_ogretmene_al(self) -> None:
         """Öğretmen kazanım yazdı/söyledi: plandan gelen yan alanları temizle."""
         self._current_lesson["kazanimlar"] = []
@@ -860,8 +792,6 @@ class FarabiLive:
     def set_speaking(self, value: bool):
         with self._speaking_lock:
             self._is_speaking = value
-        if not value:
-            self._sessizlik_ts = time.time()
         if value:
             self.ui.set_state("SPEAKING")
         elif not self.ui.muted:
@@ -1063,14 +993,6 @@ class FarabiLive:
             )
 
         parts.append(sys_prompt)
-
-        # Mikrofon yok: sınıftan cevap gelmez, anlatım tek yönlü. prompt.txt'ten
-        # SONRA eklenir — oradaki yoklama/üç adım/katılım kurallarını geçersiz
-        # kılması gerekiyor ve sonra gelen, daha özel talimat kazanır (dil
-        # direktifi de aynı gerekçeyle en sonda). Talimat modu yukarıda ayrı
-        # config'e döndü; o mod mikrofonsuz seçilemez.
-        if getattr(self, "_mikrofonsuz", False):
-            parts.append(MIKSIZ_KURALLARI)
 
         # ── Ders dili ────────────────────────────────────────────────────────
         # Varsayılan Türkçe. core/prompt.txt TEK KAYNAK olarak Türkçe kalır —
@@ -1697,7 +1619,6 @@ class FarabiLive:
                             if self._turn_done_event:
                                 self._turn_done_event.set()
                             self._tur_no += 1
-                            self._son_tur_ts = time.time()
 
                             full_in = " ".join(in_buf).strip()
                             if full_in:
@@ -1707,7 +1628,6 @@ class FarabiLive:
                             in_buf = []
 
                             full_out = _konusma_temizle(" ".join(out_buf))
-                            self._son_tur_konustu = bool(full_out)
                             if full_out:
                                 self.ui.canli_satir_bitir()
                                 transcript.log_line("farabi", full_out)
@@ -1731,16 +1651,12 @@ class FarabiLive:
 
     async def _araclari_calistir(self, cagrilar) -> None:
         """Araçları alım döngüsünün dışında çalıştır ve yanıtları geri gönder."""
-        # Sayaç: araç yanıtı beklenirken [DEVAM] gönderilmesin (bkz. _devam_karari).
-        self._arac_suruyor += 1
         try:
             yanitlar = [await self._execute_tool(fc) for fc in cagrilar]
             if self.session:
                 await self.session.send_tool_response(function_responses=yanitlar)
         except Exception as e:
             log.exception("Araç yanıtı gönderilemedi: %s", e)
-        finally:
-            self._arac_suruyor -= 1
 
     async def _talimat_cikis_gozcusu(self) -> None:
         """
@@ -1832,99 +1748,6 @@ class FarabiLive:
             except Exception as e:
                 log.error("Ders motoru döngüsü hatası: %s", e)
             await asyncio.sleep(30)
-
-    # ── Mikrofonsuz mod: otomatik devam ────────────────────────────────────
-    #
-    # Gemini Live kullanıcıdan ses gelmeyince her turdan sonra susar. Mikrofon
-    # yokken (config "mikrofon": false) dersi ilerleten tek şey bu döngü: ses
-    # bitip kısa bir sessizlik payı geçince modele [DEVAM] gönderir.
-
-    # Farabi'nin sesi bittikten sonra [DEVAM] öncesi beklenecek süre — sınıfa
-    # sorulan sorunun ardından kısa bir düşünme anı da budur.
-    DEVAM_BEKLEME_SN = 2.5
-    # Model hiçbir şey söylemeden turu kapattıysa [DEVAM] hemen yinelenmez —
-    # yoksa boş turlarla 2,5 sn'de bir dönen bir döngü oluşur.
-    BOS_TUR_BEKLEME_SN = 10.0
-
-    def _devam_karari(self, simdi: float) -> str | None:
-        """
-        Şimdi ne yapılmalı? "devam", "kapanis", "bitir" (kapanış konuşması
-        bitti, oturumu kapat) ya da None (hiçbir şey).
-
-        Saf karar — gönderim `_devam_gonder`'de. Her koşul, modelin o an
-        konuşmaması gereken bir durumu dışlar: yeni bir tur bitmemiş, ses
-        çalıyor, öğretmen duraklatmış, video oynuyor ya da araç yanıtı
-        bekleniyor (model araç sonucuyla zaten kendisi devam edecek).
-        """
-        if not self._mikrofonsuz or self._ders_kipi == KIP_TALIMAT:
-            return None
-        if self._tur_no <= self._devam_son_tur:
-            return None
-        if self._is_speaking or (self.audio_in_queue and not self.audio_in_queue.empty()):
-            return None
-        d = self.motor.durum
-        if d.duraklatildi or self._video_yuzunden_susturuldu or self._arac_suruyor:
-            return None
-        bekleme = (self.DEVAM_BEKLEME_SN if self._son_tur_konustu
-                   else self.BOS_TUR_BEKLEME_SN)
-        if simdi - max(self._son_tur_ts, self._sessizlik_ts) < bekleme:
-            return None
-
-        # Kapanış konuşması da bitti: açık bekleyen oturum ücretli, kapat.
-        if self._miksiz_kapanis_gonderildi:
-            return "bitir"
-        sure_doldu = simdi - self._miksiz_baslangic >= MIKSIZ_DERS_DK * 60
-        zil_yakin = d.kalan_dk is not None and d.kalan_dk <= MIKSIZ_KAPANIS_KALAN_DK
-        return "kapanis" if (sure_doldu or zil_yakin) else "devam"
-
-    async def _devam_gonder(self, karar: str) -> None:
-        self._devam_son_tur = self._tur_no
-        if karar == "kapanis":
-            self._miksiz_kapanis_gonderildi = True
-            metin = (
-                "[DERS_KAPANISI] Bu etiketi SESLİ OKUMA. Ders süresi doldu. "
-                "Bugün işlediklerinizi üç-dört cümleyle özetle, dersi kapat ve "
-                "sınıfa iyi dersler dile. Yeni bir konuya başlama."
-            )
-            log.info("Mikrofonsuz mod: ders kapanışı gönderildi.")
-            self.ui.write_log("SYS: Mikrofonsuz mod — ders kapanışı istendi.")
-        else:
-            metin = (
-                "[DEVAM] Bu etiketi SESLİ OKUMA. Sınıf seni duyamıyor, cevap "
-                "gelmeyecek; beklemeden anlatmayı sürdür. Az önce bir soru "
-                "sorduysan cevabını şimdi kendin açıkla. Sonra planındaki bir "
-                "sonraki adıma geç. Selamlama yapma, 'devam ediyorum' deme, "
-                "söylediklerini tekrar etme."
-            )
-            # INFO: tahtaları uzaktan duyamıyoruz, döngünün çalıştığının tek
-            # kanıtı farabi.log (ders başına ~80 satır, rotating log kaldırır).
-            log.info("Mikrofonsuz mod: [DEVAM] gönderildi (tur %d).", self._tur_no)
-        await self.session.send_client_content(
-            turns={"role": "user", "parts": [{"text": metin}]},
-            turn_complete=True,
-        )
-
-    async def _otomatik_devam_dongusu(self) -> None:
-        """Mikrofonsuz modda dersi ilerleten döngü (bkz. `_devam_karari`)."""
-        if not self._mikrofonsuz:
-            return
-        # Yeniden bağlanmada süre sıfırlanmaz: ders aynı ders.
-        if not self._miksiz_baslangic:
-            self._miksiz_baslangic = time.time()
-        # Bağlantı yenilendiyse önceki bağlantının turları bu oturumda yok —
-        # sayacı devam notunun turundan başlat.
-        self._devam_son_tur = self._tur_no
-        while True:
-            await asyncio.sleep(0.5)
-            try:
-                karar = self._devam_karari(time.time())
-                if karar == "bitir":
-                    await self._dersi_bitir("mikrofonsuz ders süresi doldu")
-                    return
-                if karar and self.session:
-                    await self._devam_gonder(karar)
-            except Exception as e:
-                log.error("Otomatik devam döngüsü hatası: %s", e)
 
     async def _oturum_devam_notu(self) -> None:
         """
@@ -2081,7 +1904,6 @@ class FarabiLive:
         saat     = simdi.strftime("%H:%M")
         ders_sa  = _ders_saati_durumu(simdi)
         ogretmenli = self._ders_kipi == KIP_OGRETMENLI
-        mikrofonsuz = getattr(self, "_mikrofonsuz", False)
 
         if ders_dili == "en":
             hitap = "everyone and dear teacher" if ogretmenli else "everyone"
@@ -2145,30 +1967,20 @@ class FarabiLive:
                     "Öğretmenin verdiği konu bununla ilgiliyse tek cümleyle bağla; "
                     "ilgisizse plan kazanımını HİÇ söyleme — öğretmenin konusu esastır."
                 )
-            if mikrofonsuz:
-                # Sınıf cevap veremez: yoklama sorusu dersi sonsuza dek
-                # bekletiyordu (yoklamayı tahtayoklama zaten alıyor).
-                lines.append(
-                    "- Yoklama ALMA, sınıftan cevap bekleme. Hemen DERSİ "
-                    "ANLATMAYA BAŞLA: 40 dakikalık planını iki cümleyle duyur, "
-                    "ardından ilk adıma geç. Ön bilgi sorusu sorarsan cevabını "
-                    "kendin ver. İzin isteme, onay bekleme."
-                )
-            else:
-                lines.append(
-                    "- Yoklama al: 'Arkadaşlar, derse gelmeyen öğrencilerin "
-                    "isimlerini söyler misiniz?' de ve cevabı bekle."
-                )
-                lines.append(
-                    "- Gelen isimleri tek seferde tekrarla ('Bugün X ve Y yok, "
-                    "not aldım') ve yoklamayı kapat. İsim listesini tartışma, "
-                    "sebep sorma, yorum yapma."
-                )
-                lines.append(
-                    "- Sonra 'Yoklamayı aldıysak başlayalım.' de ve DERSİ ANLATMAYA "
-                    "BAŞLA: 40 dakikalık planını iki cümleyle duyur, ardından ilk "
-                    "adıma (ön bilgi sorusu) geç. İzin isteme, onay bekleme."
-                )
+            lines.append(
+                "- Yoklama al: 'Arkadaşlar, derse gelmeyen öğrencilerin "
+                "isimlerini söyler misiniz?' de ve cevabı bekle."
+            )
+            lines.append(
+                "- Gelen isimleri tek seferde tekrarla ('Bugün X ve Y yok, "
+                "not aldım') ve yoklamayı kapat. İsim listesini tartışma, "
+                "sebep sorma, yorum yapma."
+            )
+            lines.append(
+                "- Sonra 'Yoklamayı aldıysak başlayalım.' de ve DERSİ ANLATMAYA "
+                "BAŞLA: 40 dakikalık planını iki cümleyle duyur, ardından ilk "
+                "adıma (ön bilgi sorusu) geç. İzin isteme, onay bekleme."
+            )
         else:
             # Konu/kazanım öğretmenindir — plandan veya sınıftan tahmin etme.
             if ders_dili == "en":
@@ -2177,8 +1989,7 @@ class FarabiLive:
                 hitap_og = "Liebe Lehrkraft" if ogretmenli else "Die Lehrkraft"
             else:
                 hitap_og = ("kıymetli öğretmenim" if ogretmenli else "öğretmene").capitalize()
-            istek = ("yazı kutusuna yazmasını" if mikrofonsuz
-                     else "yazmasını veya söylemesini")
+            istek = "yazmasını veya söylemesini"
             if plan_kazanimi:
                 lines.append(
                     f"- Yıllık plana göre bu haftanın kazanımı: {plan_kazanimi}. "
@@ -2487,8 +2298,6 @@ class FarabiLive:
                     if self._program_slotu else None
                 )
                 await self._cerceveye_plan_kazanimi_ekle()
-                self._mikrofonsuz = bool(getattr(self.ui, "mikrofonsuz", False))
-                self._baslangic_cercevesini_uygula()
                 self._ders_kipi_taban = _ders_kipi()
                 self._ders_kipi = self._ders_kipi_taban
                 self.motor = DersMotoru(
@@ -2553,12 +2362,7 @@ class FarabiLive:
                     self.ui.oturum_baslandi()
 
                     tg.create_task(self._send_realtime())
-                    if self._mikrofonsuz:
-                        # Bozuk mikrofonun gürültüsü söz kesme (barge-in)
-                        # tetikleyebilir — akış hiç açılmaz.
-                        log.info("Mikrofonsuz mod: ses girişi açılmadı.")
-                    else:
-                        tg.create_task(self._listen_audio())
+                    tg.create_task(self._listen_audio())
                     tg.create_task(self._receive_audio())
                     tg.create_task(self._play_audio())
                     tg.create_task(self._ders_motoru_dongusu())
@@ -2566,7 +2370,6 @@ class FarabiLive:
                     tg.create_task(self._talimat_cikis_gozcusu())
                     tg.create_task(self._durdur_zorla_gozcusu())
                     tg.create_task(self._ders_bitti_gozcusu())
-                    tg.create_task(self._otomatik_devam_dongusu())
 
                     # Oturum yenilendiyse öğretmen müdahalesi bayatlamıştır;
                     # yeni oturuma "duraklat" önerisiyle başlamak yanlış.
@@ -2601,8 +2404,6 @@ class FarabiLive:
                     self.ui.muted = False
                     self._briefing_sent = False
                     self._son_isitilan_konu = None
-                    self._miksiz_baslangic = 0.0
-                    self._miksiz_kapanis_gonderildi = False
                     self._oturum_izni.clear()
                     transcript.yeni_oturum_baslat()
                     self.ui.dersi_sifirla()

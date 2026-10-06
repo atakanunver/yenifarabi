@@ -84,21 +84,11 @@ oyalama reddedilir.
 Bu yaklaşım **Türkiye Yüzyılı Maarif Modeli**'nin öğretmen rolüyle örtüşür: ezber
 yerine araştırma ve keşif, bütüncül gelişim, süreç odaklı değerlendirme.
 
-## Mikrofonsuz mod
-
-Tahta mikrofonları donanımsal olarak yetersiz olduğu için (aşağıya bkz.)
-**şu an 8 tahtanın hepsinde mikrofonsuz mod açık** (`config/api_keys.json::
-mikrofon: false`). Bu modda DERSİ BAŞLAT ders/konu/kazanımı yazılı sorar,
-Farabi her turdan sonra kendiliğinden devam eder, ders 40 dakikada ya da
-zilden 2 dk önce biter. Paneldeki **🎤 MİKROFONLU / 🚫 MİKROFONSUZ** düğmesi
-yalnızca açılış varsayılanını bellekte değiştirir (dosyaya yazmaz).
-
 ## Öğretmen talimat modu
 
 Ders dışı kullanım: **👨‍🏫 ÖĞRETMEN MODU**'nda öğretmen sesle tek cümlelik
 komutlar verir (web sayfası aç, uygulama aç, dosya aç, pencere kapat, kitap
-sayfası göster…). Ders kipleri bu araçları görmez. Mikrofonsuz modda bu mod
-kilitlidir (sesle çalışır).
+sayfası göster…). Ders kipleri bu araçları görmez.
 
 ## Güvenlik sınırı
 
@@ -248,8 +238,7 @@ Fizik, Kimya, Tarih, Temel Matematik, TDE; 12. sınıfta İnkılap Tarihi).
 
 - **Dahili mikrofon sınıf için yetersiz — harici mikrofon gerekiyor.**
   Konuşma rms 200-450; sağlıklı aralık 1500-8000. Kazanç yükseltmek
-  çözmüyor, gürültü tabanını da aynı oranda yükseltiyor. Bu yüzden
-  mikrofonsuz mod açık. Doğrulama: `python tools/mikrofon_test.py
+  çözmüyor, gürültü tabanını da aynı oranda yükseltiyor. Doğrulama: `python tools/mikrofon_test.py
   --karsilastir` (oran 3x altındaysa o tahta derse hazır değil).
 - **11. sınıf Biyoloji ve İngilizce kitabı yok**, 12. sınıfta yalnızca
   İnkılap Tarihi var. Kod sorunu değil, veri eksiği (sunucuya eklenir).
@@ -270,3 +259,5 @@ Fizik, Kimya, Tarih, Temel Matematik, TDE; 12. sınıfta İnkılap Tarihi).
 fenlab). Ses kalıcı olarak Gemini Live'da (yerel ses denemesi 2026-09-28'de
 kalıcı iptal). Sunucu tarafı, dağıtım ve kurallar için kök `CLAUDE.md` ve
 `DECISIONS.md` esas.
+
+2026-10-06: mikrofonsuz mod kullanıcı kararıyla koddan kaldırıldı; Farabi her zaman mikrofonlu çalışır (tahta mikrofonları bozuksa öğretmen MİKROFON düğmesiyle sessize alır)

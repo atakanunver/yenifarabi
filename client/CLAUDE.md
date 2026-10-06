@@ -133,7 +133,6 @@ to DERS KAYDI and blocks until fixed by hand. Shared fields (Gemini key,
 | `tahta_anahtari` | every server call gets 401 (auth is mandatory) |
 | `derslik` | classroom unknown → grade unknown, `DERSLİK TANIMSIZ` in red. Not copyable between boards |
 | `ders_kipi` | `ogretmenli` |
-| `mikrofon` | `true`. `false` = **mic-less mode**, see below. Only the launch default — the panel's 🎤 MİKROFONLU / 🚫 MİKROFONSUZ toggle flips it in memory |
 | `os_system` | — |
 
 `camera_index` is dead data (no camera anywhere) — ignore.
@@ -157,15 +156,7 @@ with a new key; all 8 boards share one working key. If Farabi goes silent,
 suspect `thinking_config`/config fields before billing — DECISIONS.md
 2026-09-27.)
 
-### Mic-less mode (`mikrofon: false`, 2026-09-25 — on all boards now)
-
-`_listen_audio` never starts; öğretmen/talimat mode is locked (it is
-voice-only); DERSİ BAŞLAT asks ders/konu/kazanım in `_KonuDiyalogu`;
-`MIKSIZ_KURALLARI` is appended **after** `prompt.txt` (suspends yoklama /
-three-step / participation); `_otomatik_devam_dongusu` sends `[DEVAM]` after
-each finished turn (Live goes silent without user audio). Ends at
-`MIKSIZ_DERS_DK` (40) or 2 min before the bell. Tests:
-`tests/test_mikrofonsuz*.py`.
+> 2026-10-06: mikrofonsuz mod kullanıcı kararıyla koddan kaldırıldı; Farabi her zaman mikrofonlu çalışır (tahta mikrofonları bozuksa öğretmen MİKROFON düğmesiyle sessize alır)
 
 ## Audio — settled facts, do not re-litigate
 
@@ -294,7 +285,7 @@ Known, **deliberate or open** exceptions:
 
 No lesson; teacher voice commands only. Selected with `🎓 ÖĞRENCİ MODU` /
 `👨‍🏫 ÖĞRETMEN MODU` under DERSİ BAŞLAT (both set `ui.talimat_modu`).
-**Defaults to Öğretmen** at launch (Öğrenci in mic-less mode); read at
+**Defaults to Öğretmen** at launch; read at
 connect, locked after DERSİ BAŞLAT.
 
 - `_build_talimat_config()` replaces prompt + frame + kip + language with

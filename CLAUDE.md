@@ -87,13 +87,7 @@ okul operasyon servisleri (yoklama panosu, SMS).
 - **Gemini anahtarı:** 8 kurulumda tek, çalışan anahtar (faturalandırma
   engeli 2026-09-25'te çözüldü). "Farabi susuyor" belirtisi faturalandırma
   değil `thinking_config` olabilir — DECISIONS.md 2026-09-25 / 2026-09-27.
-- **Mikrofonsuz mod** şu an 8 tahtanın hepsinde açık (`api_keys.json::
-  mikrofon`). Nedeni artık faturalandırma değil, tahta mikrofonlarının
-  bozuk olması (kullanıcı kararı, DECISIONS.md 2026-09-25 config_dagit
-  kaydı). Bu değer yalnızca açılış varsayılanı: panelde 🎤 MİKROFONLU / 🚫
-  MİKROFONSUZ düğmesi DERSİ BAŞLAT'tan önce yalnızca bellekte değiştirir
-  (dosyaya yazmaz), yeniden başlatınca dosyadakine döner. Ders içi düğmeler:
-  DURDUR, DEVAM ET, ⏹ DERSİ BİTİR (çift dokunuş, 2026-09-27).
+- 2026-10-06: mikrofonsuz mod kullanıcı kararıyla koddan kaldırıldı; Farabi her zaman mikrofonlu çalışır (tahta mikrofonları bozuksa öğretmen MİKROFON düğmesiyle sessize alır). Ders içi düğmeler: DURDUR, DEVAM ET, ⏹ DERSİ BİTİR (çift dokunuş, 2026-09-27).
 - ⛔ **Yerel ses (Pipecat) KALICI OLARAK İPTAL (2026-09-28)** — bkz.
   "Şu An Yapılmayacaklar"; ayrıntı DECISIONS.md 2026-09-28.
 - **`client/core/prompt.txt` hâlâ client'ta.** Server'a taşınması

@@ -57,7 +57,7 @@ def _farabi(cerceve=None) -> main.FarabiLive:
     f._son_isitilan_konu = None
     f._loop = None
     f.motor = SimpleNamespace(durum=SimpleNamespace(ders_adi="", konu=""))
-    f.ui = SimpleNamespace(baslangic_cercevesi={})
+    f.ui = SimpleNamespace()
     return f
 
 
@@ -150,15 +150,6 @@ def test_ogretmen_yalniz_konu_planin_kazanimini_korur():
     c = f._current_lesson
     assert c["topic"] == "Türev" and c["kazanim"] == "A; B"
     assert c["kazanim_kaynagi"] == "plan"
-
-
-def test_baslangic_cercevesi_kazanimi_plani_ezer():
-    f = _farabi(_plan_cercevesi())
-    f.ui.baslangic_cercevesi = {"ders": "", "konu": "Limit", "kazanim": "Limit tanımı"}
-    f._baslangic_cercevesini_uygula()
-    c = f._current_lesson
-    assert c["kazanim"] == "Limit tanımı" and c["kazanim_kaynagi"] == "ogretmen"
-    assert c["kazanimlar"] == []
 
 
 # ── Sistem talimatı ────────────────────────────────────────────────────────

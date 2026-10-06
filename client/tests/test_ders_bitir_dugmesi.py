@@ -81,7 +81,7 @@ class TestYenidenBaglanirkenBitir:
 
 class TestDersiBitirTekrarGirisi:
     def test_ayni_anda_iki_bitirme_tek_kapanis_yapar(self, monkeypatch):
-        # Zil/boşta kalma/mikrofonsuz süre ile öğretmenin DERSİ BİTİR'i aynı
+        # Zil/boşta kalma ile öğretmenin DERSİ BİTİR'i aynı
         # anda gelirse ikinci `_dersi_bitir` yedekleme beklemesi (≤6 sn)
         # sürerken girmemeli: çift kapanış satırı, çift yedekleme ve bayat
         # `_ders_bitti_istendi` (sonraki dersi açılır açılmaz kapatır).

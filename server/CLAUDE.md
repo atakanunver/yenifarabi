@@ -99,7 +99,6 @@ Hepsi bu dizinden, `~/.ssh/id_ed25519_tahta` ile; hedef listesi
 | `config_dagit.sh [--kuru] [tahta...]` | gitignore'lu ayarları dağıtır + hash ile doğrular: `../tahtayoklama/data/zil.json`, `../mudur/ders_programi.json`, `config/api_keys_tahta_ortak.json` (ortak alanlar birleştirilir) |
 | `geogebra_dagit.sh` | GeoGebra çevrimdışı paketini tahtaların `client/icerik/geogebra/`'sine kopyalar |
 | `geogebra_uygulama_kur.sh` | GeoGebra Klasik'i bağımsız masaüstü uygulaması olarak kurar (Farabi aracından ayrı) |
-| `mikrofonsuz_dagit.sh` | 2026-09-25 tek seferlik mikrofonsuz mod dağıtımı (artık `config_dagit.sh` kapsıyor) |
 | `proxy_kontrol.sh` | sunucunun internet çıkışını Müdür PC WifiHttpProxy üzerinden/doğrudan yapar (ayrı systemd drop-in) |
 
 `yedekler/ders_kaydi/<derslik>/*.txt` — tahtalardan yedeklenen ders
