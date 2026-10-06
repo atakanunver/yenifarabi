@@ -2053,7 +2053,8 @@ class FarabiLive:
     async def _send_session_opening(self) -> None:
         """
         Sınıfa açılış. Selam + programdaki ders adı; konu/kazanımı öğretmenden
-        ister. Ağ isteği yok — anında konuşur. Yıllık plandan kazanım çekmez.
+        ister. Ağ isteği yok — anında konuşur. Plandan gelen kazanım (run()'da
+        önceden çekilir) yalnızca öneri olarak söylenir, dersi başlatmaz.
         """
         await asyncio.sleep(0.3)
         if not self.session:
@@ -2120,7 +2121,12 @@ class FarabiLive:
         lesson = self._current_lesson or {}
         subject = lesson.get("subject", "")
         topic   = lesson.get("topic", "")
-        kazanim = lesson.get("kazanim", "")
+        # Plandan gelen kazanım (2026-10-06, /api/egitim/kazanim) dersi "hazır"
+        # YAPMAZ — kullanıcı kararı "planı kullan, konuyu sor": hazır olmak için
+        # öğretmenden konu ya da kazanım gerekir. Plan kazanımı yalnızca öneri.
+        plandan = lesson.get("kazanim_kaynagi") == "plan"
+        plan_kazanimi = lesson.get("kazanim", "") if plandan else ""
+        kazanim = "" if plandan else lesson.get("kazanim", "")
         hazir = bool(topic or kazanim)
 
         if subject and not slot:
@@ -2132,6 +2138,12 @@ class FarabiLive:
             if kazanim:
                 lines.append(
                     f"- Dersin kazanımını tek cümleyle, kendi sözlerinle söyle: {kazanim}"
+                )
+            elif plan_kazanimi:
+                lines.append(
+                    f"- Yıllık plana göre bu haftanın kazanımı: {plan_kazanimi}. "
+                    "Öğretmenin verdiği konu bununla ilgiliyse tek cümleyle bağla; "
+                    "ilgisizse plan kazanımını HİÇ söyleme — öğretmenin konusu esastır."
                 )
             if mikrofonsuz:
                 # Sınıf cevap veremez: yoklama sorusu dersi sonsuza dek
@@ -2167,11 +2179,20 @@ class FarabiLive:
                 hitap_og = ("kıymetli öğretmenim" if ogretmenli else "öğretmene").capitalize()
             istek = ("yazı kutusuna yazmasını" if mikrofonsuz
                      else "yazmasını veya söylemesini")
-            lines.append(
-                f"- Konu ve kazanım henüz belli değil. {hitap_og} "
-                f"bugünkü konuyu ve kazanımı {istek} iste. "
-                "Sınıfa 'hangi konudayız' / 'nerede kalmıştık' diye SORMA."
-            )
+            if plan_kazanimi:
+                lines.append(
+                    f"- Yıllık plana göre bu haftanın kazanımı: {plan_kazanimi}. "
+                    f"{hitap_og} bugün bu kazanımla mı devam edileceğini ya da "
+                    f"bugünkü konuyu {istek} iste. Plan yalnızca öneridir; "
+                    "öğretmen onaylamadan bu kazanımla derse BAŞLAMA. "
+                    "Sınıfa 'hangi konudayız' / 'nerede kalmıştık' diye SORMA."
+                )
+            else:
+                lines.append(
+                    f"- Konu ve kazanım henüz belli değil. {hitap_og} "
+                    f"bugünkü konuyu ve kazanımı {istek} iste. "
+                    "Sınıfa 'hangi konudayız' / 'nerede kalmıştık' diye SORMA."
+                )
             lines.append(
                 "- Konu veya kazanım gelene kadar yoklama alma ve anlatıma "
                 "başlama; beklediğini tek cümleyle belirt."

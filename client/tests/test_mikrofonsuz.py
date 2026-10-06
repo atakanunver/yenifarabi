@@ -285,3 +285,33 @@ class TestBaslangicCercevesi:
         f = self._f(None)
         f._baslangic_cercevesini_uygula()
         assert f._current_lesson is None
+
+
+class TestAcilisPlanKazanimi:
+    """2026-10-06: plandan gelen kazanım dersi 'hazır' yapmaz (karar: planı
+    kullan, konuyu sor) — öneri olarak söylenir, öğretmen onaylamadan başlanmaz."""
+    PLAN = {"subject": "Matematik", "topic": "", "kazanim": "12.1.2.2. Logaritma",
+            "kazanim_kaynagi": "plan"}
+
+    def test_mikrofonlu_plan_kazanimi_konuyu_sorar_yoklamaya_gecmez(self):
+        metin = _acilis_metni(_acilis_farabi(False, dict(self.PLAN)))
+        assert "Yoklama al" not in metin
+        assert "Yıllık plana göre bu haftanın kazanımı: 12.1.2.2. Logaritma" in metin
+        assert "öğretmen onaylamadan bu kazanımla derse BAŞLAMA" in metin
+        assert "söylemesini" in metin
+
+    def test_mikrofonsuz_ogretmen_konusu_esas_plan_kazanimi_oneri(self):
+        ders = dict(self.PLAN, topic="Üstel fonksiyonlar")
+        metin = _acilis_metni(_acilis_farabi(True, ders))
+        assert "Konuyu duyur: Üstel fonksiyonlar" in metin
+        assert "Dersin kazanımını tek cümleyle" not in metin
+        assert "ilgisizse plan kazanımını HİÇ söyleme" in metin
+        assert "anlatmaya başla" in metin.lower()
+
+    def test_ogretmen_kazanimi_eskisi_gibi_hazir(self):
+        ders = {"subject": "Fizik", "topic": "", "kazanim": "Newton",
+                "kazanim_kaynagi": "ogretmen"}
+        metin = _acilis_metni(_acilis_farabi(False, ders))
+        assert "Dersin kazanımını tek cümleyle, kendi sözlerinle söyle: Newton" in metin
+        assert "Yoklama al" in metin
+
