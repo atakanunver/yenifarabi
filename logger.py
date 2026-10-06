@@ -7,13 +7,15 @@ RotatingFileHandler ile 10MB x 5 dosya sınırıyla disk şişmesini engeller.
 """
 
 import logging
+import os
 import traceback
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
 
 BASE_DIR = Path(__file__).resolve().parent
-LOG_DIR = BASE_DIR / "logs"
+# Testler/geliştirme için: ARENA_LOG_DIZINI ortam değişkeni log klasörünü değiştirir.
+LOG_DIR = Path(os.environ.get("ARENA_LOG_DIZINI") or (BASE_DIR / "logs"))
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 ARENA_LOG_PATH = LOG_DIR / "arena.log"

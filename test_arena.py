@@ -8,6 +8,8 @@
 6. RAG + Ollama canlı soru üretim uç noktası testi
 """
 
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -17,6 +19,9 @@ import takim_kurucu
 import fetih_motoru
 
 client = TestClient(server.app)
+
+# Kaynak biçimi: statik set "MEB Biyoloji 9, s. 124"; soru havuzu "Biyoloji 9, s. 96"
+KAYNAK_RE = re.compile(r"^(MEB )?.+, [sp]\. ?\d+")
 
 
 def test_ip_den_sinif_bul():
@@ -225,7 +230,7 @@ def test_tum_derslerin_soru_bankasi():
             soru = d["soru"]
             assert len(soru["secenekler"]) == 4
             assert soru["dogru_cevap"] in soru["secenekler"]
-            assert soru["kaynak"].startswith("MEB "), f"{ders} HexaFetih sorusunda geçersiz kaynak: {soru['kaynak']}"
+            assert KAYNAK_RE.match(soru["kaynak"]), f"{ders} HexaFetih sorusunda geçersiz kaynak: {soru['kaynak']}"
 
         # 2. Sınıf Arenası (Jeopardy) testi: 4 kategori, her kategoride 4 soru
         sorular = soru_uretici.hazir_sorulari_getir(ders)
@@ -237,7 +242,7 @@ def test_tum_derslerin_soru_bankasi():
             for q in kat["questions"]:
                 assert len(q["q"]) > 0
                 assert len(q["a"]) > 0
-                assert q["kaynak"].startswith("MEB "), f"{ders} Jeopardy sorusunda geçersiz kaynak: {q['kaynak']}"
+                assert KAYNAK_RE.match(q["kaynak"]), f"{ders} Jeopardy sorusunda geçersiz kaynak: {q['kaynak']}"
 
         # 3. Tematik Takım testi: 4 takım, isimler dolu ve tematik
         takimlar = takim_kurucu.takimlari_olustur(ornek_ogrenciler, ders, takim_sayisi=4)
