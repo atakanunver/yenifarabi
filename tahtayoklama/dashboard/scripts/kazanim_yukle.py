@@ -117,9 +117,9 @@ ESLEME = [
     ("din kültürü/2026-2027dkab12 (1).xlsx", 12, DKAB, None, ""),
     ("din kültürü/2026-2027peygamberimizinhayati10_TYMM (2).xlsx", 10, "peygamberimizin hayatı", None, ""),
     ("edebiyat/9.SINIFLAR TDE YILLIK PLANI.docx", 9, EDEB, None, ""),
-    ("edebiyat/10.SINIFLAR TDE YILLIK PLANI 2026 - 2027.doc", 10, EDEB, None, ""),
+    ("edebiyat/10.sınıflar edebiyat.pdf", 10, EDEB, None, "2026-10-06: .doc yerine PDF konuldu"),
     ("edebiyat/11.SINIFLAR TDE YILLIK PLANI 2026 - 2027 (1).docx", 11, EDEB, None, ""),
-    ("edebiyat/12.SINIFLAR TDE YILLIK PLANI.doc", 12, EDEB, None, ""),
+    ("edebiyat/12.SINIFLAR TDE YILLIK PLANI.pdf", 12, EDEB, None, "2026-10-06: .doc yerine PDF konuldu"),
     ("fizik/9.sınıf fizik yıllık plan.docx", 9, "fizik", None, ""),
     ("fizik/10.sınıf fizik yıllık plan.docx", 10, "fizik", None, ""),
     ("fizik/11.sınıf fizik yıllık plan.docx", 11, "fizik", None, ""),
@@ -155,6 +155,14 @@ ESLEME = [
     ("bilisim/2026-2027 Programlamaya Giriş ve Algoritmalar Yıllık Planları (12-11 sınıf atakan ünver).pdf", 11, "bilişim teknolojileri ve yazılım", "s3-4",
      "Programlamaya Giriş ve Algoritmalar planı (2026-10-06 eklendi)"),
 ]
+
+# Edebiyat 10/12 PDF'leri (2026-10-06, .doc yerine): birleşik hücreli, başlık ile
+# veri sütun numaraları kayık tablolar → hücreler KONUMLA (bbox) eşlenir
+# (pdf_tde_tablolari). Hafta numaraları okul takvimiyle birebir (35/34 tarihli
+# haftada kontrol edildi), satırlar hafta numarasıyla yerleşir.
+TDE_PDF = {"edebiyat/10.sınıflar edebiyat.pdf", "edebiyat/12.SINIFLAR TDE YILLIK PLANI.pdf"}
+# 12. sınıf planı eski programda: kazanımlar TDE kodlu değil (A.2.1., B.1., C.1. 2.)
+KOD_ZORUNLU_HARIC = {(12, "türk dili ve edebiyatı")}
 
 # Çizgisiz tablolu PDF'ler: sütunlar başlık kelimelerinin x konumundan çıkarılır.
 KELIME_PDF = {"bilisim/2026-2027 Programlamaya Giriş ve Algoritmalar Yıllık Planları (12-11 sınıf atakan ünver).pdf"}
@@ -511,6 +519,95 @@ def pdf_kelime_tablolari(yol: Path, sayfa_araligi: str | None):
             yield f"pdfk-s{no}", satirlar
 
 
+_TDE_KOD = re.compile(r"TDE\d+\.\d+\.?|(?<!\w)[ABC]\.\s?\d{1,2}(?:\.\s?\d{1,2})?\.?")
+_TDE_HAFTA = re.compile(r"^(\d{1,2})\.$")
+# Alttaki tablo başlığından sızan BÜYÜK HARF parça ("… ÖĞRENME Ç",
+# "… YAZMA / SÖZLÜ İLETİŞİM BECERİLERİ KAZANIMLARI") — oradan kesilir.
+_BASLIK_SIZINTISI = re.compile(r"\s[A-ZÇĞİÖŞÜ]{4,}\s+[A-ZÇĞİÖŞÜ/].*$")
+
+
+def _tde_ilk_kodlu(metin: str | None) -> str | None:
+    """Hücredeki İLK anlamlı kodlu kazanım: koddan bir sonraki koda kadar; kodun
+    ardından en az 3 kelime yoksa (ör. "C.1.2 -C.1.17 kazanımları" aralık
+    başlığı) sonraki koda geçilir. Kod yoksa None."""
+    if not metin:
+        return None
+    kodlar = list(_TDE_KOD.finditer(metin))
+    for i, m in enumerate(kodlar):
+        son = kodlar[i + 1].start() if i + 1 < len(kodlar) else len(metin)
+        parca = _BASLIK_SIZINTISI.sub("", " ".join(metin[m.start():son].split()))
+        if len(parca[m.end() - m.start():].split()) >= 3:
+            return parca
+    return None
+
+
+def pdf_tde_tablolari(yol: Path):
+    """Edebiyat 10/12 PDF'leri. Kazanım sütunu = "öğrenme çıktısı"/"kazanım"
+    başlıklı hücrelerin EN DARI; veri satırında ona x'te en çok örtüşen hücre
+    alınır. O konumda hücre yoksa (birleşik hücre devamı) aynı tablodaki
+    önceki haftanın kazanımı sürer."""
+    import logging
+
+    import pdfplumber
+
+    logging.getLogger("pdfminer").setLevel(logging.ERROR)
+
+    def metin_al(sayfa, kutu):
+        return " ".join((sayfa.crop(kutu).extract_text() or "").split()) if kutu else None
+
+    def ortusme(a, b):
+        return max(0.0, min(a[2], b[2]) - max(a[0], b[0]))
+
+    with pdfplumber.open(str(yol)) as pdf:
+        for no, sayfa in enumerate(pdf.pages, 1):
+            for t_no, tablo in enumerate(sayfa.find_tables(), 1):
+                hucreler = [[(k, metin_al(sayfa, k)) for k in r.cells] for r in tablo.rows]
+                basliklar = [(k, m) for r in hucreler for k, m in r if k and m and len(m) < 120
+                             and any(x in katla(m) for x in ("OGRENME CIKTI", "KAZANIM"))
+                             and "KONU" not in katla(m)]
+                if not basliklar:
+                    continue
+                kutu = min(basliklar, key=lambda km: km[0][2] - km[0][0])[0]
+                satirlar = [[("HAFTA", None), ("", None), ("", None), ("KAZANIM", None)]]
+                onceki = None
+
+                def kutudaki(r):
+                    aday = max(((k, m) for k, m in r if k), key=lambda km: ortusme(km[0], kutu),
+                               default=(None, None))
+                    return (None, None) if aday[0] is None or ortusme(aday[0], kutu) < 5 else aday
+
+                def hafta_no(r):
+                    hm = _TDE_HAFTA.match(next((m for _k, m in r if m), "") or "")
+                    return hm.group(1) if hm else None
+
+                for i, r in enumerate(hucreler):
+                    no_h = hafta_no(r)
+                    if no_h is None:
+                        continue
+                    kk, km = kutudaki(r)
+                    # Haftanın alt satırları (ilk sütunu boş, sonraki haftaya ya da
+                    # tablo başlığına kadar): sarılan metin ve etiketin altındaki
+                    # kodlu kazanım buradadır → kazanım sütunundaki metinler birleşir.
+                    parcalar = [km] if kk is not None else []
+                    for r2 in hucreler[i + 1:]:
+                        if hafta_no(r2) is not None or (r2 and r2[0][1]):
+                            break
+                        parcalar.append(kutudaki(r2)[1])
+                    birlesik = " ".join(x for x in parcalar if x)
+                    kazanim = _tde_ilk_kodlu(birlesik)
+                    if kazanim is not None:
+                        # "Önceki" yalnızca KODLU kazanım bulununca güncellenir:
+                        # alt satırlardaki kodsuz metin (açıklama) belleği silmesin.
+                        onceki = birlesik
+                    elif kk is None:
+                        # Kazanım sütununda hücre yok = dikey birleşik hücre devamı.
+                        kazanim = _tde_ilk_kodlu(onceki)
+                    kazanim = kazanim or ""
+                    satirlar.append([(f"{no_h}. HAFTA", ("t", no, t_no)), ("", None),
+                                     ("", None), (kazanim, ("t", no, t_no))])
+                yield f"pdft-s{no}-t{t_no}", satirlar
+
+
 # --- Tablodan (hafta, kazanım) satırları ---------------------------------------
 
 
@@ -584,6 +681,8 @@ def dosyayi_oku(yol: Path, sayfa: str | None):
         tablolar = docx_tablolari(yol)
     elif uzanti == ".xlsx":
         tablolar = xlsx_tablolari(yol, sayfa)
+    elif uzanti == ".pdf" and any(str(yol).endswith(k) for k in TDE_PDF):
+        tablolar = pdf_tde_tablolari(yol)
     elif uzanti == ".pdf" and any(str(yol).endswith(k) for k in KELIME_PDF):
         tablolar = pdf_kelime_tablolari(yol, sayfa)
     elif uzanti == ".pdf":
@@ -723,7 +822,8 @@ def calisma(plan_dizini: Path, cikti: Path) -> int:
         # öğretmen deftere eksik yazmasın (kullanıcı kararı 2026-10-06: tahtada
         # iki satır). Eski yoklama.py "\n"'i boşluğa çevirip tek satır gösterir.
         hafta_listesi = defaultdict(list)
-        for hafta_son, metin in plan_filtrele(adaylar, KOD_ZORUNLU.get(ders)):
+        zorunlu = None if (duzey, ders) in KOD_ZORUNLU_HARIC else KOD_ZORUNLU.get(ders)
+        for hafta_son, metin in plan_filtrele(adaylar, zorunlu):
             if metin not in hafta_listesi[hafta_son]:
                 hafta_listesi[hafta_son].append(metin)
         for hafta_son, liste in hafta_listesi.items():
