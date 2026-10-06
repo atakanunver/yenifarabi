@@ -44,14 +44,23 @@
             Otomatik SMS servisi <strong>AÇIK</strong>. Okul günleri (Pazartesi-Cuma) sabah 09:00'da 1. dersi,
             öğleden sonra 14:00'te 6. dersi kontrol eder ve gelmeyen öğrencilerin anne ve babalarına otomatik SMS gönderir.
           {% else %}
+            {% if aktif_sabah == '1' or aktif_ogle == '1' %}
+            Otomatik SMS servisi <strong>KISMEN AÇIK</strong>:
+            09:00 sabah gönderimi <strong>{{ 'AÇIK' if aktif_sabah == '1' else 'KAPALI' }}</strong>,
+            14:00 öğleden sonra gönderimi <strong>{{ 'AÇIK' if aktif_ogle == '1' else 'KAPALI' }}</strong>.
+            İkisini birden açmak için aşağıdaki butona basın.
+            {% else %}
             Otomatik SMS servisi şu anda <strong>DEVRE DIŞI (KAPALI)</strong>.
             Hiçbir veliye otomatik SMS gönderilmez. Servisi açmak için aşağıdaki butona basabilirsiniz.
+            {% endif %}
           {% endif %}
         </p>
       </div>
       <div>
         {% if aktif == '1' %}
           <span class="rozet rozet-yesil">AKTİF</span>
+        {% elif aktif_sabah == '1' or aktif_ogle == '1' %}
+          <span class="rozet rozet-gri">KISMEN</span>
         {% else %}
           <span class="rozet rozet-gri">PASİF</span>
         {% endif %}

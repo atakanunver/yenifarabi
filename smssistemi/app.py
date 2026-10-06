@@ -656,7 +656,11 @@ async def otomasyon_sayfa(
         aktif_sabah = db.ayar_oku(conn, otomasyon.AYAR_AKTIF) or "0"
         aktif_ogle = db.ayar_oku(conn, otomasyon.AYAR_OGLE_AKTIF) or "0"
         # Tek ana şalter: ikisinden biri açıksa açık sayılır
-        aktif = "1" if (aktif_sabah == "1" or aktif_ogle == "1") else "0"
+        # Ana şalter yalnızca İKİSİ de açıksa AKTİF görünür (2026-10-06): eskiden
+        # "veya" idi — 14:00 otomasyonu 2026-10-04'te eklendiğinde sabah zaten
+        # açıktı, öğle ayarı hiç açılmadı ama sayfa "AÇIK (09:00 ve 14:00)"
+        # diyordu; 14:00 SMS'i hiç gitmedi. Yalnızca biri açıksa şablon uyarır.
+        aktif = "1" if (aktif_sabah == "1" and aktif_ogle == "1") else "0"
 
         sablon_sabah = otomasyon.sablonu_oku(conn, "ilk_ders")
         sablon_ogle = otomasyon.sablonu_oku(conn, "ogle")

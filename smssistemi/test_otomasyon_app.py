@@ -92,6 +92,20 @@ async def test_otomasyon_sayfa_acilir(test_db, pano):
 
 
 @pytest.mark.anyio
+async def test_otomasyon_sayfa_yalniz_sabah_acikken_kismen_gosterir(test_db, pano):
+    # 2026-10-06 kök neden: sabah açık, öğle hiç açılmamıştı ama sayfa "AKTİF
+    # (09:00 ve 14:00)" diyordu → 14:00 SMS'i hiç gitmedi.
+    db.ayar_yaz(test_db, otomasyon.AYAR_AKTIF, "1")
+    db.ayar_yaz(test_db, otomasyon.AYAR_OGLE_AKTIF, "0")
+    govde = (await app.otomasyon_sayfa(_sahte_oturum_request(test_db))).body.decode("utf-8")
+    assert "KISMEN AÇIK" in govde and ">KISMEN<" in govde
+    assert "Servisi Aç" in govde  # tek basış ikisini birden açar
+    db.ayar_yaz(test_db, otomasyon.AYAR_OGLE_AKTIF, "1")
+    govde = (await app.otomasyon_sayfa(_sahte_oturum_request(test_db))).body.decode("utf-8")
+    assert ">AKTİF<" in govde and "KISMEN" not in govde
+
+
+@pytest.mark.anyio
 async def test_otomasyon_durum_degistir(test_db):
     req = _sahte_oturum_request(test_db)
     resp = await app.otomasyon_durum_degistir(req, aktif="1")
