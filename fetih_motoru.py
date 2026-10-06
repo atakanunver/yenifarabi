@@ -7,6 +7,7 @@ bölge fetih/kuşatma mekanikleri, kombo hat hesabı ve tüm dersler için MEB �
 import math
 from typing import Any
 import havuz
+import turkce
 import soru_uretici
 
 # 19 Peteklik Simetrik Hexagon Izgarası (Axial: q, r)
@@ -1050,6 +1051,18 @@ DERS_KONULARI_VE_SORULAR: dict[str, list[dict[str, Any]]] = {   'din': [   {   '
                        'secenekler': ['Nihilizm (Hiççilik)', 'Stoacılık', 'Panteizm', 'Hümanizm'],
                        'a': 'Nihilizm (Hiççilik)',
                        'kaynak': 'MEB Felsefe 10, s. 82'}],
+    'almanca': [
+        {'konu': 'Zahlen', 'q': "'Fünf' sayısı kaçtır?", 'secenekler': ['5', '4', '6', '15'], 'a': '5', 'kaynak': 'MEB Almanca A1, s. 11'},
+        {'konu': 'Artikel', 'q': "'Haus' isminin belirli tanımlığı nedir?", 'secenekler': ['das', 'der', 'die', 'den'], 'a': 'das', 'kaynak': 'MEB Almanca A1, s. 12'},
+        {'konu': 'Verben', 'q': "'Ich ____ Schüler.' boşluğuna ne gelir?", 'secenekler': ['bin', 'bist', 'ist', 'sind'], 'a': 'bin', 'kaynak': 'MEB Almanca A1, s. 13'},
+        {'konu': 'Verben', 'q': "'Er ____ Fußball.' (spielen) boşluğuna ne gelir?", 'secenekler': ['spielt', 'spiele', 'spielen', 'spielst'], 'a': 'spielt', 'kaynak': 'MEB Almanca A1, s. 14'},
+        {'konu': 'Alltag', 'q': "'Guten Morgen' ne anlama gelir?", 'secenekler': ['Günaydın', 'İyi geceler', 'Hoşça kal', 'Teşekkürler'], 'a': 'Günaydın', 'kaynak': 'MEB Almanca A1, s. 15'},
+        {'konu': 'Alltag', 'q': "'Wie heißt du?' ne anlama gelir?", 'secenekler': ['Adın ne?', 'Nerelisin?', 'Kaç yaşındasın?', 'Nasılsın?'], 'a': 'Adın ne?', 'kaynak': 'MEB Almanca A1, s. 16'},
+        {'konu': 'Farben', 'q': "Almanca 'rot' hangi renktir?", 'secenekler': ['Kırmızı', 'Mavi', 'Yeşil', 'Sarı'], 'a': 'Kırmızı', 'kaynak': 'MEB Almanca A1, s. 17'},
+        {'konu': 'Artikel', 'q': "'Schule' isminin belirli tanımlığı nedir?", 'secenekler': ['die', 'der', 'das', 'dem'], 'a': 'die', 'kaynak': 'MEB Almanca A1, s. 18'},
+        {'konu': 'Zahlen', 'q': "'Zwanzig' sayısı kaçtır?", 'secenekler': ['20', '12', '22', '200'], 'a': '20', 'kaynak': 'MEB Almanca A1, s. 19'},
+        {'konu': 'Alltag', 'q': "'Danke schön' sözüne karşılık hangisi söylenir?", 'secenekler': ['Bitte schön', 'Guten Tag', 'Auf Wiedersehen', 'Entschuldigung'], 'a': 'Bitte schön', 'kaynak': 'MEB Almanca A1, s. 20'},
+    ],
     'ingilizce': [   {   'konu': 'Conditionals (Type 2)',
                          'q': "'If I ____ a million dollars, I would travel around the world.' boşluğuna hangisi "
                               'gelmelidir?',
@@ -1599,7 +1612,7 @@ DERS_KONULARI_VE_SORULAR: dict[str, list[dict[str, Any]]] = {   'din': [   {   '
 def normalize_ders_adi(s: str) -> str:
     if not s:
         return ""
-    return s.replace("İ", "i").replace("I", "ı").lower().strip()
+    return turkce.kapsam_anahtari(s)
 
 
 def haritayi_hazirla(ders_adi: str, sinif: int = 9) -> list[dict[str, Any]]:
@@ -1610,7 +1623,10 @@ def haritayi_hazirla(ders_adi: str, sinif: int = 9) -> list[dict[str, Any]]:
     ders_key = "biyoloji"
 
     # 1. Kapsam eşleme tablosundan ara
-    for k, v in soru_uretici.KAPSAM_ESLEME.items():
+    exact = soru_uretici.KAPSAM_ESLEME.get(ders_temiz)
+    if exact:
+        ders_key = exact
+    for k, v in ([] if exact else soru_uretici.KAPSAM_ESLEME.items()):
         k_norm = normalize_ders_adi(k)
         if k_norm in ders_temiz or ders_temiz in k_norm:
             ders_key = v

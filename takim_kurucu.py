@@ -5,6 +5,8 @@ oluşturur. Ders adına göre eğlenceli ve tematik takım isimleri atar.
 """
 
 import random
+
+import turkce
 from typing import Any
 
 # Ders adına göre tematik takım isimleri
@@ -56,6 +58,12 @@ TEMATIK_TAKIMLAR: dict[str, list[dict[str, str]]] = {
         {"name": "Akılcılar", "slogan": "Düşünüyorum Öyleyse Varım!"},
         {"name": "Diyalektikler", "slogan": "Tez, Antitez, Sentez!"},
         {"name": "Filozoflar", "slogan": "Hikmet Arayışçıları!"},
+    ],
+    "almanca": [
+        {"name": "Adler", "slogan": "Hoch hinaus!"},
+        {"name": "Wölfe", "slogan": "Gemeinsam sind wir stark!"},
+        {"name": "Sterne", "slogan": "Wir leuchten!"},
+        {"name": "Blitze", "slogan": "Schnell und klug!"},
     ],
     "ingilizce": [
         {"name": "Pioneers", "slogan": "Leading the Way!"},
@@ -149,7 +157,7 @@ TAKIM_RENKLERI = [
 def normalize_ders_adi(s: str) -> str:
     if not s:
         return ""
-    return s.replace("İ", "i").replace("I", "ı").lower().strip()
+    return turkce.kapsam_anahtari(s)
 
 
 def _ders_anahtari(ders_adi: str) -> str:

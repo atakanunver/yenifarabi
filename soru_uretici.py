@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Any
 import httpx
 
+import turkce
+
 log = logging.getLogger("soru_uretici")
 
 API_KEYS_YOLU = Path("/home/ata/farabi/server/config/api_keys.json")
@@ -41,7 +43,7 @@ KAPSAM_ESLEME: dict[str, str] = {   'biyoloji': 'biyoloji',
     'peygamberimizin hayatı': 'din',
     'temel dini bilgiler': 'din',
     'ingilizce': 'ingilizce',
-    'almanca': 'ingilizce',
+    'almanca': 'almanca',
     'yabancı dil': 'ingilizce',
     'bilişim teknolojileri ve yazılım': 'bilisim',
     'bilişim': 'bilisim',
@@ -59,6 +61,13 @@ KAPSAM_ESLEME: dict[str, str] = {   'biyoloji': 'biyoloji',
     'sanat': 'sanat',
     'rehberlik': 'genel',
     'sınav hazırlık çalışması': 'genel',
+    'hedef fizik': 'fizik',
+    'hedef kimya': 'kimya',
+    'hedef biyoloji': 'biyoloji',
+    'hedef matematik': 'matematik',
+    'hedef coğrafya': 'cografya',
+    'hedef cografya': 'cografya',
+    'hedef tarih': 'tarih',
     'genel kültür': 'genel'}
 
 
@@ -1052,6 +1061,36 @@ VARSAYILAN_SORULAR: dict[str, list[dict[str, Any]]] = {   'biyoloji': [   {   'i
                                             'a': 'Nihilizm (Hiççilik)',
                                             'kaynak': 'MEB Felsefe 10, s. 82',
                                             'answered': False}]}],
+    'almanca': [
+        {'id': 'alm_1', 'name': 'Zahlen & Farben', 'color': 'from-yellow-600 to-amber-600', 'badgeColor': 'text-yellow-400 bg-yellow-500/20 border-yellow-500/40',
+         'questions': [
+            {'points': 100, 'q': "'Drei' kelimesinin Almanca yazılışı nedir?", 'a': 'drei', 'kaynak': 'MEB Almanca A1, s. 11', 'answered': False},
+            {'points': 200, 'q': "Almanca 'blau' hangi rengin adıdır?", 'a': 'Mavi', 'kaynak': 'MEB Almanca A1, s. 12', 'answered': False},
+            {'points': 300, 'q': "'Zwanzig' sayısı kaçtır?", 'a': '20', 'kaynak': 'MEB Almanca A1, s. 13', 'answered': False},
+            {'points': 400, 'q': "Almanca 'achtzehn' sayısı kaçtır?", 'a': '18', 'kaynak': 'MEB Almanca A1, s. 14', 'answered': False},
+        ]},
+        {'id': 'alm_2', 'name': 'Artikel & Nomen', 'color': 'from-sky-600 to-blue-600', 'badgeColor': 'text-sky-400 bg-sky-500/20 border-sky-500/40',
+         'questions': [
+            {'points': 100, 'q': "'Haus' (ev) isminin belirli tanımlığı (Artikel) nedir?", 'a': 'das', 'kaynak': 'MEB Almanca A1, s. 21', 'answered': False},
+            {'points': 200, 'q': "'Tisch' (masa) isminin belirli tanımlığı nedir?", 'a': 'der', 'kaynak': 'MEB Almanca A1, s. 22', 'answered': False},
+            {'points': 300, 'q': "'Schule' (okul) isminin belirli tanımlığı nedir?", 'a': 'die', 'kaynak': 'MEB Almanca A1, s. 23', 'answered': False},
+            {'points': 400, 'q': "'Kind' kelimesinin çoğul hali nedir?", 'a': 'Kinder', 'kaynak': 'MEB Almanca A2, s. 24', 'answered': False},
+        ]},
+        {'id': 'alm_3', 'name': 'Verben', 'color': 'from-emerald-600 to-teal-600', 'badgeColor': 'text-emerald-400 bg-emerald-500/20 border-emerald-500/40',
+         'questions': [
+            {'points': 100, 'q': "'Ich ____ Schüler.' boşluğuna 'sein' fiilinin doğru hali gelir?", 'a': 'bin', 'kaynak': 'MEB Almanca A1, s. 31', 'answered': False},
+            {'points': 200, 'q': "'Er ____ Fußball.' (spielen) boşluğuna ne gelir?", 'a': 'spielt', 'kaynak': 'MEB Almanca A1, s. 32', 'answered': False},
+            {'points': 300, 'q': "'Wir ____ nach Hause.' (gehen) boşluğuna ne gelir?", 'a': 'gehen', 'kaynak': 'MEB Almanca A1, s. 33', 'answered': False},
+            {'points': 400, 'q': "'haben' fiilinin 'du' ile çekimi nedir?", 'a': 'hast', 'kaynak': 'MEB Almanca A1, s. 34', 'answered': False},
+        ]},
+        {'id': 'alm_4', 'name': 'Alltag & Fragen', 'color': 'from-purple-600 to-pink-600', 'badgeColor': 'text-purple-400 bg-purple-500/20 border-purple-500/40',
+         'questions': [
+            {'points': 100, 'q': "'Guten Morgen' ne anlama gelir?", 'a': 'Günaydın', 'kaynak': 'MEB Almanca A1, s. 41', 'answered': False},
+            {'points': 200, 'q': "'Wie heißt du?' ne anlama gelir?", 'a': 'Adın ne?', 'kaynak': 'MEB Almanca A1, s. 42', 'answered': False},
+            {'points': 300, 'q': "'Wo wohnst du?' sorusunun Türkçesi nedir?", 'a': 'Nerede oturuyorsun?', 'kaynak': 'MEB Almanca A1, s. 43', 'answered': False},
+            {'points': 400, 'q': "'Danke schön' karşılığında söylenen 'rica ederim' Almanca nedir?", 'a': 'Bitte schön', 'kaynak': 'MEB Almanca A1, s. 44', 'answered': False},
+        ]},
+    ],
     'ingilizce': [   {   'id': 'ing_1',
                          'name': 'Grammar & Tenses',
                          'color': 'from-sky-600 to-blue-600',
@@ -1830,7 +1869,7 @@ def _webui_anahtari() -> str:
 def normalize_ders_adi(s: str) -> str:
     if not s:
         return ""
-    return s.replace("İ", "i").replace("I", "ı").lower().strip()
+    return turkce.kapsam_anahtari(s)
 
 
 def hazir_sorulari_getir(ders_adi: str) -> list[dict[str, Any]]:
@@ -1838,8 +1877,8 @@ def hazir_sorulari_getir(ders_adi: str) -> list[dict[str, Any]]:
     ders_temiz = normalize_ders_adi(ders_adi)
 
     # 1. Kapsam eşleme dene
-    hedef_kapsam = None
-    for k, v in KAPSAM_ESLEME.items():
+    hedef_kapsam = KAPSAM_ESLEME.get(ders_temiz)
+    for k, v in ([] if hedef_kapsam else KAPSAM_ESLEME.items()):
         k_norm = normalize_ders_adi(k)
         if k_norm in ders_temiz or ders_temiz in k_norm:
             hedef_kapsam = v
@@ -1860,7 +1899,7 @@ def hazir_sorulari_getir(ders_adi: str) -> list[dict[str, Any]]:
 
 async def rag_icerik_ara(ders_adi: str, sinif_no: int = 9, arama_sorgusu: str = "") -> list[dict[str, Any]]:
     """Farabi Brain POST /api/webui/ara üzerinden ders kitabı parçalarını çeker."""
-    kapsam = KAPSAM_ESLEME.get(ders_adi.strip().lower(), "genel")
+    kapsam = KAPSAM_ESLEME.get(turkce.kapsam_anahtari(ders_adi), "genel")
     webui_key = _webui_anahtari()
     if not webui_key:
         log.warning("WebUI key bulunamadı.")
@@ -1904,12 +1943,20 @@ async def ollama_soru_uret(
             kaynak_etiketleri.append(p.get("kaynak", f"MEB {ders_adi} {sinif_no}"))
             rag_metinleri += f"\n--- Kaynak: {p.get('kaynak')} ---\n{p.get('metin', '')[:400]}\n"
 
-    varsayilan_kaynak = f"MEB {ders_adi.title()} {sinif_no}, s. 45"
+    varsayilan_kaynak = f"MEB {turkce.tr_baslik(ders_adi)} {sinif_no}, s. 45"
     ana_kaynak = kaynak_etiketleri[0] if kaynak_etiketleri else varsayilan_kaynak
     if not str(ana_kaynak).startswith("MEB "):
         ana_kaynak = f"MEB {ana_kaynak}"
 
+    dil_notu = ""
+    if KAPSAM_ESLEME.get(turkce.kapsam_anahtari(ders_adi)) == "almanca":
+        dil_notu = (
+            "BU DERS ALMANCA DİL DERSİDİR: sorular Almanca kelime, dilbilgisi (Artikel, fiil çekimi, "
+            "cümle yapısı) ve günlük konuşma üzerine olsun; örnek cümleler ve cevaplar ALMANCA olsun "
+            "(açıklayıcı soru kökü Türkçe olabilir). İngilizce soru ÜRETME. "
+        )
     sistem_prompt = (
+        dil_notu +
         "Sen MEB lise müfredatına tam hakim bir Türk lise öğretmenisin. "
         "Akıllı tahtada oynanacak Sınıf Arenası Jeopardy yarışması için 4 KATEGORİ ve "
         "her kategoride 4 FARKLI ZORLUKTA (100, 200, 300, 400 puanlık) soru hazırla (toplam 16 soru). "
@@ -1924,7 +1971,7 @@ async def ollama_soru_uret(
 Konu/Odak: {konu if konu else 'Müfredat temel kavramları'}
 
 Kaynak Kitap Parçaları:
-{rag_metinleri if rag_metinleri else f'MEB {ders_adi.title()} {sinif_no} Ders Kitabı'}
+{rag_metinleri if rag_metinleri else f'MEB {turkce.tr_baslik(ders_adi)} {sinif_no} Ders Kitabı'}
 
 JSON FORMATI:
 [
