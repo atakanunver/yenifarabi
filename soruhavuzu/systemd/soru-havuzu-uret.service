@@ -1,0 +1,10 @@
+[Unit]
+Description=Soru havuzu gece üretimi (yerel Ollama qwen3.8:27b) — ders saatinde kendiliğinden durur, bitince AGY denetimini bir kez başlatır
+After=ollama.service postgresql.service network-online.target
+
+[Service]
+Type=simple
+User=ata
+WorkingDirectory=/home/ata/farabi
+ExecStart=/home/ata/farabi/server/venv/bin/python -m soruhavuzu.calistir uret
+Nice=10

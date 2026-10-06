@@ -1,0 +1,3 @@
+{"type": "object", "required": ["kararlar"], "properties": {"kararlar": {"type": "array", "items": {
+  "type": "object", "required": ["id", "gecerli", "neden"],
+  "properties": {"id": {"type": "integer"}, "gecerli": {"type": "boolean"}, "neden": {"type": "string"}}}}}}

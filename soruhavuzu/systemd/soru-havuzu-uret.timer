@@ -1,0 +1,10 @@
+[Unit]
+Description=Soru havuzu üretimi — hafta içi 17:15 TR (14:15 UTC), hafta sonu 08:00 TR (05:00 UTC)
+
+[Timer]
+OnCalendar=*-*-* 14:15:00 UTC
+OnCalendar=Sat,Sun *-*-* 05:00:00 UTC
+Persistent=false
+
+[Install]
+WantedBy=timers.target
