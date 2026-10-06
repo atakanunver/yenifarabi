@@ -32,6 +32,9 @@ okul operasyon servisleri (yoklama panosu, SMS).
   (`/mnt/farabi-data/farabi/YILLIK PLANLAR 2026_2027/`)
   `tahtayoklama/dashboard/scripts/kazanim_yukle.py` üretir; öğretmen deftere
   yazar, plan değişince script + bağımsız denetim yeniden çalıştırılmalı.
+- **Farabi plan kazanımı (2026-10-06):** client ders başında `GET /api/egitim/kazanim`
+  (`server/kazanim.py`) ile bu haftanın kazanımını çerçeveye alır ("yıllık plan, bu
+  hafta"), konuyu öğretmene yine sorar; öğretmenin kazanımı önceliklidir.
 - **Ders programı düzeltmesi:** `SOTarih` = Ortak Türk Tarihi (okulda Osmanlı
   Türkçesi YOK). Tahtaların Farabi client kopyası (`client/config/
   ders_programi.json`) `config_dagit.sh` ile ayrıca güncellenmeli.
