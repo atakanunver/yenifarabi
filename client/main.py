@@ -22,6 +22,9 @@ from core.logger import get_logger, log_path
 
 log = get_logger("main")
 
+# Yıllık plan kazanımı sorgusu (GET /api/egitim/kazanim) zaman aşımı, sn.
+_KAZANIM_ZAMAN_ASIMI = 3.0
+
 from actions import kayit
 from actions.ders_icerigi     import ders_icerigi
 from actions.kitap_sorusu     import kitap_sorusu
@@ -473,7 +476,8 @@ class FarabiLive:
         self._son_etkinlik = time.time()
         # O anki ders çerçevesi. Ders ADI programdan gelir; konu ve kazanım
         # öğretmenin yazdığı/söylediği metinden. Yıllık plan (Excel→plan.json)
-        # oturum çerçevesini doldurmaz — plandan otomatik kazanım tespiti yok.
+        # oturum çerçevesini doldurmaz; yalnızca bu haftanın KAZANIMI sunucudan
+        # (/api/egitim/kazanim) ders başında gelir (kazanim_kaynagi="plan"), konu hep sorulur.
         self._program_slotu = None
         self._current_lesson: dict | None = None
         try:
@@ -651,8 +655,74 @@ class FarabiLive:
             "kazanim": "",
             "kazanim_kodu": "",
             "kazanimlar": [],
+            "kazanim_kaynagi": "",
             "period": slot.get("ders_no"),
         }
+
+    @staticmethod
+    def _plan_kazanimini_getir(derslik: str, ders_no) -> dict | None:
+        """
+        Sunucudan bu haftanın yıllık plan kazanımını sorar (`GET
+        /api/egitim/kazanim`). SENKRON/BLOKLAYICI (en fazla 3 sn) — çağıran
+        bunu bir iş parçacığında çalıştırmalı. Konuyu DEĞİL yalnızca
+        kazanımı getirir; öğretmene konu yine sorulur. Her hata (ağ, 4xx/5xx,
+        bozuk JSON, durum != "tamam") sessizce None döner — Farabi dersi asla
+        bu yüzden aksatmaz.
+        """
+        import requests
+
+        try:
+            if not derslik or not ders_no:
+                return None
+            r = requests.get(
+                f"{tahta.sunucu_url()}/api/egitim/kazanim",
+                params={"derslik": derslik, "ders_no": int(ders_no)},
+                headers=tahta.auth_headers(),
+                timeout=_KAZANIM_ZAMAN_ASIMI,
+            )
+            if r.status_code != 200:
+                log.info("Plan kazanımı alınamadı: HTTP %s", r.status_code)
+                return None
+            veri = r.json()
+            if not isinstance(veri, dict) or veri.get("durum") != "tamam":
+                log.info("Plan kazanımı yok (derslik=%s ders_no=%s)", derslik, ders_no)
+                return None
+            liste = [str(k).strip() for k in (veri.get("kazanimlar") or []) if str(k).strip()]
+            if not liste:
+                return None
+            kod_m = re.match(r"^\S+\.\d+(\.\d+)*\.?", liste[0])
+            return {
+                "kazanim": "; ".join(liste),
+                "kazanimlar": liste,
+                "kazanim_kodu": kod_m.group(0) if kod_m else "",
+                "kazanim_kaynagi": "plan",
+            }
+        except Exception as e:
+            log.info("Plan kazanımı alınamadı (sessiz devam): %s", e)
+            return None
+
+    async def _cerceveye_plan_kazanimi_ekle(self) -> None:
+        """
+        Ders başında `_current_lesson`a yıllık plan kazanımını işler.
+        Ağ çağrısı iş parçacığında, toplam bekleme sınırlı; sonuç event
+        loop iş parçacığında uygulanır. Öğretmen girişi bunun üzerine yazar.
+        """
+        cerceve = self._current_lesson
+        if not cerceve or not cerceve.get("period"):
+            return
+        try:
+            derslik = tahta.derslik()
+            sonuc = await asyncio.wait_for(
+                asyncio.get_running_loop().run_in_executor(
+                    None, self._plan_kazanimini_getir, derslik, cerceve.get("period")),
+                timeout=_KAZANIM_ZAMAN_ASIMI + 1.0,
+            )
+        except Exception as e:
+            log.info("Plan kazanımı atlandı: %s", e)
+            return
+        if sonuc and cerceve is self._current_lesson and not cerceve.get("kazanim"):
+            cerceve.update(sonuc)
+            log.info("Çerçeveye plan kazanımı işlendi: %s", sonuc["kazanim"])
 
     def _baslangic_cercevesini_uygula(self) -> None:
         """
@@ -672,6 +742,8 @@ class FarabiLive:
             deger = (c.get(kaynak) or "").strip()
             if deger:
                 self._current_lesson[alan] = deger
+                if alan == "kazanim":
+                    self._kazanimi_ogretmene_al()
         log.info("Çerçeve DERSİ BAŞLAT'tan alındı: ders=%s konu=%s",
                  self._current_lesson.get("subject"),
                  self._current_lesson.get("topic"))
@@ -680,6 +752,12 @@ class FarabiLive:
                 f"{k}: {v}" for k, v in c.items() if v))
         except Exception as e:
             log.debug("Çerçeve ders kaydına yazılamadı: %s", e)
+
+    def _kazanimi_ogretmene_al(self) -> None:
+        """Öğretmen kazanım yazdı/söyledi: plandan gelen yan alanları temizle."""
+        self._current_lesson["kazanimlar"] = []
+        self._current_lesson["kazanim_kodu"] = ""
+        self._current_lesson["kazanim_kaynagi"] = "ogretmen"
 
     def _cerceveyi_ogretmenden_guncelle(self, metin: str) -> None:
         """
@@ -718,6 +796,7 @@ class FarabiLive:
             self.motor.durum.konu = self._current_lesson["topic"]
         if kaz_m:
             self._current_lesson["kazanim"] = kaz_m.group(1).strip()
+            self._kazanimi_ogretmene_al()
         log.info("Çerçeve öğretmenden güncellendi: ders=%s konu=%s",
                  self._current_lesson.get("subject"),
                  self._current_lesson.get("topic"))
@@ -918,13 +997,23 @@ class FarabiLive:
                 ("Konu",    lesson.get("topic")),
                 ("Kazanım", lesson.get("kazanim")),
             ]
+            if lesson.get("kazanim_kaynagi") == "plan":
+                fields[3] = ("Kazanım (yıllık plan, bu hafta)", lesson.get("kazanim"))
             dolu = [(label, value) for label, value in fields if value]
             if dolu:
                 lesson_ctx = "[BUGÜNKÜ DERS — DERS ÇERÇEVEN BUDUR]\n" + "\n".join(
                     f"{label}: {value}" for label, value in dolu
                 )
                 parts.append(lesson_ctx + "\n")
-            if not lesson.get("topic") and not lesson.get("kazanim"):
+            if not lesson.get("topic") and lesson.get("kazanim") \
+                    and lesson.get("kazanim_kaynagi") == "plan":
+                parts.append(
+                    "[KONU BEKLENİYOR]\n"
+                    "Yıllık plana göre bu haftanın kazanımı yukarıda. "
+                    "Öğretmene bugünkü konuyu sor; öğretmen farklı bir "
+                    "konu/kazanım söylerse onu esas al.\n"
+                )
+            elif not lesson.get("topic") and not lesson.get("kazanim"):
                 parts.append(
                     "[KONU BEKLENİYOR]\n"
                     "Ders adı biliniyor olabilir ama konu ve kazanım henüz "
@@ -2376,6 +2465,7 @@ class FarabiLive:
                     self._programdan_cerceve(self._program_slotu)
                     if self._program_slotu else None
                 )
+                await self._cerceveye_plan_kazanimi_ekle()
                 self._mikrofonsuz = bool(getattr(self.ui, "mikrofonsuz", False))
                 self._baslangic_cercevesini_uygula()
                 self._ders_kipi_taban = _ders_kipi()

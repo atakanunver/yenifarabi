@@ -29,6 +29,7 @@ import db
 import ders_hafizasi
 import dosya
 import icerik
+import kazanim
 import proxy
 import uzak_model
 import ders_plani
@@ -154,6 +155,7 @@ app = FastAPI(title="Farabi Brain API", lifespan=lifespan)
 # kontrolünü kendi yapar (RAG modeli gerekmez).
 app.include_router(icerik.router)
 app.include_router(yks.router)
+app.include_router(kazanim.router)
 app.include_router(proxy.router)
 app.include_router(ders_plani.router)
 app.include_router(dosya.router)
