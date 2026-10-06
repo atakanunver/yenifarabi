@@ -88,7 +88,7 @@ KISALTMALAR = {
     "SKimya": "kimya",
     "SMat": "matematik",
     "SMatUyg": "matematik uygulamaları",
-    "SOTarih": "osmanlı türkçesi",
+    "SOTarih": "ortak türk tarihi",  # 2026-10-06 düzeltildi: Osmanlı Türkçesi değil, Seçmeli Ortak Türk Tarihi
     "SPeygamber": "peygamberimizin hayatı",
     "SPsiko": "psikoloji",
     "STDE": "türk dili ve edebiyatı",
@@ -98,7 +98,7 @@ KISALTMALAR = {
 }
 
 TAHMIN_ISARETLI = {
-    "SSpor", "Sağlık", "SMatUyg", "SOTarih", "SPeygamber", "STDE", "SÇağdaş",
+    "SSpor", "Sağlık", "SMatUyg", "SPeygamber", "STDE", "SÇağdaş",
 }
 
 

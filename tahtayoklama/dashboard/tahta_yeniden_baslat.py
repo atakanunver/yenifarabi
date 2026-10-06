@@ -18,7 +18,11 @@ BEKLEME_SN = 120
 _SSH_BAGLANTI_HATASI = 255
 _SUDO_KONTROL_KOMUTU = "sudo -n -l /usr/bin/systemctl reboot"
 _REBOOT_KOMUTU = "sudo -n /usr/bin/systemctl reboot"
-_UYARILAR = {"9-A": "otomatik giriş yok, açılışta giriş ekranında kalır"}
+# Tahtaya özel yeniden başlatma uyarıları. 9-A'nın "otomatik giriş yok"
+# uyarısı KALDIRILDI (2026-10-06): 9-A'da LightDM autologin 2026-09-29'dan
+# beri kurulu (tahtaayar `otomatik_giris` ✓) ve 2026-10-06 yeniden
+# başlatmasında oturum kendiliğinden açıldığı canlı doğrulandı.
+_UYARILAR: dict[str, str] = {}
 
 # {tahta adı: monotonic zaman} — süreç belleğinde; servis yeniden başlarsa sıfırlanır.
 _SON_ISTEK: dict[str, float] = {}

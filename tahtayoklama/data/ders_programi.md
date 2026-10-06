@@ -34,8 +34,8 @@ Kaynak: `mudur/siniflar.pdf`
 |---|---|---|---|---|---|
 | 1 | felsefe | peygamberimizin hayatı | biyoloji | ingilizce | coğrafya |
 | 2 | felsefe | peygamberimizin hayatı | biyoloji | ingilizce | coğrafya |
-| 3 | beden eğitimi | tarih | türk dili ve edebiyatı | osmanlı türkçesi | matematik |
-| 4 | beden eğitimi | tarih | ingilizce | osmanlı türkçesi | matematik |
+| 3 | beden eğitimi | tarih | türk dili ve edebiyatı | ortak türk tarihi | matematik |
+| 4 | beden eğitimi | tarih | ingilizce | ortak türk tarihi | matematik |
 | 5 | kimya | görsel sanatlar | ingilizce | matematik | spor etkinlikleri |
 | 6 | kimya | görsel sanatlar | matematik | matematik | spor etkinlikleri |
 | 7 | din kültürü ve ahlak bilgisi | türk dili ve edebiyatı | matematik | türk dili ve edebiyatı | fizik |

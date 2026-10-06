@@ -25,6 +25,7 @@ import ders_programi
 import sistem_durumu
 import ssh_istemci
 import sunucular
+import tahta_api
 import uzaktan_baslat
 import uzaktan_yonetim
 import yoklayici
@@ -45,12 +46,17 @@ def _sinif_sira_anahtari(ad: str) -> tuple[int, int, str]:
     return (1, 0, ad)
 
 POLLING_ARALIGI_SN = 120
+# Nabzı taze tahtalar (tahta istemcisi kurulu) kısmi turlarda SSH ile
+# taranmaz; saatte bir yine de tam SSH taraması yapılır — istemcinin
+# kaçırdığı bir kayıt olursa yedek/uzlaştırma yolu (2026-10-06).
+TAM_TARAMA_ARALIGI_SN = 3600
 
 
 async def _polling_dongusu() -> None:
     """Pazartesi-Cuma, ilk dersten ~20dk önce - son dersten ~20dk sonra
     arasında bugünün tarihini periyodik tarar. Pencere dışında SSH trafiği
     yok."""
+    son_tam_tarama = 0.0
     while True:
         simdi = zil.simdi_istanbul()
         ilk = zil.ilk_ders_saati()
@@ -63,8 +69,14 @@ async def _polling_dongusu() -> None:
         )
         if pencerede_mi:
             conn = db.baglanti()
+            simdi_mono = asyncio.get_running_loop().time()
+            tam = simdi_mono - son_tam_tarama >= TAM_TARAMA_ARALIGI_SN
             try:
-                await yoklayici.bir_tur_calistir(conn, zil.simdi_istanbul().date().isoformat())
+                await yoklayici.bir_tur_calistir(
+                    conn, zil.simdi_istanbul().date().isoformat(), tam_tarama=tam
+                )
+                if tam:
+                    son_tam_tarama = simdi_mono
             except Exception as e:  # poller asla tüm servisi düşürmemeli
                 print(f"[polling] hata: {e}")
             finally:
@@ -92,6 +104,7 @@ app.include_router(uzaktan_yonetim.router)
 app.include_router(ajan_api.router)
 app.include_router(okul_bilgisi.router)
 app.include_router(sunucular.router)
+app.include_router(tahta_api.router)
 
 
 @app.get("/giris", response_class=HTMLResponse)

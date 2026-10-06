@@ -77,6 +77,17 @@ CREATE TABLE IF NOT EXISTS uzaktan_denetim (
     tahtalar   TEXT NOT NULL,
     sonuc      TEXT NOT NULL
 );
+
+-- Tahta istemcisinin (tahta_istemci.py) son nabzı — tahta başına tek satır.
+-- son_gorulme UTC (datetime('now')); ip bilgi amaçlı (DHCP değişimini
+-- görmek için), tahtalar.ip'ye OTOMATİK yazılmaz.
+CREATE TABLE IF NOT EXISTS tahta_nabiz (
+    tahta_ad       TEXT PRIMARY KEY,
+    son_gorulme    TEXT NOT NULL,
+    ip             TEXT,
+    istemci_surum  TEXT,
+    yoklama_acik   INTEGER
+);
 """
 
 

@@ -101,6 +101,9 @@ def yoklama_ortami(tmp_path, monkeypatch, qapp):
     monkeypatch.setattr(yoklama, "ROSTER_DIR", roster_dir)
     monkeypatch.setattr(yoklama, "KAYIT_DIR", kayit_dir)
     monkeypatch.setattr(yoklama, "ZIL_DOSYASI", zil_dosyasi)
+    # Varsayılan: ders programı YOK (gerçek data/ dosyası testlere sızmasın).
+    monkeypatch.setattr(yoklama, "DERS_PROGRAMI_DOSYASI", tmp_path / "ders_programi.json")
+    monkeypatch.setattr(yoklama, "KAZANIM_DOSYASI", tmp_path / "kazanimlar.json")
     monkeypatch.setattr(yoklama, "datetime", _SahteDatetime)
     _saat_ayarla(8, 20)
 
@@ -333,3 +336,153 @@ class TestTekilOrnek:
         finally:
             sunucu1.close()
             QLocalServer.removeServer(adi)
+
+
+# ----------------------------------------------------------------------
+# Başlık: ders adı (data/ders_programi.json) ve ders dışı "BOŞ" (2026-10-06)
+# ----------------------------------------------------------------------
+
+
+def _program_yaz(tmp_path, icerik) -> None:
+    (tmp_path / "ders_programi.json").write_text(
+        icerik if isinstance(icerik, str) else json.dumps(icerik, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+class TestBaslikDersAdi:
+    # 2026-09-28 Pazartesi; fixture saati 08:20 = 1. ders, sınıf 9-A.
+    PROGRAM = {"siniflar": {"9-A": {"pazartesi": {"1": "ingilizce", "3": "din kültürü ve ahlak bilgisi"}}}}
+
+    def test_ders_adi_turkce_buyuk_harfle_gorunur(self, yoklama_ortami, tmp_path):
+        _program_yaz(tmp_path, self.PROGRAM)
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere.baslik_etiketi.text() == "YOKLAMA — 1. DERS · İNGİLİZCE"
+        finally:
+            pencere.close()
+
+    def test_programda_bos_ders_BOS_yazar(self, yoklama_ortami, tmp_path):
+        _program_yaz(tmp_path, self.PROGRAM)
+        _saat_ayarla(9, 10)  # 2. ders — programda yok
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere.baslik_etiketi.text() == "YOKLAMA — 2. DERS · BOŞ"
+        finally:
+            pencere.close()
+
+    def test_ders_saati_disi_BOS(self, yoklama_ortami, tmp_path):
+        _program_yaz(tmp_path, self.PROGRAM)
+        _saat_ayarla(8, 55)  # teneffüs
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere.baslik_etiketi.text() == "YOKLAMA — BOŞ"
+        finally:
+            pencere.close()
+
+    def test_program_yoksa_yalnizca_ders_no(self, yoklama_ortami):
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere.baslik_etiketi.text() == "YOKLAMA — 1. DERS"
+        finally:
+            pencere.close()
+
+    def test_bozuk_program_cokertmez(self, yoklama_ortami, tmp_path):
+        for bozuk in ("{bozuk", "[]", json.dumps({"siniflar": []}),
+                      json.dumps({"siniflar": {"9-A": {"pazartesi": ["x"]}}})):
+            _program_yaz(tmp_path, bozuk)
+            pencere = yoklama.YoklamaPenceresi()
+            try:
+                assert pencere.baslik_etiketi.text() == "YOKLAMA — 1. DERS"
+            finally:
+                pencere.close()
+
+    def test_ders_adi_fonksiyonu_hafta_sonu_none(self):
+        assert yoklama._ders_adi(self.PROGRAM, "9-A", 6, 1) is None
+        assert yoklama._ders_adi(self.PROGRAM, "9-A", 1, 3) == "DİN KÜLTÜRÜ VE AHLAK BİLGİSİ"
+
+
+# ----------------------------------------------------------------------
+# Kazanım satırı (data/kazanimlar.json, 2026-10-06)
+# ----------------------------------------------------------------------
+
+
+class TestKazanimSatiri:
+    PROGRAM = TestBaslikDersAdi.PROGRAM
+    # 2026-09-28 Pazartesi = plan haftası 3 (pazartesisi 2026-09-28).
+    KAZANIM = {
+        "haftalar": {"2": "2026-09-21", "3": "2026-09-28"},
+        "kazanimlar": {"9": {"ingilizce": {"3": "E9.1.L1. Students will be able to...",
+                                            "2": "geçen hafta"}}},
+    }
+
+    def _kazanim_yaz(self, tmp_path, icerik):
+        (tmp_path / "kazanimlar.json").write_text(
+            icerik if isinstance(icerik, str) else json.dumps(icerik, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+    def test_bu_haftanin_kazanimi_gorunur(self, yoklama_ortami, tmp_path):
+        _program_yaz(tmp_path, self.PROGRAM)
+        self._kazanim_yaz(tmp_path, self.KAZANIM)
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere._kazanim_metni == "E9.1.L1. Students will be able to..."
+            assert pencere.kazanim_etiketi.text() == "Kazanım: E9.1.L1. Students will be able to..."
+            assert not pencere.kazanim_etiketi.isHidden()
+        finally:
+            pencere.close()
+
+    def test_ders_disi_ve_kazanim_yoksa_satir_gizli(self, yoklama_ortami, tmp_path):
+        _program_yaz(tmp_path, self.PROGRAM)
+        self._kazanim_yaz(tmp_path, self.KAZANIM)
+        _saat_ayarla(8, 55)  # teneffüs
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere._kazanim_metni == ""
+            assert pencere.kazanim_etiketi.isHidden()
+        finally:
+            pencere.close()
+
+    def test_bozuk_kazanim_dosyasi_cokertmez(self, yoklama_ortami, tmp_path):
+        _program_yaz(tmp_path, self.PROGRAM)
+        for bozuk in ("{bozuk", "[]", json.dumps({"haftalar": {"3": "tarih-degil"}}),
+                      json.dumps({"haftalar": [], "kazanimlar": {"9": []}})):
+            self._kazanim_yaz(tmp_path, bozuk)
+            pencere = yoklama.YoklamaPenceresi()
+            try:
+                assert pencere._kazanim_metni == ""
+                assert pencere.baslik_etiketi.text() == "YOKLAMA — 1. DERS · İNGİLİZCE"
+            finally:
+                pencere.close()
+
+    def test_kazanim_fonksiyonu_hafta_secimi(self):
+        from datetime import date
+        k = self.KAZANIM
+        assert yoklama._kazanim(k, "9-A", "ingilizce", date(2026, 9, 25)) == "geçen hafta"
+        assert yoklama._kazanim(k, "9-A", "ingilizce", date(2026, 10, 4)) == "E9.1.L1. Students will be able to..."
+        assert yoklama._kazanim(k, "9-A", "ingilizce", date(2026, 10, 5)) is None  # plan haftası yok
+        assert yoklama._kazanim(k, "10-A", "ingilizce", date(2026, 9, 28)) is None  # düzey yok
+        assert yoklama._kazanim(k, "9-A", "", date(2026, 9, 28)) is None  # boş ders
+
+    def test_haftada_iki_kazanim_iki_satir(self, yoklama_ortami, tmp_path):
+        _program_yaz(tmp_path, self.PROGRAM)
+        k = json.loads(json.dumps(self.KAZANIM))
+        k["kazanimlar"]["9"]["ingilizce"]["3"] = "9.1.1. Birinci\n9.1.2. İkinci"
+        self._kazanim_yaz(tmp_path, k)
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere.kazanim_etiketi.text() == "Kazanım: 9.1.1. Birinci\nKazanım: 9.1.2. İkinci"
+        finally:
+            pencere.close()
+
+    def test_uc_kazanimda_ikinci_satir_arti_sayisi(self, yoklama_ortami, tmp_path):
+        _program_yaz(tmp_path, self.PROGRAM)
+        k = json.loads(json.dumps(self.KAZANIM))
+        k["kazanimlar"]["9"]["ingilizce"]["3"] = "A\nB\nC"
+        self._kazanim_yaz(tmp_path, k)
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere.kazanim_etiketi.text() == "Kazanım: A\nKazanım: B (+1)"
+        finally:
+            pencere.close()

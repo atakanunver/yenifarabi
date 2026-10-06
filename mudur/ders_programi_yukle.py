@@ -96,7 +96,7 @@ KISALTMALAR = {
     "SKimya": "kimya",
     "SMat": "matematik",
     "SMatUyg": "matematik uygulamaları",               # ⚠ tahmin
-    "SOTarih": "osmanlı türkçesi",                     # ⚠ tahmin
+    "SOTarih": "ortak türk tarihi",                    # 2026-10-06 düzeltildi: okulda Osmanlı Türkçesi yok, SOTarih = Seçmeli Ortak Türk Tarihi (tarih öğretmeni veriyor)
     "SPeygamber": "peygamberimizin hayatı",            # ⚠ tahmin
     "SPsiko": "psikoloji",
     "STDE": "türk dili ve edebiyatı",                  # ⚠ tahmin
@@ -117,7 +117,7 @@ KISALTMALAR = {
 # kaldı (ör. "seçmeli fizik" -> "fizik").
 
 TAHMIN_ISARETLI = {
-    "SSpor", "Sağlık", "SMatUyg", "SOTarih", "SPeygamber", "STDE", "SÇağdaş",
+    "SSpor", "Sağlık", "SMatUyg", "SPeygamber", "STDE", "SÇağdaş",
 }
 
 # Yalnızca ŞU AN Farabi client'ı kurulu VE açık tahtalar (2026-09-13 SSH ile

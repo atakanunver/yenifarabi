@@ -123,6 +123,7 @@ tahtayoklama/dashboard/yedek/
 smssistemi/config/gizli.json
 smssistemi/config/modem.json
 smssistemi/config/sso.json
+smssistemi/config/arac.json
 smssistemi/veri/
 tahtayoklama/dashboard/config/sms_sso.json
 
@@ -138,6 +139,11 @@ smssistemi/velitelefon/
 smssistemi/scripts/velitelefon_ice_aktar.py
 smssistemi/test_velitelefon_ice_aktar.py
 tahtayoklama/dashboard/config/ajan.json
+# Tahta istemcisi token özetleri (tahta_api.py) — sunucu tarafı
+tahtayoklama/dashboard/config/tahta_tokenlari.json
+# Tahta tarafı istemci ayarı (düz token) ve durum dosyası — dev kopyada olursa
+tahtayoklama/istemci.json
+tahtayoklama/data/.istemci_durum.json
 tahtayoklama/dashboard/config/okul.json
 
 # Orkestra (delege.sh) görev kartları ve dış ajan sonuçları — public repoya gitmez

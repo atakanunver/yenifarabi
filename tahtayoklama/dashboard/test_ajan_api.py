@@ -391,9 +391,10 @@ class TestYenidenBaslatTek(_Temel):
             r, _ = self._tek(TAHTALAR[1], [_ok(), _ok()])
         self.assertEqual(r["sebep"], "tamam")
 
-    def test_9a_uyari(self):
+    def test_9a_artik_uyari_yok(self):
+        # 2026-10-06: 9-A'da autologin var, "giriş ekranında kalır" uyarısı kalktı.
         r, _ = self._tek(TAHTALAR[0], [_ok(), _ok()])
-        self.assertIn("giriş ekranında", r["uyari"])
+        self.assertNotIn("uyari", r)
         r, _ = self._tek(TAHTALAR[1], [_ok(), _ok()])
         self.assertNotIn("uyari", r)
 

@@ -112,6 +112,37 @@ tahtayoklama/test_yoklama.py -q`.
   `data/roster/*.json` taranarak dolar — yeni senkronize edilen dosya,
   uygulama zaten açıksa görünmez, öğretmenin kapatıp yeniden açması gerekir.
 
+## 3.1 Tahta istemcisi (`tahta_istemci.py`, 2026-10-06)
+
+`yoklama.py` hâlâ ağa çıkmaz, ama **tahta artık çıkar**: ayrı bir süreç
+(`~/tahtayoklama/tahta_istemci.py`, sistem `python3`, yalnızca stdlib,
+`systemd --user` birimi `tahta-istemci.service`, ayar
+`~/tahtayoklama/istemci.json` 0600) sunucunun `/api/v1/tahta/*` uçlarıyla
+konuşur (`dashboard/tahta_api.py`):
+- `data/kayitlar/` son 7 gün, 15 sn'de bir, içerik sha256'sı değiştiyse
+  `POST /kayit` (durum: `data/.istemci_durum.json`). 4xx = kalıcı ret, tekrar denenmez.
+- 60 sn'de bir `POST /nabiz` → `tahta_nabiz` tablosu. Nabzı ≤5 dk olan tahta
+  polling'in kısmi turunda SSH ile taranmaz; saatte bir tam SSH taraması.
+- 10 dk'da bir `GET /yapilandirma` (ETag): roster (yalnızca atanmış sınıf,
+  `admin._roster_payload_olustur` ile bayt bayt aynı; sınıf atanmamışsa —
+  fenlab — roster dizinine DOKUNULMAZ), `zil.json`, `ders_programi.json`.
+  Doğrulanmadan yazılmaz; değişen/silinen dosya `data/.istemci_yedek/`'e.
+- Kimlik: tahta başına token; sunucuda yalnızca SHA-256
+  (`dashboard/config/tahta_tokenlari.json`, gitignore'lu, her istekte okunur).
+- Kurulum/güncelleme/kaldırma: `venv/bin/python scripts/tahta_istemci_kur.py
+  <tahta...>|--hepsi [--kaldir]` (her çalıştırma yeni token üretir).
+  Log: tahtada `journalctl --user -u tahta-istemci`.
+- `onbellege_yaz` (`yoklayici.py`) tek yazma yolu: 'alindi' üstüne yalnızca
+  kesin daha yeni `kaydedilme_saati` yazar (bkz. kök DECISIONS.md 2026-10-06).
+- SSH roster senkronu (`admin.py`) ve uzaktan yönetim hâlâ SSH ile; istemci
+  kurulu olmayan tahta eskisi gibi tamamen SSH ile taranır.
+
+**Başlık/kazanım (2026-10-06):** `yoklama.py` `data/ders_programi.json`'dan
+ders adını, `data/kazanimlar.json`'dan bu haftanın kazanımını (başlık altı,
+13pt tek satır) gösterir; ikisini de `tahta_istemci.py` çeker. Kazanım
+dosyası `dashboard/scripts/kazanim_yukle.py` ile yıllık planlardan üretilir
+(ayrıntı kök DECISIONS.md 2026-10-06). Ders dışında başlık `YOKLAMA — BOŞ`.
+
 ## 4. `dashboard/` — merkezi web panosu
 
 Farabi'nin `server/`'daki FastAPI'sinden (`farabi-api.service`, GPU-bağımlı)
@@ -307,7 +338,7 @@ Kullanıcı isteği: `http://farabi.local:8010/admin/uzaktan` bölümünde tablo
 - Bilinmeyen tahta adı → 400 (`bilinmeyen` listesiyle); hiçbir şey çalıştırılmaz.
 - **Yeniden başlatma:** okul saatinde 409 (`ders_saatinde_mi`: ders günü ilk dersin
   başlangıcı – son dersin bitişi, teneffüs/öğle arası DAHİL, atlama yok); tahta başına
-  120 sn bekleme (`BEKLEME_SN`, atomik); 9-A için "otomatik giriş yok" uyarısı döner.
+  120 sn bekleme (`BEKLEME_SN`, atomik); 9-A'nın eski "otomatik giriş yok" uyarısı 2026-10-06'da kaldırıldı (autologin kurulu, canlı doğrulandı; Open WebUI aracındaki metin `openwebui/farabi_yonetim_araci.py` hâlâ eski — ayrıca güncellenmeli).
   Tahtada `etapadmin` + `sudo -n /usr/bin/systemctl reboot` (kural: tahtaayar `reboot_sudoers`).
 - **Denetim:** her çağrı `uzaktan_denetim`'e yazılır (`ajan:<eylem>`, `kaynak`);
   reddedilen yeniden başlatma `<tahta>:ders_saati` koduyla.

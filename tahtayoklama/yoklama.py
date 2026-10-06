@@ -70,7 +70,7 @@ tek tek işaretlemekten daha hızlı).
 
 import json
 import sys
-from datetime import datetime, time as dtime
+from datetime import date, datetime, time as dtime, timedelta
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QTimer
@@ -85,6 +85,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -93,6 +94,13 @@ BASE_DIR = Path(__file__).resolve().parent
 ROSTER_DIR = BASE_DIR / "data" / "roster"
 KAYIT_DIR = BASE_DIR / "data" / "kayitlar"
 ZIL_DOSYASI = BASE_DIR / "data" / "zil.json"
+# tahta_istemci.py sunucudan çeker (2026-10-06). Yoksa/bozuksa başlıkta
+# ders adı gösterilmez — yoklama bundan hiç etkilenmez.
+DERS_PROGRAMI_DOSYASI = BASE_DIR / "data" / "ders_programi.json"
+# Haftalık kazanım (yıllık planlardan, dashboard/scripts/kazanim_yukle.py
+# üretir, tahta_istemci.py çeker). Yoksa/bozuksa ikinci satır boş kalır.
+KAZANIM_DOSYASI = BASE_DIR / "data" / "kazanimlar.json"
+_GUN_ANAHTARLARI = {1: "pazartesi", 2: "sali", 3: "carsamba", 4: "persembe", 5: "cuma"}
 
 # Tek örnek koruması için sabit yerel soket adı — bkz. _tekil_ornek_sunucusu_baslat.
 TEKIL_ORNEK_SUNUCU_ADI = "tahtayoklama-yoklama"
@@ -150,6 +158,74 @@ def _zil_yukle() -> dict:
     if not ZIL_DOSYASI.exists():
         return {"dersler": []}
     return json.loads(ZIL_DOSYASI.read_text(encoding="utf-8"))
+
+
+def _ders_programi_yukle() -> dict:
+    try:
+        veri = json.loads(DERS_PROGRAMI_DOSYASI.read_text(encoding="utf-8"))
+        return veri if isinstance(veri, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _ders_adi_ham(program: dict, sinif: str, gun_no: int, ders_no: int) -> str | None:
+    """Ders programındaki ham ders adı (küçük harf, ör. "matematik"). O
+    gün/sınıf programda var ama bu ders boşsa ""; program/sınıf/gün hiç
+    yoksa None. Hiçbir girdi istisna fırlatmaz."""
+    try:
+        gun = program.get("siniflar", {}).get(sinif, {}).get(_GUN_ANAHTARLARI.get(gun_no))
+        if not isinstance(gun, dict):
+            return None
+        ad = gun.get(str(ders_no))
+        return ad.strip() if isinstance(ad, str) else ""
+    except AttributeError:
+        return None
+
+
+def _ders_adi(program: dict, sinif: str, gun_no: int, ders_no: int) -> str | None:
+    """Başlıkta gösterilecek ders adı (büyük harf); boş ders "BOŞ", program
+    yoksa None (başlıkta ad gösterilmez)."""
+    ham = _ders_adi_ham(program, sinif, gun_no, ders_no)
+    if ham is None:
+        return None
+    if not ham:
+        return "BOŞ"
+    # Türkçe büyük harf: str.upper() 'i'yi 'I' yapar.
+    return ham.replace("i", "İ").replace("ı", "I").upper()
+
+
+def _kazanim_yukle() -> dict:
+    try:
+        veri = json.loads(KAZANIM_DOSYASI.read_text(encoding="utf-8"))
+        return veri if isinstance(veri, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _kazanim(kazanimlar: dict, sinif: str, ders_adi_ham: str | None, bugun: date) -> str | None:
+    """Bu haftanın kazanımı: `haftalar` (hafta no → o haftanın pazartesisi)
+    içinde bugünü kapsayan hafta, `kazanimlar[düzey][ders][hafta]`. Düzey
+    sınıf adından ("12-A" → "12"). Tatil haftası/eksik plan → None."""
+    try:
+        if not ders_adi_ham:
+            return None
+        duzey = sinif.split("-")[0]
+        hafta = None
+        for no, pazartesi in kazanimlar.get("haftalar", {}).items():
+            baslangic = date.fromisoformat(pazartesi)
+            if baslangic <= bugun < baslangic + timedelta(days=7):
+                hafta = no
+                break
+        if hafta is None:
+            return None
+        metin = kazanimlar.get("kazanimlar", {}).get(duzey, {}).get(ders_adi_ham, {}).get(hafta)
+        if not isinstance(metin, str):
+            return None
+        # Haftada birden fazla kazanım "\n" ile ayrılır (her biri tek satır).
+        satirlar = [" ".join(s.split()) for s in metin.split("\n")]
+        return "\n".join(s for s in satirlar if s) or None
+    except (AttributeError, TypeError, ValueError):
+        return None
 
 
 def _saat_ayristir(s: str) -> dtime:
@@ -336,6 +412,9 @@ class YoklamaPenceresi(QWidget):
         self._kartlar: list[OgrenciKarti] = []
         self._aktif_ders_no: int | None = None
         self._zil = _zil_yukle()
+        self._ders_programi = _ders_programi_yukle()
+        self._kazanimlar = _kazanim_yukle()
+        self._kazanim_metni = ""
         self._kur_arayuz()
         self._sinif_degisti()
         self.showFullScreen()
@@ -387,6 +466,17 @@ class YoklamaPenceresi(QWidget):
 
         ana.addLayout(ust)
 
+        # Bu haftanın kazanımı — başlığın altında tek satır, küçük punto.
+        # Uzunsa sağdan "…" ile kısaltılır; yatay boyut politikası Ignored
+        # ki uzun metin pencereyi/düzeni genişletmesin.
+        self.kazanim_etiketi = QLabel("")
+        self.kazanim_etiketi.setStyleSheet("font-size: 13pt; color: #555;")
+        self.kazanim_etiketi.setSizePolicy(
+            QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred
+        )
+        self.kazanim_etiketi.setVisible(False)
+        ana.addWidget(self.kazanim_etiketi)
+
         self.ozet_etiketi = QLabel()
         self.ozet_etiketi.setStyleSheet("font-size: 14pt;")
         ana.addWidget(self.ozet_etiketi)
@@ -425,6 +515,9 @@ class YoklamaPenceresi(QWidget):
             # modül docstring'i, 2026-09-28) — kayıt yalnızca öğretmen
             # "YOKLAMAYI KAYDET"e basınca yazılır.
             self._aktif_ders_no = yeni_ders_no
+            # İstemci programı gün içinde güncellemiş olabilir.
+            self._ders_programi = _ders_programi_yukle()
+            self._kazanimlar = _kazanim_yukle()
             self._ders_grubunu_yukle()
 
         if yeni_ders_no is not None:
@@ -448,10 +541,44 @@ class YoklamaPenceresi(QWidget):
         self.activateWindow()
 
     def _baslik_guncelle(self) -> None:
+        kazanim = None
         if self._aktif_ders_no is not None:
-            self.baslik_etiketi.setText(f"YOKLAMA — {self._aktif_ders_no}. DERS")
+            metin = f"YOKLAMA — {self._aktif_ders_no}. DERS"
+            sinif = self.sinif_secici.currentText()
+            simdi = datetime.now()
+            ad = _ders_adi(self._ders_programi, sinif, simdi.isoweekday(), self._aktif_ders_no)
+            if ad:
+                metin += f" · {ad}"
+            kazanim = _kazanim(
+                self._kazanimlar, sinif,
+                _ders_adi_ham(self._ders_programi, sinif, simdi.isoweekday(), self._aktif_ders_no),
+                simdi.date(),
+            )
+            self.baslik_etiketi.setText(metin)
         else:
-            self.baslik_etiketi.setText("YOKLAMA — DERS SAATİ DIŞI")
+            self.baslik_etiketi.setText("YOKLAMA — BOŞ")
+        self._kazanim_metni = kazanim or ""
+        self._kazanim_etiketini_ciz()
+
+    def _kazanim_etiketini_ciz(self) -> None:
+        metin = self._kazanim_metni
+        self.kazanim_etiketi.setVisible(bool(metin))
+        self.kazanim_etiketi.setToolTip("\n".join(f"Kazanım: {k}" for k in metin.split("\n")) if metin else "")
+        if not metin:
+            self.kazanim_etiketi.setText("")
+            return
+        # Her kazanım kendi satırında, en fazla 2 satır (haftada 2+ kazanım
+        # varsa — ör. matematik); fazlası ikinci satırın sonunda "(+N)".
+        genislik = max(200, self.width() - 40)
+        olcu = QFontMetrics(self.kazanim_etiketi.font())
+        kazanimlar = metin.split("\n")
+        satirlar = []
+        for i, k in enumerate(kazanimlar[:2]):
+            ek = f" (+{len(kazanimlar) - 2})" if i == 1 and len(kazanimlar) > 2 else ""
+            satir = olcu.elidedText(f"Kazanım: {k}", Qt.TextElideMode.ElideRight,
+                                    genislik - olcu.horizontalAdvance(ek))
+            satirlar.append(satir + ek)
+        self.kazanim_etiketi.setText("\n".join(satirlar))
 
     # ------------------------------------------------------------------
     # Sınıf/ders yükleme
@@ -536,6 +663,8 @@ class YoklamaPenceresi(QWidget):
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         QTimer.singleShot(50, self._izgarayi_yeniden_diz)
+        if hasattr(self, "kazanim_etiketi"):
+            self._kazanim_etiketini_ciz()
 
     def _ozeti_guncelle(self) -> None:
         if self._aktif_ders_no is None:

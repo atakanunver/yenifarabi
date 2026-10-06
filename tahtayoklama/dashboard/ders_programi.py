@@ -46,7 +46,7 @@ KISALTMALAR = {
     "beden eğitimi": "BED",
     "felsefe": "FEL",
     "peygamberimizin hayatı": "PEY",
-    "osmanlı türkçesi": "OSM TÜRKÇE",
+    "ortak türk tarihi": "OTT",
     "matematik uygulamaları": "MAT UYG",
     "psikoloji": "PSİ",
     "bilişim teknolojileri ve yazılım": "BTY",
