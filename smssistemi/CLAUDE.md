@@ -270,6 +270,23 @@ kullanılıyor.
   telefon boş) aktarır; isim+sınıf zaten varsa atlar, tekrar çalıştırmak
   güvenli.
 
+## Atos SMS aracı API'si (`arac_api.py`, 2026-10-05)
+
+Open WebUI "SMS ve Hatırlatma" aracının (`openwebui/farabi_sms_araci.py`,
+yalnızca İdare) makine API'si; kimlik `X-Sms-Arac-Key` (`config/arac.json`
+`anahtar`, gitignore'lu — yönetici adları/telefonları da orada, koda yazılmaz).
+
+| Uç | İş |
+|---|---|
+| `POST /api/arac/hatirlatma` | yönetime zamanlı hatırlatma, ONAYSIZ; saat yoksa 10:00 TR, not ≤120 kr |
+| `GET /api/arac/hatirlatmalar`, `POST /api/arac/hatirlatma/{id}/iptal` | listele / iptal |
+| `POST /api/arac/acil` | yönetime anında SMS |
+| `POST /api/arac/veli-taslak` → `POST /api/arac/veli-gonder` | veli SMS'i iki adımlı: taslak (alıcı sayısı + önizleme, 30 dk geçerli) → açık onay → gönderim |
+
+Gönderim mevcut modem göndericisiyle (`sms_gonderici.toplu_gonder`), sonuç
+`gonderimler` tablosuna (`/kayitlar`'da görünür). Testlerdeki telefonlar
+sahte (`0555…`) — gerçek numara teste yazılmaz (public repo).
+
 ## Test deseni
 
 Düz `test_*.py` dosyaları proje kökünde (ayrı `tests/` dizini yok). DB

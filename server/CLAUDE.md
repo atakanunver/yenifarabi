@@ -105,3 +105,20 @@ Hepsi bu dizinden, `~/.ssh/id_ed25519_tahta` ile; hedef listesi
 `yedekler/ders_kaydi/<derslik>/*.txt` — tahtalardan yedeklenen ders
 transkriptleri; hata avında doğrudan okunabilir (büyükse kök CLAUDE.md'deki
 log okuma ilkesi).
+
+## 2026-10-05/06 eklemeleri
+
+- **`belge_arsiv.py`** — `POST /api/webui/belge-kaydet` (webui anahtarı):
+  Atos "Belge Kalıcı Kayıt" aracı dosyayı base64 gönderir → `mudur/`'a yazılır
+  (aynı içerik başka adla varsa tekrar yazılmaz) → yalnızca o dosya için
+  `idari_yukle.py` (gömme bge-m3, bilgehan). İdari kayıtlar yalnızca İdare'nin
+  `hepsi`/`idari` kapsamında aranır (`webui.py`).
+- **`farabi-idari-yukle.timer`** (birim kaynağı `server/systemd/`, kurulu
+  `/etc/systemd/system/`): her gece 23:30 UTC (02:30 TR) `idari_yukle.py` —
+  `mudur/`'a elle atılan belgeleri de yükler.
+- **`egitim_temizle.py`** (tek seferlik bakım, henüz commit'lenmedi):
+  `chunk_egitim`'de soft-hyphen/kelime bölmesi birleştirme, ızgara çöpü
+  silme, etkilenen parçaların embedding'ini bilgehan'da yeniden hesaplama.
+  Hedef DB `FARABI_DB_NAME` ile seçilir (`main.py` artık bu ortam
+  değişkenini okur, varsayılan `farabi`).
+

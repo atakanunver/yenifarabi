@@ -18,10 +18,35 @@ okul operasyon servisleri (yoklama panosu, SMS).
 - **Her alt projenin kendi `CLAUDE.md`'si var** (komutlar + o projenin
   ayrıntısı orada; o dizinde çalışırken otomatik yüklenir): `client/`,
   `server/`, `tahtayoklama/`, `smssistemi/`, `tahtaayar/`, `benchmark/`,
-  `mudur/`, `dogum/`. Bu dosya ortak kurallar + servisler arası resim.
+  `mudur/`, `dogum/`, `soruhavuzu/`. Bu dosya ortak kurallar + servisler arası resim.
 
-## Güncel durum (2026-10-03)
+## Güncel durum (2026-10-06)
 
+- **Tahta istemcisi (2026-10-06):** 8 tahtada `~/tahtayoklama/tahta_istemci.py`
+  (`systemd --user` birimi `tahta-istemci`) yoklama kayıtlarını panoya HTTP ile
+  iter (`/api/v1/tahta/*`, tahta başına token), 60 sn'de bir nabız atar,
+  roster/zil/ders programı/kazanımları çeker. SSH artık yedek yol (nabzı
+  taze tahta taranmaz; saatte bir tam tarama). Ayrıntı `tahtayoklama/CLAUDE.md` §3.1.
+- **Yoklama ekranı (2026-10-06):** başlıkta ders adı (ders dışında `BOŞ`),
+  altında haftanın kazanımı — yıllık planlardan
+  (`/mnt/farabi-data/farabi/YILLIK PLANLAR 2026_2027/`)
+  `tahtayoklama/dashboard/scripts/kazanim_yukle.py` üretir; öğretmen deftere
+  yazar, plan değişince script + bağımsız denetim yeniden çalıştırılmalı.
+- **Ders programı düzeltmesi:** `SOTarih` = Ortak Türk Tarihi (okulda Osmanlı
+  Türkçesi YOK). Tahtaların Farabi client kopyası (`client/config/
+  ders_programi.json`) `config_dagit.sh` ile ayrıca güncellenmeli.
+- **10-A CMOS pili bitik:** açılışta son kapanış saatiyle başlar, NTP 1-2 dk
+  sonra düzeltir; o aralıkta yanlış tarihli yoklama kaydı geçmiş günü EZEMEZ
+  (pano koruması). Pil değiştirilmeli.
+- **Open WebUI adı "Atos" (2026-10-05):** yalnızca iki yönetici (ortak
+  Öğretmen/İdare/Tahta hesapları pending); yönetici e-postaları
+  `openwebui/.env::YONETICI_EPOSTALAR`. Yalnızca-İdare araçlar: Belge Kalıcı
+  Kayıt (`server/belge_arsiv.py`), SMS ve Hatırlatma (`smssistemi/arac_api.py`).
+  Aşağıdaki "Farabi" adlı Open WebUI notları bu tarihten önce.
+- **Zamanlanmış işler:** `farabi-idari-yukle.timer` (her gece 23:30 UTC =
+  02:30 TR, `mudur/` yeni belgeleri RAG'a), `soru-havuzu-uret.timer`
+  (hafta içi 14:15 UTC = 17:15 TR, hafta sonu 05:00 UTC; ders saatinde
+  kendiliğinden durur) — bkz. `soruhavuzu/CLAUDE.md`.
 - **RAG kısmen açık (2026-10-03, ikinci karar):** `server/main.py::
   RAG_AKTIF = True` ama yalnızca bge-m3 **CPU**'da; reranker YÜKLENMEZ
   (`RERANK_YUKLE = False`, CPU'da ~10 sn/soru ölçüldü). Open WebUI Farabi
@@ -109,10 +134,10 @@ HTTP + HMAC/paylaşılan anahtar.
 | Servis | Dizin | Port | Ne yapar |
 |---|---|---|---|
 | `farabi-api` ("Brain") | `server/` | 8000 | RAG (CPU, reranker yok), Open WebUI kaynak araması, kitap içeriği/PDF render, YKS, bulut LLM proxy, dosya işleme, tahta auth |
-| `farabi-yoklama-dashboard` | `tahtayoklama/dashboard/` | 8010 | yoklama, roster, zil/ders programı, uzaktan yönetim (`/admin/uzaktan`); `/api/ajan` makine API'si (yalnızca 127.0.0.1 + `X-Farabi-Ajan-Key`; anahtar gitignore'lu `tahtayoklama/dashboard/config/ajan.json`; Open WebUI "Farabi Yönetim" aracı kullanır) |
-| `farabi-smssistemi` | `smssistemi/` | 8020 | toplu/kişisel SMS, rehber, Doğum Günleri, Yoklama SMS |
+| `farabi-yoklama-dashboard` | `tahtayoklama/dashboard/` | 8010 | yoklama, roster, zil/ders programı, uzaktan yönetim (`/admin/uzaktan`); `/api/ajan` makine API'si (yalnızca 127.0.0.1 + `X-Farabi-Ajan-Key`; anahtar gitignore'lu `tahtayoklama/dashboard/config/ajan.json`; Open WebUI "Atos Yönetim" aracı kullanır); `/api/v1/tahta/*` tahta istemcisi API'si (LAN, tahta başına token) |
+| `farabi-smssistemi` | `smssistemi/` | 8020 | toplu/kişisel SMS, rehber, Doğum Günleri, Yoklama SMS; `/api/arac/*` (Atos SMS aracı, `X-Sms-Arac-Key`) |
 | `ollama` | — | 11434 | `qwen3.8:27b` (iki GPU, tek model), LAN'a açık, paylaşılan yerel LLM |
-| `open-webui` | `/opt/open-webui` (kurulum `openwebui/kur.py`) | 80 | "Farabi" sohbet arayüzü — öğretmen/idare modları, kaynaklı cevap |
+| `open-webui` | `/opt/open-webui` (kurulum `openwebui/kur.py`) | 80 | "Atos" sohbet arayüzü (2026-10-05'e kadar "Farabi") — yalnızca iki yönetici, kaynaklı cevap |
 
 - **Tek bilinçli DB paylaşımı istisnası:** smssistemi'nin `/yoklama-sms`'i
   dashboard'un `yoklama_pano.db`'sini **salt-okunur, doğrudan** okur (bkz.
