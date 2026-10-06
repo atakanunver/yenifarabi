@@ -1,6 +1,6 @@
 [
-  {"id": "farabi", "ad": "Farabi", "aciklama": "Genel asistan — ders kitapları ve okul mevzuatından kaynak gösterir; ders programına bakar.", "kapsam": "genel", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "genel.md"},
-  {"id": "farabi-derin", "ad": "Farabi – Derin Düşünme", "aciklama": "Daha yavaş, daha dikkatli: uzun plan ve zor problemler için.", "kapsam": "genel", "think": true, "gruplar": ["Öğretmenler", "İdare"], "ek": "derin.md"},
+  {"id": "farabi", "ad": "Atos", "aciklama": "Genel asistan — ders kitapları ve okul mevzuatından kaynak gösterir; ders programına bakar.", "kapsam": "genel", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "genel.md"},
+  {"id": "farabi-derin", "ad": "Atos – Derin Düşünme", "aciklama": "Daha yavaş, daha dikkatli: uzun plan ve zor problemler için.", "kapsam": "genel", "think": true, "gruplar": ["Öğretmenler", "İdare"], "ek": "derin.md"},
   {"id": "farabi-kimya", "ad": "Kimya Öğretmeni", "aciklama": "Kimya 9-10-11 kitaplarına dayanır.", "kapsam": "kimya", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "kimya.md"},
   {"id": "farabi-fizik", "ad": "Fizik Öğretmeni", "aciklama": "Fizik 9-10-11 kitaplarına dayanır.", "kapsam": "fizik", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "fizik.md"},
   {"id": "farabi-biyoloji", "ad": "Biyoloji Öğretmeni", "aciklama": "Biyoloji 9-10 kitaplarına dayanır.", "kapsam": "biyoloji", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "biyoloji.md"},
@@ -12,5 +12,5 @@
   {"id": "farabi-din", "ad": "Din Kültürü Öğretmeni", "aciklama": "Din Kültürü ve Ahlak Bilgisi 9 kitabına dayanır.", "kapsam": "din", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "din.md"},
   {"id": "farabi-tarih", "ad": "Tarih Öğretmeni", "aciklama": "Tarih 9-10-11 ve İnkılap Tarihi 12 kitaplarına dayanır.", "kapsam": "tarih", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "tarih.md"},
   {"id": "farabi-cografya", "ad": "Coğrafya Öğretmeni", "aciklama": "Coğrafya 9-10-11 kitaplarına dayanır.", "kapsam": "cografya", "think": false, "gruplar": ["Öğretmenler", "İdare"], "ek": "cografya.md"},
-  {"id": "farabi-mudur-yrd", "ad": "Müdür Yardımcısı", "aciklama": "Mevzuat ve resmî yazışma — yalnızca idare.", "kapsam": "idari", "think": false, "gruplar": ["İdare"], "ek": "mudur_yrd.md"}
+  {"id": "farabi-mudur-yrd", "ad": "Müdür Yardımcısı", "aciklama": "Mevzuat, resmî yazışma, ders kitapları ve okul kayıtları — yalnızca idare.", "kapsam": "hepsi", "think": false, "gruplar": ["İdare"], "ek": "mudur_yrd.md"}
 ]

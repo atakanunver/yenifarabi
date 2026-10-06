@@ -6,8 +6,8 @@ Yalnızca Open WebUI'nin resmi HTTP API'si kullanılır (DB'ye doğrudan yazılm
 token üretilmez). Kimlik bilgileri openwebui/.env'den (gitignore'lu):
     OPENWEBUI_URL=http://127.0.0.1:80
     OPENWEBUI_API_KEY=...        # yönetici API anahtarı
-    OGRETMEN_SIFRE=...           # ortak Öğretmen hesabı
-    IDARE_SIFRE=...              # ortak İdare hesabı
+    (ortak Öğretmen/İdare/Tahta hesapları 2026-10-05'ten beri kapalı — KAPALI_HESAPLAR)
+    YONETICI_EPOSTALAR=a@x,b@y  # İdare grubuna eklenecek yöneticiler (virgüllü)
 farabi-api anahtarı server/config/api_keys.json::webui_key'den okunur.
 
 Kullanım:  server/venv/bin/python openwebui/kur.py [--kuru]
@@ -27,11 +27,15 @@ KOK = Path(__file__).resolve().parent
 TABAN_MODEL = "qwen3.8:27b"
 FILTRE_ID = "farabi_kaynak"
 GRUPLAR = {"Öğretmenler": "Okulun öğretmenleri (ortak hesap)", "İdare": "Okul idaresi"}
-HESAPLAR = [  # (ad, e-posta, .env anahtarı, grup)
-    ("Öğretmen", "ogretmen@farabi.local", "OGRETMEN_SIFRE", "Öğretmenler"),
-    ("İdare", "idare@farabi.local", "IDARE_SIFRE", "İdare"),
-    ("Farabi Tahta", "tahta@farabi.local", "TAHTA_SIFRE", "Öğretmenler"),  # akıllı tahtalar için ortak hesap
-]
+HESAPLAR: list[tuple[str, str, str, str]] = []  # (ad, e-posta, .env anahtarı, grup)
+# 2026-10-05 (kullanıcı kararı): Atos yalnızca iki yöneticiye hizmet verir. Ortak hesaplar
+# oluşturulmaz; varsa rolleri "pending" yapılır (silinmez, sohbetleri durur).
+KAPALI_HESAPLAR = ("ogretmen@farabi.local", "idare@farabi.local", "tahta@farabi.local")
+# İdare grubuna eklenecek yönetici e-postaları .env'de (YONETICI_EPOSTALAR, virgüllü) —
+# kişisel veri, public repoya yazılmaz (2026-10-06).
+BELGE_ARAC_ID = "farabi_belge"  # yalnızca İdare: evrakı mudur/'a yazıp RAG'e yükler
+SMS_ARAC_ID = "farabi_sms"  # yalnızca İdare: yönetime SMS hatırlatma / acil SMS, veli SMS'i
+SMS_API_URL = "http://127.0.0.1:8020/api/arac"
 GOREV_MODEL_ID = "farabi-gorev"  # yalnızca arka plan görevleri (başlık) için, düşünme kapalı
 ARAC_ID = "farabi_yonetim"  # yalnızca admin: tahta yönetimi aracı (Tool)
 YONETIM_MODEL_ID = "farabi-yonetim"
@@ -59,6 +63,11 @@ def env_oku(yol: Path) -> dict[str, str]:
 def mevcut_ogretmenler(env: dict) -> list[str]:
     """Önceden açılmış kişisel hesap adları (.env: MEVCUT_OGRETMENLER, virgüllü; yoksa [])."""
     return [a.strip() for a in env.get("MEVCUT_OGRETMENLER", "").split(",") if a.strip()]
+
+
+def yonetici_epostalari(env: dict) -> list[str]:
+    """İdare grubuna eklenecek yöneticiler (.env: YONETICI_EPOSTALAR, virgüllü; yoksa [])."""
+    return [e.strip() for e in env.get("YONETICI_EPOSTALAR", "").split(",") if e.strip()]
 
 
 def model_govdesi(mod: dict, cekirdek: str, ek: str, grup_idleri: dict[str, str],
@@ -120,7 +129,7 @@ def yonetim_model_govdesi() -> dict:
     kapalı: meta.capabilities.builtin_tools False (middleware.py use_builtin_tools kapısı) ve ayrıca
     meta.builtinTools[kategori] False (utils/tools.py get_builtin_tools). params["think"] False,
     routers/ollama.py'de payload köküne taşınır (gorev_model_govdesi ile aynı gerekçe)."""
-    return {"id": YONETIM_MODEL_ID, "base_model_id": TABAN_MODEL, "name": "Farabi Yönetim",
+    return {"id": YONETIM_MODEL_ID, "base_model_id": TABAN_MODEL, "name": "Atos Yönetim",
             "meta": {"description": "Yalnızca yönetici: tahta durumu, uzaktan eylem, yeniden başlatma, yoklama sorgusu.",
                      "toolIds": [ARAC_ID],
                      "capabilities": {"builtin_tools": False},
@@ -184,6 +193,23 @@ def hesaplari_kur(api: Api, env: dict, grup_idleri: dict[str, str]) -> None:
                 api("POST", f"/api/v1/groups/id/{grup_idleri['Öğretmenler']}/users/add",
                     {"user_ids": [u["id"]]})
                 print(f"mevcut hesap Öğretmenler'e eklendi: {ad}")
+    for eposta in yonetici_epostalari(env):
+        for u in kullanici_bul(api, eposta):
+            if u.get("email") == eposta:
+                api("POST", f"/api/v1/groups/id/{grup_idleri['İdare']}/users/add", {"user_ids": [u["id"]]})
+
+
+def hesaplari_kapat(api: Api) -> None:
+    """KAPALI_HESAPLAR'ı "pending" yapar (giriş yapamaz); zaten kapalıysa dokunmaz.
+    Open WebUI POST /api/v1/users/{id}/update tam UserUpdateForm ister."""
+    for eposta in KAPALI_HESAPLAR:
+        for u in kullanici_bul(api, eposta):
+            if u.get("email") != eposta or u.get("role") == "pending":
+                continue
+            api("POST", f"/api/v1/users/{u['id']}/update",
+                {"role": "pending", "name": u.get("name", ""), "email": eposta,
+                 "profile_image_url": u.get("profile_image_url") or "/user.png"})
+            print(f"hesap kapatıldı (pending): {eposta}")
 
 
 def filtreyi_kur(api: Api, webui_key: str, okul: dict | None = None) -> None:
@@ -260,6 +286,48 @@ def okulu_hazirla(api: Api, env: dict, grup_idleri: dict[str, str]) -> dict | No
     return okul
 
 
+def _yalniz_idare_araci_kur(api: Api, arac_id: str, ad: str, dosya: str, aciklama: str,
+                            grup_idleri: dict[str, str], valfler: dict) -> None:
+    icerik = (KOK / dosya).read_text(encoding="utf-8")
+    erisim = [{"principal_type": "group", "principal_id": grup_idleri["İdare"], "permission": "read"}]
+    govde = {"id": arac_id, "name": ad, "content": icerik, "meta": {"description": aciklama},
+             "access_grants": erisim}
+    var = api("GET", f"/api/v1/tools/id/{arac_id}")
+    api("POST", f"/api/v1/tools/id/{arac_id}/update" if var else "/api/v1/tools/create", govde)
+    api("POST", f"/api/v1/tools/id/{arac_id}/access/update", {"access_grants": erisim})
+    api("POST", f"/api/v1/tools/id/{arac_id}/valves/update", valfler)
+    print(f"araç kuruldu: {arac_id}")
+
+
+def belge_araci_kur(api: Api, webui_key: str, grup_idleri: dict[str, str]) -> None:
+    _yalniz_idare_araci_kur(
+        api, BELGE_ARAC_ID, "Belge Kalıcı Kayıt", "farabi_belge_araci.py",
+        "Sohbete eklenen evrakı kalıcı arşive (mudur/) yazar ve mevzuat/idari RAG'e yükler.",
+        grup_idleri, {"api_url": "http://127.0.0.1:8000/api/webui/belge-kaydet",
+                      "api_key": webui_key, "zaman_asimi_sn": 660.0})
+
+
+def sms_anahtari_oku() -> str | None:
+    """SMS sisteminin araç anahtarı (smssistemi/config/arac.json, gitignore'lu); yoksa None."""
+    try:
+        anahtar = json.loads((KOK.parent / "smssistemi/config/arac.json").read_text(encoding="utf-8"))["anahtar"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return anahtar if isinstance(anahtar, str) and anahtar.strip() else None
+
+
+def sms_araci_kur(api: Api, grup_idleri: dict[str, str]) -> bool:
+    anahtar = sms_anahtari_oku()
+    if anahtar is None:
+        print("uyarı: smssistemi/config/arac.json yok ya da geçersiz, SMS ve Hatırlatma atlandı")
+        return False
+    _yalniz_idare_araci_kur(
+        api, SMS_ARAC_ID, "SMS ve Hatırlatma", "farabi_sms_araci.py",
+        "Yönetime zamanlı SMS hatırlatması ve acil SMS; veli SMS'i (taslak + onay). Yalnızca İdare.",
+        grup_idleri, {"api_url": SMS_API_URL, "api_key": anahtar, "zaman_asimi_sn": 20.0})
+    return True
+
+
 def ajan_anahtari_oku() -> str | None:
     """Dashboard'un /api/ajan anahtarı (gitignore'lu); dosya yoksa None."""
     yol = KOK.parent / "tahtayoklama/dashboard/config/ajan.json"
@@ -272,7 +340,7 @@ def ajan_anahtari_oku() -> str | None:
 
 def araci_kur(api: Api, ajan_key: str) -> None:
     icerik = (KOK / "farabi_yonetim_araci.py").read_text(encoding="utf-8")
-    govde = {"id": ARAC_ID, "name": "Farabi Yönetim", "content": icerik,
+    govde = {"id": ARAC_ID, "name": "Atos Yönetim", "content": icerik,
              "meta": {"description": "Yalnızca yönetici: tahta durumu, uzaktan eylem, yeniden başlatma (onaylı)."},
              "access_grants": []}
     var = api("GET", f"/api/v1/tools/id/{ARAC_ID}")
@@ -297,7 +365,7 @@ def yonetimi_kur(api: Api) -> None:
         return
     araci_kur(api, ajan_key)
     guncellendi = model_yaz(api, yonetim_model_govdesi())
-    print(f"model {'güncellendi' if guncellendi else 'oluşturuldu'}: Farabi Yönetim")
+    print(f"model {'güncellendi' if guncellendi else 'oluşturuldu'}: Atos Yönetim")
 
 
 def modelleri_kur(api: Api, grup_idleri: dict[str, str], arac_idleri=()) -> list[str]:
@@ -353,9 +421,13 @@ def main() -> int:
     kimlik_ayarlarini_kur(api)
     grup_idleri = gruplari_kur(api)
     hesaplari_kur(api, env, grup_idleri)
+    hesaplari_kapat(api)
     okul = okulu_hazirla(api, env, grup_idleri)
+    belge_araci_kur(api, webui_key, grup_idleri)
+    sms_var = sms_araci_kur(api, grup_idleri)
     filtreyi_kur(api, webui_key, okul)
-    mod_idleri = modelleri_kur(api, grup_idleri, [OKUL_ARAC_ID] if okul else ())
+    araclar = ([OKUL_ARAC_ID] if okul else []) + [BELGE_ARAC_ID] + ([SMS_ARAC_ID] if sms_var else [])
+    mod_idleri = modelleri_kur(api, grup_idleri, araclar)
     ayarlari_kur(api, mod_idleri)
     yonetimi_kur(api)  # en sonda: ajan.json/araç hatası yukarıdaki adımları engellemesin
     print("tamam")

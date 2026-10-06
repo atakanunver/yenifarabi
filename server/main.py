@@ -32,13 +32,14 @@ import icerik
 import proxy
 import uzak_model
 import ders_plani
+import belge_arsiv
 import webui
 import yks
 from rag import EMBED_MODEL, RERANK_MODEL, RagMotoru
 from version import VERSION, major_version
 
 DB_HOST = "127.0.0.1"
-DB_NAME = "farabi"
+DB_NAME = os.environ.get("FARABI_DB_NAME", "farabi")
 DB_USER = "farabi"
 
 # CPU'da ölçüldü (2026-08-11): 20 adayı rerank etmek tek başına 4-10sn
@@ -165,6 +166,7 @@ app.include_router(ders_hafizasi.router)
 # Open WebUI Farabi modları (2026-10-03) — kendi anahtarıyla korunur
 # (webui.webui_anahtari_dogrula), tahta auth'una bağlı DEĞİL.
 app.include_router(webui.router)
+app.include_router(belge_arsiv.router)  # Atos "Belge Kalıcı Kayıt" aracı
 # GeoGebra çevrimdışı paketi (2026-09-25) — client/actions/geogebra.py'nin
 # yerel köprüsü dosyaları buradan çekip tahtada önbelleğe alır (paket ~120 MB,
 # git'e girmez, her tahtaya ayrı kopyalanmaz). Auth YOK, bilerek: içerik

@@ -113,3 +113,20 @@ def test_ara_HICBIR_sey_yazmaz(motor):
 def test_bilinmeyen_kaynak_ValueError(motor):
     with pytest.raises(ValueError):
         motor.ara(SahteBaglanti(), "kitapsiz", [1], "s")
+
+
+def test_hibrit_arama_anahtar_kelime_onceliklendirir(motor):
+    conn = SahteBaglanti([_m(1, 1, "örnek metin", 9)])
+    # k=15 vererek hibrit arama dalını tetikle
+    soru = "657 sayılı kanun madde 104 babalık izni"
+    motor.ara(conn, "egitim", [9], soru, k=15)
+    ilike_sorgulari = [q for q in conn.sorgular if "ILIKE" in q[0]]
+    assert len(ilike_sorgulari) > 0
+    aranan_terimler = [q[1][2] for q in ilike_sorgulari]
+    # Rakamlar ('657', '104') ve özgül kelimeler ('babalık') ILIKE sorgularına girmeli
+    assert "%657%" in aranan_terimler or "%104%" in aranan_terimler
+    assert "%babalık%" in aranan_terimler
+    # Durak kelimeler ('sayılı', 'kanun', 'madde') tek başına aranmamalı
+    assert "%sayılı%" not in aranan_terimler
+    assert "%kanun%" not in aranan_terimler
+

@@ -334,8 +334,8 @@ class Tools:
             return hata
         mesaj = (f"Eylem: `Tahtaları yeniden başlat`\nTahtalar: {_kod(', '.join(secili))}\n"
                  "Okul saatinde (ders günü ilk dersten son derse kadar) sunucu reddeder.")
-        if "9-A" in secili:
-            mesaj += "\n9-A açılışta giriş ekranında kalır (otomatik giriş yok)."
+        # 9-A "otomatik giriş yok" uyarısı kaldırıldı (2026-10-06): 9-A'da autologin
+        # 2026-09-29'dan beri kurulu, 2026-10-06 reboot'unda canlı doğrulandı.
         return await self._onayli(
             __user__, __event_emitter__, __event_call__,
             baslik="Tahtaları yeniden başlat", ozet=f"Yeniden başlatılıyor: {', '.join(secili)}",

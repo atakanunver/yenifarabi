@@ -28,7 +28,7 @@ GIRIS = ("Aşağıdaki kaynak parçaları kullanıcının mesajı için okulun r
          "ve yetkin bir meslektaş olarak yardımcı ol. Asla 'okul idaresine sor', 'müdürlüğe git' "
          "gibi yönlendirmeler yapma; doğrudan idari ve pedagojik çözümü sun. Okul, mevzuat, "
          "yönetmelik ve ders sorularında ÖNCE bu parçalara dayan. Sorunun cevabı parçalarda "
-         "yoksa \"belgelerde bulamadım\" diyerek genel mevzuat bilgini aktar; tahmin yürütme, "
+         "yoksa bunu tek cümleyle belirtip genel bilginle yetkin biçimde cevap ver; tahmin yürütme, "
          "madde/sayfa/sayı uydurma. Kullandığın bilginin sonunda kaynağı köşeli parantezle belirt, "
          "örneğin [657 Sayılı Devlet Memurları Kanunu, s. 16].")
 
@@ -36,11 +36,12 @@ ZAYIF_NOTU = ("Karşındaki kullanıcı okulumuzun öğretmeni veya okul idareci
               "müdür yardımcısı). Ona tam yetkili, uzman ve çözüm odaklı bir çalışma arkadaşı "
               "olarak doğrudan ve net yardımcı ol. Asla 'okul idaresine sor', 'müdürlüğe başvur', "
               "'idareye dilekçe yaz' gibi yönlendirmeler yapma, çünkü soruyu soran zaten okul "
-              "idaresi veya eğitimcidir. Bu mesaj için kitaplarda/mevzuatta yeni bir kaynak parçası "
-              "bulunamadı. Önceki cevaplarında kaynak gösterdiysen onlara dayanmaya devam edebilirsin; "
-              "genel mevzuat (657 Sayılı DMK, MEB Ortaöğretim Kurumları Yönetmeliği vb.) ve okul "
-              "işleyişi hakkında doğrudan açık ve yetkin bilgi ver, ancak elinde kesin belge yoksa "
-              "hayali madde numarası veya sayfa numarası uydurma.")
+              "idaresi veya eğitimcidir. Bu mesaj için belgelerden eşleşen parça gelmedi; bunu kullanıcıya "
+              "'belgelerde bulamadım / kaynağım yok' diye söylemene gerek yok. Önceki cevaplarında "
+              "kaynak gösterdiysen onlara dayanmaya devam edebilirsin; ders konularını, genel mevzuatı "
+              "(657 Sayılı DMK, MEB Ortaöğretim Kurumları Yönetmeliği vb.) ve okul işleyişini kendi "
+              "bilginle doğrudan, açık ve yetkin biçimde anlat. Kesin belge olmadan hayali madde "
+              "numarası veya sayfa numarası uydurma; emin olmadığın mevzuat ayrıntısını kısaca belirt.")
 
 
 ISTANBUL = ZoneInfo("Europe/Istanbul")
@@ -68,6 +69,20 @@ def son_kullanici_mesaji(messages: list) -> str:
                             if isinstance(p, dict) and p.get("type") == "text").strip()
         return ""
     return ""
+
+
+TAKIP_AZAMI_KELIME = 8  # bundan kısa mesajlar takip sorusu sayılır
+
+
+def arama_sorgusu(messages: list) -> str:
+    """RAG'a giden sorgu: son kullanıcı mesajı; kısa bir takip sorusuysa (\"peki babalık
+    izninde?\") bağlam kaybolmasın diye önceki kullanıcı mesajı başa eklenir."""
+    son = son_kullanici_mesaji(messages)
+    if not son or len(son.split()) > TAKIP_AZAMI_KELIME:
+        return son
+    kullanici = [m for m in (messages or []) if isinstance(m, dict) and m.get("role") == "user"]
+    onceki = son_kullanici_mesaji(kullanici[:-1]) if len(kullanici) > 1 else ""
+    return f"{onceki[:200]} {son}" if onceki else son
 
 
 def kaynak_blogu(sonuc: dict) -> str | None:
@@ -173,7 +188,7 @@ class Filter:
             body["options"] = {**secenekler, "think": bool(meta["farabi_think"])}
 
         kapsam = meta.get("farabi_kapsam")
-        soru = son_kullanici_mesaji(body.get("messages"))
+        soru = arama_sorgusu(body.get("messages"))
 
         async def _zaman_guvenli():
             try:

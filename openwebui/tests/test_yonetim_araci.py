@@ -245,10 +245,8 @@ def test_reboot_uyarilari(sahte):
     m = onay.olaylar[0]["data"]["message"]
     assert "9-A, 9-B" in m
     assert "Okul saatinde (ders günü ilk dersten son derse kadar) sunucu reddeder." in m
-    assert "9-A açılışta giriş ekranında kalır (otomatik giriş yok)." in m
-    _, onay = _reboot(sahte, ["9-B"])
-    m = onay.olaylar[0]["data"]["message"]
-    assert "Okul saatinde" in m and "giriş ekranında" not in m
+    # 2026-10-06: 9-A'da autologin var, "giriş ekranında kalır" uyarısı artık YOK.
+    assert "giriş ekranında" not in m
 
 
 def test_409_okul_saati(sahte):

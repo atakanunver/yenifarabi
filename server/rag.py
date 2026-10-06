@@ -133,7 +133,10 @@ _SAYI_RE = re.compile(r"\d+(?:[.,]\d+)?")
 _DURAK_KELIMELER = {
     "icin", "olan", "veya", "gibi", "kadar", "nedir", "nelerdir", "nasil",
     "buna", "gore", "olur", "diye", "yapan", "eder", "biri", "için",
-    "nasıl", "göre", "hakkında", "ile", "ve", "bir", "bu", "şu", "ne"
+    "nasıl", "göre", "hakkında", "ile", "ve", "bir", "bu", "şu", "ne",
+    "sayılı", "sayili", "kanun", "kanuna", "kanunu", "madde", "maddesi",
+    "yönetmelik", "yönetmeliği", "hangi", "kac", "kaç", "olarak", "tür",
+    "şeklinde", "olanlar"
 }
 
 SISTEM_SABLON = """Sen Farabi'sin; lise düzeyindeki öğretmen ve öğrencilere akıllı tahta üzerinden yardımcı olan MEB müfredatına hakim bir ders asistanısın.
@@ -252,6 +255,7 @@ class RagMotoru:
         if not kaynak_idler:
             return {"durum": "zayif", **bos}
 
+        soru = soru.replace("\xad", "").strip()
         t0 = time.perf_counter()
         try:
             vektor = self.embed_model.encode(soru, normalize_embeddings=True)
@@ -269,9 +273,11 @@ class RagMotoru:
             # Hibrit arama: k > TOP_N ise soru içindeki kanun/madde no veya anahtar kelimeleri de tara
             if k > TOP_N:
                 tablo, kolon = _ARAMA_TABLOLARI[kaynak]
-                kelimeler = [w for w in re.findall(r"[A-Za-zÇĞİÖŞÜçğıöşü0-9]{3,}", soru)
+                sayilar = re.findall(r"\b\d+\b", soru)
+                kelimeler = [w for w in re.findall(r"[A-Za-zÇĞİÖŞÜçğıöşü]{3,}", soru)
                              if w.lower() not in _DURAK_KELIMELER]
-                for term in kelimeler[:3]:
+                terimler = (sayilar + sorted(kelimeler, key=len, reverse=True))[:4]
+                for term in terimler:
                     try:
                         with conn.cursor() as cur:
                             cur.execute(

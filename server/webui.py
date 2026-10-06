@@ -53,6 +53,10 @@ KAPSAM_DERSLER: dict[str, list[str]] = {
     "cografya": ["Coğrafya"],
 }
 KAPSAM_DERSLER["genel"] = sorted({d for liste in KAPSAM_DERSLER.values() for d in liste})
+# 2026-10-05 (kullanıcı kararı): öğretmenler ve akıllı tahtalar idari kayıtlara (mevzuat,
+# öğrenci/personel belgeleri) ULAŞAMAZ — "genel" ve ders kapsamları yalnızca kitaplarda arar.
+# Kitap + idari birlikte yalnızca "hepsi" (İdare grubuna açık mod), idari tek başına "idari".
+KAPSAM_DERSLER["hepsi"] = KAPSAM_DERSLER["genel"]
 KAPSAMLAR = set(KAPSAM_DERSLER) | {"idari"}
 
 # "10. sınıf", "10.sınıf", "10 sınıf", "10-a" — soru .lower() edilerek aranır
@@ -132,7 +136,10 @@ def _metrik_yaz(conn, sonuc: dict, toplam_ms: int) -> None:
         conn.rollback()
 
 
-ESIK_RERANK_WEBUI = 0.25
+ESIK_RERANK_WEBUI = 0.25  # mevzuat (idari)
+# 2026-10-05: ders kitabı sorgularında reranker skorları belirgin düşük
+# (12. sınıf logaritma: en iyi 0.149) — 0.25 gerçek kaynakları eliyordu.
+ESIK_RERANK_WEBUI_EGITIM = 0.10
 
 
 @router.post("/api/webui/ara", dependencies=[Depends(webui_anahtari_dogrula)])
@@ -152,10 +159,11 @@ def ara(istek: AraIstek):
                 if istek.kapsam != "idari":
                     sinif = istek.sinif if istek.sinif is not None else sinif_cikar(soru)
                     aramalar.append(("egitim", _kitaplar(conn, KAPSAM_DERSLER[istek.kapsam], sinif)))
-                if istek.kapsam in ("idari", "genel"):
+                if istek.kapsam in ("idari", "hepsi"):
                     aramalar.append(("idari", _idari_belgeler(conn)))
                 sonuc = _birlestir([
-                    (MOTOR.ara(conn, kaynak, list(etiketler), soru, k=15, esik=0.38), etiketler)
+                    (MOTOR.ara(conn, kaynak, list(etiketler), soru, k=15, esik=0.38), etiketler,
+                     ESIK_RERANK_WEBUI_EGITIM if kaynak == "egitim" else ESIK_RERANK_WEBUI)
                     for kaynak, etiketler in aramalar], getattr(MOTOR, "reranker", None), soru)
             except Exception as e:  # noqa: BLE001 — arama hatası 200 + durum="hata"
                 conn.rollback()
@@ -185,13 +193,15 @@ def _birlestir(sonuclar: list[tuple[dict, dict[int, str]]], reranker=None, soru:
     belge id'leri çakışabildiği için etiket burada, birleşimden ÖNCE çözülür.
     Durum: herhangi biri ok → ok; değilse herhangi biri zayıf → zayıf; → hata."""
     parcalar, durumlar, retrieval, skorlar = [], [], 0, []
-    for sonuc, etiketler in sonuclar:
+    for oge in sonuclar:  # (sonuc, etiketler[, rerank eşiği])
+        sonuc, etiketler = oge[0], oge[1]
+        esik = oge[2] if len(oge) > 2 else ESIK_RERANK_WEBUI
         durumlar.append(sonuc["durum"])
         retrieval += sonuc.get("retrieval_ms") or 0
         if sonuc.get("en_iyi_skor") is not None:
             skorlar.append(sonuc["en_iyi_skor"])
         for p in sonuc.get("parcalar", []):
-            parcalar.append({**p, "etiket": etiketler.get(p["kaynak_id"], "?")})
+            parcalar.append({**p, "etiket": etiketler.get(p["kaynak_id"], "?"), "_esik": esik})
     parcalar.sort(key=lambda p: p["skor"], reverse=True)
     durum = "ok" if "ok" in durumlar else ("zayif" if "zayif" in durumlar else "hata")
     rerank_ms = None
@@ -205,7 +215,7 @@ def _birlestir(sonuclar: list[tuple[dict, dict[int, str]]], reranker=None, soru:
             parcalar = sorted(({**p, "skor": round(sk, 4)} for p, sk in zip(parcalar, yeni)),
                               key=lambda p: p["skor"], reverse=True)
             skorlar = [parcalar[0]["skor"]]
-            parcalar = [p for p in parcalar if p["skor"] >= ESIK_RERANK_WEBUI]
+            parcalar = [p for p in parcalar if p["skor"] >= p.get("_esik", ESIK_RERANK_WEBUI)]
             if not parcalar:
                 durum = "zayif"
         except Exception as e:  # noqa: BLE001 — bilgehan kapalı vb.: kosinüs sırasıyla devam

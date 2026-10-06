@@ -1,5 +1,5 @@
 /* =====================================================================
-   Farabi teması — Open WebUI (farabi.local:80) için özel CSS
+   Atos teması (eski adı Farabi) — Open WebUI (farabi.local:80) için özel CSS
    ---------------------------------------------------------------------
    KAYNAK DOSYA BU: /home/ata/farabi/webui-tema/custom.css
    Kurulum: /home/ata/farabi/webui-tema/kur.sh  (ayrıntı README.md)
@@ -193,9 +193,9 @@
     var(--farabi-desen-koyu);
 }
 
-/* Alt imza: "FARABİ · Muallim-i Sânî" */
+/* Alt imza: "ATOS · okul adı" (2026-10-05: Farabi → Atos) */
 #auth-page::after {
-  content: "FARABİ  ·  Muallim-i Sânî";
+  content: "ATOS  ·  Şehit Murat Ustaoğlu Anadolu Lisesi";
   position: fixed;
   left: 0;
   right: 0;

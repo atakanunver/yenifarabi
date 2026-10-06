@@ -59,7 +59,7 @@ def test_var_olan_sistem_mesajinin_sonuna_eklenir():
 
 def test_zayif_sonucta_genel_bilgi_notu():
     g = _calistir(_filtre({"durum": "zayif", "parcalar": []}), _govde())
-    assert "bulunamadı" in g["messages"][0]["content"]
+    assert "eşleşen parça gelmedi" in g["messages"][0]["content"]
 
 
 def test_hata_sonucunda_mesajlar_degismez():
@@ -127,7 +127,16 @@ def test_son_kullanici_mesaji_aranir():
     g = {"messages": [{"role": "user", "content": "ilk"}, {"role": "assistant", "content": "cvp"},
                       {"role": "user", "content": "ikinci soru"}]}
     _calistir(_filtre(cagrilar=c), g)
-    assert c == [("kimya", "ikinci soru")]
+    assert c == [("kimya", "ilk ikinci soru")]  # kısa takip → önceki soru eklenir
+
+
+def test_uzun_mesaj_tek_basina_aranir():
+    c = []
+    uzun = "mol kavramı ve avogadro sayısı ile ilgili ayrıntılı bir açıklama yapar mısın"
+    g = {"messages": [{"role": "user", "content": "ilk"}, {"role": "assistant", "content": "cvp"},
+                      {"role": "user", "content": uzun}]}
+    _calistir(_filtre(cagrilar=c), g)
+    assert c == [("kimya", uzun)]
 
 
 def test_blok_azami_uzunlugu_asmaz():
@@ -161,7 +170,8 @@ def test_bozuk_parcalar_hata_firlatmaz():
 
 
 def test_zayif_notu_takip_mesajini_yanlis_yonlendirmez():
-    assert "yeni bir kaynak parçası bulunamadı" in ff.ZAYIF_NOTU
+    assert "eşleşen parça gelmedi" in ff.ZAYIF_NOTU
+    assert "söylemene gerek yok" in ff.ZAYIF_NOTU
     assert "Önceki cevaplarında" in ff.ZAYIF_NOTU
 
 
@@ -237,7 +247,7 @@ def test_yerel_zaman_metni_turkce():
 
 
 def test_giris_kaynak_onceligi_ve_uydurma_yasagi():
-    assert "belgelerde bulamadım" in ff.GIRIS
+    assert "tek cümleyle belirtip genel bilginle" in ff.GIRIS
     assert "uydurma" in ff.GIRIS.lower()
     assert "önce" in ff.GIRIS.lower()
 

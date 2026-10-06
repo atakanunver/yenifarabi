@@ -43,8 +43,12 @@ def test_ham_model_gruplara_okuma_izni_ve_gizli():
         {"principal_type": "group", "principal_id": "g-idr", "permission": "read"}]
 
 
-def test_tahta_hesabi_var_ve_yonetici_degil():
-    assert ("Farabi Tahta", "tahta@farabi.local", "TAHTA_SIFRE", "Öğretmenler") in kur.HESAPLAR
+def test_ortak_ogretmen_ve_tahta_hesabi_acilmaz_kapatilir():
+    # 2026-10-05: Atos yalnızca idari kadro için — ortak hesaplar oluşturulmaz, kapatılır
+    epostalar = [h[1] for h in kur.HESAPLAR]
+    assert "tahta@farabi.local" not in epostalar and "ogretmen@farabi.local" not in epostalar
+    assert set(kur.KAPALI_HESAPLAR) == {"tahta@farabi.local", "ogretmen@farabi.local", "idare@farabi.local"}
+    assert kur.HESAPLAR == []
     import inspect
     assert '"role": "user"' in inspect.getsource(kur.hesaplari_kur)
     assert "admin" not in inspect.getsource(kur.hesaplari_kur).split("mevcut_ogretmenler(env)")[0]
@@ -124,7 +128,7 @@ def test_araci_kur(var):
     assert api.cagrilar[0] == ("GET", "/api/v1/tools/id/farabi_yonetim", None)
     yol, govde = posts[0]
     assert yol == ("/api/v1/tools/id/farabi_yonetim/update" if var else "/api/v1/tools/create")
-    assert govde["id"] == "farabi_yonetim" and govde["name"] == "Farabi Yönetim"
+    assert govde["id"] == "farabi_yonetim" and govde["name"] == "Atos Yönetim"
     assert govde["access_grants"] == [] and "description" in govde["meta"]
     assert govde["content"] == (kur.KOK / "farabi_yonetim_araci.py").read_text(encoding="utf-8")
     assert posts[1] == ("/api/v1/tools/id/farabi_yonetim/access/update", {"access_grants": []})
@@ -154,6 +158,9 @@ def _main_calistir(monkeypatch, anahtar, capsys, ek=None):
     monkeypatch.setattr(kur, "env_oku", lambda p: {"OPENWEBUI_API_KEY": "k"})
     monkeypatch.setattr(kur, "gruplari_kur", lambda api: {})
     monkeypatch.setattr(kur, "hesaplari_kur", lambda *a: None)
+    monkeypatch.setattr(kur, "hesaplari_kapat", lambda *a: None)
+    monkeypatch.setattr(kur, "belge_araci_kur", lambda *a: None)
+    monkeypatch.setattr(kur, "sms_araci_kur", lambda *a: False)
     monkeypatch.setattr(kur, "filtreyi_kur", lambda *a: None)
     monkeypatch.setattr(kur, "modelleri_kur", lambda *a: ["farabi"])
     monkeypatch.setattr(kur, "ayarlari_kur", lambda *a: None)
@@ -299,3 +306,40 @@ def test_filtre_okul_ayari_yoksa_bos_anahtar():
     kur.filtreyi_kur(api, "WEBUI", None)
     valf = next(g for m, y, g in api.cagrilar if y.endswith("/valves/update"))
     assert valf["okul_key"] == ""
+
+
+class KayitApi:
+    def __init__(self, kullanicilar=(), var=None):
+        self.kullanicilar, self.var, self.cagrilar = list(kullanicilar), var, []
+
+    def __call__(self, yontem, yol, govde=None, yazma=True):
+        self.cagrilar.append((yontem, yol, govde))
+        if yol.startswith("/api/v1/users/search") or yol.startswith("/api/v1/users/?"):
+            return {"users": self.kullanicilar}
+        return self.var if yontem == "GET" else {}
+
+
+def test_hesaplari_kapat_pending_yapar_aciklari_atlar(monkeypatch):
+    kullanicilar = [{"id": "t", "email": "tahta@farabi.local", "name": "Farabi Tahta", "role": "user"},
+                    {"id": "o", "email": "ogretmen@farabi.local", "name": "Öğretmen", "role": "pending"}]
+    monkeypatch.setattr(kur, "kullanici_bul", lambda api, s: [u for u in kullanicilar if u["email"] == s])
+    api = KayitApi()
+    kur.hesaplari_kapat(api)
+    posts = [c for c in api.cagrilar if c[0] == "POST"]
+    assert [p[1] for p in posts] == ["/api/v1/users/t/update"] and posts[0][2]["role"] == "pending"
+
+
+def test_belge_araci_yalniz_idareye_acik():
+    api = KayitApi(var=None)
+    kur.belge_araci_kur(api, "w", {"Öğretmenler": "g-ogr", "İdare": "g-idr"})
+    erisim = next(c[2] for c in api.cagrilar if c[1].endswith("/access/update"))
+    assert erisim == {"access_grants": [{"principal_type": "group", "principal_id": "g-idr",
+                                         "permission": "read"}]}
+    valf = next(c[2] for c in api.cagrilar if c[1].endswith("/valves/update"))
+    assert valf["api_key"] == "w" and valf["api_url"].endswith("/api/webui/belge-kaydet")
+
+
+def test_yonetici_epostalari_envden():
+    # 2026-10-06: kişisel e-postalar koddan .env'e taşındı.
+    assert kur.yonetici_epostalari({"YONETICI_EPOSTALAR": " a@x.com, ,b@y.com "}) == ["a@x.com", "b@y.com"]
+    assert kur.yonetici_epostalari({}) == []

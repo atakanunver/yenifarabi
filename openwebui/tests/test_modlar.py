@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 KOK = Path(__file__).resolve().parent.parent
-KAPSAMLAR = {"genel", "kimya", "fizik", "biyoloji", "matematik", "edebiyat", "ingilizce",
+KAPSAMLAR = {"genel", "hepsi", "kimya", "fizik", "biyoloji", "matematik", "edebiyat", "ingilizce",
              "felsefe", "din", "tarih", "cografya", "idari", None}
 
 
