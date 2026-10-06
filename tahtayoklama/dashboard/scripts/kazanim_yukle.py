@@ -122,6 +122,9 @@ ESLEME = [
     ("edebiyat/12.SINIFLAR TDE YILLIK PLANI.pdf", 12, EDEB, None, "2026-10-06: .doc yerine PDF konuldu"),
     ("felsefe yok/felsefe-unitelendirilmis-yillik-plan (1).docx", 10, "felsefe", None,
      "iki 10. sınıf planından 18. haftası boş (okul takvimiyle uyumlu) olan seçildi (2026-10-06)"),
+    ("felsefe yok/11.sinif-felsefe-dersi-yillik-plani.docx", 11, "felsefe", None, "2026-10-06 eklendi"),
+    ("psikoloji--unitelendirilmis-yillik-plan.docx", 11, "psikoloji", None,
+     "sınıf düzeyi planda boş; ders programında psikoloji yalnızca 11-B'de (2026-10-06)"),
     ("fizik/9.sınıf fizik yıllık plan.docx", 9, "fizik", None, ""),
     ("fizik/10.sınıf fizik yıllık plan.docx", 10, "fizik", None, ""),
     ("fizik/11.sınıf fizik yıllık plan.docx", 11, "fizik", None, ""),
@@ -182,6 +185,11 @@ CUMLE_KES = {(10, "ortak türk tarihi")}
 
 # Zaman çizelgesinde karşılığı olmayan / yinelenen dosyalar (neden ile).
 ATLANAN = {
+    # Ana klasöre atılmış birebir kopyalar (md5 aynı, 2026-10-06)
+    "11.sinif-felsefe-dersi-yillik-plani.docx": "kopya — felsefe yok/ içindeki kullanıldı",
+    "felsefe-unitelendirilmis-yillik-plan (1).docx": "kopya — felsefe yok/ içindeki kullanıldı",
+    "felsefe-unitelendirilmis-yillik-plan.docx": "kopya — felsefe yok/ içindeki (o da atlanan şablon)",
+    "2026-2027 Programlamaya Giriş ve Algoritmalar Yıllık Planları (12-11 sınıf atakan ünver).pdf": "kopya — bilisim/ içindeki kullanıldı",
     "felsefe yok/felsefe-unitelendirilmis-yillik-plan.docx": "10. sınıf felsefe ikinci şablon — 18. haftadan itibaren okul takviminden 1 hafta önde, (1)'li kullanıldı",
     "beden eğitimi 10 eksik/12. sınıf beden eğitimi.docx": "12. sınıf beden eğitimi yinelenen plan (standart adlı olan kullanıldı)",
     "görsel sanatlar/11 görsel sanatlar feride.docx": "11. sınıf görsel sanatlar yinelenen plan (cigdem-ince kullanıldı)",
@@ -294,6 +302,9 @@ def pazartesi_bul(hucre_metinleri: list[str]) -> tuple[date | None, str | None]:
 
 
 def temizle(metin: str) -> str:
+    # "[cite: 1]" / "[cite_start]": yapay zekâ ile üretilmiş plan kalıntısı
+    # (psikoloji planında 266 adet, 2026-10-06) — kazanım metnine girmesin.
+    metin = re.sub(r"\[cite[^\]]*\]", "", metin)
     return re.sub(r"\s+", " ", metin.replace(" ", " ")).strip()
 
 
@@ -326,6 +337,7 @@ _BECERI_ORTA_RE = re.compile(rf"\s(?:{BECERI_ETIKETI})\s+(?=Students|[A-Z]{{1,5}
 _CUMLE_SONU_RE = re.compile(r"(?<=[a-zçğıöşü])\.\s+(?=[A-ZÇĞİÖŞÜ])")
 
 
+_SUREC_MADDESI = re.compile(r"\s[a-gçğ]\)\s")
 _YAPISIK_KOD = re.compile(r"(?<=[.!?])[A-ZÇĞİÖŞÜ]{2,6}\.\d{1,2}\.\d{1,2}\.\d{1,2}\.")
 
 
@@ -375,6 +387,11 @@ def ilk_kazanim(ham: str, cumle_kes: bool = False) -> str:
     ikinci = _YAPISIK_KOD.search(metin, 1)
     if ikinci:
         metin = metin[:ikinci.start()].rstrip()
+    # Kazanım + süreç bileşeni aynı hücrede ("…çözümleyebilme a) Psikolojinin…",
+    # psikoloji 2026-10-06): koddan sonra gelen ilk " a) " maddesinde kes.
+    surec = _SUREC_MADDESI.search(metin, 1)
+    if surec:
+        metin = metin[:surec.start()].rstrip()
     return kisalt(metin)
 
 
