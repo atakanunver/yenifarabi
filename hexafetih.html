@@ -531,6 +531,7 @@
         const resp = await fetch(fetchUrl);
         if (!resp.ok) throw new Error("Oturum verisi alınamadı");
         oyunVerisi = await resp.json();
+        sonucKimlikYenile(); // her yeni oturum/ders = yeni oyun kaydı
 
         // URL parametresini güncelle (sayfa yenilendiğinde seçim korunsun)
         if (sinifParam) urlParams.set('sinif', sinifParam);

@@ -22,12 +22,9 @@
         stack: String(stack || '').slice(0, 2000),
         user_agent: navigator.userAgent
       });
-      if (navigator.sendBeacon && window.Blob) {
-        // application/json olmazsa FastAPI gövdeyi reddeder (text/plain -> 422)
-        navigator.sendBeacon('/api/arena/log-hata', new Blob([govde], { type: 'application/json' }));
-      } else {
-        fetch('/api/arena/log-hata', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: govde }).catch(function () {});
-      }
+      // sendBeacon yerine fetch+keepalive: eski Chromium'da Blob(application/json) beacon'ı fırlatabiliyor;
+      // text/plain ise FastAPI'de 422 veriyordu.
+      fetch('/api/arena/log-hata', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: govde }).catch(function () {});
     } catch (e) { /* raporlama asla oyunu bozmasın */ }
   }
 

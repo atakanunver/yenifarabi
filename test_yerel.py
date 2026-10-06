@@ -266,11 +266,14 @@ def test_hata_dedupe_istemcide_var():
     assert "MAX_RAPOR = 20" in js and "ARALIK_MS = 60000" in js
     for sayfa in ("sinif_arena.html", "hexafetih.html", "duello.html"):
         assert "/static/hata.js" in (KOK / sayfa).read_text(encoding="utf-8")
+        assert "/static/sonuc.js" in (KOK / sayfa).read_text(encoding="utf-8") or sayfa == "ozet.html"
 
 
 def test_kullanilan_lucide_ikonlari_pakette():
     giris = (KOK / "static/vendor/src/lucide-entry.js").read_text(encoding="utf-8")
     paketli = {re.sub(r"(?<!^)(?=[A-Z0-9])", "-", n).lower() for n in re.findall(r"\b([A-Z][A-Za-z0-9]*)\b", giris.split("const icons")[1].split("}")[0])}
     paketli = {p.replace("volume-2", "volume-2").replace("user-x", "user-x") for p in paketli}
-    kullanilan = set(re.findall(r'data-lucide="([a-z0-9-]+)"', (KOK / "sinif_arena.html").read_text(encoding="utf-8")))
+    metin = (KOK / "sinif_arena.html").read_text(encoding="utf-8")
+    kullanilan = set(re.findall(r'data-lucide["\']?[=,] ?["\']([a-z0-9-]+)["\']', metin))  # attribute + setAttribute(...)
+    assert "volume-x" in kullanilan
     assert kullanilan <= paketli, kullanilan - paketli
