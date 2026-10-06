@@ -5,6 +5,7 @@ Kullanıcı kararı (2026-10-05): AGY denetiminden geçmemiş soru oyunlara GİT
 
 import logging
 import random
+import re
 
 log = logging.getLogger("arena.havuz")
 SUTUNLAR = "id, konu, zorluk, soru, kisa_cevap, secenekler, dogru_index, kaynak"
@@ -67,11 +68,44 @@ def _cek(ders, sinif, konu, sorgu, limit=400):
         return None
 
 
+_DURAK = {
+    "bilgi", "bilgileri", "ilgili", "olarak", "ifade", "eder", "eden", "yapar", "açıklar",
+    "yorumlar", "ayırt", "örnekler", "sahip", "kavram", "kavramı", "arasındaki", "ilişkiyi",
+}
+
+
+def kazanim_anahtar_kelimeleri(metin: str, adet: int = 3) -> list[str]:
+    """Kazanım cümlesinden ILIKE için kısa anahtar kelimeler (en uzundan başlayarak)."""
+    kelimeler = re.findall(r"[0-9A-Za-zÇĞİÖŞÜçğıöşü]{5,}", metin or "")
+    gorulen, aday = set(), []
+    for k in kelimeler:
+        t = k.lower()
+        if t in _DURAK or t in gorulen:
+            continue
+        gorulen.add(t)
+        # Türkçe ekleri tolere etmek için kökü kısalt (ILIKE %kök%)
+        aday.append(k[: max(5, len(k) - 2)] if len(k) > 7 else k)
+    aday.sort(key=len, reverse=True)
+    return aday[:adet]
+
+
 def jeopardy_seti(
-    ders: str, sinif: int, konu: str = "", sorgu=None
+    ders: str, sinif: int, konu: str = "", sorgu=None, kazanim: bool = False
 ) -> list[dict] | None:
-    """4 konu × 4 zorluk (100–400 puan); ollama_soru_uret ile aynı biçim."""
-    satirlar = _cek(ders, sinif, konu, sorgu)
+    """4 konu × 4 zorluk (100–400 puan); ollama_soru_uret ile aynı biçim.
+
+    kazanim=True: konu bir kazanım cümlesidir; anahtar kelimelerle aranır, hiçbiri tam
+    bir set vermezse filtresiz sorguya düşülür (kazanım yüzünden asla sıfır soru dönmez)."""
+    if kazanim and konu:
+        for kw in kazanim_anahtar_kelimeleri(konu):
+            sonuc = _jeopardy_kur(_cek(ders, sinif, kw, sorgu), sorgu)
+            if sonuc:
+                return sonuc
+        return _jeopardy_kur(_cek(ders, sinif, "", sorgu), sorgu)
+    return _jeopardy_kur(_cek(ders, sinif, konu, sorgu), sorgu)
+
+
+def _jeopardy_kur(satirlar, sorgu=None) -> list[dict] | None:
     if not satirlar:
         return None
     konular: dict[str, dict[int, tuple]] = {}

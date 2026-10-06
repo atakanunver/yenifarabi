@@ -11,7 +11,7 @@ import logging
 import re
 import sqlite3
 import time
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -20,6 +20,7 @@ import httpx
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import logger
@@ -27,6 +28,8 @@ import soru_uretici
 import takim_kurucu
 import fetih_motoru
 import havuz
+import sonuc_deposu
+import turkce
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("arena_server")
@@ -38,12 +41,15 @@ BASE_DIR = Path(__file__).resolve().parent
 TAHTALAR_JSON = Path("/home/ata/farabi/server/tahtalar.json")
 ZIL_JSON = Path("/home/ata/farabi/tahtayoklama/data/zil.json")
 DERS_PROGRAMI_JSON = Path("/home/ata/farabi/tahtayoklama/data/ders_programi.json")
+KAZANIMLAR_JSON = Path("/home/ata/farabi/tahtayoklama/data/kazanimlar.json")
 ROSTER_DIR = Path("/home/ata/farabi/tahtayoklama/data/roster")
 YOKLAMA_DB = Path("/home/ata/farabi/tahtayoklama/dashboard/veri/yoklama_pano.db")
 
 HTML_DOSYASI = BASE_DIR / "sinif_arena.html"
 HTML_FETIH_DOSYASI = BASE_DIR / "hexafetih.html"
 HTML_DUELLO_DOSYASI = BASE_DIR / "duello.html"
+HTML_OZET_DOSYASI = BASE_DIR / "ozet.html"
+STATIC_DIR = BASE_DIR / "static"
 
 _GUN_ADLARI = {
     1: "pazartesi",
@@ -80,6 +86,10 @@ TUM_DERSLER = [
 ]
 
 app = FastAPI(title="Sınıf Arenası Servisi", version="2.1.0")
+
+# Yerel statik dosyalar (tailwind.css, yazı tipleri, confetti, lucide): internet gerekmez
+STATIC_DIR.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # CORS middleware
 app.add_middleware(
@@ -137,6 +147,12 @@ def _simdiki_ders_bilgisi(simdi: datetime | None = None) -> tuple[int, bool]:
     return 1, False
 
 
+def _ders_anahtari(ders: str) -> str:
+    """Ders adını (örn. 'İngilizce', 'Hedef Fizik') havuz/kapsam anahtarına çevirir (Türkçe-güvenli)."""
+    k = turkce.kapsam_anahtari(ders)
+    return soru_uretici.KAPSAM_ESLEME.get(k, k)
+
+
 def _ders_adini_bul(sinif: str, gun_no: int, ders_no: int) -> str:
     """Haftalık ders programından dersin adını bulur."""
     gun_adi = _GUN_ADLARI.get(gun_no, "pazartesi")
@@ -147,12 +163,41 @@ def _ders_adini_bul(sinif: str, gun_no: int, ders_no: int) -> str:
         program = json.loads(DERS_PROGRAMI_JSON.read_text(encoding="utf-8")).get("siniflar", {})
         ders = program.get(sinif, {}).get(gun_adi, {}).get(str(ders_no))
         if ders:
-            kelimeler = ders.split()
-            return " ".join(k.capitalize() if k not in ["ve", "ile"] else k for k in kelimeler)
+            return turkce.tr_baslik(ders)
     except Exception as e:
         log.warning("Ders programı okunamadı: %s", e)
 
     return "Biyoloji"
+
+
+def _haftanin_kazanimi(sinif: str, ders_adi: str, bugun: date | None = None) -> list[str] | None:
+    """kazanimlar.json'dan bu haftanın kazanım satırlarını döner; yoksa/hata varsa None.
+
+    Hafta: Pazartesi <= bugün < Pazartesi+7. Düzey: '12-A' -> '12' (fenlab -> None).
+    Ders adı programdaki küçük harfli ad olarak aranır (Türkçe-güvenli)."""
+    try:
+        m = re.match(r"^(\d+)", sinif or "")
+        if not m or not KAZANIMLAR_JSON.exists():
+            return None
+        bugun = bugun or datetime.now(ISTANBUL_TZ).date()
+        veri = json.loads(KAZANIMLAR_JSON.read_text(encoding="utf-8"))
+        hafta = None
+        for no, pazartesi in (veri.get("haftalar") or {}).items():
+            bas = date.fromisoformat(pazartesi)
+            if bas <= bugun < bas + timedelta(days=7):
+                hafta = str(no)
+                break
+        if hafta is None:
+            return None
+        dersler = (veri.get("kazanimlar") or {}).get(m.group(1)) or {}
+        metin = (dersler.get(turkce.kapsam_anahtari(ders_adi)) or {}).get(hafta)
+        if not metin:
+            return None
+        satirlar = [s.strip() for s in str(metin).split("\n") if s.strip()]
+        return satirlar or None
+    except Exception as e:
+        log.warning("kazanimlar.json okunamadı: %s", e)
+        return None
 
 
 def _ogrencileri_ve_yoklamayi_getir(sinif: str, ders_no: int) -> tuple[list[dict], list[dict], list[dict]]:
@@ -281,6 +326,7 @@ async def oturum_bilgisi(request: Request, sinif: str | None = None, ders: str |
         "devamsiz_ogrenciler": devamsiz_ogrenciler,
         "takimlar": takimlar,
         "sorular": sorular,
+        "haftanin_kazanimi": _haftanin_kazanimi(secilen_sinif, ders_adi, simdi.date()),
         "tum_siniflar": TUM_SINIFLAR,
         "tum_dersler": TUM_DERSLER,
     }
@@ -290,6 +336,7 @@ class SoruUretIstek(BaseModel):
     sinif: str
     ders: str
     konu: str = ""
+    kazanim: bool = False  # True: konu bir haftalık kazanım metnidir (havuzda anahtar kelimeyle aranır)
 
 
 @app.post("/api/arena/soru-uret")
@@ -300,8 +347,8 @@ async def soru_uret(request: Request, istek: SoruUretIstek):
     t0 = time.perf_counter()
 
     # 0. Soru havuzu (yalnızca AGY onaylı) — anında; yoksa canlı RAG+Ollama
-    ders_anahtari = soru_uretici.KAPSAM_ESLEME.get(istek.ders.strip().lower(), istek.ders.strip().lower())
-    havuz_seti = havuz.jeopardy_seti(ders_anahtari, sinif_duzeyi, istek.konu)
+    ders_anahtari = _ders_anahtari(istek.ders)
+    havuz_seti = havuz.jeopardy_seti(ders_anahtari, sinif_duzeyi, istek.konu, kazanim=istek.kazanim)
     if havuz_seti:
         gecen_sn = time.perf_counter() - t0
         logger.log_soru_uret(ip=istemci_ip, sinif=istek.sinif, ders=istek.ders, konu=istek.konu,
@@ -379,10 +426,32 @@ class IstemciHataIstek(BaseModel):
     user_agent: str = ""
 
 
+# (ip, mesaj) -> [son_kayit_zamani, bastirilan_sayi]; aynı hata dakikada en fazla 1 kez loglanır
+_HATA_SON: dict[tuple[str, str], list[float]] = {}
+HATA_ARALIK_SN = 60.0
+HATA_ANAHTAR_LIMITI = 2000
+
+
+def _hata_loglanmali_mi(ip: str, mesaj: str, simdi: float | None = None) -> bool:
+    simdi = time.monotonic() if simdi is None else simdi
+    anahtar = (ip, mesaj[:300])
+    kayit = _HATA_SON.get(anahtar)
+    if kayit and simdi - kayit[0] < HATA_ARALIK_SN:
+        kayit[1] += 1
+        return False
+    if len(_HATA_SON) >= HATA_ANAHTAR_LIMITI:  # bellek şişmesine karşı eskileri at
+        for k in [k for k, v in _HATA_SON.items() if simdi - v[0] >= HATA_ARALIK_SN] or list(_HATA_SON)[:500]:
+            _HATA_SON.pop(k, None)
+    _HATA_SON[anahtar] = [simdi, 0]
+    return True
+
+
 @app.post("/api/arena/log-hata")
 async def log_hata_endpoint(request: Request, hata: IstemciHataIstek):
-    """Akıllı tahtanın tarayıcısında oluşan JS ve çalışma zamanı hatalarını kaydeder."""
+    """Akıllı tahtanın tarayıcısında oluşan JS ve çalışma zamanı hatalarını kaydeder (tekrarlar süzülür)."""
     istemci_ip = request.client.host if request.client else "127.0.0.1"
+    if not _hata_loglanmali_mi(istemci_ip, hata.mesaj):
+        return {"durum": "tekrar"}
     logger.log_istemci_hata(
         ip=istemci_ip,
         mesaj=hata.mesaj,
@@ -393,6 +462,57 @@ async def log_hata_endpoint(request: Request, hata: IstemciHataIstek):
         user_agent=hata.user_agent,
     )
     return {"durum": "kaydedildi"}
+
+
+class SonucKatilimci(BaseModel):
+    ad: str
+    puan: int = 0
+    tur: str = "takim"  # 'takim' | 'ogrenci'
+    uyeler: list[str] = []
+    kazanan: bool = False
+
+
+class SonucIstek(BaseModel):
+    oyun: str  # sinif_arena | hexafetih | duello
+    sinif: str = ""
+    ders: str = ""
+    kimlik: str = ""  # istemci üretir; aynı oyunun tekrar gönderimi günceller
+    katilimcilar: list[SonucKatilimci] = []
+
+
+@app.post("/api/arena/sonuc")
+async def sonuc_kaydet(request: Request, istek: SonucIstek):
+    """Biten oyunun sonucunu yerel veri/sonuclar.db'ye yazar (veri makineden çıkmaz)."""
+    try:
+        oyun_id = sonuc_deposu.kaydet(
+            istek.oyun, istek.sinif, istek.ders,
+            [k.model_dump() for k in istek.katilimcilar], istek.kimlik,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.log_hata("sonuc_kaydet", "Sonuç yazılamadı", e)
+        raise HTTPException(status_code=500, detail="Sonuç yazılamadı")
+    logger.log_olay("SONUC", f"Oyun: {istek.oyun} | Sınıf: {istek.sinif} | Ders: {istek.ders} | Katılımcı: {len(istek.katilimcilar)}")
+    return {"durum": "ok", "id": oyun_id}
+
+
+@app.get("/api/arena/ozet")
+async def ozet_api(sinif: str | None = None, gun: int = Query(7, ge=1, le=365)):
+    """Sınıf bazlı katılım/skor özeti (son `gun` gün)."""
+    try:
+        return sonuc_deposu.ozet(sinif or None, gun)
+    except Exception as e:
+        logger.log_hata("ozet_api", "Özet okunamadı", e)
+        raise HTTPException(status_code=500, detail="Özet okunamadı")
+
+
+@app.get("/ozet", response_class=HTMLResponse)
+async def ozet_page():
+    """Salt okunur katılım/skor özet sayfası."""
+    if not HTML_OZET_DOSYASI.exists():
+        raise HTTPException(status_code=404, detail="ozet.html bulunamadı.")
+    return HTML_OZET_DOSYASI.read_text(encoding="utf-8")
 
 
 @app.get("/api/arena/saglik")
@@ -643,7 +763,7 @@ async def duello_oturum(request: Request, sinif: str | None = None, ders: str | 
 
     tum_ogrenciler, mevcut_ogrenciler, devamsiz_ogrenciler = _ogrencileri_ve_yoklamayi_getir(secilen_sinif, ders_no)
 
-    ders_anahtari = soru_uretici.KAPSAM_ESLEME.get(ders_adi.strip().lower(), ders_adi.strip().lower())
+    ders_anahtari = _ders_anahtari(ders_adi)
     sorular = havuz.duello_sorulari(ders_anahtari, sinif_duzeyi, adet=10)
     kaynak = "soru_havuzu" if sorular else "hazir"
 
@@ -681,7 +801,7 @@ async def duello_oturum(request: Request, sinif: str | None = None, ders: str | 
 @app.get("/api/duello/sorular")
 async def duello_sorular_api(ders: str = "Biyoloji", sinif: int = 9, adet: int = 10):
     """Yeni bir düello maratonu için 10 soru döner."""
-    ders_anahtari = soru_uretici.KAPSAM_ESLEME.get(ders.strip().lower(), ders.strip().lower())
+    ders_anahtari = _ders_anahtari(ders)
     sorular = havuz.duello_sorulari(ders_anahtari, sinif, adet=adet)
     kaynak = "soru_havuzu" if sorular else "hazir"
 
