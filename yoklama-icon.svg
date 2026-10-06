@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Canlı Okyanus/Teal Gradyanı (Eğitim & Katılım) -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="50%" stop-color="#0d9488" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+
+    <!-- Kağıt Gradyanı -->
+    <linearGradient id="paperGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f8fafc" />
+    </linearGradient>
+
+    <!-- Metal Klips Gradyanı -->
+    <linearGradient id="clipGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#475569" />
+      <stop offset="50%" stop-color="#94a3b8" />
+      <stop offset="100%" stop-color="#334155" />
+    </linearGradient>
+
+    <!-- Ceket & Kep Gradyanı -->
+    <linearGradient id="suitGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+
+    <!-- Altın Püskül Gradyanı -->
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+
+    <!-- Onay Yeşil Rozet Gradyanı -->
+    <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22c55e" />
+      <stop offset="100%" stop-color="#15803d" />
+    </linearGradient>
+  </defs>
+
+  <!-- Arka Plan Gölgesi (Vektör tabanlı, feDropShadow yok) -->
+  <rect x="20" y="32" width="472" height="472" rx="108" fill="#042f2e" opacity="0.4" />
+
+  <!-- Arka Plan Squircle -->
+  <rect x="20" y="20" width="472" height="472" rx="108" fill="url(#bgGrad)" />
+  <!-- İç İnce Işıltı Çerçevesi -->
+  <rect x="22" y="22" width="468" height="468" rx="106" fill="none" stroke="#ffffff" stroke-opacity="0.25" stroke-width="4" />
+
+  <!-- 1. Pano Gölgesi ve Gövdesi -->
+  <rect x="100" y="82" width="312" height="360" rx="28" fill="#042f2e" opacity="0.25" />
+  <rect x="96" y="72" width="320" height="370" rx="28" fill="#0f766e" opacity="0.5" />
+  <rect x="108" y="82" width="296" height="350" rx="22" fill="url(#paperGrad)" />
+
+  <!-- Pano Metal Klipsi -->
+  <rect x="196" y="56" width="120" height="36" rx="8" fill="url(#clipGrad)" />
+  <rect x="226" y="44" width="60" height="22" rx="7" fill="none" stroke="#64748b" stroke-width="5" />
+  <circle cx="256" cy="74" r="5" fill="#e2e8f0" />
+
+  <!-- Yoklama Çizgileri & Onay Kutucukları -->
+  <!-- Satır 1 -->
+  <rect x="140" y="136" width="16" height="16" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="2" />
+  <path d="M 143 144 L 147 148 L 153 140" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="168" y1="144" x2="360" y2="144" stroke="#0d9488" stroke-width="5" stroke-linecap="round" opacity="0.3" />
+
+  <!-- Satır 2 -->
+  <rect x="140" y="170" width="16" height="16" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="2" />
+  <path d="M 143 178 L 147 182 L 153 174" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="168" y1="178" x2="330" y2="178" stroke="#0d9488" stroke-width="5" stroke-linecap="round" opacity="0.3" />
+
+  <!-- Satır 3 -->
+  <rect x="140" y="204" width="16" height="16" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="2" />
+  <path d="M 143 212 L 147 216 L 153 208" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="168" y1="212" x2="350" y2="212" stroke="#0d9488" stroke-width="5" stroke-linecap="round" opacity="0.3" />
+
+  <!-- Satır 4 -->
+  <rect x="140" y="238" width="16" height="16" rx="4" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2" />
+  <line x1="168" y1="246" x2="310" y2="246" stroke="#0d9488" stroke-width="5" stroke-linecap="round" opacity="0.2" />
+
+  <!-- 2. Öğrenci Karakteri -->
+  <!-- Omuz Gölgesi -->
+  <path d="M 136 436 C 136 351, 184 306, 256 306 C 328 306, 376 351, 376 436 Z" fill="#000000" opacity="0.25" />
+  <!-- Omuz / Ceket -->
+  <path d="M 136 430 C 136 345, 184 300, 256 300 C 328 300, 376 345, 376 430 Z" fill="url(#suitGrad)" />
+
+  <!-- Gömlek & Kırmızı Kravat -->
+  <polygon points="256,300 232,355 280,355" fill="#ffffff" />
+  <polygon points="256,310 263,322 256,365 249,322" fill="#ef4444" />
+
+  <!-- Boyun & Kafa -->
+  <rect x="242" y="266" width="28" height="38" rx="8" fill="#fcd34d" />
+  <circle cx="256" cy="232" r="50" fill="#fde68a" />
+  <!-- Saç -->
+  <path d="M 206 222 C 206 182, 238 178, 256 178 C 274 178, 306 182, 306 222 C 306 228, 300 230, 294 226 C 282 216, 272 216, 256 218 C 240 216, 230 216, 218 226 C 212 230, 206 228, 206 222 Z" fill="#451a03" />
+
+  <!-- Kulaklar -->
+  <circle cx="204" cy="235" r="10" fill="#fcd34d" />
+  <circle cx="308" cy="235" r="10" fill="#fcd34d" />
+
+  <!-- Mezuniyet Kepi -->
+  <path d="M 218 184 C 218 210, 294 210, 294 184 Z" fill="url(#suitGrad)" />
+  <polygon points="256,112 352,150 256,188 160,150" fill="url(#suitGrad)" stroke="#334155" stroke-width="2" />
+  <circle cx="256" cy="150" r="7" fill="url(#goldGrad)" />
+  <path d="M 256 150 Q 325 154, 340 190" fill="none" stroke="url(#goldGrad)" stroke-width="4.5" stroke-linecap="round" />
+  <rect x="334" y="190" width="12" height="24" rx="4" fill="url(#goldGrad)" />
+
+  <!-- 3. Yoklama Onay Rozeti (Sağ Alt) -->
+  <!-- Rozet Gölgesi -->
+  <circle cx="376" cy="371" r="54" fill="#022c22" opacity="0.35" />
+  <!-- Rozet Gövdesi -->
+  <circle cx="376" cy="365" r="54" fill="url(#badgeGrad)" stroke="#ffffff" stroke-width="5" />
+  <circle cx="376" cy="365" r="46" fill="none" stroke="#86efac" stroke-width="2" stroke-opacity="0.6" />
+  <path d="M 353 365 L 370 382 L 401 349" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

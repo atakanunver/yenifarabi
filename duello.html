@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="tr" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tahta Düellosu - Çark & Hızlı Cevap Maratonu</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700;900&family=Inter:wght@400;600;800;900&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow: hidden;
+    }
+    
+    .font-gaming {
+      font-family: 'Chakra Petch', sans-serif;
+    }
+
+    /* Neon Işıltıları */
+    .glow-blue { filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.7)); }
+    .glow-red { filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.7)); }
+    .glow-gold { filter: drop-shadow(0 0 20px rgba(234, 179, 8, 0.8)); }
+    .glow-green { filter: drop-shadow(0 0 15px rgba(34, 197, 94, 0.7)); }
+
+    /* Buzzer Buton Animasyonu */
+    .buzzer-btn {
+      transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .buzzer-btn:active {
+      transform: scale(0.92);
+    }
+
+    /* Nabız Efekti */
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 0.4; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .pulse-ring {
+      animation: pulse-ring 2s infinite ease-in-out;
+    }
+
+    /* Çark İbresi */
+    .pointer {
+      width: 0;
+      height: 0;
+      border-left: 18px solid transparent;
+      border-right: 18px solid transparent;
+      border-top: 36px solid #facc15;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6));
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col bg-slate-950 text-slate-100 selection:bg-none">
+
+  <!-- =================================================================== -->
+  <!-- ÜST BİLGİ VE KONTROL ÇUBUĞU                                         -->
+  <!-- =================================================================== -->
+  <header class="h-16 bg-slate-900/90 border-b border-slate-800 px-6 flex items-center justify-between shrink-0 z-30">
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">⚡</span>
+        <h1 class="text-2xl font-black font-gaming tracking-wider bg-gradient-to-r from-amber-400 via-rose-500 to-indigo-400 bg-clip-text text-transparent">
+          TAHTA DÜELLOSU
+        </h1>
+      </div>
+      <button onclick="ayarlarModalAc()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-semibold flex items-center gap-2 transition">
+        <span id="ustSinifDersBadge" class="text-amber-400">Yükleniyor...</span>
+        <span class="text-xs text-slate-400">⚙️ Değiştir</span>
+      </button>
+    </div>
+
+    <!-- Nescafe Hedef Sayacı -->
+    <div class="flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 px-4 py-1.5 rounded-full">
+      <span class="text-2xl">☕</span>
+      <div class="flex flex-col text-xs">
+        <span class="font-bold text-amber-300">ÖDÜL HEDEFİ</span>
+        <span class="text-slate-300">Üst üste 6 kişiyi yen $\rightarrow$ <strong class="text-amber-400">Nescafe Kazan!</strong></span>
+      </div>
+    </div>
+
+    <!-- Sağ Araçlar -->
+    <div class="flex items-center gap-2">
+      <button onclick="carkiGoster()" title="Düello Çarkını Aç" class="px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-300 text-sm font-bold flex items-center gap-1.5 transition">
+        <span>🎡</span> Çark
+      </button>
+      <button onclick="sesToggle()" id="sesBtn" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition">
+        🔊
+      </button>
+      <button onclick="tamEkranToggle()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition">
+        ⛶
+      </button>
+    </div>
+  </header>
+
+  <!-- =================================================================== -->
+  <!-- 1. EKRAN: BÜYÜK DÜELLO ÇARKI (KURA EKRANI)                           -->
+  <!-- =================================================================== -->
+  <section id="carkEkrani" class="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <!-- Arka plan parlama efektleri -->
+    <div class="absolute -top-32 -left-32 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-red-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="max-w-6xl w-full flex flex-col items-center gap-6 z-10">
+      
+      <!-- Başlık ve Durum -->
+      <div class="text-center">
+        <h2 id="carkBaslik" class="text-3xl md:text-4xl font-black font-gaming tracking-wide text-amber-400">
+          DÜELLO ÇARKI: YARIŞMACILARI SEÇ!
+        </h2>
+        <p id="carkAltMetin" class="text-slate-400 text-base mt-1">
+          Çarkı çevirerek Sol (Mavi) ve Sağ (Kırmızı) köşedeki yarışmacıları belirleyin.
+        </p>
+      </div>
+
+      <!-- Çark ve Eşleşme Alanı -->
+      <div class="flex flex-col lg:flex-row items-center justify-center gap-12 w-full">
+        
+        <!-- Sol Seçilen (Mavi) -->
+        <div class="w-72 flex flex-col items-center p-5 rounded-2xl bg-blue-950/40 border-2 border-blue-500/40 shadow-xl relative">
+          <div class="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-black mb-2 shadow-lg glow-blue">
+            L
+          </div>
+          <span class="text-xs font-bold text-blue-400 tracking-wider">SOL KÖŞE (MAVİ)</span>
+          <h3 id="carkSolOyuncuAd" class="text-xl font-black text-white mt-1 text-center min-h-[1.75rem]">
+            Henüz Seçilmedi
+          </h3>
+          <div id="carkSolStreakBadge" class="mt-2 text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full hidden">
+            🔥 0 Seri Galibiyet
+          </div>
+        </div>
+
+        <!-- Çark Çerçevesi -->
+        <div class="relative flex flex-col items-center">
+          <div class="pointer z-20 -mb-3"></div>
+          <div class="relative w-[340px] h-[340px] md:w-[420px] md:h-[420px] rounded-full p-2 bg-gradient-to-br from-amber-500 via-rose-500 to-indigo-600 shadow-2xl flex items-center justify-center">
+            <canvas id="carkCanvas" width="400" height="400" class="rounded-full shadow-inner bg-slate-900"></canvas>
+            <!-- Çark Merkez Rozeti -->
+            <button onclick="carkiCevir()" id="carkMerkezBtn" class="absolute w-20 h-20 rounded-full bg-slate-900 border-4 border-amber-400 text-amber-300 font-gaming font-black text-lg flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition z-10 glow-gold">
+              ÇEVİR
+            </button>
+          </div>
+        </div>
+
+        <!-- Sağ Seçilen (Kırmızı) -->
+        <div class="w-72 flex flex-col items-center p-5 rounded-2xl bg-red-950/40 border-2 border-red-500/40 shadow-xl relative">
+          <div class="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center text-xl font-black mb-2 shadow-lg glow-red">
+            R
+          </div>
+          <span class="text-xs font-bold text-red-400 tracking-wider">SAĞ KÖŞE (KIRMIZI)</span>
+          <h3 id="carkSagOyuncuAd" class="text-xl font-black text-white mt-1 text-center min-h-[1.75rem]">
+            Henüz Seçilmedi
+          </h3>
+          <div id="carkSagStreakBadge" class="mt-2 text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full hidden">
+            🔥 0 Seri Galibiyet
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Aksiyon Butonları -->
+      <div class="flex items-center gap-4 mt-2">
+        <button onclick="carkiCevir()" id="carkCevirAnaBtn" class="px-8 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-gaming font-black text-xl tracking-wider shadow-lg hover:scale-105 active:scale-95 transition flex items-center gap-3">
+          <span>🎡</span> ÇARKI ÇEVİR
+        </button>
+        <button onclick="arenayaGec()" id="duelloyuBaslatBtn" class="px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-gaming font-black text-xl tracking-wider shadow-lg hover:scale-105 active:scale-95 transition flex items-center gap-3 opacity-50 pointer-events-none">
+          <span>⚔️</span> DÜELLOYU BAŞLAT!
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =================================================================== -->
+  <!-- 2. EKRAN: DÜELLO ARENASI (DOKUNMATİK BÖLÜNMÜŞ SAHNE)                 -->
+  <!-- =================================================================== -->
+  <section id="arenaEkrani" class="flex-1 flex flex-row relative overflow-hidden hidden">
+
+    <!-- SOL OYUNCU (MAVİ KÖŞE) -->
+    <div id="solKosePanel" class="w-1/4 h-full bg-gradient-to-b from-blue-950/40 via-slate-950 to-blue-950/50 border-r-2 border-blue-600/40 p-6 flex flex-col justify-between relative transition-all duration-300">
+      
+      <!-- Sol Üst: Profil & Skor -->
+      <div class="flex flex-col items-center gap-2">
+        <div class="w-16 h-16 rounded-2xl bg-blue-600/30 border-2 border-blue-400 flex items-center justify-center text-3xl shadow-lg glow-blue">
+          👤
+        </div>
+        <div class="text-center">
+          <span class="text-xs font-bold text-blue-400 tracking-widest uppercase">SOL KÖŞE</span>
+          <h2 id="arenaSolAd" class="text-2xl font-black text-white font-gaming truncate max-w-[200px]">Ahmet</h2>
+          <div id="solStreakDisplay" class="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full inline-block mt-1">
+            🔥 0 Seri Galibiyet
+          </div>
+        </div>
+        <div class="mt-2 bg-slate-900/80 border border-blue-500/40 px-6 py-2 rounded-xl text-center">
+          <span class="text-xs text-slate-400 font-semibold block">PUAN</span>
+          <span id="arenaSolSkor" class="text-4xl font-black text-blue-400 font-gaming">0</span>
+        </div>
+      </div>
+
+      <!-- Sol Orta/Alt: ŞIKLAR (Basınca burada açılır) -->
+      <div id="solSiklarAlani" class="flex flex-col gap-3 my-auto transition-all duration-300 opacity-20 pointer-events-none">
+        <div class="text-center text-xs font-bold text-blue-400 tracking-wider mb-1">
+          CEVAP ŞIKLARI
+        </div>
+        <button onclick="cevapVer('sol', 0)" id="solSik0" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-blue-500/50 hover:bg-blue-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
+          <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 font-black">A</span>
+          <span class="sik-metin truncate text-slate-200">Seçenek A</span>
+        </button>
+        <button onclick="cevapVer('sol', 1)" id="solSik1" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-blue-500/50 hover:bg-blue-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
+          <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 font-black">B</span>
+          <span class="sik-metin truncate text-slate-200">Seçenek B</span>
+        </button>
+        <button onclick="cevapVer('sol', 2)" id="solSik2" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-blue-500/50 hover:bg-blue-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
+          <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 font-black">C</span>
+          <span class="sik-metin truncate text-slate-200">Seçenek C</span>
+        </button>
+        <button onclick="cevapVer('sol', 3)" id="solSik3" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-blue-500/50 hover:bg-blue-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
+          <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 font-black">D</span>
+          <span class="sik-metin truncate text-slate-200">Seçenek D</span>
+        </button>
+      </div>
+
+      <!-- Sol Alt: DEV MAVİ BUZZER BUTONU -->
+      <div class="flex flex-col items-center">
+        <button onclick="buzzerBas('sol')" id="solBuzzerBtn" class="buzzer-btn w-full h-24 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 text-white font-gaming font-black text-2xl tracking-wider border-4 border-blue-300 shadow-2xl flex items-center justify-center gap-3 glow-blue">
+          <span>🔔</span> BAS!
+        </button>
+        <span class="text-[11px] text-slate-400 mt-1 font-semibold">Cevap vermek için dokun (veya 'A' tuşu)</span>
+      </div>
+
+    </div>
+
+    <!-- ORTA ALAN (SORU & 30 SANİYELİK DEV SAYAÇ) -->
+    <div class="w-2/4 h-full flex flex-col justify-between p-6 relative">
+      
+      <!-- Orta Üst: Maraton Durumu (Soru x/10) -->
+      <div class="flex items-center justify-between bg-slate-900/70 border border-slate-800 px-6 py-2 rounded-xl">
+        <div class="flex items-center gap-2">
+          <span class="text-amber-400 font-black text-sm">MARATON:</span>
+          <span id="maratonSoruNo" class="font-gaming font-black text-lg text-white">SORU 1 / 10</span>
+        </div>
+        <div id="soruKaynakRozet" class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+          Onaylı MEB Havuzu
+        </div>
+      </div>
+
+      <!-- Orta Merkez: 30 Saniyelik Dev Dairesel Sayaç -->
+      <div class="flex flex-col items-center justify-center relative my-auto">
+        
+        <div class="relative w-44 h-44 flex items-center justify-center">
+          <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
+            <!-- Arka Halka -->
+            <circle cx="50" cy="50" r="42" fill="none" stroke="#1e293b" stroke-width="8"></circle>
+            <!-- Hareketli Halka -->
+            <circle id="sayacCember" cx="50" cy="50" r="42" fill="none" stroke="#38bdf8" stroke-width="8" stroke-dasharray="264" stroke-dashoffset="0" stroke-linecap="round" class="transition-all duration-100"></circle>
+          </svg>
+          <div class="absolute flex flex-col items-center">
+            <span id="sayacSayi" class="text-6xl font-black font-gaming tracking-tight text-white">30</span>
+            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest -mt-1">SANİYE</span>
+          </div>
+        </div>
+
+        <!-- Soru Kartı -->
+        <div class="w-full mt-6 bg-slate-900/90 border-2 border-slate-800 rounded-2xl p-6 shadow-2xl relative text-center">
+          <span id="soruKonuBadge" class="inline-block text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full mb-3">
+            Genel Biyoloji
+          </span>
+          <p id="soruMetni" class="text-xl md:text-2xl font-bold text-slate-100 leading-relaxed min-h-[5rem] flex items-center justify-center">
+            Soru yükleniyor...
+          </p>
+        </div>
+
+        <!-- Durum Bildirim Çubuğu -->
+        <div id="arenaDurumMesaji" class="mt-4 px-6 py-2 rounded-full bg-slate-900 border border-slate-700 text-sm font-bold text-slate-300 tracking-wide text-center">
+          Soruyu ilk bilen köşesindeki butona bassın!
+        </div>
+
+      </div>
+
+      <!-- Orta Alt: İlerleme Çubuğu -->
+      <div class="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800">
+        <div id="maratonBar" class="bg-gradient-to-r from-blue-500 via-amber-400 to-rose-500 h-full w-[10%] transition-all duration-300"></div>
+      </div>
+
+    </div>
+
+    <!-- SAĞ OYUNCU (KIRMIZI KÖŞE) -->
+    <div id="sagKosePanel" class="w-1/4 h-full bg-gradient-to-b from-red-950/40 via-slate-950 to-red-950/50 border-l-2 border-red-600/40 p-6 flex flex-col justify-between relative transition-all duration-300">
+      
+      <!-- Sağ Üst: Profil & Skor -->
+      <div class="flex flex-col items-center gap-2">
+        <div class="w-16 h-16 rounded-2xl bg-red-600/30 border-2 border-red-400 flex items-center justify-center text-3xl shadow-lg glow-red">
+          👤
+        </div>
+        <div class="text-center">
+          <span class="text-xs font-bold text-red-400 tracking-widest uppercase">SAĞ KÖŞE</span>
+          <h2 id="arenaSagAd" class="text-2xl font-black text-white font-gaming truncate max-w-[200px]">Zeynep</h2>
+          <div id="sagStreakDisplay" class="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full inline-block mt-1">
+            🔥 0 Seri Galibiyet
+          </div>
+        </div>
+        <div class="mt-2 bg-slate-900/80 border border-red-500/40 px-6 py-2 rounded-xl text-center">
+          <span class="text-xs text-slate-400 font-semibold block">PUAN</span>
+          <span id="arenaSagSkor" class="text-4xl font-black text-red-400 font-gaming">0</span>
+        </div>
+      </div>
+
+      <!-- Sağ Orta/Alt: ŞIKLAR (Basınca burada açılır) -->
+      <div id="sagSiklarAlani" class="flex flex-col gap-3 my-auto transition-all duration-300 opacity-20 pointer-events-none">
+        <div class="text-center text-xs font-bold text-red-400 tracking-wider mb-1">
+          CEVAP ŞIKLARI
+        </div>
+        <button onclick="cevapVer('sag', 0)" id="sagSik0" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-red-500/50 hover:bg-red-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
+          <span class="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0 font-black">A</span>
+          <span class="sik-metin truncate text-slate-200">Seçenek A</span>
+        </button>
+        <button onclick="cevapVer('sag', 1)" id="sagSik1" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-red-500/50 hover:bg-red-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
+          <span class="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0 font-black">B</span>
+          <span class="sik-metin truncate text-slate-200">Seçenek B</span>
+        </button>
+        <button onclick="cevapVer('sag', 2)" id="sagSik2" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-red-500/50 hover:bg-red-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
+          <span class="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0 font-black">C</span>
+          <span class="sik-metin truncate text-slate-200">Seçenek C</span>
+        </button>
+        <button onclick="cevapVer('sag', 3)" id="sagSik3" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-red-500/50 hover:bg-red-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
+          <span class="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0 font-black">D</span>
+          <span class="sik-metin truncate text-slate-200">Seçenek D</span>
+        </button>
+      </div>
+
+      <!-- Sağ Alt: DEV KIRMIZI BUZZER BUTONU -->
+      <div class="flex flex-col items-center">
+        <button onclick="buzzerBas('sag')" id="sagBuzzerBtn" class="buzzer-btn w-full h-24 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 active:from-red-700 text-white font-gaming font-black text-2xl tracking-wider border-4 border-red-300 shadow-2xl flex items-center justify-center gap-3 glow-red">
+          <span>🔔</span> BAS!
+        </button>
+        <span class="text-[11px] text-slate-400 mt-1 font-semibold">Cevap vermek için dokun (veya 'L' tuşu)</span>
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- =================================================================== -->
+  <!-- 3. MODAL: MARATON BİTİŞ & KAZANAN EKRANI                            -->
+  <!-- =================================================================== -->
+  <div id="macBitisModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center z-50 p-6 hidden">
+    <div class="max-w-xl w-full bg-slate-900 border-2 border-amber-500/50 rounded-3xl p-8 flex flex-col items-center text-center shadow-2xl relative overflow-hidden">
+      
+      <div id="macBitisIcon" class="text-7xl mb-2 animate-bounce">🏆</div>
+      <h2 id="macBitisBaslik" class="text-3xl font-black font-gaming text-amber-400 tracking-wider">
+        DÜELLO TAMAMLANDI!
+      </h2>
+      <p id="macBitisMetin" class="text-lg text-slate-300 mt-2">
+        Kazanan tahtada şampiyon olarak kalıyor!
+      </p>
+
+      <!-- Skor Kartı -->
+      <div class="flex items-center justify-center gap-8 w-full my-6 bg-slate-950/80 p-5 rounded-2xl border border-slate-800">
+        <div class="flex flex-col items-center">
+          <span id="macSonucSolAd" class="text-lg font-bold text-blue-400">Ahmet</span>
+          <span id="macSonucSolPuan" class="text-4xl font-black font-gaming text-white">40 Puan</span>
+        </div>
+        <span class="text-2xl font-black text-slate-600">VS</span>
+        <div class="flex flex-col items-center">
+          <span id="macSonucSagAd" class="text-lg font-bold text-red-400">Zeynep</span>
+          <span id="macSonucSagPuan" class="text-4xl font-black font-gaming text-white">20 Puan</span>
+        </div>
+      </div>
+
+      <!-- NESCAFE KAZANMA ÖZEL BÖLÜMÜ -->
+      <div id="nescafeOdulKarti" class="w-full bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 border-2 border-amber-400 rounded-2xl p-4 mb-6 hidden">
+        <div class="flex items-center justify-center gap-3">
+          <span class="text-4xl">☕</span>
+          <div class="text-left">
+            <h4 class="text-lg font-black text-amber-300">EFSANEVİ BAŞARI! 6 GALİBİYET SERİSİ!</h4>
+            <p class="text-xs text-amber-100 font-semibold">Tebrikler! Okul idaresinden Nescafe ödülünü almaya hak kazandınız!</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Butonlar -->
+      <div class="flex items-center gap-4 w-full">
+        <button onclick="yeniRakipCevir()" class="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-gaming font-black text-lg tracking-wider shadow-lg transition">
+          🎡 YENİ RAKİP ÇEVİR!
+        </button>
+        <button onclick="carkiGoster()" class="px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm transition">
+          Kura Ekranı
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =================================================================== -->
+  <!-- 4. MODAL: SINIF VE DERS AYARLARI                                    -->
+  <!-- =================================================================== -->
+  <div id="ayarlarModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-6 hidden">
+    <div class="max-w-md w-full bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl">
+      <h3 class="text-xl font-bold font-gaming text-white mb-4">⚙️ Sınıf & Ders Seçimi</h3>
+      
+      <div class="flex flex-col gap-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1">SINIF</label>
+          <select id="ayarSinifSelect" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white font-semibold outline-none focus:border-amber-400">
+            <!-- Dinamik dolacak -->
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1">DERS</label>
+          <select id="ayarDersSelect" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white font-semibold outline-none focus:border-amber-400">
+            <!-- Dinamik dolacak -->
+          </select>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 mt-4">
+          <button onclick="ayarlarModalKapat()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm">
+            İptal
+          </button>
+          <button onclick="ayarlariKaydetVeYenile()" class="px-5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm">
+            Kaydet & Uygula
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =================================================================== -->
+  <!-- JAVASCRIPT OYUN MOTORU                                              -->
+  <!-- =================================================================== -->
+  <script>
+    // --- 1. SES MOTORU (Web Audio API Synthesizer - 100% Offline) ---
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+    let sesAcik = true;
+
+    function sesBaslat() {
+      if (!audioCtx) audioCtx = new AudioCtx();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function sesToggle() {
+      sesAcik = !sesAcik;
+      document.getElementById('sesBtn').innerText = sesAcik ? '🔊' : '🔇';
+    }
+
+    function playTone(freq, type, duration, vol = 0.2) {
+      if (!sesAcik) return;
+      try {
+        sesBaslat();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function playWheelTick() {
+      playTone(600 + Math.random() * 200, 'triangle', 0.04, 0.15);
+    }
+
+    function playBuzzer() {
+      if (!sesAcik) return;
+      try {
+        sesBaslat();
+        // Enerjik iki tonlu buzzer
+        playTone(320, 'sawtooth', 0.25, 0.35);
+        setTimeout(() => playTone(480, 'sine', 0.2, 0.3), 60);
+      } catch (e) {}
+    }
+
+    function playTick() {
+      playTone(880, 'sine', 0.05, 0.1);
+    }
+
+    function playCorrect() {
+      if (!sesAcik) return;
+      try {
+        sesBaslat();
+        [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => {
+          setTimeout(() => playTone(f, 'triangle', 0.3, 0.25), i * 80);
+        });
+      } catch (e) {}
+    }
+
+    function playWrong() {
+      if (!sesAcik) return;
+      try {
+        sesBaslat();
+        playTone(180, 'sawtooth', 0.35, 0.3);
+      } catch (e) {}
+    }
+
+    function playFanfare() {
+      if (!sesAcik) return;
+      try {
+        sesBaslat();
+        const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+        notes.forEach((f, i) => {
+          setTimeout(() => playTone(f, 'triangle', 0.4, 0.3), i * 100);
+        });
+      } catch (e) {}
+    }
+
+    // --- 2. DURUM DEĞİŞKENLERİ ---
+    let aktifSinif = '10-A';
+    let aktifDers = 'Biyoloji';
+    let sinifDuzeyi = 10;
+    let tumOgrenciler = [];
+    let secilebilirOgrenciler = [];
+    
+    // Oyuncular
+    let solOyuncu = null; // { ad, skor, streak }
+    let sagOyuncu = null; // { ad, skor, streak }
+
+    // Çark Durumu
+    let carkHedefKose = 'sol'; // 'sol' veya 'sag'
+    let carkDonuyor = false;
+    let carkAci = 0;
+
+    // Sorular ve Maraton
+    let sorular = [];
+    let aktifSoruIndex = 0;
+    let soruSayaci = 30;
+    let sayacTimer = null;
+    let cevapHakkiKose = null; // 'sol', 'sag' veya null
+    let soruCevaplandi = false;
+
+    // Renk paleti (Çark dilimleri için)
+    const CARK_RENKLERI = [
+      '#ef4444', '#f97316', '#f59e0b', '#10b981', '#06b6d4', 
+      '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#14b8a6'
+    ];
+
+    // --- 3. BAŞLATMA VE VERİ ÇEKME ---
+    window.addEventListener('DOMContentLoaded', async () => {
+      await oturumYukle();
+      carkCiz();
+
+      // Klavye kısayolları (Test ve hızlı tahta kullanımı için)
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'a' || e.key === 'A') buzzerBas('sol');
+        if (e.key === 'l' || e.key === 'L') buzzerBas('sag');
+        if (e.key === ' ') {
+          if (!document.getElementById('carkEkrani').classList.contains('hidden')) {
+            carkiCevir();
+          }
+        }
+      });
+    });
+
+    async function oturumYukle(sinif = null, ders = null) {
+      try {
+        let url = '/api/duello/oturum';
+        const params = [];
+        if (sinif) params.push(`sinif=${encodeURIComponent(sinif)}`);
+        if (ders) params.push(`ders=${encodeURIComponent(ders)}`);
+        if (params.length) url += '?' + params.join('&');
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        aktifSinif = data.sinif || '10-A';
+        aktifDers = data.ders || 'Biyoloji';
+        sinifDuzeyi = data.sinif_duzeyi || 10;
+        
+        document.getElementById('ustSinifDersBadge').innerText = `${aktifSinif} • ${aktifDers}`;
+        
+        // Öğrenci listesi
+        tumOgrenciler = (data.ogrenciler && data.ogrenciler.length) ? data.ogrenciler.map(o => o.ad_soyad || o.ad || o) : varsayilanOgrenciler();
+        secilebilirOgrenciler = [...tumOgrenciler];
+
+        // Sorular
+        sorular = data.sorular || [];
+
+        // Modal selectlerini doldur
+        modalSelectDoldur(data.tum_siniflar, data.tum_dersler);
+
+      } catch (e) {
+        console.warn('Oturum API hatası, varsayılan veriler kullanılıyor:', e);
+        tumOgrenciler = varsayilanOgrenciler();
+        secilebilirOgrenciler = [...tumOgrenciler];
+        document.getElementById('ustSinifDersBadge').innerText = `${aktifSinif} • ${aktifDers}`;
+      }
+    }
+
+    function varsayilanOgrenciler() {
+      return [
+        "Ahmet Yılmaz", "Ayşe Kaya", "Mehmet Demir", "Zeynep Çelik",
+        "Mustafa Şahin", "Fatma Yıldız", "Emre Aydın", "Elif Öztürk",
+        "Burak Arslan", "Büşra Doğan", "Caner Koç", "Gamze Kurt",
+        "Oğuzhan Polat", "Selin Çetin", "Kaan Gür", "Hazal Balcı"
+      ];
+    }
+
+    function modalSelectDoldur(siniflar = [], dersler = []) {
+      const sSel = document.getElementById('ayarSinifSelect');
+      const dSel = document.getElementById('ayarDersSelect');
+      sSel.innerHTML = '';
+      dSel.innerHTML = '';
+
+      (siniflar.length ? siniflar : ['9-A', '9-B', '10-A', '11-A', '11-B', '12-A', '12-B']).forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s;
+        opt.innerText = s;
+        if (s === aktifSinif) opt.selected = true;
+        sSel.appendChild(opt);
+      });
+
+      (dersler.length ? dersler : ['Biyoloji', 'Matematik', 'Fizik', 'Kimya', 'Tarih', 'Coğrafya', 'Türk Dili ve Edebiyatı']).forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.innerText = d;
+        if (d === aktifDers) opt.selected = true;
+        dSel.appendChild(opt);
+      });
+    }
+
+    // --- 4. ÇARK ÇİZİMİ VE ANİMASYONU ---
+    function carkCiz() {
+      const canvas = document.getElementById('carkCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const r = w / 2;
+      const dilimSayisi = Math.max(secilebilirOgrenciler.length, 1);
+      const dilimAci = (2 * Math.PI) / dilimSayisi;
+
+      ctx.clearRect(0, 0, w, h);
+      ctx.save();
+      ctx.translate(r, r);
+      ctx.rotate(carkAci);
+
+      for (let i = 0; i < dilimSayisi; i++) {
+        const basla = i * dilimAci;
+        const bitir = basla + dilimAci;
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, r - 5, basla, bitir);
+        ctx.fillStyle = CARK_RENKLERI[i % CARK_RENKLERI.length];
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#0f172a';
+        ctx.stroke();
+
+        // İsim Yazısı
+        ctx.save();
+        ctx.rotate(basla + dilimAci / 2);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 13px Inter, sans-serif';
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 4;
+        
+        const isim = secilebilirOgrenciler[i] || 'Öğrenci';
+        const kisaIsim = isim.length > 15 ? isim.substring(0, 14) + '…' : isim;
+        ctx.fillText(kisaIsim, r - 25, 5);
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    function carkiCevir() {
+      if (carkDonuyor) return;
+      if (secilebilirOgrenciler.length === 0) {
+        secilebilirOgrenciler = [...tumOgrenciler];
+      }
+
+      sesBaslat();
+      carkDonuyor = true;
+      document.getElementById('carkMerkezBtn').classList.add('scale-95');
+
+      // Hedef köşeyi belirle
+      if (!solOyuncu) {
+        carkHedefKose = 'sol';
+        document.getElementById('carkBaslik').innerText = 'SOL KÖŞE (MAVİ) İÇİN ÇEVRİLİYOR...';
+      } else if (!sagOyuncu) {
+        carkHedefKose = 'sag';
+        document.getElementById('carkBaslik').innerText = 'SAĞ KÖŞE (KIRMIZI) İÇİN ÇEVRİLİYOR...';
+      } else {
+        // İkisi de varsa ve tekrar basıldıysa sağ taraf için çevir
+        carkHedefKose = 'sag';
+        sagOyuncu = null;
+        document.getElementById('carkSagOyuncuAd').innerText = 'Seçiliyor...';
+      }
+
+      const donusSuresi = 3500; // 3.5 sn
+      const rastgeleEkstra = Math.random() * 2 * Math.PI;
+      const hedefTur = 6 + Math.floor(Math.random() * 4);
+      const toplamDonus = hedefTur * 2 * Math.PI + rastgeleEkstra;
+      const baslangicAci = carkAci;
+      const baslangicZaman = performance.now();
+      let sonTick = 0;
+
+      function animasyon(zaman) {
+        const gecen = zaman - baslangicZaman;
+        const ilerleme = Math.min(gecen / donusSuresi, 1);
+        
+        // Easing (yavaşlayarak durma)
+        const ease = 1 - Math.pow(1 - ilerleme, 3);
+        carkAci = baslangicAci + toplamDonus * ease;
+
+        // Tık sesi
+        if (carkAci - sonTick > (Math.PI / 12)) {
+          playWheelTick();
+          sonTick = carkAci;
+        }
+
+        carkCiz();
+
+        if (ilerleme < 1) {
+          requestAnimationFrame(animasyon);
+        } else {
+          carkDonuyor = false;
+          document.getElementById('carkMerkezBtn').classList.remove('scale-95');
+          carkDurdu();
+        }
+      }
+
+      requestAnimationFrame(animasyon);
+    }
+
+    function carkDurdu() {
+      playFanfare();
+      confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+
+      // İbrenin gösterdiği dilimi hesapla (üst merkez = 3*PI/2)
+      const dilimSayisi = secilebilirOgrenciler.length;
+      const dilimAci = (2 * Math.PI) / dilimSayisi;
+      
+      // Normalize açı (0 - 2PI)
+      let normAci = (carkAci % (2 * Math.PI));
+      if (normAci < 0) normAci += 2 * Math.PI;
+
+      // İbre tam tepede (270 derece / 1.5 * PI)
+      let isaretAci = (1.5 * Math.PI - normAci) % (2 * Math.PI);
+      if (isaretAci < 0) isaretAci += 2 * Math.PI;
+
+      const secilenIdx = Math.floor(isaretAci / dilimAci) % dilimSayisi;
+      const secilenOgrenci = secilebilirOgrenciler[secilenIdx];
+
+      if (carkHedefKose === 'sol') {
+        solOyuncu = { ad: secilenOgrenci, skor: 0, streak: 0 };
+        document.getElementById('carkSolOyuncuAd').innerText = secilenOgrenci;
+        document.getElementById('carkSolStreakBadge').classList.remove('hidden');
+        document.getElementById('carkSolStreakBadge').innerText = `🔥 ${solOyuncu.streak} Seri Galibiyet`;
+        
+        // Havuzdan çıkar (aynı kişi iki köşeye seçilmesin)
+        secilebilirOgrenciler.splice(secilenIdx, 1);
+        
+        document.getElementById('carkBaslik').innerText = `${secilenOgrenci} SOL KÖŞEYE GEÇTİ!`;
+        document.getElementById('carkAltMetin').innerText = 'Şimdi Sağ Köşe (Kırmızı) için çarkı çevirin.';
+
+      } else {
+        sagOyuncu = { ad: secilenOgrenci, skor: 0, streak: 0 };
+        document.getElementById('carkSagOyuncuAd').innerText = secilenOgrenci;
+        document.getElementById('carkSagStreakBadge').classList.remove('hidden');
+        document.getElementById('carkSagStreakBadge').innerText = `🔥 ${sagOyuncu.streak} Seri Galibiyet`;
+
+        secilebilirOgrenciler.splice(secilenIdx, 1);
+
+        document.getElementById('carkBaslik').innerText = `${secilenOgrenci} SAĞ KÖŞEYE GEÇTİ!`;
+        document.getElementById('carkAltMetin').innerText = 'Yarışmacılar hazır! Düelloyu başlatabilirsiniz.';
+      }
+
+      // İki yarışmacı da seçildiyse butonu aktif et
+      if (solOyuncu && sagOyuncu) {
+        const btn = document.getElementById('duelloyuBaslatBtn');
+        btn.classList.remove('opacity-50', 'pointer-events-none');
+        btn.classList.add('glow-gold', 'animate-pulse');
+      }
+
+      carkCiz();
+    }
+
+    // --- 5. ARENA VE SORU AKIŞI ---
+    function carkiGoster() {
+      clearInterval(sayacTimer);
+      document.getElementById('macBitisModal').classList.add('hidden');
+      document.getElementById('arenaEkrani').classList.add('hidden');
+      document.getElementById('carkEkrani').classList.remove('hidden');
+      carkCiz();
+    }
+
+    async function arenayaGec() {
+      if (!solOyuncu || !sagOyuncu) return;
+
+      // Arena isimlerini ve skorlarını güncelle
+      document.getElementById('arenaSolAd').innerText = solOyuncu.ad;
+      document.getElementById('arenaSolSkor').innerText = solOyuncu.skor;
+      document.getElementById('solStreakDisplay').innerText = `🔥 ${solOyuncu.streak} Seri Galibiyet`;
+
+      document.getElementById('arenaSagAd').innerText = sagOyuncu.ad;
+      document.getElementById('arenaSagSkor').innerText = sagOyuncu.skor;
+      document.getElementById('sagStreakDisplay').innerText = `🔥 ${sagOyuncu.streak} Seri Galibiyet`;
+
+      // Ekranları değiştir
+      document.getElementById('carkEkrani').classList.add('hidden');
+      document.getElementById('arenaEkrani').classList.remove('hidden');
+
+      // Soruları tazele (yeni maç için)
+      await sorulariGetir();
+      aktifSoruIndex = 0;
+      soruyuYukle();
+    }
+
+    async function sorulariGetir() {
+      try {
+        const res = await fetch(`/api/duello/sorular?ders=${encodeURIComponent(aktifDers)}&sinif=${sinifDuzeyi}&adet=10`);
+        const data = await res.json();
+        if (data.sorular && data.sorular.length >= 5) {
+          sorular = data.sorular;
+          document.getElementById('soruKaynakRozet').innerText = data.kaynak === 'soru_havuzu' ? 'Onaylı Soru Havuzu' : 'Hazır Soru Havuzu';
+        }
+      } catch (e) {
+        console.warn('Soru getirme hatası:', e);
+      }
+    }
+
+    function soruyuYukle() {
+      if (aktifSoruIndex >= 10 || aktifSoruIndex >= sorular.length) {
+        macBitti();
+        return;
+      }
+
+      const s = sorular[aktifSoruIndex];
+      soruCevaplandi = false;
+      cevapHakkiKose = null;
+
+      // Maraton ve konu bilgisi
+      document.getElementById('maratonSoruNo').innerText = `SORU ${aktifSoruIndex + 1} / 10`;
+      document.getElementById('maratonBar').style.width = `${((aktifSoruIndex + 1) / 10) * 100}%`;
+      document.getElementById('soruKonuBadge').innerText = s.konu || aktifDers;
+      document.getElementById('soruMetni').innerText = s.q || s.soru || 'Soru metni yüklenemedi.';
+
+      // Şıkları doldur (sol ve sağ panellere aynı şıklar yüklenir)
+      const secenekler = s.secenekler || ['A', 'B', 'C', 'D'];
+      ['sol', 'sag'].forEach(kose => {
+        secenekler.forEach((metin, i) => {
+          const btn = document.getElementById(`${kose}Sik${i}`);
+          if (btn) {
+            btn.querySelector('.sik-metin').innerText = metin;
+            btn.className = `h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-${kose === 'sol' ? 'blue' : 'red'}-500/50 hover:bg-${kose === 'sol' ? 'blue' : 'red'}-600/30 text-left font-bold text-lg flex items-center gap-3 transition`;
+          }
+        });
+      });
+
+      // Şıkları ve buzzerları sıfırla
+      koseSiklariniKilitle('sol', true);
+      koseSiklariniKilitle('sag', true);
+      document.getElementById('solBuzzerBtn').classList.remove('opacity-40', 'pointer-events-none');
+      document.getElementById('sagBuzzerBtn').classList.remove('opacity-40', 'pointer-events-none');
+      
+      document.getElementById('arenaDurumMesaji').innerText = 'Soruyu ilk bilen köşesindeki butona bassın!';
+      document.getElementById('arenaDurumMesaji').className = 'mt-4 px-6 py-2 rounded-full bg-slate-900 border border-slate-700 text-sm font-bold text-slate-300 tracking-wide text-center';
+
+      // 30 saniye sayacı başlat
+      sayaciBaslat(30);
+    }
+
+    function sayaciBaslat(sure) {
+      clearInterval(sayacTimer);
+      soruSayaci = sure;
+      guncelleSayacGorunumu();
+
+      sayacTimer = setInterval(() => {
+        soruSayaci--;
+        guncelleSayacGorunumu();
+
+        if (soruSayaci <= 5 && soruSayaci > 0) {
+          playTick();
+        }
+
+        if (soruSayaci <= 0) {
+          clearInterval(sayacTimer);
+          sureBitti();
+        }
+      }, 1000);
+    }
+
+    function guncelleSayacGorunumu() {
+      document.getElementById('sayacSayi').innerText = soruSayaci;
+      const cember = document.getElementById('sayacCember');
+      const oran = soruSayaci / 30;
+      const offset = 264 * (1 - oran);
+      cember.style.strokeDashoffset = offset;
+
+      if (soruSayaci <= 5) {
+        cember.style.stroke = '#ef4444'; // Kırmızı
+        document.getElementById('sayacSayi').style.color = '#ef4444';
+      } else if (soruSayaci <= 15) {
+        cember.style.stroke = '#f59e0b'; // Sarı
+        document.getElementById('sayacSayi').style.color = '#f59e0b';
+      } else {
+        cember.style.stroke = '#38bdf8'; // Cyan
+        document.getElementById('sayacSayi').style.color = '#ffffff';
+      }
+    }
+
+    // --- 6. BUZZER VE CEVAPLAMA MEKANİĞİ ---
+    function buzzerBas(kose) {
+      if (soruCevaplandi || cevapHakkiKose !== null) return;
+
+      playBuzzer();
+      clearInterval(sayacTimer);
+      cevapHakkiKose = kose;
+
+      const basanAd = kose === 'sol' ? solOyuncu.ad : sagOyuncu.ad;
+      const renkAd = kose === 'sol' ? 'MAVİ' : 'KIRMIZI';
+
+      // Buzzerları kilitle
+      document.getElementById('solBuzzerBtn').classList.add('opacity-40', 'pointer-events-none');
+      document.getElementById('sagBuzzerBtn').classList.add('opacity-40', 'pointer-events-none');
+
+      // Basan köşenin şıklarını aç
+      koseSiklariniKilitle(kose, false);
+
+      // Durum mesajı
+      document.getElementById('arenaDurumMesaji').innerText = `🔔 ${renkAd} BUTONA BASILDI! ${basanAd} cevap veriyor (10s)...`;
+      document.getElementById('arenaDurumMesaji').className = `mt-4 px-6 py-2 rounded-full bg-${kose === 'sol' ? 'blue' : 'red'}-600/30 border border-${kose === 'sol' ? 'blue' : 'red'}-400 text-sm font-bold text-white tracking-wide text-center glow-${kose === 'sol' ? 'blue' : 'red'}`;
+
+      // 10 saniyelik cevaplama süresi
+      sayaciBaslat(10);
+    }
+
+    function koseSiklariniKilitle(kose, kilitli) {
+      const panel = document.getElementById(`${kose}SiklarAlani`);
+      if (kilitli) {
+        panel.classList.add('opacity-20', 'pointer-events-none');
+      } else {
+        panel.classList.remove('opacity-20', 'pointer-events-none');
+      }
+    }
+
+    function cevapVer(kose, sikIndex) {
+      if (soruCevaplandi || cevapHakkiKose !== kose) return;
+      clearInterval(sayacTimer);
+
+      const s = sorular[aktifSoruIndex];
+      const secilenMetin = (s.secenekler || [])[sikIndex];
+      const dogruCevapMetin = s.a || s.dogru_cevap || (s.secenekler && s.secenekler[s.dogru_index]);
+      const dogruMu = (secilenMetin && dogruCevapMetin && secilenMetin.trim() === dogruCevapMetin.trim()) || (s.dogru_index === sikIndex);
+
+      const tiklananBtn = document.getElementById(`${kose}Sik${sikIndex}`);
+
+      if (dogruMu) {
+        // DOĞRU CEVAP
+        soruCevaplandi = true;
+        playCorrect();
+        tiklananBtn.classList.add('bg-emerald-600', 'border-emerald-300', 'glow-green');
+        
+        // Puan ekle (+10)
+        if (kose === 'sol') {
+          solOyuncu.skor += 10;
+          document.getElementById('arenaSolSkor').innerText = solOyuncu.skor;
+        } else {
+          sagOyuncu.skor += 10;
+          document.getElementById('arenaSagSkor').innerText = sagOyuncu.skor;
+        }
+
+        document.getElementById('arenaDurumMesaji').innerText = `✅ DOĞRU CEVAP! +10 PUAN (${kose === 'sol' ? solOyuncu.ad : sagOyuncu.ad})`;
+        document.getElementById('arenaDurumMesaji').className = 'mt-4 px-6 py-2 rounded-full bg-emerald-600/40 border border-emerald-400 text-sm font-bold text-emerald-200 tracking-wide text-center';
+
+        setTimeout(() => {
+          aktifSoruIndex++;
+          soruyuYukle();
+        }, 2200);
+
+      } else {
+        // YANLIŞ CEVAP
+        playWrong();
+        tiklananBtn.classList.add('bg-rose-700', 'border-rose-400');
+
+        // Hak rakibe geçsin mi?
+        const digerKose = kose === 'sol' ? 'sag' : 'sol';
+        const digerAd = digerKose === 'sol' ? solOyuncu.ad : sagOyuncu.ad;
+
+        koseSiklariniKilitle(kose, true);
+
+        // Karşı köşeye 8 saniyelik hak ver
+        cevapHakkiKose = digerKose;
+        koseSiklariniKilitle(digerKose, false);
+
+        document.getElementById('arenaDurumMesaji').innerText = `❌ YANLIŞ! Hak ${digerAd} öğrencisine geçti (8s)!`;
+        document.getElementById('arenaDurumMesaji').className = `mt-4 px-6 py-2 rounded-full bg-amber-600/30 border border-amber-400 text-sm font-bold text-amber-200 tracking-wide text-center`;
+
+        sayaciBaslat(8);
+      }
+    }
+
+    function sureBitti() {
+      playWrong();
+      soruCevaplandi = true;
+      koseSiklariniKilitle('sol', true);
+      koseSiklariniKilitle('sag', true);
+
+      const s = sorular[aktifSoruIndex];
+      const dogruCevap = s.a || s.dogru_cevap || (s.secenekler && s.secenekler[s.dogru_index]) || 'Belirtilmedi';
+
+      document.getElementById('arenaDurumMesaji').innerText = `⏰ SÜRE DOLDU! Doğru Cevap: ${dogruCevap}`;
+      document.getElementById('arenaDurumMesaji').className = 'mt-4 px-6 py-2 rounded-full bg-slate-800 border border-slate-600 text-sm font-bold text-amber-300 tracking-wide text-center';
+
+      setTimeout(() => {
+        aktifSoruIndex++;
+        soruyuYukle();
+      }, 3000);
+    }
+
+    // --- 7. MAÇ BİTİŞİ VE NESCAFE MARATONU ---
+    function macBitti() {
+      clearInterval(sayacTimer);
+      playFanfare();
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
+
+      let kazananKose = null;
+      if (solOyuncu.skor > sagOyuncu.skor) kazananKose = 'sol';
+      else if (sagOyuncu.skor > solOyuncu.skor) kazananKose = 'sag';
+
+      document.getElementById('macSonucSolAd').innerText = solOyuncu.ad;
+      document.getElementById('macSonucSolPuan').innerText = `${solOyuncu.skor} Puan`;
+      document.getElementById('macSonucSagAd').innerText = sagOyuncu.ad;
+      document.getElementById('macSonucSagPuan').innerText = `${sagOyuncu.skor} Puan`;
+
+      const odulKarti = document.getElementById('nescafeOdulKarti');
+      odulKarti.classList.add('hidden');
+
+      if (kazananKose === 'sol') {
+        solOyuncu.streak++;
+        document.getElementById('macBitisBaslik').innerText = `🏆 KAZANAN: ${solOyuncu.ad}!`;
+        document.getElementById('macBitisMetin').innerText = `${solOyuncu.ad} tahtada kaldı! (Seri: ${solOyuncu.streak})`;
+        
+        // NESCAFE KONTROLÜ (6 Seri)
+        if (solOyuncu.streak >= 6) {
+          odulKarti.classList.remove('hidden');
+          playFanfare();
+        }
+
+      } else if (kazananKose === 'sag') {
+        sagOyuncu.streak++;
+        document.getElementById('macBitisBaslik').innerText = `🏆 KAZANAN: ${sagOyuncu.ad}!`;
+        document.getElementById('macBitisMetin').innerText = `${sagOyuncu.ad} tahtada kaldı! (Seri: ${sagOyuncu.streak})`;
+
+        // NESCAFE KONTROLÜ (6 Seri)
+        if (sagOyuncu.streak >= 6) {
+          odulKarti.classList.remove('hidden');
+          playFanfare();
+        }
+
+      } else {
+        document.getElementById('macBitisBaslik').innerText = '🤝 BERABERLİK!';
+        document.getElementById('macBitisMetin').innerText = 'Dostluk kazandı! Her iki oyuncu da harika yarıştı.';
+      }
+
+      document.getElementById('macBitisModal').classList.remove('hidden');
+    }
+
+    function yeniRakipCevir() {
+      document.getElementById('macBitisModal').classList.add('hidden');
+      
+      // Kazanan tahtada kalır, kaybeden sıfırlanır
+      if (solOyuncu && sagOyuncu) {
+        if (solOyuncu.skor >= sagOyuncu.skor) {
+          // Sol kazandı, sağ yerine yeni rakip gelecek
+          sagOyuncu = null;
+          solOyuncu.skor = 0;
+          document.getElementById('carkSagOyuncuAd').innerText = 'Seçiliyor...';
+          document.getElementById('carkSagStreakBadge').classList.add('hidden');
+        } else {
+          // Sağ kazandı, sol yerine yeni rakip gelecek (sağdaki sola veya yerinde kalır)
+          solOyuncu = sagOyuncu;
+          sagOyuncu = null;
+          solOyuncu.skor = 0;
+          document.getElementById('carkSolOyuncuAd').innerText = solOyuncu.ad;
+          document.getElementById('carkSolStreakBadge').innerText = `🔥 ${solOyuncu.streak} Seri Galibiyet`;
+          document.getElementById('carkSagOyuncuAd').innerText = 'Seçiliyor...';
+          document.getElementById('carkSagStreakBadge').classList.add('hidden');
+        }
+      }
+
+      carkiGoster();
+      carkiCevir();
+    }
+
+    // --- 8. AYARLAR VE TAM EKRAN ---
+    function ayarlarModalAc() {
+      document.getElementById('ayarlarModal').classList.remove('hidden');
+    }
+
+    function ayarlarModalKapat() {
+      document.getElementById('ayarlarModal').classList.add('hidden');
+    }
+
+    async function ayarlariKaydetVeYenile() {
+      const yeniSinif = document.getElementById('ayarSinifSelect').value;
+      const yeniDers = document.getElementById('ayarDersSelect').value;
+      ayarlarModalKapat();
+      await oturumYukle(yeniSinif, yeniDers);
+      solOyuncu = null;
+      sagOyuncu = null;
+      document.getElementById('carkSolOyuncuAd').innerText = 'Henüz Seçilmedi';
+      document.getElementById('carkSagOyuncuAd').innerText = 'Henüz Seçilmedi';
+      document.getElementById('duelloyuBaslatBtn').classList.add('opacity-50', 'pointer-events-none');
+      carkiGoster();
+    }
+
+    function tamEkranToggle() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+      }
+    }
+  </script>
+</body>
+</html>
