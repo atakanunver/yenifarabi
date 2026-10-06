@@ -165,6 +165,35 @@ def programi_coz(tablo: list[list[str | None]]) -> tuple[dict, set[str]]:
     return siniflar, kullanilan
 
 
+# "Hedef" (sınav hazırlık çalışması) saatlerinin branşı — sınıf programında
+# yalnızca "Hedef" yazar; branş ÖĞRETMEN programından (ders programı/anadolu
+# öğrt.pdf: o saatte o sınıfa giren öğretmen) çıkarıldı ve kullanıcıyla teyit
+# edildi (2026-10-06: 12-A fizik/kimya/biyoloji, 12-B matematik/coğrafya/tarih).
+# Yoklama ekranı başlığı ve kazanım eşlemesi bu adları kullanır
+# (kazanim_yukle.py "hedef <branş>"). Program değişirse güncellenmeli.
+HEDEF_BRANSLARI = {
+    ("12-A", "pazartesi", "5"): "hedef fizik",
+    ("12-A", "carsamba", "7"): "hedef kimya",
+    ("12-A", "persembe", "5"): "hedef biyoloji",
+    ("12-B", "sali", "5"): "hedef tarih",
+    ("12-B", "carsamba", "6"): "hedef coğrafya",
+    ("12-B", "persembe", "3"): "hedef matematik",
+}
+
+
+def hedef_branslarini_uygula(siniflar: dict[str, dict[str, dict[str, str]]]) -> list[str]:
+    """HEDEF_BRANSLARI'ndaki saatlerde "sınav hazırlık çalışması"nı branşlı ada
+    çevirir; beklenen saatte "sınav hazırlık" yoksa (program değişmiş) uyarı döner."""
+    uyarilar = []
+    for (sinif, gun, saat), ad in HEDEF_BRANSLARI.items():
+        mevcut = siniflar.get(sinif, {}).get(gun, {}).get(saat)
+        if mevcut == "sınav hazırlık çalışması":
+            siniflar[sinif][gun][saat] = ad
+        elif mevcut != ad:
+            uyarilar.append(f"{sinif} {gun} {saat}. saat: beklenen 'sınav hazırlık', bulunan {mevcut!r}")
+    return uyarilar
+
+
 def markdown_uret(siniflar: dict[str, dict[str, dict[str, str]]]) -> str:
     satirlar = ["# Ders Programı", "", "Kaynak: `mudur/siniflar.pdf`", ""]
     for sinif, gunluk in siniflar.items():
@@ -192,6 +221,8 @@ def main() -> None:
 
     print("[2/3] Tablo çözülüyor...")
     siniflar, kullanilan = programi_coz(tablo)
+    for uyari in hedef_branslarini_uygula(siniflar):
+        print(f"⚠ Hedef branşı uygulanamadı: {uyari} — HEDEF_BRANSLARI'nı güncelleyin.")
 
     cikti = {
         "_kaynak": f"{args.pdf.name} (aSc k12)",

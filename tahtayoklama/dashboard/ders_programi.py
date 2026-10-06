@@ -51,6 +51,13 @@ KISALTMALAR = {
     "psikoloji": "PSİ",
     "bilişim teknolojileri ve yazılım": "BTY",
     "sınav hazırlık çalışması": "SHÇ",
+    # 12-A/12-B "Hedef" saatleri branşlı (2026-10-06, ders_programi_yukle.HEDEF_BRANSLARI)
+    "hedef fizik": "HDF FİZ",
+    "hedef kimya": "HDF KİM",
+    "hedef biyoloji": "HDF BİY",
+    "hedef matematik": "HDF MAT",
+    "hedef coğrafya": "HDF COĞ",
+    "hedef tarih": "HDF TAR",
     "inkılap tarihi ve atatürkçülük": "İTA",
     "çağdaş türk ve dünya tarihi": "ÇTDT",
 }

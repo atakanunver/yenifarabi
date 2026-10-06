@@ -1,3 +1,9 @@
+## 2026-10-06 - "Hedef" (sınav hazırlık) saatleri branşlı; hedef temelli planlar tarihle eşlenir, takvim oylamasına girmez
+- 12-A/12-B'nin 3'er "Hedef" saatinin branşı öğretmen programından (o saatte giren öğretmen) çıkarıldı, kullanıcı teyitli: 12-A Pzt5 fizik / Çrş7 kimya / Prş5 biyoloji; 12-B Salı5 tarih / Çrş6 coğrafya / Prş3 matematik. `ders_programi_yukle.HEDEF_BRANSLARI` → tahtayoklama `ders_programi.json`'da "hedef <branş>" (yoklama başlığı "HEDEF FİZİK", pano "HDF FİZ"). `mudur/` kopyası (Farabi client) DEĞİŞMEDİ.
+- Hedef temelli planlar tatil haftalarını da numaralar (41 hafta); satırlar tarihle yerleşir. `TAKVIM_OYU_DISI`: bu planlar oylamaya girmez — ingilizce 11/12 ile 5 plan olunca 38-41. haftalar MIN_OY'u geçip takvime giriyordu.
+- Yeni genel kurallar (başka planı değiştirmedi): "Etkinlik Haftası", "N. Dönem N. Sınav" yer tutucu; sondaki " •" / "," atılır.
+- Hedef tarih planı 12-16 Nisan'ı ara tatil yazmış (okul takvimiyle çelişiyor) → 27. hafta boş. Hedef biyoloji/matematik/coğrafya planı yok.
+
 ## 2026-10-06 - 14:00 öğle devamsızlık SMS'i hiç gitmiyordu: ayar kapalıydı, sayfa "AÇIK" diyordu
 - Kök neden: `otomasyon_ogle_aktif` 2026-10-04'te özellik eklendiğinden beri hiç "1" olmamıştı (günlükte 14:00 tetiklenme satırı yok; panelden açma isteği yok). Otomasyon sayfasının ana şalteri `aktif = sabah VEYA öğle` ile hesaplandığından, sabah açık olduğu için "AKTİF — 09:00 ve 14:00" görünüyordu.
 - Çözüm: ayar açıldı (`otomasyon_ogle_aktif=1`); sayfa artık ikisi de açıksa AKTİF, yalnızca biri açıksa "KISMEN AÇIK" + hangisinin kapalı olduğunu gösterir (test `test_otomasyon_sayfa_yalniz_sabah_acikken_kismen_gosterir`). Öğle derlemesi 2026-10-05 verisiyle kuru doğrulandı (1 öğrenci / 2 veli SMS'i kaçmıştı).

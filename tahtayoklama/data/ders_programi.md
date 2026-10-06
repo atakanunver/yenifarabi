@@ -75,9 +75,9 @@ Kaynak: `mudur/siniflar.pdf`
 | 2 | fizik | ingilizce | türk dili ve edebiyatı | ingilizce | fizik |
 | 3 | kimya | beden eğitimi | kimya | türk dili ve edebiyatı | matematik |
 | 4 | kimya | beden eğitimi | kimya | türk dili ve edebiyatı | matematik |
-| 5 | sınav hazırlık çalışması | matematik | biyoloji | sınav hazırlık çalışması | inkılap tarihi ve atatürkçülük |
+| 5 | hedef fizik | matematik | biyoloji | hedef biyoloji | inkılap tarihi ve atatürkçülük |
 | 6 | biyoloji | matematik | biyoloji | spor etkinlikleri | inkılap tarihi ve atatürkçülük |
-| 7 | biyoloji | din kültürü ve ahlak bilgisi | sınav hazırlık çalışması | matematik | almanca |
+| 7 | biyoloji | din kültürü ve ahlak bilgisi | hedef kimya | matematik | almanca |
 | 8 | türk dili ve edebiyatı | din kültürü ve ahlak bilgisi | rehberlik | matematik | almanca |
 
 ## 12-B
@@ -86,9 +86,9 @@ Kaynak: `mudur/siniflar.pdf`
 |---|---|---|---|---|---|
 | 1 | bilişim teknolojileri ve yazılım | beden eğitimi | çağdaş türk ve dünya tarihi | türk dili ve edebiyatı | türk dili ve edebiyatı |
 | 2 | bilişim teknolojileri ve yazılım | beden eğitimi | çağdaş türk ve dünya tarihi | türk dili ve edebiyatı | türk dili ve edebiyatı |
-| 3 | coğrafya | ingilizce | matematik | sınav hazırlık çalışması | almanca |
+| 3 | coğrafya | ingilizce | matematik | hedef matematik | almanca |
 | 4 | coğrafya | ingilizce | matematik | coğrafya | almanca |
-| 5 | türk dili ve edebiyatı | sınav hazırlık çalışması | türk dili ve edebiyatı | coğrafya | türk dili ve edebiyatı |
-| 6 | türk dili ve edebiyatı | türk dili ve edebiyatı | sınav hazırlık çalışması | din kültürü ve ahlak bilgisi | türk dili ve edebiyatı |
+| 5 | türk dili ve edebiyatı | hedef tarih | türk dili ve edebiyatı | coğrafya | türk dili ve edebiyatı |
+| 6 | türk dili ve edebiyatı | türk dili ve edebiyatı | hedef coğrafya | din kültürü ve ahlak bilgisi | türk dili ve edebiyatı |
 | 7 | ingilizce | matematik | din kültürü ve ahlak bilgisi | inkılap tarihi ve atatürkçülük | matematik |
 | 8 | ingilizce | matematik | rehberlik | inkılap tarihi ve atatürkçülük | matematik |

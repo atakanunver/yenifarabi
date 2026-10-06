@@ -84,7 +84,9 @@ GEREKLI = {
          "biyoloji", "coğrafya", "din kültürü ve ahlak bilgisi", "fizik",
          "ingilizce", "inkılap tarihi ve atatürkçülük", "kimya",
          "matematik", "türk dili ve edebiyatı",
-         "çağdaş türk ve dünya tarihi"],
+         "çağdaş türk ve dünya tarihi",
+         "hedef fizik", "hedef kimya", "hedef biyoloji",
+         "hedef matematik", "hedef coğrafya", "hedef tarih"],
 }
 
 DKAB = "din kültürü ve ahlak bilgisi"
@@ -125,6 +127,11 @@ ESLEME = [
     ("felsefe yok/11.sinif-felsefe-dersi-yillik-plani.docx", 11, "felsefe", None, "2026-10-06 eklendi"),
     ("psikoloji--unitelendirilmis-yillik-plan.docx", 11, "psikoloji", None,
      "sınıf düzeyi planda boş; ders programında psikoloji yalnızca 11-B'de (2026-10-06)"),
+    # 12. sınıf "Hedef" saatleri (branş: ders_programi_yukle.HEDEF_BRANSLARI). Bu planlar
+    # tatil haftalarını da numaralar (41 hafta) — satırlar TARİHE göre yerleşir.
+    ("fizik/hedef-temelli-egitim-fizik-1.docx", 12, "hedef fizik", None, "2026-10-06"),
+    ("kimya/hedef-temelli-egitim-kimya-ii-12-plan 2.docx", 12, "hedef kimya", None, "2026-10-06"),
+    ("tarih/hedef-temelli-bir saatlik.docx", 12, "hedef tarih", None, "2026-10-06 (Tarih 2)"),
     ("fizik/9.sınıf fizik yıllık plan.docx", 9, "fizik", None, ""),
     ("fizik/10.sınıf fizik yıllık plan.docx", 10, "fizik", None, ""),
     ("fizik/11.sınıf fizik yıllık plan.docx", 11, "fizik", None, ""),
@@ -172,6 +179,15 @@ KOD_ZORUNLU_HARIC = {(12, "türk dili ve edebiyatı")}
 # Çizgisiz tablolu PDF'ler: sütunlar başlık kelimelerinin x konumundan çıkarılır.
 KELIME_PDF = {"bilisim/2026-2027 Programlamaya Giriş ve Algoritmalar Yıllık Planları (12-11 sınıf atakan ünver).pdf"}
 
+# Tatil haftalarını da numaralayan planlar (41 hafta) takvim oylamasına GİRMEZ:
+# 5 tanesi (hedef fizik/kimya/tarih + ingilizce 11/12) 38-41. haftaları MIN_OY'u
+# geçirip takvime sokuyordu (2026-10-06). Satırları yine tarihleriyle yerleşir.
+TAKVIM_OYU_DISI = {
+    "fizik/hedef-temelli-egitim-fizik-1.docx",
+    "kimya/hedef-temelli-egitim-kimya-ii-12-plan 2.docx",
+    "tarih/hedef-temelli-bir saatlik.docx",
+}
+
 # Bir haftada tutulacak en fazla ayrı kazanım (tahtada 2 satır gösterilir).
 MAKS_KAZANIM_SAYISI = 3
 
@@ -195,9 +211,6 @@ ATLANAN = {
     "görsel sanatlar/11 görsel sanatlar feride.docx": "11. sınıf görsel sanatlar yinelenen plan (cigdem-ince kullanıldı)",
     "edebiyat/11.SINIFLAR TDE YILLIK PLANI SEÇMELİ.docx": "SEÇMELİ varyant",
     "edebiyat/12.SINIFLAR TDE YILLIK PLANI SEÇMELİ.docx": "SEÇMELİ varyant",
-    "fizik/hedef-temelli-egitim-fizik-1.docx": "hedef-temelli seçmeli varyant",
-    "kimya/hedef-temelli-egitim-kimya-ii-12-plan 2.docx": "hedef-temelli seçmeli varyant",
-    "tarih/hedef-temelli-bir saatlik.docx": "hedef-temelli seçmeli varyant",
     "tarih/SEÇMELİ TARİH.docx": "SEÇMELİ varyant",
     "din kültürü/2026-2027temeldinibilgiler_ortaoogretim1_TYMM (2).xlsx": "temel dini bilgiler seçmeli (çizelgede yok)",
 }
@@ -392,11 +405,13 @@ def ilk_kazanim(ham: str, cumle_kes: bool = False) -> str:
     surec = _SUREC_MADDESI.search(metin, 1)
     if surec:
         metin = metin[:surec.start()].rstrip()
+    # Sondaki madde imi/virgül artığı ("…açıklar. •", "…açıklar.,") — hedef planları
+    metin = metin.rstrip(" •·,;")
     return kisalt(metin)
 
 
 _YER_TUTUCU_RE = re.compile(
-    r"^(\*|sdb\d|\d{1,2}\.\s*hafta|destekleme|zenginleştirme|köprü kurma|sınav haftası|sosyal etkinlik|social activit|mid-term|ara tatil|yarıyıl|tatil)", re.IGNORECASE)
+    r"^(\*|sdb\d|\d{1,2}\.\s*hafta|destekleme|zenginleştirme|köprü kurma|sınav haftası|sosyal etkinlik|social activit|mid-term|ara tatil|yarıyıl|tatil|etkinlik haftası|\d\.\s*dönem\s*\d\.\s*sınav\s*$)", re.IGNORECASE)
 _KAZANIM_GIBI_RE = re.compile(
     r"^(?:[A-ZÇĞİÖŞÜ]{1,5}\.?)?E?\d{1,2}(?:\.\d{1,2}){1,4}|^[A-Z]{2,4}\.?\d|^\d{1,2}\.\s|^Students\b|^(?:HÖREN|SPRECHEN)\b")
 
@@ -775,6 +790,8 @@ def calisma(plan_dizini: Path, cikti: Path) -> int:
     kaynaklar = defaultdict(lambda: defaultdict(set))
     tarih_sorunlari = []
     for (duzey, ders, yol_s), satirlar in okunan.items():
+        if yol_s in TAKVIM_OYU_DISI:
+            continue
         gorulen = set()
         for hafta, pzt, _ham, sorun, _e in satirlar:
             if sorun:

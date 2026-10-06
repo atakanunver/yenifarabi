@@ -268,7 +268,7 @@
         "2": "fizik",
         "3": "kimya",
         "4": "kimya",
-        "5": "sınav hazırlık çalışması",
+        "5": "hedef fizik",
         "6": "biyoloji",
         "7": "biyoloji",
         "8": "türk dili ve edebiyatı"
@@ -290,7 +290,7 @@
         "4": "kimya",
         "5": "biyoloji",
         "6": "biyoloji",
-        "7": "sınav hazırlık çalışması",
+        "7": "hedef kimya",
         "8": "rehberlik"
       },
       "persembe": {
@@ -298,7 +298,7 @@
         "2": "ingilizce",
         "3": "türk dili ve edebiyatı",
         "4": "türk dili ve edebiyatı",
-        "5": "sınav hazırlık çalışması",
+        "5": "hedef biyoloji",
         "6": "spor etkinlikleri",
         "7": "matematik",
         "8": "matematik"
@@ -330,7 +330,7 @@
         "2": "beden eğitimi",
         "3": "ingilizce",
         "4": "ingilizce",
-        "5": "sınav hazırlık çalışması",
+        "5": "hedef tarih",
         "6": "türk dili ve edebiyatı",
         "7": "matematik",
         "8": "matematik"
@@ -341,14 +341,14 @@
         "3": "matematik",
         "4": "matematik",
         "5": "türk dili ve edebiyatı",
-        "6": "sınav hazırlık çalışması",
+        "6": "hedef coğrafya",
         "7": "din kültürü ve ahlak bilgisi",
         "8": "rehberlik"
       },
       "persembe": {
         "1": "türk dili ve edebiyatı",
         "2": "türk dili ve edebiyatı",
-        "3": "sınav hazırlık çalışması",
+        "3": "hedef matematik",
         "4": "coğrafya",
         "5": "coğrafya",
         "6": "din kültürü ve ahlak bilgisi",
