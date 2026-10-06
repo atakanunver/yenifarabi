@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="tr" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sınıf Arenası - Katılım ve Skor Özeti</title>
+  <link rel="stylesheet" href="/static/vendor/fonts.css">
+  <link rel="stylesheet" href="/static/tailwind.css">
+  <script src="/static/hata.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .font-fun { font-family: 'Fredoka', cursive, sans-serif; }
+  </style>
+</head>
+<body class="min-h-full bg-slate-950 text-slate-100">
+  <header class="max-w-6xl mx-auto px-4 pt-6 pb-3 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="font-fun text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-emerald-400">Katılım ve Skor Özeti</h1>
+      <p class="text-slate-400 text-sm mt-1" id="aralik-metni">Yükleniyor...</p>
+    </div>
+    <div class="flex items-center gap-2 text-sm">
+      <label for="gun-sec" class="text-slate-400">Dönem:</label>
+      <select id="gun-sec" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5">
+        <option value="7">Son 7 gün</option>
+        <option value="14">Son 14 gün</option>
+        <option value="30">Son 30 gün</option>
+        <option value="120">Son 120 gün</option>
+      </select>
+      <a href="/" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200">Sınıf Arenası</a>
+    </div>
+  </header>
+  <main id="siniflar" class="max-w-6xl mx-auto px-4 pb-10 grid grid-cols-1 md:grid-cols-2 gap-4"></main>
+  <p id="bos" class="hidden max-w-6xl mx-auto px-4 text-slate-400">Bu dönemde kayıtlı oyun yok.</p>
+
+  <script>
+    const OYUN_ADI = { sinif_arena: 'Sınıf Arenası', hexafetih: 'HexaFetih', duello: 'Tahta Düellosu' };
+
+    function el(etiket, sinif, metin) {
+      const e = document.createElement(etiket);
+      if (sinif) e.className = sinif;
+      if (metin !== undefined) e.textContent = metin;
+      return e;
+    }
+
+    function liste(baslik, kayitlar, bos) {
+      const kutu = el('div', 'mt-3');
+      kutu.appendChild(el('div', 'text-xs font-semibold text-slate-400 mb-1', baslik));
+      if (!kayitlar.length) { kutu.appendChild(el('div', 'text-xs text-slate-500', bos)); return kutu; }
+      kayitlar.forEach((k, i) => {
+        const satir = el('div', 'flex items-center justify-between text-sm py-0.5');
+        satir.appendChild(el('span', 'text-slate-200', `${i + 1}. ${k.ad}`));
+        satir.appendChild(el('span', 'font-fun text-amber-300', `${k.puan} puan · ${k.oyun} oyun`));
+        kutu.appendChild(satir);
+      });
+      return kutu;
+    }
+
+    function kartCiz(s) {
+      const kart = el('section', 'rounded-2xl bg-slate-900 border border-slate-800 p-4');
+      const ust = el('div', 'flex items-center justify-between');
+      ust.appendChild(el('h2', 'font-fun text-xl font-bold text-indigo-300', s.sinif));
+      ust.appendChild(el('span', 'text-xs text-slate-400', `Bu hafta ${s.bu_hafta} oyun · dönemde ${s.oyun_sayisi} oyun · ${s.katilan_ogrenci_sayisi} öğrenci katıldı`));
+      kart.appendChild(ust);
+      const turler = Object.entries(s.oyun_turleri).map(([t, n]) => `${OYUN_ADI[t] || t}: ${n}`).join(' · ');
+      kart.appendChild(el('div', 'text-xs text-slate-500 mt-1', turler));
+      kart.appendChild(liste('En iyi takımlar', s.en_iyi_takimlar, 'Takım kaydı yok'));
+      kart.appendChild(liste('En iyi öğrenciler (Düello)', s.en_iyi_ogrenciler, 'Öğrenci kaydı yok'));
+      const son = el('div', 'mt-3');
+      son.appendChild(el('div', 'text-xs font-semibold text-slate-400 mb-1', 'Son oyunlar'));
+      s.son_oyunlar.slice(0, 5).forEach(o => {
+        const kazanan = (o.katilimcilar.find(k => k.kazanan) || o.katilimcilar[0] || {}).ad || '-';
+        son.appendChild(el('div', 'text-xs text-slate-300 py-0.5',
+          `${o.tarih.replace('T', ' ').slice(0, 16)} · ${OYUN_ADI[o.oyun] || o.oyun} · ${o.ders || '-'} · kazanan: ${kazanan}`));
+      });
+      kart.appendChild(son);
+      return kart;
+    }
+
+    async function yukle() {
+      const gun = document.getElementById('gun-sec').value;
+      const kap = document.getElementById('siniflar');
+      kap.textContent = '';
+      try {
+        const r = await fetch('/api/arena/ozet?gun=' + encodeURIComponent(gun));
+        if (!r.ok) throw new Error('Özet alınamadı');
+        const d = await r.json();
+        document.getElementById('aralik-metni').textContent = `Son ${d.gun} gün · veriler yalnızca bu sunucuda tutulur`;
+        document.getElementById('bos').classList.toggle('hidden', d.siniflar.length > 0);
+        d.siniflar.forEach(s => kap.appendChild(kartCiz(s)));
+      } catch (e) {
+        document.getElementById('aralik-metni').textContent = 'Özet yüklenemedi: ' + e.message;
+      }
+    }
+    document.getElementById('gun-sec').addEventListener('change', yukle);
+    yukle();
+  </script>
+</body>
+</html>

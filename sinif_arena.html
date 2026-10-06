@@ -4,41 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Sınıf Arenası - Akıllı Tahta Yarışması</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Canvas Confetti for celebrations -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Google Fonts: Fredoka & Inter for high readability and classroom fun -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            fun: ['Fredoka', 'cursive', 'sans-serif']
-          },
-          colors: {
-            arena: {
-              bg: '#0F172A',
-              card: '#1E293B',
-              primary: '#6366F1',
-              gold: '#F59E0B',
-              coral: '#EF4444',
-              emerald: '#10B981',
-              cyan: '#06B6D4'
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <!-- Yerel (çevrimdışı) kaynaklar: internet gerekmez -->
+  <link rel="stylesheet" href="/static/vendor/fonts.css">
+  <link rel="stylesheet" href="/static/tailwind.css">
+  <script src="/static/vendor/confetti.browser-1.6.0.js"></script>
+  <script src="/static/vendor/lucide-lite-1.52.0.min.js"></script>
+  <script src="/static/hata.js"></script>
+  <script src="/static/sonuc.js"></script>
 
   <style>
     body {
@@ -174,6 +146,11 @@
           <i data-lucide="sparkles" class="w-4 h-4 text-amber-300" id="ai-btn-icon"></i>
           <span id="ai-btn-text">✨ Yapay Zekadan Yeni Sorular</span>
         </button>
+      </div>
+      <!-- Haftanın kazanımı (kazanimlar.json; yoksa gizli) -->
+      <div id="kazanim-satiri" class="hidden w-full items-center gap-3 text-xs text-sky-200 bg-sky-500/10 border border-sky-500/30 rounded-xl px-3 py-1.5">
+        <span id="kazanim-metin" class="flex-1 line-clamp-2"></span>
+        <button id="kazanim-dugme" onclick="kazanimlaSoruUret()" class="touch-btn shrink-0 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold">Bu kazanımla soru üret</button>
       </div>
     </div>
   </section>
@@ -805,6 +782,8 @@
         const data = await resp.json();
 
         currentSession = data;
+        sonucKimlikYenile();
+        kazanimGoster(data.haftanin_kazanimi);
         localStorage.setItem('arena_sinif', data.sinif);
 
         // URL parametrelerini güncelle (sayfa yenilendiğinde seçim korunsun)
@@ -1040,8 +1019,36 @@
       soundManager.playClick();
     }
 
+    // --- Haftanın kazanımı ---
+    let kazanimListesi = null;
+    let kazanimMetni = '';   // konu kutusuna yazılan kazanım metni (elle değiştirilirse kazanım modu kapanır)
+
+    function kazanimGoster(liste) {
+      const kutu = document.getElementById('kazanim-satiri');
+      kazanimListesi = (liste && liste.length) ? liste : null;
+      kazanimMetni = '';
+      if (!kazanimListesi) {
+        kutu.classList.add('hidden');
+        kutu.classList.remove('flex');
+        document.getElementById('kazanim-metin').textContent = '';
+        return;
+      }
+      document.getElementById('kazanim-metin').textContent = 'Bu haftanın kazanımı: ' + kazanimListesi.join(' • ');
+      kutu.classList.remove('hidden');
+      kutu.classList.add('flex');
+    }
+
+    function kazanimlaSoruUret() {
+      if (!kazanimListesi) return;
+      const girdi = document.getElementById('custom-topic-input');
+      kazanimMetni = kazanimListesi.join(' ');
+      if (girdi) girdi.value = kazanimMetni;
+      requestAiQuestions();
+    }
+
     function resetAllScoresPrompt() {
       if (!confirm("Tüm takım puanları sıfırlansın mı?")) return;
+      sonucKimlikYenile();
       teams.forEach(t => t.score = 0);
       renderScoreboard();
       soundManager.playClick();
@@ -1071,7 +1078,8 @@
           body: JSON.stringify({
             sinif: currentSession.sinif,
             ders: currentSession.ders_adi,
-            konu: document.getElementById('custom-topic-input') ? document.getElementById('custom-topic-input').value : ""
+            konu: document.getElementById('custom-topic-input') ? document.getElementById('custom-topic-input').value : "",
+            kazanim: !!kazanimMetni && !!document.getElementById('custom-topic-input') && document.getElementById('custom-topic-input').value === kazanimMetni
           })
         });
 
@@ -1650,6 +1658,12 @@
       });
 
       document.getElementById('podium-modal').classList.remove('hidden');
+      if (activeTeams.some(t => t.score > 0)) {
+        sonucGonder('sinif_arena', currentSession.sinif, currentSession.ders_adi, activeTeams.map((t, i) => ({
+          ad: t.name, puan: t.score, tur: 'takim', kazanan: i === 0,
+          uyeler: (t.ogrenciler || []).map(o => o.ad_soyad)
+        })));
+      }
       triggerConfettiLoop();
     }
 
@@ -1682,37 +1696,7 @@
       }());
     }
 
-    // Global Client Error Reporting
-    window.addEventListener('error', function(e) {
-      reportClientError(e.message, e.filename, e.lineno, e.colno, e.error ? e.error.stack : '');
-    });
-    window.addEventListener('unhandledrejection', function(e) {
-      const reason = e.reason || {};
-      reportClientError('Unhandled Rejection: ' + (reason.message || reason), window.location.href, 0, 0, reason.stack || '');
-    });
-
-    function reportClientError(msg, url, line, col, stack) {
-      try {
-        const payload = JSON.stringify({
-          mesaj: String(msg || 'Bilinmeyen Hata'),
-          kaynak_url: String(url || window.location.href),
-          satir: Number(line || 0),
-          sutun: Number(col || 0),
-          stack: String(stack || ''),
-          user_agent: navigator.userAgent
-        });
-        if (navigator.sendBeacon) {
-          navigator.sendBeacon('/api/arena/log-hata', payload);
-        } else {
-          fetch('/api/arena/log-hata', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: payload,
-            keepalive: true
-          }).catch(() => {});
-        }
-      } catch (err) {}
-    }
+    // İstemci hata raporlama: /static/hata.js (tekrar süzmeli, window.reportClientError)
 
     // Diagnostics & Health Modal Functions
     let logOnlyErrors = false;

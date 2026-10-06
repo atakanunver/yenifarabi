@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Tahta Düellosu - Çark & Hızlı Cevap Maratonu</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Canvas Confetti -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Yerel (çevrimdışı) kaynaklar: internet gerekmez -->
+  <link rel="stylesheet" href="/static/vendor/fonts.css">
+  <link rel="stylesheet" href="/static/tailwind.css">
+  <script src="/static/vendor/confetti.browser-1.6.0.js"></script>
+  <script src="/static/hata.js"></script>
+  <script src="/static/sonuc.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700;900&family=Inter:wght@400;600;800;900&display=swap');
-    
     body {
       font-family: 'Inter', sans-serif;
       touch-action: manipulation;
@@ -1031,6 +1031,11 @@
       let kazananKose = null;
       if (solOyuncu.skor > sagOyuncu.skor) kazananKose = 'sol';
       else if (sagOyuncu.skor > solOyuncu.skor) kazananKose = 'sag';
+
+      sonucGonder('duello', aktifSinif, aktifDers, [
+        { ad: solOyuncu.ad, puan: solOyuncu.skor, tur: 'ogrenci', kazanan: kazananKose === 'sol' },
+        { ad: sagOyuncu.ad, puan: sagOyuncu.skor, tur: 'ogrenci', kazanan: kazananKose === 'sag' }
+      ], sonucKimlikYenile());
 
       document.getElementById('macSonucSolAd').innerText = solOyuncu.ad;
       document.getElementById('macSonucSolPuan').innerText = `${solOyuncu.skor} Puan`;

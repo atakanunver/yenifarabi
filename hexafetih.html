@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>HexaFetih - Bölge Fetih & Strateji Arenası</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Canvas Confetti -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Yerel (çevrimdışı) kaynaklar: internet gerekmez -->
+  <link rel="stylesheet" href="/static/vendor/fonts.css">
+  <link rel="stylesheet" href="/static/tailwind.css">
+  <script src="/static/vendor/confetti.browser-1.6.0.js"></script>
+  <script src="/static/hata.js"></script>
+  <script src="/static/sonuc.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700;900&family=Inter:wght@400;600;800&display=swap');
-    
     body {
       font-family: 'Inter', sans-serif;
       touch-action: manipulation;
@@ -834,6 +834,10 @@
       document.getElementById('kazanan-takim-adi').textContent = kazanan.name || kazanan.isim || 'Şampiyon Takım';
       document.getElementById('kazanan-detay').textContent = `${kazanan.fethEdilen} Bölge • ${kazanan.puan} Puan ile Şampiyon!`;
       document.getElementById('zafer-modal').classList.remove('hidden');
+      sonucGonder('hexafetih', oyunVerisi.sinif, oyunVerisi.ders, oyunVerisi.takimlar.map(t => ({
+        ad: t.name || t.isim || 'Takım', puan: t.puan || 0, tur: 'takim', kazanan: t === kazanan,
+        uyeler: (t.ogrenciler || []).map(o => o.ad_soyad)
+      })));
 
       sesZafer();
       confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
@@ -986,20 +990,7 @@
       document.getElementById('sistem-modal').classList.add('hidden');
     }
 
-    // --- HATA LOGLAMA TELEMETRİSİ ---
-    function hataLogla(mesaj) {
-      fetch('/api/arena/log-hata', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mesaj: mesaj,
-          kaynak_url: window.location.href,
-          user_agent: navigator.userAgent
-        })
-      }).catch(() => {});
-    }
-
-    window.addEventListener('error', e => hataLogla(`JS Hatası: ${e.message} (${e.filename}:${e.lineno})`));
+    // --- HATA LOGLAMA TELEMETRİSİ: /static/hata.js (window.hataLogla, tekrar süzmeli) ---
 
     // --- DERS SEÇİM MODALI ---
     function dersModalAc() {

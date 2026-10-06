@@ -1,0 +1,11 @@
+Çevrimdışı (yerel) kaynaklar - çalışma anında internet gerekmez. Sürümler sabit:
+
+confetti.browser-1.6.0.js   canvas-confetti 1.6.0 (npm dist/confetti.browser.js; MIT)
+lucide-lite-1.52.0.min.js   lucide 1.52.0 (npm) - yalnızca kullanılan ikonlar, esbuild ile paketlendi (~8 KB; tam UMD 446 KB)
+                            kaynak: static/vendor/src/lucide-entry.js (yeni ikon eklenirse bu listeye ekleyip yeniden derle)
+                            derleme: npx -y esbuild@0.25 static/vendor/src/lucide-entry.js --bundle --minify --format=iife \
+                                       --target=chrome70 --alias:lucide=<lucide-1.52.0>/dist/esm/lucide.mjs \
+                                       --outfile=static/vendor/lucide-lite-1.52.0.min.js
+fonts/ + fonts.css          @fontsource/inter, fredoka, chakra-petch 5.3.0 (latin + latin-ext woff2; OFL)
+../tailwind.css             Tailwind 3.4.19 CLI ile üretilir (sayfalar/sınıflar değişince yeniden derleyin):
+                            npx -y tailwindcss@3.4.19 -c tailwind.config.js -i tailwind-in.css -o static/tailwind.css --minify
