@@ -1100,6 +1100,8 @@ class MainWindow(QMainWindow):
     _oto_baslat_sig = pyqtSignal()        # otomatik başlatma tetiği (asyncio loop thread → Qt thread)
     _kalibre_bitti_sig = pyqtSignal(str, str)  # (baslik, metin) — mikrofon kalibrasyon iş parçacığı → Qt thread
     _screenshot_sig = pyqtSignal(dict)    # {"event": threading.Event, "path": str} — tahtanın KENDİ ekranı, kamera DEĞİL
+    _ptt_sig     = pyqtSignal(bool)       # Farabi 2.0 bas-konuş düğmesini göster/gizle (asyncio loop thread → Qt thread)
+    _uyari_sig   = pyqtSignal(str)        # tam ekran OLMAYAN uyarı (Kural 2) — DERS KAYDI'na satır
 
     def __init__(self, face_path: str):
         super().__init__()
@@ -1122,6 +1124,10 @@ class MainWindow(QMainWindow):
                   ekran.y() + (ekran.height() - y) // 2)
 
         self.on_text_command  = None
+        # Farabi 2.0 bas-konuş (yerel_main.FarabiYerel bağlar). Gemini modunda
+        # bağlanmaz, düğme de gizli kalır.
+        self.on_ptt_bas = None
+        self.on_ptt_birak = None
         # Öğretmen paneli komutları — main.py bunu bağlar; bağlanmazsa komut
         # normal metin yolundan gider (panel her hâlükârda çalışır).
         self.on_teacher_command = None
@@ -1225,6 +1231,8 @@ class MainWindow(QMainWindow):
         self._talimat_cikis_sig.connect(self._talimat_modundan_cik_gorunumu)
         self._ders_bitti_sig.connect(self._dersi_sifirla_gorunumu)
         self._gemini_oturum_sig.connect(self._on_gemini_oturum_degisti)
+        self._ptt_sig.connect(self._ptt_gorunurlugu)
+        self._uyari_sig.connect(lambda m: self._log.append_log(f"⚠ {m}"))
         self._live_baslat_sig.connect(self._log.canli_satir_baslat)
         self._live_guncelle_sig.connect(self._log.canli_satir_guncelle)
         self._live_bitir_sig.connect(self._log.canli_satir_bitir)
@@ -1287,6 +1295,10 @@ class MainWindow(QMainWindow):
             self._gunluk_kullanim_toplam_sn = 0.0
             if self._oturum_baslangic_ts is not None:
                 self._oturum_baslangic_ts = time.time()
+
+    def _ptt_gorunurlugu(self, acik: bool) -> None:
+        """Slot for `_ptt_sig` — bas-konuş düğmesi yalnızca yerel oturumda."""
+        self._ptt_btn.setVisible(bool(acik))
 
     def _on_gemini_oturum_degisti(self, acildi: bool):
         """main.py'nin oturum_baslandi()/oturum_kapandi() bildirimleri —
@@ -1698,6 +1710,17 @@ class MainWindow(QMainWindow):
 
         lay.addWidget(_sec("ÖĞRETMEN GİRİŞİ  ·  YAZILAN = TALİMAT"))
         lay.addLayout(self._build_input_row())
+
+        # Farabi 2.0 (ses_modu=yerel): basılı tutulduğu sürece kayıt. Yalnızca
+        # yerel oturum açıkken görünür (`_ptt_sig`); Gemini modunda hiç görünmez.
+        self._ptt_btn = QPushButton("🎤  BAS-KONUŞ  (basılı tut)")
+        self._ptt_btn.setFixedHeight(54)
+        self._ptt_btn.setFont(QFont("Courier New", 10, QFont.Weight.Bold))
+        self._ptt_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._ptt_btn.pressed.connect(lambda: self.on_ptt_bas and self.on_ptt_bas())
+        self._ptt_btn.released.connect(lambda: self.on_ptt_birak and self.on_ptt_birak())
+        self._ptt_btn.setVisible(False)
+        lay.addWidget(self._ptt_btn)
 
         self._mute_btn = QPushButton("🎙  MİKROFON AÇIK")
         self._mute_btn.setFixedHeight(30)
@@ -2798,6 +2821,30 @@ class FarabiUI:
     def oturum_baslandi(self):
         """Gemini Live oturumu açıldı — HUD'daki BUGÜN sayacı başlasın."""
         self._win._gemini_oturum_sig.emit(True)
+
+    # ── Farabi 2.0 yerel ses (yerel_main.FarabiYerel) ──────────────────────
+    @property
+    def on_ptt_bas(self):
+        return self._win.on_ptt_bas
+
+    @on_ptt_bas.setter
+    def on_ptt_bas(self, cb):
+        self._win.on_ptt_bas = cb
+
+    @property
+    def on_ptt_birak(self):
+        return self._win.on_ptt_birak
+
+    @on_ptt_birak.setter
+    def on_ptt_birak(self, cb):
+        self._win.on_ptt_birak = cb
+
+    def ptt_goster(self, acik: bool):
+        self._win._ptt_sig.emit(bool(acik))
+
+    def uyari_goster(self, metin: str):
+        """Tam ekran OLMAYAN uyarı (Kural 2): DERS KAYDI'na ⚠ satırı."""
+        self._win._uyari_sig.emit(metin)
 
     def oturum_kapandi(self):
         """Oturum kapandı (yeniden bağlanma ya da ders bitişi) — geçen süre

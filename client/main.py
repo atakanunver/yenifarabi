@@ -2515,7 +2515,12 @@ def main():
         if surum_uyarisi:
             log.warning("Sürüm uyarısı: %s", surum_uyarisi)
             ui.write_log(f"SYS: {surum_uyarisi}")
-        farabi = FarabiLive(ui)
+        # Farabi 2.0: config `ses_modu` = "yerel" ise Gemini Live yerine yerel
+        # ses hattı (yerel_main.FarabiYerel). Varsayılan "gemini" — v1 aynen.
+        # Import fonksiyon içinde: yerel_main bu modülü import ediyor.
+        from core import yerel_ayar
+        from yerel_main import siniflari_sec
+        farabi = siniflari_sec(yerel_ayar.ses_modu())(ui)
         try:
             asyncio.run(farabi.run())
         except KeyboardInterrupt:
