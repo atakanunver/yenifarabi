@@ -1,0 +1,18 @@
+[Unit]
+Description=Farabi 2.0 ses dugumu (STT + TTS, RTX 3060)
+After=network-online.target
+
+[Service]
+User=ata
+WorkingDirectory=/home/ata/farabi2-ses
+Environment=CUDA_DEVICE_ORDER=PCI_BUS_ID
+Environment=CUDA_VISIBLE_DEVICES=1
+Environment=HF_HOME=/home/ata/chatterbox-tts/.cache/huggingface
+Environment=HF_HUB_OFFLINE=1
+Environment=TQDM_DISABLE=1
+ExecStart=/home/ata/chatterbox-tts/.venv/bin/python -m sesdugumu.calistir
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
