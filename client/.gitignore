@@ -34,3 +34,4 @@ config/zil.json
 # Okula özel ders programı (örneği: config/ders_programi.example.json)
 config/ders_programi.json
 .aider*
+.venv-test/
