@@ -17,7 +17,12 @@ the current state and the rules that came out of them.
 boards, named after Fârâbî (*Muallim-i Sânî*, "The Second Teacher").
 
 A **thin** PyQt6 client on Pardus/Vestel boards (Intel i3-2330M). Voice is a
-Gemini Live session held **on the board** — permanently the only voice path.
+Gemini Live session held **on the board** — the only voice path on master.
+**Branch `v2-yerel-ses` (Farabi 2.0, 2026-10-07):** `ses_modu: yerel` in
+`config/api_keys.json` swaps the Live session for push-to-talk +
+Bilgehan `farabi2-ses` STT/TTS + Farabi Ollama tool calling
+(`yerel_main.FarabiYerel` → `core/yerel_oturum.py`); default stays `gemini`.
+The cancellation note below applies to master.
 (A local Pipecat voice node was tried 2026-09-25 on branch
 `yerel-ses-pipecat`; it was **permanently cancelled 2026-09-28** because the
 hardware cannot support it. Do not add local STT/TTS to the client — see

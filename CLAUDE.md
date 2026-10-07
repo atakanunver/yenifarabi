@@ -88,6 +88,13 @@ okul operasyon servisleri (yoklama panosu, SMS).
   engeli 2026-09-25'te çözüldü). "Farabi susuyor" belirtisi faturalandırma
   değil `thinking_config` olabilir — DECISIONS.md 2026-09-25 / 2026-09-27.
 - 2026-10-06: mikrofonsuz mod kullanıcı kararıyla koddan kaldırıldı; Farabi her zaman mikrofonlu çalışır (tahta mikrofonları bozuksa öğretmen MİKROFON düğmesiyle sessize alır). Ders içi düğmeler: DURDUR, DEVAM ET, ⏹ DERSİ BİTİR (çift dokunuş, 2026-09-27).
+- 🔀 **Farabi 2.0 — yerel ses (YALNIZCA `v2-yerel-ses` dalı, pilot 9-A, 2026-10-07):**
+  aşağıdaki "yerel ses iptal" kararı kullanıcı kararıyla bu dalda geri alındı.
+  Bas-konuş → Bilgehan `farabi2-ses` (:8060, `sesdugumu/`) STT/TTS → Farabi
+  Ollama `qwen3.8:27b` araç çağırma; istemci `client/yerel_main.py`,
+  `ses_modu: yerel` ile açılır (varsayılan `gemini`). Spec/plan:
+  `docs/superpowers/{specs,plans}/2026-10-07-farabi2-yerel-ses*`. Master'da
+  aşağıdaki iptal notu geçerli kalır.
 - ⛔ **Yerel ses (Pipecat) KALICI OLARAK İPTAL (2026-09-28)** — bkz.
   "Şu An Yapılmayacaklar"; ayrıntı DECISIONS.md 2026-09-28.
 - **`client/core/prompt.txt` hâlâ client'ta.** Server'a taşınması
