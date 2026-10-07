@@ -43,13 +43,22 @@
     "board_keys[derslik] değeriyle BİREBİR aynı olmalı. Boşsa istek header'ı",
     "hiç eklenmez (core/tahta.py::auth_headers()); sunucu",
     "FARABI_AUTH_REQUIRED=1 iken bu durumda 401 döner ve bu tahtanın TÜM",
-    "/api/egitim/* çağrıları sessizce kısıtlı moda düşer (mimari.md §2)."
+    "/api/egitim/* çağrıları sessizce kısıtlı moda düşer (mimari.md §2).",
+    "",
+    "ses_modu (Farabi 2.0): gemini | yerel (varsayılan gemini). yerel = bas-konuş,",
+    "ses Bilgehan farabi2-ses (ses_dugumu_url), LLM Farabi Ollama (ollama_url).",
+    "Ses servisi kapalıysa Gemini'ye DÜŞÜLMEZ — uyarı verilir."
   ],
-  "gemini_api_keys": ["BURAYA_GEMINI_API_ANAHTARINIZ"],
+  "gemini_api_keys": [
+    "BURAYA_GEMINI_API_ANAHTARINIZ"
+  ],
   "gemini_api_key": "",
   "os_system": "linux",
   "derslik": "10-A",
   "sunucu_url": "http://127.0.0.1:8000",
   "ders_kipi": "ogretmenli",
-  "tahta_anahtari": ""
+  "tahta_anahtari": "",
+  "ses_modu": "gemini",
+  "ses_dugumu_url": "http://bilgehan.local:8060",
+  "ollama_url": "http://192.168.23.252:11434"
 }
