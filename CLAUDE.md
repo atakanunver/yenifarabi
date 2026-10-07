@@ -50,6 +50,9 @@ okul operasyon servisleri (yoklama panosu, SMS).
   02:30 TR, `mudur/` yeni belgeleri RAG'a), `soru-havuzu-uret.timer`
   (hafta içi 14:15 UTC = 17:15 TR, hafta sonu 05:00 UTC; ders saatinde
   kendiliğinden durur) — bkz. `soruhavuzu/CLAUDE.md`.
+  `kazanim-test.timer` (hafta içi 13:30 UTC = 16:30 TR; kazanım testi →
+  Excel/Word + Google Form, başlangıçta SMS'siz) — bkz. `kazanimtest/CLAUDE.md`
+  (2026-10-07; timer henüz `/etc`'ye kopyalanmadı).
 - **RAG kısmen açık (2026-10-03, ikinci karar):** `server/main.py::
   RAG_AKTIF = True` ama yalnızca bge-m3 **CPU**'da; reranker YÜKLENMEZ
   (`RERANK_YUKLE = False`, CPU'da ~10 sn/soru ölçüldü). Open WebUI Farabi
@@ -446,6 +449,11 @@ Client↔Server event listesi bağlayıcıdır — değişirse `mimari.md`'yi g�
   (`rag.py` → Ollama; buluta taşımak ayrı karar + 40 soruluk ölçüm ister),
   embedding/reranker/pgvector. **Asla buluta gitmez:** öğrenci/veli
   verisi (yoklama, roster, SMS rehberi). Ses zaten Gemini Live'da.
+- **Dar istisna — kazanım testi (2026-10-07 kararı):** `kazanimtest/` Google
+  Form'una (okulun Google hesabı, Apps Script) yalnızca soru metinleri gider;
+  öğrenci formda **yalnızca okul numarasını** yazar, cevapları Google
+  Tablo'da durur. Ad, telefon, roster Google'a GÖNDERİLMEZ; okul no ↔ ad
+  eşleşmesi yalnızca sunucuda yapılır.
 
 ## Loglama — iki tablo, karıştırma
 

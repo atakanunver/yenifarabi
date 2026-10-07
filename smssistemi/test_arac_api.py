@@ -158,3 +158,89 @@ def test_veli_taslak_suresi_dolar(ortam):
 
 def test_veli_bulunamazsa_404(ortam):
     assert _kod(_taslak, "13-Z", "x") == 404
+
+
+def _ogrenci_ekle(telefonlar):
+    conn = db.baglanti()
+    sid = next(s["id"] for s in db.siniflar_listele(conn) if s["ad"] == "9-A")
+    for i, tel in enumerate(telefonlar):
+        conn.execute(
+            "INSERT INTO kisiler (ad_soyad, telefon, sinif_id, tur) VALUES (?, ?, ?, 'ogrenci')",
+            (f"Ogr {i}", tel, sid),
+        )
+    conn.commit()
+    conn.close()
+
+
+def _o_taslak(sinif="9a", metin="Yarin deneme sinavi var."):
+    return aa.ogrenci_taslak(aa.VeliTaslakIstek(sinif=sinif, metin=metin))
+
+
+def _o_gonder(tid):
+    return aa.ogrenci_gonder(aa.VeliGonderIstek(taslak_id=tid))
+
+
+def test_ogrenci_taslak_onay_sonra_gonderir_tekilleştirir(ortam):
+    giden, _ = ortam
+    _ogrenci_ekle(["05551112233", "05551112233", "05554445566", "", "123"])
+    _veli_ekle(["05557778899"])  # veliler öğrenci alıcısına karışmaz
+    t = _o_taslak()
+    assert t["sinif"] == "9-A" and t["alici_sayisi"] == 2 and giden == []
+    assert _o_gonder(t["taslak_id"])["alici_sayisi"] == 2
+    assert {tel for _, tel, _ in giden[0]} == {"05551112233", "05554445566"}
+    assert _kod(_o_gonder, t["taslak_id"]) == 404  # ikinci kez gitmez
+
+
+def test_ogrenci_taslak_suresi_dolar_ve_bulunamazsa_404(ortam):
+    giden, saat = ortam
+    _ogrenci_ekle(["05551112233"])
+    tid = _o_taslak()["taslak_id"]
+    saat["an"] = datetime(2026, 10, 5, 18, 31)
+    assert _kod(_o_gonder, tid) == 410 and giden == []
+    assert _kod(_o_taslak, "13-Z", "x") == 404
+    assert _kod(_o_taslak, "9a", "") == 422
+    assert _kod(_o_taslak, "9a", "x" * (aa.VELI_AZAMI + 1)) == 422
+
+
+def test_veli_ve_ogrenci_taslagi_capraz_gonderilemez(ortam):
+    giden, _ = ortam
+    _veli_ekle(["05551112233"])
+    _ogrenci_ekle(["05554445566"])
+    v, o = _taslak()["taslak_id"], _o_taslak()["taslak_id"]
+    assert _kod(_o_gonder, v) == 404 and _kod(_gonder, o) == 404 and giden == []
+    assert _gonder(v)["alici_sayisi"] == 1 and _o_gonder(o)["alici_sayisi"] == 1
+    assert giden[0][0][1] == "05551112233" and giden[1][0][1] == "05554445566"
+
+
+def test_eski_db_tur_kolonu_migration(ortam):
+    conn = db.baglanti()
+    conn.execute("DROP TABLE veli_taslaklari")
+    conn.execute(
+        "CREATE TABLE veli_taslaklari (id TEXT PRIMARY KEY, sinif TEXT NOT NULL, metin TEXT NOT NULL, "
+        "alici_sayisi INTEGER NOT NULL, olusturma TEXT NOT NULL, "
+        "durum TEXT NOT NULL DEFAULT 'taslak', gonderim_id TEXT)"
+    )
+    conn.execute("INSERT INTO veli_taslaklari VALUES ('eski','9-A','m',1,'2026-10-05 18:00','taslak',NULL)")
+    conn.commit()
+    conn.close()
+    aa.sema_kur()
+    aa.sema_kur()  # tekrar çalıştırmak güvenli
+    conn = db.baglanti()
+    assert conn.execute("SELECT tur FROM veli_taslaklari WHERE id='eski'").fetchone()["tur"] == "veli"
+    conn.close()
+
+
+def test_ogrenci_test_telefonu_yalnizca_o_numaraya_gider(ortam):
+    giden, _ = ortam
+    _ogrenci_ekle(["05551112233", "05554445566"])
+    t = aa.ogrenci_taslak(
+        aa.OgrenciTaslakIstek(sinif="9a", metin="deneme", test_telefon="05559998877")
+    )
+    assert t["test"] is True and t["alici_sayisi"] == 1
+    assert _o_gonder(t["taslak_id"])["alici_sayisi"] == 1
+    assert [tel for _, tel, _ in giden[0]] == ["05559998877"]
+    assert _o_taslak()["test"] is False  # alan yoksa sınıfa gider
+    assert _kod(
+        aa.ogrenci_taslak,
+        aa.OgrenciTaslakIstek(sinif="9a", metin="x", test_telefon="123"),
+    ) == 422

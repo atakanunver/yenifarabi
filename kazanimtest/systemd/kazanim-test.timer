@@ -1,0 +1,9 @@
+[Unit]
+Description=Kazanım testi — hafta içi 16:30 TR (13:30 UTC)
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 13:30:00 UTC
+Persistent=false
+
+[Install]
+WantedBy=timers.target

@@ -148,3 +148,6 @@ tahtayoklama/dashboard/config/okul.json
 
 # Orkestra (delege.sh) görev kartları ve dış ajan sonuçları — public repoya gitmez
 .ajan/
+
+# kazanimtest Apps Script/SMS anahtarları
+kazanimtest/config/gizli.json

@@ -60,7 +60,9 @@ CREATE TABLE IF NOT EXISTS veli_taslaklari (
     alici_sayisi INTEGER NOT NULL,
     olusturma TEXT NOT NULL,        -- TR yerel saat
     durum TEXT NOT NULL DEFAULT 'taslak',    -- taslak|gonderildi
-    gonderim_id TEXT
+    gonderim_id TEXT,
+    tur TEXT NOT NULL DEFAULT 'veli',        -- veli|ogrenci (alıcı türü)
+    test_telefon TEXT                        -- doluysa sınıf yerine yalnızca bu numara
 );
 """
 
@@ -69,6 +71,11 @@ def sema_kur() -> None:
     conn = db.baglanti()
     try:
         conn.executescript(SEMA)
+        mevcut = [r["name"] for r in conn.execute("PRAGMA table_info(veli_taslaklari)").fetchall()]
+        if "tur" not in mevcut:  # eski DB: tur kolonu sonradan eklendi
+            conn.execute("ALTER TABLE veli_taslaklari ADD COLUMN tur TEXT NOT NULL DEFAULT 'veli'")
+        if "test_telefon" not in mevcut:
+            conn.execute("ALTER TABLE veli_taslaklari ADD COLUMN test_telefon TEXT")
         conn.commit()
     finally:
         conn.close()
@@ -307,43 +314,59 @@ def _sinif_normalize(ad: str) -> str:
     return f"{m.group(1)}-{harf}"
 
 
-def _veli_alicilari(conn, sinif_ad: str) -> list[tuple[str, str]]:
+def _alicilar(conn, sinif_ad: str, tur: str) -> list[tuple[str, str]]:
     sinif = next((s for s in db.siniflar_listele(conn) if s["ad"] == sinif_ad), None)
     if sinif is None:
         return []
     goruldu, alicilar = set(), []
-    for ad, tel in db.kisiler_telefonlu(conn, sinif["id"], "veli"):
+    for ad, tel in db.kisiler_telefonlu(conn, sinif["id"], tur):
         tel = gonderim.normalize_phone(tel)
         if (
             gonderim.is_valid_phone(tel) and tel not in goruldu
-        ):  # kardeş velisi tek SMS alır
+        ):  # aynı telefon (kardeş velisi vb.) tek SMS alır
             goruldu.add(tel)
             alicilar.append((ad, tel))
     return alicilar
 
 
-class VeliTaslakIstek(BaseModel):
-    sinif: str
-    metin: str
+def _veli_alicilari(conn, sinif_ad: str) -> list[tuple[str, str]]:
+    return _alicilar(conn, sinif_ad, "veli")
 
 
-@router.post("/veli-taslak", dependencies=[Depends(anahtar_dogrula)])
-def veli_taslak(istek: VeliTaslakIstek):
-    metin = _metin(istek.metin, VELI_AZAMI)
-    sinif = _sinif_normalize(istek.sinif)
+_TUR_ETIKET = {"veli": "veli", "ogrenci": "öğrenci"}
+
+
+def _test_alicisi(tel: str) -> list[tuple[str, str]]:
+    tel = gonderim.normalize_phone(tel)
+    if not gonderim.is_valid_phone(tel):
+        raise HTTPException(status_code=422, detail="Test telefonu geçersiz.")
+    return [("test", tel)]
+
+
+def _taslak_olustur(
+    sinif_ham: str, metin_ham: str, tur: str, test_telefon: str | None = None
+) -> dict:
+    metin = _metin(metin_ham, VELI_AZAMI)
+    sinif = _sinif_normalize(sinif_ham)
+    test_tel = None
+    if test_telefon:
+        alicilar = _test_alicisi(test_telefon)
+        test_tel = alicilar[0][1]
     conn = db.baglanti()
     try:
-        alicilar = _veli_alicilari(conn, sinif)
+        if test_tel is None:
+            alicilar = _alicilar(conn, sinif, tur)
         if not alicilar:
             raise HTTPException(
                 status_code=404,
-                detail=f"{sinif} için telefonu kayıtlı veli bulunamadı.",
+                detail=f"{sinif} için telefonu kayıtlı {_TUR_ETIKET[tur]} bulunamadı.",
             )
         tid = secrets.token_hex(4)
         conn.execute(
-            "INSERT INTO veli_taslaklari (id, sinif, metin, alici_sayisi, olusturma) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (tid, sinif, metin, len(alicilar), simdi().strftime(ZAMAN_BICIMI)),
+            "INSERT INTO veli_taslaklari "
+            "(id, sinif, metin, alici_sayisi, olusturma, tur, test_telefon) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (tid, sinif, metin, len(alicilar), simdi().strftime(ZAMAN_BICIMI), tur, test_tel),
         )
         conn.commit()
     finally:
@@ -354,19 +377,15 @@ def veli_taslak(istek: VeliTaslakIstek):
         "alici_sayisi": len(alicilar),
         "metin": metin,
         "gecerlilik_dk": int(TASLAK_OMRU.total_seconds() // 60),
+        "test": test_tel is not None,
     }
 
 
-class VeliGonderIstek(BaseModel):
-    taslak_id: str
-
-
-@router.post("/veli-gonder", dependencies=[Depends(anahtar_dogrula)])
-def veli_gonder(istek: VeliGonderIstek):
+def _taslak_gonder(taslak_id: str, tur: str) -> dict:
     conn = db.baglanti()
     try:
         t = conn.execute(
-            "SELECT * FROM veli_taslaklari WHERE id = ?", (istek.taslak_id,)
+            "SELECT * FROM veli_taslaklari WHERE id = ? AND tur = ?", (taslak_id, tur)
         ).fetchone()
         if t is None or t["durum"] != "taslak":
             raise HTTPException(
@@ -377,7 +396,10 @@ def veli_gonder(istek: VeliGonderIstek):
             raise HTTPException(
                 status_code=410, detail="Taslağın süresi doldu; yeni taslak oluştur."
             )
-        alicilar = _veli_alicilari(conn, t["sinif"])
+        if t["test_telefon"]:
+            alicilar = [("test", t["test_telefon"])]
+        else:
+            alicilar = _alicilar(conn, t["sinif"], tur)
         if not alicilar:
             raise HTTPException(status_code=404, detail="Alıcı kalmadı.")
         gid = gonder([(ad, tel, t["metin"]) for ad, tel in alicilar])
@@ -389,3 +411,41 @@ def veli_gonder(istek: VeliGonderIstek):
     finally:
         conn.close()
     return {"gonderim_id": gid, "sinif": t["sinif"], "alici_sayisi": len(alicilar)}
+
+
+class VeliTaslakIstek(BaseModel):
+    sinif: str
+    metin: str
+
+
+@router.post("/veli-taslak", dependencies=[Depends(anahtar_dogrula)])
+def veli_taslak(istek: VeliTaslakIstek):
+    return _taslak_olustur(istek.sinif, istek.metin, "veli")
+
+
+class VeliGonderIstek(BaseModel):
+    taslak_id: str
+
+
+@router.post("/veli-gonder", dependencies=[Depends(anahtar_dogrula)])
+def veli_gonder(istek: VeliGonderIstek):
+    return _taslak_gonder(istek.taslak_id, "veli")
+
+
+# --- Öğrenci SMS'i (aynı desen; alıcı = sınıfın öğrencileri) -----------
+
+
+class OgrenciTaslakIstek(VeliTaslakIstek):
+    test_telefon: str | None = None  # doluysa sınıf yerine yalnızca bu numaraya (deneme)
+
+
+@router.post("/ogrenci-taslak", dependencies=[Depends(anahtar_dogrula)])
+def ogrenci_taslak(istek: OgrenciTaslakIstek):
+    return _taslak_olustur(
+        istek.sinif, istek.metin, "ogrenci", getattr(istek, "test_telefon", None)
+    )
+
+
+@router.post("/ogrenci-gonder", dependencies=[Depends(anahtar_dogrula)])
+def ogrenci_gonder(istek: VeliGonderIstek):
+    return _taslak_gonder(istek.taslak_id, "ogrenci")

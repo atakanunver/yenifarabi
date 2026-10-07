@@ -1,0 +1,11 @@
+[Unit]
+Description=Kazanım testi — bugünkü dersler için soru seç, Excel/Word + Google Form üret (SMS yok)
+After=postgresql.service network-online.target
+
+[Service]
+Type=oneshot
+User=ata
+WorkingDirectory=/home/ata/farabi
+Environment=HF_HUB_OFFLINE=1
+ExecStart=/home/ata/farabi/server/venv/bin/python -m kazanimtest.calistir uret
+Nice=10

@@ -1,0 +1,4 @@
+{"type": "object", "required": ["secilen", "red"], "properties": {
+  "secilen": {"type": "array", "items": {"type": "integer"}},
+  "red": {"type": "array", "items": {"type": "object", "required": ["id", "neden"],
+    "properties": {"id": {"type": "integer"}, "neden": {"type": "string"}}}}}}

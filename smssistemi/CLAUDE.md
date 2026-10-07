@@ -282,6 +282,7 @@ yalnızca İdare) makine API'si; kimlik `X-Sms-Arac-Key` (`config/arac.json`
 | `GET /api/arac/hatirlatmalar`, `POST /api/arac/hatirlatma/{id}/iptal` | listele / iptal |
 | `POST /api/arac/acil` | yönetime anında SMS |
 | `POST /api/arac/veli-taslak` → `POST /api/arac/veli-gonder` | veli SMS'i iki adımlı: taslak (alıcı sayısı + önizleme, 30 dk geçerli) → açık onay → gönderim |
+| `POST /api/arac/ogrenci-taslak` → `POST /api/arac/ogrenci-gonder` | aynı akış, alıcı = sınıfın telefonlu öğrencileri (2026-10-07, `kazanimtest/` test linki için). Taslaklar aynı `veli_taslaklari` tablosunda `tur` kolonuyla ayrılır; veli taslağı öğrenci ucundan gönderilemez (ve tersi). `ogrenci-taslak`a `test_telefon` verilirse sınıf yerine yalnızca o numaraya gider (deneme) |
 
 Gönderim mevcut modem göndericisiyle (`sms_gonderici.toplu_gonder`), sonuç
 `gonderimler` tablosuna (`/kayitlar`'da görünür). Testlerdeki telefonlar

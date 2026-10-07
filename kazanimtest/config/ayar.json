@@ -1,0 +1,12 @@
+{
+  "dersler": [],
+  "soru_sayisi": 10,
+  "min_soru": 5,
+  "aday_azami": 30,
+  "agy_zaman_asimi_sn": 600,
+  "cikti_dizini": "/mnt/farabi-data/farabi/kazanim_testleri",
+  "farabi_db": "farabi",
+  "havuz_db": "soru_havuzu",
+  "sms_url": "http://127.0.0.1:8020",
+  "sms_azami_karakter": 300
+}
