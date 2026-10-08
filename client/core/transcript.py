@@ -54,7 +54,14 @@ _GUVENSIZ_KARAKTER = re.compile(r"[^A-Za-z0-9ÇĞİÖŞÜçğıöşü_-]+")
 
 def _oturum_dosya_adi() -> str:
     derslik = _GUVENSIZ_KARAKTER.sub("-", tahta.derslik().strip()) or "bilinmeyen-derslik"
-    return f"{datetime.now():%Y-%m-%d_%H-%M-%S}_{derslik}.txt"
+    temel = f"{datetime.now():%Y-%m-%d_%H-%M-%S}_{derslik}"
+    yol = LOG_DIR / f"{temel}.txt"
+    if not yol.exists():
+        return f"{temel}.txt"
+    i = 1
+    while (LOG_DIR / f"{temel}_{i}.txt").exists():
+        i += 1
+    return f"{temel}_{i}.txt"
 
 
 def _oturum_yolunu_al() -> Path:
@@ -142,3 +149,34 @@ def yeni_oturum_baslat() -> None:
     global _oturum_yolu
     with _lock:
         _oturum_yolu = None
+
+
+def son_konusmalar(n: int = 5) -> str:
+    """
+    Bu dersin son `n` konuşma satırını döner (ör. yeniden bağlanma veya DEVAM ET için).
+    Sistem satırlarını (oturum başladı/bitti vb.) eler, konuşmacı ve metni verir.
+    """
+    path = _oturum_yolu
+    if not path or not path.exists():
+        return ""
+    try:
+        with _lock:
+            satirlar = path.read_text(encoding="utf-8").splitlines()
+        konusmalar: list[str] = []
+        for s in reversed(satirlar):
+            s = s.strip()
+            if not s or s.startswith("#") or s.startswith("-"):
+                continue
+            parcalar = s.split(maxsplit=2)
+            if len(parcalar) >= 3:
+                _saat, etiket, metin = parcalar
+                etiket_temiz = etiket.strip()
+                if etiket_temiz in ("ÖĞRETMEN", "FARABİ", "ÖĞRENCİ"):
+                    konusmalar.append(f"{etiket_temiz}: {metin}")
+                    if len(konusmalar) >= n:
+                        break
+        konusmalar.reverse()
+        return "\n".join(konusmalar)
+    except Exception as e:
+        print(f"[Transkript] Son konuşmalar okunamadı: {e}")
+        return ""

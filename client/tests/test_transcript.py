@@ -65,3 +65,18 @@ def test_yeni_oturum_baslat_hicbir_yazma_olmadan_da_calisir():
     None) yeni_oturum_baslat() çağrılırsa çökmemeli."""
     transcript.yeni_oturum_baslat()
     transcript.yeni_oturum_baslat()  # ard arda iki kez de güvenli olmalı
+
+
+def test_son_konusmalar():
+    transcript.yeni_oturum_baslat()
+    transcript.log_line("sistem", "— Oturum başladı —")
+    transcript.log_line("ogretmen", "Newton yasaları")
+    transcript.log_line("farabi", "Bugün Newton'un hareket yasalarını işleyeceğiz.")
+    transcript.log_line("ogrenci", "Hocam eylemsizlik nedir?")
+    transcript.log_line("sistem", "— Oturum bitti —")
+
+    son = transcript.son_konusmalar(2)
+    assert "ÖĞRENCİ: Hocam eylemsizlik nedir?" in son
+    assert "FARABİ: Bugün Newton'un hareket yasalarını işleyeceğiz." in son
+    assert "Newton yasaları" not in son  # son 2 istendiği için ilk konuşma dahil olmamalı
+    assert "Oturum" not in son  # sistem mesajları elenmeli

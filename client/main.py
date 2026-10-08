@@ -17,7 +17,7 @@ from google.genai import types
 from PIL import Image
 from ui import FarabiUI
 from core import transcript, zil, tahta, anahtar, olaylar, program, kullanim
-from core.ders_motoru import DersMotoru
+from core.ders_motoru import DersMotoru, BEKLIYOR, YOKLAMA, ANLATIM
 from core.logger import get_logger, log_path
 
 log = get_logger("main")
@@ -531,6 +531,22 @@ class FarabiLive:
                     self._video_yuzunden_susturuldu = False
                 if not self.ui.muted:
                     self.ui.set_state("LISTENING")
+                d = getattr(self.motor, "durum", None)
+                ekler = []
+                if d and (getattr(d, "ders_adi", None) or getattr(d, "konu", None)):
+                    ekler.append(f"Ders: {getattr(d, 'ders_adi', '')} {getattr(d, 'konu', '')}".strip())
+                if d and getattr(d, "adim", None):
+                    ekler.append(f"Adım: {d.adim}")
+                son = transcript.son_konusmalar(4)
+                if son:
+                    ekler.append(f"Son konuşmalar:\n{son}")
+                ek_bilgi = ("\nBağlam:\n" + "\n".join(ekler)) if ekler else ""
+                metin = (
+                    "[ÖĞRETMEN KOMUTU] Derse devam et. Dersi veya konuyu baştan "
+                    "başlatma, selamlama yapma ('tekrar merhaba' vb. deme), anlattıklarını "
+                    "tekrarlama. En son nerede kaldıysan doğrudan oradan tek cümleyle sürdür; "
+                    f"sınıfa ne yaptığınızı sorma.{ek_bilgi}"
+                )
             else:
                 # Yazılı komut: motor bir süre öneri üretmesin ama kilitlenmesin
                 # (core/ders_motoru.MUDAHALE_SURESI_DK).
@@ -729,6 +745,12 @@ class FarabiLive:
         if kaz_m:
             self._current_lesson["kazanim"] = kaz_m.group(1).strip()
             self._kazanimi_ogretmene_al()
+        if (ders_m or konu_m) and getattr(self.motor, "durum", None) and \
+                getattr(self.motor.durum, "adim", None) in (BEKLIYOR, YOKLAMA):
+            try:
+                self.motor.gec(ANLATIM, kaynak="ogretmen")
+            except Exception as e:
+                log.info("Adım geçişi yapılamadı: %s", e)
         log.info("Çerçeve öğretmenden güncellendi: ders=%s konu=%s",
                  self._current_lesson.get("subject"),
                  self._current_lesson.get("topic"))
@@ -1786,16 +1808,24 @@ class FarabiLive:
             # DUR konuşma sırasında geldi ve bağlantı bu yüzden zorla
             # yenilendi (bkz. _DurZorlama) — "dersin ortasındasın, sürdür"
             # dersek DUR'un amacını baltalarız, model hemen konuşmaya
-            # devam eder. Öğretmenin "durdur" talimatı zaten
-            # transcript'e/oturuma [ÖĞRETMEN KOMUTU] olarak gitmişti; burada
-            # yalnızca yeni bağlantının SESSİZ kalmasını pekiştiriyoruz.
+            # devam eder. Burada yeni bağlantıya ders hafızasını verip
+            # 'Devam et' denene kadar SESSİZ kalmasını pekiştiriyoruz.
+            d = self.motor.durum
+            satirlar = [
+                "[OTURUM DEVAM] Bağlantı teknik bir sebeple yenilendi. "
+                "Ders şu an ÖĞRETMEN tarafından DURAKLATILDI. SELAMLAMA "
+                "YAPMA, hiçbir şey anlatma, soru sorma. 'Devam et' "
+                "komutu gelene kadar tamamen sessiz kal.",
+            ]
+            if d.ders_adi or d.konu:
+                satirlar.append(f"- Ders: {d.ders_adi} {d.konu}".rstrip())
+            if d.adim:
+                satirlar.append(f"- Bulunduğun adım: {d.adim}")
+            son = transcript.son_konusmalar(4)
+            if son:
+                satirlar.append("Son konuşmalar:\n" + son)
             await self.session.send_client_content(
-                turns={"parts": [{"text":
-                    "[OTURUM DEVAM] Bağlantı teknik bir sebeple yenilendi. "
-                    "Ders şu an ÖĞRETMEN tarafından DURAKLATILDI. SELAMLAMA "
-                    "YAPMA, hiçbir şey anlatma, soru sorma. 'Devam et' "
-                    "komutu gelene kadar tamamen sessiz kal."
-                }]},
+                turns={"parts": [{"text": "\n".join(satirlar)}]},
                 turn_complete=True,
             )
             self.ui.write_log("SYS: Bağlantı yenilendi (ders duraklatılmış, sessiz).")
@@ -1816,6 +1846,9 @@ class FarabiLive:
                 satirlar.append(f"- Bulunduğun adım: {d.adim}")
             if d.kalan_dk is not None:
                 satirlar.append(f"- Dersin bitmesine {d.kalan_dk} dakika var.")
+            son = transcript.son_konusmalar(4)
+            if son:
+                satirlar.append("Son konuşmalar:\n" + son)
         else:
             satirlar = [
                 "[OTURUM DEVAM] Bağlantı teknik bir sebeple yenilendi. "

@@ -287,6 +287,7 @@ class DersMotoru:
             satirlar.append(f"kontrol noktası: {d.kontrol_dogru}/{d.kontrol_toplam}")
         if oneri:
             satirlar.append(f"öneri: {oneri['eylem']} — {oneri['gerekce']}")
-        satirlar.append("Bu bir durum bilgisidir. Sesli olarak 'anladım' deme, "
-                        "selamlama yapma; planını buna göre sürdür.")
+        satirlar.append("Bu bir arka plan durum bilgisidir. Sesli olarak 'anladım', "
+                        "'yoklama devam ediyor' gibi teyitler VERME, selamlama yapma; "
+                        "planını buna göre sessizce sürdür.")
         return "\n".join(satirlar)
