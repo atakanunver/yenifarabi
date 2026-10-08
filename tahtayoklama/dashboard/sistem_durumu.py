@@ -41,10 +41,10 @@ import tahta_saglik
 
 KOMUT_ZAMAN_ASIMI_SN = 4
 HTTP_ZAMAN_ASIMI_SN = 3
-TOPLAMA_ARALIGI_SN = 15
+TOPLAMA_ARALIGI_SN = 30
 YAVAS_KONTROL_ARALIGI_SN = 60
 BAYAT_SN = 60  # önbellek bundan eskiyse istek anında yeniden toplanır
-TREND_NOKTA = 120  # 120 × 15 sn = 30 dk
+TREND_NOKTA = 120  # 120 × 30 sn = 60 dk
 OLLAMA_API = "http://127.0.0.1:11434/api/tags"
 OLLAMA_PS_API = "http://127.0.0.1:11434/api/ps"
 
@@ -54,6 +54,7 @@ SERVISLER = [
     ("farabi-yoklama-dashboard", "Yoklama Panosu", "/giris"),
     ("farabi-api", "Farabi RAG API", "/ready"),
     ("farabi-smssistemi", "SMS Sistemi", "/giris"),
+    ("sinif-arena", "Sınıf Arenası", "/"),
     ("ollama", "Ollama", "/api/version"),
     ("open-webui", "Open WebUI", "/health"),
     ("postgresql@18-main", "PostgreSQL", None),  # HTTP yok — SQL ile yoklanır
@@ -63,9 +64,14 @@ VARSAYILAN_PORTLAR = {"ollama": 11434}
 POSTGRES_CONF = "/etc/postgresql/18/main/postgresql.conf"
 
 # Dış makineler — adresler llm-cluster-wiki'den (nodes/omv-debian.md,
-# nodes/zil.md, nodes/mudur-pc.md). `beklenen`: "ayakta" sayılan HTTP kodları
+# nodes/bilgehan.md, nodes/zil.md, nodes/mudur-pc.md). `beklenen`: "ayakta" sayılan HTTP kodları
 # (zil paneli Basic Auth'lu → 401 = ayakta).
 UZAK_SERVISLER = [
+    {"anahtar": "bilgehan_embed", "ad": "RAG Embed & Rerank", "makine": "bilgehan",
+     "host": "192.168.23.223", "port": 8040, "yol": "/saglik", "beklenen": (200,)},
+    # farabi2-ses (Chatterbox, RTX 3060) — zil anonsları buraya gider (2026-10-08); :5002 değil.
+    {"anahtar": "bilgehan_tts", "ad": "Chatterbox TTS (zil anonsları)", "makine": "bilgehan",
+     "host": "192.168.23.223", "port": 8060, "yol": "/saglik", "beklenen": (200,)},
     {"anahtar": "tts", "ad": "TTS Sunucusu (EMA Lightning)", "makine": "debian",
      "host": "192.168.23.251", "port": 5002, "yol": "/saglik", "beklenen": (200,)},
     {"anahtar": "zil", "ad": "Zil Paneli", "makine": "zil",

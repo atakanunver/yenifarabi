@@ -40,7 +40,7 @@ templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk  # taban.html kullan�
 
 BETIK = "/usr/local/sbin/okul-sunucu"
 SSH_ANAHTARI = Path.home() / ".ssh" / "sunucu_izleme"
-CHATTERBOX_URL = "http://192.168.23.251:5002/saglik/detay"
+CHATTERBOX_URL = "http://192.168.23.251:5002/saglik/detay"  # debian EMA Lightning TTS (aynı alanlar)
 ONBELLEK_SN = 60
 DURUM_ZAMAN_ASIMI_SN = 25
 PROXY_ZAMAN_ASIMI_SN = 240  # Ollama restart'ı (model ön-yükleme dahil) sürebilir
@@ -57,7 +57,7 @@ MAKINELER = {
     },
     "bilgehan": {
         "ad": "Bilgehan",
-        "rol": "Çift GPU (RTX 3060 + GTX 1660 Ti)",
+        "rol": "RAG Embed & Rerank + Chatterbox TTS",
         "host": "bilgehan.local",
         "proxy_dugmesi": True,
     },
@@ -111,7 +111,7 @@ def komut_argumanlari(makine: str, alt: str) -> list[str]:
         "-o",
         "BatchMode=yes",
         "-o",
-        "ConnectTimeout=5",
+        "ConnectTimeout=3",
         "-o",
         "IdentitiesOnly=yes",
         "-o",
