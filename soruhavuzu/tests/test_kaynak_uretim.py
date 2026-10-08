@@ -35,3 +35,18 @@ def test_istem_kazanimi_icerir():
     kullanici = istem[1]["content"]
     assert "KAZANIM: 10.1.3. Üçgenin alanı" in kullanici and "KAYNAK" in kullanici
     assert "bu kazanımı ölçmeli" in kullanici
+
+
+def test_kitap_yoksa_kazanim_testi_tablosuna_gitmez():
+    """Kitap yok → kaynak_yok (spec §4.2); kazanim_test_soru'dan kaynak türetmek ayrı karardır."""
+    conn = _farabi([(1, "Fizik")], [])
+    assert kaynak.bul(conn, Gomucu(), 10, "matematik", "x") is None
+    cur = conn.cursor.return_value.__enter__.return_value
+    assert not any("kazanim_test_soru" in str(c.args[0]) for c in cur.execute.call_args_list)
+
+
+def test_dusuk_skorda_da_kazanim_testi_tablosuna_gitmez():
+    conn = _farabi([(10, "Matematik")], [(1, 12, "a", 0.60)])
+    assert kaynak.bul(conn, Gomucu(), 10, "matematik", "x") is None
+    cur = conn.cursor.return_value.__enter__.return_value
+    assert not any("kazanim_test_soru" in str(c.args[0]) for c in cur.execute.call_args_list)

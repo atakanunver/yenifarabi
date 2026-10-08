@@ -82,3 +82,29 @@ def test_uret_kazanim_dongusu_kaydeder_ve_kaynak_yok_isaretler(conn, monkeypatch
         assert cur.fetchone()[0] >= 10
         cur.execute("SELECT durum FROM kazanim WHERE id=%s", (b,))
         assert cur.fetchone()[0] == "kaynak_yok"
+
+
+def test_uret_bulucu_hatasinda_farabi_baglantisi_rollback_edilir(conn, monkeypatch):
+    """farabi DB sorgusu hata verirse bağlantı 'aborted' kalıp sonraki kazanımları da bozmasın."""
+    from datetime import date
+
+    from soruhavuzu import calistir, kazanimlar, tekrar, vt
+
+    vt.kazanim_upsert(conn, {"sinif": 10, "ders": "matematik", "hafta": 5, "kod": None, "metin": "alan"})
+    monkeypatch.setattr(kazanimlar, "haftalar", lambda *_: {5: date(2026, 10, 12)})
+    monkeypatch.setattr(tekrar, "_gomucu", lambda: None)
+    monkeypatch.setattr(tekrar.Eleyici, "yukle", lambda self, c: None)
+    monkeypatch.setattr(calistir, "denetle", lambda *a, **k: None)
+
+    class FarabiConn:
+        rollback_sayisi = 0
+
+        def rollback(self):
+            FarabiConn.rollback_sayisi += 1
+
+    def bulucu(*a, **k):
+        raise RuntimeError("farabi DB koptu")
+
+    calistir.uret(conn, ders_saati_kontrol=False, farabi_conn=FarabiConn(), bulucu=bulucu,
+                  ureten=lambda k, kay: [], bugun=date(2026, 10, 13))
+    assert FarabiConn.rollback_sayisi >= 1

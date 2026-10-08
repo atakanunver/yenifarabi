@@ -85,6 +85,8 @@ def uret(
             )
         except Exception as e:  # noqa: BLE001 — tek kazanımın hatası geceyi durdurmasın
             conn.rollback()
+            if hasattr(farabi_conn, "rollback"):
+                farabi_conn.rollback()  # aborted işlem sonraki kazanımları bozmasın
             print(f"[uret] HATA kazanım {k['id']}: {type(e).__name__}: {e}", flush=True)
     print("[uret] ders saati penceresi — durduruldu", flush=True)
     if ders_saati_kontrol:
