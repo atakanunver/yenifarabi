@@ -29,7 +29,8 @@ def istem(kazanimlar: list[str], adaylar: list[dict], n: int) -> str:
         + soru_metni
         + f"\n\nGörev: Kazanımlara en uygun, doğru cevabı kesin doğru, tek doğru şıklı, birbirini "
         f"tekrarlamayan en fazla {n} soruyu seç (`secilen`: id listesi). Uygun olmayan ya da hatalı "
-        "soruları `red` içinde nedeniyle yaz. Yalnızca JSON döndür."
+        "soruları `red` içinde nedeniyle yaz. Dosya oluşturma, komut çalıştırma, araç kullanma "
+        "(başsız modda reddedilir ve yanıt boş kalır); yalnızca JSON döndür."
     )
 
 
@@ -46,6 +47,8 @@ def agy_cagir(metin: str, zaman_asimi_sn: int = 600) -> str:
         check=False,
         timeout=zaman_asimi_sn + 30,
     )
+    if '"denied_actions"' in r.stdout:
+        log.warning("agy araç kullanmaya kalktı, reddedildi: %s", r.stderr.strip()[:200])
     return r.stdout
 
 
