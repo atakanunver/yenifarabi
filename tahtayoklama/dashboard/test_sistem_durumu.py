@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import patch
 
 import sistem_durumu as sd
+import tahta_saglik
 
 
 class TestYardimcilar(unittest.TestCase):
@@ -57,6 +58,18 @@ class TestTopla(unittest.TestCase):
         self.assertNotIn("Environment", metin)
         self.assertNotIn("HTTPS_PROXY", metin)
         self.assertNotIn("@192.168.23.243", metin)
+
+    def test_tahtalar_anahtari_her_cagride_okunur(self):
+        ornek = [{"tahta_ad": "9-A", "durum": "iyi"}]
+        with patch.object(sd, "_tahtalar_oku", return_value=ornek):
+            veri = asyncio.run(sd.durum_topla())
+        self.assertEqual(veri["tahtalar"], ornek)
+
+    def test_tahtalar_db_hatasinda_bos_liste_sayfa_bozulmaz(self):
+        with patch.object(tahta_saglik, "liste", side_effect=RuntimeError("db yok")):
+            veri = asyncio.run(sd.durum_topla())
+        self.assertEqual(veri["tahtalar"], [])
+        self.assertIn("cpu", veri)
 
     def test_trend_istenmezse_eklenmez(self):
         veri = asyncio.run(sd.durum_topla())

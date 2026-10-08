@@ -25,6 +25,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
 import db
+import tahta_saglik
 import yoklayici
 import zil
 
@@ -144,18 +145,40 @@ async def nabiz_al(request: Request):
     acik = veri.get("yoklama_acik")
     acik = int(acik) if isinstance(acik, bool) else None
     ip = request.client.host if request.client else None
+    # Sağlık ölçümü (istemci sürüm 3+): beyaz liste dışı/geçersiz alanlar düşer,
+    # hiç geçerli alan kalmazsa NULL (eski istemci davranışı değişmez).
+    saglik = tahta_saglik.saglik_temizle(veri.get("saglik"))
+    saglik_json = json.dumps(saglik, ensure_ascii=False) if saglik else None
     conn = db.baglanti()
     try:
         conn.execute(
             """
-            INSERT INTO tahta_nabiz (tahta_ad, son_gorulme, ip, istemci_surum, yoklama_acik)
-            VALUES (?, datetime('now'), ?, ?, ?)
+            INSERT INTO tahta_nabiz (tahta_ad, son_gorulme, ip, istemci_surum, yoklama_acik, saglik)
+            VALUES (?, datetime('now'), ?, ?, ?, ?)
             ON CONFLICT(tahta_ad) DO UPDATE SET
                 son_gorulme = excluded.son_gorulme, ip = excluded.ip,
-                istemci_surum = excluded.istemci_surum, yoklama_acik = excluded.yoklama_acik
+                istemci_surum = excluded.istemci_surum, yoklama_acik = excluded.yoklama_acik,
+                saglik = excluded.saglik
             """,
-            (tahta, ip, surum, acik),
+            (tahta, ip, surum, acik, saglik_json),
         )
+        if saglik:
+            conn.execute(
+                """
+                INSERT INTO tahta_saglik_gecmis
+                    (tahta_ad, zaman, sicaklik_c, bellek_bos_mb, takas_mb, yuk1,
+                     oom_sayisi, dokunmatik_kopma, dokunmatik_var, acilis_id)
+                VALUES (?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (tahta, saglik.get("sicaklik_c"), saglik.get("bellek_bos_mb"),
+                 saglik.get("takas_mb"), saglik.get("yuk1"), saglik.get("oom_sayisi"),
+                 saglik.get("dokunmatik_kopma"),
+                 None if "dokunmatik_var" not in saglik else int(saglik["dokunmatik_var"]),
+                 saglik.get("acilis_id")),
+            )
+            # Tablo küçük (tahta başına dakikada bir satır, 14 gün) ve silme
+            # indeksli — her çağrıda budamak yeterince ucuz.
+            tahta_saglik.gecmisi_buda(conn)
         conn.commit()
     finally:
         conn.close()

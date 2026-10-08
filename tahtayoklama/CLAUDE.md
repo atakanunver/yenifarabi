@@ -121,7 +121,9 @@ tahtayoklama/test_yoklama.py -q`.
 konuşur (`dashboard/tahta_api.py`):
 - `data/kayitlar/` son 7 gün, 15 sn'de bir, içerik sha256'sı değiştiyse
   `POST /kayit` (durum: `data/.istemci_durum.json`). 4xx = kalıcı ret, tekrar denenmez.
-- 60 sn'de bir `POST /nabiz` → `tahta_nabiz` tablosu. Nabzı ≤5 dk olan tahta
+- 60 sn'de bir `POST /nabiz` → `tahta_nabiz` tablosu; sürüm 3'ten beri gövdede
+  `saglik` (sıcaklık, boş bellek, takas, yük, OOM sayacı, dokunmatik USB kopması).
+  Uyarı eşikleri `dashboard/tahta_saglik.py` sabitlerinde; `/sistem-durumu` "Tahtalar". Nabzı ≤5 dk olan tahta
   polling'in kısmi turunda SSH ile taranmaz; saatte bir tam SSH taraması.
 - 10 dk'da bir `GET /yapilandirma` (ETag): roster (yalnızca atanmış sınıf,
   `admin._roster_payload_olustur` ile bayt bayt aynı; sınıf atanmamışsa —
@@ -161,6 +163,8 @@ YAPILMAZ** — pano kendi tahta/sınıf kaydını tutar.
 | `yoklama_onbellek` | tarih+sinif+ders_no UNIQUE; durum (`alindi`\|`alinmadi`\|`henuz_baslamadi`\|`tahta_ulasilamaz`\|`ders_yok_o_gun`\|`tahta_atanmamis`); yok/izinli isimleri JSON; sinif alanı FK DEĞİL (kasıtlı — silinen sınıfta bile geçmiş veri okunabilir kalsın) |
 | `oturumlar` | token, tek ortak şifreyle giriş (`auth.py`, scrypt hash) |
 | `uzaktan_denetim` | (2026-10-01) her uzaktan eylem: `zaman` (İstanbul, değerde +03:00 — diğer tablolar UTC), `istemci_ip`, `eylem`, `tahtalar`, `sonuc` (`9-A:ok,9-B:hata` / `secim_yok` / `<tahta>:ders_saati` = okul saatinde reddedilen yeniden başlatma), `kaynak` (2026-10-03; `/api/ajan` çağrılarında `openwebui:<e-posta>`, panelden gelenlerde boş). `eylem` adları ajan çağrılarında `ajan:<eylem>` (`ajan:yeniden_baslat` dahil). Kullanıcı sütunu yok (ortak şifre); URL/dosya adı/içerik yazılmaz |
+| `tahta_nabiz` | tahta başına tek satır: son_gorulme (UTC), ip, istemci_surum, yoklama_acik, `saglik` (JSON, 2026-10-08; istemci sürüm 3+, eski istemcide NULL — `tahta_saglik.saglik_temizle` beyaz listesinden geçer) |
+| `tahta_saglik_gecmis` | (2026-10-08) her nabızdaki sağlık ölçümü: tahta_ad, zaman (UTC), sicaklik_c, bellek_bos_mb, takas_mb, yuk1, oom_sayisi, dokunmatik_kopma, dokunmatik_var, acilis_id; 14 gün tutulur (`gecmisi_buda`), index (tahta_ad, zaman). `/sistem-durumu` "Tahtalar" tablosu (sıcaklık 24 s max) buradan |
 
 ### Ana bileşenler
 

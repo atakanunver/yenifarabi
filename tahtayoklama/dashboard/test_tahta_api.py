@@ -177,6 +177,70 @@ class TestTahtaApi(unittest.TestCase):
                     self._it(k)
                 self.assertEqual(c.exception.status_code, 422)
 
+    def _nabiz_satiri(self):
+        conn = db.baglanti()
+        try:
+            return conn.execute("SELECT * FROM tahta_nabiz WHERE tahta_ad='9-A'").fetchone()
+        finally:
+            conn.close()
+
+    def _gecmis(self):
+        conn = db.baglanti()
+        try:
+            return conn.execute("SELECT * FROM tahta_saglik_gecmis").fetchall()
+        finally:
+            conn.close()
+
+    def test_nabiz_saglik_saklanir_ve_gecmis_satiri_eklenir(self):
+        saglik = {"sicaklik_c": 61.5, "bellek_bos_mb": 1024, "takas_mb": 511, "yuk1": 1.5,
+                  "calisma_sn": 7265, "oom_sayisi": 2, "acilis_id": "abc-123",
+                  "dokunmatik_var": True, "dokunmatik_kopma": 1}
+        asyncio.run(tahta_api.nabiz_al(self._istek(govde={
+            "istemci_surum": "3", "yoklama_acik": False, "saglik": saglik})))
+        self.assertEqual(json.loads(self._nabiz_satiri()["saglik"]), saglik)
+        g = self._gecmis()
+        self.assertEqual(len(g), 1)
+        self.assertEqual(g[0]["tahta_ad"], "9-A")
+        self.assertEqual(g[0]["sicaklik_c"], 61.5)
+        self.assertEqual(g[0]["oom_sayisi"], 2)
+        self.assertEqual(g[0]["dokunmatik_var"], 1)
+        self.assertEqual(g[0]["acilis_id"], "abc-123")
+
+    def test_nabiz_saglik_dusmanca_degerler_atilir(self):
+        asyncio.run(tahta_api.nabiz_al(self._istek(govde={"saglik": {
+            "sicaklik_c": 5000, "bellek_bos_mb": "çok", "komut": "rm -rf /",
+            "oom_sayisi": 3, "acilis_id": "x" * 500}})))
+        kayitli = json.loads(self._nabiz_satiri()["saglik"])
+        self.assertEqual(kayitli, {"oom_sayisi": 3})
+
+    def test_nabiz_saglik_tamamen_gecersizse_null_ve_gecmis_yok(self):
+        for saglik in ("kotu", [1, 2], {"x": 1}, {}):
+            asyncio.run(tahta_api.nabiz_al(self._istek(govde={"saglik": saglik})))
+            self.assertIsNone(self._nabiz_satiri()["saglik"])
+        self.assertEqual(self._gecmis(), [])
+
+    def test_nabiz_eski_istemci_saglik_olmadan_calisir(self):
+        yanit = asyncio.run(tahta_api.nabiz_al(
+            self._istek(govde={"istemci_surum": "2", "yoklama_acik": True})))
+        self.assertEqual(yanit.status_code, 200)
+        self.assertIsNone(self._nabiz_satiri()["saglik"])
+        self.assertEqual(self._gecmis(), [])
+
+    def test_nabiz_saglik_gelmeyen_nabiz_eski_sagligi_silmez_degil_null_yapar(self):
+        # Sürüm düşürülen/saglik göndermeyen istemci: NULL — "veri yok" gösterilir.
+        asyncio.run(tahta_api.nabiz_al(self._istek(govde={"saglik": {"yuk1": 1.0}})))
+        asyncio.run(tahta_api.nabiz_al(self._istek(govde={})))
+        self.assertIsNone(self._nabiz_satiri()["saglik"])
+
+    def test_nabiz_gecmisi_budanir(self):
+        conn = db.baglanti()
+        conn.execute("INSERT INTO tahta_saglik_gecmis (tahta_ad, zaman) "
+                     "VALUES ('9-A', datetime('now', '-20 days'))")
+        conn.commit()
+        conn.close()
+        asyncio.run(tahta_api.nabiz_al(self._istek(govde={"saglik": {"yuk1": 1.0}})))
+        self.assertEqual(len(self._gecmis()), 1)
+
     def test_nabiz_upsert_ve_taze_nabizli(self):
         yanit = asyncio.run(tahta_api.nabiz_al(
             self._istek(govde={"istemci_surum": "1.0", "yoklama_acik": True})))

@@ -12,7 +12,8 @@ Döngü:
   (sha256) son onaylanandan farklıysa POST /kayit (öğretmen aynı dersi
   yeniden kaydederse dosya üzerine yazılır → özet değişir → yeniden gider).
   Ayrı bir "giden kutusu" kopyası yok; kuyruk = kayitlar/ + durum dosyası.
-- 60 sn: POST /nabiz.
+- 60 sn: POST /nabiz (+ donanım sağlığı: sıcaklık, bellek/takas, yük,
+  OOM sayacı, dokunmatik USB kopması — `saglik_olc`, sürüm 3).
 - 10 dk (ve açılışta): GET /yapilandirma (ETag) → roster / zil.json /
   ders_programi.json / kazanimlar.json içerik farklıysa doğrulayıp atomik yazar.
 
@@ -35,7 +36,7 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-SURUM = "2"
+SURUM = "3"
 BASE_DIR = Path(__file__).resolve().parent
 AYAR_DOSYASI = BASE_DIR / "istemci.json"
 DATA_DIR = BASE_DIR / "data"
@@ -53,6 +54,9 @@ ZAMAN_ASIMI_SN = 8
 _KAYIT_ADI_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})_[A-Za-z0-9_-]+_ders\d+\.json$")
 _SINIF_RE = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 _SAAT_RE = re.compile(r"^\d{2}:\d{2}$")
+
+# Dokunmatik panel USB satıcı kimlikleri: IRTOUCH (eski tahtalar), OTD (yeni).
+DOKUNMATIK_SATICILAR = {"6615", "2621"}
 
 _opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
@@ -169,9 +173,119 @@ def yoklama_acik_mi() -> bool:
     return False
 
 
+class DokunmatikIzci:
+    """Dokunmatik USB aygıtlarının kopmasını sayar. Kimlik = sysfs dizin adı
+    (ör. '1-1.2'), değer = devnum; USB'den kopup yeniden tanınan aygıt yeni
+    devnum alır. Aygıt kaybolursa BİR kez sayılır; geri gelince yalnızca yeni
+    devnum kaydedilir (tekrar sayılmaz)."""
+
+    def __init__(self) -> None:
+        self.kopma = 0
+        self._bilinen: dict[str, int] = {}
+        self._kayip: set[str] = set()
+
+    def guncelle(self, aygitlar: dict[str, int]) -> None:
+        for ad in list(self._bilinen):
+            if ad not in aygitlar and ad not in self._kayip:
+                self._kayip.add(ad)
+                self.kopma += 1
+        for ad, devnum in aygitlar.items():
+            if ad in self._kayip:
+                self._kayip.discard(ad)
+            elif ad in self._bilinen and self._bilinen[ad] != devnum:
+                self.kopma += 1
+            self._bilinen[ad] = devnum
+
+
+_IZCI = DokunmatikIzci()
+
+
+def _oku(yol: Path) -> str:
+    return yol.read_text(encoding="utf-8", errors="replace").strip()
+
+
+def _dokunmatik_aygitlar(kok: Path) -> dict[str, int]:
+    sonuc: dict[str, int] = {}
+    for dizin in (kok / "sys/bus/usb/devices").glob("*"):
+        try:
+            if _oku(dizin / "idVendor").lower() in DOKUNMATIK_SATICILAR:
+                sonuc[dizin.name] = int(_oku(dizin / "devnum"))
+        except (OSError, ValueError):
+            continue
+    return sonuc
+
+
+def _meminfo(kok: Path) -> dict[str, int]:
+    sonuc: dict[str, int] = {}
+    for satir in _oku(kok / "proc/meminfo").splitlines():
+        ad, _, deger = satir.partition(":")
+        parca = deger.split()
+        if parca:
+            sonuc[ad] = int(parca[0])
+    return sonuc
+
+
+def _sicaklik(kok: Path) -> float | None:
+    degerler = []
+    for desen in ("sys/class/hwmon/hwmon*/temp*_input", "sys/class/thermal/thermal_zone*/temp"):
+        for yol in kok.glob(desen):
+            try:
+                degerler.append(int(_oku(yol)) / 1000)
+            except (OSError, ValueError):
+                continue
+    return round(max(degerler), 1) if degerler else None
+
+
+def _korumali(fonksiyon):
+    try:
+        return fonksiyon()
+    except Exception:  # noqa: BLE001 — ölçüm asla nabzı düşürmemeli
+        return None
+
+
+def saglik_olc(kok: Path = Path("/"), izci: DokunmatikIzci | None = None) -> dict:
+    """Donanım sağlığı. Her ölçüm bağımsız korunur: okunamayan → None.
+    Yollar `kok`'a göredir (testte sahte ağaç)."""
+    kok = Path(kok)
+
+    def mem(anahtar: str):
+        return _meminfo(kok)[anahtar]
+
+    def vmstat_oom() -> int:
+        for satir in _oku(kok / "proc/vmstat").splitlines():
+            parca = satir.split()
+            if len(parca) == 2 and parca[0] == "oom_kill":
+                return int(parca[1])
+        raise ValueError("oom_kill yok")
+
+    def takas() -> int:
+        m = _meminfo(kok)
+        return (m["SwapTotal"] - m["SwapFree"]) // 1024
+
+    aygitlar = _korumali(lambda: _dokunmatik_aygitlar(kok))
+    if izci is not None and aygitlar is not None:
+        _korumali(lambda: izci.guncelle(aygitlar))
+    kopma = None if izci is None else izci.kopma
+    return {
+        "sicaklik_c": _korumali(lambda: _sicaklik(kok)),
+        "bellek_bos_mb": _korumali(lambda: mem("MemAvailable") // 1024),
+        "takas_mb": _korumali(takas),
+        "yuk1": _korumali(lambda: float(_oku(kok / "proc/loadavg").split()[0])),
+        "calisma_sn": _korumali(lambda: int(float(_oku(kok / "proc/uptime").split()[0]))),
+        "oom_sayisi": _korumali(vmstat_oom),
+        "acilis_id": _korumali(lambda: _oku(kok / "proc/sys/kernel/random/boot_id") or None),
+        "dokunmatik_var": None if aygitlar is None else bool(aygitlar),
+        "dokunmatik_kopma": kopma,
+    }
+
+
 def nabiz_gonder(ayar: dict) -> None:
-    kod, _, _ = istek(ayar, "POST", "/api/v1/tahta/nabiz",
-                      {"istemci_surum": SURUM, "yoklama_acik": yoklama_acik_mi()})
+    govde = {"istemci_surum": SURUM, "yoklama_acik": yoklama_acik_mi()}
+    try:
+        govde["saglik"] = saglik_olc(Path("/"), _IZCI)
+    except Exception as e:  # noqa: BLE001 — sağlık yoksa da nabız gitmeli
+        log(f"saglik olculemedi: {e!r}")
+    kod, _, _ = istek(ayar, "POST", "/api/v1/tahta/nabiz", govde)
     if kod != 200:
         log(f"nabiz basarisiz ({kod})")
 

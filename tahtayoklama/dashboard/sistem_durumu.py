@@ -36,6 +36,9 @@ import time
 import urllib.error
 import urllib.request
 
+import db
+import tahta_saglik
+
 KOMUT_ZAMAN_ASIMI_SN = 4
 HTTP_ZAMAN_ASIMI_SN = 3
 TOPLAMA_ARALIGI_SN = 15
@@ -806,11 +809,24 @@ def trend_verisi() -> list[dict]:
     return list(_trend)
 
 
+def _tahtalar_oku() -> list[dict]:
+    """Tahta sağlık tablosu (pano DB'si). İzleme sayfayı ASLA bozmamalı → hata = []."""
+    try:
+        conn = db.baglanti()
+        try:
+            return tahta_saglik.liste(conn)
+        finally:
+            conn.close()
+    except Exception:  # noqa: BLE001
+        return []
+
+
 async def durum_topla(trend: bool = False) -> dict:
     """Önbellekteki son ölçümü döner; önbellek yoksa/bayatsa hemen toplar."""
     if _son_olcum is None or time.time() - _son_olcum_zamani > BAYAT_SN:
         await _topla_ve_kaydet()
     veri = dict(_son_olcum)
+    veri["tahtalar"] = _tahtalar_oku()  # 15 sn'lik önbellekten bağımsız, her çağrıda taze
     if trend:
         veri["trend"] = trend_verisi()
     return veri

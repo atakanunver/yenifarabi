@@ -86,8 +86,27 @@ CREATE TABLE IF NOT EXISTS tahta_nabiz (
     son_gorulme    TEXT NOT NULL,
     ip             TEXT,
     istemci_surum  TEXT,
-    yoklama_acik   INTEGER
+    yoklama_acik   INTEGER,
+    saglik         TEXT   -- JSON (tahta_saglik); eski DB'lerde semayi_kur ALTER eder
 );
+
+-- Tahta sağlık geçmişi (2026-10-08): her nabızda bir satır, 14 gün tutulur
+-- (tahta_saglik.gecmisi_buda). zaman UTC. dokunmatik_var 0/1.
+CREATE TABLE IF NOT EXISTS tahta_saglik_gecmis (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    tahta_ad         TEXT NOT NULL,
+    zaman            TEXT NOT NULL DEFAULT (datetime('now')),
+    sicaklik_c       REAL,
+    bellek_bos_mb    INTEGER,
+    takas_mb         INTEGER,
+    yuk1             REAL,
+    oom_sayisi       INTEGER,
+    dokunmatik_kopma INTEGER,
+    dokunmatik_var   INTEGER,
+    acilis_id        TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_tahta_saglik_gecmis_tahta_zaman
+    ON tahta_saglik_gecmis (tahta_ad, zaman);
 """
 
 
@@ -111,6 +130,10 @@ def semayi_kur() -> None:
         sutunlar = [r["name"] for r in conn.execute("PRAGMA table_info(uzaktan_denetim)")]
         if "kaynak" not in sutunlar:
             conn.execute("ALTER TABLE uzaktan_denetim ADD COLUMN kaynak TEXT")
+        # Tahta sağlık ölçümleri (JSON) — eski istemciler göndermezse NULL.
+        sutunlar = [r["name"] for r in conn.execute("PRAGMA table_info(tahta_nabiz)")]
+        if "saglik" not in sutunlar:
+            conn.execute("ALTER TABLE tahta_nabiz ADD COLUMN saglik TEXT")
         conn.commit()
     finally:
         conn.close()

@@ -93,6 +93,22 @@
   </table>
 </div>
 
+<h2>Tahtalar</h2>
+<p class="rapor-aciklama">Her tahtanın istemcisi dakikada bir donanım ölçümü
+   gönderir. Bellek doldu = çekirdeğin bellek yetmediği için bir programı
+   (çoğunlukla tarayıcıyı) zorla kapatma sayısı, tahta açıldığından beri.
+   Dokunmatik kopma = USB bağlantısının koptuğu sayı. Sıcaklık: şu an / son 24
+   saatin en yükseği.</p>
+<div class="tablo-sarici servis-tablo-sarici">
+  <table class="servis-tablo">
+    <thead><tr>
+      <th>Tahta</th><th>Durum</th><th>Sıcaklık</th><th>Boş bellek</th><th>Takas</th>
+      <th>Yük</th><th>Bellek doldu</th><th>Dokunmatik</th><th>Açık kalma</th><th>Uyarılar</th>
+    </tr></thead>
+    <tbody id="tahta-tablo-govde"><tr><td colspan="10">Okunuyor…</td></tr></tbody>
+  </table>
+</div>
+
 <h2>Ağ ve dış makineler</h2>
 <p class="rapor-aciklama">60 saniyede bir yoklanır. SMS köprüsü için yalnızca
    Müdür PC'deki proxy portuna bağlanılır; modeme hiç bağlanılmaz (modem tek
@@ -204,6 +220,43 @@ function servisSatirOlustur(s) {
     <td>${s.cpu_yuzde == null ? '—' : '%' + s.cpu_yuzde}</td>
     <td>${s.ram_mb == null ? '—' : s.ram_mb + ' MB'}</td>
     <td>${s.calisma_suresi || '—'}</td>
+  </tr>`;
+}
+
+// ---- Tahtalar ----
+function acikKalma(sn) {
+  if (sn == null) return '—';
+  const g = Math.floor(sn / 86400), sa = Math.floor(sn % 86400 / 3600), dk = Math.floor(sn % 3600 / 60);
+  return g ? `${g} gün ${sa} sa` : (sa ? `${sa} sa ${dk} dk` : `${dk} dk`);
+}
+function tahtaDurumRozeti(t) {
+  if (t.durum === 'iyi') return rozet('ok', 'Normal');
+  if (t.durum === 'uyari') return rozet('uyari', 'Uyarı');
+  if (t.durum === 'hata') return rozet('hata', 'Sorun');
+  if (t.durum === 'cevrimdisi') return rozet('hata', 'Çevrimdışı');
+  return rozet('gri', 'Veri yok');
+}
+function tahtaSatirOlustur(t) {
+  const s = t.saglik || {};
+  const cevrimdisi = t.durum === 'cevrimdisi';
+  const sic = s.sicaklik_c == null ? '—' : `${s.sicaklik_c} °C`
+    + (t.sicaklik_24s_max == null ? '' : ` <span class="soluk">/ ${t.sicaklik_24s_max} °C</span>`);
+  const dokunmatik = s.dokunmatik_var == null ? '—'
+    : (s.dokunmatik_var ? 'Var' : 'Yok') + ` <span class="soluk">· ${s.dokunmatik_kopma ?? 0} kopma</span>`;
+  const uyarilar = (t.uyarilar || []).length
+    ? t.uyarilar.map(u => rozet(u.seviye, u.mesaj)).join(' ')
+    : '<span class="soluk">—</span>';
+  return `<tr>
+    <th scope="row">${kacis(t.tahta_ad)}</th>
+    <td>${tahtaDurumRozeti(t)}</td>
+    <td>${sic}</td>
+    <td>${birim(s.bellek_bos_mb, ' MB')}</td>
+    <td>${birim(s.takas_mb, ' MB')}</td>
+    <td>${s.yuk1 == null ? '—' : s.yuk1.toFixed(2)}</td>
+    <td>${s.oom_sayisi == null ? '—' : s.oom_sayisi}</td>
+    <td>${dokunmatik}</td>
+    <td>${cevrimdisi ? '—' : acikKalma(s.calisma_sn)}</td>
+    <td>${uyarilar}</td>
   </tr>`;
 }
 
@@ -406,6 +459,11 @@ async function durumGuncelle() {
     : '<p class="rapor-aciklama">GPU bulunamadı (nvidia-smi yanıt vermedi).</p>';
 
   document.getElementById('servis-tablo-govde').innerHTML = veri.servisler.map(servisSatirOlustur).join('');
+
+  const tahtalar = veri.tahtalar || [];
+  document.getElementById('tahta-tablo-govde').innerHTML = tahtalar.length
+    ? tahtalar.map(tahtaSatirOlustur).join('')
+    : '<tr><td colspan="10">Henüz sağlık verisi gönderen tahta yok — tahta istemcisi 3. sürüme güncellenince görünür.</td></tr>';
 
   const uzak = veri.uzak_servisler || [];
   document.getElementById('uzak-listesi').innerHTML = uzak.length
