@@ -93,7 +93,9 @@ def soru_ekle(
 
 # En az onaylı sorusu olan (sınıf, ders) önce; eşitlikte yüksek sınıf önce.
 DENETLENECEK_SQL = (
-    "SELECT s.*, b.metin AS birim_metin FROM soru s JOIN kaynak_birim b ON b.id = s.birim_id "
+    "SELECT s.*, b.metin AS birim_metin, kz.metin AS kazanim_metin FROM soru s "
+    "JOIN kaynak_birim b ON b.id = s.birim_id "
+    "LEFT JOIN kazanim kz ON kz.id = s.kazanim_id "
     "LEFT JOIN (SELECT ders, sinif, count(*) AS n FROM soru WHERE durum = 'onayli' "
     "GROUP BY ders, sinif) o ON o.ders = s.ders AND o.sinif = s.sinif "
     "WHERE s.durum = 'uretildi' "

@@ -35,6 +35,8 @@ def istem(paket: list[dict]) -> str:
         bloklar.append(
             f"- id={s['id']} (kaynak {s['birim_id']}, {s['ders']} {s['sinif']}. sınıf, "
             f"zorluk {s['zorluk']}): {s['soru']}\n  Şıklar: {secenekler}\n"
+            + (f"  Kazanım: {s['kazanim_metin']}\n" if s.get("kazanim_metin") else "")
+            +
             f"  Doğru: {'ABCD'[s['dogru_index']]} / kısa cevap: {s['kisa_cevap']}"
         )
     return (
@@ -44,7 +46,8 @@ def istem(paket: list[dict]) -> str:
         "dersin kendi bilgisini/becerisini ölçmeli: ders kitabındaki bir örnek, hikâye ya da problem "
         "bağlamından çıkarılmış ders dışı bilgi soruları (ör. matematik kitabında bir günün tarihi, "
         "bir kişinin adı, bir yerin özelliği) ve saçma, anlamsız ya da cevabı sorudan belli olan "
-        "sorular GEÇERSİZDİR — metinde geçse bile reddet. Dosya oluşturma, araç "
+        "sorular GEÇERSİZDİR — metinde geçse bile reddet. Kazanımı belirtilmiş soru o kazanımı "
+        "ölçmüyorsa GEÇERSİZ (neden: kazanım dışı). Dosya oluşturma, araç "
         "kullanma; yalnızca her id için bir karar içeren JSON döndür: "
         '{"kararlar": [{"id": 1, "gecerli": true, "neden": "kısa gerekçe"}]}\n'
         + "\n".join(bloklar)
