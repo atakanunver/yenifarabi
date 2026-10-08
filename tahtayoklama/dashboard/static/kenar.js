@@ -1,26 +1,6 @@
-// Kenar çubuğu: mobilde aç/kapat + sidebar altındaki mini sistem durumu rozeti.
-// Tema seçimiyle ilgisi yok (bkz. tema.js) — tek sorumluluk ayrımı.
+// İkon şeridindeki mini sistem durumu rozeti (2026-10-08'den beri yalnız bu; menü/çekmece
+// menu.js'te, tema tema.js'te).
 (function () {
-  var KENAR = document.getElementById('kenar-cubugu');
-  var ORTU = document.getElementById('kenar-orustu');
-  var AC_BUTON = document.getElementById('menu-ac');
-  var KAPAT_BUTON = document.getElementById('kenar-kapat');
-
-  function kenariAc() {
-    KENAR.classList.add('acik');
-    ORTU.classList.add('acik');
-  }
-  function kenariKapat() {
-    KENAR.classList.remove('acik');
-    ORTU.classList.remove('acik');
-  }
-  if (AC_BUTON) AC_BUTON.addEventListener('click', kenariAc);
-  if (KAPAT_BUTON) KAPAT_BUTON.addEventListener('click', kenariKapat);
-  if (ORTU) ORTU.addEventListener('click', kenariKapat);
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') kenariKapat();
-  });
-
   // ---- Mini sistem durumu rozeti (sidebar altı) ----
   var SICAKLIK_ALANI = document.getElementById('mini-durum-sicaklik');
   var SERVIS_ALANI = document.getElementById('mini-durum-servis');

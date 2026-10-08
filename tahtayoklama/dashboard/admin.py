@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
+import menu
 import auth
 import db
 import ssh_istemci
@@ -22,6 +23,7 @@ import zil
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["menu_agaci"] = menu.menu_agaci  # taban.html (2026-10-08)
 templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk
 
 _SINIF_AD_RE = re.compile(r"^[A-Za-z0-9_-]+$")

@@ -1,0 +1,217 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Servis yönetimi — Farabi Panel{% endblock %}
+{% block baslik %}Servis yönetimi{% endblock %}
+{% block ust_sag %}<button type="button" class="dugme dugme-ikincil" id="yenile"><svg class="ikon"><use href="#ik-yenile"/></svg> Yenile</button>{% endblock %}
+{% block icerik %}
+<div class="servis-sayfa">
+<section class="kpi-satir" aria-live="polite">
+  <div class="kpi"><span class="kpi-etiket">Çalışan servis</span><strong id="kpi-calisan">—</strong></div>
+  <div class="kpi"><span class="kpi-etiket">Sorunlu</span><strong id="kpi-sorunlu">—</strong></div>
+  <div class="kpi kpi-genis"><span class="kpi-etiket">Sıradaki zamanlayıcı</span><strong id="kpi-siradaki">—</strong></div>
+  <div class="kpi" id="ders-saati-rozeti" hidden><span class="rozet rozet-amber">Ders saati</span>
+    <span class="kpi-etiket">Derse etki eden işlemler ikinci onay ister</span></div>
+</section>
+
+<h2 class="bolum-baslik">Servisler</h2>
+<div class="servis-izgara" id="servis-kartlari">
+  <div class="servis-kart iskelet"></div><div class="servis-kart iskelet"></div><div class="servis-kart iskelet"></div>
+</div>
+
+<h2 class="bolum-baslik" id="zamanlayicilar-baslik">Zamanlayıcılar</h2>
+<div class="tablo-sarici"><table class="servis-zaman-tablo" id="zamanlayicilar" aria-labelledby="zamanlayicilar-baslik">
+  <thead><tr><th>Zamanlayıcı</th><th>Sonraki</th><th>Son çalışma</th><th>Etkin</th><th><span class="gorsel-gizli">Eylemler</span></th></tr></thead>
+  <tbody><tr><td colspan="5"><div class="iskelet iskelet-satir"></div></td></tr></tbody>
+</table></div>
+
+<section class="soru-havuzu" id="soru-havuzu-karti" aria-labelledby="sh-baslik">
+  <h2 id="sh-baslik" class="bolum-baslik">Soru havuzu</h2>
+  <p class="soluk" id="sh-durum">Yükleniyor…</p>
+  <div class="kapsam-cubugu" id="sh-kapsam" hidden></div>
+</section>
+</div>
+
+<aside class="log-paneli" id="log-paneli" aria-labelledby="log-baslik" hidden>
+  <header><h2 id="log-baslik">Log</h2>
+    <label class="log-suzgec"><input type="checkbox" id="log-uyari"> Yalnız uyarı ve hatalar</label>
+    <button type="button" class="dugme dugme-ikincil dugme-kucuk" id="log-kopyala">Kopyala</button>
+    <button type="button" class="dugme-ikon" id="log-kapat" aria-label="Log panelini kapat"><svg class="ikon"><use href="#ik-kapat"/></svg></button></header>
+  <p class="son-hata" id="log-son-hata" hidden></p>
+  <pre id="log-icerik" tabindex="0"></pre>
+</aside>
+
+<dialog class="pencere" id="onay-penceresi" aria-labelledby="onay-baslik">
+  <h2 id="onay-baslik">Emin misiniz?</h2>
+  <p id="onay-metin"></p>
+  <p class="uyari-not" id="onay-uyari" hidden><svg class="ikon"><use href="#ik-uyari"/></svg> <span></span></p>
+  <form method="dialog" class="pencere-dugmeler">
+    <button class="dugme dugme-ikincil" value="iptal">Vazgeç</button>
+    <button class="dugme" id="onay-evet" value="evet">Devam</button>
+  </form>
+</dialog>
+{% endblock %}
+{% block script %}
+<script>
+(function () {
+  var EYLEM_ADI = {'yeniden-baslat': 'Yeniden başlat', 'durdur': 'Durdur', 'baslat': 'Başlat',
+    'zamanlayici-ac': 'Aç', 'zamanlayici-kapat': 'Kapat', 'simdi-calistir': 'Şimdi çalıştır', 'hata-temizle': 'Hatayı temizle'};
+  var EYLEM_IKON = {'yeniden-baslat': 'yenile', 'durdur': 'durdur', 'baslat': 'oynat', 'simdi-calistir': 'oynat', 'hata-temizle': 'onay'};
+  var veri = null, logBirim = null;
+
+  function el(etiket, sinif, metin) { var e = document.createElement(etiket); if (sinif) e.className = sinif; if (metin != null) e.textContent = metin; return e; }
+  function ikon(ad) { var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('class', 'ikon');
+    var u = document.createElementNS('http://www.w3.org/2000/svg', 'use'); u.setAttribute('href', '#ik-' + ad); s.appendChild(u); return s; }
+  // systemd zaman damgası: "Thu 2026-10-08 14:15:00 UTC" → Date
+  function tarih(t) { if (!t) return null; var m = /(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})/.exec(t);
+    if (!m) return null; var d = new Date(m[1] + 'T' + m[2] + (/ UTC$/.test(t) ? 'Z' : '')); return isNaN(d) ? null : d; }
+  function zaman(t) { var d = tarih(t); if (!d) return t || '—';
+    return d.toLocaleString('tr-TR', {weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}); }
+  function rozet(b) {
+    var d = b.aktif_durum, m = {active: ['yesil', 'Çalışıyor'], activating: ['amber', 'Başlıyor'],
+      deactivating: ['amber', 'Duruyor'], failed: ['kirmizi', 'Hata'], inactive: ['gri', 'Durdu']}[d] || ['gri', d];
+    if (b.tur === 'zamanlayici') m = {active: ['yesil', 'Çalışıyor'], failed: ['kirmizi', 'Hatayla bitti']}[d] || ['gri', 'Bekliyor'];
+    return el('span', 'rozet rozet-' + m[0], m[1]);
+  }
+  function dugme(b, eylem) {
+    var x = el('button', 'dugme dugme-kucuk ' + (eylem === 'durdur' ? 'dugme-tehlike' : 'dugme-ikincil'));
+    x.type = 'button'; if (EYLEM_IKON[eylem]) x.appendChild(ikon(EYLEM_IKON[eylem]));
+    x.appendChild(document.createTextNode(' ' + EYLEM_ADI[eylem]));
+    x.addEventListener('click', function () { eylemIste(b, eylem); });
+    return x;
+  }
+  function logDugme(b) { var x = el('button', 'dugme dugme-kucuk dugme-ikincil'); x.type = 'button';
+    x.appendChild(ikon('log')); x.appendChild(document.createTextNode(' Log'));
+    x.addEventListener('click', function () { logAc(b.birim); }); return x; }
+
+  function ciz() {
+    var kartlar = document.getElementById('servis-kartlari'); kartlar.textContent = '';
+    var servisler = veri.birimler.filter(function (b) { return b.tur === 'servis'; });
+    var zam = veri.birimler.filter(function (b) { return b.tur === 'zamanlayici'; });
+    servisler.forEach(function (b) {
+      var k = el('article', 'servis-kart' + (b.aktif_durum === 'failed' ? ' servis-kart-hata' : ''));
+      var ust = el('div', 'servis-kart-ust'); ust.appendChild(el('h3', null, b.ad)); ust.appendChild(rozet(b)); k.appendChild(ust);
+      k.appendChild(el('p', 'soluk kucuk', b.birim + (b.bellek_mib != null ? ' · ' + b.bellek_mib + ' MiB' : '') +
+        (b.baslama && b.aktif_durum === 'active' ? ' · ' + zaman(b.baslama) + ' tarihinden beri' : '')));
+      if (b.aktif_durum === 'failed') { var h = el('p', 'son-hata', 'Son hata yükleniyor…'); k.appendChild(h); sonHataYaz(b.birim, h); }
+      var e = el('div', 'servis-eylemler');
+      b.eylemler.forEach(function (a) {
+        if (a === 'baslat' && b.aktif_durum === 'active') return;
+        if (a === 'durdur' && b.aktif_durum !== 'active') return;
+        if (a === 'hata-temizle' && b.aktif_durum !== 'failed') return;
+        e.appendChild(dugme(b, a));
+      });
+      e.appendChild(logDugme(b)); k.appendChild(e); kartlar.appendChild(k);
+    });
+    var tb = document.querySelector('#zamanlayicilar tbody'); tb.textContent = '';
+    zam.forEach(function (b) {
+      var tr = el('tr'); var ad = el('td'); ad.appendChild(el('strong', null, b.ad)); ad.appendChild(el('div', 'soluk kucuk', b.birim)); tr.appendChild(ad);
+      tr.appendChild(el('td', null, b.zamanlayici_etkin ? zaman(b.sonraki) : 'Kapalı'));
+      var son = el('td'); son.appendChild(el('span', 'son-zaman', zaman(b.son_tetik))); son.appendChild(rozet(b));
+      if (b.aktif_durum === 'failed') { var h = el('div', 'son-hata kucuk', '…'); son.appendChild(h); sonHataYaz(b.birim, h); }
+      tr.appendChild(son);
+      var et = el('td'); var anahtar = el('input'); anahtar.type = 'checkbox'; anahtar.className = 'anahtar';
+      anahtar.setAttribute('role', 'switch');
+      anahtar.checked = !!b.zamanlayici_etkin; anahtar.setAttribute('aria-label', b.ad + ' zamanlayıcısı etkin');
+      anahtar.addEventListener('change', function () { anahtar.checked = !anahtar.checked;
+        eylemIste(b, b.zamanlayici_etkin ? 'zamanlayici-kapat' : 'zamanlayici-ac'); });
+      et.appendChild(anahtar); tr.appendChild(et);
+      var eyTd = el('td'); var ey = el('div', 'eylem-hucre'); eyTd.appendChild(ey);
+      if (b.aktif_durum !== 'active') ey.appendChild(dugme(b, 'simdi-calistir'));
+      if (b.aktif_durum === 'failed') ey.appendChild(dugme(b, 'hata-temizle'));
+      ey.appendChild(logDugme(b)); tr.appendChild(eyTd); tb.appendChild(tr);
+    });
+    var calisan = servisler.filter(function (b) { return b.aktif_durum === 'active'; }).length;
+    var sorunlu = veri.birimler.filter(function (b) { return b.aktif_durum === 'failed'; }).length;
+    document.getElementById('kpi-calisan').textContent = calisan + '/' + servisler.length;
+    var s = document.getElementById('kpi-sorunlu'); s.textContent = sorunlu; s.className = sorunlu ? 'metin-kirmizi' : '';
+    var siradaki = zam.filter(function (b) { return b.zamanlayici_etkin && tarih(b.sonraki); })
+      .sort(function (a, c) { return tarih(a.sonraki) - tarih(c.sonraki); })[0];
+    document.getElementById('kpi-siradaki').textContent = siradaki ? siradaki.ad.replace(/ \(.*\)$/, '') + ' · ' + zaman(siradaki.sonraki) : '—';
+    document.getElementById('ders-saati-rozeti').hidden = !veri.ders_saati;
+    soruHavuzu(zam.filter(function (b) { return b.birim === 'soru-havuzu-uret'; })[0]);
+  }
+  function soruHavuzu(b) {
+    var d = document.getElementById('sh-durum');
+    if (!b) { d.textContent = 'Soru havuzu zamanlayıcısı bulunamadı.'; return; }
+    d.textContent = (b.zamanlayici_etkin ? 'Açık' + (tarih(b.sonraki) ? ' — sonraki çalışma ' + zaman(b.sonraki) : '') : 'Kapalı — gece üretimi çalışmaz. Zamanlayıcılar tablosundan açabilirsiniz.') +
+      (b.aktif_durum === 'active' ? ' · şu an üretiyor' : '') + (b.aktif_durum === 'failed' ? ' · son çalışma hatayla bitti' : '');
+    var k = veri.kapsam, c = document.getElementById('sh-kapsam');
+    if (!k || !k.plan_haftasi) { c.hidden = true; return; }
+    c.hidden = false; c.textContent = '';
+    var serit = el('div', 'kapsam-serit');
+    [['yeterli', 'yesil', 'Yeterli'], ['zayif', 'amber', 'Zayıf'], ['bos', 'kirmizi', 'Boş']].forEach(function (p) {
+      var dilim = el('span', 'kapsam-dilim kapsam-' + p[1]); dilim.style.flexGrow = k[p[0]];
+      dilim.title = p[2] + ': ' + k[p[0]] + ' hafta-kazanım'; serit.appendChild(dilim); });
+    c.appendChild(serit);
+    c.appendChild(el('span', 'kapsam-etiket soluk kucuk', 'Kazanım kapsamı (10+ uygun soru): ' + k.yeterli + ' yeterli · ' + k.zayif + ' zayıf · ' + k.bos + ' boş — toplam ' + k.plan_haftasi + ' hafta-kazanım'));
+  }
+  function sonHataYaz(birim, hedef) {
+    fetch('/api/servisler/log/' + encodeURIComponent(birim)).then(function (r) { return r.json(); })
+      .then(function (j) { hedef.textContent = j.son_hata ? 'Son hata: ' + j.son_hata : 'Hata satırı bulunamadı; Log\'a bakın.'; })
+      .catch(function () { hedef.textContent = 'Son hata okunamadı.'; });
+  }
+  function yukle() {
+    return fetch('/api/servisler').then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (j) { veri = j; ciz(); })
+      .catch(function () { document.getElementById('servis-kartlari').textContent = 'Servis durumu alınamadı. Sayfayı yenileyin.'; });
+  }
+  function onayAc(metin, uyari, evetMetni, sonra) {
+    var p = document.getElementById('onay-penceresi'), u = document.getElementById('onay-uyari');
+    document.getElementById('onay-metin').textContent = metin;
+    u.hidden = !uyari; if (uyari) u.querySelector('span').textContent = uyari;
+    document.getElementById('onay-evet').textContent = evetMetni;
+    p.returnValue = ''; p.onclose = function () { if (p.returnValue === 'evet') sonra(); };
+    p.showModal();
+  }
+  function eylemIste(b, eylem) {
+    onayAc(b.ad + ' — ' + EYLEM_ADI[eylem] + '. ' + (b.aciklama || ''), null, EYLEM_ADI[eylem], function () { gonder(b, eylem, false); });
+  }
+  function gonder(b, eylem, onay) {
+    fetch('/api/servisler/eylem', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({birim: b.birim, eylem: eylem, onay: onay})})
+      .then(function (r) { return r.json().then(function (j) { return {s: r.status, j: j}; }); })
+      .then(function (x) {
+        if (x.s === 409) {   // ders saati: ikinci onay
+          onayAc(b.ad + ' — ' + EYLEM_ADI[eylem] + '.', x.j.onay_gerekli, 'Yine de ' + EYLEM_ADI[eylem].toLowerCase(),
+            function () { gonder(b, eylem, true); });
+          return;
+        }
+        if (x.s >= 400) { window.farabiToast((x.j && x.j.detail) || 'İşlem reddedildi.'); return; }
+        window.farabiToast(x.j.ok ? b.ad + ': ' + EYLEM_ADI[eylem].toLowerCase() + ' tamam.' : b.ad + ': başarısız — ' + x.j.mesaj);
+        if (b.birim === 'farabi-yoklama-dashboard' && x.j.ok) return yenidenBaglan();
+        setTimeout(yukle, 1500);
+      }).catch(function () { window.farabiToast('Sunucuya ulaşılamadı.'); });
+  }
+  function yenidenBaglan() {
+    window.farabiToast('Pano yeniden başlıyor, bağlantı bekleniyor…');
+    var deneme = 0, t = setInterval(function () {
+      fetch('/api/servisler').then(function (r) { if (r.ok) { clearInterval(t); location.reload(); } }).catch(function () {});
+      if (++deneme > 20) { clearInterval(t); window.farabiToast('Pano geri dönmedi; sayfayı elle yenileyin.'); }
+    }, 3000);
+  }
+  function logAc(birim) {
+    logBirim = birim; document.getElementById('log-paneli').hidden = false;
+    document.getElementById('log-baslik').textContent = 'Log — ' + birim; logYukle();
+    document.getElementById('log-kapat').focus();
+  }
+  function logYukle() {
+    var pre = document.getElementById('log-icerik'); pre.textContent = 'Yükleniyor…';
+    var uyari = document.getElementById('log-uyari').checked ? 1 : 0;
+    fetch('/api/servisler/log/' + encodeURIComponent(logBirim) + '?yalniz_uyari=' + uyari)
+      .then(function (r) { return r.json(); }).then(function (j) {
+        pre.textContent = j.satirlar.length ? j.satirlar.join('\n') : 'Bu birim için log satırı yok.';
+        var h = document.getElementById('log-son-hata'); h.hidden = !j.son_hata; h.textContent = j.son_hata ? 'Son hata: ' + j.son_hata : '';
+        pre.scrollTop = pre.scrollHeight;
+      }).catch(function () { pre.textContent = 'Log okunamadı.'; });
+  }
+  document.getElementById('log-uyari').addEventListener('change', logYukle);
+  document.getElementById('log-kapat').addEventListener('click', function () { document.getElementById('log-paneli').hidden = true; });
+  document.getElementById('log-kopyala').addEventListener('click', function () {
+    if (navigator.clipboard) navigator.clipboard.writeText(document.getElementById('log-icerik').textContent)
+      .then(function () { window.farabiToast('Log kopyalandı.'); }, function () { window.farabiToast('Kopyalanamadı.'); }); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') document.getElementById('log-paneli').hidden = true; });
+  document.getElementById('yenile').addEventListener('click', yukle);
+  yukle().then(function () { if (location.hash === '#zamanlayicilar') document.getElementById('zamanlayicilar-baslik').scrollIntoView(); });
+  setInterval(function () { if (!document.hidden && !document.getElementById('onay-penceresi').open) yukle(); }, 30000);
+})();
+</script>
+{% endblock %}

@@ -13,6 +13,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+import menu
 import auth
 import db
 import zil
@@ -39,6 +40,7 @@ def _ders_tarih_dogrula(ders, tarih) -> tuple[str | None, str | None]:
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["menu_agaci"] = menu.menu_agaci  # taban.html (2026-10-08)
 templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk
 
 _SINIF_RE = re.compile(r"^[A-Za-z0-9_-]+$")

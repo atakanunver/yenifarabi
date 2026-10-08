@@ -5,131 +5,99 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block baslik_etiketi %}Yoklama ve Yönetim Paneli{% endblock %}</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="/static/pano.css">
-<script>document.documentElement.dataset.tema=localStorage.getItem('farabi_yoklama_tema')||'klasik';</script>
+{% set agac = menu_agaci(request.url.path) %}
+<link rel="stylesheet" href="/static/pano.css?v={{ agac.surum }}">
+<script>document.documentElement.dataset.tema=localStorage.getItem('farabi_yoklama_tema')||'koyu';</script>
 </head>
 <body>
 {% include "_ikon_sprite.html" %}
-<div class="uygulama">
-  <div class="kenar-orustu" id="kenar-orustu"></div>
-  <aside class="kenar-cubugu" id="kenar-cubugu">
-    <div class="marka">
-      <div class="marka-logo">
-        <span class="marka-simge">📋</span>
-      </div>
-      <div class="marka-yazi">
-        <span class="marka-metin">Farabi Panel</span>
-        <span class="marka-alt">Yoklama &amp; Yönetim</span>
-      </div>
-      <button type="button" class="kenar-kapat" id="kenar-kapat" aria-label="Menüyü kapat">
-        <svg class="ikon"><use href="#ik-kapat"/></svg>
-      </button>
-    </div>
-    <nav class="kenar-nav">
-      <div class="kenar-grup">
-        <span class="kenar-baslik">Genel</span>
-        <a href="/" class="{{ 'aktif' if request.url.path == '/' else '' }}">
-          <svg class="ikon"><use href="#ik-ev"/></svg> Ana Sayfa
-        </a>
-      </div>
-      <div class="kenar-grup">
-        <span class="kenar-baslik">Yapay Zeka</span>
-        {# Open WebUI aynı sunucuda port 80'de; host'u istekten alıyoruz ki
-           farabi.local yerine IP ile açanlarda da çalışsın. #}
-        <a href="http://{{ request.url.hostname }}/" target="_blank" rel="noopener" class="ai-buton">
-          <svg class="ikon"><use href="#ik-yildiz"/></svg> Atos Yapay Zeka <svg class="ikon ikon-kucuk ikon-disa"><use href="#ik-ok-sag"/></svg>
-        </a>
-      </div>
-      <div class="kenar-grup">
-        <span class="kenar-baslik">Yoklama Yönetimi</span>
-        <a href="/admin/tahtalar" class="{{ 'aktif' if request.url.path.startswith('/admin/tahtalar') else '' }}">
-          <svg class="ikon"><use href="#ik-monitor"/></svg> Tahtalar
-        </a>
-        <a href="/admin/siniflar" class="{{ 'aktif' if request.url.path.startswith('/admin/siniflar') else '' }}">
-          <svg class="ikon"><use href="#ik-kullanicilar"/></svg> Sınıflar
-        </a>
-        <a href="/admin/rapor" class="{{ 'aktif' if request.url.path.startswith('/admin/rapor') else '' }}">
-          <svg class="ikon"><use href="#ik-grafik"/></svg> Rapor
-        </a>
-        <a href="/kazanim-rapor" class="{{ 'aktif' if request.url.path.startswith('/kazanim-rapor') else '' }}">
-          <svg class="ikon"><use href="#ik-hedef"/></svg> Kazanım raporu
-        </a>
-      </div>
-      <div class="kenar-grup">
-        <span class="kenar-baslik">Tahta Yönetimi</span>
-        <a href="/admin/uzaktan" class="{{ 'aktif' if request.url.path.startswith('/admin/uzaktan') else '' }}">
-          <svg class="ikon"><use href="#ik-kaydirici"/></svg> Uzaktan Yönetim
-        </a>
-      </div>
-      <div class="kenar-grup">
-        <span class="kenar-baslik">Zil Servisi</span>
-        <a href="http://admin:midnight@192.168.23.230:8090/" target="_blank" rel="noopener">
-          <svg class="ikon"><use href="#ik-zil"/></svg> Zil Sistemi <svg class="ikon ikon-kucuk ikon-disa"><use href="#ik-ok-sag"/></svg>
-        </a>
-      </div>
-      <div class="kenar-grup">
-        <span class="kenar-baslik">SMS Sistemi</span>
-        <a href="/sms-git" target="_blank" rel="noopener">
-          <svg class="ikon"><use href="#ik-zil"/></svg> SMS Sistemi <svg class="ikon ikon-kucuk ikon-disa"><use href="#ik-ok-sag"/></svg>
-        </a>
-        <a href="/otomasyon-git" target="_blank" rel="noopener">
-          <svg class="ikon"><use href="#ik-kaydirici"/></svg> SMS Otomasyonu <svg class="ikon ikon-kucuk ikon-disa"><use href="#ik-ok-sag"/></svg>
-        </a>
-      </div>
-      <div class="kenar-grup">
-        <span class="kenar-baslik">Doğum Günleri</span>
-        <a href="/dogum" target="_blank" rel="noopener">
-          <svg class="ikon"><use href="#ik-pasta"/></svg> Doğum Günleri <svg class="ikon ikon-kucuk ikon-disa"><use href="#ik-ok-sag"/></svg>
-        </a>
-      </div>
-      <div class="kenar-grup">
-        <span class="kenar-baslik">Sistem</span>
-        <a href="/sistem-durumu" class="{{ 'aktif' if request.url.path.startswith('/sistem-durumu') else '' }}">
-          <svg class="ikon"><use href="#ik-nabiz"/></svg> Sistem Durumu
-        </a>
-        <a href="/sunucular" class="{{ 'aktif' if request.url.path.startswith('/sunucular') else '' }}">
-          <svg class="ikon"><use href="#ik-sunucu"/></svg> Sunucular
-        </a>
-      </div>
-    </nav>
-    <div class="kenar-alt">
-      <button type="button" class="mini-durum" id="mini-durum" title="Sunucu durumunu yüklemek için tıkla">
-        <svg class="ikon ikon-kucuk"><use href="#ik-termometre"/></svg>
-        <span id="mini-durum-sicaklik">—</span>
-        <span class="mini-durum-ayrac">·</span>
-        <span class="mini-durum-nokta" id="mini-durum-nokta"></span>
-        <span id="mini-durum-servis">Durumu göster</span>
-      </button>
-      <div class="tema-secici">
-        <button type="button" data-tema="klasik" title="Açık tema"><svg class="ikon"><use href="#ik-gunes"/></svg></button>
-        <button type="button" data-tema="yumusak" title="Orta tema"><svg class="ikon"><use href="#ik-bulut"/></svg></button>
-        <button type="button" data-tema="koyu" title="Koyu tema"><svg class="ikon"><use href="#ik-ay"/></svg></button>
-      </div>
-      <form method="post" action="/cikis" class="cikis-form">
-        <button type="submit"><svg class="ikon"><use href="#ik-cikis"/></svg> Çıkış</button>
-      </form>
-    </div>
+{# Menü ağacının tek kaynağı menu.py (2026-10-08): menü çubuğu, ikon şeridi ve
+   mobil çekmece aynı ağaçtan üretilir — öğe burada elle yazılmaz. #}
+{% macro baglanti(o) -%}
+  {%- if o.href == 'atos' -%}http://{{ request.url.hostname }}/{%- else -%}{{ o.href }}{%- endif -%}
+{%- endmacro %}
+{% macro oge(o) %}
+  {% if o.ayrac %}<li role="separator" class="menu-ayrac"></li>
+  {% elif o.alt %}
+  <li role="none" class="alt-menu-kap">
+    <button type="button" role="menuitem" aria-haspopup="true" aria-expanded="false" class="menu-oge">
+      {{ o.ad }}<svg class="ikon ikon-kucuk ikon-disa"><use href="#ik-ok-sag"/></svg></button>
+    <ul role="menu" class="menu-panel alt-panel" aria-label="{{ o.ad }}" hidden>{% for a in o.alt %}{{ oge(a) }}{% endfor %}</ul>
+  </li>
+  {% elif o.eylem %}
+  <li role="none"><button type="button" role="{{ 'menuitemradio' if o.eylem.startswith('tema:') else 'menuitem' }}"
+      class="menu-oge" data-eylem="{{ o.eylem }}">
+      {% if o.ikon %}<svg class="ikon"><use href="#ik-{{ o.ikon }}"/></svg>{% endif %}{{ o.ad }}</button></li>
+  {% else %}
+  <li role="none"><a role="menuitem" class="menu-oge{{ ' aktif' if o.aktif }}" href="{{ baglanti(o) }}"
+      {% if o.aktif %}aria-current="page"{% endif %}
+      {% if o.yeni_sekme %}target="_blank" rel="noopener"{% endif %}>
+      {% if o.ikon %}<svg class="ikon"><use href="#ik-{{ o.ikon }}"/></svg>{% endif %}{{ o.ad }}
+      {% if o.yeni_sekme %}<svg class="ikon ikon-kucuk ikon-disa" aria-label="yeni sekmede açılır"><use href="#ik-dis"/></svg>{% endif %}</a></li>
+  {% endif %}
+{% endmacro %}
+<div class="kabuk" id="kabuk">
+  <header class="menu-cubugu">
+    <a class="marka" href="/" title="Ana pano"><span class="marka-simge" aria-hidden="true">◆</span><span class="marka-metin">Farabi</span></a>
+    <button type="button" class="menu-ac" id="menu-ac" aria-label="Menüyü aç" aria-controls="cekmece" aria-expanded="false">
+      <svg class="ikon"><use href="#ik-menu"/></svg></button>
+    <ul role="menubar" class="menubar" aria-label="Ana menü">
+      {% for ust in agac.menu %}
+      <li role="none" class="ust-menu">
+        <button type="button" role="menuitem" aria-haspopup="true" aria-expanded="false"
+                class="ust-menu-dugme" data-kisayol="{{ ust.kisayol }}">{{ ust.ad }}</button>
+        <ul role="menu" class="menu-panel" aria-label="{{ ust.ad }}" hidden>
+          {% for o in ust.ogeler %}{{ oge(o) }}{% endfor %}
+        </ul>
+      </li>
+      {% endfor %}
+    </ul>
+    <span class="gun-etiketi">{{ gun_adi_buyuk() }}</span>
+  </header>
+  <nav class="serit" id="serit" aria-label="Sık kullanılanlar">
+    {% for s in agac.serit %}
+    <a href="{{ baglanti(s) }}" class="serit-oge{{ ' aktif' if s.aktif }}" title="{{ s.ad }}" aria-label="{{ s.ad }}"
+       {% if s.aktif %}aria-current="page"{% endif %}{% if s.yeni_sekme %} target="_blank" rel="noopener"{% endif %}>
+      <svg class="ikon"><use href="#ik-{{ s.ikon }}"/></svg></a>
+    {% endfor %}
+    <button type="button" class="mini-durum serit-durum" id="mini-durum" title="Sunucu durumunu yüklemek için tıkla">
+      <span class="mini-durum-nokta" id="mini-durum-nokta"></span>
+      <span id="mini-durum-sicaklik" class="gorsel-gizli">—</span><span id="mini-durum-servis" class="gorsel-gizli">Durumu göster</span>
+    </button>
+  </nav>
+  <div class="cekmece-ortu" id="cekmece-ortu" hidden></div>
+  <aside class="cekmece" id="cekmece" aria-label="Menü" hidden>
+    {% for ust in agac.menu %}
+    <details class="cekmece-grup"><summary>{{ ust.ad }}</summary>
+      <ul class="cekmece-liste">{% for o in ust.ogeler %}{{ oge(o) }}{% endfor %}</ul></details>
+    {% endfor %}
   </aside>
-
   <div class="icerik-alani">
-    <header class="ust-cubuk">
-      <button type="button" class="menu-ac" id="menu-ac" aria-label="Menüyü aç">
-        <svg class="ikon"><use href="#ik-menu"/></svg>
-      </button>
-      <span class="gun-etiketi">{{ gun_adi_buyuk() }}</span>
+    <header class="sayfa-ust">
       <h1>{% block baslik %}{% endblock %}</h1>
       <div class="ust-sag">{% block ust_sag %}{% endblock %}</div>
     </header>
-    <main>
-      {% block icerik %}{% endblock %}
-    </main>
+    <main>{% block icerik %}{% endblock %}</main>
   </div>
 </div>
-
+<form method="post" action="/cikis" id="cikis-form" hidden></form>
+<dialog class="pencere" id="kisayol-penceresi" aria-labelledby="kisayol-baslik">
+  <h2 id="kisayol-baslik">Klavye kısayolları</h2>
+  <dl><dt>F10</dt><dd>Menü çubuğuna git</dd><dt>← →</dt><dd>Menüler arasında</dd>
+      <dt>↓ ↑</dt><dd>Menü öğeleri arasında</dd><dt>Enter</dt><dd>Seç</dd><dt>Esc</dt><dd>Kapat</dd>
+      <dt>?</dt><dd>Bu pencere</dd></dl>
+  <form method="dialog"><button class="dugme">Kapat</button></form>
+</dialog>
+<dialog class="pencere" id="hakkinda-penceresi" aria-labelledby="hakkinda-baslik">
+  <h2 id="hakkinda-baslik">Farabi panel</h2>
+  <p>Yoklama, tahta ve servis yönetimi — farabi.local:8010.</p>
+  <form method="dialog"><button class="dugme">Kapat</button></form>
+</dialog>
 <div id="toast" class="toast gizli"></div>
 
-<script src="/static/tema.js"></script>
-<script src="/static/kenar.js"></script>
+<script src="/static/tema.js?v={{ agac.surum }}"></script>
+<script src="/static/menu.js?v={{ agac.surum }}"></script>
+<script src="/static/kenar.js?v={{ agac.surum }}"></script>
 {% block script %}{% endblock %}
 </body>
 </html>
