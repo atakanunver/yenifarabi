@@ -115,6 +115,22 @@ Dashboard kendi kendini durduramaz (yalnız gecikmeli yeniden başlatma).
   çağrı) okunur; zamanlayıcılar için aynı çağrıya `NextElapseUSecRealtime`,
   `LastTriggerUSec`, `Result` alanları eklenir.
 
+### 4.2.1 Hata yakalama (kullanıcı isteği, 2026-10-08)
+
+- Bir birim `failed` ise kartta kırmızı rozet + **"Son hata"** satırı: o
+  çalıştırmanın journal'ındaki son Traceback'in son satırı (ör. `OSError:
+  [Errno 7] Argument list too long`) ve zamanı; "Log" paneli o satıra kaydırılmış
+  açılır. Kaynak: `journalctl -u <birim> -n 400 --no-pager` (`InvocationID` ile
+  son çalıştırmaya süzülür), maskeleme 4.2'deki gibi.
+- Zamanlayıcının servisi en son başarısız bittiyse (`Result != success`) aynı
+  satır zamanlayıcı tablosunda da gösterilir; failed durumu "Hatayı temizle"
+  (`systemctl reset-failed`, beyaz listede) ile kapatılabilir.
+- **Soru havuzu kartı** (`soru-havuzu-uret`): aç/kapat (timer enable/disable),
+  "Şimdi çalıştır" (ders saatinde reddedilir), son hata, son çalıştırmada
+  üretilen/denetlenen soru sayısı ve kazanım kapsamı (yeterli/zayıf/boş) —
+  `python -m soruhavuzu.calistir durum --json` çıktısından (bkz.
+  `2026-10-08-soru-havuzu-kazanim-eslesmesi-design.md` §7).
+
 ### 4.3 Akış
 
 1. Butona tık → onay penceresi: eylemin etkisi düz Türkçe ("Farabi Brain yeniden
@@ -136,7 +152,7 @@ Dashboard kendi kendini durduramaz (yalnız gecikmeli yeniden başlatma).
   `set -euo pipefail`, eylem ve birim **sabit `case` listeleriyle** doğrulanır,
   liste dışı → çıkış 2 + stderr; yalnızca `systemctl {restart,start,stop}
   <servis>`, `systemctl {enable --now,disable --now} <timer>`, `systemctl start
-  <timer'ın servisi>`, dashboard için gecikmeli restart. `okul-sunucu` deseni.
+  <timer'ın servisi>`, `systemctl reset-failed <birim>`, dashboard için gecikmeli restart. `okul-sunucu` deseni.
 - `/etc/sudoers.d/farabi-servis`: `ata ALL=(root) NOPASSWD: /usr/local/sbin/farabi-servis`
   (`visudo -c` ile doğrulanır). Not: `ata` zaten tam sudo'ya sahip; betiğin
   değeri web katmanındaki bir hatanın keyfi komuta dönüşmemesi.
