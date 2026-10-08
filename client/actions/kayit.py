@@ -173,6 +173,11 @@ ARACLAR: list[Arac] = [
             "a local archive of past exam papers (offline-indexed, keyword-matched — "
             "NOT web search). Call when the teacher or a student asks for 'çıkmış "
             "sorular', 'YKS soruları', 'TYT/AYT sorusu' about the topic being taught. "
+            "ALSO call it when the teacher asks you to CREATE / prepare / ask "
+            "questions on a topic ('10 soru oluştur', 'soru hazırla', 'test sorusu "
+            "sor'): you NEVER write your own questions — fetch real past exam "
+            "questions with this tool instead (konu = that topic, adet = the number "
+            "asked, max 10) and say they are çıkmış YKS soruları. "
             "Shows the ACTUAL exam page as an IMAGE (original PDF layout preserved, "
             "not reflowed text) and returns the raw question text for you to read "
             "aloud — it contains NO solution and NO answer key. "
@@ -195,7 +200,7 @@ ARACLAR: list[Arac] = [
             "properties": {
                 "konu":     {"type": "STRING",  "description": "Topic to search for, e.g. 'türev', 'osmanlı-rus savaşları'. Start (or restart) a sequence."},
                 "ders":     {"type": "STRING",  "description": "Subject, improves matching, e.g. 'matematik'."},
-                "adet":     {"type": "INTEGER", "description": "How many questions to match into the sequence (default 3, max 6) — only used when starting a new sequence with 'konu'; ignored on sonraki=true calls."},
+                "adet":     {"type": "INTEGER", "description": "How many questions to match into the sequence (default 3, max 10; use the number the teacher asked for) — only used when starting a new sequence with 'konu'; ignored on sonraki=true calls."},
                 "sonraki":  {"type": "BOOLEAN", "description": "true = advance to the NEXT question in the current sequence (omit 'konu'). Only on an explicit teacher command — never on your own initiative."},
             },
             "required": [],

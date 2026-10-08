@@ -57,12 +57,14 @@ okul operasyon servisleri (yoklama panosu, SMS).
   form cevaplarını `soru_havuzu.form_cevap`a çeker; raporlama planı
   `docs/superpowers/plans/2026-10-08-kazanim-raporlama.md`); `kazanim-test-aylik.timer`
   (ayın 1'i 06:00 UTC, önceki ayın veli/öğrenci raporu Google'a — SMS'siz başladı).
-- **RAG kısmen açık (2026-10-03, ikinci karar):** `server/main.py::
-  RAG_AKTIF = True` ama yalnızca bge-m3 **CPU**'da; reranker YÜKLENMEZ
-  (`RERANK_YUKLE = False`, CPU'da ~10 sn/soru ölçüldü). Open WebUI Farabi
-  modları (`POST /api/webui/ara`) yalnızca vektör aramasıyla çalışır;
-  tahtadaki `kitap_sorusu` (`/api/egitim/question`) eskisi gibi `hata`
-  döner. İki GPU Ollama'da. Ölçüm DECISIONS.md 2026-10-03.
+- **RAG tam açık, gömme + reranker bilgehan'da (2026-10-04):** `farabi-api`
+  bge-m3 + bge-reranker-v2-m3'ü bilgehan'ın GTX 1660 Ti'sindeki `farabi-embed`
+  servisinden kullanır (`FARABI_EMBED_URL`, drop-in `farabi-api.service.d/embed.conf`;
+  kaynak `embed_servisi/`). Tahtadaki `kitap_sorusu` (`/api/egitim/question`)
+  çalışıyor (2026-10-08 ölçümü: rerank ~0,3-0,4 sn, toplam ~5,5 sn). URL boşalırsa
+  eski davranışa düşer: yerel CPU bge-m3, reranker yok (`RERANK_YUKLE = False`)
+  → `question` `hata` döner. İki GPU Ollama'da. 2026-10-03 "rerank yok" kararı
+  yalnızca yerel CPU için geçerli.
 - **Open WebUI = "Farabi" (port 80, 2026-10-03):** 14 mod (branş öğretmenleri,
   Derin Düşünme, Müdür Yardımcısı — yalnızca İdare), `farabi_kaynak` inlet
   filtresi, ortak `Öğretmen`/`İdare` hesapları + tahtalar için yönetici
@@ -137,7 +139,7 @@ HTTP + HMAC/paylaşılan anahtar.
 
 | Servis | Dizin | Port | Ne yapar |
 |---|---|---|---|
-| `farabi-api` ("Brain") | `server/` | 8000 | RAG (CPU, reranker yok), Open WebUI kaynak araması, kitap içeriği/PDF render, YKS, bulut LLM proxy, dosya işleme, tahta auth |
+| `farabi-api` ("Brain") | `server/` | 8000 | RAG (gömme+rerank bilgehan GPU'sunda), Open WebUI kaynak araması, kitap içeriği/PDF render, YKS, bulut LLM proxy, dosya işleme, tahta auth |
 | `farabi-yoklama-dashboard` | `tahtayoklama/dashboard/` | 8010 | yoklama, roster, zil/ders programı, uzaktan yönetim (`/admin/uzaktan`); `/api/ajan` makine API'si (yalnızca 127.0.0.1 + `X-Farabi-Ajan-Key`; anahtar gitignore'lu `tahtayoklama/dashboard/config/ajan.json`; Open WebUI "Atos Yönetim" aracı kullanır); `/api/v1/tahta/*` tahta istemcisi API'si (LAN, tahta başına token) |
 | `farabi-smssistemi` | `smssistemi/` | 8020 | toplu/kişisel SMS, rehber, Doğum Günleri, Yoklama SMS; `/api/arac/*` (Atos SMS aracı, `X-Sms-Arac-Key`) |
 | `ollama` | — | 11434 | `qwen3.8:27b` (iki GPU, tek model), LAN'a açık, paylaşılan yerel LLM |
@@ -197,7 +199,7 @@ gerekenler) `server/CLAUDE.md`'de. Servisler arası resim için bilinmesi
 gerekenler:
 
 - Uçlar `/api/egitim/*` (tahta auth'lu) + `/api/client/{heartbeat,durum}`
-  + `/health`, `/ready`. RAG: `/api/egitim/question` (reranker yok → `hata`) ve Open WebUI için `POST /api/webui/ara` (`webui.py`, ayrı anahtar); içerik/PDF
+  + `/health`, `/ready`. RAG: `/api/egitim/question` (rerank bilgehan'da) ve Open WebUI için `POST /api/webui/ara` (`webui.py`, ayrı anahtar); içerik/PDF
   (`icerik.py`), YKS (`yks.py`), bulut LLM proxy (`saglayicilar.py` +
   `proxy.py`), ders planı (`ders_plani.py`), geçmiş ders hatırlama
   (`ders_hafizasi.py`), dosya işleme (`dosya.py`) ayrı router'lar.
@@ -388,7 +390,7 @@ buraya şifre yazılmaz.
 
 ## RAG Kuralları (kritik)
 
-> ⚠️ 2026-10-03'ten beri RAG yalnızca bge-m3 CPU'da, reranker yok (`RERANK_YUKLE = False`); rerank/eşik (`ESIK_RERANK`) maddeleri reranker geri açılınca geçerli, Open WebUI yolu kosinüs eşiği (`ESIK_BENZERLIK` 0,55) kullanır.
+> 2026-10-04'ten beri gömme + rerank bilgehan'da (`farabi-embed`); tahta yolu aşağıdaki rerank/eşik kurallarıyla çalışır. Open WebUI yolunun kendi eşiği var (`webui.py::ESIK_RERANK_WEBUI`).
 
 - Cevap **sadece** retrieval sonucundan üretilir. Serbest üretim yok.
 - Ana savunma: skor eşiğin altındaysa LLM'e hiç gitme → "Bu konu ders kitabında

@@ -32,12 +32,12 @@ journalctl -u farabi-api.service            # tek log kaynağı — dosya log YO
 
 ## Yapı ve uç noktalar
 
-**RAG (2026-10-03): bge-m3 CPU'da, reranker yok.** `main.py::RAG_AKTIF =
-True`, `RERANK_YUKLE = False` — yalnızca `BAAI/bge-m3` (`EMBED_DEVICE =
-"cpu"`) yüklenir. `/api/egitim/question` reranker'sız çalışamadığı için
-`status="hata"` döner (DECISIONS.md 2026-10-03); Open WebUI yolu
-(`webui.py` → `RagMotoru.ara`) yalnızca vektör aramasıdır. Her durumda
-sonra `durum["hazir"] = True`. Aşağıdaki router'lar RAG modeli gerektirmez,
+**RAG (2026-10-04): gömme + rerank bilgehan'da.** `FARABI_EMBED_URL` ayarlıysa
+(drop-in `embed.conf`) `uzak_model.olustur` bge-m3 + reranker'ı bilgehan'ın
+`farabi-embed` servisinden kullanır, Farabi'de model yüklenmez; `/api/egitim/question`
+çalışır. URL boşsa yerel CPU bge-m3, reranker yok (`RERANK_YUKLE = False`) ve
+`question` `status="hata"` döner (DECISIONS.md 2026-10-03). Open WebUI yolu
+`webui.py` → `RagMotoru.ara`. Her durumda sonra `durum["hazir"] = True`. Aşağıdaki router'lar RAG modeli gerektirmez,
 kendi dosya/DB/anahtar kontrollerini kendileri yapar.
 
 | Dosya | Uçlar / görev |
