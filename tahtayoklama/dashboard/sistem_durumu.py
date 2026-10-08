@@ -66,7 +66,7 @@ POSTGRES_CONF = "/etc/postgresql/18/main/postgresql.conf"
 # nodes/zil.md, nodes/mudur-pc.md). `beklenen`: "ayakta" sayılan HTTP kodları
 # (zil paneli Basic Auth'lu → 401 = ayakta).
 UZAK_SERVISLER = [
-    {"anahtar": "tts", "ad": "TTS Sunucusu (Chatterbox)", "makine": "debian",
+    {"anahtar": "tts", "ad": "TTS Sunucusu (EMA Lightning)", "makine": "debian",
      "host": "192.168.23.251", "port": 5002, "yol": "/saglik", "beklenen": (200,)},
     {"anahtar": "zil", "ad": "Zil Paneli", "makine": "zil",
      "host": "192.168.23.230", "port": 8090, "yol": "/", "beklenen": (200, 401)},

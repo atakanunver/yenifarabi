@@ -11,7 +11,7 @@ plan döngüsü burada bilerek YOK): sekme açık değilken hedef makinelerin
 auth/journal loguna dakikada bir SSH girişi yazılmasın. Tek kilit, kaç sekme
 açık olursa olsun 60 sn'de en fazla bir tur.
 
-Chatterbox (debian:5002) kartı `/saglik/detay`'dan HTTP ile okunur.
+TTS (EMA Lightning, debian:5002; 2026-10-08 öncesi Chatterbox) kartı `/saglik/detay`'dan HTTP ile okunur.
 Proxy URL'si (parolalı) hiçbir yanıta girmez — betik onu zaten basmaz,
 ek olarak hata metinlerinden de maskelenir.
 """
@@ -63,7 +63,7 @@ MAKINELER = {
     },
     "debian": {
         "ad": "Debian",
-        "rol": "OMV NAS + Chatterbox TTS",
+        "rol": "OMV NAS + EMA Lightning TTS",
         "host": "192.168.23.251",
         "proxy_dugmesi": False,
     },

@@ -182,7 +182,7 @@ function chatterboxKarti(c) {
   const ad = el('div', 'sunucu-kart-ad');
   const saglikli = c.ulasilabilir && c.model_yuklu && !c.son_hata;
   ad.append(nokta(!c.ulasilabilir ? 'nokta-kirmizi' : (saglikli ? 'nokta-yesil' : 'nokta-amber')),
-    el('strong', null, 'Chatterbox TTS'), el('span', 'soluk', 'debian :5002 — EBYS + zil anonsları'));
+    el('strong', null, 'EMA Lightning TTS'), el('span', 'soluk', 'debian :5002 — EBYS + zil anonsları'));
   ust.append(ad);
   kart.append(ust);
   if (!c.ulasilabilir) {
