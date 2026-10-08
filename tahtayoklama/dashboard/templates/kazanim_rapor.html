@@ -1,0 +1,160 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Kazanım raporu — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Kazanım raporu{% endblock %}
+
+{% block icerik %}
+{% if adlar %}
+<nav class="kr-sinif-secici" aria-label="Sınıf seçimi">
+  {% for ad in adlar %}
+  <a href="/kazanim-rapor?sinif={{ ad|urlencode }}" class="btn-ikincil{{ ' kr-aktif' if ad == secili else '' }}"{% if ad == secili %} aria-current="page"{% endif %}>{{ ad }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+
+{% if hata %}
+<div class="kr-bos">
+  <svg class="ikon ikon-buyuk"><use href="#ik-hedef"/></svg>
+  <p class="kr-bos-baslik">Gösterilecek rapor yok</p>
+  <p>{{ hata }}</p>
+</div>
+{% elif g.bos %}
+<div class="kr-bos">
+  <svg class="ikon ikon-buyuk"><use href="#ik-hedef"/></svg>
+  <p class="kr-bos-baslik">{{ secili }} için henüz veri yok</p>
+  <p>Bu sınıfta kazanım testi yapılıp öğrenci cevapları toplandığında rapor burada görünür.</p>
+</div>
+{% else %}
+
+<div class="pano-ozet">
+  <div class="pano-ozet-kart">
+    <div class="pano-ozet-ikon ozet-ikon-sinif"><svg class="ikon"><use href="#ik-hedef"/></svg></div>
+    <div class="pano-ozet-bilgi">
+      <span class="pano-ozet-baslik">Test sayısı</span>
+      <span class="pano-ozet-sayi">{{ g.ozet.test }}</span>
+    </div>
+  </div>
+  <div class="pano-ozet-kart">
+    <div class="pano-ozet-ikon ozet-ikon-tam"><svg class="ikon"><use href="#ik-kullanicilar"/></svg></div>
+    <div class="pano-ozet-bilgi">
+      <span class="pano-ozet-baslik">Katılım</span>
+      <span class="pano-ozet-sayi">{{ g.ozet.katilan }}{% if g.ozet.roster is not none %} / {{ g.ozet.roster }}{% endif %}</span>
+    </div>
+  </div>
+  <div class="pano-ozet-kart">
+    <div class="pano-ozet-ikon ozet-ikon-sinif"><svg class="ikon"><use href="#ik-grafik"/></svg></div>
+    <div class="pano-ozet-bilgi">
+      <span class="pano-ozet-baslik">Sınıf ortalaması</span>
+      <span class="pano-ozet-sayi">{% if g.ozet.ortalama is not none %}%{{ g.ozet.ortalama|yuzde }}{% else %}—{% endif %}</span>
+    </div>
+  </div>
+  <div class="pano-ozet-kart">
+    <div class="pano-ozet-ikon ozet-ikon-yok"><svg class="ikon"><use href="#ik-kapat"/></svg></div>
+    <div class="pano-ozet-bilgi">
+      <span class="pano-ozet-baslik">Zorlanılan kazanım</span>
+      <span class="pano-ozet-sayi">{{ g.ozet.zorlanilan }}</span>
+    </div>
+  </div>
+</div>
+<p class="kr-not"><svg class="ikon ikon-kucuk"><use href="#ik-saat"/></svg> Rapor üretim zamanı: {{ g.ozet.uretim }}</p>
+
+{% if g.eslesmeyen %}
+<div class="kr-uyari" role="alert">
+  <svg class="ikon"><use href="#ik-kilit"/></svg>
+  <div>
+    <strong>Eşleşmeyen numaralar</strong>
+    <p>{% if g.roster_yok %}Bu sınıf panoda kayıtlı değil, öğrenci adları gösterilemiyor.{% else %}Aşağıdaki okul numaraları bu sınıfın listesinde yok; formu yanlış numarayla doldurmuş olabilirler.{% endif %}
+    Numaralar: {% for o in g.eslesmeyen %}<span class="pill pill-alinmadi">{{ o.no or '(boş)' }} · %{{ o.oran|yuzde }}</span> {% endfor %}</p>
+  </div>
+</div>
+{% endif %}
+
+<h2 class="kr-baslik">Kazanımlar</h2>
+{% if g.kazanimlar %}
+<div class="tablo-sarici">
+  <table class="kr-tablo">
+    <thead><tr><th>Ders</th><th>Kazanım</th><th>Doğru oranı</th><th>Soru / cevap</th></tr></thead>
+    <tbody>
+    {% for k in g.kazanimlar %}
+      <tr{% if k.zorlanilan %} class="kr-zorlanilan"{% endif %}>
+        <td>{{ k.ders|ders_adi }}</td>
+        <td class="kr-uzun">{{ k.satir }}{% if k.zorlanilan %} <span class="pill pill-yok">Zorlanılan</span>{% endif %}</td>
+        <td><div class="kr-oran"><div class="kr-cubuk-yol"><div class="kr-cubuk {{ k.cubuk }}" style="width: {{ k.oran|yuzde }}%"></div></div><span>%{{ k.oran|yuzde }}</span></div></td>
+        <td>{{ k.soru }} soru / {{ k.cevap }} cevap</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="kr-bos"><p>Kazanım bazında özet henüz oluşmadı.</p></div>
+{% endif %}
+
+<h2 class="kr-baslik">Testler</h2>
+{% if g.testler %}
+<div class="kr-liste">
+  {% for t in g.testler %}
+  <details class="kr-oge">
+    <summary>
+      <span class="kr-s-ana">{{ t.ders|ders_adi }}{% if t.hafta %} · {{ t.hafta }}. hafta{% endif %}</span>
+      <span class="kr-s-ek">{{ t.tarih }}</span>
+      <span class="kr-s-ek">{{ t.katilim }} kişi</span>
+      <span class="kr-oran"><span class="kr-cubuk-yol"><span class="kr-cubuk {{ t.cubuk }}" style="width: {{ t.oran|yuzde }}%"></span></span><span>%{{ t.oran|yuzde }}</span></span>
+    </summary>
+    <div class="kr-detay">
+      {% if t.form_url %}<p><a href="{{ t.form_url }}" target="_blank" rel="noopener">Form bağlantısı <svg class="ikon ikon-kucuk"><use href="#ik-ok-sag"/></svg></a></p>{% endif %}
+      {% for s in t.sorular %}
+      <div class="kr-soru">
+        <div class="kr-soru-metin"><strong>{{ s.sira }}.</strong> {{ s.soru }}</div>
+        <div class="kr-oran"><div class="kr-cubuk-yol"><div class="kr-cubuk {{ s.cubuk }}" style="width: {{ s.oran|yuzde }}%"></div></div><span>%{{ s.oran|yuzde }}</span></div>
+        <div class="kr-soru-not">{{ s.cevap }} cevap{% if s.yanlis_sik %} · <span class="pill pill-alinmadi">%{{ s.yanlis_oran }} {{ s.yanlis_sik }} şıkkını seçti</span>{% endif %}</div>
+      </div>
+      {% else %}
+      <p class="kr-not">Bu testte soru verisi yok.</p>
+      {% endfor %}
+    </div>
+  </details>
+  {% endfor %}
+</div>
+{% else %}
+<div class="kr-bos"><p>Henüz kayıtlı test yok.</p></div>
+{% endif %}
+
+<h2 class="kr-baslik">Öğrenciler</h2>
+{% if g.ogrenciler %}
+<div class="kr-liste">
+  {% for o in g.ogrenciler %}
+  <details class="kr-oge">
+    <summary>
+      <span class="kr-s-ana"><span class="kr-no">{{ o.no }}</span> {{ o.ad }}</span>
+      <span class="kr-s-ek">{{ o.eksik }} eksik · {{ o.guclu }} güçlü</span>
+      <span class="kr-oran"><span class="kr-cubuk-yol"><span class="kr-cubuk {{ o.cubuk }}" style="width: {{ o.oran|yuzde }}%"></span></span><span>%{{ o.oran|yuzde }}</span></span>
+    </summary>
+    <div class="kr-detay">
+      <p class="kr-not">{{ o.testler }} test · {{ o.dogru }} / {{ o.toplam }} doğru</p>
+      {% for k in o.kazanimlar %}
+      <div class="kr-soru">
+        <div class="kr-soru-metin"><strong>{{ k.ders|ders_adi }}</strong> · {{ k.satir }}</div>
+        <div><span class="pill {{ k.rozet }}">{{ k.etiket }}</span> <span class="kr-not">{{ k.dogru }} / {{ k.soru }} doğru</span></div>
+        {% if k.sayfalar %}<div class="kr-soru-not">Tekrar: {{ k.sayfalar|join(', ') }}</div>{% endif %}
+      </div>
+      {% else %}
+      <p class="kr-not">Kazanım bazında veri yok.</p>
+      {% endfor %}
+    </div>
+  </details>
+  {% endfor %}
+</div>
+{% else %}
+<div class="kr-bos"><p>Roster ile eşleşen öğrenci verisi yok.</p></div>
+{% endif %}
+
+{% if g.katilmadi %}
+<h2 class="kr-baslik">Katılmadı</h2>
+<p class="kr-not">Bu sınıfın aktif öğrencilerinden hiçbir testte cevabı bulunmayanlar ({{ g.katilmadi|length }}).</p>
+<div class="kr-katilmadi">
+  {% for r in g.katilmadi %}<span class="pill pill-ulasilamaz"><span class="kr-no">{{ r.no }}</span> {{ r.ad }}</span>{% endfor %}
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

@@ -197,6 +197,14 @@ penceresi zaten yalnızca Pazartesi-Cuma anlamlı — bu varsayım proje
 genelinde geçerliliğini koruyor, gün etiketi widget'ı 7 günü de doğru
 gösterse bile hafta sonu görünürlüğünün işlevsel bir önemi yok.
 
+### 4.0 Kazanım raporu (`/kazanim-rapor`, 2026-10-08)
+`dashboard/kazanim_rapor.py` + `templates/kazanim_rapor.html`: kazanimtest'in ürettiği
+`/mnt/farabi-data/farabi/kazanim_testleri/rapor/<sinif>.json` dosyalarını **salt-okunur**
+gösterir (özet kartları, kazanım tablosu, testler, öğrenciler, eşleşmeyen numaralar,
+katılmayanlar). Servisler arası DB bağı yok; öğrenci adı yalnızca panonun roster'ından
+(`okul_no` = `ogrenciler.no`). Sınıf seçimi yalnızca dizindeki dosya adlarından (yol
+enjeksiyonu yok); dosya yok/bozuksa empty-state. Test: `test_kazanim_rapor.py`.
+
 ### 4.1 Sistem Durumu / Farabi Health (2026-09-25)
 
 `/sistem-durumu` + `/api/sistem-durumu[?trend=1]` — `sistem_durumu.py`. Ölçüm
