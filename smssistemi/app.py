@@ -439,7 +439,16 @@ async def rehber_kisi_duzenle(
         _oturum_sarti(request, conn)
         tel = gonderim.normalize_phone(telefon) if telefon.strip() else None
         ogr_id = int(ogrenci_kisi_id) if (tur == "veli" and ogrenci_kisi_id and ogrenci_kisi_id.strip().isdigit()) else None
-        db.kisi_guncelle(conn, kisi_id, ad_soyad.strip(), tel, sinif_id, tur, ogr_id)
+        # Formda okul_no / veli_rol alanı yok: mevcut değerleri koru (önceden düzenleme
+        # ikisini de NULL'luyordu; okul_no kazanım raporu SMS eşleşmesinin anahtarı).
+        eski = conn.execute(
+            "SELECT okul_no, veli_rol FROM kisiler WHERE id = ?", (kisi_id,)
+        ).fetchone()
+        db.kisi_guncelle(
+            conn, kisi_id, ad_soyad.strip(), tel, sinif_id, tur, ogr_id,
+            okul_no=eski["okul_no"] if eski else None,
+            veli_rol=eski["veli_rol"] if eski else None,
+        )
     finally:
         conn.close()
     return RedirectResponse(f"/rehber?sinif_id={sinif_id}&tur={tur}", status_code=303)
