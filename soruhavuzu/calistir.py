@@ -15,7 +15,7 @@ from pathlib import Path
 
 import psycopg2
 
-from soruhavuzu import denetci, kazanimlar, kaynaklar, tekrar, uretici, vt, zaman
+from soruhavuzu import denetci, etiketle, kazanimlar, kaynaklar, tekrar, uretici, vt, zaman
 
 VERI = Path("/mnt/farabi-data/farabi")
 
@@ -132,6 +132,7 @@ def main() -> int:
     sub.add_parser("kur")
     sub.add_parser("katalog")
     sub.add_parser("kazanim-yukle").add_argument("--kuru", action="store_true")
+    sub.add_parser("etiketle").add_argument("--kuru", action="store_true")
     p_uret = sub.add_parser("uret")
     p_uret.add_argument("--sinif", type=int, default=None, help="Yalnızca belirtilen sınıf")
     p_uret.add_argument("--zorla", action="store_true", help="Ders saati kontrolünü atla")
@@ -154,6 +155,15 @@ def main() -> int:
         print(
             f"[kazanim-yukle] {len(satirlar)} satır{' (kuru)' if args.kuru else ''}; "
             f"eşlenemeyen ders: {sorted(atlanan)}",
+            flush=True,
+        )
+    elif komut == "etiketle":
+        s = etiketle.etiketle(conn, tekrar._gomucu(), kuru=args.kuru)
+        for (sinif, ders), (et, top) in sorted(s["dagilim"].items()):
+            print(f"  {sinif:>2} {ders:<10} {et:>4}/{top:<4}", flush=True)
+        print(
+            f"[etiketle] {s['etiketlenen']} etiketlendi, {s['etiketsiz']} etiketsiz"
+            f"{' (kuru — yazılmadı)' if args.kuru else ''}",
             flush=True,
         )
     elif komut == "uret":
