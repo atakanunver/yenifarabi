@@ -140,7 +140,7 @@ HTTP + HMAC/paylaşılan anahtar.
 | Servis | Dizin | Port | Ne yapar |
 |---|---|---|---|
 | `farabi-api` ("Brain") | `server/` | 8000 | RAG (gömme+rerank bilgehan GPU'sunda), Open WebUI kaynak araması, kitap içeriği/PDF render, YKS, bulut LLM proxy, dosya işleme, tahta auth |
-| `farabi-yoklama-dashboard` | `tahtayoklama/dashboard/` | 8010 | yoklama, roster, zil/ders programı, uzaktan yönetim (`/admin/uzaktan`); `/api/ajan` makine API'si (yalnızca 127.0.0.1 + `X-Farabi-Ajan-Key`; anahtar gitignore'lu `tahtayoklama/dashboard/config/ajan.json`; Open WebUI "Atos Yönetim" aracı kullanır); `/api/v1/tahta/*` tahta istemcisi API'si (LAN, tahta başına token) |
+| `farabi-yoklama-dashboard` | `tahtayoklama/dashboard/` | 8010 | yoklama, roster, zil/ders programı, uzaktan yönetim (`/admin/uzaktan`); servis yönetimi (`/servisler`: farabi.local servis/zamanlayıcı başlat-durdur-log, yalnız `sudo -n /usr/local/sbin/farabi-servis` beyaz listesiyle, onay + `uzaktan_denetim` kaydı); `/api/ajan` makine API'si (yalnızca 127.0.0.1 + `X-Farabi-Ajan-Key`; anahtar gitignore'lu `tahtayoklama/dashboard/config/ajan.json`; Open WebUI "Atos Yönetim" aracı kullanır); `/api/v1/tahta/*` tahta istemcisi API'si (LAN, tahta başına token) |
 | `farabi-smssistemi` | `smssistemi/` | 8020 | toplu/kişisel SMS, rehber, Doğum Günleri, Yoklama SMS; `/api/arac/*` (Atos SMS aracı, `X-Sms-Arac-Key`) |
 | `ollama` | — | 11434 | `qwen3.8:27b` (iki GPU, tek model), LAN'a açık, paylaşılan yerel LLM |
 | `open-webui` | `/opt/open-webui` (kurulum `openwebui/kur.py`) | 80 | "Atos" sohbet arayüzü (2026-10-05'e kadar "Farabi") — yalnızca iki yönetici, kaynaklı cevap |

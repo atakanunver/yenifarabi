@@ -615,14 +615,25 @@ Geçiş süresi `pano.css`'te zaten yerleşik: **0.15 s** (renk/zemin) ve
 Veri yüklenirken `skeleton` iskelet, veri yokken düzgün bir `empty-state`
 (ne olduğunu ve ne yapılacağını söyleyen, özür dilemeyen metin)
 tasarlanır — boş tablo bırakılmaz.
-⚠️ `pano.css`'te **`prefers-reduced-motion` bloğu YOK** (2026-09-20'de
-doğrulandı). Pulse/skeleton gibi kendiliğinden dönen bir animasyon
-eklenirken bu medya sorgusu da eklenmeli — sürekli animasyon tek
-erişilebilirlik açığımız.
+`pano.css` sonunda `prefers-reduced-motion` bloğu var (2026-10-08); yeni animasyon ekleyince
+onun kapsadığını kontrol et.
+
+**Kabuk: menü çubuğu + ikon şeridi (2026-10-08).** Gezinmenin TEK kaynağı
+`dashboard/menu.py` (`MENU`, `SERIT`, `menu_agaci(yol)`); `taban.html` menü
+çubuğunu (WAI-ARIA menubar, `static/menu.js`), soldaki 6'lık ikon şeridini ve
+720 px altındaki ☰ çekmeceyi bu ağaçtan üretir — sayfa eklerken öğeyi menu.py'ye
+ekle, şablona elle yazma. Her `Jinja2Templates` örneğine
+`templates.env.globals["menu_agaci"]` eklenmeli (`test_menu` denetler). CSS/JS
+bağlantıları `?v=<static mtime>` taşır (eski önbellek + yeni şablon = bozuk düzen).
+Genel buton `.dugme` / `-ikincil` / `-tehlike` / `-kucuk` / `.dugme-ikon`;
+`[hidden]` her zaman gizler. Varsayılan tema **koyu** (kullanıcı kararı).
+⚠️ Şablonlar canlıya ANINDA yansır, Python kodu restart ister: dashboard
+değişikliğini master'a alır almaz `farabi-yoklama-dashboard`'u yeniden başlat
+(2026-10-08'de aradaki ~8 sn'de sayfalar 500 verdi).
 
 **İkonlar — sprite zaten var, CDN yok.** İkon alanları açıkça
 tanımlanmalı; ikonsuz veri paneli kabul edilmez. Ama mekanizma kurulu:
-`templates/_ikon_sprite.html` içinde **27 adet satır içi `<symbol>`** (2026-09-25 sayımı),
+`templates/_ikon_sprite.html` içinde **35 adet satır içi `<symbol>`** (2026-10-08 sayımı),
 zaten **Lucide çizim konvansiyonunda** (24×24 viewBox,
 `stroke="currentColor"`, `stroke-width="2"`, yuvarlak uçlar). Kullanım:
 `<svg class="ikon"><use href="#ik-<ad>"/></svg>`. Boyut sınıfları hazır:
