@@ -3,6 +3,7 @@
 
 import json
 import re
+from datetime import date
 from pathlib import Path
 
 from soruhavuzu import dersler
@@ -10,6 +11,11 @@ from soruhavuzu import dersler
 VARSAYILAN = Path(__file__).resolve().parent.parent / "tahtayoklama" / "data" / "kazanimlar.json"
 # "KİM.9.1.1." ya da "10.1.3." — sondaki nokta koddan sayılmaz
 KOD_RE = re.compile(r"^\s*((?:[A-ZÇĞİÖŞÜ]{2,6}\.)?\d+(?:\.\d+)+)\.?\s")
+
+
+def haftalar(yol: Path = VARSAYILAN) -> dict[int, date]:
+    veri = json.loads(Path(yol).read_text(encoding="utf-8")).get("haftalar", {})
+    return {int(h): date.fromisoformat(t) for h, t in veri.items()}
 
 
 def oku(yol: Path = VARSAYILAN) -> tuple[list[dict], set[str]]:

@@ -148,3 +148,42 @@ def uret(
             r = c.post(f"{ollama_url}/api/chat", json=govde)
         r.raise_for_status()
         return ayristir(r.json().get("message", {}).get("content", ""), birim)
+
+
+def istem_kazanim(kazanim: dict, kaynak: dict) -> list[dict]:
+    kullanici = (
+        f"Ders: {kazanim['ders']}\nSınıf: {kazanim['sinif']}\nKaynak: {kaynak['etiket']}\n"
+        f"KAZANIM: {kazanim['metin']}\n"
+        "Görev: Bu kazanımı ölçen 5 çoktan seçmeli soru üret (zorluk 1-4 dağıt). Her soru bu kazanımı ölçmeli; "
+        "kaynak metinde geçse de kazanımla ilgisiz bilgiyi sorma. 'konu' alanına kazanımın kısa adını yaz.\n"
+        'Biçim: {"sorular": [{"konu": "...", "soru": "...", "kisa_cevap": "...", '
+        '"secenekler": ["A", "B", "C", "D"], "dogru_index": 0, "zorluk": 1, "sayfa": 0}]}\n\n'
+        f"KAYNAK METİN:\n{kaynak['metin']}"
+    )
+    return [{"role": "system", "content": SISTEM}, {"role": "user", "content": kullanici}]
+
+
+def uret_kazanim(
+    kazanim: dict, kaynak: dict, ollama_url: str = "http://127.0.0.1:11434", zaman_asimi: float = 180
+) -> list[dict]:
+    birim = {
+        "tur": "kitap",
+        "ders": kazanim["ders"],
+        "sinif": kazanim["sinif"],
+        "etiket": kaynak["etiket"],
+        "metin": kaynak["metin"],
+    }
+    govde = {
+        "model": MODEL,
+        "messages": istem_kazanim(kazanim, kaynak),
+        "stream": False,
+        "think": False,
+        "format": "json",
+        "options": {"temperature": 0.4, "num_predict": 2048},
+    }
+    with httpx.Client(timeout=zaman_asimi, trust_env=False) as c:
+        r = c.post(f"{ollama_url}/api/chat", json=govde)
+        if r.status_code == 500:
+            r = c.post(f"{ollama_url}/api/chat", json=govde)
+        r.raise_for_status()
+        return ayristir(r.json().get("message", {}).get("content", ""), birim)
