@@ -24,20 +24,21 @@ DENETIM_AZAMI_PAKET = 8  # paket = 100 soru
 DENETIM_AZAMI_DK = 45
 
 
-def uret(conn) -> None:
+def uret(conn, ders_saati_kontrol: bool = True, sinif: int | None = None) -> None:
     eleyici = tekrar.Eleyici(tekrar._gomucu())
     eleyici.yukle(conn)
     # Hafta içi pencere sabah 07:30'da kapandığı için döngü sonunda denetime zaman kalmaz;
     # bu yüzden üretimden ÖNCE de (ders saati dışındayken) sınırlı bir dilim denetlenir.
-    denetle(conn, DENETIM_AZAMI_PAKET, DENETIM_AZAMI_DK, ders_saati_kontrol=True)
-    while zaman.uretim_serbest():
-        birim = vt.siradaki_birim(conn)
+    if ders_saati_kontrol:
+        denetle(conn, DENETIM_AZAMI_PAKET, DENETIM_AZAMI_DK, ders_saati_kontrol=True)
+    while not ders_saati_kontrol or zaman.uretim_serbest():
+        birim = vt.siradaki_birim(conn, sinif=sinif)
         if birim is None:
             print(
                 "[uret] bütün birimler işlendi — AGY tek seferlik denetim başlıyor",
                 flush=True,
             )
-            denetle(conn, ders_saati_kontrol=True)
+            denetle(conn, ders_saati_kontrol=ders_saati_kontrol)
             return
         t0 = time.perf_counter()
         try:
@@ -62,7 +63,8 @@ def uret(conn) -> None:
                 f"[uret] HATA {birim['anahtar']}: {type(e).__name__}: {e}", flush=True
             )
     print("[uret] ders saati penceresi — durduruldu", flush=True)
-    denetle(conn, DENETIM_AZAMI_PAKET, DENETIM_AZAMI_DK, ders_saati_kontrol=True)
+    if ders_saati_kontrol:
+        denetle(conn, DENETIM_AZAMI_PAKET, DENETIM_AZAMI_DK, ders_saati_kontrol=True)
 
 
 def denetle(
@@ -124,7 +126,19 @@ def durum(conn) -> None:
 
 
 def main() -> int:
-    komut = sys.argv[1] if len(sys.argv) > 1 else "durum"
+    import argparse
+    parser = argparse.ArgumentParser(prog="soruhavuzu")
+    sub = parser.add_subparsers(dest="komut")
+    sub.add_parser("kur")
+    sub.add_parser("katalog")
+    p_uret = sub.add_parser("uret")
+    p_uret.add_argument("--sinif", type=int, default=None, help="Yalnızca belirtilen sınıf")
+    p_uret.add_argument("--zorla", action="store_true", help="Ders saati kontrolünü atla")
+    sub.add_parser("denetle")
+    sub.add_parser("durum")
+
+    args = parser.parse_args()
+    komut = args.komut or "durum"
     conn = vt.baglan()
     if komut == "kur":
         vt.sema_kur(conn)
@@ -132,7 +146,7 @@ def main() -> int:
         farabi = psycopg2.connect(host="127.0.0.1", dbname="farabi", user="farabi")
         print(kaynaklar.katalogla(conn, farabi, VERI / "kazanim_test", VERI / "yks"))
     elif komut == "uret":
-        uret(conn)
+        uret(conn, ders_saati_kontrol=not args.zorla, sinif=args.sinif)
     elif komut == "denetle":
         denetle(conn)
     else:

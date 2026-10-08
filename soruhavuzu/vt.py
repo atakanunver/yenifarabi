@@ -32,11 +32,17 @@ def birim_ekle(conn, tur, anahtar, ders, sinif, etiket, metin) -> int | None:
     return satir[0] if satir else None
 
 
-def siradaki_birim(conn) -> dict | None:
+def siradaki_birim(conn, sinif: int | None = None) -> dict | None:
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute(
-            "SELECT * FROM kaynak_birim WHERE durum = 'bekliyor' ORDER BY id LIMIT 1"
-        )
+        if sinif is not None:
+            cur.execute(
+                "SELECT * FROM kaynak_birim WHERE durum = 'bekliyor' AND sinif = %s ORDER BY id LIMIT 1",
+                (sinif,),
+            )
+        else:
+            cur.execute(
+                "SELECT * FROM kaynak_birim WHERE durum = 'bekliyor' ORDER BY id LIMIT 1"
+            )
         return cur.fetchone()
 
 
