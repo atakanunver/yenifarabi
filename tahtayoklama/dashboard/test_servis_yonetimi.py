@@ -1,6 +1,7 @@
 """servis_yonetimi birim testleri (2026-10-08)."""
 import asyncio
 import unittest
+import unittest.mock
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
 
@@ -91,6 +92,29 @@ class TestCalistir(unittest.TestCase):
             sonuc = asyncio.run(sy.calistir("sinif-arena", "baslat"))
         self.assertFalse(sonuc["ok"])
         self.assertIn("Job failed", sonuc["mesaj"])
+
+
+class TestLogVeZamanAsimi(unittest.TestCase):
+    def test_yalniz_uyari_metin_suzgeci(self):
+        # farabi-api Traceback/WARNING satırları journal'a info önceliğiyle düşüyor; -p warning boş kalıyordu
+        sahte = AsyncMock(return_value=(0, "", ""))
+        with patch.object(sy, "_komut_kos", sahte):
+            asyncio.run(sy.log_oku("farabi-api", 200, yalniz_uyari=True))
+        args = sahte.await_args.args[0]
+        self.assertNotIn("-p", args)
+        self.assertIn("--grep", args)
+        self.assertIn("--case-sensitive=false", args)
+
+    def test_zaman_asiminda_surec_beklenir(self):
+        surec = AsyncMock()
+        surec.communicate.side_effect = TimeoutError
+        surec.kill = unittest.mock.MagicMock()
+        with patch("asyncio.create_subprocess_exec", AsyncMock(return_value=surec)), \
+             patch("asyncio.wait_for", AsyncMock(side_effect=TimeoutError)):
+            kod, _, hata = asyncio.run(sy._komut_kos(["true"]))
+        self.assertEqual(kod, 124)
+        surec.kill.assert_called_once()
+        surec.wait.assert_awaited()
 
 
 class TestDurumAyristir(unittest.TestCase):

@@ -49,8 +49,19 @@ class TestFarabiServis(unittest.TestCase):
         self.assertEqual(self._kos("durdur", "farabi-yoklama-dashboard").returncode, 2)
         r = self._kos("yeniden-baslat", "farabi-yoklama-dashboard")
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertEqual(self._cagrilar(), [
-            "RUN --on-active=2 --unit=farabi-dashboard-yeniden /usr/bin/systemctl restart farabi-yoklama-dashboard.service"])
+        cagri = self._cagrilar()
+        self.assertEqual(len(cagri), 1)
+        # benzersiz geçici birim + --collect: ikinci tıkta / başarısız birimde "already exists" olmasın
+        self.assertRegex(cagri[0], r"^RUN --on-active=2 --collect --unit=farabi-dashboard-yeniden-\d+ "
+                                   r"/usr/bin/systemctl restart farabi-yoklama-dashboard\.service$")
+        r2 = self._kos("yeniden-baslat", "farabi-yoklama-dashboard")
+        self.assertEqual(r2.returncode, 0)
+        self.assertNotEqual(self._cagrilar()[0].split()[3], self._cagrilar()[1].split()[3])
+
+    def test_ollama_restart_beklemez(self):
+        # ExecStartPost model ön-yüklemesi ~1-3 dk; beklenirse 60 sn zaman aşımı "başarısız" gösterir
+        self.assertEqual(self._kos("yeniden-baslat", "ollama").returncode, 0)
+        self.assertEqual(self._cagrilar(), ["restart --no-block ollama.service"])
 
     def test_zamanlayici_eylemleri(self):
         self._kos("zamanlayici-kapat", "soru-havuzu-uret")

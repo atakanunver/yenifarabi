@@ -122,6 +122,7 @@ async def _komut_kos(args: list[str]) -> tuple[int, str, str]:
         cikti, hata = await asyncio.wait_for(surec.communicate(), KOMUT_ZAMAN_ASIMI_SN)
     except TimeoutError:
         surec.kill()
+        await surec.wait()  # zombi süreç kalmasın
         return 124, "", "zaman aşımı"
     return surec.returncode, cikti.decode(errors="replace"), hata.decode(errors="replace")
 
@@ -181,7 +182,8 @@ async def log_oku(birim: str, satir: int = 200, yalniz_uyari: bool = False) -> l
     args = ["journalctl", "-u", f"{birim}.service", "-n", str(min(max(satir, 10), 1000)),
             "-o", "short-iso", "--no-pager"]
     if yalniz_uyari:
-        args += ["-p", "warning"]
+        # Uygulama Traceback/WARNING'leri journal'a info önceliğiyle düşer; -p warning yalnız systemd'yi gösteriyordu.
+        args += ["--grep", "traceback|error|warning|warn|exception|failed|hata", "--case-sensitive=false"]
     _, cikti, _ = await _komut_kos(args)
     return [maskele(s) for s in cikti.splitlines()]
 

@@ -18,8 +18,14 @@ if listede "$birim" "$SERVISLER"; then
     yeniden-baslat)
       if [[ "$birim" == "farabi-yoklama-dashboard" ]]; then
         # İsteği yanıtlayan süreci öldürmemek için 2 sn gecikmeli, ayrı birimde.
-        exec "$SYSTEMD_RUN" --on-active=2 --unit=farabi-dashboard-yeniden \
+        # Benzersiz ad + --collect: 2 sn içinde ikinci tık ya da başarısız kalan geçici birim
+        # "Unit already exists" ile sonraki restart'ları kırmasın.
+        exec "$SYSTEMD_RUN" --on-active=2 --collect --unit="farabi-dashboard-yeniden-$(date +%s%N)" \
           /usr/bin/systemctl restart farabi-yoklama-dashboard.service
+      fi
+      if [[ "$birim" == "ollama" ]]; then
+        # ExecStartPost model ön-yüklemesi 1-3 dk sürer; beklemeden kuyruğa al (pano 60 sn'de "başarısız" derdi).
+        exec "$SYSTEMCTL" restart --no-block "$birim.service"
       fi
       exec "$SYSTEMCTL" restart "$birim.service" ;;
     durdur)
