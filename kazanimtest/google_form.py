@@ -89,12 +89,13 @@ def sonuclari_al(gizli: dict, form_id: str, istemci=None) -> list[dict]:
     return veri.get("cevaplar") or []
 
 
-def raporlari_yaz(gizli: dict, raporlar: list[dict], istemci=None, parti: int = 50) -> int:
-    """Aylık raporları Apps Script "Kazanım Raporları" tablosuna yazar (50'lik partiler); yazılan sayı döner.
-    raporlar: [{token, ay, sinif, okul_no, son_gecerlilik, veri}] — isim/telefon İÇERMEZ."""
+def raporlari_yaz(gizli: dict, raporlar: list[dict], istemci=None, parti: int = 20) -> dict[str, str]:
+    """Aylık raporları Apps Script'e yazdırır (her token için bir Google Dokümanı); {token: doküman_linki} döner.
+    raporlar: [{token, ay, sinif, okul_no, son_gecerlilik, veri}] — isim/telefon İÇERMEZ.
+    Küçük partiler: her doküman birkaç sn sürer (Apps Script 6 dk sınırı). Bir token'ın linki eksikse FormHatasi."""
     k = istemci or httpx
     ek = {"proxy": gizli["proxy"]} if gizli.get("proxy") else {}
-    toplam = 0
+    linkler: dict[str, str] = {}
     for i in range(0, len(raporlar), parti):
         grup = raporlar[i:i + parti]
         try:
@@ -103,7 +104,7 @@ def raporlari_yaz(gizli: dict, raporlar: list[dict], istemci=None, parti: int = 
                 gizli["script_url"],
                 json={"anahtar": gizli["anahtar"], "islem": "rapor_yaz", "raporlar": grup},
                 follow_redirects=True,
-                timeout=120,
+                timeout=300,
                 **ek,
             )
         except (httpx.HTTPError, ValueError) as e:
@@ -112,5 +113,10 @@ def raporlari_yaz(gizli: dict, raporlar: list[dict], istemci=None, parti: int = 
             raise FormHatasi(f"Apps Script hata: {veri.get('hata') if isinstance(veri, dict) else veri}")
         if veri.get("yazilan") != len(grup):
             raise FormHatasi(f"Apps Script {len(grup)} rapordan {veri.get('yazilan')} tanesini yazdı")
-        toplam += len(grup)
-    return toplam
+        yanit = veri.get("linkler") if isinstance(veri.get("linkler"), dict) else {}
+        for r in grup:
+            link = yanit.get(r["token"])
+            if not isinstance(link, str) or not link.startswith("https://"):
+                raise FormHatasi(f"Apps Script {r['token'][:4]}… raporu için doküman linki döndürmedi")
+            linkler[r["token"]] = link
+    return linkler

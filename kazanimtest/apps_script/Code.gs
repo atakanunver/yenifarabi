@@ -10,10 +10,13 @@
  *   secimler = formdaki çoktan seçmeli maddelerin sırasıyla; boş bırakılan madde null.
  *
  * İstek (POST, JSON): {anahtar, islem:'rapor_yaz', raporlar:[{token, ay, sinif, okul_no, son_gecerlilik, veri}]}
- * Yanıt: {ok:true, yazilan:n}. "Kazanım Raporları" e-tablosu (id: Script Properties RAPOR_TABLO_ID).
+ * Yanıt: {ok:true, yazilan:n, linkler:{<token>:"https://docs.google.com/document/d/<id>/view"}}.
+ *   Her token için bir Google Dokümanı ("bağlantıya sahip herkes görüntüleyebilir"), Kazanım Testleri/Raporlar
+ *   klasöründe; tekrar çağrıda aynı doküman güncellenir (link değişmez). Süresi dolanların dokümanı çöpe gider.
+ *   "Kazanım Raporları" e-tablosu (id: Script Properties RAPOR_TABLO_ID) token→doc_id kaydını tutar.
  *   Gizlilik: veri YALNIZCA sınıf + okul no + kazanım sonuçları; isim/telefon yoktur.
  *
- * GET ?r=<token>: kişiye özel gizli kodlu rapor sayfası (anahtarsız; token tahmin edilemez, süresi var).
+ * GET ?r=<token>: ESKİ HTML rapor sayfası (yedek; çoklu Google hesabında açılmıyor — asıl yol Doküman linki).
  */
 var KLASOR_ADI = 'Kazanım Testleri';
 
@@ -126,7 +129,8 @@ function cevap_(nesne) {
 // ---------------------------------------------------------------- Aylık rapor
 
 var RAPOR_TABLO_ADI = 'Kazanım Raporları';
-var RAPOR_SUTUNLAR = ['token', 'ay', 'sinif', 'okul_no', 'son_gecerlilik', 'veri_json', 'yazilma'];
+var RAPOR_SUTUNLAR = ['token', 'ay', 'sinif', 'okul_no', 'son_gecerlilik', 'veri_json', 'yazilma', 'doc_id'];
+var RAPOR_ALT_KLASOR = 'Raporlar';
 
 function rapor_sayfa_() {
   var props = PropertiesService.getScriptProperties();
@@ -145,6 +149,9 @@ function rapor_sayfa_() {
     // token / ay / son_gecerlilik metin kalsın (e-tablo tarihe çevirmesin)
     sayfa.getRange('A:B').setNumberFormat('@');
     sayfa.getRange('E:E').setNumberFormat('@');
+  } else if (!sayfa.getRange(1, RAPOR_SUTUNLAR.length).getValue()) {
+    // eski 7 sütunlu tablo: doc_id başlığını ekle (eski satırlarda hücre boş kalır)
+    sayfa.getRange(1, RAPOR_SUTUNLAR.length).setValue('doc_id');
   }
   return sayfa;
 }
@@ -156,24 +163,134 @@ function rapor_satiri_bul_(sayfa, token) {
   return bulunan && bulunan.getRow() > 1 ? bulunan.getRow() : 0;
 }
 
+function tarih_metni_(sg) {
+  if (sg instanceof Date) { return Utilities.formatDate(sg, 'Europe/Istanbul', 'yyyy-MM-dd'); }
+  return String(sg).substr(0, 10);
+}
+
+function rapor_klasoru_() {
+  var ust = klasor_();
+  var it = ust.getFoldersByName(RAPOR_ALT_KLASOR);
+  return it.hasNext() ? it.next() : ust.createFolder(RAPOR_ALT_KLASOR);
+}
+
 function rapor_yaz_(raporlar) {
   if (!raporlar || !raporlar.length) { return { ok: false, hata: 'rapor yok' }; }
-  var sayfa = rapor_sayfa_();
-  var simdi = new Date().toISOString();
-  var yazilan = 0;
-  raporlar.forEach(function (r) {
-    if (!r.token) { return; }
-    var satir = [String(r.token), String(r.ay), String(r.sinif), Number(r.okul_no),
-                 String(r.son_gecerlilik), JSON.stringify(r.veri || {}), simdi];
-    var no = rapor_satiri_bul_(sayfa, r.token);
-    if (no) {
-      sayfa.getRange(no, 1, 1, satir.length).setValues([satir]);
-    } else {
-      sayfa.appendRow(satir);
-    }
-    yazilan += 1;
+  var kilit = LockService.getScriptLock();
+  if (!kilit.tryLock(30000)) { return { ok: false, hata: 'meşgul, sonra tekrar deneyin' }; }
+  try {
+    var sayfa = rapor_sayfa_();
+    var simdi = new Date().toISOString();
+    var yazilan = 0;
+    var linkler = {};
+    var klasor = null;
+    raporlar.forEach(function (r) {
+      if (!r.token) { return; }
+      var no = rapor_satiri_bul_(sayfa, r.token);
+      var docId = no ? String(sayfa.getRange(no, RAPOR_SUTUNLAR.length).getValue() || '') : '';
+      var doc = null;
+      if (docId) {
+        try { doc = DocumentApp.openById(docId); } catch (x) { doc = null; }
+        if (doc && DriveApp.getFileById(docId).isTrashed()) { doc = null; }
+      }
+      var baslik = 'Kazanım raporu – ' + String(r.sinif) + ' – Okul no ' + String(r.okul_no) + ' – ' +
+                   String((r.veri || {}).ay_adi || r.ay);
+      if (doc) {
+        doc.setName(baslik);
+      } else {
+        doc = DocumentApp.create(baslik);
+        docId = doc.getId();
+        if (!klasor) { klasor = rapor_klasoru_(); }
+        DriveApp.getFileById(docId).moveTo(klasor);
+        DriveApp.getFileById(docId).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      }
+      rapor_doc_yaz_(doc, r.veri || {});
+      doc.saveAndClose();
+      var satir = [String(r.token), String(r.ay), String(r.sinif), Number(r.okul_no),
+                   String(r.son_gecerlilik), JSON.stringify(r.veri || {}), simdi, docId];
+      if (no) {
+        sayfa.getRange(no, 1, 1, satir.length).setValues([satir]);
+      } else {
+        sayfa.appendRow(satir);
+      }
+      linkler[String(r.token)] = 'https://docs.google.com/document/d/' + docId + '/view';
+      yazilan += 1;
+    });
+    try { suresi_dolanlari_temizle_(sayfa); } catch (x) {}
+    return { ok: true, yazilan: yazilan, linkler: linkler };
+  } finally {
+    kilit.releaseLock();
+  }
+}
+
+// son_gecerlilik < bugün olan satırların dokümanını çöpe at, doc_id'yi boşalt (satır kalır).
+function suresi_dolanlari_temizle_(sayfa) {
+  var son = sayfa.getLastRow();
+  if (son < 2) { return; }
+  var bugun = Utilities.formatDate(new Date(), 'Europe/Istanbul', 'yyyy-MM-dd');
+  var sutun = RAPOR_SUTUNLAR.length;
+  var veri = sayfa.getRange(2, 1, son - 1, sutun).getValues();
+  veri.forEach(function (h, i) {
+    var docId = String(h[sutun - 1] || '');
+    var sg = tarih_metni_(h[4]);
+    if (!docId || !sg || sg >= bugun) { return; }
+    try { DriveApp.getFileById(docId).setTrashed(true); } catch (x) {}
+    sayfa.getRange(i + 2, sutun).setValue('');
   });
-  return { ok: true, yazilan: yazilan };
+}
+
+var DOC_GRI = '#566170';
+
+function rapor_paragraf_(govde, metin, renk, boyut) {
+  var p = govde.appendParagraph(String(metin));
+  p.setHeading(DocumentApp.ParagraphHeading.NORMAL);
+  p.editAsText().setFontSize(boyut || 11).setForegroundColor(renk || '#1f2933').setBold(false);
+  return p;
+}
+
+function rapor_doc_yaz_(doc, v) {
+  var govde = doc.getBody();
+  govde.clear();
+  var g = v.genel || {};
+  govde.appendParagraph('Kazanım raporu').setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  rapor_paragraf_(govde, String(v.sinif) + ' · Okul no ' + String(v.okul_no) + ' · ' + String(v.ay_adi), DOC_GRI);
+  rapor_paragraf_(govde, 'Genel doğru oranı: %' + yuzde_(g.oran) + ' (sınıf ortalaması %' + yuzde_(g.sinif_orani) +
+                  ') · Katıldığın test: ' + String(g.test_sayisi), '#1f2933', 12).editAsText().setBold(true);
+  (v.dersler || []).forEach(function (d) {
+    govde.appendParagraph(String(d.ders)).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    rapor_paragraf_(govde, 'Senin oranın %' + yuzde_(d.oran) + ' · Sınıf ortalaması %' + yuzde_(d.sinif_orani), DOC_GRI);
+    var hucreler = [['Kazanım', 'Oran', 'Durum']];
+    (d.kazanimlar || []).forEach(function (k) {
+      hucreler.push([String(k.kazanim_satiri), '%' + yuzde_(k.oran), DURUM_ETIKET[k.durum] || 'Az veri']);
+    });
+    var tablo = govde.appendTable(hucreler);
+    for (var c = 0; c < 3; c++) { tablo.getCell(0, c).editAsText().setBold(true); }
+    (d.kazanimlar || []).forEach(function (k, i) {
+      var r = DURUM_RENK[k.durum] || DURUM_RENK.az_veri;
+      var hucre = tablo.getCell(i + 1, 2);
+      hucre.setBackgroundColor(r[0]);
+      hucre.editAsText().setForegroundColor(r[1]).setBold(true);
+    });
+  });
+  var sayfalar = [];
+  (v.eksikler || []).forEach(function (k) {
+    (k.sayfalar || []).forEach(function (s) { if (sayfalar.indexOf(s) < 0) { sayfalar.push(s); } });
+  });
+  govde.appendParagraph('Tekrar etmen gereken sayfalar').setHeading(DocumentApp.ParagraphHeading.HEADING2);
+  if (sayfalar.length) {
+    sayfalar.forEach(function (s) { govde.appendListItem(String(s)).setGlyphType(DocumentApp.GlyphType.BULLET); });
+  } else {
+    rapor_paragraf_(govde, 'Bu ay tekrar önerilen sayfa yok.', DOC_GRI);
+  }
+  govde.appendParagraph('Güçlü olduğun kazanımlar').setHeading(DocumentApp.ParagraphHeading.HEADING2);
+  if ((v.gucluler || []).length) {
+    v.gucluler.forEach(function (k) {
+      govde.appendListItem(String(k.ders) + ': ' + String(k.kazanim_satiri)).setGlyphType(DocumentApp.GlyphType.BULLET);
+    });
+  } else {
+    rapor_paragraf_(govde, 'Bu ay güçlü sayılan kazanım yok.', DOC_GRI);
+  }
+  rapor_paragraf_(govde, 'Bu rapor okulumuzun kazanım testlerinden otomatik hazırlanmıştır.', '#8a94a0', 9);
 }
 
 function doGet(e) {

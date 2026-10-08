@@ -49,3 +49,6 @@ CREATE TABLE IF NOT EXISTS aylik_rapor (
     sms_gonderim_id  text,
     UNIQUE (ay, okul_no)
 );
+
+-- Rapor artık öğrenci başına Google Dokümanı (Apps Script çoklu Google hesabında açılmıyordu): SMS'teki link.
+ALTER TABLE aylik_rapor ADD COLUMN IF NOT EXISTS link text;

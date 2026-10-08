@@ -114,11 +114,15 @@ def test_sablon_ad_korunur():
 
 
 def test_300_karaktere_sigar():
-    link = f"{SCRIPT_URL}?r=" + "T" * 22
+    link = "https://docs.google.com/document/d/" + "D" * 44 + "/view"
     m = aylik.sablon_doldur(AYAR["rapor_sms_sablon"], "Ağustos 2026", link)
     assert aylik.sablon_sigiyor_mu(m, 300)
     assert len(m.replace("{ad}", "X" * 45)) < 300
     assert not aylik.sablon_sigiyor_mu(m + "x" * 200, 300)
+
+
+def LINK(token):
+    return f"https://docs.google.com/document/d/DOC{token}/view"
 
 
 class _Yanit:
@@ -134,7 +138,8 @@ class _Http:
     def post(s, url, json=None, **kw):
         s.cagrilar.append((url, json))
         if url.endswith("rapor_yaz") or json.get("islem") == "rapor_yaz":
-            return _Yanit({"ok": True, "yazilan": len(json["raporlar"])})
+            return _Yanit({"ok": True, "yazilan": len(json["raporlar"]),
+                           "linkler": {r["token"]: LINK(r["token"]) for r in json["raporlar"]}})
         if url.endswith("/kisisel-taslak"):
             return _Yanit(s.taslak or {"taslak_id": "T1", "oge_sayisi": len(json["ogeler"]), "alici_sayisi": 2,
                                        "bulunamayan": [], "alicisiz": []})
@@ -143,11 +148,12 @@ class _Http:
         raise AssertionError(url)
 
 
-def test_raporlari_yaz_50lik_partiler():
+def test_raporlari_yaz_partiler_ve_linkler():
     h = _Http()
     rap = [{"token": str(i), "ay": "2026-10", "sinif": "9-A", "okul_no": i, "son_gecerlilik": "2027-01-01", "veri": {}} for i in range(120)]
-    assert google_form.raporlari_yaz(GIZLI, rap, h) == 120
-    assert [len(c[1]["raporlar"]) for c in h.cagrilar] == [50, 50, 20]
+    linkler = google_form.raporlari_yaz(GIZLI, rap, h)
+    assert len(linkler) == 120 and linkler["7"] == LINK("7")
+    assert [len(c[1]["raporlar"]) for c in h.cagrilar] == [20] * 6
     assert all(c[1]["islem"] == "rapor_yaz" and c[1]["anahtar"] == "K" for c in h.cagrilar)
 
 
@@ -159,6 +165,31 @@ def test_raporlari_yaz_eksik_yazilan_hata():
         google_form.raporlari_yaz(GIZLI, [{"token": "a"}], H())
 
 
+def test_raporlari_yaz_eksik_link_hata():
+    class H(_Http):
+        def post(s, url, json=None, **kw):
+            return _Yanit({"ok": True, "yazilan": 2, "linkler": {"a": "https://docs.google.com/document/d/X/view"}})
+    with pytest.raises(google_form.FormHatasi, match="link"):
+        google_form.raporlari_yaz(GIZLI, [{"token": "a"}, {"token": "b"}], H())
+
+
+def test_link_yaz_token_basina_update():
+    class Cur:
+        def __init__(s, c): s.c = c
+        def __enter__(s): return s
+        def __exit__(s, *a): pass
+        def execute(s, q, p): s.c.sql.append((q, p))
+    class Cn:
+        def __init__(s): s.sql = []
+        def cursor(s): return Cur(s)
+        def commit(s): pass
+    c = Cn()
+    aylik.link_yaz(c, {"t1": "https://docs.google.com/document/d/1/view", "t2": "https://docs.google.com/document/d/2/view"})
+    assert [p for _, p in c.sql] == [("https://docs.google.com/document/d/1/view", "t1"),
+                                     ("https://docs.google.com/document/d/2/view", "t2")]
+    assert all("UPDATE aylik_rapor SET link=%s WHERE token=%s" in q for q, _ in c.sql)
+
+
 @pytest.fixture
 def duzen(monkeypatch):
     kayit = {"isaret": [], "tablo": {}}
@@ -167,6 +198,7 @@ def duzen(monkeypatch):
     def token_al(conn, ay, sinif, no, sg, uretici=None):
         return kayit["tablo"].setdefault(no, [f"tok{no}", None])[0], kayit["tablo"][no][1]
     monkeypatch.setattr(aylik, "token_al", token_al)
+    monkeypatch.setattr(aylik, "link_yaz", lambda conn, linkler: kayit.setdefault("linkler", {}).update(linkler))
     monkeypatch.setattr(aylik, "sms_isaretle", lambda conn, ay, nolar, t, g: kayit["isaret"].append((ay, nolar, t, g)))
     class Conn:
         def rollback(s): pass
@@ -193,6 +225,7 @@ def test_sms_yok_ise_yalniz_google(duzen):
     yazilan = h.cagrilar[0][1]["raporlar"][0]
     assert yazilan["son_gecerlilik"] == "2027-01-30" and yazilan["token"] == "tok1" and yazilan["okul_no"] == 1
     assert not {"ad", "telefon", "isim"} & set(_anahtarlar(yazilan))
+    assert duzen[0]["linkler"] == {"tok1": LINK("tok1"), "tok2": LINK("tok2")}
 
 
 def test_sms_test_akisi_isaretlemez(duzen):
@@ -201,7 +234,7 @@ def test_sms_test_akisi_isaretlemez(duzen):
     taslak = next(c for c in h.cagrilar if c[0].endswith("/kisisel-taslak"))[1]
     assert taslak["test_telefon"] == "05000000000"
     assert [o["okul_no"] for o in taslak["ogeler"]] == [1, 2]
-    assert taslak["ogeler"][0]["metin_sablon"] == f"{{ad}} için Ekim 2026 kazanım raporu: {SCRIPT_URL}?r=tok1"
+    assert taslak["ogeler"][0]["metin_sablon"] == f"{{ad}} için Ekim 2026 kazanım raporu: {LINK('tok1')}"
     assert any(c[0].endswith("/kisisel-gonder") for c in h.cagrilar)
 
 

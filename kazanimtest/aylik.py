@@ -1,7 +1,7 @@
 """kazanimtest/aylik.py — aylık öğrenci/veli kazanım raporu (Faz 2 adım 5).
 
 analiz.sinif_analizi(ay aralığı) → öğrenci başına rapor verisi → aylik_rapor (token) → Apps Script
-"Kazanım Raporları" e-tablosu (islem:"rapor_yaz") → isteğe bağlı kişiye özel SMS (kisisel-taslak/-gonder).
+her öğrenci için Google Dokümanı (islem:"rapor_yaz") → isteğe bağlı kişiye özel SMS (kisisel-taslak/-gonder).
 
 GİZLİLİK: Google'a giden veri YALNIZCA sinif + okul_no + kazanım sonuçları. İsim/telefon bu modülde
 HİÇ yoktur; `{ad}` yer tutucusu SMS metninde olduğu gibi smssistemi'ne gider, orada doldurulur.
@@ -111,6 +111,14 @@ def token_al(conn, ay: str, sinif: str, okul_no: int, son_gecerlilik: date, uret
     return token, gid
 
 
+def link_yaz(conn, linkler: dict[str, str]) -> None:
+    """{token: doküman linki} → aylik_rapor.link (aynı token aynı doküman; tekrar güvenli)."""
+    with conn.cursor() as cur:
+        for token, link in linkler.items():
+            cur.execute("UPDATE aylik_rapor SET link=%s WHERE token=%s", (link, token))
+    conn.commit()
+
+
 def sms_isaretle(conn, ay: str, okul_nolar: list[int], taslak_id: str, gonderim_id: str) -> None:
     with conn.cursor() as cur:
         cur.execute("UPDATE aylik_rapor SET sms_taslak_id=%s, sms_gonderim_id=%s WHERE ay=%s AND okul_no = ANY(%s)",
@@ -192,17 +200,18 @@ def aylik(ay: str | None = None, sinif: str | None = None, sms: bool = False, sm
             sozlesme[r["okul_no"]] = (token, gid)
             yazilacak.append({"token": token, "ay": anahtar, "sinif": r["sinif"], "okul_no": r["okul_no"],
                               "son_gecerlilik": son.isoformat(), "veri": r})
-        yazilan = google_form.raporlari_yaz(gizli, yazilacak, istemci)
-        log.info("aylik %s: %d rapor Google'a yazıldı", anahtar, yazilan)
+        linkler = google_form.raporlari_yaz(gizli, yazilacak, istemci)
+        link_yaz(conn, linkler)
+        log.info("aylik %s: %d rapor Google Dokümanı olarak yazıldı", anahtar, len(linkler))
         if sms or sms_test:
-            hata += _sms(conn, gizli, ayar, anahtar, adi, sablon, sozlesme, sms_test, istemci)
+            hata += _sms(conn, gizli, ayar, anahtar, adi, sablon, sozlesme, sms_test, istemci, linkler)
     finally:
         if kendi_conn:
             conn.close()
     return hata
 
 
-def _sms(conn, gizli, ayar, anahtar, adi, sablon, sozlesme, test, istemci) -> int:
+def _sms(conn, gizli, ayar, anahtar, adi, sablon, sozlesme, test, istemci, linkler) -> int:
     test_telefon = gizli.get("test_telefon") if test else None
     if test and not test_telefon:
         raise RuntimeError("--sms-test için gizli.json::test_telefon yok; SMS atılmadı")
@@ -210,7 +219,7 @@ def _sms(conn, gizli, ayar, anahtar, adi, sablon, sozlesme, test, istemci) -> in
     for no, (token, gid) in sorted(sozlesme.items()):
         if gid and not test:
             continue  # zaten gönderilmiş
-        ogeler.append({"okul_no": no, "metin_sablon": sablon_doldur(sablon, adi, f"{gizli['script_url']}?r={token}")})
+        ogeler.append({"okul_no": no, "metin_sablon": sablon_doldur(sablon, adi, linkler[token])})
     if not ogeler:
         log.info("aylik %s: gönderilecek SMS yok", anahtar)
         return 0
