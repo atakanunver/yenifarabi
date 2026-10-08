@@ -24,8 +24,27 @@ büyük dosyalar OKUNMADI — yalnızca birkaç sayfa örneklendi):
 import re
 
 _BASLIK_DESENI = re.compile(r"^(\d{1,2})\.\.?\s*[Ss][Iı]{2}[Nn]{2}[Iı]{2}[Ff]{2}$")
-_SORU_BASI = re.compile(r"^(\d{1,2})\.\s+(.*)$")
+_SORU_BASI = re.compile(r"^(\d{1,2})\.(?:\s+(.*))?$")  # "8." tek başına da olabilir (İngilizce)
+_ORTAK_METIN = re.compile(r"^For questions?\s+(\d{1,2})\s*[-–]\s*(\d{1,2})\b", re.IGNORECASE)
 _SIK_DESENI = re.compile(r"([A-E])\)\s*")
+_SINIF_SATIRI = re.compile(r"^\d{1,2}\.\s*[Ss]ınıf$")
+
+# Dosya adı öneki -> DB'deki ders adı (başlıktan ders çıkmayan seriler için
+# yedek; yalnızca "12sinif_<ders>_" kalıbı — müfredat kitapçıkları ve
+# "1.pdf" gibi adlar bilerek eşleşmez).
+_DERS_DOSYA_ONEKI = {
+    "biyoloji": "Biyoloji", "tarih": "Tarih", "cografya": "Coğrafya",
+    "ingilizce": "İngilizce", "kimya": "Kimya", "fizik": "Fizik",
+    "matematik": "Matematik",
+}
+# Başlıkta İngilizce yazan ders adları (Türkçe karşılığına çevrilir).
+_DERS_ESLEME = {"English": "İngilizce"}
+
+
+def ders_dosya_adindan(dosya_adi: str) -> str | None:
+    """'12sinif_tarih_1.pdf' -> 'Tarih'. Tanınmazsa None."""
+    m = re.match(r"^\d{1,2}sinif_([a-z]+)_", dosya_adi.lower())
+    return _DERS_DOSYA_ONEKI.get(m.group(1)) if m else None
 
 
 def _cift_karakter_coz(satir: str) -> str:
@@ -56,6 +75,9 @@ def baslik_bilgisi_cikar(ilk_sayfa_metni: str) -> tuple[int | None, str | None]:
     sinif_indeksi = None
     for i, satir in enumerate(ham_satirlar):
         m = re.match(r"^(\d{1,2})\.\s*[Ss]ınıf$", _cift_karakter_coz(satir))
+        if not m:
+            # İngilizce serisi: "12th Grade"
+            m = re.match(r"^(\d{1,2})(?:th|st|nd|rd)\s+Grade$", satir)
         if m:
             sinif = int(m.group(1))
             sinif_indeksi = i
@@ -68,7 +90,8 @@ def baslik_bilgisi_cikar(ilk_sayfa_metni: str) -> tuple[int | None, str | None]:
     onceki = None
     for satir in ham_satirlar[sinif_indeksi + 1:]:
         cozulmus = _cift_karakter_coz(satir)
-        if re.match(r"^(\d{1,2})\.\s*[Ss]ınıf$", cozulmus):
+        if re.match(r"^(\d{1,2})\.\s*[Ss]ınıf$", cozulmus) or re.match(
+                r"^(\d{1,2})(?:th|st|nd|rd)\s+Grade$", satir):
             continue  # "12. Sınıf" ikinci kopyası
         if not _DERS_PARCA.match(cozulmus):
             # rakam/formül/soru gövdesi içeren ilk satır — ders adı bitti
@@ -78,6 +101,7 @@ def baslik_bilgisi_cikar(ilk_sayfa_metni: str) -> tuple[int | None, str | None]:
         parcalar.append(cozulmus)
         onceki = cozulmus
     ders = " ".join(p.rstrip() for p in parcalar).strip() or None
+    ders = _DERS_ESLEME.get(ders, ders)
     return sinif, ders
 
 
@@ -129,6 +153,13 @@ def sorulari_ayir(tam_metin: str) -> list[dict]:
     satirlar = _sayfa_basligini_temizle(tam_metin).splitlines()
     bloklar: list[tuple[int, list[str]]] = []
     guncel_no, guncel_satirlar = None, []
+    son_no = None  # son kabul edilen soru numarası (ardışıklık denetimi)
+    # İngilizce: "For questions 8-12, choose…" + ortak metin, sorular arasında
+    # durur; önceki sorunun E şıkkına yapışmasın diye ayrı tamponda toplanır
+    # ve 8..12. soruların başına eklenir.
+    ortak_tampon: list[str] | None = None
+    ortaklar: list[tuple[int, int, str]] = []
+    ortak_aralik = (0, 0)
     for satir in satirlar:
         # lstrip (rstrip DEĞİL): "N.\t" gibi satırlarda numaranın hemen
         # ardından TEK içerik satır sonuna kadar sarkan bir tab/boşluk
@@ -136,11 +167,33 @@ def sorulari_ayir(tam_metin: str) -> list[dict]:
         # silip _SORU_BASI'nin \s+ şartını kırıyor, soru numarası hiç
         # yakalanmıyordu.
         m = _SORU_BASI.match(satir.lstrip())
+        # Soru numarası ARDIŞIK olmalı (önceki+1): kimyada şekil etiketleri
+        # ("1. kap", "2. kap"), tarihte sayfa altı konu başlığı ("20. Yüzyıl
+        # Başlarında…") ve "12. Sınıf" başlığı soru başı sanılıyordu. İlk
+        # soru herhangi bir numarayla başlayabilir (eski davranış).
+        if m and _SINIF_SATIRI.match(satir.strip()):
+            m = None
+        if m and son_no is not None and int(m.group(1)) != son_no + 1:
+            m = None
+        om = None if m else _ORTAK_METIN.match(satir.strip())
         if m:
             if guncel_no is not None:
                 bloklar.append((guncel_no, guncel_satirlar))
-            guncel_no = int(m.group(1))
-            guncel_satirlar = [m.group(2).strip()]
+            if ortak_tampon is not None:
+                ortaklar.append((*ortak_aralik, " ".join(t for t in ortak_tampon if t)))
+                ortak_tampon = None
+            guncel_no = son_no = int(m.group(1))
+            guncel_satirlar = [(m.group(2) or "").strip()]
+        elif om:
+            if guncel_no is not None:
+                bloklar.append((guncel_no, guncel_satirlar))
+                guncel_no, guncel_satirlar = None, []
+            if ortak_tampon is not None:
+                ortaklar.append((*ortak_aralik, " ".join(t for t in ortak_tampon if t)))
+            ortak_aralik = (int(om.group(1)), int(om.group(2)))
+            ortak_tampon = [satir.strip()]
+        elif ortak_tampon is not None:
+            ortak_tampon.append(satir.strip())
         elif guncel_no is not None:
             guncel_satirlar.append(satir.strip())
     if guncel_no is not None:
@@ -163,6 +216,9 @@ def sorulari_ayir(tam_metin: str) -> list[dict]:
         else:
             soru_metni = blok_metni.strip()
             secenekler = None
+        for bas, son, ortak_metin in ortaklar:
+            if bas <= no <= son and ortak_metin:
+                soru_metni = f"{ortak_metin} {soru_metni}".strip()
         if soru_metni:
             sonuc.append({"soru_no": no, "soru_metni": soru_metni, "secenekler": secenekler})
     return sonuc

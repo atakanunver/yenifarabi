@@ -61,7 +61,7 @@ import psycopg2.extras
 from pgvector.psycopg2 import register_vector
 from sentence_transformers import SentenceTransformer
 
-from kazanim_test_parse import baslik_bilgisi_cikar, konu_cikar, sorulari_ayir
+from kazanim_test_parse import baslik_bilgisi_cikar, ders_dosya_adindan, konu_cikar, sorulari_ayir
 
 KAYNAK_DIZIN = Path("/mnt/farabi-data/farabi/kazanim_test")
 MODEL_ADI = "BAAI/bge-m3"
@@ -117,6 +117,8 @@ def main() -> int:
 
         sinif, ders = baslik_bilgisi_cikar(ilk_sayfa)
         if not ders:
+            ders = ders_dosya_adindan(yol.name)  # tarih/İngilizce serisi yedeği
+        if not ders:
             atlanan.append((yol.name, "başlıktan ders çıkarılamadı"))
             continue
 
@@ -138,6 +140,16 @@ def main() -> int:
         beklenen = list(range(no_dizisi[0], no_dizisi[0] + len(no_dizisi)))
         if no_dizisi != beklenen:
             atlanan.append((yol.name, "soru_no sırasız/tekrarlı (birden fazla test ya da yanlış bölünme)"))
+            continue
+
+        # Şık kapısı: tam A-E şıkkı olmayan soru oranı yüksekse (birleşik
+        # "mayıs" setleri, müfredat kitapçıkları: şıklar görselde ya da
+        # farklı biçimde) dosya yanlış bölünmüştür. Eski dosyalarda en
+        # kötü oran ~%20 (görsel şıklı birkaç soru) — eşik %30.
+        eksik_sik = sum(1 for s in sorular
+                        if not s["secenekler"] or set(s["secenekler"]) != set("ABCDE"))
+        if eksik_sik / len(sorular) > 0.30:
+            atlanan.append((yol.name, f"şıksız/eksik şıklı soru oranı yüksek ({eksik_sik}/{len(sorular)})"))
             continue
 
         dosya_hash = sha256_dosya(yol)
