@@ -53,7 +53,9 @@ okul operasyon servisleri (yoklama panosu, SMS).
   `kazanim-test.timer` (hafta içi 13:30 UTC = 16:30 TR; kazanım testi →
   Excel/Word + Google Form, başlangıçta SMS'siz) — bkz. `kazanimtest/CLAUDE.md`
   (2026-10-08'den beri etkin; kapsam 9-10. sınıf kimya/matematik/biyoloji,
-  `kazanimtest/config/ayar.json`).
+  `kazanimtest/config/ayar.json`); `kazanim-test-sonuc.timer` (her gün 21:00 UTC,
+  form cevaplarını `soru_havuzu.form_cevap`a çeker; raporlama planı
+  `docs/superpowers/plans/2026-10-08-kazanim-raporlama.md`).
 - **RAG kısmen açık (2026-10-03, ikinci karar):** `server/main.py::
   RAG_AKTIF = True` ama yalnızca bge-m3 **CPU**'da; reranker YÜKLENMEZ
   (`RERANK_YUKLE = False`, CPU'da ~10 sn/soru ölçüldü). Open WebUI Farabi
