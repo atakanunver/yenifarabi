@@ -104,7 +104,8 @@ def son_hata(satirlar: list[str]) -> str | None:
         aday = None
         for s in satirlar[son_tb + 1:]:
             govde = (s.split("]: ", 1)[-1] if "]: " in s else s).strip()
-            if re.match(r"^[A-Za-z_][\w.]*(Error|Exception|Exit|Interrupt)\b", govde):
+            # istisna satırı: "paket.modul.Ad: mesaj" — son bileşen büyük harfle (FormHatasi, OSError…)
+            if re.match(r"^(?:[a-z_]\w*\.)*[A-Z]\w*(?::|$)", govde) and not govde.startswith("The above"):
                 aday = govde
         if aday:
             return maskele(aday)

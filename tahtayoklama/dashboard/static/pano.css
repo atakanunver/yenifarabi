@@ -134,6 +134,8 @@ body {
 
 /* ---------- Genel uygulama iskeleti (sidebar + içerik) ---------- */
 /* ---------- Kabuk: menü çubuğu + ikon şeridi (2026-10-08, menu.py tek kaynak) ---------- */
+/* hidden özniteliği, display atayan sınıflara yenilmesin (.kpi[hidden] görünüyordu) */
+[hidden] { display: none !important; }
 .kabuk { display: grid; grid-template-columns: 56px 1fr; grid-template-rows: auto 1fr; min-height: 100vh; }
 .kabuk.serit-gizli { grid-template-columns: 0 1fr; }
 .kabuk.serit-gizli .serit { display: none; }
@@ -1489,6 +1491,76 @@ main p { color: var(--renk-metin-soluk); font-size: 0.88rem; line-height: 1.5; }
   .kr-oge summary { grid-template-columns: 1fr; gap: 0.3rem; }
   .kr-baslik-satiri { flex-direction: column; align-items: stretch; }
   .kr-eylemler { justify-content: flex-start; }
+}
+
+/* ---------- Servis yönetimi (2026-10-08) ---------- */
+.servis-sayfa { display: flex; flex-direction: column; gap: 0.75rem; }
+.bolum-baslik { font-size: 1rem; font-weight: 800; margin: 1rem 0 0.25rem; letter-spacing: -0.01em; }
+.kucuk { font-size: 0.8rem; }
+.metin-kirmizi { color: var(--renk-kirmizi); }
+.kpi-satir { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; }
+.kpi { background: var(--renk-yuzey); border: 1px solid var(--renk-kenar); border-radius: var(--yaricap-buyuk);
+  padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.3rem; box-shadow: var(--renk-golge); }
+.kpi strong { font-size: 1.35rem; font-weight: 800; }
+.kpi-genis strong { font-size: 1rem; }
+.kpi-etiket { font-size: 0.78rem; color: var(--renk-metin-soluk); }
+.kpi .rozet { align-self: flex-start; }
+.rozet { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.74rem; font-weight: 700;
+  padding: 0.15rem 0.55rem; border-radius: 999px; white-space: nowrap; }
+.rozet-yesil { color: var(--renk-yesil); background: var(--renk-yesil-zemin); }
+.rozet-amber { color: var(--renk-amber); background: var(--renk-amber-zemin); }
+.rozet-kirmizi { color: var(--renk-kirmizi); background: var(--renk-kirmizi-zemin); }
+.rozet-gri { color: var(--renk-gri); background: var(--renk-gri-zemin); }
+.iskelet { background: linear-gradient(90deg, var(--renk-yuzey-2) 25%, var(--renk-kenar) 50%, var(--renk-yuzey-2) 75%);
+  background-size: 200% 100%; animation: iskelet-isilti 1.6s infinite ease-in-out; }
+.servis-kart.iskelet { min-height: 140px; }
+.iskelet-satir { height: 1.2rem; border-radius: 6px; }
+.servis-izgara { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.85rem; }
+.servis-kart { background: var(--renk-yuzey); border: 1px solid var(--renk-kenar); border-radius: var(--yaricap-buyuk);
+  padding: 1rem; box-shadow: var(--renk-golge); display: flex; flex-direction: column; gap: 0.5rem; transition: box-shadow 0.12s; }
+.servis-kart:hover { box-shadow: var(--renk-golge-kart); }
+.servis-kart-hata { border-color: var(--renk-kirmizi); }
+.servis-kart-ust { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.servis-kart-ust h3 { margin: 0; font-size: 1rem; }
+.servis-kart p { margin: 0; }
+.servis-eylemler, .eylem-hucre { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.servis-eylemler { margin-top: auto; padding-top: 0.25rem; }
+.servis-zaman-tablo { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.servis-zaman-tablo th { text-align: left; font-size: 0.75rem; color: var(--renk-metin-soluk); font-weight: 700;
+  padding: 0.65rem 0.85rem; border-bottom: 1px solid var(--renk-kenar); }
+.servis-zaman-tablo td { padding: 0.65rem 0.85rem; border-bottom: 1px solid var(--renk-kenar); vertical-align: top; }
+.servis-zaman-tablo tr:last-child td { border-bottom: 0; }
+.servis-zaman-tablo tbody tr { transition: background 0.15s; }
+.servis-zaman-tablo tbody tr:hover { background: var(--renk-yuzey-2); }
+.son-zaman { margin-right: 0.4rem; }
+.son-hata { color: var(--renk-kirmizi); background: var(--renk-kirmizi-zemin); border-radius: 6px; padding: 0.35rem 0.5rem;
+  font-family: ui-monospace, monospace; font-size: 0.78rem; overflow-wrap: anywhere; margin-top: 0.35rem; }
+.anahtar { width: 2.4rem; height: 1.3rem; accent-color: var(--renk-birincil); cursor: pointer; }
+.soru-havuzu { background: var(--renk-yuzey); border: 1px solid var(--renk-kenar); border-radius: var(--yaricap-buyuk);
+  padding: 0.25rem 1rem 1rem; box-shadow: var(--renk-golge); }
+.soru-havuzu p { margin: 0.25rem 0 0.75rem; }
+.kapsam-serit { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--renk-yuzey-2); }
+.kapsam-dilim { min-width: 2px; }
+.kapsam-yesil { background: var(--renk-yesil); }
+.kapsam-amber { background: var(--renk-amber); }
+.kapsam-kirmizi { background: var(--renk-kirmizi); }
+.kapsam-etiket { display: block; margin-top: 0.45rem; }
+.log-paneli { position: fixed; top: 40px; right: 0; bottom: 0; width: min(100vw, 720px); background: var(--renk-yuzey);
+  border-left: 1px solid var(--renk-kenar); box-shadow: var(--renk-golge-yukseltilmis); z-index: 45;
+  display: flex; flex-direction: column; }
+.log-paneli[hidden] { display: none; }
+.log-paneli header { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--renk-kenar); }
+.log-paneli header h2 { margin: 0 auto 0 0; font-size: 1rem; }
+.log-suzgec { font-size: 0.82rem; display: inline-flex; gap: 0.35rem; align-items: center; }
+.log-paneli pre { flex: 1; margin: 0; overflow: auto; padding: 0.75rem 1rem; font-size: 0.76rem; line-height: 1.45;
+  background: var(--renk-yuzey-2); color: var(--renk-metin); white-space: pre-wrap; overflow-wrap: anywhere; }
+.log-paneli .son-hata { margin: 0.5rem 1rem; }
+.uyari-not { display: flex; gap: 0.4rem; align-items: flex-start; color: var(--renk-amber); background: var(--renk-amber-zemin);
+  border-radius: 6px; padding: 0.5rem 0.6rem; }
+.pencere-dugmeler { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
+@media (max-width: 720px) {
+  .log-paneli { top: 0; width: 100vw; }
+  .servis-zaman-tablo th:nth-child(2), .servis-zaman-tablo td:nth-child(2) { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

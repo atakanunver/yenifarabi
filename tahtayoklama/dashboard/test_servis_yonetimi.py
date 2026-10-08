@@ -55,6 +55,18 @@ class TestMaskeleVeHata(unittest.TestCase):
                     "systemd[1]: x.service: Main process exited, code=exited, status=1/FAILURE"]
         self.assertEqual(sy.son_hata(satirlar), "OSError: [Errno 7] Argument list too long: '/x/agy'")
 
+    def test_son_hata_turkce_istisna_adi(self):
+        # 2026-10-08 kazanim-test: zincirleme hata, son satır Türkçe adlı istisna
+        satirlar = ["python[1]: Traceback (most recent call last):",
+                    "python[1]: json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+                    "python[1]: The above exception was the direct cause of the following exception:",
+                    "python[1]: Traceback (most recent call last):",
+                    'python[1]:   File "/x/calistir.py", line 149, in uret',
+                    "python[1]: kazanimtest.google_form.FormHatasi: Apps Script çağrısı başarısız: Expecting value",
+                    "systemd[1]: kazanim-test.service: Failed with result 'exit-code'."]
+        self.assertEqual(sy.son_hata(satirlar),
+                         "kazanimtest.google_form.FormHatasi: Apps Script çağrısı başarısız: Expecting value")
+
     def test_son_hata_yoksa_none(self):
         self.assertIsNone(sy.son_hata(["Started x", "ok"]))
 
@@ -197,6 +209,14 @@ class TestUclar(unittest.TestCase):
                 self._eylem({"birim": "soru-havuzu-uret", "eylem": "simdi-calistir", "onay": True})
         self.assertEqual(c.exception.status_code, 403)
         sahte.assert_not_awaited()
+
+    def test_sayfa_render_edilir(self):
+        istek = _istek(yol="/servisler", accept="text/html")
+        yanit = asyncio.run(sy.servisler_sayfa(istek))
+        self.assertEqual(yanit.status_code, 200)
+        for parca in (b'id="servis-kartlari"', b'id="zamanlayicilar"', b'id="log-paneli"',
+                      b'id="onay-penceresi"', b'id="soru-havuzu-karti"'):
+            self.assertIn(parca, yanit.body)
 
     def test_log_ucu_maskeli_ve_son_hata(self):
         cikti = ("2026-10-07T23:01:03+00:00 farabi python[474141]: Traceback (most recent call last):\n"
