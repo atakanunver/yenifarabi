@@ -71,3 +71,19 @@ def test_stt_bozuk_400():
     c, _ = istemci()
     r = c.post("/stt", content=b"bozuk", headers={"Content-Type": "audio/wav"})
     assert r.status_code == 400
+
+
+def test_isitmada_stt_bir_kez_calisir():
+    """İlk STT çağrısı ~3.8 sn sürüyor (CUDA ısınması) — istemci STT
+    zaman aşımı 5 sn; servis açılışta bir kez çözerek ısınmalı."""
+    stt = SahteSTT()
+    stt.sayac = 0
+    eski = stt.coz
+
+    def say(wav):
+        stt.sayac += 1
+        return eski(wav)
+
+    stt.coz = say
+    uygulama_kur(SahteTTS(), stt, kaliplari_isit=True)
+    assert stt.sayac == 1

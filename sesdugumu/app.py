@@ -26,6 +26,8 @@ def uygulama_kur(tts, stt, kaliplari_isit: bool = True) -> FastAPI:
         for metin in KALIPLAR.values():
             onbellek.koy(metin, tts.sentezle(metin))
         log.info("Kalıp cümleler hazır: %d", len(onbellek))
+        # İlk STT çağrısı CUDA ısınmasıyla ~3.8 sn sürer; istemci zaman aşımı 5 sn.
+        stt.coz(onbellek.al(KALIPLAR["bakiyorum"]))
 
     @app.get("/saglik")
     async def saglik():
