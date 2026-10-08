@@ -1,0 +1,9 @@
+[Unit]
+Description=Kazanım testi sonuç çekimi — her gün 21:00 UTC (00:00 TR)
+
+[Timer]
+OnCalendar=*-*-* 21:00:00 UTC
+Persistent=false
+
+[Install]
+WantedBy=timers.target

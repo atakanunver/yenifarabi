@@ -3,7 +3,16 @@ from datetime import date
 
 import pytest
 
-from kazanimtest import agy_secim, calistir, cikti, google_form, hedef, secici
+from kazanimtest import (
+    agy_secim,
+    anlik,
+    calistir,
+    cikti,
+    google_form,
+    hedef,
+    secici,
+    sonuc,
+)
 
 PROGRAM = {"siniflar": {"9-A": {"sali": {"1": "tarih", "2": "tarih", "7": "biyoloji"}},
                          "12-A": {"sali": {"1": "hedef fizik", "2": "türk dili ve edebiyatı"}}}}
@@ -123,7 +132,7 @@ def test_uret_unique_ve_hata_devami(monkeypatch, tmp_path):
         return {"form_url": "u", "form_kisa_url": "k", "form_id": "i", "tablo_url": "t"}
     monkeypatch.setattr(google_form, "form_olustur", form)
     monkeypatch.setattr(calistir.kayit, "var_mi", lambda c, s, d, h: kayitlar.get((s, d, h)))
-    def kaydet(c, s, d, h, kz, idler, f, x):
+    def kaydet(c, s, d, h, kz, idler, f, x, sorular=None):
         kayitlar[(s, d, h)] = {"id": 1, "sinif": s, "ders": d, **f}
         return True
     monkeypatch.setattr(calistir.kayit, "kaydet", kaydet)
@@ -145,3 +154,111 @@ def test_agy_structured_output_ve_hata_durumu():
     assert agy_secim.yaniti_coz(yapisal, 5) == [2, 0]
     hata = json.dumps({"status": "ERROR", "error": "Individual quota reached", "response": ""})
     assert agy_secim.yaniti_coz(hata, 5) == []
+
+
+# ---- Faz 2: sonuç çekme ----
+SORULAR = [
+    {"kimlik": "havuz:1", "soru": "S1", "secenekler": ["a", "b", "c", "d"], "dogru_index": 1},
+    {"kimlik": "havuz:2", "soru": "S2", "secenekler": ["w", "x", "y", "z"], "dogru_index": 3},
+]
+
+
+def _g(zaman, no, secimler):
+    return {"zaman": zaman, "okul_no": no, "secimler": secimler}
+
+
+def test_cevap_esleme_dogru_yanlis_bos_bilinmeyen():
+    satirlar, ist = sonuc.cevaplari_coz(SORULAR, [_g("2026-10-08T10:00:00.000Z", "12", [" b ", None]),
+                                                  _g("2026-10-08T10:01:00.000Z", "13.0", ["a", "????"])])
+    s = {(r[0], r[1]): r[2:4] for r in satirlar}
+    assert s[(12, 0)] == (1, True) and s[(12, 1)] == (None, False)  # doğru; boş
+    assert s[(13, 0)] == (0, False) and s[(13, 1)] == (None, False)  # yanlış; bilinmeyen şık
+    assert ist["eslesmeyen_sik"] == 1 and ist["gecersiz_no"] == 0
+    assert satirlar[0][4].tzinfo is not None
+
+
+def test_gecersiz_okul_no_atlanir():
+    satirlar, ist = sonuc.cevaplari_coz(SORULAR, [_g("2026-10-08T10:00:00Z", "abc", ["a", "w"]),
+                                                  _g("2026-10-08T10:00:00Z", "", ["a", "w"]),
+                                                  _g("2026-10-08T10:00:00Z", "12.5", ["a", "w"])])
+    assert satirlar == [] and ist["gecersiz_no"] == 3
+
+
+def test_ilk_gonderim_sayilir():
+    # geç gelen listede önde olsa da en erken zamanlı olan sayılır
+    satirlar, ist = sonuc.cevaplari_coz(SORULAR, [_g("2026-10-08T10:05:00Z", "7", ["a", "w"]),
+                                                  _g("2026-10-08T10:01:00Z", "7", ["b", "z"])])
+    assert ist["tekrar"] == 1 and len(satirlar) == 2
+    assert [r[3] for r in satirlar] == [True, True]
+
+
+def test_cevap_yaz_on_conflict_ve_sayim():
+    from kazanimtest import kayit
+
+    sql = []
+    class Cur:
+        rowcount = 1
+        def __enter__(s): return s
+        def __exit__(s, *a): pass
+        def execute(s, q, p): sql.append(q)
+    class C:
+        def cursor(s, **k): return Cur()
+        def commit(s): pass
+    import datetime
+    assert kayit.cevap_yaz(C(), 5, [(1, 0, 1, True, datetime.datetime(2026, 10, 8, tzinfo=datetime.UTC))] * 2) == 2
+    assert all("ON CONFLICT (form_testi_id, okul_no, soru_sira) DO NOTHING" in q for q in sql)
+
+
+def test_anlik_kazanim_satiri_secimi():
+    class M:  # satırlar: 0 → [1,0], 1 → [0,1]; soru "S1" → [1,0], "S2" → [0,1]
+        def encode(s, x, normalize_embeddings=True):
+            tablo = {"S1": [1.0, 0.0], "S2": [0.0, 1.0], "kz-a": [1.0, 0.0], "kz-b": [0.0, 1.0]}
+            return [tablo[i] for i in x] if isinstance(x, list) else tablo[x]
+    g = anlik.olustur(SORULAR, "kz-a\n\nkz-b", M())
+    assert [x["kazanim_satiri"] for x in g] == ["kz-a", "kz-b"]
+    assert g[0]["dogru_index"] == 1 and g[0]["kimlik"] == "havuz:1"
+    # tek satır: model hiç yüklenmez
+    assert [x["kazanim_satiri"] for x in anlik.olustur(SORULAR, ["tek"], model=None)] == ["tek", "tek"]
+
+
+def test_anlik_doldur_eski_kayit(monkeypatch):
+    yazilan = {}
+    class K:
+        @staticmethod
+        def anliksiz_kayitlar(c): return [{"id": 3, "soru_idler": ["havuz:1", "meb:2"], "kazanim": "tek"},
+                                         {"id": 4, "soru_idler": ["havuz:9"], "kazanim": "tek"}]
+        @staticmethod
+        def anlik_yaz(c, i, s): yazilan[i] = s
+    monkeypatch.setattr(anlik, "soru_oku", lambda kim, f, h: None if kim == "havuz:9" else {**SORULAR[0], "kimlik": kim})
+    assert anlik.doldur(None, None, K) == (1, 1)
+    assert yazilan[3][1]["kimlik"] == "meb:2" and yazilan[3][0]["kazanim_satiri"] == "tek" and 4 not in yazilan
+
+
+def test_form_hatasi_digerlerini_durdurmaz(monkeypatch):
+    formlar = [{"id": 1, "form_id": "f1", "sinif": "9-A", "ders": "x", "hafta": 1, "sorular": SORULAR},
+               {"id": 2, "form_id": "f2", "sinif": "9-A", "ders": "y", "hafta": 1, "sorular": SORULAR}]
+    monkeypatch.setattr(sonuc.kayit, "son_gun_formlari", lambda c, g: formlar)
+    yazilan = []
+    monkeypatch.setattr(sonuc.kayit, "cevap_yaz", lambda c, i, s: yazilan.append(i) or len(s))
+    def al(gizli, fid, istemci=None):
+        if fid == "f1":
+            raise google_form.FormHatasi("ağ")
+        return [_g("2026-10-08T10:00:00Z", "5", ["b", "z"])]
+    monkeypatch.setattr(google_form, "sonuclari_al", al)
+    class C:
+        def rollback(s): pass
+    assert sonuc.calis(C(), {}) == 1 and yazilan == [2]
+
+
+def test_sonuclari_al_istegi_ve_form_olustur_govdesi_degismedi():
+    gonderilen = {}
+    class R:
+        def json(s): return {"ok": True, "cevaplar": [{"zaman": "z"}]}
+    class K:
+        def post(s, url, **kw):
+            gonderilen.update(kw)
+            return R()
+    assert google_form.sonuclari_al({"script_url": "x", "anahtar": "AN", "proxy": "p"}, "F", K()) == [{"zaman": "z"}]
+    assert gonderilen["json"] == {"anahtar": "AN", "islem": "sonuclar", "form_id": "F"} and gonderilen["proxy"] == "p"
+    assert set(google_form.govde("AN", "B", "A", [_aday(1)])) == {"anahtar", "baslik", "aciklama", "sorular"}  # 'islem' yok
+    assert "islem" not in google_form.govde("AN", "B", "A", [_aday(1)])

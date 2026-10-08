@@ -8,6 +8,9 @@ Haftanın yıllık plan kazanımına göre soru seçer (MEB `kazanim_test_soru` 
 
 - Çalıştırma (kökten): `server/venv/bin/python -m kazanimtest.calistir uret [--tarih YYYY-MM-DD] [--sinif 9-A] [--ders biyoloji] [--kuru] [--sms]` ve `... durum`.
   `--kuru` = yalnızca `/mnt/farabi-data/farabi/kazanim_testleri/` altına xlsx+docx (Form/SMS/DB yok).
+- `... sonuc`: son `sonuc_gun` (ayar, varsayılan 30) günün formlarının gönderimlerini Apps Script'ten (`islem:"sonuclar"`) çekip `form_cevap`a yazar (UNIQUE sayesinde tekrar güvenli; aynı okul no birden çok gönderirse EN ERKEN gönderim sayılır, ilk yazılan kalır). Geçersiz okul no atlanır, eşleşmeyen şık `secilen NULL`/yanlış sayılır; özet `journalctl`'de. Timer `systemd/kazanim-test-sonuc.{service,timer}` (her gün 21:00 UTC, `/etc`'ye elle kopyalanır).
+- `... anlik-doldur`: `form_testi.sorular` (jsonb anlık görüntü: kimlik, soru, şıklar, doğru, etiket, `kazanim_satiri` = bge-m3 ile en benzer kazanım satırı) NULL olan eski kayıtları `havuz:`/`meb:` kimliklerinden doldurur. Yeni formlarda `uret` kendisi yazar. `soru_sira` = bu dizideki 0 tabanlı sıra.
+- Sonuç çekmek için `sorular` dolu olmalı; `sema.sql` (ALTER + `form_cevap`) `uret`ten ÖNCE uygulanmalı (yoksa `kaydet` kolon hatası verir).
 - Test: `server/venv/bin/python -m pytest kazanimtest/tests -q` (DB/agy/ağ/embedding mock'lu).
 - Şema `sema.sql` (`form_testi`, `UNIQUE(sinif, ders, hafta)`) soru_havuzu DB'ye elle uygulanır:
   `psql -h 127.0.0.1 -U farabi -d soru_havuzu -f kazanimtest/sema.sql`.
@@ -36,5 +39,5 @@ Haftanın yıllık plan kazanımına göre soru seçer (MEB `kazanim_test_soru` 
    Erişim: **Herkes** (anahtar doğrulaması kodda). İlk seferde Forms/Drive/Sheets izinlerini onayla.
 5. Verilen `.../exec` adresini `config/gizli.json::script_url`'e, aynı ANAHTAR'ı `anahtar`'a yaz;
    SMS aracı anahtarını `sms_arac_anahtar`'a yaz (`gizli.example.json` örnek; dosya gitignore'lu).
-6. Kod değişirse: Dağıt → Dağıtımları yönet → düzenle → yeni sürüm.
+6. Kod değişirse: Dağıt → Dağıtımları yönet → düzenle → Yeni sürüm (`sonuclar` işlemi için Code.gs yeniden dağıtılmalı; aksi halde `sonuc` eski kodu çağırır ve hata alır).
 7. Deneme: `calistir uret --kuru ...` sonra `--kuru`suz tek sınıf/ders; formu telefondan doldur.

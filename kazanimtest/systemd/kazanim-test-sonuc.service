@@ -1,0 +1,11 @@
+[Unit]
+Description=Kazanım testi — Google Form gönderimlerini form_cevap tablosuna çek
+After=postgresql.service network-online.target
+
+[Service]
+Type=oneshot
+User=ata
+WorkingDirectory=/home/ata/farabi
+Environment=HF_HUB_OFFLINE=1
+ExecStart=/home/ata/farabi/server/venv/bin/python -m kazanimtest.calistir sonuc
+Nice=10

@@ -2,6 +2,7 @@
   "dersler": ["kimya", "matematik", "biyoloji"],
   "duzeyler": [9, 10],
   "soru_sayisi": 10,
+  "sonuc_gun": 30,
   "min_soru": 5,
   "aday_azami": 30,
   "agy_zaman_asimi_sn": 600,

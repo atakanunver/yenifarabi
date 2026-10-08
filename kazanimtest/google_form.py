@@ -49,3 +49,23 @@ def form_olustur(gizli: dict, baslik: str, aciklama: str, sorular: list[dict], i
     if not isinstance(veri, dict) or not veri.get("ok"):
         raise FormHatasi(f"Apps Script hata: {veri.get('hata') if isinstance(veri, dict) else veri}")
     return {a: veri.get(a) for a in ("form_url", "form_kisa_url", "form_id", "tablo_url")}
+
+
+def sonuclari_al(gizli: dict, form_id: str, istemci=None) -> list[dict]:
+    """Formun gönderimleri: [{zaman, okul_no, secimler[şık metni|None]}]; hata → FormHatasi."""
+    k = istemci or httpx
+    ek = {"proxy": gizli["proxy"]} if gizli.get("proxy") else {}
+    try:
+        r = k.post(
+            gizli["script_url"],
+            json={"anahtar": gizli["anahtar"], "islem": "sonuclar", "form_id": form_id},
+            follow_redirects=True,
+            timeout=120,
+            **ek,
+        )
+        veri = r.json()
+    except (httpx.HTTPError, ValueError) as e:
+        raise FormHatasi(f"Apps Script sonuç çağrısı başarısız: {e}") from e
+    if not isinstance(veri, dict) or not veri.get("ok"):
+        raise FormHatasi(f"Apps Script hata: {veri.get('hata') if isinstance(veri, dict) else veri}")
+    return veri.get("cevaplar") or []

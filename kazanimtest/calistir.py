@@ -3,6 +3,8 @@
   server/venv/bin/python -m kazanimtest.calistir uret [--tarih YYYY-MM-DD] [--sinif 9-A]
                                                        [--ders biyoloji] [--kuru] [--sms | --sms-test]
   server/venv/bin/python -m kazanimtest.calistir durum
+  server/venv/bin/python -m kazanimtest.calistir sonuc          # Form gönderimleri → form_cevap (son `sonuc_gun` gün)
+  server/venv/bin/python -m kazanimtest.calistir anlik-doldur   # eski kayıtlara sorular anlık görüntüsü
 
 Sıra: hedef → aday seçimi → agy → Excel/Word → Google Form → kayıt → (SMS).
 --kuru: yalnızca Excel/Word; Form, SMS ve DB kaydı yok. Bir sınıfta hata → loglanır, diğerleri sürer.
@@ -18,7 +20,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from . import agy_secim, cikti, google_form, hedef, kayit, secici
+from . import agy_secim, anlik, cikti, google_form, hedef, kayit, secici, sonuc
 
 log = logging.getLogger("kazanimtest")
 AYAR = Path(__file__).with_name("config") / "ayar.json"
@@ -91,7 +93,12 @@ def hedef_isle(h, ayar: dict, gizli: dict | None, farabi_conn, havuz_conn, kuru:
     aciklama = "Okul numaranızı yazıp soruları cevaplayın. " + " | ".join(h.kazanimlar)[:300]
     form = google_form.form_olustur(gizli, baslik, aciklama, sorular)
     idler = [s["kimlik"] for s in sorular]
-    if not kayit.kaydet(havuz_conn, h.sinif, h.ders, h.hafta, "\n".join(h.kazanimlar), idler, form, xlsx):
+    try:  # anlık görüntü başarısızsa kayıt yine yazılır (sorular NULL → `anlik-doldur` sonra tamamlar)
+        goruntu = anlik.olustur(sorular, h.kazanimlar)
+    except Exception:
+        log.exception("%s %s: soru anlık görüntüsü üretilemedi", h.sinif, h.ders)
+        goruntu = None
+    if not kayit.kaydet(havuz_conn, h.sinif, h.ders, h.hafta, "\n".join(h.kazanimlar), idler, form, xlsx, sorular=goruntu):
         log.warning("%s %s: kayıt çakıştı (başka süreç yazmış)", h.sinif, h.ders)
     kayit.kullanim_artir(havuz_conn, idler)
     return kayit.var_mi(havuz_conn, h.sinif, h.ders, h.hafta)
@@ -159,6 +166,29 @@ def durum() -> None:
     conn.close()
 
 
+def sonuc_cek() -> int:
+    ayar = ayar_oku()
+    gizli = google_form.gizli_oku()
+    conn = secici.baglan(ayar.get("havuz_db", "soru_havuzu"))
+    try:
+        return sonuc.calis(conn, gizli, int(ayar.get("sonuc_gun", 30)))
+    finally:
+        conn.close()
+
+
+def anlik_doldur() -> int:
+    ayar = ayar_oku()
+    farabi_conn = secici.baglan(ayar.get("farabi_db", "farabi"))
+    havuz_conn = secici.baglan(ayar.get("havuz_db", "soru_havuzu"))
+    try:
+        ok, atlanan = anlik.doldur(farabi_conn, havuz_conn, kayit)
+    finally:
+        farabi_conn.close()
+        havuz_conn.close()
+    log.info("anlık görüntü: %d doldurulan, %d atlanan", ok, atlanan)
+    return 1 if atlanan else 0
+
+
 def main(argv=None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     ap = argparse.ArgumentParser(prog="kazanimtest")
@@ -171,10 +201,16 @@ def main(argv=None) -> int:
     u.add_argument("--sms", action="store_true")
     u.add_argument("--sms-test", action="store_true", help="SMS yalnızca gizli.json::test_telefon'a gider")
     alt.add_parser("durum")
+    alt.add_parser("sonuc")
+    alt.add_parser("anlik-doldur")
     a = ap.parse_args(argv)
     if a.komut == "durum":
         durum()
         return 0
+    if a.komut == "sonuc":
+        return 1 if sonuc_cek() else 0
+    if a.komut == "anlik-doldur":
+        return anlik_doldur()
     hata = uret(a.tarih or datetime.now(TR).date(), a.sinif, a.ders, a.kuru, a.sms, sms_test=a.sms_test)
     return 1 if hata else 0
 

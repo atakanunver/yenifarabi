@@ -4,6 +4,10 @@
  *
  * İstek (POST, JSON): {anahtar, baslik, aciklama, sorular:[{metin, secenekler[4], dogru_index, puan}]}
  * Yanıt: {ok:true, form_url, form_kisa_url, form_id, tablo_url} | {ok:false, hata}
+ *
+ * İstek (POST, JSON): {anahtar, islem:'sonuclar', form_id}
+ * Yanıt: {ok:true, cevaplar:[{zaman:ISO, okul_no:string, secimler:[şık metni|null,...]}]}
+ *   secimler = formdaki çoktan seçmeli maddelerin sırasıyla; boş bırakılan madde null.
  */
 var KLASOR_ADI = 'Kazanım Testleri';
 
@@ -13,6 +17,9 @@ function doPost(e) {
     var anahtar = PropertiesService.getScriptProperties().getProperty('ANAHTAR');
     if (!anahtar || istek.anahtar !== anahtar) {
       return cevap_({ ok: false, hata: 'yetkisiz' });
+    }
+    if (istek.islem === 'sonuclar') {
+      return cevap_(sonuclar_(istek.form_id));
     }
     if (!istek.sorular || !istek.sorular.length) {
       return cevap_({ ok: false, hata: 'soru yok' });
@@ -65,6 +72,36 @@ function doPost(e) {
   } catch (err) {
     return cevap_({ ok: false, hata: String(err) });
   }
+}
+
+function sonuclar_(formId) {
+  var form = FormApp.openById(formId);
+  var maddeler = form.getItems();
+  var okulId = null;
+  var mcIdler = [];               // MC maddelerinin id'leri, formdaki sırayla
+  maddeler.forEach(function (m) {
+    if (m.getType() === FormApp.ItemType.TEXT && m.getTitle() === 'Okul numarası') {
+      okulId = m.getId();
+    } else if (m.getType() === FormApp.ItemType.MULTIPLE_CHOICE) {
+      mcIdler.push(m.getId());
+    }
+  });
+  var cevaplar = form.getResponses().map(function (r) {
+    var harita = {};              // madde id -> yanıt (getItemResponses boş maddeyi atlayabilir)
+    r.getItemResponses().forEach(function (ir) {
+      harita[ir.getItem().getId()] = ir.getResponse();
+    });
+    var no = okulId !== null && harita[okulId] !== undefined ? String(harita[okulId]) : '';
+    return {
+      zaman: r.getTimestamp().toISOString(),
+      okul_no: no,
+      secimler: mcIdler.map(function (id) {
+        var v = harita[id];
+        return (v === undefined || v === null || v === '') ? null : String(v);
+      })
+    };
+  });
+  return { ok: true, cevaplar: cevaplar };
 }
 
 function klasor_() {
