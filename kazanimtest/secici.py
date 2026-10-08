@@ -115,10 +115,52 @@ def havuz_adaylari(conn, duzey: int, ders: str, kvek: list[float], limit: int, m
     return sonuc[:limit]
 
 
+def kazanim_adaylari(conn, duzey: int, ders: str, kazanim_metni: str, limit: int) -> list[dict]:
+    """Soru havuzunda `kazanim_id` ile bu kazanım metin(ler)ine bağlı onaylı sorular (benzerlik 1.0 sayılır).
+    Yanıt şekli `havuz_adaylari` ile aynı; az kullanılan önce."""
+    metinler = [m.strip() for m in (kazanim_metni or "").split("\n") if m.strip()]
+    if conn is None or not metinler or limit <= 0:
+        return []
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            "SELECT s.id, s.konu, s.soru, s.secenekler, s.dogru_index, s.kaynak FROM soru s "
+            "JOIN kazanim k ON k.id = s.kazanim_id "
+            "WHERE k.sinif = %s AND k.ders = %s AND k.metin = ANY(%s) AND s.durum = 'onayli' "
+            "ORDER BY s.kullanim_sayisi, s.id LIMIT %s",
+            (duzey, ders, metinler, limit),
+        )
+        satirlar = cur.fetchall()
+    sonuc = []
+    for r in satirlar:
+        sec = r["secenekler"]
+        if isinstance(sec, str):
+            sec = json.loads(sec)
+        if not isinstance(sec, list) or len(sec) != 4:
+            continue
+        sonuc.append(
+            {
+                "kimlik": f"havuz:{r['id']}",
+                "kaynak": "havuz",
+                "db_id": r["id"],
+                "soru": r["soru"],
+                "secenekler": [str(x) for x in sec],
+                "dogru_index": int(r["dogru_index"]),
+                "etiket": r["kaynak"],
+                "benzerlik": 1.0,
+            }
+        )
+    return sonuc
+
+
 def adaylar(farabi_conn, havuz_conn, duzey: int, ders: str, kazanim_metni: str, azami: int = 30, model=None) -> list[dict]:
-    """MEB önce (benzerlik sırasıyla), kalan yer onaylı havuzdan; toplam ≤ azami."""
+    """MEB önce (benzerlik sırasıyla), sonra kazanim_id'li onaylı havuz soruları, kalan yer benzerlikle; toplam ≤ azami."""
     kvek = vektor(kazanim_metni, model)
     liste = meb_adaylari(farabi_conn, duzey, ders, kvek, azami)
     if len(liste) < azami:
-        liste += havuz_adaylari(havuz_conn, duzey, ders, kvek, azami - len(liste), model)
+        liste += kazanim_adaylari(havuz_conn, duzey, ders, kazanim_metni, azami - len(liste))
+    if len(liste) < azami:
+        var = {a["kimlik"] for a in liste}
+        kalan = azami - len(liste)
+        ek = havuz_adaylari(havuz_conn, duzey, ders, kvek, kalan + len(var), model)
+        liste += [a for a in ek if a["kimlik"] not in var][:kalan]
     return liste[:azami]
