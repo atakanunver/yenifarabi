@@ -23,6 +23,7 @@ import auth
 import db
 import ders_programi
 import kazanim_rapor
+import servis_yonetimi
 import sistem_durumu
 import ssh_istemci
 import sunucular
@@ -107,6 +108,7 @@ app.include_router(okul_bilgisi.router)
 app.include_router(sunucular.router)
 app.include_router(tahta_api.router)
 app.include_router(kazanim_rapor.router)
+app.include_router(servis_yonetimi.router)
 
 
 @app.get("/giris", response_class=HTMLResponse)

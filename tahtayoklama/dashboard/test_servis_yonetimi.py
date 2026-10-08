@@ -105,5 +105,109 @@ class TestDurumAyristir(unittest.TestCase):
         self.assertEqual(set(liste), set(sy.BIRIMLER))
 
 
+import json
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+import auth
+import db
+from fastapi import HTTPException
+from fastapi.requests import Request
+
+
+def _istek(govde=b"", cerez="gecerli", origin="http://farabi.local:8010", yol="/api/servisler/eylem",
+           accept="application/json"):
+    headers = [(b"host", b"farabi.local:8010"), (b"accept", accept.encode())]
+    if cerez:
+        headers.append((b"cookie", f"{auth.COOKIE_ADI}={cerez}".encode()))
+    if origin:
+        headers.append((b"origin", origin.encode()))
+    alindi = {"v": False}
+
+    async def receive():
+        if alindi["v"]:
+            return {"type": "http.disconnect"}
+        alindi["v"] = True
+        return {"type": "http.request", "body": govde, "more_body": False}
+    scope = {"type": "http", "method": "POST", "path": yol, "headers": headers,
+             "client": ("10.0.0.5", 1), "query_string": b""}
+    return Request(scope, receive)
+
+
+class TestUclar(unittest.TestCase):
+    def setUp(self):
+        self._tmp = TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        yama = patch.object(db, "DB_YOLU", Path(self._tmp.name) / "test.db")
+        yama.start()
+        self.addCleanup(yama.stop)
+        db.semayi_kur()
+        conn = db.baglanti()
+        conn.execute("INSERT INTO oturumlar (token) VALUES ('gecerli')")
+        conn.commit()
+        conn.close()
+
+    def _eylem(self, govde, **kw):
+        return asyncio.run(sy.api_eylem(_istek(json.dumps(govde).encode(), **kw)))
+
+    def _denetim(self):
+        conn = db.baglanti()
+        try:
+            return [dict(r) for r in conn.execute("SELECT * FROM uzaktan_denetim")]
+        finally:
+            conn.close()
+
+    def test_oturumsuz_401(self):
+        with self.assertRaises(HTTPException) as c:
+            self._eylem({"birim": "farabi-api", "eylem": "yeniden-baslat"}, cerez=None)
+        self.assertEqual(c.exception.status_code, 401)
+
+    def test_yabanci_origin_403(self):
+        with self.assertRaises(HTTPException) as c:
+            self._eylem({"birim": "farabi-api", "eylem": "yeniden-baslat"}, origin="http://kotu.site")
+        self.assertEqual(c.exception.status_code, 403)
+
+    def test_liste_disi_400_betik_cagrilmaz(self):
+        sahte = AsyncMock()
+        with patch.object(sy, "_komut_kos", sahte):
+            with self.assertRaises(HTTPException) as c:
+                self._eylem({"birim": "ssh", "eylem": "yeniden-baslat"})
+        self.assertEqual(c.exception.status_code, 400)
+        sahte.assert_not_awaited()
+
+    def test_ders_saatinde_onaysiz_409_onayli_calisir_ve_denetlenir(self):
+        sahte = AsyncMock(return_value=(0, "", ""))
+        with patch("tahta_yeniden_baslat.ders_saatinde_mi", return_value=True), \
+             patch.object(sy, "_komut_kos", sahte):
+            yanit = self._eylem({"birim": "farabi-api", "eylem": "yeniden-baslat"})
+            self.assertEqual(yanit.status_code, 409)
+            sahte.assert_not_awaited()
+            yanit = self._eylem({"birim": "farabi-api", "eylem": "yeniden-baslat", "onay": True})
+        self.assertEqual(yanit.status_code, 200)
+        sahte.assert_awaited_once()
+        kayit = self._denetim()
+        self.assertEqual(len(kayit), 1)
+        self.assertEqual(kayit[0]["eylem"], "servis-yeniden-baslat")
+        self.assertEqual(kayit[0]["kaynak"], "servisler")
+
+    def test_ders_saatinde_soru_havuzu_simdi_calistir_403(self):
+        with patch("tahta_yeniden_baslat.ders_saatinde_mi", return_value=True), \
+             patch.object(sy, "_komut_kos", AsyncMock()) as sahte:
+            with self.assertRaises(HTTPException) as c:
+                self._eylem({"birim": "soru-havuzu-uret", "eylem": "simdi-calistir", "onay": True})
+        self.assertEqual(c.exception.status_code, 403)
+        sahte.assert_not_awaited()
+
+    def test_log_ucu_maskeli_ve_son_hata(self):
+        cikti = ("2026-10-07T23:01:03+00:00 farabi python[474141]: Traceback (most recent call last):\n"
+                 "2026-10-07T23:01:03+00:00 farabi python[474141]: OSError: boom token=gizli\n")
+        with patch.object(sy, "_komut_kos", AsyncMock(return_value=(0, cikti, ""))):
+            yanit = asyncio.run(sy.api_log(_istek(yol="/api/servisler/log/soru-havuzu-uret"),
+                                           "soru-havuzu-uret"))
+        govde = json.loads(yanit.body)
+        self.assertNotIn("gizli", json.dumps(govde))
+        self.assertTrue(govde["son_hata"].startswith("OSError: boom"))
+
+
 if __name__ == "__main__":
     unittest.main()
