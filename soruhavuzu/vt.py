@@ -55,11 +55,14 @@ def birim_isaretle(conn, birim_id, durum, hata=None) -> None:
     conn.commit()
 
 
-def soru_ekle(conn, birim_id, s: dict) -> int:
+def soru_ekle(
+    conn, birim_id, s: dict, kazanim_id=None, kazanim_skor=None, kazanim_kaynak=None
+) -> int:
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO soru (birim_id, ders, sinif, konu, soru, kisa_cevap, secenekler, "
-            "dogru_index, zorluk, kaynak) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            "dogru_index, zorluk, kaynak, kazanim_id, kazanim_skor, kazanim_kaynak) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (
                 birim_id,
                 s["ders"],
@@ -71,6 +74,9 @@ def soru_ekle(conn, birim_id, s: dict) -> int:
                 s["dogru_index"],
                 s["zorluk"],
                 s["kaynak"],
+                kazanim_id,
+                kazanim_skor,
+                kazanim_kaynak,
             ),
         )
         sid = cur.fetchone()[0]
@@ -116,3 +122,29 @@ def kazanim_upsert(conn, k: dict) -> int:
         kid = cur.fetchone()[0]
     conn.commit()
     return kid
+
+
+def kazanim_isaretle(conn, kid: int, durum: str) -> None:
+    with conn.cursor() as cur:
+        cur.execute("UPDATE kazanim SET durum=%s WHERE id=%s", (durum, kid))
+    conn.commit()
+
+
+def siradaki_kazanim(conn, bugun, haftalar: dict, denenen: set, hedef_toplam: int = 14) -> dict | None:
+    gecmis = [h for h, pzt in haftalar.items() if pzt <= bugun]
+    simdiki = max(gecmis) if gecmis else min(haftalar, default=0)
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            "WITH tek AS (SELECT DISTINCT ON (sinif, ders, metin) * FROM kazanim WHERE durum='aktif' "
+            "  ORDER BY sinif, ders, metin, hafta, id), "
+            "sayim AS (SELECT kazanim_id, count(*) AS n FROM soru "
+            "  WHERE durum IN ('uretildi','onayli') AND kazanim_id IS NOT NULL GROUP BY kazanim_id) "
+            "SELECT t.id, t.sinif, t.ders, t.hafta, t.kod, t.metin, COALESCE(s.n,0) AS n FROM tek t "
+            "LEFT JOIN sayim s ON s.kazanim_id = t.id "
+            "WHERE COALESCE(s.n,0) < %s AND NOT (t.id = ANY(%s)) "
+            "ORDER BY (t.hafta BETWEEN %s AND %s) DESC, COALESCE(s.n,0), t.hafta, t.id LIMIT 1",
+            (hedef_toplam, list(denenen) or [0], simdiki, simdiki + 3),
+        )
+        satir = cur.fetchone()
+    return dict(satir) if satir else None
+
