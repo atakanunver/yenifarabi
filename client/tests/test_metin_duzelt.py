@@ -20,3 +20,14 @@ from core.metin_duzelt import seslendirme_icin
 ])
 def test_seslendirme_icin(girdi, beklenen):
     assert seslendirme_icin(girdi) == beklenen
+
+
+def test_cumle_sonundaki_sayi_sira_sayisi_olmaz():
+    # Matematik cevabı: "x eşittir 5. Kontrol edelim." → "beşinci Kontrol" OKUNMAMALI.
+    assert seslendirme_icin("Bu soruda x eşittir 5. Kontrol edelim.") == \
+        "Bu soruda x eşittir 5. Kontrol edelim."
+    assert seslendirme_icin("Cevap 12. Şimdi bakalım.") == "Cevap 12. Şimdi bakalım."
+
+
+def test_buyuk_harfli_bilinen_sira_sayilari():
+    assert seslendirme_icin("2. Dünya Savaşı") == "ikinci Dünya Savaşı"

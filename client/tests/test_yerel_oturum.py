@@ -145,7 +145,8 @@ def test_tts_hatasi_metin_gosterilir_ve_servis_kapali_uyarisi():
         qwen=SahteQwen(["Bir cümle burada var. İkinci uzun cümle de burada var. Üçüncü uzun cümle de burada son."]))
     asyncio.run(o.metin_turu("anlat"))
     assert calinan == []
-    assert ("farabi", "Bir cümle burada var.") in gosterilen
+    assert ("farabi", "Bir cümle burada var. İkinci uzun cümle de burada var. "
+                      "Üçüncü uzun cümle de burada son.") in gosterilen
     assert ("sistem", "Ses servisi kapalı (Bilgehan)") in gosterilen
 
 
@@ -180,3 +181,128 @@ def test_gecmis_siniri():
     mesajlar = q.cagri[-1][0]
     assert mesajlar[0] == {"role": "system", "content": "SİSTEM"}
     assert len(mesajlar) <= 1 + 12 + 1
+
+
+# ── Son inceleme (2026-10-08) bulguları ─────────────────────────────────
+
+
+def test_stt_surerken_basilirsa_eski_tur_qwene_gitmez():
+    q = SahteQwen(["Cevap."])
+    ses = SahteSes()
+    o, calinan, _, _ = kur(ses=ses, qwen=q)
+    ses.stt = lambda wav: (o.iptal(), "eski soru")[1]  # STT sürerken öğretmen yeniden bastı
+    asyncio.run(o.ses_turu(b"RIFF"))
+    assert q.cagri == [] and calinan == []
+
+
+def test_kayit_surerken_sistem_turu_dusurulur():
+    q = SahteQwen(["Cevap."])
+    o, _, _, _ = kur(qwen=q)
+    o.dinliyor = True
+    asyncio.run(o.metin_turu("[DERS] 10 dk kaldı", kaynak="sistem"))
+    assert q.cagri == []
+
+
+def test_basistan_once_kuyruga_giren_tur_calismaz():
+    async def senaryo():
+        bekle = threading.Event()
+
+        class YavasQwen(SahteQwen):
+            def akis(self, mesajlar, araclar, iptal):
+                self.cagri.append(mesajlar)
+                bekle.wait(2)
+                yield "Tamam."
+
+        q = YavasQwen()
+        o, _, _, _ = kur(qwen=q)
+        a = asyncio.create_task(o.metin_turu("birinci"))
+        await asyncio.sleep(0.1)
+        b = asyncio.create_task(o.metin_turu("[DERS] bildirim", kaynak="sistem"))
+        await asyncio.sleep(0.05)
+        o.iptal()
+        bekle.set()
+        await a
+        await b
+        return q
+
+    assert len(asyncio.run(senaryo()).cagri) == 1
+
+
+def test_farabi_cevabi_ekrana_ve_transkripte():
+    o, _, gosterilen, _ = kur(qwen=SahteQwen(["Harika bir soru! Mitoz dört evreden oluşur."]))
+    asyncio.run(o.metin_turu("mitoz nedir"))
+    assert ("farabi", "Harika bir soru! Mitoz dört evreden oluşur.") in gosterilen
+
+
+def test_kesilen_cevap_kesildi_notuyla_gosterilir():
+    async def senaryo():
+        bekle = threading.Event()
+
+        class YavasQwen(SahteQwen):
+            def akis(self, mesajlar, araclar, iptal):
+                yield "Birinci cümle buradadır uzun. "
+                bekle.wait(2)
+                yield "İkinci."
+
+        o, _, gosterilen, _ = kur(qwen=YavasQwen())
+        g = asyncio.create_task(o.metin_turu("anlat"))
+        await asyncio.sleep(0.2)
+        o.iptal()
+        bekle.set()
+        await g
+        return gosterilen
+
+    assert any(k == "farabi" and m.endswith("(kesildi)") for k, m in asyncio.run(senaryo()))
+
+
+def _riskli_bekleyen():
+    q = SahteQwen([AracCagrisi("yoklama_al", {})], ["Normal cevap."])
+    o, calinan, gosterilen, araclar = kur(qwen=q)
+    asyncio.run(o.metin_turu("yoklama al"))
+    return o, q, calinan, araclar
+
+
+def test_onay_olumsuzluk_kazanir():
+    for soz in ("Hayır, tamam gerek yok", "yoklamayı sonra alalım, şimdi alma", "vazgeç"):
+        o, _, calinan, araclar = _riskli_bekleyen()
+        asyncio.run(o.metin_turu(soz))
+        assert araclar == [], soz
+        assert calinan[-1] == wav("iptal"), soz
+
+
+def test_onay_alakasiz_soz_normal_tur_olur():
+    o, q, _, araclar = _riskli_bekleyen()
+    asyncio.run(o.metin_turu("Tamam çocuklar şimdi mitoz konusuna geçiyoruz bakalım"))
+    assert araclar == []
+    assert q.cagri[-1][0][-1] == {"role": "user",
+                                  "content": "Tamam çocuklar şimdi mitoz konusuna geçiyoruz bakalım"}
+
+
+def test_onay_suresi_dolar(monkeypatch):
+    import core.yerel_oturum as yo
+    saat = [1000.0]
+    monkeypatch.setattr(yo.time, "monotonic", lambda: saat[0])
+    o, _, _, araclar = _riskli_bekleyen()
+    saat[0] += yo.ONAY_SURESI_SN + 1
+    asyncio.run(o.metin_turu("evet"))
+    assert araclar == []
+
+
+def test_sistem_turu_bekleyen_onayi_temizler():
+    o, _, _, araclar = _riskli_bekleyen()
+    asyncio.run(o.metin_turu("[YAZILI] mitoz nedir", kaynak="sistem"))
+    asyncio.run(o.metin_turu("evet"))
+    assert araclar == []
+
+
+def test_arac_turu_keserse_qwen_yeniden_cagrilmaz():
+    q = SahteQwen([AracCagrisi("web_search", {"q": "x"})], ["Sonuç."])
+    o, _, _, _ = kur(qwen=q)
+
+    async def kesen_arac(ad, args):  # youtube_video gibi: araç sesi susturur
+        o.iptal()
+        return "Video açıldı."
+
+    o._arac_calistir = kesen_arac
+    asyncio.run(o.metin_turu("video aç"))
+    assert len(q.cagri) == 1

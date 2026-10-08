@@ -56,3 +56,13 @@ def test_yalniz_ilk_parca_virgulde_kesilir():
 def test_ondalik_virgulde_kesilmez():
     assert parca_parca("Suyun yoğunluğu yaklaşık 1,5 değil tam bir gram.") == [
         "Suyun yoğunluğu yaklaşık 1,5 değil tam bir gram."]
+
+
+def test_sayiyla_biten_cumle_bolunur():
+    assert parca_parca("Cevap tam olarak 12. Şimdi ikinci soruya geçelim hep birlikte.") == [
+        "Cevap tam olarak 12.", "Şimdi ikinci soruya geçelim hep birlikte."]
+
+
+def test_buyuk_harfli_sira_sayisi_bolunmez():
+    c = parca_parca("Bugün 2. Dünya Savaşı konusunu işleyeceğiz. Hazır mısınız?")
+    assert c[0] == "Bugün 2. Dünya Savaşı konusunu işleyeceğiz."

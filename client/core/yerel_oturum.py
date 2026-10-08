@@ -8,6 +8,7 @@ import asyncio
 import logging
 import re
 import threading
+import time
 
 from core.cumle_bolucu import CumleBolucu
 from core.kaliplar import KALIPLAR
@@ -22,7 +23,25 @@ RISKLI = {"yoklama_al": "onay_yoklama", "youtube_video": "onay_video",
           "shutdown_farabi": "onay_kapat"}
 _BEKLEME_KALIBI = {"kitap_sorusu": "kitap", "ders_icerigi": "kitap", "pdf_sayfa": "kitap",
                    "ekrandaki_soruyu_oku": "ekran", "ekran_goruntusu_al": "ekran"}
-_EVET = re.compile(r"\b(evet|tamam|olur|aç|al|kapat|onaylıyorum)\b", re.IGNORECASE)
+_EVET = re.compile(r"\b(evet|tamam|olur|aç|al|kapat|onaylıyorum)\b")
+_HAYIR = re.compile(r"\b(hayır|istemiyorum|vazgeç\w*|gerek yok|iptal|sonra|dur|bekle|"
+                    r"alma\w*|açma\w*|kapatma\w*|yapma\w*)\b")
+ONAY_EN_COK_KELIME = 4   # "evet", "tamam aç", "evet yoklamayı al" — uzun söz onay sayılmaz
+ONAY_SURESI_SN = 30
+
+
+def _kucuk(metin: str) -> str:
+    return metin.replace("İ", "i").replace("I", "ı").lower()
+
+
+def _onay_mi(metin: str) -> bool | None:
+    """True: onay, False: ret, None: onayla ilgisiz (normal tur olarak işlenir)."""
+    m = _kucuk(metin)
+    if _HAYIR.search(m):
+        return False
+    if _EVET.search(m) and len(m.split()) <= ONAY_EN_COK_KELIME:
+        return True
+    return None
 
 
 class YerelOturum:
@@ -36,6 +55,8 @@ class YerelOturum:
         self._iptal = threading.Event()
         self._nesil = 0
         self._bekleyen: AracCagrisi | None = None
+        self._bekleyen_zaman = 0.0
+        self.dinliyor = False  # bas-konuş kaydı sürüyor: sistem turları düşürülür
         self._tts_hata_serisi = 0
         self._kilit: asyncio.Lock | None = None
 
@@ -51,8 +72,7 @@ class YerelOturum:
             wav = await asyncio.to_thread(self.ses.tts, seslendirme_icin(metin))
             self._tts_hata_serisi = 0
         except SesServisiHatasi as e:
-            log.warning("TTS hatası: %s", e)
-            self._goster("farabi", metin)
+            log.warning("TTS hatası: %s", e)  # metin tur sonunda ekrana yazılır
             self._tts_hata_serisi += 1
             if self._tts_hata_serisi == 3 and not await asyncio.to_thread(self.ses.saglik):
                 self._goster("sistem", "Ses servisi kapalı (Bilgehan)")
@@ -72,24 +92,37 @@ class YerelOturum:
             await self._kalip("duyamadim", nesil)
             return
         if metin:
-            await self.metin_turu(metin)
+            await self.metin_turu(metin, nesil=nesil)
 
-    async def metin_turu(self, metin: str, kaynak: str = "ogretmen") -> None:
-        """Bir konuşma turu. kaynak: ogretmen | arac (speak) | sistem (ders motoru vb.)."""
+    async def metin_turu(self, metin: str, kaynak: str = "ogretmen",
+                         nesil: int | None = None) -> None:
+        """Bir konuşma turu. kaynak: ogretmen | arac (speak) | sistem (ders motoru vb.).
+
+        `nesil` turun doğduğu andaki sayaçtır (verilmezse şimdiki): o andan sonra
+        öğretmen bastıysa (iptal) tur kilidi alınca hiç başlamaz."""
+        beklenen = self._nesil if nesil is None else nesil
+        if kaynak != "ogretmen" and self.dinliyor:
+            log.info("Kayıt sürüyor, sistem turu düşürüldü: %s", metin[:60])
+            return
         if self._kilit is None:  # olay döngüsüne bağlı; ilk kullanımda kur
             self._kilit = asyncio.Lock()
         async with self._kilit:
+            if beklenen != self._nesil:
+                return
             self._iptal.clear()
             nesil = self._nesil
+            bekleyen, self._bekleyen = self._bekleyen, None
+            if bekleyen and time.monotonic() - self._bekleyen_zaman > ONAY_SURESI_SN:
+                bekleyen = None
             if kaynak == "ogretmen":
                 self._goster("ogretmen", metin)
-                if self._bekleyen is not None:
-                    cagri, self._bekleyen = self._bekleyen, None
-                    if _EVET.search(metin):
-                        sonuc = await self._araci_calistir(cagri, nesil)
-                        self.gecmis.append({"role": "tool", "content": sonuc})
-                    else:
-                        await self._kalip("iptal", nesil)
+                karar = _onay_mi(metin) if bekleyen else None
+                if karar is True:
+                    sonuc = await self._araci_calistir(bekleyen, nesil)
+                    self.gecmis.append({"role": "tool", "content": sonuc})
+                    return
+                if karar is False:
+                    await self._kalip("iptal", nesil)
                     return
             self.gecmis.append({"role": "user", "content": metin})
             await self._model_dongusu(nesil)
@@ -144,9 +177,12 @@ class YerelOturum:
             if nesil != self._nesil:
                 if metin:
                     self.gecmis.append({"role": "assistant", "content": metin + " (kesildi)"})
+                    self._goster("farabi", metin.strip() + " (kesildi)")
                 return
             for c in bolucu.bitir():
                 await self._seslendir(c, nesil)
+            if metin.strip():
+                self._goster("farabi", metin.strip())
             if not cagrilar:
                 self.gecmis.append({"role": "assistant", "content": metin})
                 return
@@ -154,10 +190,12 @@ class YerelOturum:
                 {"function": {"name": c.ad, "arguments": c.argumanlar}} for c in cagrilar]})
             for c in cagrilar:
                 if c.ad in RISKLI:
-                    self._bekleyen = c
+                    self._bekleyen, self._bekleyen_zaman = c, time.monotonic()
                     await self._kalip(RISKLI[c.ad], nesil)
                     self.gecmis.append({"role": "tool", "content": "Öğretmenin onayı bekleniyor."})
                     return
                 sonuc = await self._araci_calistir(c, nesil)
                 self.gecmis.append({"role": "tool", "content": sonuc})
                 arac_sayisi += 1
+                if nesil != self._nesil:  # araç (ör. youtube_video) sesi kesti
+                    return

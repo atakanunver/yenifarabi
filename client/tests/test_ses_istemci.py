@@ -62,7 +62,7 @@ def test_saglik():
 def test_stt_ve_hata():
     o = SahteOturum(Yanit(js={"metin": "mitoz nedir", "sure_ms": 300}))
     assert SesIstemci("http://x", o).stt(b"RIFF") == "mitoz nedir"
-    assert o.cagri[0][1]["timeout"] == 5
+    assert o.cagri[0][1]["timeout"] == (2, 5)
     with pytest.raises(SesServisiHatasi):
         SesIstemci("http://x", SahteOturum(hata=requests.Timeout())).stt(b"RIFF")
 
@@ -73,3 +73,10 @@ def test_tts():
     assert o.cagri[0][1]["json"] == {"metin": "Merhaba."}
     with pytest.raises(SesServisiHatasi):
         SesIstemci("http://x", SahteOturum(Yanit(400))).tts("")
+
+
+def test_baglanti_zaman_asimi_kisa():
+    # Bilgehan tamamen kapalıyken (RST yok) her cümle 10 sn kilitlemesin.
+    o = SahteOturum(Yanit(govde=b"WAV"))
+    SesIstemci("http://x", oturum=o).tts("merhaba")
+    assert o.cagri[-1][1]["timeout"] == (2, 10)

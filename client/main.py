@@ -2519,8 +2519,10 @@ def main():
         # ses hattı (yerel_main.FarabiYerel). Varsayılan "gemini" — v1 aynen.
         # Import fonksiyon içinde: yerel_main bu modülü import ediyor.
         from core import yerel_ayar
-        from yerel_main import siniflari_sec
-        farabi = siniflari_sec(yerel_ayar.ses_modu())(ui)
+        sinif = FarabiLive
+        if yerel_ayar.ses_modu() == "yerel":  # Gemini tahtaları yerel zinciri hiç yüklemez
+            from yerel_main import FarabiYerel as sinif
+        farabi = sinif(ui)
         try:
             asyncio.run(farabi.run())
         except KeyboardInterrupt:

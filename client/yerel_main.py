@@ -9,6 +9,7 @@ Bkz. docs/superpowers/specs/2026-10-07-farabi2-yerel-ses-design.md.
 """
 import asyncio
 import io
+import re
 import uuid
 import wave
 from dataclasses import dataclass, field
@@ -22,7 +23,7 @@ from core.logger import get_logger
 from core.qwen_istemci import QwenIstemci, araclari_donustur
 from core.ses_istemci import SesIstemci
 from core.yerel_oturum import YerelOturum
-from main import CHANNELS, SEND_SAMPLE_RATE, FarabiLive, _ders_kipi
+from main import CHANNELS, CHUNK_SIZE, SEND_SAMPLE_RATE, FarabiLive, _ders_kipi
 
 log = get_logger("farabi.yerel")
 EN_KISA_KAYIT_SN = 0.4
@@ -36,6 +37,23 @@ class _Fc:
     name: str
     args: dict
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
+
+
+_SAAT_RE = re.compile(r"\[CURRENT DATE & TIME\]\n.*?\n\n", re.DOTALL)
+
+
+def _saati_sona_al(metin: str) -> str:
+    """Dakikalık saat bloğunu talimatın sonuna taşır: başta dururken her yeni
+    dakikada Ollama önek önbelleği tutmuyor, tüm talimat yeniden işleniyordu."""
+    m = _SAAT_RE.search(metin)
+    if not m:
+        return metin
+    return (metin[:m.start()] + metin[m.end():]).rstrip() + "\n\n" + m.group(0).strip()
+
+
+def _gorev_hatasini_logla(gorev) -> None:
+    if not gorev.cancelled() and gorev.exception() is not None:
+        log.error("Yerel tur görevi hata verdi", exc_info=gorev.exception())
 
 
 def siniflari_sec(ses_modu: str) -> type:
@@ -71,7 +89,8 @@ class _OturumAdaptoru:
         metin = " ".join(p.get("text", "") for p in parcalar).strip()
         if metin:
             asyncio.get_running_loop().create_task(
-                self._oturum.metin_turu(metin, kaynak="sistem"))
+                self._oturum.metin_turu(metin, kaynak="sistem")
+            ).add_done_callback(_gorev_hatasini_logla)
 
 
 class FarabiYerel(FarabiLive):
@@ -85,11 +104,22 @@ class FarabiYerel(FarabiLive):
         ui.on_ptt_birak = self._ptt_birak
 
     # ── Bas-konuş (UI iş parçacığından çağrılır) ────────────────────────
+    # Qt yuvasında yakalanmayan istisna tüm uygulamayı düşürür (Kural 2) —
+    # gövdeler try içinde; self.oturum ders sonunda None'a dönebilir, yerel al.
     def _ptt_bas(self) -> None:
-        if self.oturum:
-            self.oturum.iptal()
-        if self._loop:
-            self._loop.call_soon_threadsafe(self._sesi_sustur)
+        try:
+            self._ptt_bas_ic()
+        except Exception as e:  # noqa: BLE001
+            log.exception("Bas-konuş başlatılamadı: %s", e)
+
+    def _ptt_bas_ic(self) -> None:
+        oturum, loop = self.oturum, self._loop
+        if oturum:
+            oturum.iptal()
+            oturum.dinliyor = True
+        if loop:
+            loop.call_soon_threadsafe(self._sesi_sustur)
+        self._akisi_kapat()  # `released` kaybolduysa eski akış açık kalmasın
         self._kayit = []
 
         def cb(indata, frames, t, status):
@@ -102,22 +132,62 @@ class FarabiYerel(FarabiLive):
         except Exception as e:  # noqa: BLE001 — mikrofon yoksa ders bozulmaz (Kural 2)
             log.error("Mikrofon açılamadı: %s", e)
             self._kayit_akisi = None
+            if oturum:
+                oturum.dinliyor = False
             self.ui.uyari_goster("Mikrofon açılamadı.")
             return
         self.ui.set_state("LISTENING")
 
-    def _ptt_birak(self) -> None:
+    def _akisi_kapat(self) -> None:
         akis, self._kayit_akisi = self._kayit_akisi, None
         if akis is None:
             return
-        akis.stop()
-        akis.close()
+        try:
+            akis.stop()
+            akis.close()
+        except Exception as e:  # noqa: BLE001 — USB mikrofon çıkarılmış olabilir
+            log.warning("Mikrofon akışı kapatılamadı: %s", e)
+
+    def _ptt_birak(self) -> None:
+        try:
+            self._ptt_birak_ic()
+        except Exception as e:  # noqa: BLE001
+            log.exception("Bas-konuş bitirilemedi: %s", e)
+
+    def _ptt_birak_ic(self) -> None:
+        oturum, loop = self.oturum, self._loop
+        if oturum:
+            oturum.dinliyor = False
+        if self._kayit_akisi is None:
+            return
+        self._akisi_kapat()
         pcm = b"".join(self._kayit)
-        if len(pcm) / 2 / SEND_SAMPLE_RATE < EN_KISA_KAYIT_SN or not (self._loop and self.oturum):
+        if len(pcm) / 2 / SEND_SAMPLE_RATE < EN_KISA_KAYIT_SN or not (loop and oturum):
+            self.set_speaking(False)
             return
         self.ui.set_state("THINKING")
         self.etkinlik_bildir()
-        asyncio.run_coroutine_threadsafe(self.oturum.ses_turu(_wav_yap(pcm)), self._loop)
+        asyncio.run_coroutine_threadsafe(self._ses_turu_calistir(_wav_yap(pcm)), loop)
+
+    async def _ses_turu_calistir(self, wav: bytes) -> None:
+        oturum = self.oturum
+        try:
+            if oturum:
+                await oturum.ses_turu(wav)
+        except Exception as e:  # noqa: BLE001 — tur çökse de tahta donmaz
+            log.exception("Ses turu hatası: %s", e)
+        finally:
+            # Boş/filtrelenmiş STT ya da hata: hiçbir şey çalmadıysa "düşünüyor"da kalma.
+            if self.audio_in_queue.empty() and not self._is_speaking:
+                self.set_speaking(False)
+
+    def _sesi_sustur(self) -> int:
+        """DURDUR ve söz kesme: kuyruğun yanında Qwen/TTS üretimini de keser
+        (v1'de bunu Gemini bağlantısını yenilemek yapıyordu)."""
+        oturum = self.oturum
+        if oturum:
+            oturum.iptal()
+        return super()._sesi_sustur()
 
     # ── YerelOturum'a verilen geri çağrılar ─────────────────────────────
     async def _arac_calistir(self, ad: str, args: dict) -> str:
@@ -125,8 +195,12 @@ class FarabiYerel(FarabiLive):
         return str((getattr(yanit, "response", None) or {}).get("result", "Tamam."))
 
     def _cal(self, wav: bytes) -> None:
+        # Küçük parçalar: _sesi_sustur kuyruğu boşaltınca en çok bir parça
+        # (~40 ms) çalar; tek parça cümle ise saniyelerce sürer.
         self._turn_done_event.set()
-        self.audio_in_queue.put_nowait(_wav_ayir(wav))
+        pcm, adim = _wav_ayir(wav), CHUNK_SIZE * 2
+        for i in range(0, len(pcm), adim):
+            self.audio_in_queue.put_nowait(pcm[i:i + adim])
 
     def _goster(self, kim: str, metin: str) -> None:
         if kim == "ogretmen":
@@ -140,7 +214,7 @@ class FarabiYerel(FarabiLive):
             self.ui.uyari_goster(metin)
 
     def _sistem_metni(self) -> str:
-        return self._build_config().system_instruction + _YEREL_KURALLAR
+        return _saati_sona_al(self._build_config().system_instruction + _YEREL_KURALLAR)
 
     async def _ders_bitti_bekle(self) -> None:
         while not self._ders_bitti_istendi:
@@ -163,20 +237,20 @@ class FarabiYerel(FarabiLive):
                 self._oturum_izni.clear()
                 self.ui.dersi_sifirla()
                 continue
-            await self._ders_hazirla()
-            self.audio_in_queue = asyncio.Queue()
-            self._turn_done_event = asyncio.Event()
-            self.oturum = YerelOturum(
-                self.ses, QwenIstemci(yerel_ayar.ollama_url()),
-                sistem_metni=self._sistem_metni,
-                araclar=lambda: araclari_donustur(kayit.bildirimler(self._ders_kipi)),
-                arac_calistir=self._arac_calistir, cal=self._cal, metin_goster=self._goster)
-            self.session = _OturumAdaptoru(self.oturum)
-            log.info("Yerel ses oturumu açıldı (ses: %s)", self.ses.url)
-            self.ui.oturum_baslandi()
-            self.ui.ptt_goster(True)
-            self.ui.set_state("LISTENING")
             try:
+                await self._ders_hazirla()
+                self.audio_in_queue = asyncio.Queue()
+                self._turn_done_event = asyncio.Event()
+                self.oturum = YerelOturum(
+                    self.ses, QwenIstemci(yerel_ayar.ollama_url()),
+                    sistem_metni=self._sistem_metni,
+                    araclar=lambda: araclari_donustur(kayit.bildirimler(self._ders_kipi)),
+                    arac_calistir=self._arac_calistir, cal=self._cal, metin_goster=self._goster)
+                self.session = _OturumAdaptoru(self.oturum)
+                log.info("Yerel ses oturumu açıldı (ses: %s)", self.ses.url)
+                self.ui.oturum_baslandi()
+                self.ui.ptt_goster(True)
+                self.ui.set_state("LISTENING")
                 async with asyncio.TaskGroup() as tg:
                     gorevler = [tg.create_task(self._play_audio()),
                                 tg.create_task(self._ders_motoru_dongusu()),
@@ -189,14 +263,24 @@ class FarabiYerel(FarabiLive):
             except* Exception as eg:  # noqa: BLE001 — oturum çökerse bekleme durumuna dön
                 log.exception("Yerel oturum hatası: %s", eg.exceptions)
             finally:
-                self.ui.ptt_goster(False)
-                self.ui.oturum_kapandi()
-                self.session = None
-                self.oturum = None
-                self._ders_bitti_istendi = False
-                self._ders_bitiriliyor = False
-                self._oturum_izni.clear()
-                self.ui.dersi_sifirla()
+                self._oturumu_kapat()
+
+    def _oturumu_kapat(self) -> None:
+        """Ders sonu: v1 run()'ın ders bitişi sıfırlamalarının yerel karşılığı."""
+        oturum, self.oturum = self.oturum, None
+        if oturum:
+            oturum.iptal()  # süren tur araç çalıştırmasın, sesi sonraki derse taşımasın
+        self.session = None
+        self.ui.ptt_goster(False)
+        self.ui.oturum_kapandi()
+        self.set_speaking(False)
+        self._video_yuzunden_susturuldu = False
+        self.ui.muted = False
+        self._ders_bitti_istendi = False
+        self._ders_bitiriliyor = False
+        self._oturum_izni.clear()
+        transcript.yeni_oturum_baslat()
+        self.ui.dersi_sifirla()
 
     async def _ders_hazirla(self) -> None:
         """v1 run()'ın ders başı hazırlığı (main.py, "ZAMANA BAĞLI durum" bloğu)."""
