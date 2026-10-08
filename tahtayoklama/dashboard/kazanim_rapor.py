@@ -7,6 +7,7 @@ roster'ından (`ogrenciler`) yapılır. Dosya yok/bozuk → sayfa 500 vermez,
 açıklayıcı empty-state gösterir.
 """
 
+import asyncio
 import json
 import re
 from datetime import datetime
@@ -15,11 +16,26 @@ from pathlib import Path
 import auth
 import db
 import zil
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 RAPOR_DIZINI = Path("/mnt/farabi-data/farabi/kazanim_testleri/rapor")
+PYTHON_SERVER = Path("/home/ata/farabi/server/venv/bin/python")
+KAZANIMTEST_KOK = Path("/home/ata/farabi")
+DERSLER = ("kimya", "matematik", "biyoloji", "fizik", "edebiyat", "tarih", "cografya", "din")
+_TARIH_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _ders_tarih_dogrula(ders, tarih) -> tuple[str | None, str | None]:
+    """ders/tarih alt sürece argüman olarak gider — yalnız beyaz liste ve YYYY-AA-GG."""
+    ders = str(ders).strip().lower() if ders else None
+    tarih = str(tarih).strip() if tarih else None
+    if ders and ders not in DERSLER:
+        raise HTTPException(400, "Geçersiz ders.")
+    if tarih and not _TARIH_RE.match(tarih):
+        raise HTTPException(400, "Geçersiz tarih (YYYY-AA-GG).")
+    return ders, tarih
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -171,12 +187,15 @@ def gorunum_olustur(rapor: dict, roster: dict[str, str] | None) -> dict:
             })
         url = _metin(t.get("form_url"))
         testler.append({
+            "id": _tam(t.get("id")),
             "ders": _metin(t.get("ders")),
             "hafta": t.get("hafta"),
             "tarih": _metin(t.get("tarih")),
             "katilim": _tam(t.get("katilim")),
             "oran": _sayi(t.get("ortalama_oran")),
             "form_url": url if url.startswith(("https://", "http://")) else "",
+            "kazanim": _metin(t.get("kazanim")),
+            "sms_gonderildi": bool(t.get("sms_gonderildi")),
             "sorular": sorular,
             "cubuk": _oran_sinifi(_sayi(t.get("ortalama_oran")), esikler),
         })
@@ -251,6 +270,41 @@ def gorunum_olustur(rapor: dict, roster: dict[str, str] | None) -> dict:
     }
 
 
+def _tum_sinif_adlari(conn) -> list[str]:
+    try:
+        adlar = [r["ad"] for r in conn.execute("SELECT ad FROM siniflar WHERE aktif = 1 ORDER BY ad").fetchall()]
+        if adlar:
+            return adlar
+    except Exception:
+        pass
+    return ["9-A", "9-B", "10-A", "11-A", "11-B", "12-A", "12-B"]
+
+
+async def _komut_calistir(*args: str, zaman_asimi: int = 120) -> tuple[int, str, str]:
+    if not PYTHON_SERVER.exists():
+        return -1, "", f"Python yolu bulunamadı: {PYTHON_SERVER}"
+    proc = await asyncio.create_subprocess_exec(
+        str(PYTHON_SERVER),
+        *args,
+        cwd=str(KAZANIMTEST_KOK),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=zaman_asimi)
+        return (
+            proc.returncode or 0,
+            stdout.decode("utf-8", errors="replace"),
+            stderr.decode("utf-8", errors="replace"),
+        )
+    except asyncio.TimeoutError:
+        try:
+            proc.kill()
+        except OSError:
+            pass
+        return -1, "", "İşlem zaman aşımına uğradı."
+
+
 @router.get("/kazanim-rapor", response_class=HTMLResponse)
 async def kazanim_rapor_sayfa(request: Request, sinif: str | None = None):
     conn = db.baglanti()
@@ -258,6 +312,7 @@ async def kazanim_rapor_sayfa(request: Request, sinif: str | None = None):
         if not auth.dogrula(request, conn):
             return RedirectResponse("/giris", status_code=303)
         adlar = sinif_adlari()
+        tum_siniflar = _tum_sinif_adlari(conn)
         secili = None
         hata = None
         gorunum = None
@@ -276,5 +331,101 @@ async def kazanim_rapor_sayfa(request: Request, sinif: str | None = None):
     finally:
         conn.close()
     return templates.TemplateResponse(request, "kazanim_rapor.html", {
-        "adlar": adlar, "secili": secili, "hata": hata, "g": gorunum,
+        "adlar": adlar,
+        "secili": secili,
+        "hata": hata,
+        "g": gorunum,
+        "tum_siniflar": tum_siniflar,
+        "tum_dersler": list(DERSLER),
     })
+
+
+@router.post("/api/kazanim-rapor/sonuc-guncelle")
+async def sonuc_guncelle(request: Request):
+    conn = db.baglanti()
+    try:
+        if not auth.dogrula(request, conn):
+            raise HTTPException(401, "Oturum geçersiz.")
+    finally:
+        conn.close()
+
+    rc1, out1, err1 = await _komut_calistir("-m", "kazanimtest.calistir", "sonuc", zaman_asimi=60)
+    rc2, out2, err2 = await _komut_calistir("-m", "kazanimtest.calistir", "analiz", zaman_asimi=30)
+    if rc2 != 0:
+        return JSONResponse({"ok": False, "hata": f"Rapor güncellenemedi: {err2 or out2}"}, status_code=500)
+    return JSONResponse({"ok": True, "mesaj": "Google Form yanıtları çekildi ve rapor başarıyla güncellendi."})
+
+
+@router.post("/api/kazanim-rapor/sms-gonder")
+async def sms_gonder(request: Request):
+    conn = db.baglanti()
+    try:
+        if not auth.dogrula(request, conn):
+            raise HTTPException(401, "Oturum geçersiz.")
+    finally:
+        conn.close()
+
+    try:
+        veri = await request.json()
+    except Exception:
+        veri = {}
+    sinif = veri.get("sinif") or request.query_params.get("sinif")
+    test_mi = bool(veri.get("test_mi", False))
+    tarih = veri.get("tarih")
+    ders = veri.get("ders")
+    if not sinif or not _SINIF_RE.match(sinif):
+        raise HTTPException(400, "Geçersiz sınıf adı.")
+    ders, tarih = _ders_tarih_dogrula(ders, tarih)
+
+    param = ["-m", "kazanimtest.calistir", "uret", "--sinif", sinif]
+    if ders:
+        param.extend(["--ders", ders])
+    if tarih:
+        param.extend(["--tarih", str(tarih)])
+    if test_mi:
+        param.append("--sms-test")
+    else:
+        param.append("--sms")
+
+    rc, out, err = await _komut_calistir(*param, zaman_asimi=90)
+    await _komut_calistir("-m", "kazanimtest.calistir", "analiz", zaman_asimi=30)
+    if rc != 0:
+        return JSONResponse({"ok": False, "hata": f"SMS gönderilemedi: {err or out}"}, status_code=500)
+    hedef_metin = "yetkili test telefonuna" if test_mi else f"{sinif} sınıfı öğrencilerine"
+    return JSONResponse({"ok": True, "mesaj": f"Kazanım test SMS'i {hedef_metin} iletildi."})
+
+
+@router.post("/api/kazanim-rapor/test-uret")
+async def test_uret(request: Request):
+    conn = db.baglanti()
+    try:
+        if not auth.dogrula(request, conn):
+            raise HTTPException(401, "Oturum geçersiz.")
+    finally:
+        conn.close()
+
+    try:
+        veri = await request.json()
+    except Exception:
+        veri = {}
+    sinif = veri.get("sinif") or request.query_params.get("sinif")
+    ders = veri.get("ders") or request.query_params.get("ders")
+    tarih = veri.get("tarih") or request.query_params.get("tarih")
+    sms_gonder_hemen = bool(veri.get("sms", False))
+    if not sinif or not _SINIF_RE.match(sinif):
+        raise HTTPException(400, "Geçersiz sınıf adı.")
+    if not ders:
+        raise HTTPException(400, "Ders seçilmelidir.")
+    ders, tarih = _ders_tarih_dogrula(ders, tarih)
+
+    param = ["-m", "kazanimtest.calistir", "uret", "--sinif", sinif, "--ders", ders]
+    if tarih:
+        param.extend(["--tarih", str(tarih)])
+    if sms_gonder_hemen:
+        param.append("--sms")
+
+    rc, out, err = await _komut_calistir(*param, zaman_asimi=180)
+    await _komut_calistir("-m", "kazanimtest.calistir", "analiz", zaman_asimi=30)
+    if rc != 0:
+        return JSONResponse({"ok": False, "hata": f"Test hazırlanamadı: {err or out}"}, status_code=500)
+    return JSONResponse({"ok": True, "mesaj": f"{sinif} {ders_adi(ders)} kazanım testi başarıyla hazırlandı."})

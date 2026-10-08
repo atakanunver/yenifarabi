@@ -1421,6 +1421,134 @@ main p { color: var(--renk-metin-soluk); font-size: 0.88rem; line-height: 1.5; }
 .kr-soru-not { font-size: 0.8rem; color: var(--renk-metin-soluk); }
 .kr-katilmadi { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 
+/* Kazanım dashboard işlem çubuğu ve aktif test kartları */
+.kr-baslik-satiri {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.kr-baslik-satiri .kr-sinif-secici { margin-bottom: 0; }
+.kr-eylemler { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+
+.kr-uret-panel {
+  background: var(--renk-yuzey);
+  border: 1px solid var(--renk-birincil);
+  border-radius: var(--yaricap-buyuk);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--golge-kucuk);
+}
+.kr-uret-baslik {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+.kr-uret-alanlar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.kr-uret-butonlar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.kr-aktif-kartlar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.kr-test-karti {
+  background: var(--renk-yuzey);
+  border: 1px solid var(--renk-kenar);
+  border-radius: var(--yaricap-buyuk);
+  padding: 1rem 1.25rem;
+  transition: border-color 0.15s ease;
+}
+.kr-test-karti:hover { border-color: var(--renk-kenar-vurgu); }
+.kr-tk-ust {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+.kr-tk-baslik {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--renk-metin);
+  margin-right: 0.5rem;
+}
+.kr-tk-tarih { font-size: 0.82rem; color: var(--renk-metin-soluk); }
+.kr-tk-rozetler { display: flex; align-items: center; gap: 0.4rem; }
+.kr-tk-kazanim {
+  font-size: 0.86rem;
+  color: var(--renk-metin-soluk);
+  margin: 0.3rem 0 0.75rem;
+  line-height: 1.45;
+}
+.kr-tk-alt {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--renk-kenar);
+}
+.kr-form-link {
+  font-size: 0.84rem;
+  color: var(--renk-birincil);
+  text-decoration: none;
+  word-break: break-all;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.kr-form-link:hover { text-decoration: underline; }
+.kr-tk-butonlar { display: flex; align-items: center; gap: 0.5rem; }
+
+.kr-toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: var(--renk-metin);
+  color: var(--renk-zemin);
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--yaricap);
+  box-shadow: var(--golge-orta);
+  font-size: 0.88rem;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  animation: kr-slide-in 0.2s ease;
+}
+.kr-toast-basari {
+  background: var(--renk-yesil);
+  color: #fff;
+}
+.kr-toast-hata {
+  background: var(--renk-kirmizi);
+  color: #fff;
+}
+@keyframes kr-slide-in {
+  from { transform: translateY(1rem); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
 @media (max-width: 720px) {
   .kr-oge summary { grid-template-columns: 1fr; gap: 0.3rem; }
+  .kr-baslik-satiri { flex-direction: column; align-items: stretch; }
+  .kr-eylemler { justify-content: flex-start; }
 }

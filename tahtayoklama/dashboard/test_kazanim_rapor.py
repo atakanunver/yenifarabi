@@ -165,6 +165,102 @@ class KazanimRaporTest(unittest.TestCase):
         self._rapor_yaz("kotu ad")
         self.assertEqual(kr.sinif_adlari(), ["9-A", "10-B"])
 
+    def test_api_oturumsuz_reddedilir(self):
+        req = _post_istek(cerez=None, yol="/api/kazanim-rapor/sonuc-guncelle")
+        with self.assertRaises(Exception):
+            asyncio.run(kr.sonuc_guncelle(req))
+
+    def test_sonuc_guncelle_basarili(self):
+        cagrilar = []
+        async def fake_komut(*args, **kw):
+            cagrilar.append(args)
+            return 0, "tamam", ""
+        eski = kr._komut_calistir
+        try:
+            kr._komut_calistir = fake_komut
+            req = _post_istek(cerez="gecerli", yol="/api/kazanim-rapor/sonuc-guncelle")
+            yanit = asyncio.run(kr.sonuc_guncelle(req))
+            self.assertEqual(yanit.status_code, 200)
+            self.assertIn('"ok":true', yanit.body.decode("utf-8").lower())
+            self.assertEqual(len(cagrilar), 2)
+        finally:
+            kr._komut_calistir = eski
+
+    def test_sms_gonder_gecersiz_sinif(self):
+        req = _post_istek(cerez="gecerli", yol="/api/kazanim-rapor/sms-gonder", govde={"sinif": "gecersiz sinif!"})
+        with self.assertRaises(Exception):
+            asyncio.run(kr.sms_gonder(req))
+
+    def test_sms_gonder_basarili(self):
+        cagrilar = []
+        async def fake_komut(*args, **kw):
+            cagrilar.append(args)
+            return 0, "gonderildi", ""
+        eski = kr._komut_calistir
+        try:
+            kr._komut_calistir = fake_komut
+            req = _post_istek(cerez="gecerli", yol="/api/kazanim-rapor/sms-gonder", govde={"sinif": "9-A"})
+            yanit = asyncio.run(kr.sms_gonder(req))
+            self.assertEqual(yanit.status_code, 200)
+            self.assertIn('"ok":true', yanit.body.decode("utf-8").lower())
+            self.assertTrue(any("--sms" in a for a in cagrilar))
+        finally:
+            kr._komut_calistir = eski
+
+    def test_gecersiz_ders_ve_tarih_400_komut_calismaz(self):
+        from fastapi import HTTPException
+        from unittest.mock import AsyncMock, patch
+        sahte = AsyncMock(return_value=(0, "", ""))
+        kotu = [("test-uret", {"sinif": "9-A", "ders": "--sms"}),
+                ("test-uret", {"sinif": "9-A", "ders": "kimya", "tarih": "--sms"}),
+                ("sms-gonder", {"sinif": "9-A", "ders": "sanat"}),
+                ("sms-gonder", {"sinif": "9-A", "tarih": "2026-13-99x"})]
+        with patch.object(kr, "_komut_calistir", sahte):
+            for uc, govde in kotu:
+                req = _post_istek(cerez="gecerli", yol=f"/api/kazanim-rapor/{uc}", govde=govde)
+                fn = kr.test_uret if uc == "test-uret" else kr.sms_gonder
+                with self.assertRaises(HTTPException, msg=govde) as c:
+                    asyncio.run(fn(req))
+                self.assertEqual(c.exception.status_code, 400)
+        sahte.assert_not_awaited()
+
+    def test_test_uret_eksik_ders(self):
+        req = _post_istek(cerez="gecerli", yol="/api/kazanim-rapor/test-uret", govde={"sinif": "9-A"})
+        with self.assertRaises(Exception):
+            asyncio.run(kr.test_uret(req))
+
+    def test_test_uret_basarili(self):
+        cagrilar = []
+        async def fake_komut(*args, **kw):
+            cagrilar.append(args)
+            return 0, "uretildi", ""
+        eski = kr._komut_calistir
+        try:
+            kr._komut_calistir = fake_komut
+            req = _post_istek(cerez="gecerli", yol="/api/kazanim-rapor/test-uret", govde={"sinif": "9-A", "ders": "kimya"})
+            yanit = asyncio.run(kr.test_uret(req))
+            self.assertEqual(yanit.status_code, 200)
+            self.assertIn('"ok":true', yanit.body.decode("utf-8").lower())
+            self.assertTrue(any("--ders" in a for a in cagrilar))
+        finally:
+            kr._komut_calistir = eski
+
+
+def _post_istek(cerez="gecerli", yol="/api/kazanim-rapor/sonuc-guncelle", govde=None):
+    basliklar = [(b"host", b"farabi.local"), (b"content-type", b"application/json")]
+    if cerez:
+        basliklar.append((b"cookie", f"{__import__('auth').COOKIE_ADI}={cerez}".encode()))
+    icerik = json.dumps(govde or {}).encode("utf-8")
+    req = Request({
+        "type": "http", "method": "POST", "path": yol, "root_path": "",
+        "scheme": "http", "server": ("farabi.local", 8010), "query_string": b"",
+        "headers": basliklar, "client": ("127.0.0.1", 5555),
+    })
+    async def _body(): return icerik
+    req._receive = lambda: {"type": "http.request", "body": icerik, "more_body": False}
+    req._body = icerik
+    return req
+
 
 if __name__ == "__main__":
     unittest.main()

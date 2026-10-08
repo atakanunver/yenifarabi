@@ -1,15 +1,68 @@
 {% extends "taban.html" %}
-{% block baslik_etiketi %}Kazanım raporu — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik_etiketi %}Kazanım raporu & Test Yönetimi — Yoklama ve Yönetim Paneli{% endblock %}
 {% block baslik %}Kazanım raporu{% endblock %}
 
 {% block icerik %}
-{% if adlar %}
-<nav class="kr-sinif-secici" aria-label="Sınıf seçimi">
-  {% for ad in adlar %}
-  <a href="/kazanim-rapor?sinif={{ ad|urlencode }}" class="btn-ikincil{{ ' kr-aktif' if ad == secili else '' }}"{% if ad == secili %} aria-current="page"{% endif %}>{{ ad }}</a>
-  {% endfor %}
-</nav>
-{% endif %}
+<div class="kr-baslik-satiri">
+  {% if adlar %}
+  <nav class="kr-sinif-secici" aria-label="Sınıf seçimi">
+    {% for ad in adlar %}
+    <a href="/kazanim-rapor?sinif={{ ad|urlencode }}" class="btn-ikincil{{ ' kr-aktif' if ad == secili else '' }}"{% if ad == secili %} aria-current="page"{% endif %}>{{ ad }}</a>
+    {% endfor %}
+  </nav>
+  {% endif %}
+
+  <div class="kr-eylemler">
+    <button type="button" class="btn-birincil" id="btn-sonuc-guncelle" onclick="sonucGuncelle()">
+      <svg class="ikon"><use href="#ik-yenile"/></svg> Sonuçları Güncelle
+    </button>
+    {% if secili %}
+    <button type="button" class="btn-ikincil" id="btn-sms-gonder" onclick="smsGonder('{{ secili }}')">
+      <svg class="ikon"><use href="#ik-zil"/></svg> {{ secili }} SMS Gönder
+    </button>
+    {% endif %}
+    <button type="button" class="btn-ikincil" id="btn-yeni-test-ac" onclick="toggleUretPanel()">
+      <svg class="ikon"><use href="#ik-arti"/></svg> Yeni Test Hazırla
+    </button>
+  </div>
+</div>
+
+<div id="kr-uret-panel" class="kr-uret-panel" style="display:none;">
+  <div class="kr-uret-baslik">
+    <strong>Yeni Kazanım Testi Hazırla</strong>
+    <button type="button" class="btn-kucuk btn-ikincil" onclick="toggleUretPanel()">✕ Kapat</button>
+  </div>
+  <form id="kr-uret-form" onsubmit="testUret(event)">
+    <div class="kr-uret-alanlar">
+      <div class="form-grup">
+        <label class="form-etiket" for="kr-sinif">Sınıf</label>
+        <select id="kr-sinif" class="form-secim" required>
+          {% for sn in tum_siniflar %}
+          <option value="{{ sn }}"{% if sn == secili %} selected{% endif %}>{{ sn }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-grup">
+        <label class="form-etiket" for="kr-ders">Ders</label>
+        <select id="kr-ders" class="form-secim" required>
+          {% for d in tum_dersler %}
+          <option value="{{ d }}">{{ d|ders_adi }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-grup">
+        <label class="form-etiket" for="kr-tarih">Tarih (İsteğe Bağlı)</label>
+        <input type="date" id="kr-tarih" class="form-girdi" />
+      </div>
+    </div>
+    <div class="kr-uret-butonlar">
+      <button type="submit" class="btn-birincil" id="btn-test-uret-kaydet">
+        <svg class="ikon"><use href="#ik-hedef"/></svg> Soruları Seç & Google Form Oluştur
+      </button>
+      <span class="kr-not">Yıllık plan kazanımına göre soru havuzundan 10 soru seçilir ve Google Form açılır.</span>
+    </div>
+  </form>
+</div>
 
 {% if hata %}
 <div class="kr-bos">
@@ -24,6 +77,47 @@
   <p>Bu sınıfta kazanım testi yapılıp öğrenci cevapları toplandığında rapor burada görünür.</p>
 </div>
 {% else %}
+
+{% if g.testler %}
+<h2 class="kr-baslik">Açık Testler & Paylaşım</h2>
+<div class="kr-aktif-kartlar">
+  {% for t in g.testler %}
+  <div class="kr-test-karti">
+    <div class="kr-tk-ust">
+      <div>
+        <span class="kr-tk-baslik">{{ t.ders|ders_adi }}{% if t.hafta %} · {{ t.hafta }}. Hafta{% endif %}</span>
+        <span class="kr-tk-tarih">{{ t.tarih }}</span>
+      </div>
+      <div class="kr-tk-rozetler">
+        {% if t.sms_gonderildi %}
+        <span class="pill pill-tam"><svg class="ikon ikon-kucuk"><use href="#ik-onay"/></svg> SMS İletildi</span>
+        {% else %}
+        <button type="button" class="btn-kucuk btn-ikincil" onclick="smsGonder('{{ secili }}', '{{ t.ders }}')">
+          <svg class="ikon ikon-kucuk"><use href="#ik-zil"/></svg> SMS Gönder
+        </button>
+        {% endif %}
+        <span class="pill pill-alinmadi">{{ t.katilim }} Öğrenci Yanıtladı</span>
+      </div>
+    </div>
+    {% if t.kazanim %}
+    <p class="kr-tk-kazanim">{{ t.kazanim }}</p>
+    {% endif %}
+    {% if t.form_url %}
+    <div class="kr-tk-alt">
+      <a href="{{ t.form_url }}" target="_blank" rel="noopener" class="kr-form-link">
+        {{ t.form_url }} <svg class="ikon ikon-kucuk"><use href="#ik-ok-sag"/></svg>
+      </a>
+      <div class="kr-tk-butonlar">
+        <button type="button" class="btn-kucuk btn-ikincil" onclick="metinKopyala('Bugünkü kazanım testleriniz: {{ t.ders|ders_adi }} {{ t.form_url }}', this)">
+          📋 WhatsApp İçin Kopyala
+        </button>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 
 <div class="pano-ozet">
   <div class="pano-ozet-kart">
@@ -157,4 +251,112 @@
 {% endif %}
 
 {% endif %}
+{% endblock %}
+
+{% block script %}
+<script>
+const TOAST = document.getElementById('toast');
+function toastGoster(mesaj, hataMi) {
+  if (!TOAST) return;
+  TOAST.textContent = mesaj;
+  TOAST.className = 'toast' + (hataMi ? ' hata' : '');
+  if (TOAST._zamanlayici) clearTimeout(TOAST._zamanlayici);
+  TOAST._zamanlayici = setTimeout(() => { TOAST.className = 'toast gizli'; }, 4000);
+}
+
+function toggleUretPanel() {
+  const p = document.getElementById('kr-uret-panel');
+  if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+async function sonucGuncelle() {
+  const btn = document.getElementById('btn-sonuc-guncelle');
+  const eskiMetin = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = 'Güncelleniyor...'; }
+  toastGoster('Google Form yanıtları çekiliyor...', false);
+  try {
+    const res = await fetch('/api/kazanim-rapor/sonuc-guncelle', { method: 'POST' });
+    const veri = await res.json();
+    if (veri.ok) {
+      toastGoster(veri.mesaj || 'Sonuçlar güncellendi.', false);
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      toastGoster(veri.hata || 'Güncelleme başarısız.', true);
+      if (btn) { btn.disabled = false; btn.innerHTML = eskiMetin; }
+    }
+  } catch (err) {
+    toastGoster('Bağlantı hatası: ' + err.message, true);
+    if (btn) { btn.disabled = false; btn.innerHTML = eskiMetin; }
+  }
+}
+
+async function smsGonder(sinif, ders) {
+  if (!confirm(`${sinif} sınıfı öğrencilerine kazanım testi linki SMS olarak gönderilsin mi?`)) return;
+  toastGoster(`${sinif} için SMS gönderimi başlatıldı...`, false);
+  try {
+    const res = await fetch('/api/kazanim-rapor/sms-gonder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sinif: sinif, ders: ders || null })
+    });
+    const veri = await res.json();
+    if (veri.ok) {
+      toastGoster(veri.mesaj || 'SMS gönderildi.', false);
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      toastGoster(veri.hata || 'SMS gönderilemedi.', true);
+    }
+  } catch (err) {
+    toastGoster('Bağlantı hatası: ' + err.message, true);
+  }
+}
+
+async function testUret(e) {
+  e.preventDefault();
+  const sinif = document.getElementById('kr-sinif').value;
+  const ders = document.getElementById('kr-ders').value;
+  const tarih = document.getElementById('kr-tarih').value;
+  const btn = document.getElementById('btn-test-uret-kaydet');
+  const eskiMetin = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = 'Test Üretiliyor (AGY & Form)...'; }
+  toastGoster(`${sinif} ${ders} için sorular seçiliyor ve form açılıyor...`, false);
+  try {
+    const res = await fetch('/api/kazanim-rapor/test-uret', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sinif: sinif, ders: ders, tarih: tarih || null })
+    });
+    const veri = await res.json();
+    if (veri.ok) {
+      toastGoster(veri.mesaj || 'Test hazırlandı!', false);
+      setTimeout(() => {
+        window.location.href = `/kazanim-rapor?sinif=${encodeURIComponent(sinif)}`;
+      }, 1500);
+    } else {
+      toastGoster(veri.hata || 'Test üretilemedi.', true);
+      if (btn) { btn.disabled = false; btn.innerHTML = eskiMetin; }
+    }
+  } catch (err) {
+    toastGoster('Hata: ' + err.message, true);
+    if (btn) { btn.disabled = false; btn.innerHTML = eskiMetin; }
+  }
+}
+
+function metinKopyala(metin, btn) {
+  navigator.clipboard.writeText(metin).then(() => {
+    const eski = btn.textContent;
+    btn.textContent = 'Kopyalandı! ✓';
+    btn.classList.add('btn-birincil');
+    btn.classList.remove('btn-ikincil');
+    setTimeout(() => {
+      btn.textContent = eski;
+      btn.classList.remove('btn-birincil');
+      btn.classList.add('btn-ikincil');
+    }, 2000);
+    toastGoster('WhatsApp mesaj metni panoya kopyalandı.', false);
+  }).catch(() => {
+    toastGoster('Metin kopyalanamadı.', true);
+  });
+}
+</script>
 {% endblock %}
