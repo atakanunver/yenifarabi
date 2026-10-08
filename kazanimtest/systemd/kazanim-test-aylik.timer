@@ -1,0 +1,9 @@
+[Unit]
+Description=Kazanım testi aylık rapor — her ayın 1'i 06:00 UTC (09:00 TR)
+
+[Timer]
+OnCalendar=*-*-01 06:00:00 UTC
+Persistent=false
+
+[Install]
+WantedBy=timers.target

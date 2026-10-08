@@ -5,6 +5,7 @@
   server/venv/bin/python -m kazanimtest.calistir durum
   server/venv/bin/python -m kazanimtest.calistir sonuc          # Form gönderimleri → form_cevap (son `sonuc_gun` gün)
   server/venv/bin/python -m kazanimtest.calistir analiz         # form_cevap → <cikti_dizini>/rapor/<sinif>.json
+  server/venv/bin/python -m kazanimtest.calistir aylik [--ay YYYY-MM] [--sinif 9-A] [--sms | --sms-test] [--kuru]
   server/venv/bin/python -m kazanimtest.calistir anlik-doldur   # eski kayıtlara sorular anlık görüntüsü
 
 Sıra: hedef → aday seçimi → agy → Excel/Word → Google Form → kayıt → (SMS).
@@ -213,6 +214,12 @@ def main(argv=None) -> int:
     alt.add_parser("durum")
     alt.add_parser("sonuc")
     alt.add_parser("anlik-doldur")
+    ay = alt.add_parser("aylik")
+    ay.add_argument("--ay", help="YYYY-MM (varsayılan: önceki ay)")
+    ay.add_argument("--sinif")
+    ay.add_argument("--kuru", action="store_true", help="hesapla + özet; Google/DB/SMS'e yazma")
+    ay.add_argument("--sms", action="store_true")
+    ay.add_argument("--sms-test", action="store_true", help="SMS yalnızca gizli.json::test_telefon'a gider")
     alt.add_parser("analiz")
     a = ap.parse_args(argv)
     if a.komut == "durum":
@@ -222,6 +229,10 @@ def main(argv=None) -> int:
         return 1 if sonuc_cek() else 0
     if a.komut == "analiz":
         return 1 if analiz_calistir() else 0
+    if a.komut == "aylik":
+        from . import aylik
+
+        return 1 if aylik.aylik(a.ay, a.sinif, a.sms, a.sms_test, a.kuru) else 0
     if a.komut == "anlik-doldur":
         return anlik_doldur()
     hata = uret(a.tarih or datetime.now(TR).date(), a.sinif, a.ders, a.kuru, a.sms, sms_test=a.sms_test)

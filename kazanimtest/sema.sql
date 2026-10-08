@@ -34,3 +34,18 @@ CREATE TABLE IF NOT EXISTS form_cevap (
     zaman          timestamptz NOT NULL,
     UNIQUE (form_testi_id, okul_no, soru_sira)
 );
+
+-- Faz 2 adım 5 (aylık veli/öğrenci raporu): (ay, okul_no) başına bir kalıcı token; tekrar çalıştırmada link değişmez.
+-- Token Google'a (Kazanım Raporları tablosu) giden kişiye özel gizli kod; isim/telefon tutulmaz.
+CREATE TABLE IF NOT EXISTS aylik_rapor (
+    id               serial PRIMARY KEY,
+    ay               text NOT NULL,              -- "2026-10"
+    sinif            text NOT NULL,
+    okul_no          int NOT NULL,
+    token            text NOT NULL UNIQUE,
+    son_gecerlilik   date NOT NULL,
+    olusturma        timestamptz NOT NULL DEFAULT now(),
+    sms_taslak_id    text,
+    sms_gonderim_id  text,
+    UNIQUE (ay, okul_no)
+);

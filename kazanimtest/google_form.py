@@ -69,3 +69,30 @@ def sonuclari_al(gizli: dict, form_id: str, istemci=None) -> list[dict]:
     if not isinstance(veri, dict) or not veri.get("ok"):
         raise FormHatasi(f"Apps Script hata: {veri.get('hata') if isinstance(veri, dict) else veri}")
     return veri.get("cevaplar") or []
+
+
+def raporlari_yaz(gizli: dict, raporlar: list[dict], istemci=None, parti: int = 50) -> int:
+    """Aylık raporları Apps Script "Kazanım Raporları" tablosuna yazar (50'lik partiler); yazılan sayı döner.
+    raporlar: [{token, ay, sinif, okul_no, son_gecerlilik, veri}] — isim/telefon İÇERMEZ."""
+    k = istemci or httpx
+    ek = {"proxy": gizli["proxy"]} if gizli.get("proxy") else {}
+    toplam = 0
+    for i in range(0, len(raporlar), parti):
+        grup = raporlar[i:i + parti]
+        try:
+            r = k.post(
+                gizli["script_url"],
+                json={"anahtar": gizli["anahtar"], "islem": "rapor_yaz", "raporlar": grup},
+                follow_redirects=True,
+                timeout=120,
+                **ek,
+            )
+            veri = r.json()
+        except (httpx.HTTPError, ValueError) as e:
+            raise FormHatasi(f"Apps Script rapor çağrısı başarısız: {e}") from e
+        if not isinstance(veri, dict) or not veri.get("ok"):
+            raise FormHatasi(f"Apps Script hata: {veri.get('hata') if isinstance(veri, dict) else veri}")
+        if veri.get("yazilan") != len(grup):
+            raise FormHatasi(f"Apps Script {len(grup)} rapordan {veri.get('yazilan')} tanesini yazdı")
+        toplam += len(grup)
+    return toplam

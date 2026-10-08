@@ -21,5 +21,7 @@
   "zorlanilan_esik": 0.5,
   "eksik_esik": 0.5,
   "guclu_esik": 0.8,
-  "kazanim_min_soru": 2
+  "kazanim_min_soru": 2,
+  "rapor_gecerlilik_gun": 90,
+  "rapor_sms_sablon": "{ad} için {ay_adi} kazanım raporu: {link}"
 }

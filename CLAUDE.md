@@ -456,7 +456,8 @@ Client↔Server event listesi bağlayıcıdır — değişirse `mimari.md`'yi g�
   Form'una (okulun Google hesabı, Apps Script) yalnızca soru metinleri gider;
   öğrenci formda **yalnızca okul numarasını** yazar, cevapları Google
   Tablo'da durur. Ad, telefon, roster Google'a GÖNDERİLMEZ; okul no ↔ ad
-  eşleşmesi yalnızca sunucuda yapılır.
+  eşleşmesi yalnızca sunucuda yapılır. Aylık rapor sayfası Google'da: yalnızca sınıf + okul no + kazanım
+  sonuçları, kişiye özel gizli kodlu link.
 
 ## Loglama — iki tablo, karıştırma
 

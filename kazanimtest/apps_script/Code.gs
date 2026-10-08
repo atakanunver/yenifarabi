@@ -8,6 +8,12 @@
  * İstek (POST, JSON): {anahtar, islem:'sonuclar', form_id}
  * Yanıt: {ok:true, cevaplar:[{zaman:ISO, okul_no:string, secimler:[şık metni|null,...]}]}
  *   secimler = formdaki çoktan seçmeli maddelerin sırasıyla; boş bırakılan madde null.
+ *
+ * İstek (POST, JSON): {anahtar, islem:'rapor_yaz', raporlar:[{token, ay, sinif, okul_no, son_gecerlilik, veri}]}
+ * Yanıt: {ok:true, yazilan:n}. "Kazanım Raporları" e-tablosu (id: Script Properties RAPOR_TABLO_ID).
+ *   Gizlilik: veri YALNIZCA sınıf + okul no + kazanım sonuçları; isim/telefon yoktur.
+ *
+ * GET ?r=<token>: kişiye özel gizli kodlu rapor sayfası (anahtarsız; token tahmin edilemez, süresi var).
  */
 var KLASOR_ADI = 'Kazanım Testleri';
 
@@ -20,6 +26,9 @@ function doPost(e) {
     }
     if (istek.islem === 'sonuclar') {
       return cevap_(sonuclar_(istek.form_id));
+    }
+    if (istek.islem === 'rapor_yaz') {
+      return cevap_(rapor_yaz_(istek.raporlar));
     }
     if (!istek.sorular || !istek.sorular.length) {
       return cevap_({ ok: false, hata: 'soru yok' });
@@ -112,4 +121,169 @@ function klasor_() {
 function cevap_(nesne) {
   return ContentService.createTextOutput(JSON.stringify(nesne))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------------------------------------------------------------- Aylık rapor
+
+var RAPOR_TABLO_ADI = 'Kazanım Raporları';
+var RAPOR_SUTUNLAR = ['token', 'ay', 'sinif', 'okul_no', 'son_gecerlilik', 'veri_json', 'yazilma'];
+
+function rapor_sayfa_() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty('RAPOR_TABLO_ID');
+  var tablo;
+  if (id) {
+    tablo = SpreadsheetApp.openById(id);
+  } else {
+    tablo = SpreadsheetApp.create(RAPOR_TABLO_ADI);
+    props.setProperty('RAPOR_TABLO_ID', tablo.getId());
+    DriveApp.getFileById(tablo.getId()).moveTo(klasor_());
+  }
+  var sayfa = tablo.getSheets()[0];
+  if (sayfa.getLastRow() === 0) {
+    sayfa.getRange(1, 1, 1, RAPOR_SUTUNLAR.length).setValues([RAPOR_SUTUNLAR]);
+    // token / ay / son_gecerlilik metin kalsın (e-tablo tarihe çevirmesin)
+    sayfa.getRange('A:B').setNumberFormat('@');
+    sayfa.getRange('E:E').setNumberFormat('@');
+  }
+  return sayfa;
+}
+
+function rapor_satiri_bul_(sayfa, token) {
+  if (!token || sayfa.getLastRow() < 2) { return 0; }
+  var bulunan = sayfa.getRange(1, 1, sayfa.getLastRow(), 1)
+    .createTextFinder(String(token)).matchEntireCell(true).matchCase(true).findNext();
+  return bulunan && bulunan.getRow() > 1 ? bulunan.getRow() : 0;
+}
+
+function rapor_yaz_(raporlar) {
+  if (!raporlar || !raporlar.length) { return { ok: false, hata: 'rapor yok' }; }
+  var sayfa = rapor_sayfa_();
+  var simdi = new Date().toISOString();
+  var yazilan = 0;
+  raporlar.forEach(function (r) {
+    if (!r.token) { return; }
+    var satir = [String(r.token), String(r.ay), String(r.sinif), Number(r.okul_no),
+                 String(r.son_gecerlilik), JSON.stringify(r.veri || {}), simdi];
+    var no = rapor_satiri_bul_(sayfa, r.token);
+    if (no) {
+      sayfa.getRange(no, 1, 1, satir.length).setValues([satir]);
+    } else {
+      sayfa.appendRow(satir);
+    }
+    yazilan += 1;
+  });
+  return { ok: true, yazilan: yazilan };
+}
+
+function doGet(e) {
+  var token = e && e.parameter ? e.parameter.r : '';
+  var kayit = null;
+  try { kayit = rapor_oku_(token); } catch (err) { kayit = null; }
+  if (!kayit) {
+    return sayfa_('<p class="bos">Rapor bulunamadı ya da süresi doldu.</p>');
+  }
+  return sayfa_(rapor_html_(kayit));
+}
+
+function rapor_oku_(token) {
+  if (!token || !PropertiesService.getScriptProperties().getProperty('RAPOR_TABLO_ID')) { return null; }
+  var sayfa = rapor_sayfa_();
+  var no = rapor_satiri_bul_(sayfa, token);
+  if (!no) { return null; }
+  var h = sayfa.getRange(no, 1, 1, RAPOR_SUTUNLAR.length).getValues()[0];
+  var sg = h[4];
+  if (sg instanceof Date) {
+    sg = Utilities.formatDate(sg, 'Europe/Istanbul', 'yyyy-MM-dd');
+  } else {
+    sg = String(sg).substr(0, 10);
+  }
+  var bugun = Utilities.formatDate(new Date(), 'Europe/Istanbul', 'yyyy-MM-dd');
+  if (!sg || bugun > sg) { return null; }
+  return JSON.parse(h[5]);
+}
+
+function kacis_(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function yuzde_(oran) {
+  var n = Number(oran);
+  if (!isFinite(n)) { n = 0; }
+  return Math.max(0, Math.min(100, Math.round(n * 100)));
+}
+
+var DURUM_ETIKET = { eksik: 'Eksik', orta: 'Orta', guclu: 'Güçlü', az_veri: 'Az veri' };
+var DURUM_RENK = {
+  eksik: ['#fde8e8', '#b42318', '#e5484d'],
+  orta: ['#fef3c7', '#92400e', '#e0a100'],
+  guclu: ['#dcfce7', '#166534', '#2e9e5b'],
+  az_veri: ['#eef0f3', '#566170', '#aab2bd']
+};
+
+function cubuk_(oran, renk) {
+  return '<div class="cubuk"><div class="dolgu" style="width:' + yuzde_(oran) + '%;background:' + renk + '"></div></div>';
+}
+
+function rapor_html_(v) {
+  var h = [];
+  h.push('<h1>Kazanım raporu</h1>');
+  h.push('<p class="alt">' + kacis_(v.sinif) + ' &middot; Okul no ' + kacis_(v.okul_no) + ' &middot; ' + kacis_(v.ay_adi) + '</p>');
+  var g = v.genel || {};
+  h.push('<div class="kart"><h2>Genel doğru oranı</h2>');
+  h.push('<p class="buyuk">%' + yuzde_(g.oran) + '</p>' + cubuk_(g.oran, '#2f6fdb'));
+  h.push('<p class="kucuk">Sınıf ortalaması: %' + yuzde_(g.sinif_orani) + ' &middot; Katıldığın test: ' + kacis_(g.test_sayisi) + '</p></div>');
+  (v.dersler || []).forEach(function (d) {
+    h.push('<div class="kart"><h2>' + kacis_(d.ders) + '</h2>');
+    h.push('<p class="kucuk">Senin oranın: %' + yuzde_(d.oran) + ' &middot; Sınıf ortalaması: %' + yuzde_(d.sinif_orani) + '</p>');
+    (d.kazanimlar || []).forEach(function (k) {
+      var r = DURUM_RENK[k.durum] || DURUM_RENK.az_veri;
+      h.push('<div class="kaz"><div class="kaz-ust"><span class="kaz-ad">' + kacis_(k.kazanim_satiri) + '</span>' +
+             '<span class="rozet" style="background:' + r[0] + ';color:' + r[1] + '">' + kacis_(DURUM_ETIKET[k.durum] || 'Az veri') + '</span></div>' +
+             cubuk_(k.oran, r[2]) + '<span class="kucuk">%' + yuzde_(k.oran) + '</span></div>');
+    });
+    h.push('</div>');
+  });
+  var sayfalar = [];
+  (v.eksikler || []).forEach(function (k) {
+    (k.sayfalar || []).forEach(function (s) { if (sayfalar.indexOf(s) < 0) { sayfalar.push(s); } });
+  });
+  h.push('<div class="kart"><h2>Tekrar etmen gereken sayfalar</h2>');
+  if (sayfalar.length) {
+    h.push('<ul>' + sayfalar.map(function (s) { return '<li>' + kacis_(s) + '</li>'; }).join('') + '</ul>');
+  } else {
+    h.push('<p class="kucuk">Bu ay tekrar önerilen sayfa yok.</p>');
+  }
+  h.push('</div>');
+  h.push('<div class="kart"><h2>Güçlü olduğun kazanımlar</h2>');
+  if ((v.gucluler || []).length) {
+    h.push('<ul>' + v.gucluler.map(function (k) {
+      return '<li>' + kacis_(k.ders) + ': ' + kacis_(k.kazanim_satiri) + '</li>';
+    }).join('') + '</ul>');
+  } else {
+    h.push('<p class="kucuk">Bu ay güçlü sayılan kazanım yok.</p>');
+  }
+  h.push('</div>');
+  h.push('<p class="not">Bu rapor okulumuzun kazanım testlerinden otomatik hazırlanmıştır.</p>');
+  return h.join('');
+}
+
+var SAYFA_CSS = 'body{margin:0;background:#f5f7fa;color:#1f2933;font-family:Arial,Helvetica,sans-serif;line-height:1.45}' +
+  '.sar{max-width:640px;margin:0 auto;padding:16px}h1{font-size:22px;margin:8px 0 2px}h2{font-size:17px;margin:0 0 8px}' +
+  '.alt{color:#566170;margin:0 0 14px}.kart{background:#fff;border:1px solid #e1e5ea;border-radius:10px;padding:14px;margin-bottom:12px}' +
+  '.buyuk{font-size:30px;font-weight:bold;margin:0 0 6px}.kucuk{font-size:13px;color:#566170;margin:6px 0 0}' +
+  '.cubuk{height:10px;background:#e8ebef;border-radius:6px;overflow:hidden}.dolgu{height:100%}' +
+  '.kaz{margin-top:12px}.kaz-ust{display:flex;justify-content:space-between;gap:8px;margin-bottom:5px}' +
+  '.kaz-ad{font-size:14px}.rozet{font-size:12px;font-weight:bold;padding:2px 8px;border-radius:10px;white-space:nowrap;align-self:flex-start}' +
+  'ul{margin:0;padding-left:20px}li{margin-bottom:4px;font-size:14px}.not{font-size:12px;color:#566170;text-align:center;margin:16px 0}' +
+  '.bos{text-align:center;margin-top:60px;font-size:16px}';
+
+function sayfa_(govde) {
+  var html = '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><title>Kazanım raporu</title>' +
+    '<style>' + SAYFA_CSS + '</style></head><body><div class="sar">' + govde + '</div></body></html>';
+  return HtmlService.createHtmlOutput(html)
+    .setTitle('Kazanım raporu')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
