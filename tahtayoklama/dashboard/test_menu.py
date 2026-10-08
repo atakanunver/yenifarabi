@@ -50,6 +50,23 @@ class TestMenu(unittest.TestCase):
             if tpl is not None:
                 self.assertIn("menu_agaci", tpl.env.globals, ad)
 
+    def test_statik_surum_dosya_degisince_degisir(self):
+        # Yeni şablon + tarayıcı önbelleğindeki eski pano.css = bozuk düzen (2026-10-08 önizlemede görüldü)
+        import os
+        import time
+        s1 = menu.menu_agaci("/")["surum"]
+        yol = menu.STATIK_DIZINI / "pano.css"
+        st = os.stat(yol)
+        try:
+            os.utime(yol, (st.st_atime, st.st_mtime + 5))
+            menu._surum_onbellek.clear()
+            s2 = menu.menu_agaci("/")["surum"]
+        finally:
+            os.utime(yol, (st.st_atime, st.st_mtime))
+            menu._surum_onbellek.clear()
+        self.assertTrue(s1)
+        self.assertNotEqual(s1, s2)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block baslik_etiketi %}Yoklama ve Yönetim Paneli{% endblock %}</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="/static/pano.css">
-<script>document.documentElement.dataset.tema=localStorage.getItem('farabi_yoklama_tema')||'klasik';</script>
+{% set agac = menu_agaci(request.url.path) %}
+<link rel="stylesheet" href="/static/pano.css?v={{ agac.surum }}">
+<script>document.documentElement.dataset.tema=localStorage.getItem('farabi_yoklama_tema')||'koyu';</script>
 </head>
 <body>
 {% include "_ikon_sprite.html" %}
 {# Menü ağacının tek kaynağı menu.py (2026-10-08): menü çubuğu, ikon şeridi ve
    mobil çekmece aynı ağaçtan üretilir — öğe burada elle yazılmaz. #}
-{% set agac = menu_agaci(request.url.path) %}
 {% macro baglanti(o) -%}
   {%- if o.href == 'atos' -%}http://{{ request.url.hostname }}/{%- else -%}{{ o.href }}{%- endif -%}
 {%- endmacro %}
@@ -33,7 +33,7 @@
       {% if o.aktif %}aria-current="page"{% endif %}
       {% if o.yeni_sekme %}target="_blank" rel="noopener"{% endif %}>
       {% if o.ikon %}<svg class="ikon"><use href="#ik-{{ o.ikon }}"/></svg>{% endif %}{{ o.ad }}
-      {% if o.yeni_sekme %}<svg class="ikon ikon-kucuk ikon-disa"><use href="#ik-ok-sag"/></svg>{% endif %}</a></li>
+      {% if o.yeni_sekme %}<svg class="ikon ikon-kucuk ikon-disa" aria-label="yeni sekmede açılır"><use href="#ik-dis"/></svg>{% endif %}</a></li>
   {% endif %}
 {% endmacro %}
 <div class="kabuk" id="kabuk">
@@ -95,9 +95,9 @@
 </dialog>
 <div id="toast" class="toast gizli"></div>
 
-<script src="/static/tema.js"></script>
-<script src="/static/menu.js"></script>
-<script src="/static/kenar.js"></script>
+<script src="/static/tema.js?v={{ agac.surum }}"></script>
+<script src="/static/menu.js?v={{ agac.surum }}"></script>
+<script src="/static/kenar.js?v={{ agac.surum }}"></script>
 {% block script %}{% endblock %}
 </body>
 </html>

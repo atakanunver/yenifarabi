@@ -2,6 +2,25 @@
 taban.html üçünü de bu ağaçtan üretir; menü öğesi başka yerde elle yazılmaz."""
 
 import copy
+import time
+from pathlib import Path
+
+STATIK_DIZINI = Path(__file__).resolve().parent / "static"
+# ?v= eki: yeni şablon + tarayıcı önbelleğindeki eski CSS/JS bozuk düzen verir (2026-10-08
+# önizlemede görüldü). Sürüm = static/ dosyalarının en yeni mtime'ı; 10 sn önbellekli.
+_surum_onbellek: dict = {}
+
+
+def statik_surum() -> str:
+    simdi = time.monotonic()
+    if _surum_onbellek.get("t", -1e9) + 10 < simdi:
+        try:
+            enson = max(f.stat().st_mtime for f in STATIK_DIZINI.iterdir() if f.is_file())
+        except (OSError, ValueError):
+            enson = 0
+        _surum_onbellek.update(t=simdi, v=str(int(enson)))
+    return _surum_onbellek["v"]
+
 
 ZIL_PANELI = "http://192.168.23.230:8090/"   # kimlik gömülmez; tarayıcı Basic Auth sorar
 
@@ -84,4 +103,4 @@ def menu_agaci(yol: str) -> dict:
     for s in serit:
         if _eslesir(s["href"], yol):
             s["aktif"] = True
-    return {"menu": menu, "serit": serit}
+    return {"menu": menu, "serit": serit, "surum": statik_surum()}
