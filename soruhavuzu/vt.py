@@ -32,6 +32,13 @@ def birim_ekle(conn, tur, anahtar, ders, sinif, etiket, metin) -> int | None:
     return satir[0] if satir else None
 
 
+def birim_bul(conn, anahtar: str) -> int | None:
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM kaynak_birim WHERE anahtar = %s", (anahtar,))
+        satir = cur.fetchone()
+    return satir[0] if satir else None
+
+
 def siradaki_birim(conn, sinif: int | None = None) -> dict | None:
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         if sinif is not None:
