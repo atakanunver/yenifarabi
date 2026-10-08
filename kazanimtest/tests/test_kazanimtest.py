@@ -288,3 +288,18 @@ def test_tekrarli_post_html_donerse_tekrar_dener(monkeypatch):
     with pytest.raises(ValueError):
         google_form._tekrarli_post(k, "u")
     assert k.cagri == 3
+
+
+def test_uygun_adaylar_esik_alti_atilir():
+    adaylar = [{"benzerlik": 0.60}, {"benzerlik": 0.52}, {"benzerlik": 0.519}, {}]
+    assert [a.get("benzerlik") for a in calistir.uygun_adaylar(adaylar, {"min_benzerlik": 0.52})] == [0.60, 0.52]
+
+
+def test_uygun_soru_yetersizse_test_acilmaz(monkeypatch):
+    h = hedef.Hedef("9-A", 9, "kimya", "kimya", 4, ["Kazanım"], date(2026, 10, 6))
+    monkeypatch.setattr(calistir.kayit, "var_mi", lambda *a: None)
+    monkeypatch.setattr(calistir.secici, "adaylar", lambda *a, **k: [_aday(i) | {"benzerlik": 0.4} for i in range(30)])
+    cagrildi = []
+    monkeypatch.setattr(calistir.agy_secim, "sec", lambda *a, **k: cagrildi.append(1))
+    ayar = {"soru_sayisi": 10, "min_benzerlik": 0.52, "cikti_dizini": "/yok"}
+    assert calistir.hedef_isle(h, ayar, None, None, None, kuru=False) is None and cagrildi == []

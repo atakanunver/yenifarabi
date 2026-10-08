@@ -34,6 +34,12 @@ def ders_gosterim(anahtar: str) -> str:
     return GOSTERIM.get(anahtar, anahtar.capitalize())
 
 
+def uygun_adaylar(adaylar: list[dict], ayar: dict) -> list[dict]:
+    """Kazanıma benzerliği eşiğin altında kalan adayları at (bge-m3 kosinüs; eşik örneklerle ayarlandı)."""
+    esik = float(ayar.get("min_benzerlik", 0.52))
+    return [a for a in adaylar if float(a.get("benzerlik", 0.0)) >= esik]
+
+
 def ayar_oku(yol: Path = AYAR) -> dict:
     return json.loads(yol.read_text(encoding="utf-8"))
 
@@ -81,8 +87,12 @@ def hedef_isle(h, ayar: dict, gizli: dict | None, farabi_conn, havuz_conn, kuru:
             return eski
     n = int(ayar.get("soru_sayisi", 10))
     adaylar = secici.adaylar(farabi_conn, havuz_conn, h.duzey, h.ders, "\n".join(h.kazanimlar), int(ayar.get("aday_azami", 30)))
-    if len(adaylar) < int(ayar.get("min_soru", 5)):
-        log.warning("%s %s: yeterli aday yok (%d) — atlandı", h.sinif, h.ders, len(adaylar))
+    adaylar = uygun_adaylar(adaylar, ayar)
+    gerekli = int(ayar.get("min_uygun_soru", n))
+    if len(adaylar) < gerekli:
+        # Konu dışı sorularla test açılmaz (2026-10-08 kapsam ölçümü: çoğu haftada havuz kazanıma uymuyor).
+        log.warning("%s %s hafta %s: kazanıma uygun soru yetersiz (%d < %d, eşik %.2f) — test açılmadı",
+                    h.sinif, h.ders, h.hafta, len(adaylar), gerekli, float(ayar.get("min_benzerlik", 0.52)))
         return None
     sorular = agy_secim.sec(h.kazanimlar, adaylar, n, zaman_asimi_sn=int(ayar.get("agy_zaman_asimi_sn", 600)))
     baslik = f"{h.sinif} {ders_gosterim(h.ders)} — Hafta {h.hafta} Kazanım Testi"

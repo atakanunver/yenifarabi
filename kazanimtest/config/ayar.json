@@ -23,5 +23,7 @@
   "guclu_esik": 0.8,
   "kazanim_min_soru": 2,
   "rapor_gecerlilik_gun": 90,
-  "rapor_sms_sablon": "{ad} için {ay_adi} kazanım raporu: {link}"
+  "rapor_sms_sablon": "{ad} için {ay_adi} kazanım raporu: {link}",
+  "min_benzerlik": 0.52,
+  "min_uygun_soru": 10
 }
