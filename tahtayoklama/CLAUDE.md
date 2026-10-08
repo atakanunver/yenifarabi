@@ -197,6 +197,14 @@ penceresi zaten yalnızca Pazartesi-Cuma anlamlı — bu varsayım proje
 genelinde geçerliliğini koruyor, gün etiketi widget'ı 7 günü de doğru
 gösterse bile hafta sonu görünürlüğünün işlevsel bir önemi yok.
 
+> **Sınıf listesinin tek kaynağı = pano DB `ogrenciler` tablosu (2026-10-08).**
+> Sunucudaki `tahtayoklama/data/roster/*.json` (2026-09-12 anlık görüntüsü, güncel
+> değildi) `/mnt/farabi-data/farabi/arsiv/tahtayoklama-roster-20260912/`'ye taşındı;
+> Atos öğrenci aracı (`okul_bilgisi.py::_rosterlar`) artık DB'den okur. Tahtalardaki
+> `~/tahtayoklama/data/roster/` ayrı ve günceldir (pano yazar) — ona dokunulmaz.
+> `ilk_yukleme.py`, `pdf_disari_aktar.py`, `smssistemi/scripts/roster_ice_aktar.py` eski
+> dizine bakan tek seferlik betiklerdir; yeniden çalıştırılmaz.
+
 ### 4.0 Kazanım raporu (`/kazanim-rapor`, 2026-10-08)
 `dashboard/kazanim_rapor.py` + `templates/kazanim_rapor.html`: kazanimtest'in ürettiği
 `/mnt/farabi-data/farabi/kazanim_testleri/rapor/<sinif>.json` dosyalarını **salt-okunur**

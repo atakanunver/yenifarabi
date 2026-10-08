@@ -6,7 +6,7 @@ Farabi kaynak filtresi için (2026-10-04).
 - /ders-programi: sınıf → şu anki ders / bugün / belirli gün / hafta
   (data/ders_programi.json + zil.json; DB'deki ders_programi tablosu boş).
   Öğretmen adı veri kaynağında YOK — öğretmene göre sorgu yapılamaz.
-- /ogrenci: sınıf listelerinden (data/roster/*.json) no + ad soyad + sınıf.
+- /ogrenci: panonun güncel sınıf listesinden (`ogrenciler` tablosu) no + ad soyad + sınıf.
   KVKK: yalnızca okul.json::ogrenci_izinli e-postaları ve Open WebUI admin
   rolü (kullanıcı kararı 2026-10-04: İdare + Öğretmen; tahta hesabı HARİÇ).
   Araç da aynı kontrolü yapar; burası ikinci kapı. Öğrenci adları loga YAZILMAZ.
@@ -22,6 +22,7 @@ import logging
 import unicodedata
 from pathlib import Path
 
+import db
 import ders_programi
 import zil
 from fastapi import APIRouter, HTTPException, Request
@@ -30,7 +31,6 @@ from fastapi.responses import JSONResponse
 log = logging.getLogger("okul_bilgisi")
 
 OKUL_AYAR_YOLU = Path(__file__).resolve().parent / "config" / "okul.json"
-ROSTER_DIZINI = Path(__file__).resolve().parent.parent / "data" / "roster"
 _YEREL = {"127.0.0.1", "::1"}
 AZAMI_OGRENCI = 60
 
@@ -201,23 +201,24 @@ def _ogrenci_izni(request: Request, ayar: dict) -> None:
 
 
 def _rosterlar() -> list[dict]:
-    cikti = []
-    for yol in sorted(ROSTER_DIZINI.glob("*.json")):
-        try:
-            veri = json.loads(yol.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        sinif = veri.get("sinif") or yol.stem
-        for o in veri.get("ogrenciler", []):
-            if isinstance(o, dict) and o.get("ad_soyad"):
-                cikti.append(
-                    {
-                        "no": str(o.get("no", "")),
-                        "ad_soyad": o["ad_soyad"],
-                        "sinif": sinif,
-                    }
-                )
-    return cikti
+    """Güncel sınıf listesi = panonun `ogrenciler` tablosu (aktif öğrenciler).
+    Tahtalara giden yoklama listesi de buradan üretilir. 2026-10-08'e kadar
+    sunucudaki eski data/roster/*.json kopyalarından okunuyordu (2026-09-12
+    anlık görüntüsü, güncel değildi)."""
+    conn = db.baglanti()
+    try:
+        satirlar = conn.execute(
+            "SELECT o.no, o.ad_soyad, s.ad AS sinif FROM ogrenciler o "
+            "JOIN siniflar s ON s.id = o.sinif_id "
+            "WHERE o.aktif = 1 ORDER BY s.ad, o.no"
+        ).fetchall()
+    finally:
+        conn.close()
+    return [
+        {"no": str(r["no"]), "ad_soyad": r["ad_soyad"], "sinif": r["sinif"]}
+        for r in satirlar
+        if r["ad_soyad"]
+    ]
 
 
 @router.get("/ogrenci")

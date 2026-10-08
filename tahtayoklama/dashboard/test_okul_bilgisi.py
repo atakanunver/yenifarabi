@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
+import db
 import okul_bilgisi as ob
 import zil
 from fastapi import HTTPException
@@ -77,13 +78,9 @@ class Taban(unittest.TestCase):
         (self.tmp / "ders_programi.json").write_text(
             json.dumps(PROGRAM), encoding="utf-8"
         )
-        (self.tmp / "roster").mkdir()
-        (self.tmp / "roster" / "11-A.json").write_text(
-            json.dumps(ROSTER), encoding="utf-8"
-        )
         yamalar = [
             patch.object(ob, "OKUL_AYAR_YOLU", self.tmp / "okul.json"),
-            patch.object(ob, "ROSTER_DIZINI", self.tmp / "roster"),
+            patch.object(db, "DB_YOLU", self.tmp / "pano.db"),
             patch.object(
                 ob.ders_programi,
                 "DERS_PROGRAMI_DOSYASI",
@@ -94,6 +91,20 @@ class Taban(unittest.TestCase):
         for y in yamalar:
             y.start()
             self.addCleanup(y.stop)
+        db.semayi_kur()
+        conn = db.baglanti()
+        sid = conn.execute("INSERT INTO siniflar (ad) VALUES (?)", (ROSTER["sinif"],)).lastrowid
+        for o in ROSTER["ogrenciler"]:
+            conn.execute(
+                "INSERT INTO ogrenciler (sinif_id, no, ad_soyad, cinsiyet) VALUES (?, ?, ?, ?)",
+                (sid, int(o["no"]), o["ad_soyad"], o["cinsiyet"]),
+            )
+        conn.execute(  # pasif öğrenci listede görünmemeli
+            "INSERT INTO ogrenciler (sinif_id, no, ad_soyad, aktif) VALUES (?, 999, 'Pasif Ogr', 0)",
+            (sid,),
+        )
+        conn.commit()
+        conn.close()
         ob.ders_programi.yenile()
         zil.yenile()
         self.addCleanup(ob.ders_programi.yenile)

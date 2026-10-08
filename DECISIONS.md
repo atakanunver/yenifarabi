@@ -1,3 +1,9 @@
+## 2026-10-08 - Öğrenci listesi tutarlılığı: rehber düzenleme hatası + tek kaynak pano DB
+- Hata: smssistemi rehberinde kişi düzenlemek `okul_no` ve `veli_rol`'ü NULL'luyordu (formda alan yok, `kisi_guncelle` varsayılanı None). Düzeltme: mevcut değerler korunur (`app.py::rehber_kisi_duzenle`, test `test_rehber_duzenle.py`). 12-B'de bir öğrencinin numarası bu yüzden boştu.
+- Veri düzeltmesi (yedek `smssistemi/veri/smssistemi.db.yedek-20261008-okulno`): no 160/191 + velileri 11-A→11-B, 12-B öğrencisine okul_no 220. Kaynak = pano/tahta yoklama listesi (kullanıcı: "en güncel liste yoklama listesi"). Sonrası pano↔rehber 96/96 aynı (sınıf, no).
+- Atos öğrenci aracı eski `tahtayoklama/data/roster/*.json` (2026-09-12) yerine pano DB'den okur; eski dosyalar veri diskine arşivlendi (kişisel veri, git'te yok).
+- Kazanım raporu SMS'i öğrenciyi YALNIZCA okul_no ile bulur (okul genelinde tekil, doğrulandı).
+
 ## 2026-10-07 - Kazanım testi hattı: Google Form = Apps Script; formda yalnızca okul no; öğrenciye SMS
 - Yeni `kazanimtest/` (servis değil, script + timer, server venv): haftanın yıllık plan kazanımı → aday soru (MEB `kazanim_test_soru` önce, sonra `soru_havuzu` onaylı; bge-m3 CPU benzerliği) → agy seçim/eleme (başarısızsa benzerlik sırası) → Excel/Word (`/mnt/farabi-data/farabi/kazanim_testleri/`) → Google Form (Quiz) + yanıt Tablosu → isteğe bağlı öğrencilere SMS. Kayıt `soru_havuzu.form_testi`, `UNIQUE(sinif, ders, hafta)`.
 - Google tarafı **Apps Script web uygulaması** (okul hesabında, "Herkes" erişimi + Script Properties `ANAHTAR`): sunucuya OAuth/yeni kütüphane gerekmez (Kural 8: kullanıcı onayı 2026-10-07). Forms API (OAuth token yönetimi) ve agy'nin tarayıcıyla form doldurması (başsız, 2FA/arayüz kırılgan) reddedildi.
