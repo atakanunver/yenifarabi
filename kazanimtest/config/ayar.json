@@ -1,6 +1,13 @@
 {
-  "dersler": ["kimya", "matematik", "biyoloji"],
-  "duzeyler": [9, 10],
+  "dersler": [
+    "kimya",
+    "matematik",
+    "biyoloji"
+  ],
+  "duzeyler": [
+    9,
+    10
+  ],
   "soru_sayisi": 10,
   "sonuc_gun": 30,
   "min_soru": 5,
@@ -10,5 +17,9 @@
   "farabi_db": "farabi",
   "havuz_db": "soru_havuzu",
   "sms_url": "http://127.0.0.1:8020",
-  "sms_azami_karakter": 300
+  "sms_azami_karakter": 300,
+  "zorlanilan_esik": 0.5,
+  "eksik_esik": 0.5,
+  "guclu_esik": 0.8,
+  "kazanim_min_soru": 2
 }

@@ -4,6 +4,7 @@
                                                        [--ders biyoloji] [--kuru] [--sms | --sms-test]
   server/venv/bin/python -m kazanimtest.calistir durum
   server/venv/bin/python -m kazanimtest.calistir sonuc          # Form gönderimleri → form_cevap (son `sonuc_gun` gün)
+  server/venv/bin/python -m kazanimtest.calistir analiz         # form_cevap → <cikti_dizini>/rapor/<sinif>.json
   server/venv/bin/python -m kazanimtest.calistir anlik-doldur   # eski kayıtlara sorular anlık görüntüsü
 
 Sıra: hedef → aday seçimi → agy → Excel/Word → Google Form → kayıt → (SMS).
@@ -20,7 +21,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from . import agy_secim, anlik, cikti, google_form, hedef, kayit, secici, sonuc
+from . import agy_secim, analiz, anlik, cikti, google_form, hedef, kayit, secici, sonuc
 
 log = logging.getLogger("kazanimtest")
 AYAR = Path(__file__).with_name("config") / "ayar.json"
@@ -176,6 +177,15 @@ def sonuc_cek() -> int:
         conn.close()
 
 
+def analiz_calistir() -> int:
+    ayar = ayar_oku()
+    conn = secici.baglan(ayar.get("havuz_db", "soru_havuzu"))
+    try:
+        return analiz.rapor_yaz(conn, ayar)
+    finally:
+        conn.close()
+
+
 def anlik_doldur() -> int:
     ayar = ayar_oku()
     farabi_conn = secici.baglan(ayar.get("farabi_db", "farabi"))
@@ -203,12 +213,15 @@ def main(argv=None) -> int:
     alt.add_parser("durum")
     alt.add_parser("sonuc")
     alt.add_parser("anlik-doldur")
+    alt.add_parser("analiz")
     a = ap.parse_args(argv)
     if a.komut == "durum":
         durum()
         return 0
     if a.komut == "sonuc":
         return 1 if sonuc_cek() else 0
+    if a.komut == "analiz":
+        return 1 if analiz_calistir() else 0
     if a.komut == "anlik-doldur":
         return anlik_doldur()
     hata = uret(a.tarih or datetime.now(TR).date(), a.sinif, a.ders, a.kuru, a.sms, sms_test=a.sms_test)

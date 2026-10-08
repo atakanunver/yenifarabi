@@ -41,3 +41,8 @@ Haftanın yıllık plan kazanımına göre soru seçer (MEB `kazanim_test_soru` 
    SMS aracı anahtarını `sms_arac_anahtar`'a yaz (`gizli.example.json` örnek; dosya gitignore'lu).
 6. Kod değişirse: Dağıt → Dağıtımları yönet → düzenle → Yeni sürüm (`sonuclar` işlemi için Code.gs yeniden dağıtılmalı; aksi halde `sonuc` eski kodu çağırır ve hata alır).
 7. Deneme: `calistir uret --kuru ...` sonra `--kuru`suz tek sınıf/ders; formu telefondan doldur.
+
+## Analiz raporu (`analiz`, Faz 2 adım 2)
+- `calistir analiz` (salt-okunur DB): her `form_testi` sınıfı için tüm zamanlar analizi → `<cikti_dizini>/rapor/<sinif>.json` (atomik yazım, UTF-8). `kazanim-test-sonuc.service`: `sonuc` (başarısız olsa da, `-` önekli) sonra `analiz`. Birim `/etc`'ye elle kopyalanır. `analiz.sinif_analizi(conn, sinif, baslangic, bitis, esikler)` aylık rapor için tarih aralığı alır (`form_testi.olusturma`, TR günü).
+- Eşikler `ayar.json`: `zorlanilan_esik` 0.5 (sınıf oranı < eşik), `eksik_esik` 0.5 (oran < → eksik), `guclu_esik` 0.8 (oran >= → güçlü), `kazanim_min_soru` 2 (öğrencide bundan az soru → `az_veri`).
+- JSON (İSİM YOK, yalnızca okul_no): `sinif, uretim, aralik, esikler, testler[{id,ders,hafta,tarih,kazanim,form_url,katilim,ortalama_oran,sorular[{sira,soru,kazanim_satiri,dogru_orani,cevap_sayisi,en_cok_secilen_yanlis{sik_harfi,oran}|null}]}], kazanimlar[{ders,kazanim_satiri,soru_sayisi,cevap_sayisi,dogru_orani,zorlanilan}]` (zorlanılan önce, oran artan), `ogrenciler[{okul_no,test_sayisi,dogru,toplam,oran,eksik_sayisi,guclu_sayisi,kazanimlar[{ders,kazanim_satiri,soru,dogru,oran,durum,sayfalar}]}]`. `sayfalar` = öğrencinin yanlış/boş yaptığı soruların kaynak sayfaları ("Kimya 9, s. 54-55"). `sorular` NULL formlar atlanır (log).
