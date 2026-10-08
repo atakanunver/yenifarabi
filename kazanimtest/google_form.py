@@ -2,15 +2,33 @@
 Yalnızca soru metinleri + okul numarası alanı Google'a gider; öğrenci adı/telefonu gitmez."""
 
 import json
+import logging
+import time
 from pathlib import Path
 
 import httpx
+
+log = logging.getLogger("kazanimtest.google")
 
 GIZLI = Path(__file__).with_name("config") / "gizli.json"
 
 
 class FormHatasi(Exception):
     pass
+
+
+def _tekrarli_post(k, url: str, deneme: int = 3, bekleme_sn: float = 5.0, **kw) -> dict:
+    """YALNIZCA tekrarlanabilir (idempotent) işlemler için: Apps Script yönlendirmesi ara sıra
+    JSON yerine HTML (doGet sayfası) döndürüyor (2026-10-08, aralıklı) — kısa beklemeyle tekrar."""
+    for i in range(1, deneme + 1):
+        try:
+            return k.post(url, **kw).json()
+        except ValueError:  # JSON değil
+            if i == deneme:
+                raise
+            log.warning("Apps Script JSON dönmedi (deneme %d/%d) — tekrar", i, deneme)
+            time.sleep(bekleme_sn)
+    raise AssertionError("ulaşılmaz")
 
 
 def gizli_oku(yol: Path = GIZLI) -> dict:
@@ -56,14 +74,14 @@ def sonuclari_al(gizli: dict, form_id: str, istemci=None) -> list[dict]:
     k = istemci or httpx
     ek = {"proxy": gizli["proxy"]} if gizli.get("proxy") else {}
     try:
-        r = k.post(
+        veri = _tekrarli_post(
+            k,
             gizli["script_url"],
             json={"anahtar": gizli["anahtar"], "islem": "sonuclar", "form_id": form_id},
             follow_redirects=True,
             timeout=120,
             **ek,
         )
-        veri = r.json()
     except (httpx.HTTPError, ValueError) as e:
         raise FormHatasi(f"Apps Script sonuç çağrısı başarısız: {e}") from e
     if not isinstance(veri, dict) or not veri.get("ok"):
@@ -80,14 +98,14 @@ def raporlari_yaz(gizli: dict, raporlar: list[dict], istemci=None, parti: int = 
     for i in range(0, len(raporlar), parti):
         grup = raporlar[i:i + parti]
         try:
-            r = k.post(
+            veri = _tekrarli_post(
+                k,
                 gizli["script_url"],
                 json={"anahtar": gizli["anahtar"], "islem": "rapor_yaz", "raporlar": grup},
                 follow_redirects=True,
                 timeout=120,
                 **ek,
             )
-            veri = r.json()
         except (httpx.HTTPError, ValueError) as e:
             raise FormHatasi(f"Apps Script rapor çağrısı başarısız: {e}") from e
         if not isinstance(veri, dict) or not veri.get("ok"):

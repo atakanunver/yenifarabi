@@ -262,3 +262,29 @@ def test_sonuclari_al_istegi_ve_form_olustur_govdesi_degismedi():
     assert gonderilen["json"] == {"anahtar": "AN", "islem": "sonuclar", "form_id": "F"} and gonderilen["proxy"] == "p"
     assert set(google_form.govde("AN", "B", "A", [_aday(1)])) == {"anahtar", "baslik", "aciklama", "sorular"}  # 'islem' yok
     assert "islem" not in google_form.govde("AN", "B", "A", [_aday(1)])
+
+
+def test_tekrarli_post_html_donerse_tekrar_dener(monkeypatch):
+    monkeypatch.setattr(google_form.time, "sleep", lambda s: None)
+
+    class Yanit:
+        def __init__(self, govde):
+            self.govde = govde
+
+        def json(self):
+            return json.loads(self.govde)
+
+    class Istemci:
+        def __init__(self, yanitlar):
+            self.yanitlar, self.cagri = list(yanitlar), 0
+
+        def post(self, url, **kw):
+            self.cagri += 1
+            return Yanit(self.yanitlar.pop(0))
+
+    k = Istemci(["<html>Kazanım raporu</html>", '{"ok": true, "yazilan": 1}'])
+    assert google_form._tekrarli_post(k, "u") == {"ok": True, "yazilan": 1} and k.cagri == 2
+    k = Istemci(["<html>", "<html>", "<html>"])
+    with pytest.raises(ValueError):
+        google_form._tekrarli_post(k, "u")
+    assert k.cagri == 3
