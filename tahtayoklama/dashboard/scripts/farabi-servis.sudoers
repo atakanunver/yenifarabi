@@ -1,0 +1,2 @@
+# /etc/sudoers.d/farabi-servis — dashboard yalnızca beyaz listeli betiği çağırır (2026-10-08)
+ata ALL=(root) NOPASSWD: /usr/local/sbin/farabi-servis

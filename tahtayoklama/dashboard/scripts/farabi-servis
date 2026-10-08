@@ -1,0 +1,45 @@
+#!/bin/bash
+# farabi-servis — dashboard'un (/servisler) TEK ayrıcalıklı kapısı (2026-10-08).
+# Kurulum: sudo install -o root -g root -m 755 scripts/farabi-servis /usr/local/sbin/farabi-servis
+# Liste servis_yonetimi.BIRIMLER ile BİREBİR aynı olmalı (test_farabi_servis karşılaştırır).
+set -euo pipefail
+SYSTEMCTL="${FARABI_SERVIS_SYSTEMCTL:-/usr/bin/systemctl}"
+SYSTEMD_RUN="${FARABI_SERVIS_SYSTEMD_RUN:-/usr/bin/systemd-run}"
+SERVISLER="farabi-api farabi-smssistemi farabi-yoklama-dashboard ollama open-webui sinif-arena"
+ZAMANLAYICILAR="kazanim-test kazanim-test-sonuc kazanim-test-aylik soru-havuzu-uret farabi-idari-yukle"
+
+reddet() { echo "farabi-servis: izin yok: $*" >&2; exit 2; }
+[[ $# -eq 2 ]] || reddet "kullanım: farabi-servis <eylem> <birim>"
+eylem="$1"; birim="$2"
+listede() { local x; for x in $2; do [[ "$x" == "$1" ]] && return 0; done; return 1; }
+
+if listede "$birim" "$SERVISLER"; then
+  case "$eylem" in
+    yeniden-baslat)
+      if [[ "$birim" == "farabi-yoklama-dashboard" ]]; then
+        # İsteği yanıtlayan süreci öldürmemek için 2 sn gecikmeli, ayrı birimde.
+        exec "$SYSTEMD_RUN" --on-active=2 --unit=farabi-dashboard-yeniden \
+          /usr/bin/systemctl restart farabi-yoklama-dashboard.service
+      fi
+      exec "$SYSTEMCTL" restart "$birim.service" ;;
+    durdur)
+      [[ "$birim" == "farabi-yoklama-dashboard" ]] && reddet "dashboard kendini durduramaz"
+      [[ "$birim" == "ollama" ]] && reddet "ollama yalnızca yeniden başlatılabilir"
+      exec "$SYSTEMCTL" stop "$birim.service" ;;
+    baslat)
+      exec "$SYSTEMCTL" start "$birim.service" ;;
+    hata-temizle)
+      exec "$SYSTEMCTL" reset-failed "$birim.service" ;;
+    *) reddet "$eylem $birim" ;;
+  esac
+elif listede "$birim" "$ZAMANLAYICILAR"; then
+  case "$eylem" in
+    zamanlayici-ac)    exec "$SYSTEMCTL" enable --now "$birim.timer" ;;
+    zamanlayici-kapat) exec "$SYSTEMCTL" disable --now "$birim.timer" ;;
+    simdi-calistir)    exec "$SYSTEMCTL" start --no-block "$birim.service" ;;
+    hata-temizle)      exec "$SYSTEMCTL" reset-failed "$birim.service" ;;
+    *) reddet "$eylem $birim" ;;
+  esac
+else
+  reddet "$eylem $birim"
+fi
