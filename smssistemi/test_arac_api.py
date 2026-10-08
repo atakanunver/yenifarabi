@@ -244,3 +244,107 @@ def test_ogrenci_test_telefonu_yalnizca_o_numaraya_gider(ortam):
         aa.ogrenci_taslak,
         aa.OgrenciTaslakIstek(sinif="9a", metin="x", test_telefon="123"),
     ) == 422
+
+
+# --- Kişiye özel SMS (okul_no) ---
+
+
+def _k_ogrenci(no, ad, tel, sinif="9-A", veliler=()):
+    conn = db.baglanti()
+    sid = next(s["id"] for s in db.siniflar_listele(conn) if s["ad"] == sinif)
+    cur = conn.execute(
+        "INSERT INTO kisiler (ad_soyad, telefon, sinif_id, tur, okul_no) VALUES (?, ?, ?, 'ogrenci', ?)",
+        (ad, tel, sid, no),
+    )
+    for i, vt in enumerate(veliler):
+        conn.execute(
+            "INSERT INTO kisiler (ad_soyad, telefon, sinif_id, tur, ogrenci_kisi_id) "
+            "VALUES (?, ?, ?, 'veli', ?)",
+            (f"Veli {no}-{i}", vt, sid, cur.lastrowid),
+        )
+    conn.commit()
+    conn.close()
+
+
+def _kt(ogeler, test=None):
+    return aa.kisisel_taslak(
+        aa.KisiselTaslakIstek(
+            ogeler=[aa.KisiselOge(okul_no=n, metin_sablon=m) for n, m in ogeler],
+            test_telefon=test,
+        )
+    )
+
+
+def _kg(tid):
+    return aa.kisisel_gonder(aa.KisiselGonderIstek(taslak_id=tid))
+
+
+def test_kisisel_okul_no_ile_bulur_ad_doldurur_tekillestirir(ortam):
+    giden, _ = ortam
+    # sınıf farkı önemsiz: öğrenci 10-A'da, yalnızca okul_no ile bulunur
+    _k_ogrenci(101, "Ali Veli", "05551110001", "10-A", ["05552220001", "05552220001", "05551110001"])
+    _k_ogrenci(102, "Ayse Kaya", "", "9-A", ["05552220002"])  # öğrencinin telefonu yok
+    t = _kt([(101, "{ad} icin rapor: {x}"), (102, "Merhaba {ad}"), (999, "x"), ])
+    assert t["alici_sayisi"] == 3 and t["oge_sayisi"] == 2
+    assert t["bulunamayan"] == [999] and t["alicisiz"] == [] and t["test"] is False
+    assert t["ornek_metin"] == "Ali Veli icin rapor: {x}" and t["gecerlilik_dk"] == 30
+    assert giden == []
+    y = _kg(t["taslak_id"])
+    assert y["alici_sayisi"] == 3 and y["oge_sayisi"] == 2
+    assert len(giden) == 1
+    tel_metin = {(tel, m) for _, tel, m in giden[0]}
+    assert tel_metin == {
+        ("05551110001", "Ali Veli icin rapor: {x}"),
+        ("05552220001", "Ali Veli icin rapor: {x}"),
+        ("05552220002", "Merhaba Ayse Kaya"),
+    }
+    assert _kod(_kg, t["taslak_id"]) == 404  # ikinci kez gitmez
+
+
+def test_kisisel_alicisiz_ve_422(ortam):
+    _k_ogrenci(201, "Telsiz Ogr", "", veliler=[""])
+    _k_ogrenci(202, "Var Ogr", "05553330001")
+    t = _kt([(201, "m"), (202, "m")])
+    assert t["alicisiz"] == [201] and t["alici_sayisi"] == 1
+    assert _kod(_kt, [(201, "m")]) == 404  # hiç alıcı yok
+    with pytest.raises(HTTPException) as e:
+        _kt([(202, "x" * (aa.VELI_AZAMI + 1))])
+    assert e.value.status_code == 422 and "202" in e.value.detail
+    assert _kod(_kt, [(202, "   ")]) == 422
+
+
+def test_kisisel_test_telefonu_yalniz_ilk_oge_tek_numara(ortam):
+    giden, _ = ortam
+    _k_ogrenci(301, "Bir Ogr", "05553330001", veliler=["05553330002"])
+    _k_ogrenci(302, "Iki Ogr", "05553330003")
+    t = _kt([(999, "x"), (301, "Selam {ad}"), (302, "Selam {ad}")], test="05559998877")
+    assert t["test"] is True and t["alici_sayisi"] == 1 and t["bulunamayan"] == [999]
+    assert t["ornek_metin"] == "Selam Bir Ogr"
+    _kg(t["taslak_id"])
+    assert giden[0] == [("test", "05559998877", "Selam Bir Ogr")]
+    assert _kod(_kt, [(301, "x")], "123") == 422
+
+
+def test_kisisel_sure_ve_capraz_kullanim(ortam):
+    giden, saat = ortam
+    _k_ogrenci(401, "Dort Ogr", "05553330001")
+    _veli_ekle(["05551112233"])
+    k = _kt([(401, "m")])["taslak_id"]
+    v = _taslak()["taslak_id"]
+    o = _o_taslak()["taslak_id"] if False else None
+    assert _kod(_kg, v) == 404  # veli taslağı kişisel uçtan gönderilemez
+    assert _kod(_gonder, k) == 404 and _kod(_o_gonder, k) == 404  # tersi de
+    assert giden == []
+    saat["an"] = datetime(2026, 10, 5, 18, 31)
+    assert _kod(_kg, k) == 410 and giden == [] and o is None
+
+
+def test_eski_db_kisisel_tablo_olusur(ortam):
+    conn = db.baglanti()
+    conn.execute("DROP TABLE kisisel_taslaklari")
+    conn.commit()
+    conn.close()
+    aa.sema_kur()
+    conn = db.baglanti()
+    assert conn.execute("SELECT COUNT(*) c FROM kisisel_taslaklari").fetchone()["c"] == 0
+    conn.close()

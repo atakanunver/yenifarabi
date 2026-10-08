@@ -283,6 +283,7 @@ yalnızca İdare) makine API'si; kimlik `X-Sms-Arac-Key` (`config/arac.json`
 | `POST /api/arac/acil` | yönetime anında SMS |
 | `POST /api/arac/veli-taslak` → `POST /api/arac/veli-gonder` | veli SMS'i iki adımlı: taslak (alıcı sayısı + önizleme, 30 dk geçerli) → açık onay → gönderim |
 | `POST /api/arac/ogrenci-taslak` → `POST /api/arac/ogrenci-gonder` | aynı akış, alıcı = sınıfın telefonlu öğrencileri (2026-10-07, `kazanimtest/` test linki için). Taslaklar aynı `veli_taslaklari` tablosunda `tur` kolonuyla ayrılır; veli taslağı öğrenci ucundan gönderilemez (ve tersi). `ogrenci-taslak`a `test_telefon` verilirse sınıf yerine yalnızca o numaraya gider (deneme) |
+| `POST /api/arac/kisisel-taslak` → `POST /api/arac/kisisel-gonder` | kişiye özel SMS (2026-10-08, kazanım raporu): gövde `{ogeler:[{okul_no, metin_sablon}], test_telefon?}`; öğrenci YALNIZCA `kisiler.okul_no` ile bulunur (sınıf kullanılmaz), alıcı = öğrenci (telefonu varsa) + velileri, öğe içinde tekil; `{ad}` sunucuda doldurulur (`str.replace`), her metin ≤300. Yanıtta `bulunamayan`/`alicisiz` okul_no listeleri. `test_telefon` varsa yalnızca İLK bulunan öğe, yalnızca o numaraya. Ayrı `kisisel_taslaklari` tablosu (veli/öğrenci taslaklarıyla çapraz kullanılamaz); gönderimde alıcılar yeniden çözülür, tek `gonder` çağrısı, 30 dk geçerli |
 
 Gönderim mevcut modem göndericisiyle (`sms_gonderici.toplu_gonder`), sonuç
 `gonderimler` tablosuna (`/kayitlar`'da görünür). Testlerdeki telefonlar

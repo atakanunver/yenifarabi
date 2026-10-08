@@ -64,6 +64,15 @@ CREATE TABLE IF NOT EXISTS veli_taslaklari (
     tur TEXT NOT NULL DEFAULT 'veli',        -- veli|ogrenci (alıcı türü)
     test_telefon TEXT                        -- doluysa sınıf yerine yalnızca bu numara
 );
+CREATE TABLE IF NOT EXISTS kisisel_taslaklari (
+    id TEXT PRIMARY KEY,
+    ogeler TEXT NOT NULL,           -- JSON: [{okul_no, metin_sablon}]
+    alici_sayisi INTEGER NOT NULL,
+    olusturma TEXT NOT NULL,        -- TR yerel saat
+    durum TEXT NOT NULL DEFAULT 'taslak',    -- taslak|gonderildi
+    gonderim_id TEXT,
+    test_telefon TEXT
+);
 """
 
 
@@ -381,6 +390,11 @@ def _taslak_olustur(
     }
 
 
+def _suresi_doldu(olusturma: str) -> bool:
+    """Taslak ömrü (TR yerel saat, naive — simdi() ile aynı düzlemde)."""
+    return simdi() - datetime.strptime(olusturma, ZAMAN_BICIMI) > TASLAK_OMRU
+
+
 def _taslak_gonder(taslak_id: str, tur: str) -> dict:
     conn = db.baglanti()
     try:
@@ -392,7 +406,7 @@ def _taslak_gonder(taslak_id: str, tur: str) -> dict:
                 status_code=404,
                 detail="Gönderilmemiş böyle bir taslak yok; yeni taslak oluştur.",
             )
-        if simdi() - datetime.strptime(t["olusturma"], ZAMAN_BICIMI) > TASLAK_OMRU:
+        if _suresi_doldu(t["olusturma"]):
             raise HTTPException(
                 status_code=410, detail="Taslağın süresi doldu; yeni taslak oluştur."
             )
@@ -449,3 +463,135 @@ def ogrenci_taslak(istek: OgrenciTaslakIstek):
 @router.post("/ogrenci-gonder", dependencies=[Depends(anahtar_dogrula)])
 def ogrenci_gonder(istek: VeliGonderIstek):
     return _taslak_gonder(istek.taslak_id, "ogrenci")
+
+
+# --- Kişiye özel SMS (okul_no ile öğrenci + velileri; {ad} doldurulur) ---
+
+
+def _kisisel_alicilar(
+    conn, ogeler: list[dict], test_telefon: str | None = None
+) -> tuple[list[tuple[int, str, str, str]], list[int], list[int]]:
+    """(alıcılar, bulunamayan, alicisiz) döndürür. alıcı = (okul_no, ad, telefon, metin).
+    Eşleşme YALNIZCA okul_no ile (sınıf kullanılmaz). Telefonlar öğe içinde tekil.
+    test_telefon varsa yalnızca İLK bulunan öğe, yalnızca o numaraya."""
+    test_alici = _test_alicisi(test_telefon)[0] if test_telefon else None
+    liste, bulunamayan, alicisiz = [], [], []
+    for oge in ogeler:
+        no = int(oge["okul_no"])
+        ogr = conn.execute(
+            "SELECT id, ad_soyad, telefon FROM kisiler "
+            "WHERE tur = 'ogrenci' AND okul_no = ? ORDER BY id LIMIT 1",
+            (no,),
+        ).fetchone()
+        if ogr is None:
+            bulunamayan.append(no)
+            continue
+        try:
+            metin = _metin(str(oge["metin_sablon"]).replace("{ad}", ogr["ad_soyad"]), VELI_AZAMI)
+        except HTTPException as e:
+            raise HTTPException(
+                status_code=422, detail=f"okul_no {no}: {e.detail}"
+            ) from None
+        if test_alici is not None:
+            return [(no, test_alici[0], test_alici[1], metin)], bulunamayan, alicisiz
+        adaylar = [(ogr["ad_soyad"], ogr["telefon"] or "")]
+        adaylar += [(v["ad_soyad"], v["telefon"]) for v in db.veliler_ogrenci_ile(conn, ogr["id"])]
+        goruldu, oge_alicilari = set(), []
+        for ad, tel in adaylar:
+            tel = gonderim.normalize_phone(tel)
+            if gonderim.is_valid_phone(tel) and tel not in goruldu:
+                goruldu.add(tel)
+                oge_alicilari.append((no, ad, tel, metin))
+        if not oge_alicilari:
+            alicisiz.append(no)
+        liste += oge_alicilari
+    return liste, bulunamayan, alicisiz
+
+
+class KisiselOge(BaseModel):
+    okul_no: int
+    metin_sablon: str
+
+
+class KisiselTaslakIstek(BaseModel):
+    ogeler: list[KisiselOge]
+    test_telefon: str | None = None
+
+
+@router.post("/kisisel-taslak", dependencies=[Depends(anahtar_dogrula)])
+def kisisel_taslak(istek: KisiselTaslakIstek):
+    ogeler = [o.model_dump() for o in istek.ogeler]
+    test_tel = None
+    if istek.test_telefon:
+        test_tel = _test_alicisi(istek.test_telefon)[0][1]
+    conn = db.baglanti()
+    try:
+        liste, bulunamayan, alicisiz = _kisisel_alicilar(conn, ogeler, test_tel)
+        if not liste:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Alıcı bulunamadı (bulunamayan okul_no: {bulunamayan}, alıcısız: {alicisiz}).",
+            )
+        tid = secrets.token_hex(4)
+        conn.execute(
+            "INSERT INTO kisisel_taslaklari "
+            "(id, ogeler, alici_sayisi, olusturma, test_telefon) VALUES (?, ?, ?, ?, ?)",
+            (
+                tid,
+                json.dumps(ogeler, ensure_ascii=False),
+                len(liste),
+                simdi().strftime(ZAMAN_BICIMI),
+                test_tel,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {
+        "taslak_id": tid,
+        "oge_sayisi": len({a[0] for a in liste}),
+        "alici_sayisi": len(liste),
+        "bulunamayan": bulunamayan,
+        "alicisiz": alicisiz,
+        "ornek_metin": liste[0][3],
+        "test": test_tel is not None,
+        "gecerlilik_dk": int(TASLAK_OMRU.total_seconds() // 60),
+    }
+
+
+class KisiselGonderIstek(BaseModel):
+    taslak_id: str
+
+
+@router.post("/kisisel-gonder", dependencies=[Depends(anahtar_dogrula)])
+def kisisel_gonder(istek: KisiselGonderIstek):
+    conn = db.baglanti()
+    try:
+        t = conn.execute(
+            "SELECT * FROM kisisel_taslaklari WHERE id = ?", (istek.taslak_id,)
+        ).fetchone()
+        if t is None or t["durum"] != "taslak":
+            raise HTTPException(
+                status_code=404,
+                detail="Gönderilmemiş böyle bir taslak yok; yeni taslak oluştur.",
+            )
+        if _suresi_doldu(t["olusturma"]):
+            raise HTTPException(
+                status_code=410, detail="Taslağın süresi doldu; yeni taslak oluştur."
+            )
+        liste, _, _ = _kisisel_alicilar(conn, json.loads(t["ogeler"]), t["test_telefon"])
+        if not liste:
+            raise HTTPException(status_code=404, detail="Alıcı kalmadı.")
+        gid = gonder([(ad, tel, metin) for _, ad, tel, metin in liste])
+        conn.execute(
+            "UPDATE kisisel_taslaklari SET durum = 'gonderildi', gonderim_id = ? WHERE id = ?",
+            (gid, t["id"]),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {
+        "gonderim_id": gid,
+        "oge_sayisi": len({a[0] for a in liste}),
+        "alici_sayisi": len(liste),
+    }
