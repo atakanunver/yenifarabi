@@ -104,3 +104,15 @@ def denetim_yaz(conn, soru_id, durum, not_) -> None:
             (durum, not_, soru_id),
         )
     conn.commit()
+
+
+def kazanim_upsert(conn, k: dict) -> int:
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO kazanim (sinif, ders, hafta, kod, metin) VALUES (%s,%s,%s,%s,%s) "
+            "ON CONFLICT (sinif, ders, hafta, metin) DO UPDATE SET kod = EXCLUDED.kod RETURNING id",
+            (k["sinif"], k["ders"], k["hafta"], k["kod"], k["metin"]),
+        )
+        kid = cur.fetchone()[0]
+    conn.commit()
+    return kid

@@ -31,3 +31,18 @@ CREATE TABLE IF NOT EXISTS soru (
 );
 CREATE INDEX IF NOT EXISTS soru_oyun_idx ON soru (ders, sinif, durum, zorluk);
 CREATE INDEX IF NOT EXISTS birim_durum_idx ON kaynak_birim (durum, id);
+
+CREATE TABLE IF NOT EXISTS kazanim (
+    id      serial PRIMARY KEY,
+    sinif   smallint NOT NULL,
+    ders    text NOT NULL,
+    hafta   smallint NOT NULL,
+    kod     text,
+    metin   text NOT NULL,
+    durum   text NOT NULL DEFAULT 'aktif' CHECK (durum IN ('aktif', 'kaynak_yok')),
+    UNIQUE (sinif, ders, hafta, metin)
+);
+ALTER TABLE soru ADD COLUMN IF NOT EXISTS kazanim_id integer REFERENCES kazanim(id);
+ALTER TABLE soru ADD COLUMN IF NOT EXISTS kazanim_skor real;
+ALTER TABLE soru ADD COLUMN IF NOT EXISTS kazanim_kaynak text CHECK (kazanim_kaynak IN ('uretim', 'etiket'));
+CREATE INDEX IF NOT EXISTS soru_kazanim_idx ON soru (kazanim_id, durum);

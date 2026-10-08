@@ -15,7 +15,7 @@ from pathlib import Path
 
 import psycopg2
 
-from soruhavuzu import denetci, kaynaklar, tekrar, uretici, vt, zaman
+from soruhavuzu import denetci, kazanimlar, kaynaklar, tekrar, uretici, vt, zaman
 
 VERI = Path("/mnt/farabi-data/farabi")
 
@@ -131,6 +131,7 @@ def main() -> int:
     sub = parser.add_subparsers(dest="komut")
     sub.add_parser("kur")
     sub.add_parser("katalog")
+    sub.add_parser("kazanim-yukle").add_argument("--kuru", action="store_true")
     p_uret = sub.add_parser("uret")
     p_uret.add_argument("--sinif", type=int, default=None, help="Yalnızca belirtilen sınıf")
     p_uret.add_argument("--zorla", action="store_true", help="Ders saati kontrolünü atla")
@@ -145,6 +146,16 @@ def main() -> int:
     elif komut == "katalog":
         farabi = psycopg2.connect(host="127.0.0.1", dbname="farabi", user="farabi")
         print(kaynaklar.katalogla(conn, farabi, VERI / "kazanim_test", VERI / "yks"))
+    elif komut == "kazanim-yukle":
+        satirlar, atlanan = kazanimlar.oku()
+        if not args.kuru:
+            for k in satirlar:
+                vt.kazanim_upsert(conn, k)
+        print(
+            f"[kazanim-yukle] {len(satirlar)} satır{' (kuru)' if args.kuru else ''}; "
+            f"eşlenemeyen ders: {sorted(atlanan)}",
+            flush=True,
+        )
     elif komut == "uret":
         uret(conn, ders_saati_kontrol=not args.zorla, sinif=args.sinif)
     elif komut == "denetle":
