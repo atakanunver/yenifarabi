@@ -5,6 +5,18 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
 
+# Sistem talimatına eklenir (yerel_main + benchmark/v2_uctan_uca.py aynısını kullanır).
+YEREL_KURALLAR = (
+    "\n\n[YEREL SES KURALLARI] Konuşma diliyle, en fazla 2-3 kısa cümleyle cevap ver. "
+    "Yıldız, liste, başlık, numaralandırma, emoji KULLANMA — metin seslendirilecek. "
+    "Selamlaşma, hal hatır, teşekkür ve genel sohbette HİÇBİR ARAÇ ÇAĞIRMA; doğrudan cevap ver. "
+    "Öğretmenin sınıfa söylediği sözler de sohbettir, araç çağırma: örneğin "
+    "\"Çocuklar hazır mıyız, derse başlayalım mı?\" ya da \"İkinci soruya kim cevap vermek ister?\" "
+    "— bunlara kısa bir sözle karşılık ver. "
+    "Araç yalnızca öğretmen açıkça bir iş istediğinde (kitaba bak, ekrandaki soruyu oku, video aç, "
+    "yoklama al) çağrılır."
+)
+
 
 def _oku(alan: str, varsayilan: str) -> str:
     try:

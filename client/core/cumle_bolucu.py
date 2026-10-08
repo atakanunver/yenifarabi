@@ -2,17 +2,21 @@
 import re
 
 _KISALTMA = {"dr", "prof", "vb", "vs", "örn", "bkz", "sn", "av", "doç", "yrd", "no", "s", "sf"}
-_SON = re.compile(r"[.!?…]+")
+_SON = re.compile(r"[.!?…]+|,")
 
 
 class CumleBolucu:
     """`ekle` tamamlanan cümleleri döner. İlk cümle `ilk_en_az`, sonrakiler
-    `en_az` karakterden kısaysa bir sonrakiyle birleştirilir (TTS çağrısı azalır)."""
+    `en_az` karakterden kısaysa bir sonrakiyle birleştirilir (TTS çağrısı azalır).
+    İlk parça `ilk_virgul_en_az` karakteri bulunca virgülde de kesilir: ilk tam
+    cümlenin TTS'i ~2,5 sn sürüyordu, kısa ilk parça ilk sesi öne çeker."""
 
-    def __init__(self, ilk_en_az: int = 12, en_az: int = 25) -> None:
+    def __init__(self, ilk_en_az: int = 12, en_az: int = 25,
+                 ilk_virgul_en_az: int = 20) -> None:
         self._tampon = ""
         self._ilk = True
         self._ilk_en_az, self._en_az = ilk_en_az, en_az
+        self._ilk_virgul_en_az = ilk_virgul_en_az
 
     @staticmethod
     def _sinir_mi(metin: str, son: int) -> bool:
@@ -33,7 +37,11 @@ class CumleBolucu:
             if not self._sinir_mi(self._tampon, son):
                 continue
             aday = self._tampon[bas:son].strip()
-            if len(aday) >= (self._ilk_en_az if self._ilk else self._en_az):
+            if m.group() == ",":
+                esik = self._ilk_virgul_en_az if self._ilk else None
+            else:
+                esik = self._ilk_en_az if self._ilk else self._en_az
+            if esik is not None and len(aday) >= esik:
                 cikti.append(aday)
                 bas = son
                 self._ilk = False

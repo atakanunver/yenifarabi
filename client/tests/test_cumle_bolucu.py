@@ -35,3 +35,24 @@ def test_bitir_noktasiz_kalan():
 def test_bos():
     b = CumleBolucu()
     assert b.ekle("") == [] and b.bitir() == []
+
+
+def test_ilk_parca_uzun_virgulde_kesilir():
+    # Sohbette ilk ses gecikmesi: ilk tam cümlenin TTS'i ~2,5 sn sürüyordu.
+    assert parca_parca("Günaydın sevgili çocuklarım, bugün mitoz bölünmeyi işleyeceğiz.") == [
+        "Günaydın sevgili çocuklarım,", "bugün mitoz bölünmeyi işleyeceğiz."]
+
+
+def test_kisa_virgulde_kesilmez():
+    assert parca_parca("Evet, mitoz vücut hücrelerinde görülür.") == [
+        "Evet, mitoz vücut hücrelerinde görülür."]
+
+
+def test_yalniz_ilk_parca_virgulde_kesilir():
+    c = parca_parca("Çok güzel bir soru sordun. Mitoz bölünmede kromozomlar eşlenir, sonra ayrılır.")
+    assert c == ["Çok güzel bir soru sordun.", "Mitoz bölünmede kromozomlar eşlenir, sonra ayrılır."]
+
+
+def test_ondalik_virgulde_kesilmez():
+    assert parca_parca("Suyun yoğunluğu yaklaşık 1,5 değil tam bir gram.") == [
+        "Suyun yoğunluğu yaklaşık 1,5 değil tam bir gram."]

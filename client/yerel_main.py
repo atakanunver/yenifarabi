@@ -27,13 +27,7 @@ from main import CHANNELS, SEND_SAMPLE_RATE, FarabiLive, _ders_kipi
 log = get_logger("farabi.yerel")
 EN_KISA_KAYIT_SN = 0.4
 
-_YEREL_KURALLAR = (
-    "\n\n[YEREL SES KURALLARI] Konuşma diliyle, en fazla 2-3 kısa cümleyle cevap ver. "
-    "Yıldız, liste, başlık, numaralandırma, emoji KULLANMA — metin seslendirilecek. "
-    "Selamlaşma, hal hatır, teşekkür ve genel sohbette HİÇBİR ARAÇ ÇAĞIRMA; doğrudan cevap ver. "
-    "Araç yalnızca öğretmen açıkça bir iş istediğinde (kitaba bak, ekrandaki soruyu oku, video aç, "
-    "yoklama al) çağrılır."
-)
+_YEREL_KURALLAR = yerel_ayar.YEREL_KURALLAR
 
 
 @dataclass

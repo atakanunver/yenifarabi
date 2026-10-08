@@ -22,15 +22,12 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent))
 import v2_arac_testi as t  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).parent.parent / "client"))
+from core.cumle_bolucu import CumleBolucu  # noqa: E402 — istemcinin bölücüsüyle ölç
+from core.yerel_ayar import YEREL_KURALLAR  # noqa: E402
+
 SES = "http://bilgehan.local:8060"
 OLLAMA = "http://localhost:11434"
-YEREL_KURALLAR = (
-    "\n\n[YEREL SES KURALLARI] Konuşma diliyle, en fazla 2-3 kısa cümleyle cevap ver. "
-    "Yıldız, liste, başlık, numaralandırma, emoji KULLANMA — metin seslendirilecek. "
-    "Selamlaşma, hal hatır, teşekkür ve genel sohbette HİÇBİR ARAÇ ÇAĞIRMA; doğrudan cevap ver. "
-    "Araç yalnızca öğretmen açıkça bir iş istediğinde (kitaba bak, ekrandaki soruyu oku, video aç, "
-    "yoklama al) çağrılır."
-)
 KALIP = "Hemen bakıyorum hocam."
 
 
@@ -71,7 +68,7 @@ def bir_tur(cumle, kip, beklenen, alternatif, araclar):
     r = urllib.request.Request(f"{OLLAMA}/api/chat", data=json.dumps(govde).encode(),
                                headers={"Content-Type": "application/json"})
     ilk_token = ilk_ses = None
-    tampon, secilen = "", None
+    bolucu, secilen = CumleBolucu(), None
     with urllib.request.urlopen(r, timeout=120) as y:
         for satir in y:
             o = json.loads(satir)
@@ -83,14 +80,15 @@ def bir_tur(cumle, kip, beklenen, alternatif, araclar):
                 if ilk_ses is None:
                     tts(KALIP)
                     ilk_ses = (time.perf_counter() - t0) * 1000
-            tampon += m.get("content") or ""
-            if ilk_ses is None and len(tampon) >= 12 and any(p in tampon for p in ".!?"):
-                tts(tampon.strip())
+            hazir = bolucu.ekle(m.get("content") or "")
+            if ilk_ses is None and hazir:
+                tts(hazir[0])
                 ilk_ses = (time.perf_counter() - t0) * 1000
             if o.get("done"):
                 break
-    if ilk_ses is None and tampon.strip():
-        tts(tampon.strip())
+    kalan = bolucu.bitir()
+    if ilk_ses is None and kalan:
+        tts(kalan[0])
         ilk_ses = (time.perf_counter() - t0) * 1000
     return {"cumle": cumle, "kip": kip, "stt_metin": metin, "stt_ms": round(stt_ms),
             "ilk_token_ms": round(ilk_token or -1), "ilk_ses_ms": round(ilk_ses or -1),
