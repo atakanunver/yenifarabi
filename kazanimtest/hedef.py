@@ -82,6 +82,7 @@ def hedefler(
     if hafta is None:
         return []
     izinli = {d for d in ayar.get("dersler", [])}
+    duzeyler = set(ayar.get("duzeyler") or [])  # boş/yok = tüm düzeyler
     sonuc: list[Hedef] = []
     for sn, gunler in sorted(program.get("siniflar", {}).items()):
         if sinif and sn != sinif:
@@ -89,6 +90,8 @@ def hedefler(
         try:
             duzey = int(sn.split("-")[0])
         except ValueError:
+            continue
+        if duzeyler and duzey not in duzeyler:
             continue
         gders = gunler.get(gun_adi) if isinstance(gunler, dict) else None
         if not isinstance(gders, dict):

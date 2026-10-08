@@ -1,5 +1,6 @@
 {
-  "dersler": [],
+  "dersler": ["kimya", "matematik", "biyoloji"],
+  "duzeyler": [9, 10],
   "soru_sayisi": 10,
   "min_soru": 5,
   "aday_azami": 30,

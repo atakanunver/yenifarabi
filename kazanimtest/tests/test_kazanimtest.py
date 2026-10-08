@@ -29,6 +29,13 @@ def test_hedef_beyaz_liste_ve_esleme():
     assert hedef.hedefler(date(2026, 10, 10), {"dersler": ["tarih"]}, program=PROGRAM, kz=KZ) == []  # hafta sonu
 
 
+def test_hedef_duzey_suzgeci():
+    ayar = {"dersler": ["fizik", "biyoloji"], "duzeyler": [9, 10]}
+    assert [(x.sinif, x.ders) for x in hedef.hedefler(SALI, ayar, program=PROGRAM, kz=KZ)] == [("9-A", "biyoloji")]
+    ayar["duzeyler"] = []  # boş = tümü
+    assert len(hedef.hedefler(SALI, ayar, program=PROGRAM, kz=KZ)) == 2
+
+
 def test_agy_dusus_ve_secim():
     ad = [_aday(i) for i in range(5)]
     def kotu(*a, **k):
