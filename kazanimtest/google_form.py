@@ -32,12 +32,16 @@ def govde(anahtar: str, baslik: str, aciklama: str, sorular: list[dict], puan: i
 def form_olustur(gizli: dict, baslik: str, aciklama: str, sorular: list[dict], istemci=None) -> dict:
     """{form_url, form_kisa_url, form_id, tablo_url} döner; hata → FormHatasi."""
     k = istemci or httpx
+    # Okul ağı SSL-inceleme yapıyor (MEB-CERT, Python katı X509 kipinde reddediliyor);
+    # Google'a Müdür PC WifiHttpProxy'si üzerinden gidilir (gizli.json::proxy).
+    ek = {"proxy": gizli["proxy"]} if gizli.get("proxy") else {}
     try:
         r = k.post(
             gizli["script_url"],
             json=govde(gizli["anahtar"], baslik, aciklama, sorular),
             follow_redirects=True,
             timeout=120,
+            **ek,
         )
         veri = r.json()
     except (httpx.HTTPError, ValueError) as e:

@@ -22,6 +22,10 @@ Haftanın yıllık plan kazanımına göre soru seçer (MEB `kazanim_test_soru` 
 - `--sms-test`: `--sms` ile aynı akış ama taslağa `gizli.json::test_telefon` eklenir → SMS sınıfa değil yalnızca o numaraya gider (alan yoksa hata, SMS atılmaz; test gönderimi `sms_gonderim_id` işaretlemez). Numara yalnızca gitignore'lu gizli.json'a yazılır, repoya asla.
 - Timer `systemd/kazanim-test.{service,timer}` `/etc/systemd/system/`'e elle kopyalanır; ilk
   haftalarda `--sms` YOK. Birim değişirse oraya da kopyala.
+- **Google'a proxy ile gidilir** (`gizli.json::proxy` = Müdür PC WifiHttpProxy, ollama.service'teki
+  `HTTPS_PROXY` ile aynı). Doğrudan bağlantı okulun SSL incelemesine takılıyor (certifi: "self-signed";
+  sistem deposu: Python 3.14 katı X509 "Missing Authority Key Identifier"). Proxy kapalıysa form açılmaz.
+- Apps Script 401 + "Sayfa Bulunamadı / dosyayı açamıyoruz" döndürürse: dağıtımın erişimi "Herkes" değil.
 - Gizlilik: Google'a yalnızca soru metinleri + "Okul numarası" alanı ve cevapları gider; ad/telefon gitmez.
 
 ## Apps Script kurulumu (bir kez, okulun Google hesabıyla)

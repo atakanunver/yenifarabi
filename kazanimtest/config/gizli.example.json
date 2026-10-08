@@ -2,5 +2,6 @@
   "script_url": "https://script.google.com/macros/s/ORNEK_SAHTE_ID/exec",
   "anahtar": "ornek-apps-script-anahtari",
   "sms_arac_anahtar": "ornek-sms-arac-anahtari",
-  "test_telefon": "05XXXXXXXXX"
+  "test_telefon": "05XXXXXXXXX",
+  "proxy": "http://kullanici:sifre@192.168.23.243:8080"
 }
