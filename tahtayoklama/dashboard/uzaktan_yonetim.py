@@ -24,6 +24,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from PIL import Image
 
+import menu
 import auth
 import db
 import ssh_istemci
@@ -35,6 +36,7 @@ _ISTANBUL = ZoneInfo("Europe/Istanbul")
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["menu_agaci"] = menu.menu_agaci  # taban.html (2026-10-08)
 templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk
 
 _GORSEL_UZANTILARI = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}

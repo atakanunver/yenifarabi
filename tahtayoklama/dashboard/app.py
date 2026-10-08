@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.gzip import GZipMiddleware
 
+import menu
 import admin
 import ajan_api
 import okul_bilgisi
@@ -34,6 +35,7 @@ import yoklayici
 import zil
 
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["menu_agaci"] = menu.menu_agaci  # taban.html (2026-10-08)
 templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk
 
 _SINIF_AD_RE = re.compile(r"^(\d+)-([A-Za-z]+)$")

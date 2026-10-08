@@ -26,6 +26,7 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import menu
 import auth
 import db
 import uzaktan_yonetim
@@ -36,6 +37,7 @@ from fastapi.templating import Jinja2Templates
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["menu_agaci"] = menu.menu_agaci  # taban.html (2026-10-08)
 templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk  # taban.html kullanıyor
 
 BETIK = "/usr/local/sbin/okul-sunucu"

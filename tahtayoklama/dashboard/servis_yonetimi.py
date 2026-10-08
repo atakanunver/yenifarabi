@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+import menu
 import auth
 import db
 import tahta_yeniden_baslat
@@ -24,6 +25,7 @@ import zil
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["menu_agaci"] = menu.menu_agaci  # taban.html (2026-10-08)
 templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk  # taban.html kullanır
 KAPSAM_JSON = Path("/mnt/farabi-data/farabi/kazanim_testleri/rapor/kapsam.json")
 
