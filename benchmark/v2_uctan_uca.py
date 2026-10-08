@@ -95,7 +95,7 @@ def bir_tur(cumle, kip, beklenen, alternatif, araclar):
     return {"cumle": cumle, "kip": kip, "stt_metin": metin, "stt_ms": round(stt_ms),
             "ilk_token_ms": round(ilk_token or -1), "ilk_ses_ms": round(ilk_ses or -1),
             "beklenen": beklenen, "alternatif": alternatif, "secilen": secilen,
-            "dogru": secilen in {beklenen, alternatif} if beklenen else secilen is None}
+            "dogru": secilen in {beklenen, alternatif} - {None} if beklenen else secilen is None}
 
 
 def main():
