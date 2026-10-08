@@ -1,3 +1,9 @@
+## 2026-10-08 - farabi ve bilgehan saat dilimi UTC → Europe/Istanbul (kullanıcı isteği)
+- `timedatectl set-timezone Europe/Istanbul` (farabi: sudo; bilgehan: `sudo -S`). debian, zil, tahtalar, Müdür PC zaten İstanbul.
+- Zamanlayıcılar ETKİLENMEDİ: hepsinin `OnCalendar`'ı açık `UTC` ekli (ör. `13:30:00 UTC`); değişiklik öncesi/sonrası `list-timers` next değerleri birebir aynı. CLAUDE.md'deki "14:15 UTC = 17:15 TR" notları geçerli.
+- Kodda sistem dilimine bağlı zaman yok (server, dashboard, smssistemi, soruhavuzu, kazanimtest, openwebui, arenasinif taraması — hepsi açık İstanbul). Journal artık TR saatiyle görünür; çalışan servislerin kendi log zaman damgaları restart'a kadar UTC kalabilir.
+- PostgreSQL `timezone` BİLEREK UTC bırakıldı: değişirse `timestamp without time zone` + `now()` sütunlarına yerel saat yazılmaya başlar, eski veriyle karışır.
+
 ## 2026-10-08 - soru-havuzu-uret failed: AGY denetim istemi E2BIG (tek argüman > 128 KB)
 - Kök neden: `denetci.agy_cagir` istemi `agy -p <istem>` ile ARGÜMAN olarak veriyor; kaynakları farklı 100 soruluk bir pakette (soru başına ≤2500 kr kaynak) istem Linux `MAX_ARG_STRLEN`'i (131072 bayt) aştı → `OSError: [Errno 7] Argument list too long`, 2026-10-07 23:01 UTC, 8 saatlik çalışmanın sonundaki denetimde.
 - Tuzak: `agy -p -` stdin OKUMUYOR — "-"yi istemin kendisi sanıp "gereksinimleri paylaşır mısınız" diye cevaplıyor (2026-10-08 denendi). Bu yolla süreç çökmez ama her paket sessizce 0 karar döner.
