@@ -11,6 +11,7 @@ import json
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import numpy as np
 
@@ -70,7 +71,7 @@ def main() -> None:
                   f"yeterli {yeterli:>2} zayıf {zayif:>2} boş {bos:>2}", flush=True)
     conn.close()
     CIKTI.parent.mkdir(parents=True, exist_ok=True)
-    CIKTI.write_text(json.dumps({"uretim": datetime.now().isoformat(timespec="seconds"),
+    CIKTI.write_text(json.dumps({"uretim": datetime.now(ZoneInfo("Europe/Istanbul")).isoformat(timespec="seconds"),
                                  "esik": ESIK, "yeterli_soru": YETERLI, "sonuc": sonuc},
                                 ensure_ascii=False, indent=1), encoding="utf-8")
     print("yazıldı:", CIKTI)
