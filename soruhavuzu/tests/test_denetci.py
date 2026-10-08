@@ -66,3 +66,22 @@ def test_cift_yazilmis_response_ilk_nesne_alinir():
 
 def test_istem_ders_disi_kurali_icerir():
     assert "ders dışı" in denetci.istem([])
+
+
+def test_istem_tek_arguman_sinirini_asmaz_kalan_sonraki_pakete(conn):
+    # 2026-10-07 23:01: 100 soruluk paketin istemi (her biri ayrı ~2500 kr kaynak)
+    # Linux'un tek argüman sınırını (131072 bayt) aştı → OSError E2BIG, servis failed.
+    idler = []
+    for i in range(80):
+        bid = vt.birim_ekle(conn, "kitap", f"k:{i}", "matematik", 12, "E", "çğüşöı" * 420)
+        idler.append(vt.soru_ekle(conn, bid, {**ORNEK_SORU, "soru": f"soru {i}?"}))
+    istemler = []
+
+    def sahte(istem, zaman_asimi_sn=900):
+        istemler.append(istem)
+        return _agy_cikti([])
+
+    denetci.paket_denetle(conn, 100, cagir=sahte)
+    assert len(istemler) == 1
+    assert len(istemler[0].encode()) <= denetci.ISTEM_AZAMI_BAYT
+    assert "soru 0?" in istemler[0] and "soru 79?" not in istemler[0]

@@ -14,6 +14,11 @@ AGY = "/home/ata/.local/bin/agy"
 SEMA = Path(__file__).with_name("agy_sema.json")
 CALISMA_DIZINI = Path("/tmp/soruhavuzu-agy")
 METIN_AZAMI = 2500
+# Linux tek argüman sınırı MAX_ARG_STRLEN = 131072 bayt; istem agy'ye `-p <istem>` ile
+# argüman olarak gider. 2026-10-07 23:01'de 100 soruluk, kaynakları farklı bir paket
+# bunu aştı → OSError E2BIG, servis failed. agy `-p -` ile stdin OKUMUYOR ("-"yi istem
+# sanıyor, 2026-10-08 denendi) — bu yüzden paket bayt sınırına göre küçültülür.
+ISTEM_AZAMI_BAYT = 120_000
 
 
 def istem(paket: list[dict]) -> str:
@@ -101,7 +106,11 @@ def paket_denetle(conn, boyut: int = 100, cagir=agy_cagir) -> int:
     for s in paket:
         if isinstance(s["secenekler"], str):
             s["secenekler"] = json.loads(s["secenekler"])
-    kararlar = yaniti_coz(cagir(istem(paket)), {s["id"] for s in paket})
+    metin = istem(paket)
+    while len(metin.encode()) > ISTEM_AZAMI_BAYT and len(paket) > 1:
+        paket = paket[: max(1, len(paket) * 9 // 10)]  # kalanlar sonraki pakete
+        metin = istem(paket)
+    kararlar = yaniti_coz(cagir(metin), {s["id"] for s in paket})
     for sid, (gecerli, neden) in kararlar.items():
         vt.denetim_yaz(conn, sid, "onayli" if gecerli else "red", f"agy: {neden}")
     return len(kararlar)
