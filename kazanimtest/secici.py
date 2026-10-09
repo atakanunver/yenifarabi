@@ -23,13 +23,34 @@ def baglan(dbname: str):
     return psycopg2.connect(host="127.0.0.1", dbname=dbname, user="farabi")
 
 
+class _UzakGomucu:
+    """bilgehan GPU bge-m3 servisi (uzak_model) — encode(metin, normalize_embeddings=...) arayüzü."""
+
+    def __init__(self, uzak):
+        self._u = uzak
+
+    def encode(self, metin, normalize_embeddings=True):
+        return self._u.encode(metin, normalize_embeddings=normalize_embeddings)
+
+
 def gomme_modeli():
+    """2026-10-08: bilgehan GPU servisi (FARABI_EMBED_URL) varsa oradan; yoksa yerel CPU (eski yol)."""
     global _MODEL
     if _MODEL is None:
         os.environ.setdefault("HF_HUB_OFFLINE", "1")
-        from sentence_transformers import SentenceTransformer
+        import sys
+        from pathlib import Path
 
-        _MODEL = SentenceTransformer(EMBED_MODEL, device="cpu")
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "server"))
+        from uzak_model import ayar_oku, toplu_gomme_modeli
+
+        url, _ = ayar_oku()
+        if url:
+            _MODEL = _UzakGomucu(toplu_gomme_modeli(EMBED_MODEL))
+        else:
+            from sentence_transformers import SentenceTransformer
+
+            _MODEL = SentenceTransformer(EMBED_MODEL, device="cpu")
     return _MODEL
 
 

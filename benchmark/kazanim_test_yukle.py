@@ -61,6 +61,9 @@ import psycopg2.extras
 from pgvector.psycopg2 import register_vector
 from sentence_transformers import SentenceTransformer
 
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "server"))
+
 from kazanim_test_parse import baslik_bilgisi_cikar, ders_dosya_adindan, konu_cikar, sorulari_ayir
 
 KAYNAK_DIZIN = Path("/mnt/farabi-data/farabi/kazanim_test")
@@ -177,8 +180,16 @@ def main() -> int:
         print("--dry-run: DB'ye yazılmadı." if a.dry_run else "Yazılacak soru yok.")
         return 0
 
-    print(f"Tokenizer + model yükleniyor ({MODEL_ADI}, CPU)…")
-    model = SentenceTransformer(MODEL_ADI, device="cpu")
+    # 2026-10-08: bilgehan'ın GPU'lu bge-m3 servisi varsa oradan gömülür (CPU'da 3.930 soru saatler sürdü).
+    # Ayar yoksa eski yerel CPU yolu. Uzak ve yerel model aynı 1024 boyutlu vektörü üretir.
+    from uzak_model import ayar_oku, toplu_gomme_modeli
+    _url, _ = ayar_oku()
+    if _url:
+        print(f"Gömme uzakta (bilgehan GPU): {_url}", flush=True)
+        model = toplu_gomme_modeli(MODEL_ADI)
+    else:
+        print(f"Tokenizer + model yükleniyor ({MODEL_ADI}, CPU)…", flush=True)
+        model = SentenceTransformer(MODEL_ADI, device="cpu")
 
     import json as _json
 
