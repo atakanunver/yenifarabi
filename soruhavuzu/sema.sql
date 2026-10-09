@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS soru (
     zorluk           smallint NOT NULL CHECK (zorluk BETWEEN 1 AND 4),
     kaynak           text NOT NULL,
     durum            text NOT NULL DEFAULT 'uretildi'
-                     CHECK (durum IN ('uretildi', 'onayli', 'red', 'kopya')),
+                     CHECK (durum IN ('uretildi', 'onayli', 'red', 'kopya', 'askida')),
     denetim_notu     text,
     olusturma        timestamptz NOT NULL DEFAULT now(),
     denetim_at       timestamptz,
@@ -46,3 +46,15 @@ ALTER TABLE soru ADD COLUMN IF NOT EXISTS kazanim_id integer REFERENCES kazanim(
 ALTER TABLE soru ADD COLUMN IF NOT EXISTS kazanim_skor real;
 ALTER TABLE soru ADD COLUMN IF NOT EXISTS kazanim_kaynak text CHECK (kazanim_kaynak IN ('uretim', 'etiket'));
 CREATE INDEX IF NOT EXISTS soru_kazanim_idx ON soru (kazanim_id, durum);
+
+-- Öğretmen geri bildirimi (2026-10-09): soru hatalı / cevap yanlış / kazanım uyumsuz.
+-- Bildirim yapan kişi bireysel değil, "Öğretmen" ortak hesabı; öğrenci verisi yok.
+CREATE TABLE IF NOT EXISTS soru_geri_bildirim (
+    id          bigserial PRIMARY KEY,
+    soru_id     bigint NOT NULL REFERENCES soru(id),
+    tur         text NOT NULL CHECK (tur IN ('soru_hatali', 'cevap_yanlis', 'kazanim_uyumsuz', 'diger')),
+    not_metni   text,
+    tarih       timestamptz NOT NULL DEFAULT now(),
+    durum       text NOT NULL DEFAULT 'acik' CHECK (durum IN ('acik', 'cozuldu'))
+);
+CREATE INDEX IF NOT EXISTS geri_bildirim_soru_idx ON soru_geri_bildirim (soru_id, durum);

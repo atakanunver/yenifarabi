@@ -1,12 +1,12 @@
 [Unit]
-Description=Soru havuzu gece üretimi (yerel Ollama qwen3.8:27b) — ders saatinde kendiliğinden durur, bitince AGY denetimini bir kez başlatır
+Description=Soru havuzu gece üretimi (yerel Ollama qwen3.8:27b) — ders saatinde kendiliğinden durur; AGY denetimi yok (kota), denetim bulut LLM ile sonra
 After=ollama.service postgresql.service network-online.target
 
 [Service]
 Type=simple
 User=ata
 WorkingDirectory=/home/ata/farabi
-ExecStart=/home/ata/farabi/server/venv/bin/python -m soruhavuzu.calistir uret
+ExecStart=/home/ata/farabi/server/venv/bin/python -m soruhavuzu.calistir uret --denetimsiz
 Nice=15
 CPUSchedulingPolicy=batch
 CPUWeight=20

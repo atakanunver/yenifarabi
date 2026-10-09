@@ -108,3 +108,22 @@ def test_uret_bulucu_hatasinda_farabi_baglantisi_rollback_edilir(conn, monkeypat
     calistir.uret(conn, ders_saati_kontrol=False, farabi_conn=FarabiConn(), bulucu=bulucu,
                   ureten=lambda k, kay: [], bugun=date(2026, 10, 13))
     assert FarabiConn.rollback_sayisi >= 1
+
+
+def test_isaretle_son_kazanimi_yazar(tmp_path, monkeypatch):
+    import json
+
+    hedef = tmp_path / "uret_durum.json"
+    monkeypatch.setattr(calistir, "DURUM_DOSYASI", hedef)
+    calistir._isaretle({"id": 42, "sinif": 10, "ders": "matematik", "hafta": 3}, "uretim", 5)
+    veri = json.loads(hedef.read_text(encoding="utf-8"))
+    assert veri["son_kazanim_id"] == 42
+    assert veri["son_durum"] == "uretim"
+    assert veri["son_eklenen"] == 5
+
+
+def test_isaretle_yazilamazsa_uretimi_durdurmaz(tmp_path, monkeypatch):
+    engel = tmp_path / "dosya"
+    engel.write_text("x", encoding="utf-8")  # üst dizin bir dosya: mkdir başarısız olur
+    monkeypatch.setattr(calistir, "DURUM_DOSYASI", engel / "uret_durum.json")
+    calistir._isaretle({"id": 1, "sinif": 9, "ders": "fizik", "hafta": 1}, "kaynak_yok", 0)

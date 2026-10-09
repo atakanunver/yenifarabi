@@ -9,8 +9,10 @@ uret     ders saati dışında çalışır. Başlangıçta ve (pencere hâlâ a�
 denetle  AGY ile tüm 'uretildi' soruları tek seferde denetler (elle; sınırsız)
 durum    özet sayılar (sınıf başına onaylı dahil)"""
 
+import json
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 import psycopg2
@@ -18,6 +20,27 @@ import psycopg2
 from soruhavuzu import denetci, etiketle, kazanimlar, kaynak, kaynaklar, tekrar, uretici, vt, zaman
 
 VERI = Path("/mnt/farabi-data/farabi")
+# Kaldığı yer işareti (2026-10-09): her kazanım sonunda yazılır, yeniden başlayınca okunur.
+# Asıl gerçek kaynak veritabanıdır (soru.kazanim_id, kazanim.durum); bu dosya insan için okunur bir özet.
+DURUM_DOSYASI = VERI / "soru_havuzu" / "uret_durum.json"
+
+
+def _isaretle(k: dict, durum: str, eklenen: int = 0) -> None:
+    """Son işlenen kazanımı durum dosyasına yazar. Yazılamazsa üretimi durdurmaz."""
+    veri = {
+        "guncelleme": datetime.now(zaman.TR).isoformat(timespec="seconds"),
+        "son_kazanim_id": k["id"],
+        "son_sinif": k["sinif"],
+        "son_ders": k["ders"],
+        "son_hafta": k["hafta"],
+        "son_durum": durum,
+        "son_eklenen": eklenen,
+    }
+    try:
+        DURUM_DOSYASI.parent.mkdir(parents=True, exist_ok=True)
+        DURUM_DOSYASI.write_text(json.dumps(veri, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError as e:
+        print(f"[uret] durum dosyası yazılamadı: {e}", flush=True)
 
 # Artımlı denetim bütçesi (uret içinde, tur başına); hangisi önce dolarsa durur.
 DENETIM_AZAMI_PAKET = 8  # paket = 100 soru
@@ -32,6 +55,7 @@ def uret(
     bulucu=None,
     ureten=None,
     bugun=None,
+    denetim: bool = True,
 ) -> None:
     """2026-10-08: kazanım öncelikli — her soru bir kazanımla (spec soru-havuzu-kazanim-eslesmesi)."""
     bulucu = bulucu or kaynak.bul
@@ -41,8 +65,13 @@ def uret(
     eleyici.yukle(conn)
     farabi_conn = farabi_conn or psycopg2.connect(host="127.0.0.1", dbname="farabi", user="farabi")
     haftalar = kazanimlar.haftalar()
+    try:
+        onceki = DURUM_DOSYASI.read_text(encoding="utf-8")
+        print(f"[uret] önceki işaret: {' '.join(onceki.split())[:300]}", flush=True)
+    except OSError:
+        pass  # ilk çalıştırma ya da dosya yok: veritabanından devam edilir
     denenen: dict[int, int] = {}
-    if ders_saati_kontrol:
+    if ders_saati_kontrol and denetim:
         denetle(conn, DENETIM_AZAMI_PAKET, DENETIM_AZAMI_DK, ders_saati_kontrol=True)
     while not ders_saati_kontrol or zaman.uretim_serbest():
         gun = bugun or zaman.bugun_istanbul()
@@ -52,7 +81,8 @@ def uret(
             continue
         if k is None:
             print("[uret] bütün kazanımlar hedefte ya da denendi — denetim", flush=True)
-            denetle(conn, ders_saati_kontrol=ders_saati_kontrol)
+            if denetim:
+                denetle(conn, ders_saati_kontrol=ders_saati_kontrol)
             return
         denenen[k["id"]] = denenen.get(k["id"], 0) + 1
         t0 = time.perf_counter()
@@ -61,6 +91,7 @@ def uret(
             if kay is None:
                 vt.kazanim_isaretle(conn, k["id"], "kaynak_yok")
                 print(f"[uret] kaynak yok: {k['sinif']} {k['ders']} — {k['metin'][:60]}", flush=True)
+                _isaretle(k, "kaynak_yok")
                 continue
             bid = vt.birim_ekle(
                 conn,
@@ -83,13 +114,15 @@ def uret(
                 f"{time.perf_counter() - t0:.0f} sn — {k['metin'][:50]}",
                 flush=True,
             )
+            _isaretle(k, "uretim", eklenen)
         except Exception as e:  # noqa: BLE001 — tek kazanımın hatası geceyi durdurmasın
             conn.rollback()
             if hasattr(farabi_conn, "rollback"):
                 farabi_conn.rollback()  # aborted işlem sonraki kazanımları bozmasın
             print(f"[uret] HATA kazanım {k['id']}: {type(e).__name__}: {e}", flush=True)
+            _isaretle(k, "hata")
     print("[uret] ders saati penceresi — durduruldu", flush=True)
-    if ders_saati_kontrol:
+    if ders_saati_kontrol and denetim:
         denetle(conn, DENETIM_AZAMI_PAKET, DENETIM_AZAMI_DK, ders_saati_kontrol=True)
 
 
@@ -162,6 +195,7 @@ def main() -> int:
     p_uret = sub.add_parser("uret")
     p_uret.add_argument("--sinif", type=int, default=None, help="Yalnızca belirtilen sınıf")
     p_uret.add_argument("--zorla", action="store_true", help="Ders saati kontrolünü atla")
+    p_uret.add_argument("--denetimsiz", action="store_true", help="AGY denetimini atla (yalnızca üretim)")
     sub.add_parser("denetle")
     sub.add_parser("durum")
 
@@ -193,7 +227,7 @@ def main() -> int:
             flush=True,
         )
     elif komut == "uret":
-        uret(conn, ders_saati_kontrol=not args.zorla, sinif=args.sinif)
+        uret(conn, ders_saati_kontrol=not args.zorla, sinif=args.sinif, denetim=not args.denetimsiz)
     elif komut == "denetle":
         denetle(conn)
     else:
