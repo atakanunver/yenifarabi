@@ -8,7 +8,7 @@ def conn():
     c = vt.baglan("soru_havuzu_test")
     vt.sema_kur(c)
     with c.cursor() as cur:
-        cur.execute("TRUNCATE soru, kaynak_birim RESTART IDENTITY CASCADE")
+        cur.execute("TRUNCATE soru, kaynak_birim, kazanim RESTART IDENTITY CASCADE")
     c.commit()
     yield c
     c.close()

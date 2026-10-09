@@ -85,3 +85,14 @@ def test_istem_tek_arguman_sinirini_asmaz_kalan_sonraki_pakete(conn):
     assert len(istemler) == 1
     assert len(istemler[0].encode()) <= denetci.ISTEM_AZAMI_BAYT
     assert "soru 0?" in istemler[0] and "soru 79?" not in istemler[0]
+
+
+def test_istem_kazanim_satiri_ve_kurali(conn):
+    k = vt.kazanim_upsert(conn, {"sinif": 12, "ders": "matematik", "hafta": 1, "kod": "12.1", "metin": "12.1. Logaritma"})
+    bid = vt.birim_ekle(conn, "kitap", "k:1", "matematik", 12, "E", "metin")
+    vt.soru_ekle(conn, bid, ORNEK_SORU, kazanim_id=k, kazanim_kaynak="uretim")
+    vt.soru_ekle(conn, bid, {**ORNEK_SORU, "soru": "eski?"})
+    paket = vt.denetlenecekler(conn, 10)
+    metin = denetci.istem(paket)
+    assert "Kazanım: 12.1. Logaritma" in metin and "kazanım dışı" in metin
+    assert metin.count("Kazanım:") == 1

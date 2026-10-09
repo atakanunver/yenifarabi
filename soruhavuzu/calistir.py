@@ -15,7 +15,7 @@ from pathlib import Path
 
 import psycopg2
 
-from soruhavuzu import denetci, kaynaklar, tekrar, uretici, vt, zaman
+from soruhavuzu import denetci, etiketle, kazanimlar, kaynak, kaynaklar, tekrar, uretici, vt, zaman
 
 VERI = Path("/mnt/farabi-data/farabi")
 
@@ -24,44 +24,70 @@ DENETIM_AZAMI_PAKET = 8  # paket = 100 soru
 DENETIM_AZAMI_DK = 45
 
 
-def uret(conn, ders_saati_kontrol: bool = True, sinif: int | None = None) -> None:
-    eleyici = tekrar.Eleyici(tekrar._gomucu())
+def uret(
+    conn,
+    ders_saati_kontrol: bool = True,
+    sinif: int | None = None,
+    farabi_conn=None,
+    bulucu=None,
+    ureten=None,
+    bugun=None,
+) -> None:
+    """2026-10-08: kazanım öncelikli — her soru bir kazanımla (spec soru-havuzu-kazanim-eslesmesi)."""
+    bulucu = bulucu or kaynak.bul
+    ureten = ureten or uretici.uret_kazanim
+    gomucu = tekrar._gomucu()
+    eleyici = tekrar.Eleyici(gomucu)
     eleyici.yukle(conn)
-    # Hafta içi pencere sabah 07:30'da kapandığı için döngü sonunda denetime zaman kalmaz;
-    # bu yüzden üretimden ÖNCE de (ders saati dışındayken) sınırlı bir dilim denetlenir.
+    farabi_conn = farabi_conn or psycopg2.connect(host="127.0.0.1", dbname="farabi", user="farabi")
+    haftalar = kazanimlar.haftalar()
+    denenen: dict[int, int] = {}
     if ders_saati_kontrol:
         denetle(conn, DENETIM_AZAMI_PAKET, DENETIM_AZAMI_DK, ders_saati_kontrol=True)
     while not ders_saati_kontrol or zaman.uretim_serbest():
-        birim = vt.siradaki_birim(conn, sinif=sinif)
-        if birim is None:
-            print(
-                "[uret] bütün birimler işlendi — AGY tek seferlik denetim başlıyor",
-                flush=True,
-            )
+        gun = bugun or zaman.bugun_istanbul()
+        k = vt.siradaki_kazanim(conn, gun, haftalar, {i for i, n in denenen.items() if n >= 2})
+        if k is not None and sinif is not None and k["sinif"] != sinif:
+            denenen[k["id"]] = 2
+            continue
+        if k is None:
+            print("[uret] bütün kazanımlar hedefte ya da denendi — denetim", flush=True)
             denetle(conn, ders_saati_kontrol=ders_saati_kontrol)
             return
+        denenen[k["id"]] = denenen.get(k["id"], 0) + 1
         t0 = time.perf_counter()
         try:
-            sorular = uretici.uret(birim)
+            kay = bulucu(farabi_conn, gomucu, k["sinif"], k["ders"], k["metin"])
+            if kay is None:
+                vt.kazanim_isaretle(conn, k["id"], "kaynak_yok")
+                print(f"[uret] kaynak yok: {k['sinif']} {k['ders']} — {k['metin'][:60]}", flush=True)
+                continue
+            bid = vt.birim_ekle(
+                conn,
+                "kitap",
+                f"kazanim:{k['id']}:{','.join(map(str, kay['chunk_idler']))}",
+                k["ders"],
+                k["sinif"],
+                kay["etiket"],
+                kay["metin"],
+            )
+            if bid is None:  # aynı anahtar daha önce eklenmiş
+                bid = vt.birim_bul(conn, f"kazanim:{k['id']}:{','.join(map(str, kay['chunk_idler']))}")
             eklenen = 0
-            for s in sorular:
+            for s in ureten(k, kay):
                 if not eleyici.kopya_mi(s["ders"], s["sinif"], s["soru"]):
-                    vt.soru_ekle(conn, birim["id"], s)
+                    vt.soru_ekle(conn, bid, s, kazanim_id=k["id"], kazanim_kaynak="uretim")
                     eklenen += 1
-            vt.birim_isaretle(conn, birim["id"], "islendi")
             print(
-                f"[uret] {birim['anahtar']}: {eklenen}/{len(sorular)} soru, "
-                f"{time.perf_counter() - t0:.0f} sn",
+                f"[uret] {k['sinif']} {k['ders']} h{k['hafta']}: {eklenen} soru, "
+                f"{time.perf_counter() - t0:.0f} sn — {k['metin'][:50]}",
                 flush=True,
             )
-        except Exception as e:  # noqa: BLE001 — tek birimin hatası geceyi durdurmasın
+        except Exception as e:  # noqa: BLE001 — tek kazanımın hatası geceyi durdurmasın
             conn.rollback()
-            vt.birim_isaretle(
-                conn, birim["id"], "hata", f"{type(e).__name__}: {e}"[:500]
-            )
-            print(
-                f"[uret] HATA {birim['anahtar']}: {type(e).__name__}: {e}", flush=True
-            )
+            if hasattr(farabi_conn, "rollback"):
+                farabi_conn.rollback()  # aborted işlem sonraki kazanımları bozmasın
+            print(f"[uret] HATA kazanım {k['id']}: {type(e).__name__}: {e}", flush=True)
     print("[uret] ders saati penceresi — durduruldu", flush=True)
     if ders_saati_kontrol:
         denetle(conn, DENETIM_AZAMI_PAKET, DENETIM_AZAMI_DK, ders_saati_kontrol=True)
@@ -131,6 +157,8 @@ def main() -> int:
     sub = parser.add_subparsers(dest="komut")
     sub.add_parser("kur")
     sub.add_parser("katalog")
+    sub.add_parser("kazanim-yukle").add_argument("--kuru", action="store_true")
+    sub.add_parser("etiketle").add_argument("--kuru", action="store_true")
     p_uret = sub.add_parser("uret")
     p_uret.add_argument("--sinif", type=int, default=None, help="Yalnızca belirtilen sınıf")
     p_uret.add_argument("--zorla", action="store_true", help="Ders saati kontrolünü atla")
@@ -145,6 +173,25 @@ def main() -> int:
     elif komut == "katalog":
         farabi = psycopg2.connect(host="127.0.0.1", dbname="farabi", user="farabi")
         print(kaynaklar.katalogla(conn, farabi, VERI / "kazanim_test", VERI / "yks"))
+    elif komut == "kazanim-yukle":
+        satirlar, atlanan = kazanimlar.oku()
+        if not args.kuru:
+            for k in satirlar:
+                vt.kazanim_upsert(conn, k)
+        print(
+            f"[kazanim-yukle] {len(satirlar)} satır{' (kuru)' if args.kuru else ''}; "
+            f"eşlenemeyen ders: {sorted(atlanan)}",
+            flush=True,
+        )
+    elif komut == "etiketle":
+        s = etiketle.etiketle(conn, tekrar._gomucu(), kuru=args.kuru)
+        for (sinif, ders), (et, top) in sorted(s["dagilim"].items()):
+            print(f"  {sinif:>2} {ders:<10} {et:>4}/{top:<4}", flush=True)
+        print(
+            f"[etiketle] {s['etiketlenen']} etiketlendi, {s['etiketsiz']} etiketsiz"
+            f"{' (kuru — yazılmadı)' if args.kuru else ''}",
+            flush=True,
+        )
     elif komut == "uret":
         uret(conn, ders_saati_kontrol=not args.zorla, sinif=args.sinif)
     elif komut == "denetle":

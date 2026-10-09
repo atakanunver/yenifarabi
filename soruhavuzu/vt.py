@@ -32,6 +32,13 @@ def birim_ekle(conn, tur, anahtar, ders, sinif, etiket, metin) -> int | None:
     return satir[0] if satir else None
 
 
+def birim_bul(conn, anahtar: str) -> int | None:
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM kaynak_birim WHERE anahtar = %s", (anahtar,))
+        satir = cur.fetchone()
+    return satir[0] if satir else None
+
+
 def siradaki_birim(conn, sinif: int | None = None) -> dict | None:
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         if sinif is not None:
@@ -55,11 +62,14 @@ def birim_isaretle(conn, birim_id, durum, hata=None) -> None:
     conn.commit()
 
 
-def soru_ekle(conn, birim_id, s: dict) -> int:
+def soru_ekle(
+    conn, birim_id, s: dict, kazanim_id=None, kazanim_skor=None, kazanim_kaynak=None
+) -> int:
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO soru (birim_id, ders, sinif, konu, soru, kisa_cevap, secenekler, "
-            "dogru_index, zorluk, kaynak) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            "dogru_index, zorluk, kaynak, kazanim_id, kazanim_skor, kazanim_kaynak) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (
                 birim_id,
                 s["ders"],
@@ -71,6 +81,9 @@ def soru_ekle(conn, birim_id, s: dict) -> int:
                 s["dogru_index"],
                 s["zorluk"],
                 s["kaynak"],
+                kazanim_id,
+                kazanim_skor,
+                kazanim_kaynak,
             ),
         )
         sid = cur.fetchone()[0]
@@ -80,7 +93,9 @@ def soru_ekle(conn, birim_id, s: dict) -> int:
 
 # En az onaylı sorusu olan (sınıf, ders) önce; eşitlikte yüksek sınıf önce.
 DENETLENECEK_SQL = (
-    "SELECT s.*, b.metin AS birim_metin FROM soru s JOIN kaynak_birim b ON b.id = s.birim_id "
+    "SELECT s.*, b.metin AS birim_metin, kz.metin AS kazanim_metin FROM soru s "
+    "JOIN kaynak_birim b ON b.id = s.birim_id "
+    "LEFT JOIN kazanim kz ON kz.id = s.kazanim_id "
     "LEFT JOIN (SELECT ders, sinif, count(*) AS n FROM soru WHERE durum = 'onayli' "
     "GROUP BY ders, sinif) o ON o.ders = s.ders AND o.sinif = s.sinif "
     "WHERE s.durum = 'uretildi' "
@@ -104,3 +119,41 @@ def denetim_yaz(conn, soru_id, durum, not_) -> None:
             (durum, not_, soru_id),
         )
     conn.commit()
+
+
+def kazanim_upsert(conn, k: dict) -> int:
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO kazanim (sinif, ders, hafta, kod, metin) VALUES (%s,%s,%s,%s,%s) "
+            "ON CONFLICT (sinif, ders, hafta, metin) DO UPDATE SET kod = EXCLUDED.kod RETURNING id",
+            (k["sinif"], k["ders"], k["hafta"], k["kod"], k["metin"]),
+        )
+        kid = cur.fetchone()[0]
+    conn.commit()
+    return kid
+
+
+def kazanim_isaretle(conn, kid: int, durum: str) -> None:
+    with conn.cursor() as cur:
+        cur.execute("UPDATE kazanim SET durum=%s WHERE id=%s", (durum, kid))
+    conn.commit()
+
+
+def siradaki_kazanim(conn, bugun, haftalar: dict, denenen: set, hedef_toplam: int = 14) -> dict | None:
+    gecmis = [h for h, pzt in haftalar.items() if pzt <= bugun]
+    simdiki = max(gecmis) if gecmis else min(haftalar, default=0)
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            "WITH tek AS (SELECT DISTINCT ON (sinif, ders, metin) * FROM kazanim WHERE durum='aktif' "
+            "  ORDER BY sinif, ders, metin, hafta, id), "
+            "sayim AS (SELECT kazanim_id, count(*) AS n FROM soru "
+            "  WHERE durum IN ('uretildi','onayli') AND kazanim_id IS NOT NULL GROUP BY kazanim_id) "
+            "SELECT t.id, t.sinif, t.ders, t.hafta, t.kod, t.metin, COALESCE(s.n,0) AS n FROM tek t "
+            "LEFT JOIN sayim s ON s.kazanim_id = t.id "
+            "WHERE COALESCE(s.n,0) < %s AND NOT (t.id = ANY(%s)) "
+            "ORDER BY (t.hafta BETWEEN %s AND %s) DESC, COALESCE(s.n,0), t.hafta, t.id LIMIT 1",
+            (hedef_toplam, list(denenen) or [0], simdiki, simdiki + 3),
+        )
+        satir = cur.fetchone()
+    return dict(satir) if satir else None
+
