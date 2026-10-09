@@ -1,10 +1,10 @@
-"""soruhavuzu/zaman.py — GPU üretimi yalnızca ders saati dışında (hafta içi 07:30–17:05 yasak)."""
+"""soruhavuzu/zaman.py — GPU üretimi yalnızca ders saati dışında (hafta içi 08:00–17:05 yasak)."""
 
 from datetime import date, datetime, time
 from zoneinfo import ZoneInfo
 
 TR = ZoneInfo("Europe/Istanbul")
-BASLA, BITIS = time(7, 30), time(17, 5)
+BASLA, BITIS = time(8, 0), time(17, 5)
 
 
 def bugun_istanbul() -> date:
