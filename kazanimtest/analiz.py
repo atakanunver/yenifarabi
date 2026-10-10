@@ -125,6 +125,7 @@ def analiz_hesapla(sinif: str, testler: list[dict], cevaplar: dict, esikler: dic
         olus = olus.astimezone(TR) if olus.tzinfo else olus
         test_cikti.append({"id": t["id"], "ders": t["ders"], "hafta": t["hafta"], "tarih": olus.date().isoformat(),
                            "kazanim": t.get("kazanim"), "form_url": t.get("form_url"), "katilim": len(katilanlar),
+                           "sms_gonderildi": bool(t.get("sms_gonderim_id")),
                            "ortalama_oran": _oran(t_dogru, t_toplam), "sorular": soru_cikti})
     kazanimlar = [{"ders": d, "kazanim_satiri": s, "soru_sayisi": len(v["sorular"]), "cevap_sayisi": v["cevap"],
                    "dogru_orani": _oran(v["dogru"], v["cevap"]),
@@ -155,7 +156,7 @@ def _tr_gun(dt: datetime) -> date:
 def _testleri_oku(conn, sinif: str, baslangic, bitis) -> tuple[list[dict], dict]:
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute("SELECT id, ders, hafta, olusturma, kazanim, sorular, "
-                    "COALESCE(form_kisa_url, form_url) AS form_url FROM form_testi WHERE sinif=%s "
+                    "COALESCE(form_kisa_url, form_url) AS form_url, sms_gonderim_id FROM form_testi WHERE sinif=%s "
                     "ORDER BY olusturma, id", (sinif,))
         testler = [t for t in cur.fetchall()
                    if (baslangic is None or _tr_gun(t["olusturma"]) >= baslangic)
