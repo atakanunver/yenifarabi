@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "_makrolar.html" import kaynak_yok %}
+{% block baslik %}Programım — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Haftalık programım</h1>
+{% if program is none %}
+<div class="kart">{{ kaynak_yok("Ders programı") }}</div>
+{% else %}
+{% for gun, dersler in program %}
+<section class="kart gun{{ ' bugun' if gun == bugun_gun }}">
+  <h2>{{ gun|gun_adi }}</h2>
+  {% if dersler %}
+  <ul class="liste">{% for no, sinif, ders in dersler %}<li><span class="saat">{{ no }}</span>{{ ders|baslik }}<span class="sag"><span class="etiket">{{ sinif }}</span></span></li>{% endfor %}</ul>
+  {% else %}<p class="bos">Dersiniz yok.</p>{% endif %}
+</section>
+{% endfor %}
+{% endif %}
+{% endblock %}

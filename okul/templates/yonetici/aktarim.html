@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block baslik %}Excel aktarımı — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Excel'den aktar</h1>
+{% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+<div class="not">Aktarım hiçbir kaydı silmez. Önce önizleme gösterilir; onaylamadan hiçbir şey kaydedilmez. Aynı dosyayı tekrar yüklemek güvenlidir: mevcut kayıtlar güncellenir.</div>
+
+<section class="kart">
+  <h2>Öğrenciler ve veliler</h2>
+  <p class="kucuk soluk">Sütunlar: {{ turler.ogrenci|join(', ') }}. Veli telefonu velinin giriş numarası olur.</p>
+  <form method="post" action="/yonetici/aktarim/ogrenci" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="file" name="dosya" accept=".xlsx" required>
+    <div class="tuslar"><button class="tus">Önizle</button><a class="tus ikincil" href="/yonetici/sablon/ogrenci.xlsx">Boş şablonu indir</a></div>
+  </form>
+</section>
+
+<section class="kart">
+  <h2>Öğretmenler ve görevleri</h2>
+  <p class="kucuk soluk">Sütunlar: {{ turler.ogretmen|join(', ') }}. Her satır bir sınıf-ders görevi; aynı öğretmen birden çok satırda olabilir.</p>
+  <form method="post" action="/yonetici/aktarim/ogretmen" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="file" name="dosya" accept=".xlsx" required>
+    <div class="tuslar"><button class="tus">Önizle</button><a class="tus ikincil" href="/yonetici/sablon/ogretmen.xlsx">Boş şablonu indir</a></div>
+  </form>
+</section>
+{% endblock %}

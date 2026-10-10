@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block baslik %}{{ odev.baslik }} — Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/ogrenci/odevler">← Ödevlerim</a></p>
+<h1>{{ odev.baslik }}</h1>
+<p class="soluk">{{ odev.ders|baslik }} · Teslim: {{ odev.teslim|tarih }}</p>
+{% if odev.aciklama %}<div class="kart"><p style="white-space: pre-line; margin: 0">{{ odev.aciklama }}</p></div>{% endif %}
+
+{% if odev.tur == 'klasik' %}
+  <div class="kart">
+  {% if teslim %}
+    <p><span class="etiket yesil">Yapıldı</span> {{ teslim.zaman|tarih }} tarihinde işaretledin.</p>
+  {% else %}
+    <form method="post" action="/ogrenci/odev/{{ odev.id }}/yapti">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <p>Ödevi bitirdiysen işaretle; öğretmenin ve velin görecek.</p>
+      <button class="tus tam">Ödevi yaptım</button>
+    </form>
+  {% endif %}
+  </div>
+{% elif teslim %}
+  <div class="kart bilgi">
+    <p class="puan">{{ teslim.puan }}<span class="kucuk soluk"> / 100</span></p>
+    <p class="kucuk">{{ teslim.zaman|tarih }} tarihinde çözdün. Yanlış yaptığın soruların kazanımları "Kazanımlarım" sayfasında çalışılacaklar arasında.</p>
+  </div>
+  {% for s in sorular %}
+  <div class="kart soru">
+    <p>{{ loop.index }}. {{ s.metin }}</p>
+    {% for sik in s.siklar %}
+      <div class="sik {{ 'dogru' if loop.index0 == s.dogru else ('yanlis' if cevaplar.get(s.id) == loop.index0 else '') }}">
+        <b>{{ 'ABCD'[loop.index0] }})</b> {{ sik }}
+        {% if cevaplar.get(s.id) == loop.index0 %}<span class="etiket" style="margin-left:auto">Senin cevabın</span>{% endif %}
+      </div>
+    {% endfor %}
+    {% if s.kazanim %}<p class="soluk kucuk">Kazanım: {{ s.kazanim }}</p>{% endif %}
+  </div>
+  {% endfor %}
+{% else %}
+  <form method="post" action="/ogrenci/odev/{{ odev.id }}/test" onsubmit="return confirm('Testi teslim edince cevapları değiştiremezsin. Teslim edilsin mi?')">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% for s in sorular %}
+    <fieldset class="kart soru" style="border:1px solid var(--cizgi)">
+      <p>{{ loop.index }}. {{ s.metin }}</p>
+      {% for sik in s.siklar %}
+      <label class="sik"><input type="radio" name="s{{ s.id }}" value="{{ loop.index0 }}"> <b>{{ 'ABCD'[loop.index0] }})</b> {{ sik }}</label>
+      {% endfor %}
+    </fieldset>
+    {% endfor %}
+    <button class="tus tam">Testi teslim et</button>
+  </form>
+{% endif %}
+{% endblock %}

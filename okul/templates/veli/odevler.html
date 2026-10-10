@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% from "_makrolar.html" import odev_durum %}
+{% block baslik %}Ödevler — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>{{ cocuk.ad_soyad }} — ödevler</h1>
+<section class="kart">
+  <ul class="liste">
+  {% for o in odevler %}
+    <li><span>{{ o.baslik }}<br><span class="soluk kucuk">{{ o.ders|baslik }} · {{ 'Test' if o.tur == 'test' else 'Ödev' }} · {{ o.ogretmen }}</span></span><span class="sag">{{ odev_durum(o, simdi) }}</span></li>
+  {% else %}
+    <li class="bos">Henüz ödev verilmemiş.</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}

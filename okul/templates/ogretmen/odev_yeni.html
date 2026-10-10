@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "_makrolar.html" import kaynak_yok %}
+{% block baslik %}Ödev ver — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Ödev ver</h1>
+{% if not secenekler %}
+<div class="kart bilgi"><p>Size henüz sınıf/ders atanmamış. Okul yönetimi görevlerinizi tanımlayınca ödev verebilirsiniz.</p></div>
+{% else %}
+<form class="kart" method="get" action="/ogretmen/odev/yeni">
+  <label for="secim">Sınıf ve ders</label>
+  <select id="secim" onchange="var p=this.value.split('|');this.form.sinif.value=p[0];this.form.ders.value=p[1];this.form.submit()">
+    {% for s, d in secenekler %}<option value="{{ s }}|{{ d }}" {{ 'selected' if s == sinif and d == ders }}>{{ s }} · {{ d|baslik if d else 'tüm dersler' }}</option>{% endfor %}
+  </select>
+  <input type="hidden" name="sinif" value="{{ sinif }}"><input type="hidden" name="ders" value="{{ ders }}">
+  {% if tur == 'test' %}<input type="hidden" name="tur" value="test">{% endif %}
+  <div class="tuslar">
+    <button class="tus {{ '' if tur == 'klasik' else 'ikincil' }}" name="tur" value="klasik">Klasik ödev</button>
+    <button class="tus {{ '' if tur == 'test' else 'ikincil' }}" name="tur" value="test">Çoktan seçmeli test</button>
+  </div>
+  {% if tur == 'test' %}
+    <label for="havuz_ders">Soru havuzundan seç (isteğe bağlı)</label>
+    {% if havuz_hata %}{{ kaynak_yok("Soru havuzu") }}{% else %}
+    <select id="havuz_ders" name="havuz_ders" onchange="this.form.submit()">
+      <option value="">— havuz dersi seçin —</option>
+      {% for h in havuz_dersleri %}<option value="{{ h }}" {{ 'selected' if h == havuz_ders }}>{{ h|baslik }}</option>{% endfor %}
+    </select>
+    {% endif %}
+  {% endif %}
+</form>
+
+{% if k.rol == 'yonetici' and not ders %}
+<div class="not">Yönetici olarak ödev verirken ders adını aşağıya yazın.</div>
+{% endif %}
+
+<form method="post" action="/ogretmen/odev/yeni">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="sinif" value="{{ sinif }}">
+  <input type="hidden" name="tur" value="{{ tur }}">
+  <div class="kart">
+    {% if ders %}<input type="hidden" name="ders" value="{{ ders }}">{% else %}
+    <label for="ders">Ders</label><input id="ders" name="ders" type="text" required>{% endif %}
+    <label for="baslik">Başlık</label>
+    <input id="baslik" name="baslik" type="text" required maxlength="120" placeholder="{{ 'Kesirler tekrar testi' if tur == 'test' else 'Sayfa 42, 1-10 arası sorular' }}">
+    <label for="aciklama">Açıklama</label>
+    <textarea id="aciklama" name="aciklama" maxlength="4000"></textarea>
+    <label for="teslim">Son teslim</label>
+    <input id="teslim" name="teslim" type="datetime-local" required>
+  </div>
+
+  {% if tur == 'test' %}
+    {% if havuz %}
+    <section class="kart">
+      <h2>Havuzdan sorular <span class="soluk kucuk">{{ havuz|length }} onaylı soru</span></h2>
+      {% for h in havuz %}
+      <label class="sik" style="align-items:flex-start"><input type="checkbox" name="havuz" value="{{ h.id }}">
+        <span>{{ h.soru }}<br><span class="soluk kucuk">{{ h.konu }} · Doğru: {{ 'ABCD'[h.dogru_index] }}) {{ h.secenekler[h.dogru_index] }}</span></span></label>
+      {% endfor %}
+    </section>
+    {% endif %}
+    {% for i in range(1, soru_sayisi + 1) %}
+    <details class="kart" {{ 'open' if i == 1 and not havuz }}>
+      <summary><b>Kendi sorum {{ i }}</b> <span class="soluk kucuk">(boş bırakılırsa eklenmez)</span></summary>
+      <label for="soru_{{ i }}">Soru</label>
+      <textarea id="soru_{{ i }}" name="soru_{{ i }}" style="min-height:4rem"></textarea>
+      {% for j in range(4) %}
+      <label for="sik_{{ i }}_{{ j }}">{{ 'ABCD'[j] }} şıkkı</label>
+      <input id="sik_{{ i }}_{{ j }}" name="sik_{{ i }}_{{ j }}" type="text">
+      {% endfor %}
+      <label for="dogru_{{ i }}">Doğru cevap</label>
+      <select id="dogru_{{ i }}" name="dogru_{{ i }}">{% for j in range(4) %}<option value="{{ j }}">{{ 'ABCD'[j] }}</option>{% endfor %}</select>
+      <label for="kazanim_{{ i }}">Kazanım</label>
+      <input id="kazanim_{{ i }}" name="kazanim_{{ i }}" type="text" placeholder="Örn. Kesirlerle toplama yapar">
+    </details>
+    {% endfor %}
+  {% endif %}
+  <button class="tus tam">{{ 'Testi yayınla' if tur == 'test' else 'Ödevi yayınla' }}</button>
+</form>
+{% endif %}
+{% endblock %}

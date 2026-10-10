@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "_makrolar.html" import kaynak_yok %}
+{% block baslik %}Devamsızlık — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>{{ cocuk.ad_soyad }} — devamsızlık</h1>
+<div class="not">Bu bilgiler sınıftaki akıllı tahtada alınan yoklamadan gelir. Resmî devamsızlık kaydı e-Okul'dadır.</div>
+{% if gunler is none %}
+<div class="kart">{{ kaynak_yok("Yoklama bilgisi") }}</div>
+{% else %}
+<div class="kart">
+  <p style="margin:0"><b class="yuzde zayif">{{ yok }}</b> ders saati yok · <b>{{ izinli }}</b> ders saati izinli <span class="soluk kucuk">(tüm kayıtlar)</span></p>
+</div>
+{% for tarih, kayitlar in gunler %}
+<section class="kart">
+  <h2>{{ tarih|tarih(False) }}</h2>
+  <ul class="liste">
+  {% for d in kayitlar %}<li><span class="saat">{{ d.ders_no }}</span>{{ d.ders_no }}. ders<span class="sag"><span class="etiket {{ 'kirmizi' if d.tur == 'yok' else 'sari' }}">{{ 'Yok' if d.tur == 'yok' else 'İzinli' }}</span></span></li>{% endfor %}
+  </ul>
+</section>
+{% else %}
+<div class="kart"><p class="bos">Hiç devamsızlık kaydı yok.</p></div>
+{% endfor %}
+{% endif %}
+{% endblock %}

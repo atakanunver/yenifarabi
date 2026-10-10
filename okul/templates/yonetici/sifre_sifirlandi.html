@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block icerik %}
+<h1>Şifre sıfırlandı</h1>
+<div class="kart">
+  <p><b>{{ u.ad_soyad }}</b> artık şu bilgilerle girebilir:</p>
+  <p>Kullanıcı adı: <b>{{ u.kullanici_adi }}</b><br>İlk şifre: <code>{{ sifre }}</code></p>
+  <p class="soluk kucuk">Girişte yeni şifre belirlemesi istenecek. Açık olan tüm oturumları kapatıldı.</p>
+</div>
+<a class="tus ikincil" href="/yonetici/kullanicilar">Kullanıcılara dön</a>
+{% endblock %}

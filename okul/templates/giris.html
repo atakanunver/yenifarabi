@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block baslik %}Giriş — Dijital Okul{% endblock %}
+{% block icerik %}
+<div class="giris">
+  <p class="baslik">Okulun <span class="fosfor">cebinde.</span></p>
+  <p class="soluk">Ödevler, kazanımlar, devamsızlık ve duyurular tek yerde.</p>
+  <div class="sekme-sec">
+    <a href="/giris" class="secili">Öğrenci / Öğretmen</a>
+    <a href="/veli-giris">Veli</a>
+  </div>
+  <div class="kart">
+    {% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+    <form method="post" action="/giris">
+      <label for="kullanici_adi">Kullanıcı adı</label>
+      <input id="kullanici_adi" name="kullanici_adi" type="text" autocomplete="username" autocapitalize="none" required value="{{ kullanici_adi or '' }}" placeholder="Öğrenciler: okul numarası">
+      <label for="sifre">Şifre</label>
+      <input id="sifre" name="sifre" type="password" autocomplete="current-password" required>
+      <div class="tuslar"><button class="tus tam">Giriş yap</button></div>
+    </form>
+    <p class="soluk kucuk">İlk şifren adının küçük harfle yazılışı ve sonuna 123 (örnek: Ayşe → <b>ayse123</b>). Girişten sonra kendi şifreni belirlersin.</p>
+  </div>
+  <p class="kucuk soluk"><a href="/kvkk">Kişisel verilerin korunması hakkında</a></p>
+</div>
+{% endblock %}

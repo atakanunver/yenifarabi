@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block baslik %}Önizleme — Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/yonetici/aktarim">← Aktarım</a></p>
+<h1>Önizleme: {{ 'öğrenciler' if tur == 'ogrenci' else 'öğretmenler' }}</h1>
+{% if onizleme.hatalar %}
+<section class="kart uyari">
+  <h2>{{ onizleme.hatalar|length }} satır alınmayacak</h2>
+  <ul>{% for h in onizleme.hatalar %}<li>{{ h }}</li>{% endfor %}</ul>
+  <p class="kucuk">Bu satırları Excel'de düzeltip dosyayı tekrar yükleyebilirsiniz.</p>
+</section>
+{% endif %}
+<section class="kart">
+  <h2>{{ onizleme.satirlar|length }} geçerli satır</h2>
+  <div class="tablo-kap"><table>
+  {% if tur == 'ogrenci' %}
+    <thead><tr><th class="sayi">No</th><th>Ad soyad</th><th>Sınıf</th><th>Veliler</th></tr></thead>
+    <tbody>{% for r in onizleme.satirlar[:200] %}<tr><td class="sayi">{{ r.okul_no }}</td><td>{{ r.ad_soyad }}</td><td>{{ r.sinif }}</td><td>{% for ad, tel in r.veliler %}{{ ad }} ({{ tel }}){{ ', ' if not loop.last }}{% endfor %}</td></tr>{% endfor %}</tbody>
+  {% else %}
+    <thead><tr><th>Ad soyad</th><th>Kullanıcı adı</th><th>Sınıf</th><th>Ders</th></tr></thead>
+    <tbody>{% for r in onizleme.satirlar[:200] %}<tr><td>{{ r.ad_soyad }}</td><td>{{ r.kullanici_adi }}</td><td>{{ r.sinif or '—' }}</td><td>{{ r.ders|baslik }}</td></tr>{% endfor %}</tbody>
+  {% endif %}
+  </table></div>
+</section>
+{% if taslak %}
+<form method="post" action="/yonetici/aktarim/{{ tur }}/onay">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="taslak" value="{{ taslak }}">
+  <button class="tus tam">{{ onizleme.satirlar|length }} satırı kaydet</button>
+</form>
+{% endif %}
+{% endblock %}

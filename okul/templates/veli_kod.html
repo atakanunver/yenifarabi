@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block baslik %}Kodu girin — Dijital Okul{% endblock %}
+{% block icerik %}
+<div class="giris">
+  <p class="baslik">Kodu girin</p>
+  <p class="soluk">{{ telefon[:4] }} *** ** {{ telefon[-2:] }} numarasına 6 haneli bir kod gönderdik. Kod 5 dakika geçerli.</p>
+  <div class="kart">
+    {% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+    <form method="post" action="/veli-kod">
+      <input type="hidden" name="telefon" value="{{ telefon }}">
+      <label for="kod">Giriş kodu</label>
+      <input id="kod" name="kod" class="kod-girdi" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus>
+      <div class="tuslar"><button class="tus tam">Giriş yap</button></div>
+    </form>
+    <p class="kucuk"><a href="/veli-giris">Kod gelmedi mi? Yeni kod isteyin</a></p>
+  </div>
+</div>
+{% endblock %}

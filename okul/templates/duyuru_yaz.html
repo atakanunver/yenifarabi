@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block baslik %}Duyuru yaz — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Duyuru yaz</h1>
+<form class="kart" method="post" action="/ogretmen/duyuru">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="hedef_tur">Kime</label>
+  <select id="hedef_tur" name="hedef_tur" onchange="document.getElementById('hedef-kap').hidden = this.value === 'okul'">
+    <option value="sinif">Bir sınıfa</option>
+    {% if k.rol == 'yonetici' %}<option value="okul">Tüm okula</option><option value="rol">Bir role (ör. tüm veliler)</option>{% endif %}
+  </select>
+  <div id="hedef-kap">
+    <label for="hedef">Sınıf ya da rol</label>
+    <select id="hedef" name="hedef">
+      {% for s in siniflar %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+      {% if k.rol == 'yonetici' %}{% for r, ad in ROL_ADLARI.items() %}<option value="{{ r }}">Tüm {{ ad|lower }}ler</option>{% endfor %}{% endif %}
+    </select>
+  </div>
+  <label for="baslik">Başlık</label>
+  <input id="baslik" name="baslik" type="text" required maxlength="120">
+  <label for="metin">Metin</label>
+  <textarea id="metin" name="metin" required maxlength="4000"></textarea>
+  <label for="bitis">Yayından kalkma tarihi (isteğe bağlı)</label>
+  <input id="bitis" name="bitis" type="date">
+  <div class="tuslar"><button class="tus tam">Duyuruyu yayınla</button></div>
+</form>
+<p><a href="/duyurular">Yayındaki duyurular →</a></p>
+{% endblock %}

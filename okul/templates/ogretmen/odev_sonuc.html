@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block baslik %}{{ odev.baslik }} — Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/ogretmen">← Sınıflarım</a></p>
+<h1>{{ odev.baslik }}</h1>
+<p class="soluk">{{ odev.sinif }} · {{ odev.ders|baslik }} · {{ 'Test' if odev.tur == 'test' else 'Klasik ödev' }} · teslim {{ odev.teslim|tarih }}</p>
+<div class="kart bilgi"><p style="margin:0"><b>{{ tablo.teslim_sayisi }}</b> / {{ tablo.ogrenciler|length }} öğrenci {{ 'çözdü' if odev.tur == 'test' else 'yaptı olarak işaretledi' }}.</p></div>
+
+{% if tablo.kazanimlar %}
+<section class="kart">
+  <h2>Kazanım bazında sınıf</h2>
+  {% for kaz, d, n in tablo.kazanimlar|sort(attribute='1') %}
+  {% set yuzde = (100 * d / n)|round|int if n else 0 %}
+  <div class="kazanim">
+    <span class="etiket {{ 'yesil' if yuzde >= 70 else 'kirmizi' }}">{{ 'Tamam' if yuzde >= 70 else 'Tekrar' }}</span>
+    <span>{{ kaz }}<br><span class="soluk kucuk">{{ d }}/{{ n }} doğru cevap</span></span>
+    <span class="yuzde {{ 'iyi' if yuzde >= 70 else 'zayif' }}">%{{ yuzde }}</span>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="kart">
+  <h2>Öğrenciler</h2>
+  <div class="tablo-kap"><table>
+    <thead><tr><th class="sayi">No</th><th>Ad soyad</th><th>Durum</th>{% if odev.tur == 'test' %}<th class="sayi">Puan</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for o in tablo.ogrenciler %}
+    <tr><td class="sayi">{{ o.okul_no }}</td><td>{{ o.ad_soyad }}</td>
+      <td>{% if o.durum %}<span class="etiket yesil">{{ 'Çözdü' if o.durum == 'tamam' else 'Yaptı' }}</span>{% else %}<span class="etiket kirmizi">Bekliyor</span>{% endif %}</td>
+      {% if odev.tur == 'test' %}<td class="sayi">{{ o.puan if o.puan is not none else '—' }}</td>{% endif %}</tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+
+{% if sorular %}
+<details class="kart"><summary><b>Sorular ({{ sorular|length }})</b></summary>
+  {% for s in sorular %}<p>{{ loop.index }}. {{ s.metin }}<br><span class="soluk kucuk">Doğru: {{ 'ABCD'[s.dogru] }}) {{ s.siklar[s.dogru] }}{% if s.kazanim %} · {{ s.kazanim }}{% endif %}</span></p>{% endfor %}
+</details>
+{% endif %}
+
+<form method="post" action="/ogretmen/odev/{{ odev.id }}/sil" onsubmit="return confirm('Ödev ve tüm teslimleri silinsin mi?')">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus tehlike">Ödevi sil</button>
+</form>
+{% endblock %}

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block icerik %}
+<div class="kart{{ ' uyari' if kod >= 500 }}">
+  <h1>{% if kod == 404 %}Sayfa bulunamadı{% else %}İşlem tamamlanamadı{% endif %}</h1>
+  <p>{{ mesaj }}</p>
+  <div class="tuslar"><a class="tus ikincil" href="javascript:history.back()">Geri dön</a><a class="tus" href="/">Ana sayfa</a></div>
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block baslik %}Erişim kaydı — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Erişim kaydı</h1>
+<p class="soluk">Öğrenci bilgilerinin kim tarafından ne zaman görüntülendiği (son 300 kayıt).</p>
+<section class="kart">
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Zaman</th><th>Kim</th><th>Ne</th><th>Öğrenci</th><th>IP</th></tr></thead>
+    <tbody>
+    {% for e in liste %}<tr><td>{{ e.zaman|tarih }}</td><td>{{ e.ad_soyad }} <span class="soluk kucuk">{{ ROL_ADLARI[e.rol] }}</span></td><td>{{ e.eylem }}</td><td>{{ e.ogrenci or '—' }}</td><td class="kucuk">{{ e.ip }}</td></tr>
+    {% else %}<tr><td colspan="5" class="bos">Henüz kayıt yok.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

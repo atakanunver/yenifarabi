@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block baslik %}Duyurular — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Duyurular</h1>
+{% for d in duyurular %}
+<article class="kart">
+  <h2>{{ d.baslik }}</h2>
+  <p style="white-space: pre-line">{{ d.metin }}</p>
+  <p class="soluk kucuk">{{ d.yazar }} · {{ d.yayin|tarih }}{% if d.hedef_tur == 'sinif' %} · <span class="etiket">{{ d.hedef }}</span>{% endif %}</p>
+  {% if k.rol == 'yonetici' or d.yazar_id == k.id %}
+  <form method="post" action="/ogretmen/duyuru/{{ d.id }}/sil" onsubmit="return confirm('Duyuru silinsin mi?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus tehlike kucuk">Duyuruyu sil</button></form>
+  {% endif %}
+</article>
+{% else %}
+<div class="kart"><p class="bos">Şu an yayında bir duyuru yok.</p></div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block baslik %}Görevler — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Öğretmen görevleri</h1>
+<p class="soluk">Öğretmen yalnızca burada görevli olduğu sınıfları ve dersleri görür.</p>
+<form class="kart" method="post" action="/yonetici/gorevler">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="ogretmen_id">Öğretmen</label>
+  <select id="ogretmen_id" name="ogretmen_id" required>{% for o in ogretmenler %}<option value="{{ o.id }}">{{ o.ad_soyad }}</option>{% endfor %}</select>
+  <label for="sinif">Sınıf</label>
+  <select id="sinif" name="sinif" required>{% for s in siniflar %}<option>{{ s }}</option>{% endfor %}</select>
+  <label for="ders">Ders (ders programındaki adıyla)</label>
+  <input id="ders" name="ders" type="text" required placeholder="matematik">
+  <div class="tuslar"><button class="tus">Görev ekle</button></div>
+</form>
+<section class="kart">
+  <ul class="liste">
+  {% for g in liste %}
+    <li><span>{{ g.ad_soyad }}<br><span class="soluk kucuk">{{ g.sinif }} · {{ g.ders|baslik }}</span></span>
+      <form class="sag" method="post" action="/yonetici/gorevler/sil"><input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="ogretmen_id" value="{{ g.ogretmen_id }}"><input type="hidden" name="sinif" value="{{ g.sinif }}"><input type="hidden" name="ders" value="{{ g.ders }}">
+        <button class="tus tehlike kucuk">Kaldır</button></form></li>
+  {% else %}
+    <li class="bos">Henüz görev tanımlanmadı. Öğretmen Excel'i ile toplu aktarabilirsiniz.</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}

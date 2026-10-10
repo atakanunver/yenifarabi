@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "_makrolar.html" import kaynak_yok %}
+{% block baslik %}Eşleşmeyen yoklama — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Eşleşmeyen yoklama kayıtları</h1>
+<p class="soluk">Tahta yoklaması öğrencileri isimle tutar. Aşağıdaki öğrencilerin devamsızlığı velilere <b>gösterilmiyor</b>; düzeltmek için tahta sınıf listesini ya da platform kaydını güncelleyin. (Son 60 gün)</p>
+{% set aciklama = {'yoklamada_var_listede_yok': 'Yoklamada geçen isim sınıf listesinde yok', 'ayni_isim': 'Sınıfta aynı isimde birden fazla öğrenci', 'platformda_yok': 'Tahta listesinde var, platformda kayıtlı değil', 'sinif_farkli': 'Tahta ve platformda sınıfı farklı'} %}
+{% if liste is none %}<div class="kart">{{ kaynak_yok("Yoklama verisi") }}</div>
+{% else %}
+<section class="kart">
+  <ul class="liste">
+  {% for s in liste %}<li><span class="etiket">{{ s.sinif }}</span><span>{{ s.isim }}<br><span class="soluk kucuk">{{ aciklama.get(s.tur, s.tur) }} — {{ s.aciklama }}</span></span></li>
+  {% else %}<li class="bos">Her şey eşleşiyor.</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

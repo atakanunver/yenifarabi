@@ -1,0 +1,55 @@
+{% from "_makrolar.html" import ikon %}<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1b2a4a">
+<title>{% block baslik %}Dijital Okul{% endblock %}</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/static/ikon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/ikon-192.png">
+<link rel="stylesheet" href="/static/okul.css?v=1">
+</head>
+<body>
+<header class="ust">
+  <a class="marka" href="/">Dijital<span>Okul</span></a>
+  {% if k %}
+  <span class="kim">{{ k.ad_soyad }}<br>{{ ROL_ADLARI[k.rol] }}</span>
+  {% if k.rol != 'veli' and not k.sifre_degismeli %}<a class="bag" href="/sifre" title="Şifremi değiştir">Şifre</a>{% endif %}
+  <form method="post" action="/cikis"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="bag">Çıkış</button></form>
+  {% endif %}
+</header>
+
+<main class="sayfa">
+{% if cocuklar and cocuklar|length > 1 %}
+<nav class="cocuklar" aria-label="Çocuk seçimi">
+  {% for c in cocuklar %}<a href="{{ request.url.path }}?ogr={{ c.id }}" class="{{ 'secili' if cocuk and c.id == cocuk.id }}">{{ c.ad_soyad.split(' ')[0] }} · {{ c.sinif }}</a>{% endfor %}
+</nav>
+{% endif %}
+{% block icerik %}{% endblock %}
+</main>
+
+{% if k and not k.sifre_degismeli %}
+{% set ogr = ('?ogr=' ~ cocuk.id) if cocuk else '' %}
+{% if k.rol == 'ogrenci' %}
+  {% set sekmeler = [('/ogrenci','Ana sayfa','ev'),('/ogrenci/odevler','Ödevler','odev'),('/ogrenci/kazanimlar','Kazanımlar','kazanim'),('/ogrenci/program','Program','program'),('/duyurular','Duyurular','duyuru')] %}
+{% elif k.rol == 'veli' %}
+  {% set sekmeler = [('/veli'~ogr,'Ana sayfa','ev'),('/veli/devamsizlik'~ogr,'Devamsızlık','devam'),('/veli/kazanim'~ogr,'Kazanımlar','kazanim'),('/veli/odevler'~ogr,'Ödevler','odev'),('/duyurular','Duyurular','duyuru')] %}
+{% elif k.rol == 'ogretmen' %}
+  {% set sekmeler = [('/ogretmen','Sınıflarım','ev'),('/ogretmen/odev/yeni','Ödev ver','kalem'),('/ogretmen/program','Program','program'),('/ogretmen/duyuru','Duyuru yaz','duyuru')] %}
+{% else %}
+  {% set sekmeler = [('/yonetici','Özet','ev'),('/yonetici/aktarim','Aktarım','yukle'),('/yonetici/kullanicilar','Kullanıcılar','kisi'),('/yonetici/gorevler','Görevler','gorev'),('/ogretmen/duyuru','Duyuru','duyuru')] %}
+{% endif %}
+<nav class="sekmeler" aria-label="Ana menü">
+  {% for yol, ad, ik in sekmeler %}
+  {% set temel = yol.split('?')[0] %}
+  <a href="{{ yol }}" class="{{ 'aktif' if request.url.path == temel or (temel|length > 9 and request.url.path.startswith(temel)) }}">{{ ikon(ik) }}{{ ad }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+<script>
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(function () {});
+</script>
+</body>
+</html>

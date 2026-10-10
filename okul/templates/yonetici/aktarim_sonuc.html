@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block baslik %}Aktarım tamamlandı — Dijital Okul{% endblock %}
+{% block icerik %}
+<div class="yazdirma-gizle">
+  <h1>Aktarım tamamlandı</h1>
+  <div class="kart bilgi"><p style="margin:0"><b>{{ sonuc.eklenen }}</b> yeni, <b>{{ sonuc.guncellenen }}</b> güncellenen kayıt{% if sonuc.yeni_veliler %}, <b>{{ sonuc.yeni_veliler|length }}</b> yeni veli{% endif %}.</p></div>
+  {% if sonuc.yeni_hesaplar %}<div class="not">Aşağıdaki ilk şifreler <b>yalnızca şimdi</b> gösteriliyor. Yazdırıp dağıtın; herkes ilk girişte kendi şifresini belirleyecek.</div>
+  <p><button class="tus" onclick="window.print()">Şifre listesini yazdır</button></p>{% endif %}
+</div>
+
+{% if sonuc.yeni_hesaplar %}
+<section class="kart">
+  <h2>Dijital Okul — ilk giriş bilgileri</h2>
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Ad soyad</th><th>Kullanıcı adı</th><th>İlk şifre</th></tr></thead>
+    <tbody>{% for ad, kadi, sifre in sonuc.yeni_hesaplar %}<tr><td>{{ ad }}</td><td><b>{{ kadi }}</b></td><td><code>{{ sifre }}</code></td></tr>{% endfor %}</tbody>
+  </table></div>
+  <p class="kucuk soluk">Adres: smual.app · Veliler şifresiz, kayıtlı telefonlarına gelen kodla girer.</p>
+</section>
+{% endif %}
+
+{% if sonuc.excelde_olmayan %}
+<details class="kart yazdirma-gizle"><summary><b>{{ sonuc.excelde_olmayan|length }} öğrenci bu dosyada yok</b> <span class="soluk kucuk">(silinmedi)</span></summary>
+  <ul>{% for o in sonuc.excelde_olmayan %}<li>{{ o }}</li>{% endfor %}</ul>
+</details>
+{% endif %}
+<p class="yazdirma-gizle"><a class="tus ikincil" href="/yonetici">Özete dön</a></p>
+{% endblock %}

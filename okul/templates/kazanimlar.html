@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "_makrolar.html" import kareler, kaynak_yok %}
+{% block baslik %}Kazanımlar — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>{{ kim }}</h1>
+<p class="soluk kucuk">Her kare bir kazanım. Dolu kare: doğruların en az %{{ (esik * 100)|round|int }}'i. Taralı kare: çalışılması önerilen kazanım.</p>
+{% if not erisildi %}<div class="kart">{{ kaynak_yok("Kazanım testi sonuçları") }}</div>{% endif %}
+
+{% for ders, liste in ozet.items() %}
+<section class="kart">
+  {% set b = namespace(n=0) %}{% for d in liste %}{% if d.basarili(esik) %}{% set b.n = b.n + 1 %}{% endif %}{% endfor %}
+  <h2>{{ ders|baslik }} <span class="soluk kucuk">{{ b.n }}/{{ liste|length }}</span></h2>
+  {{ kareler(b.n, liste|length) }}
+  {% for d in liste|sort(attribute='yuzde') %}
+  <div class="kazanim">
+    <span class="etiket {{ 'yesil' if d.basarili(esik) else 'kirmizi' }}">{{ 'Tamam' if d.basarili(esik) else 'Çalış' }}</span>
+    <span>{{ d.kazanim }}<br><span class="soluk kucuk">{{ d.dogru }}/{{ d.toplam }} doğru</span></span>
+    <span class="yuzde {{ 'iyi' if d.basarili(esik) else 'zayif' }}">%{{ d.yuzde }}</span>
+  </div>
+  {% endfor %}
+</section>
+{% else %}
+<div class="kart"><p class="bos">Henüz değerlendirilmiş bir kazanım yok. Kazanım testleri ve öğretmenin verdiği testler çözüldükçe burada görünecek.</p></div>
+{% endfor %}
+
+{% if form %}
+<section class="kart">
+  <h2>Kazanım testleri</h2>
+  <ul class="liste">
+  {% for t in form %}
+    <li><span>{{ t.ders|baslik }} · {{ t.hafta }}. hafta<br><span class="soluk kucuk">{{ t.kazanim }}</span></span><span class="sag"><b>{{ t.dogru }}/{{ t.toplam }}</b><br><span class="soluk kucuk">{{ t.tarih|tarih(False) }}</span></span></li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

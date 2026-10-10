@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block baslik %}Şifre — Dijital Okul{% endblock %}
+{% block icerik %}
+<div class="giris">
+  <h1>{% if zorunlu %}Kendi şifreni belirle{% else %}Şifremi değiştir{% endif %}</h1>
+  {% if zorunlu %}<p class="soluk">İlk şifren herkesin tahmin edebileceği bir şifre. Devam etmeden önce yalnızca senin bildiğin bir şifre seç.</p>{% endif %}
+  <div class="kart">
+    {% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+    <form method="post" action="/sifre">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label for="yeni">Yeni şifre (en az 6 karakter)</label>
+      <input id="yeni" name="yeni" type="password" autocomplete="new-password" minlength="6" required>
+      <label for="yeni2">Yeni şifre (tekrar)</label>
+      <input id="yeni2" name="yeni2" type="password" autocomplete="new-password" minlength="6" required>
+      <div class="tuslar"><button class="tus tam">Şifreyi kaydet</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

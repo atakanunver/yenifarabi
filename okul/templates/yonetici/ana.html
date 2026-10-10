@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_makrolar.html" import kaynak_yok %}
+{% block icerik %}
+<h1>Okul özeti</h1>
+<div class="izgara iki">
+<section class="kart">
+  <h2>Kullanıcılar <a href="/yonetici/kullanicilar">Yönet</a></h2>
+  <ul class="liste">
+    {% for r, ad in ROL_ADLARI.items() %}<li>{{ ad }}<span class="sag"><b>{{ sayilar.get(r, 0) }}</b></span></li>{% endfor %}
+  </ul>
+</section>
+<section class="kart{{ ' uyari' if degismemis }}">
+  <h2>Dikkat edilecekler</h2>
+  <ul class="liste">
+    <li><a class="satir" href="/yonetici/kullanicilar?degismemis=1"><span>İlk şifresini değiştirmemiş hesap</span><span class="sag"><b>{{ degismemis }}</b></span></a></li>
+    <li><a class="satir" href="/yonetici/eslesmeyen"><span>Eşleşmeyen yoklama kaydı</span><span class="sag"><b>{{ eslesmeyen if eslesmeyen is not none else '?' }}</b></span></a></li>
+  </ul>
+  {% if degismemis %}<p class="kucuk soluk">İlk şifreler tahmin edilebilir (ad + 123). Bu hesaplar sahipleri giriş yapana kadar risk taşır.</p>{% endif %}
+</section>
+</div>
+
+<section class="kart">
+  <h2>Sınıflar <span class="soluk kucuk">son 30 gün</span></h2>
+  {% if yok is none %}{{ kaynak_yok("Yoklama verisi") }}{% endif %}
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Sınıf</th><th class="sayi">Mevcut</th><th class="sayi">Yok (ders saati)</th><th class="sayi">Ödev</th><th class="sayi">Teslim oranı</th></tr></thead>
+    <tbody>
+    {% for s in siniflar %}
+      {% set beklenen = s.odev * s.mevcut %}
+      <tr><td><a href="/ogretmen/sinif/{{ s.sinif }}">{{ s.sinif }}</a></td><td class="sayi">{{ s.mevcut }}</td>
+        <td class="sayi">{{ yok.get(s.sinif, 0) if yok is not none else '—' }}</td><td class="sayi">{{ s.odev }}</td>
+        <td class="sayi">{{ ('%' ~ ((100 * s.teslim / beklenen)|round|int)) if beklenen else '—' }}</td></tr>
+    {% else %}
+      <tr><td colspan="5" class="bos">Henüz öğrenci aktarılmadı. <a href="/yonetici/aktarim">Excel'den aktarın</a>.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+<p class="kucuk"><a href="/yonetici/erisim">Erişim kaydı (KVKK) →</a> · <a href="/ogretmen">Ödevler →</a></p>
+{% endblock %}

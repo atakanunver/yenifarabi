@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "_makrolar.html" import kareler, kaynak_yok, odev_durum %}
+{% block icerik %}
+{% if not cocuk %}
+<div class="kart bilgi">
+  <h1>Hoş geldiniz</h1>
+  <p>Telefon numaranıza bağlı bir öğrenci bulunamadı. Okul kaydındaki veli telefonunun güncel olduğundan emin olmak için okulla iletişime geçin.</p>
+</div>
+{% else %}
+<h1><span class="fosfor">{{ cocuk.ad_soyad }}</span></h1>
+<p class="soluk">{{ cocuk.sinif }} · Okul no {{ cocuk.okul_no }}</p>
+
+<section class="kart{{ ' uyari' if devamsizlik and devamsizlik|selectattr('tarih', 'equalto', bugun)|selectattr('tur', 'equalto', 'yok')|list }}">
+  <h2>Devamsızlık <a href="/veli/devamsizlik?ogr={{ cocuk.id }}">Ayrıntı</a></h2>
+  {% if devamsizlik is none %}{{ kaynak_yok("Yoklama bilgisi") }}
+  {% else %}
+    {% set bugunku = devamsizlik|selectattr('tarih', 'equalto', bugun)|selectattr('tur', 'equalto', 'yok')|list %}
+    {% if bugunku %}<p><b>Bugün {{ bugunku|length }} ders saatinde yok yazıldı</b> ({{ bugunku|map(attribute='ders_no')|join(', ') }}. ders).</p>
+    {% else %}<p>Bugün devamsızlık kaydı yok.</p>{% endif %}
+    <p class="soluk kucuk">Son 30 günde {{ devamsizlik|selectattr('tur', 'equalto', 'yok')|list|length }} ders saati yok, {{ devamsizlik|selectattr('tur', 'equalto', 'izinli')|list|length }} ders saati izinli.</p>
+  {% endif %}
+</section>
+
+<section class="kart">
+  <h2>Kazanımlar <a href="/veli/kazanim?ogr={{ cocuk.id }}">Ayrıntı</a></h2>
+  {% if not kazanim_erisildi %}{{ kaynak_yok("Kazanım testi sonuçları") }}{% endif %}
+  {% for ders, basarili, toplam in ders_ozeti %}
+  <div class="ders-satir"><span>{{ ders|baslik }}</span><span class="oran">{{ basarili }}/{{ toplam }}</span>{{ kareler(basarili, toplam) }}</div>
+  {% else %}<p class="bos">Henüz değerlendirilmiş bir kazanım yok.</p>{% endfor %}
+  {% if son_testler %}
+  <p class="kucuk soluk">Son test: {{ son_testler[0].ders|baslik }}, {{ son_testler[0].dogru }}/{{ son_testler[0].toplam }} doğru ({{ son_testler[0].tarih|tarih(False) }})</p>
+  {% endif %}
+</section>
+
+<div class="izgara iki">
+<section class="kart">
+  <h2>Bekleyen ödevler <a href="/veli/odevler?ogr={{ cocuk.id }}">Tümü</a></h2>
+  <ul class="liste">
+  {% for o in odevler %}<li><span>{{ o.baslik }}<br><span class="soluk kucuk">{{ o.ders|baslik }}</span></span><span class="sag"><span class="etiket sari">{{ o.teslim|tarih }}</span></span></li>
+  {% else %}<li class="bos">Bekleyen ödev yok.</li>{% endfor %}
+  </ul>
+</section>
+<section class="kart">
+  <h2>Duyurular <a href="/duyurular">Tümü</a></h2>
+  <ul class="liste">
+  {% for d in duyurular %}<li><span>{{ d.baslik }}<br><span class="soluk kucuk">{{ d.yayin|tarih }}</span></span></li>
+  {% else %}<li class="bos">Yeni duyuru yok.</li>{% endfor %}
+  </ul>
+</section>
+</div>
+<p><a class="tus ikincil tam" href="/veli/program?ogr={{ cocuk.id }}">Ders programı</a></p>
+{% endif %}
+{% endblock %}

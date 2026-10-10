@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block icerik %}
+<h1>Sınıflarım</h1>
+<section class="kart">
+  <ul class="liste">
+  {% for sinif, ders in gorevler %}
+    <li><a class="satir" href="/ogretmen/sinif/{{ sinif }}"><span class="etiket">{{ sinif }}</span><span>{{ ders|baslik if ders else 'Sınıf listesi' }}</span></a>
+      {% if ders %}<a class="tus ikincil kucuk sag" href="/ogretmen/odev/yeni?sinif={{ sinif }}&ders={{ ders|urlencode }}">Ödev ver</a>{% endif %}</li>
+  {% else %}
+    <li class="bos">Size henüz sınıf/ders atanmamış. Okul yönetimi görevlerinizi tanımlayınca burada görünecek.</li>
+  {% endfor %}
+  </ul>
+</section>
+
+<section class="kart">
+  <h2>Verdiğim ödevler</h2>
+  <ul class="liste">
+  {% for o in odevler %}
+    <li><a class="satir" href="/ogretmen/odev/{{ o.id }}"><span>{{ o.baslik }}<br><span class="soluk kucuk">{{ o.sinif }} · {{ o.ders|baslik }} · {{ 'Test' if o.tur == 'test' else 'Ödev' }} · teslim {{ o.teslim|tarih }}</span></span><span class="sag"><b>{{ o.teslim_sayisi }}</b>/{{ o.sinif_mevcudu }}</span></a></li>
+  {% else %}
+    <li class="bos">Henüz ödev vermediniz.</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}

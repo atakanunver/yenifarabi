@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "_makrolar.html" import kareler, kaynak_yok, odev_durum %}
+{% block icerik %}
+<h1>Merhaba, <span class="fosfor">{{ ogrenci.ad_soyad.split(' ')[0] }}</span></h1>
+
+<section class="kart">
+  <h2>Kazanımlarım <a href="/ogrenci/kazanimlar">Tümü</a></h2>
+  {% if not kazanim_erisildi %}{{ kaynak_yok("Kazanım testi sonuçları") }}{% endif %}
+  {% for ders, basarili, toplam in ders_ozeti %}
+  <div class="ders-satir">
+    <span>{{ ders|baslik }}</span>
+    <span class="oran">{{ basarili }}/{{ toplam }}</span>
+    {{ kareler(basarili, toplam) }}
+  </div>
+  {% else %}
+  <p class="bos">Testler çözüldükçe her kazanım burada bir kare olacak.</p>
+  {% endfor %}
+  {% set eksik = namespace(n=0) %}{% for _, b, t in ders_ozeti %}{% set eksik.n = eksik.n + t - b %}{% endfor %}
+  {% if eksik.n %}<p class="kucuk"><b>{{ eksik.n }}</b> kazanım için çalışma öneriliyor.</p>{% endif %}
+</section>
+
+<div class="izgara iki">
+<section class="kart">
+  <h2>Bugünkü dersler <a href="/ogrenci/program">Program</a></h2>
+  {% if dersler is none %}{{ kaynak_yok("Ders programı") }}
+  {% elif dersler %}<ul class="liste">{% for no, ders in dersler %}<li><span class="saat">{{ no }}</span>{{ ders|baslik }}</li>{% endfor %}</ul>
+  {% else %}<p class="bos">Bugün ders yok.</p>{% endif %}
+</section>
+
+<section class="kart">
+  <h2>Bekleyen ödevler <a href="/ogrenci/odevler">Tümü</a></h2>
+  <ul class="liste">
+  {% for o in odevler %}
+    <li><a class="satir" href="/ogrenci/odev/{{ o.id }}"><span>{{ o.baslik }}<br><span class="soluk kucuk">{{ o.ders|baslik }} · {{ 'Test' if o.tur == 'test' else 'Ödev' }}</span></span><span class="sag">{{ odev_durum(o, simdi) }}</span></a></li>
+  {% else %}
+    <li class="bos">Bekleyen ödevin yok.</li>
+  {% endfor %}
+  </ul>
+</section>
+</div>
+
+<section class="kart">
+  <h2>Duyurular <a href="/duyurular">Tümü</a></h2>
+  <ul class="liste">
+  {% for d in duyurular %}<li><span>{{ d.baslik }}<br><span class="soluk kucuk">{{ d.yayin|tarih }}</span></span></li>
+  {% else %}<li class="bos">Yeni duyuru yok.</li>{% endfor %}
+  </ul>
+</section>
+{% endblock %}
