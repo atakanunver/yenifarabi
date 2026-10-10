@@ -33,8 +33,8 @@ async def basliklar(request: Request, call_next):
     yanit.headers["X-Content-Type-Options"] = "nosniff"
     yanit.headers["X-Frame-Options"] = "DENY"
     yanit.headers["Referrer-Policy"] = "same-origin"
-    if not request.url.path.startswith("/static"):
-        yanit.headers["Cache-Control"] = "no-store"
+    if not request.url.path.startswith("/static") and "cache-control" not in yanit.headers:
+        yanit.headers["Cache-Control"] = "no-store"  # kişisel veri içeren sayfalar hiçbir yerde saklanmasın
     token = getattr(request.state, "token", None)
     if token and "set-cookie" not in yanit.headers:
         auth.cerez_yaz(yanit, token, https_mi(request))  # kayan 1 yıllık oturum

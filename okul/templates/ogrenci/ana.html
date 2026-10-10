@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_makrolar.html" import kareler, kaynak_yok, odev_durum %}
 {% block icerik %}
+{% include "_ana_ekran.html" %}
 <h1>Merhaba, <span class="fosfor">{{ ogrenci.ad_soyad.split(' ')[0] }}</span></h1>
 
 <section class="kart">

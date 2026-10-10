@@ -4,12 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#1b2a4a">
+<meta name="theme-color" content="#4b1f6f">
+<meta name="application-name" content="DijitalOkul">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="DijitalOkul">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>{% block baslik %}Dijital Okul{% endblock %}</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/static/logo-64.png" type="image/png">
-<link rel="apple-touch-icon" href="/static/logo-192.png">
-<link rel="stylesheet" href="/static/okul.css?v=3">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<link rel="stylesheet" href="/static/okul.css?v=4">
 </head>
 <body>
 <header class="ust">
@@ -49,7 +54,7 @@
 </nav>
 {% endif %}
 <script>
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(function () {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }).catch(function () {});
 </script>
 </body>
 </html>

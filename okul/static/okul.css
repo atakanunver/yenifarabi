@@ -13,6 +13,11 @@
   --yesil: #1e8c5a;
   --yesil-acik: #e4f4ec;
   --fosfor: #ffe45c;
+  /* okul logosundaki mor (#c08adb) ve türevleri */
+  --mor: #c08adb;
+  --mor-koyu: #4b1f6f;
+  --mor-orta: #7a3fa8;
+  --mor-acik: #f3e9fa;
   --kart: #ffffff;
   --golge: 0 1px 0 rgba(27, 42, 74, .06), 0 6px 18px -12px rgba(27, 42, 74, .35);
   --yaricap: 14px;
@@ -43,8 +48,8 @@ a { color: var(--mavi); }
 .ust {
   position: sticky; top: 0; z-index: 5;
   display: flex; align-items: center; gap: .75rem;
-  padding: .7rem 1rem;
-  background: var(--murekkep); color: #fff;
+  padding: calc(.7rem + env(safe-area-inset-top)) 1rem .7rem;
+  background: var(--mor-koyu); color: #fff;
 }
 .marka { color: #fff; text-decoration: none; font-weight: 800; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: .5rem; }
 .marka img { width: 32px; height: 32px; border-radius: 50%; background: #fff; flex: none; }
@@ -138,7 +143,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--mavi); outline: 
 
 /* giriş sayfası */
 .giris { max-width: 420px; margin: 0 auto; padding-top: 2rem; }
-.okul-logo { display: block; width: 96px; height: 96px; border-radius: 50%; margin: 0 0 1rem; box-shadow: var(--golge); }
+.okul-logo { display: block; width: 96px; height: 96px; border-radius: 50%; margin: 0 auto 1rem; box-shadow: var(--golge); }
+/* giriş ekranları: logo, başlık ve alt yazı ortalı; form alanları sola dayalı kalır */
+.giris > .baslik, .giris > h1, .giris > .soluk { text-align: center; }
 .giris .baslik { font-size: 2rem; font-weight: 800; letter-spacing: -.03em; line-height: 1.05; margin: 0 0 .3rem; }
 .giris .sekme-sec { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; background: var(--mavi-acik); padding: .3rem; border-radius: 12px; margin: 1.2rem 0; }
 .giris .sekme-sec a { text-align: center; padding: .55rem; border-radius: 9px; text-decoration: none; font-weight: 700; color: var(--mavi); }
@@ -187,6 +194,18 @@ td.sayi, th.sayi { text-align: right; font-variant-numeric: tabular-nums; }
 .sekmeler a.aktif svg { stroke-width: 2.3; }
 
 /* yazdırma: ilk şifre listesi */
+/* Ana Ekrana Ekle */
+.ana-ekran { margin: 0 0 1rem; }
+.tus.mor { background: var(--mor-orta); color: #fff; min-height: 52px; font-size: 1.05rem; box-shadow: 0 6px 16px -10px var(--mor-koyu); }
+.tus.mor:hover { background: #6a3494; }
+.tus.mor:active { transform: translateY(1px); }
+.ana-ekran-rehber { margin-top: .6rem; padding: .8rem 1rem; border-radius: 12px; background: var(--mor-acik); border: 1px solid #dcc4ef; color: var(--murekkep); font-size: .95rem; overflow-wrap: anywhere; }
+.ana-ekran-rehber:focus { outline: none; }
+.ana-ekran-rehber p { margin: 0 0 .4rem; }
+.ana-ekran-rehber ol { margin: 0; padding-left: 1.3rem; }
+.ana-ekran-rehber li { margin: .3rem 0; }
+.ana-ekran-rehber .sembol { display: inline-block; padding: 0 .3rem; border: 1px solid #b99ad3; border-radius: 6px; background: #fff; }
+
 @media print {
   body { background: #fff; }
   .ust, .sekmeler, .yazdirma-gizle { display: none !important; }

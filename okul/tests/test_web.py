@@ -500,5 +500,5 @@ def test_cikis(istemci, ornek):
 
 
 def test_pwa_dosyalari(istemci):
-    assert istemci.get("/manifest.webmanifest").json()["name"] == "ŞMUAL Dijital Okul"
+    assert istemci.get("/manifest.webmanifest").json()["name"] == "Şehit Murat Ustaoğlu Anadolu Lisesi - DijitalOkul"
     assert "caches" in istemci.get("/sw.js").text
