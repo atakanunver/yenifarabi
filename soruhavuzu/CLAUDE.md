@@ -30,3 +30,11 @@ testleri ve YKS çıkmış sorularından **yerel Ollama** (qwen3.8:27b) ile soru
   Elle `denetle` sınırsız ve ders saati kontrolsüz.
 - Sıra (`vt.DENETLENECEK_SQL`): onaylı sayısı en az (sınıf, ders) önce, eşitlikte yüksek sınıf.
 - `durum` sınıf başına onaylı / denetim bekleyen satırı da basar.
+
+## Şık sırası dengesi (2026-10-10)
+- `sik.kanonik_sira`: şıklar metin hash'ine (sayısal şıklar değere) göre kanonik sıraya dizilir; `vt.soru_ekle` her yeni soruya uygular. Konuma atıflı şıklar ("A ve B", "hepsi") dokunulmaz.
+- Geçmiş için: `python -m soruhavuzu.calistir sik-karistir [--kuru]` (önce/sonra A/B/C/D dağılımı yazar; ikinci çalıştırmada 0 değişiklik).
+
+## LLM ile kazanım sınıflandırma (2026-10-10)
+- `python -m soruhavuzu.calistir siniflandir [--kuru] [--limit N] [--zorla]`: kazanımsız onaylı soruları aynı sınıf+ders kazanımlarından gömmeyle en yakın 5 adaya indirip Ollama'ya sorar (parti 8); `kazanim_kaynak='llm'`, `kazanim_siniflandirma_at` ile kaldığı yerden devam eder (bozuk yanıt 3 denemede çözülmezse parti işaretlenir). Şema değişti: `kur` bir kez çalıştırılmalı.
+- `uret` bütün kazanımlar bitince (denetimden önce) bunu ders saati kontrolüyle çağırır.
