@@ -2032,3 +2032,8 @@ explicit capability-boundary decision, not a resurrected copy of this file.
 - Neden: AGY `response`'a JSON'u iki kez art arda yazıyordu ("```json{..}```{..}") → `json.loads` "Extra data" hatası verdi, 20 kararın 20'si sessizce düştü.
 - Denetçi istemine "ders dışı / saçma soru reddedilir" kuralı eklendi: eski istemle matematik kitabındaki problem hikâyesinden çıkan "Millî Ağaçlandırma Günü hangi tarih" sorusu "metinle uyumlu" diye onaylanıyordu.
 - Üretici (`uretici.py`): `num_predict: 2048` (16 hatalı birimin 3'ü modelin 8k+ token tekrar döngüsüyle 180 sn zaman aşımı) + Ollama 500'ünde tek tekrar (13 birim; Ollama logunda hata nedeni yok, aynı birim tekrar denenince geçiyor).
+
+## 2026-10-10 - Dijital Okul platformu (okul/, port 9090)
+- Bağımsız FastAPI + Jinja2 + SQLite servis; devamsızlık yoklama_pano.db'den, kazanım sonuçları/soru havuzu Postgres soru_havuzu'ndan, ders programı mudur/ders_programi.json'dan SALT-OKUNUR ve her istekte okunur (kopyalanmaz). Veli girişi SMS kodu (smssistemi'ye eklenen /api/arac/kod-sms, telefon başına dk 1 / saat 5); diğerleri şifre, ilk şifre ad+123 ve zorunlu değişim; oturum 1 yıl kayan çerez (kullanıcı kararı: güvenlik kullanıcıyı kaçırmamalı).
+- Tahta yoklaması gelmeyenleri isimle tutuyor: isim→(sınıf, no)→okul_no eşleniyor; aynı sınıfta aynı isim ya da eşleşmeyen isim varsa veliye gösterilmiyor, yönetici /yonetici/eslesmeyen'de görüyor (yanlış çocuğa devamsızlık yazmamak için).
+- Spec: docs/superpowers/specs/2026-10-10-dijital-okul-design.md. Dış erişim Cloudflare Tunnel smual.app (cloudflared edge trafiği okul filtresi yüzünden Müdür PC proxy'si üzerinden, bkz. llm-cluster-wiki nodes/farabi.md).
