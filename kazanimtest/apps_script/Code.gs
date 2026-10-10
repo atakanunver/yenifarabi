@@ -92,8 +92,11 @@ function sonuclar_(formId) {
   var okulId = null;
   var mcIdler = [];               // MC maddelerinin id'leri, formdaki sırayla
   maddeler.forEach(function (m) {
-    if (m.getType() === FormApp.ItemType.TEXT && m.getTitle() === 'Okul numarası') {
-      okulId = m.getId();
+    if (m.getType() === FormApp.ItemType.TEXT) {
+      var baslik = (m.getTitle() || '').trim().toLowerCase();
+      if (baslik === 'okul numarası' || baslik.indexOf('okul') >= 0 || baslik.indexOf('numara') >= 0 || okulId === null) {
+        okulId = m.getId();
+      }
     } else if (m.getType() === FormApp.ItemType.MULTIPLE_CHOICE) {
       mcIdler.push(m.getId());
     }
