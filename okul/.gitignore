@@ -1,0 +1,5 @@
+venv/
+veri/
+config/gizli.json
+__pycache__/
+.pytest_cache/
