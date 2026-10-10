@@ -6,6 +6,7 @@ uret     ders saati dışında çalışır. Başlangıçta ve (pencere hâlâ a�
          döngüsü bitince SINIRLI artımlı AGY denetimi yapar (en az onaylı soru olan
          (sınıf, ders) önce); bütün birimler bitince kalan her şeyi denetler.
          Her pakette ders saati yeniden kontrol edilir.
+siniflandir  kazanımsız onaylı soruları LLM ile kazanıma bağlar [--kuru] [--limit N] [--zorla]
 sik-karistir  durum IN (uretildi, onayli, askida) soruların şıklarını kanonik sıraya geçirir [--kuru]
 denetle  AGY ile tüm 'uretildi' soruları tek seferde denetler (elle; sınırsız)
 durum    özet sayılar (sınıf başına onaylı dahil)"""
@@ -18,7 +19,7 @@ from pathlib import Path
 
 import psycopg2
 
-from soruhavuzu import denetci, etiketle, kazanimlar, kaynak, kaynaklar, sik, tekrar, uretici, vt, zaman
+from soruhavuzu import denetci, etiketle, kazanimlar, kaynak, kaynaklar, sik, siniflandir, tekrar, uretici, vt, zaman
 
 VERI = Path("/mnt/farabi-data/farabi")
 # Kaldığı yer işareti (2026-10-09): her kazanım sonunda yazılır, yeniden başlayınca okunur.
@@ -82,6 +83,7 @@ def uret(
             continue
         if k is None:
             print("[uret] bütün kazanımlar hedefte ya da denendi — denetim", flush=True)
+            siniflandir.calistir(conn, gomucu, ders_saati_kontrol=ders_saati_kontrol)
             if denetim:
                 denetle(conn, ders_saati_kontrol=ders_saati_kontrol)
             return
@@ -221,6 +223,10 @@ def main() -> int:
     p_uret.add_argument("--zorla", action="store_true", help="Ders saati kontrolünü atla")
     p_uret.add_argument("--denetimsiz", action="store_true", help="AGY denetimini atla (yalnızca üretim)")
     sub.add_parser("denetle")
+    p_sin = sub.add_parser("siniflandir")
+    p_sin.add_argument("--kuru", action="store_true")
+    p_sin.add_argument("--limit", type=int, default=None)
+    p_sin.add_argument("--zorla", action="store_true", help="Ders saati kontrolünü atla")
     sub.add_parser("sik-karistir").add_argument("--kuru", action="store_true")
     sub.add_parser("durum")
 
@@ -255,6 +261,11 @@ def main() -> int:
         uret(conn, ders_saati_kontrol=not args.zorla, sinif=args.sinif, denetim=not args.denetimsiz)
     elif komut == "denetle":
         denetle(conn)
+    elif komut == "siniflandir":
+        s = siniflandir.calistir(
+            conn, tekrar._gomucu(), kuru=args.kuru, limit=args.limit, ders_saati_kontrol=not args.zorla
+        )
+        print(f"[siniflandir] bitti: {s}{' (kuru — yazılmadı)' if args.kuru else ''}", flush=True)
     elif komut == "sik-karistir":
         s = sik_karistir(conn, kuru=args.kuru)
         harf = "ABCD"

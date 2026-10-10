@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS kazanim (
 );
 ALTER TABLE soru ADD COLUMN IF NOT EXISTS kazanim_id integer REFERENCES kazanim(id);
 ALTER TABLE soru ADD COLUMN IF NOT EXISTS kazanim_skor real;
-ALTER TABLE soru ADD COLUMN IF NOT EXISTS kazanim_kaynak text CHECK (kazanim_kaynak IN ('uretim', 'etiket'));
+ALTER TABLE soru ADD COLUMN IF NOT EXISTS kazanim_kaynak text CHECK (kazanim_kaynak IN ('uretim', 'etiket', 'llm'));
 CREATE INDEX IF NOT EXISTS soru_kazanim_idx ON soru (kazanim_id, durum);
 
 -- Öğretmen geri bildirimi (2026-10-09): soru hatalı / cevap yanlış / kazanım uyumsuz.
@@ -58,3 +58,8 @@ CREATE TABLE IF NOT EXISTS soru_geri_bildirim (
     durum       text NOT NULL DEFAULT 'acik' CHECK (durum IN ('acik', 'cozuldu'))
 );
 CREATE INDEX IF NOT EXISTS geri_bildirim_soru_idx ON soru_geri_bildirim (soru_id, durum);
+
+-- LLM ile kazanım sınıflandırma (2026-10-10): gömme eşiğini geçemeyen onaylı sorular.
+ALTER TABLE soru ADD COLUMN IF NOT EXISTS kazanim_siniflandirma_at timestamptz;
+ALTER TABLE soru DROP CONSTRAINT IF EXISTS soru_kazanim_kaynak_check;
+ALTER TABLE soru ADD CONSTRAINT soru_kazanim_kaynak_check CHECK (kazanim_kaynak IN ('uretim', 'etiket', 'llm'));
