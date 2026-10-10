@@ -122,6 +122,8 @@ def baglanti() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_YOLU)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     conn.create_function("tr_norm", 1, _tr_norm)
     return conn
 
