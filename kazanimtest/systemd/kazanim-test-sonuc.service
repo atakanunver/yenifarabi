@@ -9,4 +9,9 @@ WorkingDirectory=/home/ata/farabi
 Environment=HF_HUB_OFFLINE=1
 ExecStart=-/home/ata/farabi/server/venv/bin/python -m kazanimtest.calistir sonuc
 ExecStart=/home/ata/farabi/server/venv/bin/python -m kazanimtest.calistir analiz
-Nice=10
+Nice=15
+CPUSchedulingPolicy=batch
+CPUWeight=20
+IOWeight=20
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
