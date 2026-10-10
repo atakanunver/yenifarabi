@@ -25,8 +25,8 @@ METIN = Path("/mnt/farabi-data/farabi/icerik/metin")
 CIKTI = Path("/mnt/farabi-data/farabi/kazanim_testleri/agy")
 # (düzey, ders anahtarı) -> kitap metin dosyası (icerik/metin/)
 KITAP = {
-    (9, "biyoloji"): "biyoloji-9.json", (10, "biyoloji"): "biyoloji-10.json", (11, "biyoloji"): "biyoloji-11.json",
-    (9, "cografya"): "cografya-9.json", (10, "cografya"): "cografya-10.json", (11, "cografya"): "cografya-11.json",
+    (9, "biyoloji"): "biyoloji-9.json", (10, "biyoloji"): "biyoloji-10.json", (11, "biyoloji"): "biyoloji-11.json", (12, "biyoloji"): "biyoloji-12.json",
+    (9, "cografya"): "cografya-9.json", (10, "cografya"): "cografya-10.json", (11, "cografya"): "cografya-11.json", (12, "cografya"): "cografya-12.json",
     (9, "din"): "din-kulturu-ve-ahlak-bilgisi-9.json", (10, "din"): "din-kulturu-ve-ahlak-bilgisi-10.json",
     (11, "din"): "din-kulturu-ve-ahlak-bilgisi-11.json",
     (9, "fizik"): "fizik_9.json", (10, "fizik"): "fizik-10.json", (11, "fizik"): "fizik-11.json",
