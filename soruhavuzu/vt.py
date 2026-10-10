@@ -7,6 +7,8 @@ from pathlib import Path
 import psycopg2
 import psycopg2.extras
 
+from soruhavuzu import sik
+
 SEMA = Path(__file__).with_name("sema.sql")
 
 
@@ -65,6 +67,7 @@ def birim_isaretle(conn, birim_id, durum, hata=None) -> None:
 def soru_ekle(
     conn, birim_id, s: dict, kazanim_id=None, kazanim_skor=None, kazanim_kaynak=None
 ) -> int:
+    s["secenekler"], s["dogru_index"] = sik.kanonik_sira(s["soru"], s["secenekler"], s["dogru_index"])
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO soru (birim_id, ders, sinif, konu, soru, kisa_cevap, secenekler, "

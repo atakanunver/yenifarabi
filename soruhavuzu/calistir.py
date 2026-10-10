@@ -6,6 +6,7 @@ uret     ders saati dışında çalışır. Başlangıçta ve (pencere hâlâ a�
          döngüsü bitince SINIRLI artımlı AGY denetimi yapar (en az onaylı soru olan
          (sınıf, ders) önce); bütün birimler bitince kalan her şeyi denetler.
          Her pakette ders saati yeniden kontrol edilir.
+sik-karistir  durum IN (uretildi, onayli, askida) soruların şıklarını kanonik sıraya geçirir [--kuru]
 denetle  AGY ile tüm 'uretildi' soruları tek seferde denetler (elle; sınırsız)
 durum    özet sayılar (sınıf başına onaylı dahil)"""
 
@@ -17,7 +18,7 @@ from pathlib import Path
 
 import psycopg2
 
-from soruhavuzu import denetci, etiketle, kazanimlar, kaynak, kaynaklar, tekrar, uretici, vt, zaman
+from soruhavuzu import denetci, etiketle, kazanimlar, kaynak, kaynaklar, sik, tekrar, uretici, vt, zaman
 
 VERI = Path("/mnt/farabi-data/farabi")
 # Kaldığı yer işareti (2026-10-09): her kazanım sonunda yazılır, yeniden başlayınca okunur.
@@ -164,6 +165,29 @@ def denetle(
         print(f"[denetle] {n} karar", flush=True)
 
 
+def sik_karistir(conn, kuru: bool = False) -> dict:
+    """Mevcut soruların şıklarını kanonik sıraya geçirir (tek işlemde); doğru şık metni korunur."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, soru, secenekler, dogru_index FROM soru "
+            "WHERE durum IN ('uretildi','onayli','askida') ORDER BY id"
+        )
+        satirlar = cur.fetchall()
+    once, sonra, degisen = [0] * 4, [0] * 4, []
+    for sid, soru, sec, di in satirlar:
+        yeni, yeni_di = sik.kanonik_sira(soru, sec, di)
+        once[di] += 1
+        sonra[yeni_di] += 1
+        if yeni != sec:
+            degisen.append((json.dumps(yeni, ensure_ascii=False), yeni_di, sid))
+    if not kuru and degisen:
+        with conn.cursor() as cur:
+            for g in degisen:
+                cur.execute("UPDATE soru SET secenekler=%s::jsonb, dogru_index=%s WHERE id=%s", g)
+        conn.commit()
+    return {"toplam": len(satirlar), "degisen": len(degisen), "once": once, "sonra": sonra}
+
+
 def durum(conn) -> None:
     with conn.cursor() as cur:
         cur.execute(
@@ -197,6 +221,7 @@ def main() -> int:
     p_uret.add_argument("--zorla", action="store_true", help="Ders saati kontrolünü atla")
     p_uret.add_argument("--denetimsiz", action="store_true", help="AGY denetimini atla (yalnızca üretim)")
     sub.add_parser("denetle")
+    sub.add_parser("sik-karistir").add_argument("--kuru", action="store_true")
     sub.add_parser("durum")
 
     args = parser.parse_args()
@@ -230,6 +255,12 @@ def main() -> int:
         uret(conn, ders_saati_kontrol=not args.zorla, sinif=args.sinif, denetim=not args.denetimsiz)
     elif komut == "denetle":
         denetle(conn)
+    elif komut == "sik-karistir":
+        s = sik_karistir(conn, kuru=args.kuru)
+        harf = "ABCD"
+        print("önce :", " ".join(f"{h}={n}" for h, n in zip(harf, s["once"])))
+        print("sonra:", " ".join(f"{h}={n}" for h, n in zip(harf, s["sonra"])))
+        print(f"[sik-karistir] {s['degisen']}/{s['toplam']} satır değişti{' (kuru — yazılmadı)' if args.kuru else ''}")
     else:
         durum(conn)
     return 0
