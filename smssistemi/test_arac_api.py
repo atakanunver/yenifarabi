@@ -348,3 +348,30 @@ def test_eski_db_kisisel_tablo_olusur(ortam):
     conn = db.baglanti()
     assert conn.execute("SELECT COUNT(*) c FROM kisisel_taslaklari").fetchone()["c"] == 0
     conn.close()
+
+
+# --- kod-sms (dijital okul veli giriş kodu) ---
+
+
+def test_kod_sms_gonderir_ve_sinirlar(ortam):
+    giden, saat = ortam
+    aa._kod_sms_gecmis.clear()
+    istek = aa.KodSmsIstek(telefon="0532 111 22 33", metin="Kod: 123456")
+    assert aa.kod_sms(istek) == {"gonderim_id": "g1"}
+    assert giden[0][0][2] == "Kod: 123456"
+    assert _kod(aa.kod_sms, istek) == 429  # dakikada 1
+    from datetime import timedelta
+
+    for _ in range(4):
+        saat["an"] += timedelta(minutes=2)
+        aa.kod_sms(istek)
+    saat["an"] += timedelta(minutes=2)
+    assert _kod(aa.kod_sms, istek) == 429  # saatte 5
+    saat["an"] += timedelta(hours=1)
+    aa.kod_sms(istek)
+
+
+def test_kod_sms_dogrulama(ortam):
+    aa._kod_sms_gecmis.clear()
+    assert _kod(aa.kod_sms, aa.KodSmsIstek(telefon="123", metin="x")) == 422
+    assert _kod(aa.kod_sms, aa.KodSmsIstek(telefon="05321112233", metin="x" * 161)) == 422

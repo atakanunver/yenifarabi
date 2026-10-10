@@ -595,3 +595,34 @@ def kisisel_gonder(istek: KisiselGonderIstek):
         "oge_sayisi": len({a[0] for a in liste}),
         "alici_sayisi": len(liste),
     }
+
+
+# --- Dijital okul (okul/, port 9090) veli giriş kodu — 2026-10-10 ---
+# Tek telefona serbest metin. Anahtar sızsa bile toplu SMS aracı olamasın diye
+# telefon başına dakikada 1 / saatte 5 sınırı vardır (bellekte; servis yeniden
+# başlayınca sıfırlanır — kabul edilebilir, kod zaten 5 dk geçerli).
+KOD_SMS_DAKIKA = timedelta(minutes=1)
+KOD_SMS_SAAT_AZAMI = 5
+_kod_sms_gecmis: dict[str, list[datetime]] = {}
+
+
+class KodSmsIstek(BaseModel):
+    telefon: str
+    metin: str
+
+
+@router.post("/kod-sms", dependencies=[Depends(anahtar_dogrula)])
+def kod_sms(istek: KodSmsIstek):
+    tel = gonderim.normalize_phone(istek.telefon)
+    if not gonderim.is_valid_phone(tel):
+        raise HTTPException(status_code=422, detail="Geçersiz telefon.")
+    metin = istek.metin.strip()
+    if not metin or len(metin) > 160:
+        raise HTTPException(status_code=422, detail="Metin 1-160 karakter olmalı.")
+    an = simdi()
+    gecmis = [t for t in _kod_sms_gecmis.get(tel, []) if an - t < timedelta(hours=1)]
+    if (gecmis and an - gecmis[-1] < KOD_SMS_DAKIKA) or len(gecmis) >= KOD_SMS_SAAT_AZAMI:
+        raise HTTPException(status_code=429, detail="Bu numaraya çok sık kod gönderildi.")
+    gecmis.append(an)
+    _kod_sms_gecmis[tel] = gecmis
+    return {"gonderim_id": gonder([("Dijital Okul", tel, metin)])}
