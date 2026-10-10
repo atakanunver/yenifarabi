@@ -1,4 +1,4 @@
-{% from "_makrolar.html" import ikon %}<!doctype html>
+{% from "_makrolar.html" import ikon, vesikalik %}<!doctype html>
 <html lang="tr">
 <head>
 <meta charset="utf-8">
@@ -14,14 +14,14 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/static/logo-64.png" type="image/png">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
-<link rel="stylesheet" href="/static/okul.css?v=4">
+<link rel="stylesheet" href="/static/okul.css?v=6">
 </head>
 <body>
 <header class="ust">
   <a class="marka" href="/"><img src="/static/logo-64.png" alt="" width="32" height="32"><b>Dijital<span>Okul</span></b></a>
   {% if k %}
   <span class="kim">{{ k.ad_soyad }}<br>{{ ROL_ADLARI[k.rol] }}</span>
-  {% if k.rol != 'veli' and not k.sifre_degismeli %}<a class="bag" href="/sifre" title="Şifremi değiştir">Şifre</a>{% endif %}
+  {% if k.rol != 'veli' and not k.sifre_degismeli %}<a class="profil-bag" href="/profil" title="Profilim">{{ vesikalik(k.id, k.foto, k.ad_soyad, 32) }}</a>{% endif %}
   <form method="post" action="/cikis"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="bag">Çıkış</button></form>
   {% endif %}
 </header>
@@ -42,7 +42,7 @@
 {% elif k.rol == 'veli' %}
   {% set sekmeler = [('/veli'~ogr,'Ana sayfa','ev'),('/veli/devamsizlik'~ogr,'Devamsızlık','devam'),('/veli/kazanim'~ogr,'Kazanımlar','kazanim'),('/veli/odevler'~ogr,'Ödevler','odev'),('/duyurular','Duyurular','duyuru')] %}
 {% elif k.rol == 'ogretmen' %}
-  {% set sekmeler = [('/ogretmen','Sınıflarım','ev'),('/ogretmen/odev/yeni','Ödev ver','kalem'),('/ogretmen/program','Program','program'),('/ogretmen/duyuru','Duyuru yaz','duyuru')] %}
+  {% set sekmeler = [('/ogretmen','Sınıflarım','ev'),('/ogretmen/odev/yeni','Ödev ver','kalem'),('/ogretmen/sinavlar','Sınavlar','sinav'),('/ogretmen/program','Program','program'),('/ogretmen/duyuru','Duyuru yaz','duyuru')] %}
 {% else %}
   {% set sekmeler = [('/yonetici','Özet','ev'),('/yonetici/aktarim','Aktarım','yukle'),('/yonetici/kullanicilar','Kullanıcılar','kisi'),('/yonetici/gorevler','Görevler','gorev'),('/ogretmen/duyuru','Duyuru','duyuru')] %}
 {% endif %}

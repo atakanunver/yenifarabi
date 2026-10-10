@@ -14,6 +14,7 @@ from ayarlar import AYAR
 @pytest.fixture(autouse=True)
 def gecici_ortam(tmp_path, monkeypatch):
     monkeypatch.setattr(AYAR, "db_yolu", tmp_path / "okul.db")
+    monkeypatch.setattr(AYAR, "dosya_dizini", tmp_path / "dosyalar")
     monkeypatch.setattr(AYAR, "pano_db_yolu", tmp_path / "pano.db")
     monkeypatch.setattr(AYAR, "program_yolu", tmp_path / "program.json")
     monkeypatch.setattr(AYAR, "sms_anahtar", "test-anahtar")

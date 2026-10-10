@@ -122,7 +122,40 @@ CREATE TABLE aktarim_taslak (
 );
 """
 
-GOCLER = [SEMA_V1]
+# v2 (2026-10-10): vesikalık fotoğraf, yıllık plan, sınav takvimi. Yalnızca ekleme; mevcut veriye dokunmaz.
+SEMA_V2 = """
+ALTER TABLE kullanici ADD COLUMN foto TEXT;
+
+CREATE TABLE yillik_plan (
+    id           INTEGER PRIMARY KEY,
+    ogretmen_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    sinif        TEXT NOT NULL,
+    ders         TEXT NOT NULL,
+    dosya_adi    TEXT NOT NULL,
+    depo_adi     TEXT NOT NULL,
+    tur          TEXT NOT NULL,
+    boyut        INTEGER NOT NULL,
+    yukleme      TEXT NOT NULL,
+    UNIQUE (ogretmen_id, sinif, ders)
+);
+
+CREATE TABLE sinav (
+    id         INTEGER PRIMARY KEY,
+    yazar_id   INTEGER NOT NULL REFERENCES kullanici(id),
+    tur        TEXT NOT NULL CHECK (tur IN ('yazili','deneme')),
+    baslik     TEXT NOT NULL,
+    sinif      TEXT,
+    ders       TEXT,
+    duzeyler   TEXT NOT NULL DEFAULT '',
+    tarih      TEXT NOT NULL,
+    ders_no    INTEGER,
+    aciklama   TEXT NOT NULL DEFAULT '',
+    olusturma  TEXT NOT NULL
+);
+CREATE INDEX sinav_tarih ON sinav(tarih);
+"""
+
+GOCLER = [SEMA_V1, SEMA_V2]
 
 
 def baglanti() -> sqlite3.Connection:
@@ -141,8 +174,9 @@ def sema_kur() -> None:
     try:
         surum = conn.execute("PRAGMA user_version").fetchone()[0]
         for i in range(surum, len(GOCLER)):
-            conn.executescript(GOCLER[i])
-            conn.execute(f"PRAGMA user_version = {i + 1}")
-        conn.commit()
+            # Göç + sürüm numarası tek işlemde: yarıda kalırsa ikisi birden geri alınır.
+            conn.executescript(
+                f"BEGIN;\n{GOCLER[i]}\nPRAGMA user_version = {i + 1};\nCOMMIT;"
+            )
     finally:
         conn.close()

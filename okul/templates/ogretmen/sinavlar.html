@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_makrolar.html" import sinav_satiri %}
+{% block baslik %}Sınavlar — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Sınav takvimi</h1>
+{% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+
+<section class="kart">
+  <h2>Yaklaşan sınavlar</h2>
+  <ul class="liste sinavlar">
+  {% for s in sinavlar %}{{ sinav_satiri(s, kalan, duzenleyebilir(s), csrf) }}
+  {% else %}<li class="bos">Henüz sınav girilmedi.</li>{% endfor %}
+  </ul>
+</section>
+
+<details class="kart" {{ 'open' if not sinavlar }}>
+  <summary><b>Yazılı tarihi ekle</b></summary>
+  {% if gorevler %}
+  <form method="post" action="/ogretmen/sinav/yazili">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="gorev">Sınıf ve ders</label>
+    <select id="gorev" name="gorev" required>
+      {% for sinif, ders in gorevler %}<option value="{{ sinif }}|{{ ders }}">{{ sinif }}{% if ders %} · {{ ders|baslik }}{% endif %}</option>{% endfor %}
+    </select>
+    {% if k.rol == 'yonetici' %}<label for="ders_elle">Ders</label><input id="ders_elle" name="ders_elle" type="text" placeholder="matematik">{% endif %}
+    <label for="y_tarih">Tarih</label>
+    <input id="y_tarih" name="tarih" type="date" min="{{ bugun }}" required>
+    <label for="ders_no">Ders saati (isteğe bağlı)</label>
+    <select id="ders_no" name="ders_no"><option value="">—</option>{% for n in range(1, 11) %}<option value="{{ n }}">{{ n }}. ders</option>{% endfor %}</select>
+    <label for="y_aciklama">Kapsam / not (isteğe bağlı)</label>
+    <input id="y_aciklama" name="aciklama" type="text" maxlength="300" placeholder="Örn. 1. ve 2. üniteler">
+    <div class="tuslar"><button class="tus tam">Yazılıyı ekle</button></div>
+  </form>
+  {% else %}<p class="bos">Size henüz sınıf/ders atanmamış.</p>{% endif %}
+</details>
+
+<details class="kart">
+  <summary><b>Genel deneme sınavı ekle</b></summary>
+  <form method="post" action="/ogretmen/sinav/deneme">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="d_baslik">Deneme adı</label>
+    <input id="d_baslik" name="baslik" type="text" required maxlength="120" placeholder="Örn. 1. TYT Denemesi">
+    <label for="d_tarih">Tarih</label>
+    <input id="d_tarih" name="tarih" type="date" min="{{ bugun }}" required>
+    <fieldset class="duzeyler">
+      <legend>Hangi sınıf düzeyleri? <span class="soluk kucuk">(hiçbiri seçilmezse tüm okul)</span></legend>
+      {% for d in duzeyler %}<label class="sik"><input type="checkbox" name="duzey" value="{{ d }}"> {{ d }}. sınıflar</label>{% endfor %}
+    </fieldset>
+    <label for="d_aciklama">Not (isteğe bağlı)</label>
+    <input id="d_aciklama" name="aciklama" type="text" maxlength="300" placeholder="Örn. Saat 09:30'da, konferans salonunda">
+    <div class="tuslar"><button class="tus tam">Denemeyi ekle</button></div>
+  </form>
+</details>
+{% endblock %}

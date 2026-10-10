@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_makrolar.html" import kareler, kaynak_yok, odev_durum %}
+{% from "_makrolar.html" import kareler, kaynak_yok, odev_durum, sinav_satiri %}
 {% block icerik %}
 {% include "_ana_ekran.html" %}
 <h1>Merhaba, <span class="fosfor">{{ ogrenci.ad_soyad.split(' ')[0] }}</span></h1>
@@ -18,6 +18,14 @@
   {% endfor %}
   {% set eksik = namespace(n=0) %}{% for _, b, t in ders_ozeti %}{% set eksik.n = eksik.n + t - b %}{% endfor %}
   {% if eksik.n %}<p class="kucuk"><b>{{ eksik.n }}</b> kazanım için çalışma öneriliyor.</p>{% endif %}
+</section>
+
+<section class="kart">
+  <h2>Yaklaşan sınavlar <a href="/ogrenci/sinavlar">Takvim</a></h2>
+  <ul class="liste sinavlar">
+  {% for s in sinavlar %}{{ sinav_satiri(s, kalan) }}
+  {% else %}<li class="bos">Önümüzdeki 14 günde sınav yok.</li>{% endfor %}
+  </ul>
 </section>
 
 <div class="izgara iki">

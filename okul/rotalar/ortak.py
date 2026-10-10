@@ -7,6 +7,7 @@ import sqlite3
 from datetime import timedelta
 
 import odevler
+import sinavlar
 import zaman
 from ayarlar import AYAR
 from kaynaklar import KaynakHatasi, kazanim, program, yoklama
@@ -64,3 +65,9 @@ def bekleyen_odevler(
     conn: sqlite3.Connection, ogrenci: sqlite3.Row
 ) -> list[sqlite3.Row]:
     return [o for o in odevler.ogrenci_odevleri(conn, ogrenci) if o["durum"] is None]
+
+
+def yaklasan_sinavlar(conn: sqlite3.Connection, sinif: str, gun: int = 14) -> list[sqlite3.Row]:
+    bugun = zaman.simdi().date()
+    son = (bugun + timedelta(days=gun)).strftime("%Y-%m-%d")
+    return [s for s in sinavlar.sinif_sinavlari(conn, sinif, bugun.strftime("%Y-%m-%d")) if s["tarih"] <= son]

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_makrolar.html" import kareler, kaynak_yok, odev_durum %}
+{% from "_makrolar.html" import kareler, kaynak_yok, odev_durum, sinav_satiri, vesikalik %}
 {% block icerik %}
 {% include "_ana_ekran.html" %}
 {% if not cocuk %}
@@ -8,8 +8,11 @@
   <p>Telefon numaranıza bağlı bir öğrenci bulunamadı. Okul kaydındaki veli telefonunun güncel olduğundan emin olmak için okulla iletişime geçin.</p>
 </div>
 {% else %}
-<h1><span class="fosfor">{{ cocuk.ad_soyad }}</span></h1>
-<p class="soluk">{{ cocuk.sinif }} · Okul no {{ cocuk.okul_no }}</p>
+<div class="profil-ust">
+  {{ vesikalik(cocuk.kullanici_id, cocuk_foto, cocuk.ad_soyad, 64) }}
+  <div><h1 style="margin:0"><span class="fosfor">{{ cocuk.ad_soyad }}</span></h1>
+  <p class="soluk" style="margin:.2rem 0 0">{{ cocuk.sinif }} · Okul no {{ cocuk.okul_no }}</p></div>
+</div>
 
 <section class="kart{{ ' uyari' if devamsizlik and devamsizlik|selectattr('tarih', 'equalto', bugun)|selectattr('tur', 'equalto', 'yok')|list }}">
   <h2>Devamsızlık <a href="/veli/devamsizlik?ogr={{ cocuk.id }}">Ayrıntı</a></h2>
@@ -20,6 +23,14 @@
     {% else %}<p>Bugün devamsızlık kaydı yok.</p>{% endif %}
     <p class="soluk kucuk">Son 30 günde {{ devamsizlik|selectattr('tur', 'equalto', 'yok')|list|length }} ders saati yok, {{ devamsizlik|selectattr('tur', 'equalto', 'izinli')|list|length }} ders saati izinli.</p>
   {% endif %}
+</section>
+
+<section class="kart">
+  <h2>Yaklaşan sınavlar <a href="/veli/sinavlar?ogr={{ cocuk.id }}">Takvim</a></h2>
+  <ul class="liste sinavlar">
+  {% for s in sinavlar %}{{ sinav_satiri(s, kalan) }}
+  {% else %}<li class="bos">Önümüzdeki 14 günde sınav yok.</li>{% endfor %}
+  </ul>
 </section>
 
 <section class="kart">

@@ -5,6 +5,7 @@
 {%- elif ad == 'kazanim' %}<rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><path d="M13 16.5l2 2 4-4"/>
 {%- elif ad == 'program' %}<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>
 {%- elif ad == 'duyuru' %}<path d="M4 10v4h3l6 4V6L7 10z"/><path d="M17 9a4 4 0 010 6"/>
+{%- elif ad == 'sinav' %}<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M8.5 12.5l2.2 2.2 4.8-4.8"/>
 {%- elif ad == 'devam' %}<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>
 {%- elif ad == 'kalem' %}<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/>
 {%- elif ad == 'yukle' %}<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v4h16v-4"/>
@@ -30,4 +31,36 @@
 {% elif o.durum == 'yapti' %}<span class="etiket yesil">Yapıldı</span>
 {% elif o.teslim < simdi %}<span class="etiket kirmizi">Süresi geçti</span>
 {% else %}<span class="etiket sari">{{ o.teslim|tarih }}</span>{% endif %}
+{%- endmacro %}
+
+{# Sınav satırı: tarih kutusu (gün + ay), başlık, sınıf/ders ya da düzey, kalan gün. #}
+{% macro sinav_satiri(s, kalan, yonet=False, csrf='') -%}
+{% set ay = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'][s.tarih[5:7]|int - 1] %}
+{% set g = kalan(s.tarih) %}
+<li class="sinav">
+  <span class="takvim{{ ' yakin' if g <= 3 }}"><b>{{ s.tarih[8:10]|int }}</b>{{ ay }}</span>
+  <div class="sinav-govde">
+    <b>{{ s.baslik }}</b> {% if s.tur == 'deneme' %}<span class="etiket mor">Deneme</span>{% endif %}<br>
+    <span class="soluk kucuk">
+      {% if s.tur == 'yazili' %}{{ s.sinif }} · {{ s.ders|baslik }}{% else %}{{ 'Tüm okul' if not s.duzeyler else (s.duzeyler.split(',')|join('., ') ~ '. sınıflar') }}{% endif %}
+      {% if s.ders_no %} · {{ s.ders_no }}. ders{% endif %}
+    </span>
+    {% if s.aciklama %}<br><span class="kucuk">{{ s.aciklama }}</span>{% endif %}
+    {% if yonet %}
+    <div class="sinav-tuslar">
+      <a class="tus ikincil kucuk" href="/ogretmen/sinav/{{ s.id }}">Düzenle</a>
+      <form method="post" action="/ogretmen/sinav/{{ s.id }}/sil" onsubmit="return confirm('Sınav silinsin mi?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus tehlike kucuk">Sil</button></form>
+    </div>
+    {% endif %}
+  </div>
+  <span class="sag">
+    <span class="etiket {{ 'kirmizi' if g <= 3 else 'sari' }}">{{ 'Bugün' if g == 0 else ('Yarın' if g == 1 else (g ~ ' gün')) }}</span>
+  </span>
+</li>
+{%- endmacro %}
+
+{# Vesikalık: yoksa baş harfler. foto adresi yetki kontrollü /foto/{id}. #}
+{% macro vesikalik(kullanici_id, foto, ad, boyut=40) -%}
+{% if foto %}<img class="vesikalik" src="/foto/{{ kullanici_id }}?v={{ foto[:8] }}" alt="{{ ad }}" width="{{ boyut }}" height="{{ boyut }}" loading="lazy">
+{%- else %}<span class="vesikalik bos-foto" style="width:{{ boyut }}px;height:{{ boyut }}px" aria-hidden="true">{{ (ad or '?').split(' ')[0][:1] }}{{ (ad or '').split(' ')[-1][:1] if (ad or '').split(' ')|length > 1 }}</span>{% endif %}
 {%- endmacro %}

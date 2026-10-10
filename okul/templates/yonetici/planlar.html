@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block baslik %}Yıllık planlar — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Yıllık planlar</h1>
+<div class="kart{{ ' uyari' if eksik else ' bilgi' }}">
+  <p style="margin:0">{% if eksik %}<b>{{ eksik }}</b> görev için plan yüklenmemiş (listenin başında).{% else %}Tüm görevlerin planı yüklenmiş.{% endif %}
+  <span class="soluk kucuk">Toplam {{ satirlar|length }} görev.</span></p>
+</div>
+<section class="kart">
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Öğretmen</th><th>Sınıf</th><th>Ders</th><th>Plan</th></tr></thead>
+    <tbody>
+    {% for r in satirlar %}
+    <tr><td>{{ r.ad_soyad }}</td><td>{{ r.sinif }}</td><td>{{ r.ders|baslik }}</td>
+      <td>{% if r.plan_id %}<a href="/plan/{{ r.plan_id }}">{{ r.dosya_adi }}</a><br><span class="soluk kucuk">{{ r.yukleme|tarih }}</span>
+          {% else %}<span class="etiket kirmizi">Yok</span>{% endif %}</td></tr>
+    {% else %}
+    <tr><td colspan="4" class="bos">Henüz öğretmen görevi tanımlanmadı.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

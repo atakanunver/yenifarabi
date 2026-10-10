@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block baslik %}Sınavı düzenle — Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/ogretmen/sinavlar">← Sınav takvimi</a></p>
+<h1>Sınavı düzenle</h1>
+{% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+<form class="kart" method="post" action="/ogretmen/sinav/{{ s.id }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% if s.tur == 'yazili' %}<p class="soluk">{{ s.sinif }} · {{ s.ders|baslik }}</p>{% endif %}
+  <label for="baslik">{{ 'Deneme adı' if s.tur == 'deneme' else 'Başlık' }}</label>
+  <input id="baslik" name="baslik" type="text" maxlength="120" value="{{ s.baslik }}" {{ 'required' if s.tur == 'deneme' }}>
+  <label for="tarih">Tarih</label>
+  <input id="tarih" name="tarih" type="date" value="{{ s.tarih }}" required>
+  {% if s.tur == 'yazili' %}
+  <label for="ders_no">Ders saati</label>
+  <select id="ders_no" name="ders_no"><option value="">—</option>{% for n in range(1, 11) %}<option value="{{ n }}" {{ 'selected' if s.ders_no == n }}>{{ n }}. ders</option>{% endfor %}</select>
+  {% else %}
+  <fieldset class="duzeyler">
+    <legend>Sınıf düzeyleri <span class="soluk kucuk">(hiçbiri = tüm okul)</span></legend>
+    {% set secili = s.duzeyler.split(',') if s.duzeyler else [] %}
+    {% for d in duzeyler %}<label class="sik"><input type="checkbox" name="duzey" value="{{ d }}" {{ 'checked' if d|string in secili }}> {{ d }}. sınıflar</label>{% endfor %}
+  </fieldset>
+  {% endif %}
+  <label for="aciklama">Kapsam / not</label>
+  <input id="aciklama" name="aciklama" type="text" maxlength="300" value="{{ s.aciklama }}">
+  <div class="tuslar"><button class="tus tam">Değişiklikleri kaydet</button></div>
+</form>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% from "_makrolar.html" import sinav_satiri %}
+{% block baslik %}Sınavlar — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>{{ baslik_metni }}</h1>
+<section class="kart">
+  <ul class="liste sinavlar">
+  {% for s in liste %}{{ sinav_satiri(s, kalan) }}
+  {% else %}<li class="bos">Takvimde yaklaşan sınav yok. Öğretmenler tarih girdikçe burada görünecek.</li>{% endfor %}
+  </ul>
+</section>
+{% endblock %}

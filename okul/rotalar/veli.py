@@ -4,6 +4,7 @@ import sqlite3
 
 import duyurular
 import odevler
+import sinavlar
 import yetki
 import zaman
 from ayarlar import AYAR
@@ -59,6 +60,11 @@ def ana(
         ders_ozeti=ortak.ders_ozeti(ozet),
         odevler=ortak.bekleyen_odevler(conn, c)[:4],
         duyurular=duyurular.gorunur_duyurular(conn, k, 3),
+        sinavlar=ortak.yaklasan_sinavlar(conn, c["sinif"]),
+        cocuk_foto=conn.execute("SELECT foto FROM kullanici WHERE id = ?", (c["kullanici_id"],)).fetchone()["foto"]
+        if c["kullanici_id"]
+        else None,
+        kalan=sinavlar.kalan_gun,
     )
 
 

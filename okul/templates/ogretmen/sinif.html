@@ -1,14 +1,15 @@
 {% extends "base.html" %}
+{% from "_makrolar.html" import vesikalik %}
 {% block baslik %}{{ sinif }} — Dijital Okul{% endblock %}
 {% block icerik %}
 <p class="kucuk"><a href="/ogretmen">← Sınıflarım</a></p>
 <h1>{{ sinif }} sınıf listesi</h1>
 <section class="kart">
   <div class="tablo-kap"><table>
-    <thead><tr><th class="sayi">No</th><th>Ad soyad</th><th class="sayi">Veli</th></tr></thead>
+    <thead><tr><th></th><th class="sayi">No</th><th>Ad soyad</th><th class="sayi">Veli</th></tr></thead>
     <tbody>
-    {% for o in ogrenciler %}<tr><td class="sayi">{{ o.okul_no }}</td><td>{{ o.ad_soyad }}</td><td class="sayi">{{ o.veli_sayisi }}</td></tr>
-    {% else %}<tr><td colspan="3" class="bos">Bu sınıfta kayıtlı öğrenci yok.</td></tr>{% endfor %}
+    {% for o in ogrenciler %}<tr><td>{{ vesikalik(o.kullanici_id, o.foto, o.ad_soyad, 36) }}</td><td class="sayi">{{ o.okul_no }}</td><td>{{ o.ad_soyad }}</td><td class="sayi">{{ o.veli_sayisi }}</td></tr>
+    {% else %}<tr><td colspan="4" class="bos">Bu sınıfta kayıtlı öğrenci yok.</td></tr>{% endfor %}
     </tbody>
   </table></div>
 </section>

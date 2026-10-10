@@ -55,8 +55,8 @@ def sinif(
         raise HTTPException(404)
     yetki.erisim_kaydet(conn, k, f"sinif_listesi:{sinif}", None, istemci_ip(request))
     ogrenciler = conn.execute(
-        "SELECT o.*, (SELECT count(*) FROM veli_ogrenci v WHERE v.ogrenci_id = o.id) AS veli_sayisi"
-        " FROM ogrenci o WHERE sinif = ? ORDER BY okul_no",
+        "SELECT o.*, u.foto, (SELECT count(*) FROM veli_ogrenci v WHERE v.ogrenci_id = o.id) AS veli_sayisi"
+        " FROM ogrenci o LEFT JOIN kullanici u ON u.id = o.kullanici_id WHERE o.sinif = ? ORDER BY o.okul_no",
         (sinif,),
     ).fetchall()
     return render(request, "ogretmen/sinif.html", sinif=sinif, ogrenciler=ogrenciler)

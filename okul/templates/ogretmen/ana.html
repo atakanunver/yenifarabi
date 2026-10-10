@@ -2,6 +2,10 @@
 {% block icerik %}
 {% include "_ana_ekran.html" %}
 <h1>Sınıflarım</h1>
+<div class="kisayollar">
+  {% if k.rol == 'ogretmen' %}<a class="tus ikincil" href="/ogretmen/planlar">📄 Yıllık planlarım</a>{% endif %}
+  <a class="tus ikincil" href="/ogretmen/sinavlar">🗓️ Sınav takvimi</a>
+</div>
 <section class="kart">
   <ul class="liste">
   {% for sinif, ders in gorevler %}

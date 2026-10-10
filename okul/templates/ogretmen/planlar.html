@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block baslik %}Yıllık planlarım — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Yıllık planlarım</h1>
+<p class="soluk">Her sınıf ve ders için bir plan. Yeni yüklenen plan eskisinin yerine geçer. Planları yalnızca siz ve okul yönetimi görür.</p>
+{% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+{% for r in satirlar %}
+<section class="kart plan">
+  <h2>{{ r.sinif }} · {{ r.ders|baslik }}
+    {% if r.plan %}<span class="etiket yesil">Yüklendi</span>{% else %}<span class="etiket kirmizi">Plan yok</span>{% endif %}</h2>
+  {% if r.plan %}
+  <p class="kucuk"><a href="/plan/{{ r.plan.id }}">📄 {{ r.plan.dosya_adi }}</a>
+    <span class="soluk">· {{ (r.plan.boyut / 1024)|round|int }} KB · {{ r.plan.yukleme|tarih }}</span></p>
+  {% endif %}
+  <form method="post" action="/ogretmen/plan" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="sinif" value="{{ r.sinif }}"><input type="hidden" name="ders" value="{{ r.ders }}">
+    <label for="dosya-{{ loop.index }}">{{ 'Yeni sürüm yükle' if r.plan else 'Plan yükle' }} <span class="soluk kucuk">(Excel, Word ya da PDF · en fazla 10 MB)</span></label>
+    <input id="dosya-{{ loop.index }}" name="dosya" type="file" required
+      accept=".xlsx,.xls,.docx,.doc,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword">
+    <div class="tuslar"><button class="tus">Yükle</button></div>
+  </form>
+  {% if r.plan %}
+  <form method="post" action="/ogretmen/plan/{{ r.plan.id }}/sil" onsubmit="return confirm('Plan silinsin mi?')">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus tehlike kucuk">Planı sil</button>
+  </form>
+  {% endif %}
+</section>
+{% else %}
+<div class="kart bilgi"><p>Size henüz sınıf/ders atanmamış. Görevleriniz tanımlanınca her ders için plan yükleyebilirsiniz.</p></div>
+{% endfor %}
+{% endblock %}

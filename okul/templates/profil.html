@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_makrolar.html" import vesikalik %}
+{% block baslik %}Profilim — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Profilim</h1>
+{% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+<section class="kart profil">
+  <div class="profil-ust">
+    {{ vesikalik(k.id, k.foto, k.ad_soyad, 112) }}
+    <div>
+      <h2 style="margin:0">{{ k.ad_soyad }}</h2>
+      <p class="soluk kucuk" style="margin:.2rem 0 0">{{ ROL_ADLARI[k.rol] }} · {{ k.kullanici_adi }}</p>
+    </div>
+  </div>
+  <h2 style="margin-top:1.2rem">Vesikalık fotoğraf <span class="soluk kucuk">(isteğe bağlı)</span></h2>
+  <p class="soluk kucuk">
+    {% if k.rol == 'ogrenci' %}Fotoğrafını yalnızca sen, velin, sınıfına giren öğretmenler ve okul yönetimi görür. Diğer öğrenciler göremez.
+    {% else %}Fotoğrafınızı yalnızca siz ve okul yönetimi görür.{% endif %}
+  </p>
+  <form method="post" action="/profil/foto" enctype="multipart/form-data" id="foto-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="foto">Fotoğraf seç (JPG, PNG, WEBP · en fazla 5 MB)</label>
+    <input id="foto" name="foto" type="file" accept="image/jpeg,image/png,image/webp" required>
+    <img id="foto-onizleme" class="vesikalik" alt="Seçilen fotoğrafın önizlemesi" width="112" height="112" hidden>
+    <div class="tuslar"><button class="tus">{{ 'Fotoğrafı değiştir' if k.foto else 'Fotoğrafı yükle' }}</button></div>
+  </form>
+  {% if k.foto %}
+  <form method="post" action="/profil/foto/sil" onsubmit="return confirm('Fotoğraf kaldırılsın mı?')">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus tehlike kucuk">Fotoğrafı kaldır</button>
+  </form>
+  {% endif %}
+</section>
+<section class="kart">
+  <h2>Hesap</h2>
+  <a class="tus ikincil" href="/sifre">Şifremi değiştir</a>
+</section>
+<script src="/static/foto.js?v=1" defer></script>
+{% endblock %}

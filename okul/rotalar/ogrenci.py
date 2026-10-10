@@ -5,6 +5,7 @@ import sqlite3
 
 import duyurular
 import odevler
+import sinavlar
 import yetki
 import zaman
 from ayarlar import AYAR
@@ -48,6 +49,8 @@ def ana(
         ders_ozeti=ortak.ders_ozeti(ozet),
         kazanim_erisildi=erisildi,
         simdi=zaman.simdi_str(),
+        sinavlar=ortak.yaklasan_sinavlar(conn, o["sinif"]),
+        kalan=sinavlar.kalan_gun,
     )
 
 

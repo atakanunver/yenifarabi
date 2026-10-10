@@ -11,6 +11,7 @@ FARABI = KOK.parent
 @dataclass
 class Ayarlar:
     db_yolu: Path = KOK / "veri" / "okul.db"
+    dosya_dizini: Path = KOK / "veri" / "dosyalar"  # foto/plan — static DEĞİL, yetkili rotalardan sunulur
     pano_db_yolu: Path = field(
         default=FARABI / "tahtayoklama" / "dashboard" / "veri" / "yoklama_pano.db"
     )
