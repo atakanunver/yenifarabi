@@ -46,7 +46,13 @@ okul operasyon servisleri (yoklama panosu, SMS).
   `openwebui/.env::YONETICI_EPOSTALAR`. Yalnızca-İdare araçlar: Belge Kalıcı
   Kayıt (`server/belge_arsiv.py`), SMS ve Hatırlatma (`smssistemi/arac_api.py`).
   Aşağıdaki "Farabi" adlı Open WebUI notları bu tarihten önce.
-- **Zamanlanmış işler:** `farabi-idari-yukle.timer` (her gece 23:30 UTC =
+- ⛔ **Zamanlanmış işlerin HEPSİ KALICI OLARAK KAPALI (2026-10-10, kullanıcı
+  kararı):** `soru-havuzu-uret`, `kazanim-test`, `kazanim-test-sonuc`,
+  `kazanim-test-aylik`, `farabi-idari-yukle` zamanlayıcıları `disable --now`.
+  Kullanıcı açıkça istemeden yeniden etkinleştirme. Ayrıca: 12. sınıfa ikinci emre
+  kadar dokunulmaz (kitaplar değişecek); 9-11 çalışmaları Maarif modeline odaklı.
+  Aşağıdaki açıklama kapanış öncesi düzeni anlatır.
+- **Zamanlanmış işler (kapanış öncesi):** `farabi-idari-yukle.timer` (her gece 23:30 UTC =
   02:30 TR, `mudur/` yeni belgeleri RAG'a), `soru-havuzu-uret.timer`
   (hafta içi 14:15 UTC = 17:15 TR, hafta sonu 05:00 UTC; ders saatinde
   kendiliğinden durur) — bkz. `soruhavuzu/CLAUDE.md`.
