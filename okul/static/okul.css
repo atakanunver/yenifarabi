@@ -106,9 +106,10 @@ h2 { font-size: 1.05rem; margin: 0 0 .6rem; }
 .ders-satir .oran { font-variant-numeric: tabular-nums; font-weight: 700; }
 .ders-satir .kareler { grid-column: 1 / -1; margin: 0; }
 
-.kazanim { display: grid; grid-template-columns: auto 1fr auto; gap: .6rem; align-items: start; padding: .55rem 0; border-top: 1px dashed var(--cizgi); }
+.kazanim { display: grid; grid-template-columns: 4.2rem 1fr auto; gap: .6rem; align-items: start; padding: .55rem 0; border-top: 1px dashed var(--cizgi); }
 .kazanim:first-of-type { border-top: 0; }
 .kazanim .kareler { margin: .2rem 0 0; }
+.kazanim > .etiket { text-align: center; }
 .yuzde { font-variant-numeric: tabular-nums; font-weight: 700; }
 .yuzde.iyi { color: var(--yesil); }
 .yuzde.zayif { color: var(--kirmizi); }
