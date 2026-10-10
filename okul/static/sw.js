@@ -1,6 +1,6 @@
 // Yalnızca statik dosyalar önbelleklenir; kişisel veri içeren sayfalar asla (KVKK).
-const SURUM = "okul-v2";
-const STATIK = ["/static/okul.css?v=2", "/static/ikon.svg", "/static/ikon-192.png"];
+const SURUM = "okul-v3";
+const STATIK = ["/static/okul.css?v=3", "/static/logo-64.png", "/static/logo-192.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(SURUM).then((c) => c.addAll(STATIK)).then(() => self.skipWaiting()));

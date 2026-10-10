@@ -46,7 +46,8 @@ a { color: var(--mavi); }
   padding: .7rem 1rem;
   background: var(--murekkep); color: #fff;
 }
-.marka { color: #fff; text-decoration: none; font-weight: 800; letter-spacing: -.01em; }
+.marka { color: #fff; text-decoration: none; font-weight: 800; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: .5rem; }
+.marka img { width: 32px; height: 32px; border-radius: 50%; background: #fff; flex: none; }
 .marka span { color: var(--fosfor); }
 .ust .kim { margin-left: auto; font-size: .82rem; opacity: .85; text-align: right; }
 .ust form { margin: 0; }
@@ -137,6 +138,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--mavi); outline: 
 
 /* giriş sayfası */
 .giris { max-width: 420px; margin: 0 auto; padding-top: 2rem; }
+.okul-logo { display: block; width: 96px; height: 96px; border-radius: 50%; margin: 0 0 1rem; box-shadow: var(--golge); }
 .giris .baslik { font-size: 2rem; font-weight: 800; letter-spacing: -.03em; line-height: 1.05; margin: 0 0 .3rem; }
 .giris .sekme-sec { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; background: var(--mavi-acik); padding: .3rem; border-radius: 12px; margin: 1.2rem 0; }
 .giris .sekme-sec a { text-align: center; padding: .55rem; border-radius: 9px; text-decoration: none; font-weight: 700; color: var(--mavi); }
