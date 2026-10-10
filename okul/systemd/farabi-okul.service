@@ -1,0 +1,20 @@
+# Dijital Okul (okul/) — kurulum:
+#   sudo cp okul/systemd/farabi-okul.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now farabi-okul
+# Dış erişim: Cloudflare Tunnel smual.app -> http://localhost:9090 (cloudflared X-Forwarded-Proto gönderir).
+[Unit]
+Description=Dijital Okul (okul platformu, port 9090)
+After=network-online.target postgresql.service farabi-smssistemi.service
+Wants=network-online.target
+
+[Service]
+User=ata
+WorkingDirectory=/home/ata/farabi/okul
+ExecStart=/home/ata/farabi/okul/venv/bin/uvicorn app:app --host 0.0.0.0 --port 9090 --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=always
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+Nice=5
+
+[Install]
+WantedBy=multi-user.target
