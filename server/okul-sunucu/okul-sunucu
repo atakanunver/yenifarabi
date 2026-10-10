@@ -43,9 +43,9 @@ ERTELEME_SAATI = "17:05:00"
 # makinede yalnızca ssh. "ollama" kurulu değilse raporda atlanır.
 SERVISLER = {
     "farabi": ["ollama", "farabi-api", "open-webui", "postgresql@18-main",
-               "farabi-yoklama-dashboard", "chrony"],
-    "debian": ["chatterbox-tts", "ollama", "ssh"],
-    "bilgehan": ["ssh", "nvidia-persistenced", "farabi-embed", "ollama", "chrony"],
+               "farabi-yoklama-dashboard", "farabi-smssistemi", "sinif-arena", "chrony"],
+    "debian": ["ema-tts", "ollama", "ssh"],
+    "bilgehan": ["ssh", "nvidia-persistenced", "farabi-embed", "chatterbox-tts", "chrony"],
 }
 
 
