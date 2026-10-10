@@ -76,3 +76,8 @@ def test_sik_karistir_gecmise_donuk(conn):
         cur.execute("SELECT secenekler FROM soru WHERE id=%s", (ids[1],))
         assert cur.fetchone()[0] == ["d2", "a2", "c2", "b2"]
     assert calistir.sik_karistir(conn)["degisen"] == 0
+
+
+def test_harf_onekli_siklar_korunur():
+    sec = ["A) Mitokondri", "B) Ribozom", "C) Lizozom", "D) Koful"]
+    assert sik.kanonik_sira("Hangi organel enerji üretir?", sec, 0) == (sec, 0)

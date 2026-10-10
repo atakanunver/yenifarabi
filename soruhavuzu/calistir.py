@@ -83,7 +83,11 @@ def uret(
             continue
         if k is None:
             print("[uret] bütün kazanımlar hedefte ya da denendi — denetim", flush=True)
-            siniflandir.calistir(conn, gomucu, ders_saati_kontrol=ders_saati_kontrol)
+            try:  # sınıflandırma hatası gece üretimini düşürmesin
+                siniflandir.calistir(conn, gomucu, ders_saati_kontrol=ders_saati_kontrol)
+            except Exception as e:  # noqa: BLE001
+                conn.rollback()
+                print(f"[uret] siniflandir HATA: {type(e).__name__}: {e}", flush=True)
             if denetim:
                 denetle(conn, ders_saati_kontrol=ders_saati_kontrol)
             return
