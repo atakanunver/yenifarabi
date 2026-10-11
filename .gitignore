@@ -155,3 +155,10 @@ kazanimtest/config/gizli.json
 # Arşiv ve PDF (docs-cleanup)
 _arsiv/
 *.pdf
+
+# Güvenlik ağı (KVKK): hiçbir veritabanı dosyası repoya girmesin
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
