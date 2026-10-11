@@ -2,6 +2,7 @@
 
 import hmac
 import sqlite3
+import time
 from datetime import datetime
 
 import auth
@@ -10,6 +11,7 @@ from ayarlar import KOK
 from fastapi import Depends, HTTPException, Request
 from fastapi.templating import Jinja2Templates
 import zaman
+from kaynaklar import KaynakHatasi, zil
 from kaynaklar.program import GUN_ADLARI, GUNLER
 
 ANA_SAYFA = {
@@ -49,6 +51,23 @@ TEMPLATES.env.filters["tarih"] = _tarih
 TEMPLATES.env.filters["gun_adi"] = lambda g: GUN_ADLARI.get(g, g)
 TEMPLATES.env.filters["baslik"] = lambda s: (s or "")[:1].upper() + (s or "")[1:]
 TEMPLATES.env.globals["ROL_ADLARI"] = ROL_ADLARI
+
+
+def _saat_verisi() -> dict:
+    # epoch: telefonun saati yanlışsa saat.js sunucu saatine göre düzeltir
+    return {**zil.widget_verisi(zaman.simdi()), "epoch": int(time.time() * 1000)}
+
+
+def _zil_cizelgesi() -> list[tuple[int, str, str]] | None:
+    try:
+        return zil.dersler() or None
+    except KaynakHatasi:
+        return None
+
+
+TEMPLATES.env.globals["saat_verisi"] = _saat_verisi
+TEMPLATES.env.globals["zil_cizelgesi"] = _zil_cizelgesi
+TEMPLATES.env.globals["ogle_arasi"] = zil.ogle_arasi
 
 
 class GirisGerekli(Exception):

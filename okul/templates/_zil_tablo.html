@@ -1,0 +1,18 @@
+{# Ders giriş-çıkış saatleri (tahtayoklama/data/zil.json). Şu anki ders/sıradaki ders saat.js ile vurgulanır. #}
+{% set zil = zil_cizelgesi() %}
+{% if zil %}
+{% set ogle = ogle_arasi() %}
+<section class="kart">
+  <h2>Ders saatleri</h2>
+  <table class="zil-tablo" id="zil-tablo" data-saat='{{ saat_verisi()|tojson }}'>
+    <thead><tr><th>Ders</th><th>Giriş</th><th>Çıkış</th></tr></thead>
+    <tbody>
+    {% for no, bas, bit in zil %}
+      {% if ogle and bas == ogle[1] %}<tr class="ogle"><td>Öğle arası</td><td>{{ ogle[0] }}</td><td>{{ ogle[1] }}</td></tr>{% endif %}
+      <tr data-no="{{ no }}"><td><span class="saat">{{ no }}</span></td><td>{{ bas }}</td><td>{{ bit }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+<script src="/static/saat.js?v=1" defer></script>
+{% endif %}

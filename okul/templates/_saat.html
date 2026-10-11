@@ -1,0 +1,20 @@
+{# Tarih-saat widget'ı — rol ana sayfalarında. Okul günüyse kaçıncı derste olunduğunu gösterir.
+   İlk durum sunucudan; static/saat.js her saniye (sunucu saatine göre düzeltilmiş) günceller. #}
+{% set sv = saat_verisi() %}
+<section class="saat-kart tur-{{ sv.durum.tur }}" id="saat-kart" data-saat='{{ sv|tojson }}' aria-label="Tarih ve saat">
+  <svg class="kadran" viewBox="0 0 100 100" aria-hidden="true">
+    <circle class="kadran-yuz" cx="50" cy="50" r="47"/>
+    {% for i in range(60) %}<line class="{{ 'cizik-buyuk' if i % 5 == 0 else 'cizik' }}" x1="50" y1="{{ 6 if i % 5 == 0 else 7 }}" x2="50" y2="{{ 13 if i % 5 == 0 else 10 }}" transform="rotate({{ i * 6 }} 50 50)"/>{% endfor %}
+    <line class="ibre-akrep" id="ibre-akrep" x1="50" y1="54" x2="50" y2="29"/>
+    <line class="ibre-yelkovan" id="ibre-yelkovan" x1="50" y1="56" x2="50" y2="17"/>
+    <line class="ibre-saniye" id="ibre-saniye" x1="50" y1="60" x2="50" y2="12"/>
+    <circle class="ibre-gobek" cx="50" cy="50" r="2.6"/>
+  </svg>
+  <div class="saat-yazi">
+    <div class="saat-dijital" id="saat-dijital">{{ sv.saat }}</div>
+    <div class="saat-tarih" id="saat-tarih">{{ sv.tarih|tarih(false) }}</div>
+    <div class="saat-durum" id="saat-durum" aria-live="polite"{% if not sv.durum.metin %} hidden{% endif %}>{{ sv.durum.metin }}</div>
+    <div class="saat-ilerleme" id="saat-ilerleme" hidden><i></i></div>
+  </div>
+</section>
+<script src="/static/saat.js?v=1" defer></script>

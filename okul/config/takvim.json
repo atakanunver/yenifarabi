@@ -1,0 +1,21 @@
+{
+  "_aciklama": [
+    "2026-2027 okul takvimi — saat widget'ı 'kaçıncı ders' bilgisini yalnızca okul günlerinde gösterir.",
+    "Kaynak: MEB 2026-2027 çalışma takvimi (basın, 2026) + Diyanet 2027 dini günler.",
+    "Çapraz kontrol: tahtayoklama/data/kazanimlar.json 'haftalar' boşlukları (okulun yıllık planları)",
+    "16-20 Kasım, 25 Ocak-5 Şubat, 8-12 Mart tatillerini ve 25 Haziran bitişini doğruluyor.",
+    "Kurban Bayramı 20-21 Mayıs idari izni açıklanmadı; açıklanırsa 'tatiller'e eklenmeli.",
+    "yarim_gun: o gün dersler verilen saatte biter (bu saatte/sonra başlayan dersler yok sayılır)."
+  ],
+  "donem": {"baslangic": "2026-09-14", "bitis": "2027-06-25"},
+  "tatiller": [
+    {"ad": "Cumhuriyet Bayramı", "baslangic": "2026-10-29", "bitis": "2026-10-29"},
+    {"ad": "1. dönem ara tatili", "baslangic": "2026-11-16", "bitis": "2026-11-20"},
+    {"ad": "Yılbaşı", "baslangic": "2027-01-01", "bitis": "2027-01-01"},
+    {"ad": "Yarıyıl tatili", "baslangic": "2027-01-25", "bitis": "2027-02-05"},
+    {"ad": "2. dönem ara tatili", "baslangic": "2027-03-08", "bitis": "2027-03-12"},
+    {"ad": "Ulusal Egemenlik ve Çocuk Bayramı", "baslangic": "2027-04-23", "bitis": "2027-04-23"},
+    {"ad": "Kurban Bayramı", "baslangic": "2027-05-17", "bitis": "2027-05-19"}
+  ],
+  "yarim_gun": {"2026-10-28": "12:10"}
+}

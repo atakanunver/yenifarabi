@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block icerik %}
 {% include "_ana_ekran.html" %}
+{% include "_saat.html" %}
 <h1>Sınıflarım</h1>
 <div class="kisayollar">
   {% if k.rol == 'ogretmen' %}<a class="tus ikincil" href="/ogretmen/planlar">📄 Yıllık planlarım</a>{% endif %}

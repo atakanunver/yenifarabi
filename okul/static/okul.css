@@ -245,3 +245,52 @@ details.kart > summary { cursor: pointer; min-height: 32px; }
   .kart { animation: belir .25s ease-out both; }
   @keyframes belir { from { opacity: 0; transform: translateY(4px); } }
 }
+
+/* --- tarih-saat widget'ı (_saat.html, saat.js) --- */
+.saat-kart {
+  position: relative; overflow: hidden;
+  display: grid; grid-template-columns: 112px 1fr; gap: 1.1rem; align-items: center;
+  padding: 1.1rem 1.2rem; margin-bottom: .9rem; border-radius: var(--yaricap); color: #fff;
+  background: linear-gradient(135deg, var(--mor-koyu) 0%, var(--mor-orta) 100%);
+  box-shadow: 0 10px 28px -16px rgba(75, 31, 111, .9);
+}
+.saat-kart::before { /* defter kareleri, mor kâğıt üstünde */
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .12;
+  background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px);
+  background-size: var(--kare) var(--kare);
+}
+.saat-kart > * { position: relative; }
+.kadran { width: 112px; height: 112px; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .25)); }
+.kadran-yuz { fill: #fff; stroke: var(--mor); stroke-width: 2.5; }
+.cizik { stroke: #d9c6e8; stroke-width: .8; }
+.cizik-buyuk { stroke: var(--mor-koyu); stroke-width: 2; stroke-linecap: round; }
+.ibre-akrep, .ibre-yelkovan, .ibre-saniye { stroke-linecap: round; }
+.ibre-akrep { stroke: var(--mor-koyu); stroke-width: 4; }
+.ibre-yelkovan { stroke: var(--mor-orta); stroke-width: 2.6; }
+.ibre-saniye { stroke: var(--kirmizi); stroke-width: 1.1; }
+.ibre-gobek { fill: var(--fosfor); stroke: var(--mor-koyu); stroke-width: 1.2; }
+.saat-yazi { min-width: 0; }
+.saat-dijital { font-size: 2.6rem; font-weight: 800; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.saat-dijital span { animation: saat-nabiz 1s steps(1) infinite; }
+@keyframes saat-nabiz { 50% { opacity: .25; } }
+.saat-tarih { margin-top: .3rem; font-size: .92rem; opacity: .9; }
+.saat-durum {
+  display: inline-block; margin-top: .55rem; padding: .22rem .7rem; border-radius: 999px;
+  font-size: .88rem; font-weight: 700; background: rgba(255, 255, 255, .16); color: #fff;
+}
+.tur-ders .saat-durum { background: var(--fosfor); color: var(--mor-koyu); }
+.tur-teneffus .saat-durum, .tur-ogle .saat-durum { background: var(--yesil-acik); color: var(--yesil); }
+.tur-tatil .saat-durum { background: var(--mor-acik); color: var(--mor-koyu); }
+.saat-ilerleme { margin-top: .55rem; height: 5px; border-radius: 999px; background: rgba(255, 255, 255, .2); overflow: hidden; }
+.saat-ilerleme i { display: block; height: 100%; width: 0; background: var(--fosfor); border-radius: inherit; transition: width .9s linear; }
+@media (prefers-reduced-motion: reduce) { .saat-dijital span { animation: none; } .saat-ilerleme i { transition: none; } }
+@media (max-width: 360px) { .saat-kart { grid-template-columns: 88px 1fr; gap: .8rem; } .kadran { width: 88px; height: 88px; } .saat-dijital { font-size: 2.1rem; } }
+
+/* --- ders giriş-çıkış tablosu (_zil_tablo.html) --- */
+.zil-tablo { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.zil-tablo th { text-align: left; font-size: .8rem; color: var(--soluk); font-weight: 600; padding: 0 .5rem .4rem; }
+.zil-tablo td { padding: .4rem .5rem; border-top: 1px dashed var(--cizgi); font-weight: 600; }
+.zil-tablo tr.ogle td { color: var(--soluk); font-weight: 500; font-style: italic; font-size: .9rem; }
+.zil-tablo tr.simdi td { background: #fff6c2; }
+.zil-tablo tr.simdi .saat { background: var(--fosfor); color: var(--mor-koyu); }
+.zil-tablo tr.siradaki .saat { background: var(--yesil-acik); color: var(--yesil); }

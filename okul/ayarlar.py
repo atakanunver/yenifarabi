@@ -16,6 +16,8 @@ class Ayarlar:
         default=FARABI / "tahtayoklama" / "dashboard" / "veri" / "yoklama_pano.db"
     )
     program_yolu: Path = FARABI / "mudur" / "ders_programi.json"
+    zil_yolu: Path = FARABI / "tahtayoklama" / "data" / "zil.json"
+    takvim_yolu: Path = KOK / "config" / "takvim.json"
     havuz_db: str = "soru_havuzu"
     sms_url: str = "http://127.0.0.1:8020/api/arac/kod-sms"
     sms_anahtar: str = ""

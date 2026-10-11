@@ -3,6 +3,7 @@
 {% block baslik %}Programım — Dijital Okul{% endblock %}
 {% block icerik %}
 <h1>Haftalık programım</h1>
+{% include "_zil_tablo.html" %}
 {% if program is none %}
 <div class="kart">{{ kaynak_yok("Ders programı") }}</div>
 {% else %}

@@ -2047,3 +2047,7 @@ explicit capability-boundary decision, not a resurrected copy of this file.
 ## 2026-10-11 | Doküman temizliği (docs-cleanup)
 - Kök CLAUDE.md 567→~105 satır; Ağ Envanteri docs/runbook.md'ye; eski analiz/plan dosyaları _arsiv/ altına (gitignore'lu, git mv), *.pdf gitignore.
 - Neden: her oturumda ~9k token gereksiz yükleniyordu; anlık görüntü dosyaları güncel durumla çelişiyordu.
+
+## 2026-10-11 | okul: saat widget + ders saatleri tablosu, okul takvimi
+- Zil kaynağı tahtayoklama/data/zil.json (salt-okunur, kopyalanmaz); tatiller okul/config/takvim.json (MEB 2026-27 + Diyanet 2027, kazanimlar.json hafta boşluklarıyla çapraz doğrulandı). Saat sunucu epoch ile düzeltilir, durum JS ile canlı hesaplanır.
+- Neden: sistemde tatil takvimi yoktu; telefon saati yanlış olabilir; PWA sayfası saatlerce açık kalır. Yeni yıl/idari izin (Kurban 20-21 Mayıs) gelince yalnızca takvim.json düzenlenir.
