@@ -29,6 +29,7 @@ import sistem_durumu
 import ssh_istemci
 import sunucular
 import tahta_api
+import yakinda
 import uzaktan_baslat
 import uzaktan_yonetim
 import yoklayici
@@ -111,6 +112,7 @@ app.include_router(sunucular.router)
 app.include_router(tahta_api.router)
 app.include_router(kazanim_rapor.router)
 app.include_router(servis_yonetimi.router)
+app.include_router(yakinda.router)
 
 
 @app.get("/giris", response_class=HTMLResponse)
@@ -259,6 +261,22 @@ async def dogum_sayfa(request: Request):
     zaman, imza = auth.sms_sso_token()
     return RedirectResponse(
         f"http://farabi.local:8020/sso?t={zaman}&s={imza}&hedef=/dogum-gunleri",
+        status_code=303,
+    )
+
+
+@app.get("/yoklama-sms-git")
+async def yoklama_sms_git(request: Request):
+    """smssistemi'nin /yoklama-sms sayfasına kısa ömürlü imzalı token'la yönlendirir."""
+    conn = db.baglanti()
+    try:
+        if not auth.dogrula(request, conn):
+            return RedirectResponse("/giris", status_code=303)
+    finally:
+        conn.close()
+    zaman, imza = auth.sms_sso_token()
+    return RedirectResponse(
+        f"http://farabi.local:8020/sso?t={zaman}&s={imza}&hedef=/yoklama-sms",
         status_code=303,
     )
 

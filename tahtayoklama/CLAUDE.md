@@ -209,7 +209,7 @@ gösterse bile hafta sonu görünürlüğünün işlevsel bir önemi yok.
 > `ilk_yukleme.py`, `pdf_disari_aktar.py`, `smssistemi/scripts/roster_ice_aktar.py` eski
 > dizine bakan tek seferlik betiklerdir; yeniden çalıştırılmaz.
 
-### 4.0 Kazanım raporu (`/kazanim-rapor`, 2026-10-08)
+### 4.0 Kazanımlar (`/kazanim`, 2026-10-08; 2026-10-11'de `/kazanim-rapor` → `/kazanim`, eski adres 308 ile yönlenir)
 `dashboard/kazanim_rapor.py` + `templates/kazanim_rapor.html`: kazanimtest'in ürettiği
 `/mnt/farabi-data/farabi/kazanim_testleri/rapor/<sinif>.json` dosyalarını **salt-okunur**
 gösterir (özet kartları, kazanım tablosu, testler, öğrenciler, eşleşmeyen numaralar,
@@ -617,6 +617,8 @@ Veri yüklenirken `skeleton` iskelet, veri yokken düzgün bir `empty-state`
 tasarlanır — boş tablo bırakılmaz.
 `pano.css` sonunda `prefers-reduced-motion` bloğu var (2026-10-08); yeni animasyon ekleyince
 onun kapsadığını kontrol et.
+
+**Menü (2026-10-11):** Ana Pano, Yoklama, Kazanımlar, Tahtalar, Servisler, Uygulamalar, SMS sistemi, Google Form, Anons-Zil, Atos, Görünüm, EBYS, Pano, Kiosk (Düzen/Yardım/Çıkış kalktı). Henüz yapılmamış bölümler `/b/<ad>` yer tutucusu (`yakinda.py`); içerik gelince oradan çıkarılır.
 
 **Kabuk: menü çubuğu + ikon şeridi (2026-10-08).** Gezinmenin TEK kaynağı
 `dashboard/menu.py` (`MENU`, `SERIT`, `menu_agaci(yol)`); `taban.html` menü

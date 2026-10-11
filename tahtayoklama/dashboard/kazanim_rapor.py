@@ -307,7 +307,14 @@ async def _komut_calistir(*args: str, zaman_asimi: int = 120) -> tuple[int, str,
         return -1, "", "İşlem zaman aşımına uğradı."
 
 
-@router.get("/kazanim-rapor", response_class=HTMLResponse)
+@router.get("/kazanim-rapor")
+async def kazanim_rapor_eski_yol(request: Request):
+    """Eski adres (2026-10-11'de /kazanim oldu): yer imleri bozulmasın."""
+    sorgu = f"?{request.url.query}" if request.url.query else ""
+    return RedirectResponse(f"/kazanim{sorgu}", status_code=308)
+
+
+@router.get("/kazanim", response_class=HTMLResponse)
 async def kazanim_rapor_sayfa(request: Request, sinif: str | None = None):
     conn = db.baglanti()
     try:

@@ -43,7 +43,7 @@ RAPOR = {
 }
 
 
-def _istek(cerez="gecerli", yol="/kazanim-rapor"):
+def _istek(cerez="gecerli", yol="/kazanim"):
     basliklar = [(b"host", b"farabi.local")]
     if cerez:
         basliklar.append((b"cookie", f"{__import__('auth').COOKIE_ADI}={cerez}".encode()))

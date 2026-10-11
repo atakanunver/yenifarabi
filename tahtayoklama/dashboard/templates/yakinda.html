@@ -1,0 +1,11 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}{{ baslik }} — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}{{ baslik }}{% endblock %}
+
+{% block icerik %}
+<section class="kr-bos">
+  <svg class="ikon ikon-buyuk"><use href="#ik-saat"/></svg>
+  <p class="kr-bos-baslik">Bu bölüm hazırlanıyor</p>
+  <p>{{ aciklama }}</p>
+</section>
+{% endblock %}

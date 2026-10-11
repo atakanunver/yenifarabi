@@ -5,7 +5,7 @@ import unittest
 import menu
 from app import app
 
-DAHILI = {"/", "/admin/tahtalar", "/admin/siniflar", "/admin/rapor", "/kazanim-rapor",
+DAHILI = {"/", "/admin/tahtalar", "/admin/siniflar", "/admin/rapor", "/kazanim",
           "/admin/uzaktan", "/servisler", "/sistem-durumu", "/sunucular"}
 
 
@@ -31,6 +31,20 @@ class TestMenu(unittest.TestCase):
     def test_dis_baglantilarda_kimlik_yok(self):
         self.assertNotIn("@", json.dumps(menu.MENU))
 
+    def test_yeni_menu_yapisi(self):
+        adlar = [u["ad"] for u in menu.MENU]
+        self.assertEqual(adlar[:3], ["Ana Pano", "Yoklama", "Kazanımlar"])
+        for kalkan in ("Dosya", "Düzen", "Yardım"):
+            self.assertNotIn(kalkan, adlar)
+        eylemler = {o.get("eylem") for u in menu.MENU for o in u["ogeler"]}
+        self.assertNotIn("cikis", eylemler)
+        yoklama = [o["ad"] for u in menu.MENU if u["ad"] == "Yoklama" for o in u["ogeler"]]
+        self.assertNotIn("Kazanım raporu", yoklama)
+
+    def test_kisayollar_benzersiz(self):
+        harfler = [u["kisayol"] for u in menu.MENU]
+        self.assertEqual(len(harfler), len(set(harfler)))
+
     def test_aktif_isaretleme(self):
         agac = menu.menu_agaci("/servisler")
         aktifler = [o["ad"] for u in agac["menu"] for o in u["ogeler"] if o.get("aktif")]
@@ -44,7 +58,7 @@ class TestMenu(unittest.TestCase):
 
     def test_taban_tum_sablon_ortamlarinda_menu_var(self):
         import importlib
-        for ad in ("app", "sunucular", "kazanim_rapor", "admin", "uzaktan_yonetim", "servis_yonetimi"):
+        for ad in ("app", "sunucular", "kazanim_rapor", "admin", "uzaktan_yonetim", "servis_yonetimi", "yakinda"):
             mod = importlib.import_module(ad)
             tpl = getattr(mod, "templates", None)
             if tpl is not None:

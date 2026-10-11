@@ -24,23 +24,25 @@ def statik_surum() -> str:
 
 ZIL_PANELI = "http://192.168.23.230:8090/"   # kimlik gömülmez; tarayıcı Basic Auth sorar
 
+SMUAL_URL = "https://smual.app"
+SMUAL_YONETIM_URL = SMUAL_URL + "/yonetici"   # şifresiz giriş (SSO) sonraki aşamada
+
+# 2026-10-11: menü iş akışına göre yeniden kuruldu (Düzen/Yardım/Çıkış kalktı). "/b/<ad>"
+# öğeleri yakinda.py'deki yer tutucu sayfalar — içerik eklenince oradan çıkarılıp gerçek rotaya bağlanır.
 MENU: list[dict] = [
-    {"ad": "Dosya", "kisayol": "d", "ogeler": [
+    {"ad": "Ana Pano", "kisayol": "a", "ogeler": [
         {"ad": "Ana pano", "href": "/", "ikon": "ev"},
         {"ad": "Yazdır", "eylem": "yazdir"},
-        {"ayrac": True},
-        {"ad": "Çıkış", "eylem": "cikis", "ikon": "cikis"},
-    ]},
-    {"ad": "Düzen", "kisayol": "z", "ogeler": [
-        {"ad": "Sayfayı yenile", "eylem": "yenile", "ikon": "yenile"},
-        {"ad": "Bağlantıyı kopyala", "eylem": "bagla-kopyala"},
     ]},
     {"ad": "Yoklama", "kisayol": "y", "ogeler": [
         {"ad": "Pano", "href": "/", "ikon": "ev"},
         {"ad": "Tahtalar", "href": "/admin/tahtalar", "ikon": "monitor"},
         {"ad": "Sınıflar", "href": "/admin/siniflar", "ikon": "kullanicilar"},
         {"ad": "Rapor", "href": "/admin/rapor", "ikon": "grafik"},
-        {"ad": "Kazanım raporu", "href": "/kazanim-rapor", "ikon": "hedef"},
+    ]},
+    {"ad": "Kazanımlar", "kisayol": "k", "ogeler": [
+        {"ad": "Kazanım raporu", "href": "/kazanim", "ikon": "hedef"},
+        {"ad": "Ölçme (smual.app)", "href": SMUAL_URL, "ikon": "hedef", "yeni_sekme": True},
     ]},
     {"ad": "Tahtalar", "kisayol": "t", "ogeler": [
         {"ad": "Uzaktan yönetim", "href": "/admin/uzaktan", "ikon": "kaydirici"},
@@ -51,13 +53,33 @@ MENU: list[dict] = [
         {"ayrac": True},
         {"ad": "Sistem durumu", "href": "/sistem-durumu", "ikon": "nabiz"},
         {"ad": "Sunucular", "href": "/sunucular", "ikon": "katman"},
+        {"ayrac": True},
+        {"ad": "Telegram botları", "href": "/b/telegram", "ikon": "sunucu"},
+        {"ad": "Ağ taraması", "href": "/b/ag", "ikon": "katman"},
     ]},
     {"ad": "Uygulamalar", "kisayol": "u", "ogeler": [
-        {"ad": "Atos yapay zeka", "href": "atos", "ikon": "yildiz", "yeni_sekme": True},
+        {"ad": "smual.app", "href": SMUAL_URL, "ikon": "yildiz", "yeni_sekme": True},
+        {"ad": "smual.app yönetim paneli", "href": SMUAL_YONETIM_URL, "ikon": "kaydirici", "yeni_sekme": True},
+        {"ayrac": True},
+        {"ad": "Oyunlar", "href": "/b/oyunlar", "ikon": "yildiz"},
+    ]},
+    {"ad": "SMS sistemi", "kisayol": "m", "ogeler": [
         {"ad": "SMS sistemi", "href": "/sms-git", "ikon": "zil", "yeni_sekme": True},
+        {"ad": "Yoklama SMS", "href": "/yoklama-sms-git", "ikon": "zil", "yeni_sekme": True},
         {"ad": "SMS otomasyonu", "href": "/otomasyon-git", "ikon": "kaydirici", "yeni_sekme": True},
         {"ad": "Doğum günleri", "href": "/dogum", "ikon": "pasta", "yeni_sekme": True},
+    ]},
+    {"ad": "Google Form", "kisayol": "f", "ogeler": [
+        {"ad": "Form oluştur / gönder", "href": "/b/form", "ikon": "hedef"},
+        {"ad": "Kazanım formları", "href": "/kazanim", "ikon": "hedef"},
+    ]},
+    {"ad": "Anons-Zil", "kisayol": "z", "ogeler": [
         {"ad": "Zil paneli", "href": ZIL_PANELI, "ikon": "zil", "yeni_sekme": True},
+        {"ad": "Anons ve ses ayarları", "href": "/b/anons", "ikon": "zil"},
+    ]},
+    {"ad": "Atos", "kisayol": "o", "ogeler": [
+        {"ad": "Atos yapay zeka", "href": "atos", "ikon": "yildiz", "yeni_sekme": True},
+        {"ad": "İş ve ayarlar", "href": "/b/atos", "ikon": "kaydirici"},
     ]},
     {"ad": "Görünüm", "kisayol": "g", "ogeler": [
         {"ad": "Tema", "alt": [
@@ -67,9 +89,14 @@ MENU: list[dict] = [
         ]},
         {"ad": "Kenar şeridini gizle/göster", "eylem": "serit"},
     ]},
-    {"ad": "Yardım", "kisayol": "r", "ogeler": [
-        {"ad": "Klavye kısayolları", "eylem": "kisayollar"},
-        {"ad": "Hakkında", "eylem": "hakkinda"},
+    {"ad": "EBYS", "kisayol": "e", "ogeler": [
+        {"ad": "Resmi yazı özetleri", "href": "/b/ebys", "ikon": "sunucu"},
+    ]},
+    {"ad": "Pano", "kisayol": "p", "ogeler": [
+        {"ad": "Duyuru panosu", "href": "/b/pano", "ikon": "monitor"},
+    ]},
+    {"ad": "Kiosk", "kisayol": "i", "ogeler": [
+        {"ad": "Yüz tanıma / giriş", "href": "/b/kiosk", "ikon": "kullanicilar"},
     ]},
 ]
 

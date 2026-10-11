@@ -1,13 +1,13 @@
 {% extends "taban.html" %}
-{% block baslik_etiketi %}Kazanım raporu & Test Yönetimi — Yoklama ve Yönetim Paneli{% endblock %}
-{% block baslik %}Kazanım raporu{% endblock %}
+{% block baslik_etiketi %}Kazanımlar — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Kazanımlar{% endblock %}
 
 {% block icerik %}
 <div class="kr-baslik-satiri">
   {% if adlar %}
   <nav class="kr-sinif-secici" aria-label="Sınıf seçimi">
     {% for ad in adlar %}
-    <a href="/kazanim-rapor?sinif={{ ad|urlencode }}" class="btn-ikincil{{ ' kr-aktif' if ad == secili else '' }}"{% if ad == secili %} aria-current="page"{% endif %}>{{ ad }}</a>
+    <a href="/kazanim?sinif={{ ad|urlencode }}" class="btn-ikincil{{ ' kr-aktif' if ad == secili else '' }}"{% if ad == secili %} aria-current="page"{% endif %}>{{ ad }}</a>
     {% endfor %}
   </nav>
   {% endif %}
@@ -330,7 +330,7 @@ async function testUret(e) {
     if (veri.ok) {
       toastGoster(veri.mesaj || 'Test hazırlandı!', false);
       setTimeout(() => {
-        window.location.href = `/kazanim-rapor?sinif=${encodeURIComponent(sinif)}`;
+        window.location.href = `/kazanim?sinif=${encodeURIComponent(sinif)}`;
       }, 1500);
     } else {
       toastGoster(veri.hata || 'Test üretilemedi.', true);

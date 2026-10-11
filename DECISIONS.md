@@ -2051,3 +2051,7 @@ explicit capability-boundary decision, not a resurrected copy of this file.
 ## 2026-10-11 | okul: saat widget + ders saatleri tablosu, okul takvimi
 - Zil kaynağı tahtayoklama/data/zil.json (salt-okunur, kopyalanmaz); tatiller okul/config/takvim.json (MEB 2026-27 + Diyanet 2027, kazanimlar.json hafta boşluklarıyla çapraz doğrulandı). Saat sunucu epoch ile düzeltilir, durum JS ile canlı hesaplanır.
 - Neden: sistemde tatil takvimi yoktu; telefon saati yanlış olabilir; PWA sayfası saatlerce açık kalır. Yeni yıl/idari izin (Kurban 20-21 Mayıs) gelince yalnızca takvim.json düzenlenir.
+
+## 2026-10-11 - Panel menüsü iş akışına göre yeniden kuruldu
+- Menü 14 başlığa çıktı (Kazanımlar, Google Form, SMS, Anons-Zil, Atos, EBYS, Pano, Kiosk); Düzen/Yardım/Çıkış kaldırıldı; /kazanim-rapor → /kazanim (308). Yapılmamış bölümler /b/<ad> yer tutucu.
+- Neden: kazanım ölçme smual.app üzerinden, form işleri ayrı başlıkta; kapsam büyük olduğu için aşamalandı (sıradaki: smual.app admin HMAC SSO, Google Form akışı, ağ tarama, Anons-Zil, EBYS). kazanimtest/systemd/veri yolu adları bilerek değişmedi.
