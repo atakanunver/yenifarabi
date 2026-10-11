@@ -2043,3 +2043,7 @@ explicit capability-boundary decision, not a resurrected copy of this file.
 - Bağımsız FastAPI + Jinja2 + SQLite servis; devamsızlık yoklama_pano.db'den, kazanım sonuçları/soru havuzu Postgres soru_havuzu'ndan, ders programı mudur/ders_programi.json'dan SALT-OKUNUR ve her istekte okunur (kopyalanmaz). Veli girişi SMS kodu (smssistemi'ye eklenen /api/arac/kod-sms, telefon başına dk 1 / saat 5); diğerleri şifre, ilk şifre ad+123 ve zorunlu değişim; oturum 1 yıl kayan çerez (kullanıcı kararı: güvenlik kullanıcıyı kaçırmamalı).
 - Tahta yoklaması gelmeyenleri isimle tutuyor: isim→(sınıf, no)→okul_no eşleniyor; aynı sınıfta aynı isim ya da eşleşmeyen isim varsa veliye gösterilmiyor, yönetici /yonetici/eslesmeyen'de görüyor (yanlış çocuğa devamsızlık yazmamak için).
 - Spec: docs/superpowers/specs/2026-10-10-dijital-okul-design.md. Dış erişim Cloudflare Tunnel smual.app (cloudflared edge trafiği okul filtresi yüzünden Müdür PC proxy'si üzerinden, bkz. llm-cluster-wiki nodes/farabi.md).
+
+## 2026-10-11 | Doküman temizliği (docs-cleanup)
+- Kök CLAUDE.md 567→~105 satır; Ağ Envanteri docs/runbook.md'ye; eski analiz/plan dosyaları _arsiv/ altına (gitignore'lu, git mv), *.pdf gitignore.
+- Neden: her oturumda ~9k token gereksiz yükleniyordu; anlık görüntü dosyaları güncel durumla çelişiyordu.

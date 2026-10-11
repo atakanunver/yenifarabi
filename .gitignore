@@ -151,3 +151,7 @@ tahtayoklama/dashboard/config/okul.json
 
 # kazanimtest Apps Script/SMS anahtarları
 kazanimtest/config/gizli.json
+
+# Arşiv ve PDF (docs-cleanup)
+_arsiv/
+*.pdf
