@@ -5,6 +5,18 @@
 {% include "_saat.html" %}
 <h1>Merhaba, <span class="fosfor">{{ ogrenci.ad_soyad.split(' ')[0] }}</span></h1>
 
+{% if maraton is defined %}
+<section class="kart maraton-kart">
+  <h2>Soru Maratonu <a href="/ogrenci/liderlik">Sıralama</a></h2>
+  <p class="maraton-ozet">
+    <span><b>{{ maraton.seri }}</b> gün seri</span>
+    <span>{% if maraton.sira %}Bu hafta okulda <b>{{ maraton.sira }}.</b> sıradasın{% else %}Bu hafta henüz oynamadın{% endif %}</span>
+  </p>
+  {% if maraton.kilit %}<p class="kucuk soluk">Ders sırasında kapalı · {{ maraton.kilit.bit }}'de açılır</p>{% endif %}
+  <a class="tus tam" href="/ogrenci/maraton">Oyna</a>
+</section>
+{% endif %}
+
 <section class="kart">
   <h2>Kazanımlarım <a href="/ogrenci/kazanimlar">Tümü</a></h2>
   {% if not kazanim_erisildi %}{{ kaynak_yok("Kazanım testi sonuçları") }}{% endif %}

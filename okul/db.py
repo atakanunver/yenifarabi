@@ -155,7 +155,41 @@ CREATE TABLE sinav (
 CREATE INDEX sinav_tarih ON sinav(tarih);
 """
 
-GOCLER = [SEMA_V1, SEMA_V2]
+# v3 (2026-10-11): Soru Maratonu. Soru metni/şıklar oyun başlarken kopyalanır (havuz değişse de oyun tutarlı).
+# maraton_soru.cevap: NULL = bekliyor, 0..n = şık, -1 = süre doldu, -2 = maraton yarıda bırakıldı.
+SEMA_V3 = """
+CREATE TABLE maraton (
+    id            INTEGER PRIMARY KEY,
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    sinif         TEXT NOT NULL,
+    duzey         INTEGER NOT NULL,
+    ders          TEXT NOT NULL,
+    basla         TEXT NOT NULL,
+    bitis         TEXT,
+    puan          INTEGER NOT NULL DEFAULT 0,
+    dogru         INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX maraton_kullanici_basla ON maraton(kullanici_id, basla);
+
+CREATE TABLE maraton_soru (
+    maraton_id    INTEGER NOT NULL REFERENCES maraton(id) ON DELETE CASCADE,
+    sira          INTEGER NOT NULL,
+    soru_id       INTEGER NOT NULL,
+    soru          TEXT NOT NULL,
+    secenekler    TEXT NOT NULL,
+    dogru_index   INTEGER NOT NULL,
+    konu          TEXT,
+    kaynak        TEXT,
+    gosterim      TEXT,
+    cevap         INTEGER,
+    cevap_zamani  TEXT,
+    puan          INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (maraton_id, sira)
+);
+CREATE INDEX maraton_soru_soru ON maraton_soru(soru_id);
+"""
+
+GOCLER = [SEMA_V1, SEMA_V2, SEMA_V3]
 
 
 def baglanti() -> sqlite3.Connection:

@@ -294,3 +294,54 @@ details.kart > summary { cursor: pointer; min-height: 32px; }
 .zil-tablo tr.simdi td { background: #fff6c2; }
 .zil-tablo tr.simdi .saat { background: var(--fosfor); color: var(--mor-koyu); }
 .zil-tablo tr.siradaki .saat { background: var(--yesil-acik); color: var(--yesil); }
+
+/* --- Soru Maratonu --- */
+.maraton-ozet { display: flex; justify-content: space-between; align-items: center; gap: .75rem; margin: 0 0 .75rem; flex-wrap: wrap; }
+.maraton-ozet b { color: var(--mor-orta); font-size: 1.15em; }
+.maraton-kart { border-color: var(--mor); background: linear-gradient(var(--mor-acik), #fff); }
+.maraton-kilit { background: var(--mor-acik); border-left-color: var(--mor-orta); }
+.ders-sec { display: grid; grid-template-columns: repeat(2, 1fr); gap: .6rem; }
+.ders-dugme { flex-direction: column; width: 100%; min-height: 64px; background: var(--mor-acik); color: var(--mor-koyu); border: 1.5px solid var(--mor); gap: .1rem; }
+.ders-dugme small { font-weight: 500; color: var(--soluk); }
+.ders-dugme:disabled { opacity: .5; cursor: not-allowed; }
+.oyun-ust { display: flex; justify-content: space-between; align-items: center; margin-bottom: .4rem; }
+.oyun-puan b { font-size: 1.3rem; color: var(--mor-orta); font-variant-numeric: tabular-nums; }
+.kareler.ilerleme { gap: 4px; margin: .3rem 0 .8rem; }
+.kareler.ilerleme i { width: 22px; height: 22px; }
+.kareler.ilerleme i.su { border-color: var(--mor-orta); box-shadow: 0 0 0 2px var(--fosfor); }
+.sayac { position: relative; width: 76px; height: 76px; margin: 0 auto .4rem; }
+.sayac svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.sayac circle { fill: none; stroke-width: 5; }
+.sayac .iz { stroke: var(--mor-acik); }
+.sayac .ilerle { stroke: var(--mor-orta); stroke-linecap: round; }
+.sayac.az .ilerle { stroke: var(--kirmizi); }
+.sayac b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.soru-no { text-align: center; color: var(--soluk); font-size: .85rem; margin: 0; }
+.soru-metni { font-size: 1.15rem; line-height: 1.4; margin: .5rem 0 1rem; background: #fff; border: 1.5px solid var(--cizgi); border-radius: var(--yaricap); padding: .9rem; }
+.siklar { display: grid; gap: .6rem; }
+.sik {
+  display: flex; align-items: center; gap: .75rem; width: 100%; min-height: 56px; text-align: left;
+  font: inherit; color: var(--murekkep); background: #fff; border: 2px solid #c6d2e8; border-radius: 12px; padding: .6rem .8rem; cursor: pointer;
+}
+.sik b { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--mor-acik); color: var(--mor-koyu); }
+.sik:active:not(:disabled) { background: var(--mor-acik); border-color: var(--mor-orta); }
+.sik:disabled { cursor: default; }
+.sik.dogru { background: var(--yesil-acik); border-color: var(--yesil); }
+.sik.yanlis { background: var(--kirmizi-acik); border-color: var(--kirmizi); }
+.sik.kilitli:not(.dogru):not(.yanlis) { opacity: .55; }
+.oyun-mesaj { text-align: center; font-weight: 700; margin-top: .8rem; }
+.buyuk-puan { font-size: 1.1rem; margin: 0; }
+.buyuk-puan b { font-size: 2.6rem; color: var(--mor-orta); }
+.inceleme { border-top: 1px dashed var(--cizgi); padding: .5rem 0; }
+.inceleme summary { display: flex; justify-content: space-between; gap: .5rem; cursor: pointer; align-items: center; }
+.siklar-ozet { list-style: none; padding: 0; margin: .4rem 0; }
+.siklar-ozet li { padding: .3rem .5rem; border-radius: 8px; }
+.siklar-ozet li.dogru { background: var(--yesil-acik); }
+.siklar-ozet li.yanlis { background: var(--kirmizi-acik); }
+.liderlik { list-style: none; margin: 0 0 1rem; padding: 0; }
+.liderlik li { display: flex; align-items: center; gap: .75rem; padding: .6rem .5rem; border-top: 1px dashed var(--cizgi); border-radius: 8px; }
+.liderlik li:first-child { border-top: 0; }
+.liderlik li.ben { background: #fff6c2; font-weight: 700; }
+.liderlik .sira { flex: none; width: 2rem; text-align: center; font-weight: 800; color: var(--mor-orta); }
+.liderlik .ad { flex: 1; }
+.liderlik .toplam { font-variant-numeric: tabular-nums; font-weight: 800; }

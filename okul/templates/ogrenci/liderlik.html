@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block baslik %}Sıralama · Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Bu haftanın <span class="fosfor">sıralaması</span></h1>
+<p class="soluk kucuk">{{ hafta_basi|tarih }} tarihinden beri · her öğrencinin en iyi {{ en_iyi }} maratonunun toplamı</p>
+
+<nav class="cocuklar" aria-label="Kapsam">
+  <a href="/ogrenci/liderlik?kapsam=sinif" class="{{ 'secili' if kapsam == 'sinif' }}">Sınıfım · {{ sinif }}</a>
+  <a href="/ogrenci/liderlik?kapsam=okul" class="{{ 'secili' if kapsam == 'okul' }}">Okul</a>
+</nav>
+
+<section class="kart">
+  {% if liste %}
+  <ol class="liderlik">
+  {% for d in liste %}
+    <li class="{{ 'ben' if d.kullanici_id == ben }}">
+      <span class="sira">{{ d.sira }}</span>
+      <span class="ad">{{ d.ad }}{% if kapsam == 'okul' %} <span class="soluk kucuk">{{ d.sinif }}</span>{% endif %}</span>
+      <span class="toplam">{{ d.toplam }}</span>
+    </li>
+  {% endfor %}
+  </ol>
+  {% else %}
+  <p class="bos">Bu hafta henüz maraton bitiren yok. İlk sen ol!</p>
+  {% endif %}
+  <a class="tus tam" href="/ogrenci/maraton">Maraton oyna</a>
+</section>
+{% endblock %}

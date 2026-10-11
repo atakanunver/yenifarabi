@@ -8,18 +8,20 @@ Mobil öncelikli okul portalı: öğrenci/veli/öğretmen/yönetici. FastAPI + J
 Spec: `docs/superpowers/specs/2026-10-10-dijital-okul-design.md`.
 
 ## Çalıştırma / test
-- Test: `cd okul && venv/bin/python -m pytest -q` (110 test). Tek test: `venv/bin/python -m pytest tests/test_odevler.py::test_adi -q`. Lint: repo kökünden `.venv-tools/bin/ruff check okul/<dosya>` (okul/ kapsam listesinde değil; yalnızca dokunduğun dosyayı ver)
+- Test: `cd okul && venv/bin/python -m pytest -q`. Tek test: `venv/bin/python -m pytest tests/test_odevler.py::test_adi -q`. Lint: repo kökünden `.venv-tools/bin/ruff check okul/<dosya>` (okul/ kapsam listesinde değil; yalnızca dokunduğun dosyayı ver)
 - Servis: `farabi-okul.service` (kurulum yorumu `okul/systemd/farabi-okul.service` içinde). Kod değişince: `sudo systemctl restart farabi-okul`.
 - İlk yönetici: `venv/bin/python scripts/yonetici_olustur.py "Ad Soyad" kullanici_adi`
-- CSS değişirse `templates/base.html` içindeki `okul.css?v=N` ve `static/sw.js` içindeki SURUM/STATIK'i artır.
+- CSS/JS değişirse sürüm sorgusunu (`okul.css?v=N` base.html'de, `*.js?v=N` onu yükleyen şablonda) ve `static/sw.js` içindeki SURUM + STATIK listesini artır; yeni statik JS STATIK'e de eklenir.
+- Bazı dosyalar CRLF (`git ls-files --eol`): Python `open()` ile yeniden yazınca tüm dosya diff'e düşer — `newline=''` kullan ya da Edit aracıyla değiştir.
 
 ## Modül haritası
 - ayarlar, zaman, metin: yapılandırma, saat, metin yardımcıları
 - db (şema + `GOCLER`), auth, deps, yetki
 - duyurular, odevler, ice_aktar
 - sinavlar (yazılı + düzey bazlı deneme takvimi), belgeler (vesikalık foto + yıllık plan: kim neyi görür/değiştirir), dosyalar (yükleme doğrulama + saklama; tür dosya imzasından belirlenir, uzantıdan değil)
-- kaynaklar/{program, yoklama, kazanim, sms}: dış veri okuyucular
-  (ders programı mudur/ders_programi.json, devamsızlık yoklama_pano.db, kazanım Postgres soru_havuzu, SMS smssistemi /api/arac/kod-sms)
+- kaynaklar/{program, yoklama, kazanim, sms, zil}: dış veri okuyucular
+  (ders programı mudur/ders_programi.json, devamsızlık yoklama_pano.db, kazanım Postgres soru_havuzu, SMS smssistemi /api/arac/kod-sms, zil tahtayoklama/data/zil.json + okulun kendi tatil takvimi `config/takvim.json`)
+- Saat widget'ı (`_saat.html`, rol ana sayfaları) ve zil tablosu (`_zil_tablo.html`, program sayfaları) route'tan değil `deps.py`'deki Jinja global'lerinden (`saat_verisi`, `zil_cizelgesi`) beslenir; canlı durum `static/saat.js`'te, kural `kaynaklar/zil.py::durum` ile aynı tutulmalı. Yeni öğretim yılı/tatil = yalnızca `config/takvim.json`.
 - rotalar/{giris, ogrenci, veli, ogretmen, yonetici, ortak, belge_sinav}; hepsi `app.py`'de `include_router` ile bağlanır (yeni rota modülü oraya da eklenmeli)
 
 ## Kurallar

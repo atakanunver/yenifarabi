@@ -39,7 +39,7 @@ def test_v1_veritabani_v2_ye_kayipsiz_gecer(tmp_path, monkeypatch):
     c.close()
     db.sema_kur()
     c = db.baglanti()
-    assert c.execute("PRAGMA user_version").fetchone()[0] == 2
+    assert c.execute("PRAGMA user_version").fetchone()[0] == len(db.GOCLER)
     assert c.execute("SELECT ad_soyad, foto FROM kullanici").fetchone()[:] == (
         "Eski",
         None,

@@ -32,3 +32,12 @@ def normalize_telefon(s: str | None) -> str | None:
 
 def sinif_seviyesi(sinif: str) -> int:
     return int(sinif.split("-", 1)[0])
+
+
+def kisa_ad(ad_soyad: str) -> str:
+    """Liderlik tablosu için "Ali Veli" -> "Ali V." (ad + soyadın baş harfi)."""
+    parca = ad_soyad.split()
+    if len(parca) < 2:
+        return ad_soyad.strip()
+    bas = parca[-1][:1].replace("i", "İ").replace("ı", "I").upper()
+    return f"{' '.join(parca[:-1])} {bas}."

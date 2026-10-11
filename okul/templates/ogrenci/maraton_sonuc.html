@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block baslik %}Maraton sonucu · Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Maraton <span class="fosfor">bitti</span></h1>
+<section class="kart sonuc-ozet">
+  <p class="buyuk-puan"><b>{{ m.puan }}</b> puan</p>
+  <p>{{ ders_ad }} · <b>{{ m.dogru }}</b> / {{ soru_sayisi }} doğru</p>
+  <div class="kareler ilerleme">{% for d in kareler %}<i class="{{ 'dolu' if d == 'dogru' else ('eksik' if d == 'yanlis') }}"></i>{% endfor %}</div>
+  <p class="maraton-ozet">
+    <span><b>{{ seri }}</b> gün seri</span>
+    <span>{% if okul_sira %}Bu hafta okulda <b>{{ okul_sira }}.</b> sıradasın{% endif %}</span>
+  </p>
+  <div class="tuslar">
+    <a class="tus" href="/ogrenci/maraton">Yeni maraton</a>
+    <a class="tus ikincil" href="/ogrenci/liderlik">Sıralama</a>
+  </div>
+</section>
+
+<section class="kart">
+  <h2>Sorular</h2>
+  {% for s in satirlar %}
+  <details class="inceleme {{ 'dogru' if s.cevap == s.dogru_index else 'yanlis' }}">
+    <summary><span>{{ s.sira }}. {{ s.soru[:70] }}{{ '…' if s.soru|length > 70 }}</span><span class="etiket {{ 'yesil' if s.cevap == s.dogru_index else 'kirmizi' }}">{{ s.puan }}</span></summary>
+    <p>{{ s.soru }}</p>
+    <ul class="siklar-ozet">
+    {% for sk in s.secenekler %}
+      <li class="{{ 'dogru' if loop.index0 == s.dogru_index else ('yanlis' if loop.index0 == s.cevap) }}"><b>{{ 'ABCDEFGH'[loop.index0] }}</b> {{ sk }}</li>
+    {% endfor %}
+    </ul>
+    {% if s.cevap == -1 %}<p class="kucuk soluk">Süre doldu.</p>{% elif s.cevap == -2 %}<p class="kucuk soluk">Cevaplanmadı.</p>{% endif %}
+    {% if s.kaynak %}<p class="kucuk soluk">Kaynak: {{ s.kaynak }}</p>{% endif %}
+  </details>
+  {% endfor %}
+</section>
+{% endblock %}

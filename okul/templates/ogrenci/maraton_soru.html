@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block baslik %}Soru Maratonu · Dijital Okul{% endblock %}
+{% block icerik %}
+<div class="oyun" id="oyun">
+  <div class="oyun-ust">
+    <span class="etiket mor">{{ ders_ad }}</span>
+    <span class="oyun-puan"><b id="puan">{{ m.puan }}</b> puan</span>
+  </div>
+  <div class="kareler ilerleme" id="ilerleme" role="img" aria-label="10 sorudan ilerleme">
+    {%- for d in kareler %}<i class="{{ 'dolu' if d == 'dogru' else ('eksik' if d == 'yanlis') }}{{ ' su' if loop.index0 == (soru.sira - 1 if soru else -1) }}"></i>{% endfor -%}
+  </div>
+
+  {% if kilit %}
+  <div class="not maraton-kilit" role="status">🔒 {{ kilit_mesaj.format(bit=kilit.bit) }}</div>
+  <p><a class="tus tam ikincil" href="/ogrenci/maraton">Geri dön</a></p>
+  {% else %}
+  <div class="sayac" id="sayac" data-sure="{{ sure }}" data-kalan="{{ soru.kalan }}">
+    <svg viewBox="0 0 60 60" aria-hidden="true"><circle class="iz" cx="30" cy="30" r="26"/><circle class="ilerle" id="halka" cx="30" cy="30" r="26"/></svg>
+    <b id="sn">{{ soru.kalan }}</b>
+  </div>
+  <p class="soru-no">Soru {{ soru.sira }} / 10{% if soru.konu %} · {{ soru.konu }}{% endif %}</p>
+  <h1 class="soru-metni">{{ soru.soru }}</h1>
+
+  <form method="post" action="/ogrenci/maraton/{{ m.id }}/cevap" id="cevap-formu" class="siklar">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="sira" value="{{ soru.sira }}">
+    {% for s in soru.secenekler %}
+    <button class="sik" name="sec" value="{{ loop.index0 }}"><b>{{ 'ABCDEFGH'[loop.index0] }}</b><span>{{ s }}</span></button>
+    {% endfor %}
+  </form>
+  <p class="oyun-mesaj kucuk" id="mesaj" role="status" aria-live="polite" hidden></p>
+  <script src="/static/maraton.js?v=1" defer></script>
+  {% endif %}
+</div>
+{% endblock %}

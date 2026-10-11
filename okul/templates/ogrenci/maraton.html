@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "_makrolar.html" import kaynak_yok %}
+{% block baslik %}Soru Maratonu · Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Soru <span class="fosfor">Maratonu</span></h1>
+<p class="soluk">{{ soru_sayisi }} soru, her biri 30 saniye. Doğru cevap 100 puan, hızlı cevap bonus puan.</p>
+
+<section class="kart">
+  <p class="maraton-ozet">
+    <span><b>{{ seri }}</b> gün seri</span>
+    <a href="/ogrenci/liderlik">Bu haftanın sıralaması</a>
+  </p>
+</section>
+
+{% if kilit %}
+<div class="not maraton-kilit" role="status">🔒 {{ kilit_mesaj.format(bit=kilit.bit) }}</div>
+{% endif %}
+
+{% if acik %}
+<section class="kart">
+  <h2>Yarım kalan maraton</h2>
+  <p>{{ acik_ders }} · {{ acik.basla|tarih }}</p>
+  {% if kilit %}<span class="tus tam ikincil" aria-disabled="true">Devam et</span>
+  {% else %}<a class="tus tam" href="/ogrenci/maraton/{{ acik.id }}">Devam et</a>{% endif %}
+  <p class="kucuk soluk">Yeni bir maraton başlatırsan bu maraton kapatılır; cevaplanmamış sorular 0 puan sayılır.</p>
+</section>
+{% endif %}
+
+<section class="kart">
+  <h2>Ders seç</h2>
+  {% if dersler is none %}{{ kaynak_yok("Soru havuzu") }}
+  {% elif not dersler %}<p class="bos">{{ ogrenci.sinif.split('-')[0] }}. sınıf için henüz maraton sorusu yok.</p>
+  {% else %}
+  <div class="ders-sec">
+    {% for kod, ad, n in dersler %}
+    <form method="post" action="/ogrenci/maraton/basla">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="ders" value="{{ kod }}">
+      <button class="tus ders-dugme" {{ 'disabled' if kilit }}><span>{{ ad }}</span><small>{{ n }} soru</small></button>
+    </form>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+
+{% if sonlar %}
+<section class="kart">
+  <h2>Son maratonlarım</h2>
+  <ul class="liste">
+  {% for s in sonlar %}
+    <li><a class="satir" href="/ogrenci/maraton/{{ s.id }}/sonuc"><span>{{ ders_adi(s.ders) }}<br><span class="soluk kucuk">{{ s.bitis|tarih }}</span></span><span class="sag"><span class="etiket mor">{{ s.puan }} puan</span> <span class="etiket yesil">{{ s.dogru }}/{{ soru_sayisi }}</span></span></a></li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}
