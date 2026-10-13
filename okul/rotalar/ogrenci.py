@@ -3,6 +3,7 @@
 import json
 import sqlite3
 
+import analitik
 import duyurular
 import maraton
 import odevler
@@ -96,6 +97,7 @@ def odev_detay(
 @router.post("/odev/{odev_id}/yapti")
 def odev_yapti(
     odev_id: int,
+    request: Request,
     k=Depends(rol("ogrenci", post=True)),
     conn: sqlite3.Connection = Depends(db_conn),
 ):
@@ -104,6 +106,7 @@ def odev_yapti(
         odevler.yapti_isaretle(conn, _odev(conn, o, odev_id), o["id"])
     except odevler.OdevHatasi as e:
         raise HTTPException(400, str(e)) from e
+    analitik.istekten(request, "odev_tamamla", str(odev_id))
     return RedirectResponse(f"/ogrenci/odev/{odev_id}", status_code=303)
 
 
@@ -127,6 +130,7 @@ async def odev_test(
         odevler.test_teslim_et(conn, odev, o["id"], cevaplar)
     except odevler.OdevHatasi as e:
         raise HTTPException(400, str(e)) from e
+    analitik.istekten(request, "odev_tamamla", str(odev_id))
     return RedirectResponse(f"/ogrenci/odev/{odev_id}", status_code=303)
 
 

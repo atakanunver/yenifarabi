@@ -189,7 +189,27 @@ CREATE TABLE maraton_soru (
 CREATE INDEX maraton_soru_soru ON maraton_soru(soru_id);
 """
 
-GOCLER = [SEMA_V1, SEMA_V2, SEMA_V3]
+# Kullanım analitiği (yalnızca sayaç): içerik, IP, cihaz bilgisi YOK. Geçmişe dönük veri yoktur;
+# ilk kayıt tarihi MIN(gun)'dür. Tekillik: aynı kullanıcı+tür+nesne+gün+oturum bir kez sayılır.
+SEMA_V4 = """
+CREATE TABLE olay (
+    id            INTEGER PRIMARY KEY,
+    kullanici_id  INTEGER NOT NULL,
+    rol           TEXT NOT NULL,
+    tur           TEXT NOT NULL,
+    nesne         TEXT NOT NULL DEFAULT '',
+    gun           TEXT NOT NULL,
+    saat          INTEGER NOT NULL,
+    oturum_k      TEXT NOT NULL DEFAULT '',
+    UNIQUE (kullanici_id, tur, nesne, gun, oturum_k)
+);
+CREATE INDEX olay_gun_tur ON olay(gun, tur);
+CREATE INDEX olay_kullanici_tur ON olay(kullanici_id, tur);
+ALTER TABLE oturum ADD COLUMN son_nabiz TEXT;
+CREATE INDEX oturum_son_nabiz ON oturum(son_nabiz);
+"""
+
+GOCLER = [SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4]
 
 
 def baglanti() -> sqlite3.Connection:

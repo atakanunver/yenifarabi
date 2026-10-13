@@ -2,6 +2,7 @@
 
 import sqlite3
 
+import analitik
 import duyurular
 import odevler
 import yetki
@@ -133,6 +134,7 @@ async def odev_olustur(
         )
     except (odevler.OdevHatasi, KaynakHatasi) as e:
         raise HTTPException(400, str(e)) from e
+    analitik.istekten(request, "ogretmen_odev_olustur", str(odev_id))
     return RedirectResponse(f"/ogretmen/odev/{odev_id}", status_code=303)
 
 

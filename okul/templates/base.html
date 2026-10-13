@@ -14,7 +14,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/static/logo-64.png" type="image/png">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
-<link rel="stylesheet" href="/static/okul.css?v=8">
+<link rel="stylesheet" href="/static/okul.css?v=10">
 </head>
 <body>
 <header class="ust">
@@ -53,6 +53,7 @@
   {% endfor %}
 </nav>
 {% endif %}
+{% if k and not k.sifre_degismeli %}<script src="/static/nabiz.js?v=1" defer></script>{% endif %}
 <script>
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }).catch(function () {});
 </script>

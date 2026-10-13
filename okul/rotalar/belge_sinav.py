@@ -2,6 +2,7 @@
 
 import sqlite3
 
+import analitik
 import belgeler
 import dosyalar
 import sinavlar
@@ -231,6 +232,7 @@ def yazili_ekle(
         raise HTTPException(404) from None
     except sinavlar.SinavHatasi as e:
         return _sinav_sayfasi(request, conn, k, 422, str(e))
+    analitik.istekten(request, "ogretmen_etkinlik_olustur")
     return RedirectResponse("/ogretmen/sinavlar", status_code=303)
 
 
@@ -252,6 +254,7 @@ async def deneme_ekle(
         )
     except sinavlar.SinavHatasi as e:
         return _sinav_sayfasi(request, conn, k, 422, str(e))
+    analitik.istekten(request, "ogretmen_etkinlik_olustur")
     return RedirectResponse("/ogretmen/sinavlar", status_code=303)
 
 

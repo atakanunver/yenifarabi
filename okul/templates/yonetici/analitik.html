@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block baslik %}Kullanım analitiği — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Kullanım analitiği</h1>
+<section class="kart bilgi">
+  {% if ilk %}
+  <p><b>Veri toplama başlangıcı: {{ ilk|tarih }}.</b> Bu tarihten önceki günler için kayıt yoktur; grafiklerde taralı "veri yok" olarak görünür, sıfır sayılmaz.</p>
+  {% else %}
+  <p><b>Henüz kullanım kaydı yok.</b> Kayıt, kullanıcılar sayfaları açtıkça başlar; geçmiş kullanım geriye dönük üretilmez.</p>
+  {% endif %}
+  <p class="kucuk soluk">Yalnızca sayaç tutulur: kim, hangi özellik, hangi gün/saat. Form içeriği, mesaj, cevap, parola, IP ve cihaz bilgisi kaydedilmez. Akademik başarı göstergesi değildir.</p>
+</section>
+
+<form class="kart filtre" method="get" action="/yonetici/analitik">
+  <label>Başlangıç<input type="date" name="bas" value="{{ f.bas }}"></label>
+  <label>Bitiş<input type="date" name="bit" value="{{ f.bit }}"></label>
+  <label>Rol<select name="rol"><option value="">Hepsi</option>{% for r, ad in ROL_ADLARI.items() %}<option value="{{ r }}" {{ 'selected' if f.rol == r }}>{{ ad }}</option>{% endfor %}</select></label>
+  <label>Düzey<select name="duzey"><option value="">Hepsi</option>{% for d in duzeyler %}<option value="{{ d }}" {{ 'selected' if f.duzey == d }}>{{ d }}. sınıf</option>{% endfor %}</select></label>
+  <label>Sınıf/şube<select name="sinif"><option value="">Hepsi</option>{% for s in siniflar %}<option value="{{ s }}" {{ 'selected' if f.sinif == s }}>{{ s }}</option>{% endfor %}</select></label>
+  <button class="tus ikincil kucuk">Uygula</button>
+</form>
+{% if f.sinif or f.duzey %}<p class="kucuk soluk">Sınıf filtresi: o sınıfın öğrencileri, velileri ve görevli öğretmenleri (güncel atamaya göre); yöneticiler dahil değildir.</p>{% endif %}
+
+<section class="kart">
+  <h2>Özet <span class="soluk kucuk">sabit pencereler: bugün / 7 gün / 30 gün</span></h2>
+  <div class="ozet-izgara">
+    <div class="kutu"><b>{{ ozet.cevrimici }}</b>Şu an çevrim içi <span class="kucuk soluk">(son 90 sn)</span></div>
+    <div class="kutu"><b>{{ ozet.bugun }}</b>Bugün aktif</div>
+    <div class="kutu"><b>{{ ozet.hafta }}</b>Son 7 gün aktif</div>
+    <div class="kutu"><b>{{ ozet.ay }}</b>Son 30 gün aktif</div>
+  </div>
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Rol</th><th class="sayi">Kayıtlı</th><th class="sayi">Seçili aralıkta aktif</th></tr></thead>
+    <tbody>{% for r, ad in ROL_ADLARI.items() %}<tr><td>{{ ad }}</td><td class="sayi">{{ ozet.kayitli.get(r, 0) }}</td><td class="sayi">{{ ozet.aktif_rol.get(r, 0) }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <p class="kucuk soluk">Aktif kullanıcı = o günde en az bir geçerli sayfa isteği olan farklı kullanıcı. Aynı kişi birden çok cihaz/sekmeden bir kez sayılır.</p>
+</section>
+
+<section class="kart">
+  <h2>Günlük aktif kullanıcı <span class="soluk kucuk">{{ f.bas|tarih }} – {{ f.bit|tarih }}</span></h2>
+  <div class="sutunlar" role="img" aria-label="Günlük aktif kullanıcı grafiği">
+    {% for d in gunluk %}{% if d.n is none %}<span class="s yok" title="{{ d.gun|tarih }}: veri yok"></span>{% else %}<span class="s" style="height: {{ (100 * d.n / gun_en_cok)|round|int }}%" title="{{ d.gun|tarih }}: {{ d.n }}"></span>{% endif %}{% endfor %}
+  </div>
+  <div class="etiket-satiri"><span>{{ f.bas|tarih }}</span><span>en yüksek: {{ gun_en_cok if gun_en_cok > 1 or ilk else 0 }}</span><span>{{ f.bit|tarih }}</span></div>
+</section>
+
+<section class="kart">
+  <h2>Role göre eğilim</h2>
+  {% if cizgiler %}
+  <svg class="cizgi-grafik" viewBox="0 0 300 100" preserveAspectRatio="none" role="img" aria-label="Rol bazlı günlük aktif kullanıcı çizgileri">
+    {% for c in cizgiler %}<polyline fill="none" stroke="{{ c.renk }}" stroke-width="1.6" vector-effect="non-scaling-stroke" points="{{ c.nokta }}"/>{% endfor %}
+  </svg>
+  <p class="kucuk">{% for c in cizgiler %}<span style="color: {{ c.renk }}">■</span> {{ c.ad }}&nbsp;&nbsp;{% endfor %}<span class="soluk">(en yüksek değer: {{ cizgi_en_cok }})</span></p>
+  {% else %}<p class="bos">Bu aralıkta veri yok.</p>{% endif %}
+</section>
+
+<div class="izgara iki">
+<section class="kart">
+  <h2>Haftanın günleri</h2>
+  <div class="sutunlar kisa">{% set en = (hafta|map(attribute='ort')|select|list|max) or 1 %}
+    {% for h in hafta %}{% if h.ort is none %}<span class="s yok" title="{{ h.ad }}: veri yok"></span>{% else %}<span class="s" style="height: {{ (100 * h.ort / en)|round|int }}%" title="{{ h.ad }}: ort. {{ '%.1f'|format(h.ort) }} ({{ h.gun_sayisi }} gün)"></span>{% endif %}{% endfor %}
+  </div>
+  <div class="etiket-satiri">{% for h in hafta %}<span>{{ h.ad }}</span>{% endfor %}</div>
+  <p class="kucuk soluk">Verisi olan günlerde ortalama günlük aktif kullanıcı.</p>
+</section>
+<section class="kart">
+  <h2>Saat dilimleri</h2>
+  <div class="sutunlar kisa">{% for n in saat %}<span class="s saat" style="height: {{ (100 * n / saat_en_cok)|round|int }}%" title="{{ '%02d'|format(loop.index0) }}:00 — {{ n }}"></span>{% endfor %}</div>
+  <div class="etiket-satiri"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
+  <p class="kucuk soluk">Farklı (kullanıcı, gün, saat) sayısı.</p>
+</section>
+</div>
+
+<section class="kart">
+  <h2>Özellik kullanımı</h2>
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Özellik</th><th class="sayi">Kullanan</th><th>Oran*</th><th>İlk kayıt</th><th class="sayi">Yeni</th><th>Eğilim (14 gün)</th></tr></thead>
+    <tbody>
+    {% for o in ozellikler|sort(attribute='kullanan', reverse=True) %}
+      <tr><td>{{ o.ad }}</td><td class="sayi">{{ o.kullanan }}</td>
+        <td>{% if o.oran is not none %}<span class="oran-cubuk" title="%{{ o.oran }}"><i style="width: {{ o.oran }}%"></i></span><span class="kucuk">%{{ o.oran }}</span>{% else %}—{% endif %}</td>
+        <td class="kucuk">{{ o.ilk_tarih|tarih if o.ilk_tarih else 'hiç' }}</td><td class="sayi">{{ o.yeni_kullanici }}</td>
+        <td class="kucuk">{% set e = o.egilim %}{% if e.durum == 'yetersiz' %}<span class="soluk">veri yetersiz ({{ e.mesaj }})</span>{% elif e.durum == 'artiyor' %}↑ {{ ('%' ~ e.yuzde) if e.yuzde is not none else 'yeni' }}{% elif e.durum == 'azaliyor' %}↓ %{{ e.yuzde|abs }}{% else %}→ sabit{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="kucuk soluk">*Oran = özelliği kullanan farklı kişi / seçili aralıkta aktif olan ilgili roldeki kişi. "İlk kayıt" veri toplama başlangıcından itibaren görülen ilk kullanımdır, gerçek ilk kullanım olmayabilir. "Yeni" = ilk kullanımı seçili aralığa düşen kişi sayısı. Eğilim: son 14 gün ile önceki 14 günün kullanıcı-günü karşılaştırması; ±%20 altı "sabit".</p>
+</section>
+
+<section class="kart">
+  <h2>Temel işlem yapmayan oturumlar</h2>
+  <ul class="liste">
+    <li>Giriş yapıp hiçbir temel işlem yapmayan oturum
+      <span class="sag"><b>{{ ('%' ~ terk.giris_oran) if terk.giris_oran is not none else 'yetersiz veri' }}</b> <span class="kucuk soluk">({{ terk.giris_bos }}/{{ terk.giris }})</span></span></li>
+    <li>Ana sayfayı açıp o gün temel işlem yapmayan oturum-günü
+      <span class="sag"><b>{{ ('%' ~ terk.gun_oran) if terk.gun_oran is not none else 'yetersiz veri' }}</b> <span class="kucuk soluk">({{ terk.gun_bos }}/{{ terk.gun }})</span></span></li>
+  </ul>
+  <p class="kucuk soluk">Temel işlem: ödev/duyuru/kazanım görüntüleme, ödev tamamlama, maraton başlatma-bitirme, öğretmen ödev/sınav oluşturma, veli gelişim raporu. Ana sayfa açmak, giriş ve çıkış sayılmaz. {{ az_veri }}'dan az oturumda oran verilmez. Oturumlar uzun ömürlü (1 yıl) olduğundan ilk satır yalnızca veri toplama sonrası girişleri kapsar.</p>
+</section>
+
+<section class="kart">
+  <h2>Öneriler</h2>
+  {% if oneriler %}<ul class="liste">{% for m in oneriler %}<li>{{ m }}</li>{% endfor %}</ul>
+  <p class="kucuk soluk">Kural tabanlı yön göstericidir, kesin hüküm değildir.</p>
+  {% else %}<p class="bos">Öneri üretmek için yeterli veri yok ya da belirgin bir sorun görünmüyor.</p>{% endif %}
+</section>
+{% endblock %}

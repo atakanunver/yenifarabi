@@ -3,6 +3,7 @@
 import json
 import sqlite3
 
+import analitik
 import maraton
 import yetki
 from deps import db_conn, render, rol
@@ -78,6 +79,7 @@ async def basla(
         raise HTTPException(503, "Soru havuzu şu an alınamıyor. Biraz sonra tekrar dene.") from e
     except maraton.MaratonHatasi as e:
         raise HTTPException(400, str(e)) from e
+    analitik.istekten(request, "test_basla", str(mid))
     return RedirectResponse(f"/ogrenci/maraton/{mid}", status_code=303)
 
 
@@ -151,6 +153,8 @@ async def cevap(
                 {"mesaj": str(e), "sonraki": f"/ogrenci/maraton/{maraton_id}"}, status_code=409
             )
         return RedirectResponse(f"/ogrenci/maraton/{maraton_id}", status_code=303)
+    if sonuc["bitti"]:
+        analitik.istekten(request, "test_bitir", str(maraton_id))
     sonraki = f"/ogrenci/maraton/{maraton_id}" + ("/sonuc" if sonuc["bitti"] else "")
     if js:
         return JSONResponse({**sonuc, "sonraki": sonraki})

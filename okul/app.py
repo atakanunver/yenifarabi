@@ -2,6 +2,7 @@
 
 from contextlib import asynccontextmanager
 
+import analitik
 import auth
 import db
 from ayarlar import KOK
@@ -16,6 +17,7 @@ from rotalar import belge_sinav, giris, ogrenci, ogretmen, oyun, veli, yonetici
 async def omur(_app):
     db.sema_kur()
     yield
+    analitik.bosalt()
 
 
 app = FastAPI(
@@ -29,6 +31,7 @@ for r in (giris, belge_sinav, ogrenci, oyun, veli, ogretmen, yonetici):
 @app.middleware("http")
 async def basliklar(request: Request, call_next):
     yanit = await call_next(request)
+    analitik.sayfa_goruntulendi(request, yanit.status_code)
     yanit.headers["X-Robots-Tag"] = "noindex, nofollow"
     yanit.headers["X-Content-Type-Options"] = "nosniff"
     yanit.headers["X-Frame-Options"] = "DENY"

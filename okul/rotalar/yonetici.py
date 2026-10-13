@@ -3,11 +3,12 @@
 import sqlite3
 from datetime import timedelta
 
+import analitik
 import auth
 import ice_aktar
 import zaman
 from deps import ROL_ADLARI, db_conn, render, rol
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import RedirectResponse, Response
 from kaynaklar import KaynakHatasi, yoklama
 from metin import ilk_sifre, tr_kucuk
@@ -270,3 +271,64 @@ def erisim(
         " ORDER BY e.id DESC LIMIT 300"
     ).fetchall()
     return render(request, "yonetici/erisim.html", liste=liste)
+
+
+_ROL_RENK = {"ogrenci": "#2446c7", "ogretmen": "#1e8c5a", "veli": "#c08adb", "yonetici": "#d7263d"}
+
+
+def _cizgiler(gunluk: list[dict]) -> tuple[list[dict], int]:
+    """Rol başına SVG çizgi noktaları (300x100); veri olmayan günler çizgiye girmez."""
+    en_cok = max((n for d in gunluk if d["roller"] for n in d["roller"].values()), default=0) or 1
+    adet = max(len(gunluk) - 1, 1)
+    cikti = []
+    for r, renk in _ROL_RENK.items():
+        nokta = [
+            f"{300 * i / adet:.1f},{96 - 92 * d['roller'][r] / en_cok:.1f}"
+            for i, d in enumerate(gunluk)
+            if d["roller"]
+        ]
+        if nokta:
+            cikti.append({"rol": r, "ad": ROL_ADLARI[r], "renk": renk, "nokta": " ".join(nokta)})
+    return cikti, en_cok
+
+
+@router.get("/analitik")
+def kullanim_analitigi(
+    request: Request,
+    bas: str = "",
+    bit: str = "",
+    rol_f: str = Query("", alias="rol"),
+    sinif: str = "",
+    duzey: str = "",
+    k=Depends(YONETICI),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    """Kullanım analitiği (yalnızca sayaç, akademik veriyle ilgisiz). Filtreler sunucuda beyaz listeyle doğrulanır."""
+    analitik.bosalt()
+    f = analitik.filtre_coz(conn, bas, bit, rol_f, sinif, duzey, ROL_ADLARI)
+    gunluk = analitik.gunluk(conn, f)
+    cizgiler, cizgi_en_cok = _cizgiler(gunluk)
+    saat = analitik.saat_dagilimi(conn, f)
+    ozellikler = analitik.ozellikler(conn, f)
+    terk = analitik.oturum_terk(conn, f)
+    ozet = analitik.ozet(conn, f)
+    return render(
+        request,
+        "yonetici/analitik.html",
+        f=f,
+        ilk=analitik.veri_baslangici(conn),
+        ozet=ozet,
+        gunluk=gunluk,
+        gun_en_cok=max((d["n"] or 0 for d in gunluk), default=0) or 1,
+        cizgiler=cizgiler,
+        cizgi_en_cok=cizgi_en_cok,
+        hafta=analitik.haftanin_gunu(gunluk),
+        saat=saat,
+        saat_en_cok=max(saat) or 1,
+        ozellikler=ozellikler,
+        terk=terk,
+        oneriler=analitik.oneriler(ozet, ozellikler, terk),
+        siniflar=analitik.siniflar(conn),
+        duzeyler=analitik.duzeyler(conn),
+        az_veri=analitik.AZ_VERI,
+    )

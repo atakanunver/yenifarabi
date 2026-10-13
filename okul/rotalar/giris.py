@@ -2,6 +2,7 @@
 
 import sqlite3
 
+import analitik
 import auth
 import duyurular
 from deps import ANA_SAYFA, db_conn, https_mi, istemci_ip, mevcut_kullanici, render, rol
@@ -19,6 +20,12 @@ def _oturumla_yonlendir(
     request: Request, conn: sqlite3.Connection, kullanici_id: int
 ) -> RedirectResponse:
     token = auth.oturum_ac(conn, kullanici_id, request.headers.get("user-agent"))
+    analitik.kaydet(
+        kullanici_id,
+        conn.execute("SELECT rol FROM kullanici WHERE id = ?", (kullanici_id,)).fetchone()["rol"],
+        "giris",
+        token=token,
+    )
     yanit = RedirectResponse("/", status_code=303)
     auth.cerez_yaz(yanit, token, https_mi(request))
     return yanit
@@ -195,11 +202,22 @@ def cikis(
     _k: sqlite3.Row = Depends(rol(post=True)),
     conn: sqlite3.Connection = Depends(db_conn),
 ):
+    analitik.istekten(request, "cikis")
     auth.oturum_kapat(conn, request.state.token)
     request.state.token = None
     yanit = RedirectResponse("/giris", status_code=303)
     yanit.delete_cookie(auth.COOKIE_ADI, path="/")
     return yanit
+
+
+@router.post("/nabiz", status_code=204)
+def nabiz(
+    request: Request,
+    _k: sqlite3.Row = Depends(rol(post=True)),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    """Açık ve görünür sekmeden gelen kalp atışı: çevrim içi durumu (son 90 sn) besler."""
+    analitik.nabiz(conn, auth._ozet(request.state.token))
 
 
 @router.get("/duyurular")
