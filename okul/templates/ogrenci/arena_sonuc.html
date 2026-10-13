@@ -1,0 +1,50 @@
+{# Sonuç. Bağlam: tur{dogru,soru_sayisi,xp,ders_ad}, satirlar[{sira,soru,secenekler,dogru_index,cevap,konu}],
+   kazanim_ozet[{kod,metin,dogru,toplam}], yeni_rozetler[{ad}], seviye_atladi(no)|None, seviye. #}
+{% extends "base.html" %}
+{% from "ogrenci/_arena_makro.html" import xp_cubuk %}
+{% block baslik %}Görev sonucu · Dijital Okul{% endblock %}
+{% block icerik %}
+<div class="arena">
+  <h1>Görev tamamlandı</h1>
+  <section class="kart neon sonuc-ozet">
+    <p class="buyuk-puan"><b>{{ tur.dogru }}</b> / {{ tur.soru_sayisi }} doğru</p>
+    <p>{{ tur.ders_ad }} · <b>+{{ tur.xp }}</b> XP</p>
+    {% if seviye_atladi %}<p><span class="etiket altin">Seviye {{ seviye_atladi }}'e ulaştın</span></p>{% endif %}
+    {% for r in yeni_rozetler %}<p><span class="etiket altin">Yeni rozet: {{ r.ad }}</span></p>{% endfor %}
+    {{ xp_cubuk(seviye) }}
+  </section>
+
+  <section class="kart" aria-labelledby="oz-b">
+    <h2 id="oz-b">Öğrenme özeti</h2>
+    {% if kazanim_ozet %}
+      <ul class="tekrar-liste">
+      {% for k in kazanim_ozet %}<li><span class="kod">{{ k.kod }}</span> · {{ k.dogru }}/{{ k.toplam }}<br>{{ k.metin }}</li>{% endfor %}
+      </ul>
+      <p class="kesin-degil">Kazanım eşleşmeleri tahminidir; bu özet tek bir turdan çıkarılmıştır ve kalıcı bir değerlendirme sayılmaz.</p>
+    {% else %}
+      <p class="bos">Bu turdaki sorular için kazanım bilgisi bulunamadı.</p>
+    {% endif %}
+  </section>
+
+  <section class="kart" aria-labelledby="inc-b">
+    <h2 id="inc-b">Soruları incele</h2>
+    {% for s in satirlar %}
+    <details class="inceleme {{ 'dogru' if s.cevap == s.dogru_index else 'yanlis' }}"{{ ' open' if s.cevap != s.dogru_index }}>
+      <summary><span>{{ s.sira }}. {{ s.soru[:70] }}{{ '…' if s.soru|length > 70 }}</span><span class="etiket {{ 'yesil' if s.cevap == s.dogru_index else 'mor' }}">{{ 'Doğru' if s.cevap == s.dogru_index else 'İncele' }}</span></summary>
+      <p>{{ s.soru }}</p>
+      <ul class="siklar-ozet">
+      {% for sk in s.secenekler %}
+        <li class="{{ 'dogru' if loop.index0 == s.dogru_index else ('yanlis' if loop.index0 == s.cevap) }}"><b>{{ 'ABCDEFGH'[loop.index0] }}</b> {{ sk }}{% if loop.index0 == s.dogru_index %} <span class="kucuk">(doğru cevap)</span>{% elif loop.index0 == s.cevap %} <span class="kucuk">(senin cevabın)</span>{% endif %}</li>
+      {% endfor %}
+      </ul>
+      {% if s.cevap is none or s.cevap < 0 %}<p class="kucuk soluk">Bu soru cevaplanmadı.</p>{% endif %}
+    </details>
+    {% endfor %}
+  </section>
+
+  <div class="tuslar">
+    <a class="tus ikincil" href="/ogrenci/maraton">Hızlı Mod'da devam et</a>
+    <a class="tus ikincil" href="/ogrenci/arena">Arena'ya dön</a>
+  </div>
+</div>
+{% endblock %}

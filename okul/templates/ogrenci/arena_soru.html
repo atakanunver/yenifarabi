@@ -1,0 +1,37 @@
+{# Soru ekranı. Bağlam: tur{id,soru_sayisi}, soru{sira,soru,secenekler,konu}, kareler[], geri{dogru,dogru_index,secilen,sonraki}|None.
+   Doğru şık (geri.dogru_index) YALNIZCA cevap verildikten sonra gelir. #}
+{% extends "base.html" %}
+{% block baslik %}Günlük Görev · Dijital Okul{% endblock %}
+{% block icerik %}
+<div class="arena" id="arena">
+  <div class="arena-ust"><span class="etiket mor">Günlük Görev</span><span class="kucuk soluk" id="soru-sayac">Soru {{ soru.sira }} / {{ tur.soru_sayisi }}</span></div>
+  <div class="kareler ilerleme" role="img" aria-label="{{ tur.soru_sayisi }} sorudan {{ soru.sira }}. soru">
+    {%- for d in kareler %}<i class="{{ 'dolu' if d == 'dogru' else ('eksik' if d == 'yanlis') }}{{ ' su' if loop.index == soru.sira }}"></i>{% endfor -%}
+  </div>
+  {% if soru.konu %}<p class="soru-no">{{ soru.konu }}</p>{% endif %}
+  <h1 class="soru-metni" id="soru-metni" tabindex="-1">{{ soru.soru }}</h1>
+
+  <form method="post" action="/ogrenci/arena/{{ tur.id }}/cevap" id="cevap-formu" class="siklar" aria-labelledby="soru-metni">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="sira" value="{{ soru.sira }}">
+    {% for s in soru.secenekler %}
+    {% set i = loop.index0 %}
+    <button class="sik{{ ' kilitli' if geri }}{{ ' dogru' if geri and i == geri.dogru_index }}{{ ' yanlis' if geri and i == geri.secilen and not geri.dogru }}"
+            name="sec" value="{{ i }}" {{ 'disabled' if geri }}{% if geri and i == geri.secilen %} aria-current="true"{% endif %}>
+      <b aria-hidden="true">{{ 'ABCDEFGH'[i] }}</b><span>{{ s }}</span>
+      {% if geri and i == geri.dogru_index %}<span class="kucuk"> (doğru cevap)</span>{% elif geri and i == geri.secilen %}<span class="kucuk"> (senin cevabın)</span>{% endif %}
+    </button>
+    {% endfor %}
+  </form>
+
+  <div id="geri" role="status" aria-live="polite">
+  {% if geri %}
+    <div class="geri-bildirim {{ 'dogru' if geri.dogru else 'yanlis' }}">
+      <b>{{ 'Doğru!' if geri.dogru else 'Bu soruyu birlikte gözden geçirelim.' }}</b>
+      {% if not geri.dogru %}Doğru cevap: <b style="display:inline">{{ 'ABCDEFGH'[geri.dogru_index] }}</b>.{% endif %}
+    </div>
+    <div class="tuslar"><a class="tus tam" href="{{ geri.sonraki }}" autofocus>{{ 'Sonucu gör' if soru.sira == tur.soru_sayisi else 'Sonraki soru' }}</a></div>
+  {% endif %}
+  </div>
+</div>
+{% endblock %}

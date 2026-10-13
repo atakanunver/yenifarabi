@@ -18,11 +18,13 @@ Spec: `docs/superpowers/specs/2026-10-10-dijital-okul-design.md`.
 - ayarlar, zaman, metin: yapılandırma, saat, metin yardımcıları
 - db (şema + `GOCLER`), auth, deps, yetki
 - duyurular, odevler, ice_aktar
+- analitik (kullanım/etkileşim sayaçları: tamponlu+tekilleştirilmiş `olay` yazımı ve yönetici sorguları; `/yonetici/analitik`)
+- maraton (Soru Maratonu: puanlama, ders saatinde kilit, haftalık liderlik; okul.db)
 - sinavlar (yazılı + düzey bazlı deneme takvimi), belgeler (vesikalık foto + yıllık plan: kim neyi görür/değiştirir), dosyalar (yükleme doğrulama + saklama; tür dosya imzasından belirlenir, uzantıdan değil)
-- kaynaklar/{program, yoklama, kazanim, sms, zil}: dış veri okuyucular
-  (ders programı mudur/ders_programi.json, devamsızlık yoklama_pano.db, kazanım Postgres soru_havuzu, SMS smssistemi /api/arac/kod-sms, zil tahtayoklama/data/zil.json + okulun kendi tatil takvimi `config/takvim.json`)
+- kaynaklar/{program, yoklama, kazanim, soru, sms, zil}: dış veri okuyucular
+  (ders programı mudur/ders_programi.json, devamsızlık yoklama_pano.db, kazanım + maraton soruları Postgres soru_havuzu, SMS smssistemi /api/arac/kod-sms, zil tahtayoklama/data/zil.json + okulun kendi tatil takvimi `config/takvim.json`)
 - Saat widget'ı (`_saat.html`, rol ana sayfaları) ve zil tablosu (`_zil_tablo.html`, program sayfaları) route'tan değil `deps.py`'deki Jinja global'lerinden (`saat_verisi`, `zil_cizelgesi`) beslenir; canlı durum `static/saat.js`'te, kural `kaynaklar/zil.py::durum` ile aynı tutulmalı. Yeni öğretim yılı/tatil = yalnızca `config/takvim.json`.
-- rotalar/{giris, ogrenci, veli, ogretmen, yonetici, ortak, belge_sinav}; hepsi `app.py`'de `include_router` ile bağlanır (yeni rota modülü oraya da eklenmeli)
+- rotalar/{giris, ogrenci, veli, ogretmen, yonetici, ortak, belge_sinav, oyun}; hepsi `app.py`'de `include_router` ile bağlanır (yeni rota modülü oraya da eklenmeli)
 
 ## Kurallar
 - Dış kaynaklar SALT-OKUNUR, her istekte okunur, kopyalanmaz.
@@ -38,3 +40,5 @@ Spec: `docs/superpowers/specs/2026-10-10-dijital-okul-design.md`.
 - Yüklenen dosyalar (`veri/dosyalar`, gitignore'lu) `static/` altında DEĞİL; rastgele adla saklanır, yalnızca yetki kontrolü yapan rotalardan sunulur. Yazma geçici ad + `replace` ile atomik.
 - `app.py` orta katmanı: her yanıta güvenlik başlıkları + `Cache-Control: no-store` (static hariç) ve kayan oturum çerezi; 404/şifre-değiştir/giriş yönlendirmeleri exception handler'larla.
 - Şema `PRAGMA user_version` ile sürümlenir; her göç tek `BEGIN…COMMIT` içinde çalışır.
+- Soru Maratonu: doğru şık istemciye cevaptan önce gitmez, süre sunucuda ölçülür (gösterim zamanı kaydedilir). Postgres `soru_havuzu`'na yazılmaz (`soru_kullanim`/`kullanim_sayisi` arena'nın); tekrar engeli öğrenci bazlı okul.db'de. Rotalar `Accept: application/json` ile JS (`static/maraton.js`) ve JS'siz form akışını birlikte sunar.
+- Analitik: `olay` tablosu yalnızca sayaçtır (içerik/IP/cihaz yok); UNIQUE(kullanıcı,tür,nesne,gün,oturum_k) + `INSERT OR IGNORE` ile yenileme/tekrar gönderim tek sayılır. Yazım `analitik.kaydet` ile bellek tamponuna gider (25 kayıt/5 sn), `bosalt()` ile tek işlemde yazılır; olaylar orta katmanda yalnızca 200 GET'ten, rotalarda başarılı işlemden sonra üretilir. Çevrim içi = `oturum.son_nabiz` ≤ 90 sn (`/nabiz`, `static/nabiz.js`). Geçmiş veri yok: grafiklerde veri öncesi günler "veri yok". Yeni olay türü = `analitik.OZELLIKLER`'e ekle. Testlerde `analitik.sifirla()` conftest'te çağrılır.

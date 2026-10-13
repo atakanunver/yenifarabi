@@ -1,0 +1,67 @@
+{# Bilgi Arenası merkez ekranı.
+   Bağlam: seviye{no,xp,bu_baslangic,sonraki|None}, gorev{durum,soru_sayisi,cevaplanan,dogru,xp,tur_id,kilit_bit,dk},
+   hizli{kilit,seri}, son{gun,dogru,soru_sayisi,xp}|None, tekrar[{kod,metin}]|None, hafta{tur,dogru,xp}|None.
+   gorev.durum: hazir | devam | tamam | kilit | yetersiz | kaynak_yok #}
+{% extends "base.html" %}
+{% from "ogrenci/_arena_makro.html" import xp_cubuk %}
+{% block baslik %}Bilgi Arenası · Dijital Okul{% endblock %}
+{% block icerik %}
+<div class="arena">
+  <div class="arena-ust">
+    <h1>Bilgi Arenası</h1>
+    <span class="seviye-rozeti" title="Seviye {{ seviye.no }}" aria-label="Seviye {{ seviye.no }}">{{ seviye.no }}</span>
+  </div>
+  <section class="kart">{{ xp_cubuk(seviye) }}</section>
+
+  <div class="mod-izgara">
+    <section class="kart neon" aria-labelledby="gorev-b">
+      <h2 id="gorev-b">Günlük Görev</h2>
+      {% if gorev.durum == 'tamam' %}
+        <p><span class="etiket altin">Bugün tamamlandı</span></p>
+        <p class="arena-ozet-satir"><span><b>{{ gorev.dogru }}</b>/{{ gorev.soru_sayisi }} doğru</span><span><b>+{{ gorev.xp }}</b> XP</span></p>
+        <div class="tuslar"><a class="tus ikincil tam" href="/ogrenci/arena/{{ gorev.tur_id }}/sonuc">Sonucu gör</a></div>
+      {% elif gorev.durum == 'devam' %}
+        <p class="arena-ozet-satir"><span><b>{{ gorev.cevaplanan }}</b>/{{ gorev.soru_sayisi }} soru</span></p>
+        <div class="tuslar"><a class="tus buyuk" href="/ogrenci/arena/{{ gorev.tur_id }}">Devam et</a></div>
+      {% elif gorev.durum == 'hazir' %}
+        <p>{{ gorev.soru_sayisi }} soru · yaklaşık {{ gorev.dk }} dakika · süre sınırı yok</p>
+        <form method="post" action="/ogrenci/arena/basla" class="tuslar"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus buyuk">Arena'ya Gir</button></form>
+      {% elif gorev.durum == 'kilit' %}
+        <p class="not" role="status">Ders sırasında kapalı · {{ gorev.kilit_bit }}'de açılır</p>
+        <span class="tus buyuk" aria-disabled="true">Arena'ya Gir</span>
+      {% elif gorev.durum == 'yetersiz' %}
+        <p class="not" role="status">Bugünkü görev için yeterli soru bulunamadı. Hızlı Mod'u deneyebilirsin.</p>
+      {% else %}
+        <p class="not" role="status">Soru havuzuna şu an ulaşılamıyor. Biraz sonra tekrar dene.</p>
+      {% endif %}
+    </section>
+
+    <section class="kart" aria-labelledby="hizli-b">
+      <h2 id="hizli-b">Hızlı Mod</h2>
+      <p>10 soru, her biri 30 saniye. Hızlı cevap bonus puan getirir.</p>
+      {% if hizli.seri %}<p class="arena-ozet-satir"><span><b>{{ hizli.seri }}</b> gün seri</span></p>{% endif %}
+      {% if hizli.kilit %}<p class="kucuk soluk">Ders sırasında kapalı · {{ hizli.kilit.bit }}'de açılır</p>{% endif %}
+      <div class="tuslar"><a class="tus ikincil tam" href="/ogrenci/maraton">Hızlı Mod'a git</a></div>
+    </section>
+  </div>
+
+  <section class="kart" aria-labelledby="tekrar-b">
+    <h2 id="tekrar-b">Tekrar edilebilecek kazanımlar</h2>
+    {% if tekrar %}
+      <ul class="tekrar-liste">{% for t in tekrar %}<li><span class="kod">{{ t.kod }}</span><br>{{ t.metin }}</li>{% endfor %}</ul>
+      <p class="kesin-degil">Yanlış cevapladığın sorulara göre tahmini eşleşmedir; kesin bir değerlendirme değildir.</p>
+    {% else %}
+      <p class="bos">Henüz tekrar önerisi yok. Birkaç görev tamamladıkça burada görünür.</p>
+    {% endif %}
+  </section>
+
+  <section class="kart" aria-labelledby="ozet-b">
+    <h2 id="ozet-b">Son durum</h2>
+    {% if son %}
+      <p>Son görev ({{ son.gun|tarih }}): <b>{{ son.dogru }}/{{ son.soru_sayisi }}</b> doğru, <b>+{{ son.xp }}</b> XP</p>
+      {% if hafta %}<p class="kucuk soluk">Bu hafta {{ hafta.tur }} görev · {{ hafta.dogru }} doğru · {{ hafta.xp }} XP</p>{% endif %}
+    {% else %}<p class="bos">Henüz tamamlanmış görev yok.</p>{% endif %}
+    <p class="kucuk"><a href="/ogrenci/arena/ilerleme">İlerleme ve rozetlerim →</a></p>
+  </section>
+</div>
+{% endblock %}

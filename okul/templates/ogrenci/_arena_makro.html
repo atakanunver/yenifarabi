@@ -1,0 +1,15 @@
+{# Bilgi Arenası ortak parçaları. Veri route'tan gelir; şablonda sabit/örnek sayı YOK. #}
+{% macro xp_cubuk(seviye) -%}
+{% if seviye.sonraki %}
+{% set aralik = seviye.sonraki - seviye.bu_baslangic %}
+{% set yuzde = ((seviye.xp - seviye.bu_baslangic) * 100 / aralik)|round|int if aralik > 0 else 0 %}
+<div class="xp-cubuk" role="progressbar" aria-label="Sonraki seviyeye ilerleme" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ yuzde }}"><i style="width: {{ yuzde }}%"></i></div>
+<p class="xp-satir"><span><b>{{ seviye.xp }}</b> XP</span><span>Seviye {{ seviye.no + 1 }} için <b>{{ seviye.sonraki - seviye.xp }}</b> XP</span></p>
+{% else %}
+<p class="xp-satir"><span><b>{{ seviye.xp }}</b> XP</span><span>En üst seviye</span></p>
+{% endif %}
+{%- endmacro %}
+
+{% macro rozet_ikon() -%}
+<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+{%- endmacro %}

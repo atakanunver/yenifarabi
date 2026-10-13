@@ -1,0 +1,37 @@
+{# İlerleme. Bağlam: seviye, rozetler[{kod,ad,aciklama,kazanildi,tarih}], gunler[{ad,tamam,bugun}] (son 7 gün),
+   hafta{tur,dogru,xp}|None, kazanimlar[{kod,metin,dogru,toplam}]|None. Sıralama/başkasının verisi YOK. #}
+{% extends "base.html" %}
+{% from "ogrenci/_arena_makro.html" import xp_cubuk, rozet_ikon %}
+{% block baslik %}İlerlemem · Bilgi Arenası{% endblock %}
+{% block icerik %}
+<div class="arena">
+  <div class="arena-ust"><h1>İlerlemem</h1><span class="seviye-rozeti" aria-label="Seviye {{ seviye.no }}">{{ seviye.no }}</span></div>
+  <section class="kart">{{ xp_cubuk(seviye) }}</section>
+
+  <section class="kart" aria-labelledby="h-b">
+    <h2 id="h-b">Son 7 gün</h2>
+    <ul class="hafta-sirasi">{% for g in gunler %}<li class="{{ 'tamam' if g.tamam }}{{ ' bugun' if g.bugun }}"><i></i><span class="gorsel-gizli">{{ 'Görev tamamlandı' if g.tamam else 'Görev yok' }}, </span>{{ g.ad }}</li>{% endfor %}</ul>
+    {% if hafta %}<p class="kucuk soluk">Bu hafta {{ hafta.tur }} görev · {{ hafta.dogru }} doğru · {{ hafta.xp }} XP</p>
+    {% else %}<p class="bos">Bu hafta henüz görev tamamlanmadı.</p>{% endif %}
+  </section>
+
+  <section class="kart" aria-labelledby="r-b">
+    <h2 id="r-b">Rozetler</h2>
+    <ul class="rozet-izgara">
+    {% for r in rozetler %}
+      <li class="rozet{{ ' var' if r.kazanildi }}">{{ rozet_ikon() }}<b>{{ r.ad }}</b>{{ r.aciklama }}
+        {% if r.kazanildi %}<br><span class="kucuk">{{ r.tarih|tarih }}</span>{% else %}<br><span class="kucuk">Henüz kazanılmadı</span>{% endif %}</li>
+    {% endfor %}
+    </ul>
+  </section>
+
+  <section class="kart" aria-labelledby="k-b">
+    <h2 id="k-b">Kazanım çalışmalarım</h2>
+    {% if kazanimlar %}
+      <ul class="tekrar-liste">{% for k in kazanimlar %}<li><span class="kod">{{ k.kod }}</span> · {{ k.dogru }}/{{ k.toplam }} doğru<br>{{ k.metin }}</li>{% endfor %}</ul>
+      <p class="kesin-degil">Az sayıda sorudan hesaplanır ve tahmini eşleşmeye dayanır; kalıcı bir ustalık göstergesi değildir.</p>
+    {% else %}<p class="bos">Henüz yeterli veri yok.</p>{% endif %}
+  </section>
+  <p class="kucuk"><a href="/ogrenci/arena">← Arena'ya dön</a></p>
+</div>
+{% endblock %}
