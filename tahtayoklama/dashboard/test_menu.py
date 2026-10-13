@@ -33,13 +33,16 @@ class TestMenu(unittest.TestCase):
 
     def test_yeni_menu_yapisi(self):
         adlar = [u["ad"] for u in menu.MENU]
-        self.assertEqual(adlar[:3], ["Ana Pano", "Yoklama", "Kazanımlar"])
-        for kalkan in ("Dosya", "Düzen", "Yardım"):
+        self.assertEqual(adlar, ["Yoklama", "Tahtalar", "Eğitim", "İletişim", "Sistem", "Atos", "Ayarlar"])
+        for kalkan in ("EBYS", "Pano", "Kiosk", "Google Form", "Anons-Zil", "Uygulamalar"):
             self.assertNotIn(kalkan, adlar)
-        eylemler = {o.get("eylem") for u in menu.MENU for o in u["ogeler"]}
-        self.assertNotIn("cikis", eylemler)
-        yoklama = [o["ad"] for u in menu.MENU if u["ad"] == "Yoklama" for o in u["ogeler"]]
-        self.assertNotIn("Kazanım raporu", yoklama)
+        hrefler = {h for u in menu.MENU for h in _hrefler(u["ogeler"])}
+        for yer_tutucu in ("/b/ebys", "/b/pano", "/b/kiosk", "/b/form", "/b/anons", "/b/oyunlar"):
+            self.assertNotIn(yer_tutucu, hrefler)
+        eylemler = {o.get("eylem") for u in menu.MENU if u["ad"] == "Ayarlar" for o in u["ogeler"]}
+        self.assertLessEqual({"serit", "yazdir", "kisayollar", "cikis"}, eylemler)
+        atos = [o["ad"] for u in menu.MENU if u["ad"] == "Atos" for o in u["ogeler"]]
+        self.assertIn("Atos yapay zeka", atos)
 
     def test_kisayollar_benzersiz(self):
         harfler = [u["kisayol"] for u in menu.MENU]
@@ -49,6 +52,7 @@ class TestMenu(unittest.TestCase):
         agac = menu.menu_agaci("/servisler")
         aktifler = [o["ad"] for u in agac["menu"] for o in u["ogeler"] if o.get("aktif")]
         self.assertEqual(aktifler, ["Servis yönetimi"])
+        self.assertEqual([o["ad"] for u in menu.menu_agaci("/")["menu"] for o in u["ogeler"] if o.get("aktif")], ["Pano"])
         self.assertEqual([s["ad"] for s in agac["serit"] if s.get("aktif")], ["Servis yönetimi"])
         self.assertFalse(any(o.get("aktif") for u in menu.MENU for o in u["ogeler"]))  # kaynak bozulmaz
 
