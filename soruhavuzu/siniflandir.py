@@ -7,7 +7,7 @@ import json
 import httpx
 import numpy as np
 
-from soruhavuzu import zaman
+from soruhavuzu import vt, zaman
 from soruhavuzu.uretici import MODEL
 
 PARTI = 8
@@ -85,7 +85,8 @@ def calistir(
         cur.execute(
             "SELECT id, sinif, ders, soru, secenekler, dogru_index FROM soru "
             "WHERE durum='onayli' AND kazanim_id IS NULL AND kazanim_siniflandirma_at IS NULL "
-            "ORDER BY id"
+            "AND NOT (sinif = ANY(%s)) ORDER BY id",
+            (list(vt.DONDURULMUS_SINIFLAR),),
         )
         sorular = cur.fetchall()
     gruplar: dict = {}

@@ -3,6 +3,13 @@ import pytest
 from soruhavuzu import vt
 
 
+@pytest.fixture(autouse=True)
+def _dondurma_kapali(monkeypatch, request):
+    """Mevcut testler 12. sınıf örnek verisi kullanır; dondurma kendi testinde açık kalır."""
+    if "dondurma" not in request.node.name:
+        monkeypatch.setattr(vt, "DONDURULMUS_SINIFLAR", ())
+
+
 @pytest.fixture
 def conn():
     c = vt.baglan("soru_havuzu_test")

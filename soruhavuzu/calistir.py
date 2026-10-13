@@ -232,6 +232,7 @@ def main() -> int:
     p_sin.add_argument("--limit", type=int, default=None)
     p_sin.add_argument("--zorla", action="store_true", help="Ders saati kontrolünü atla")
     sub.add_parser("sik-karistir").add_argument("--kuru", action="store_true")
+    sub.add_parser("tekrar-temizle").add_argument("--kuru", action="store_true")
     sub.add_parser("durum")
 
     args = parser.parse_args()
@@ -276,6 +277,9 @@ def main() -> int:
         print("önce :", " ".join(f"{h}={n}" for h, n in zip(harf, s["once"])))
         print("sonra:", " ".join(f"{h}={n}" for h, n in zip(harf, s["sonra"])))
         print(f"[sik-karistir] {s['degisen']}/{s['toplam']} satır değişti{' (kuru — yazılmadı)' if args.kuru else ''}")
+    elif komut == "tekrar-temizle":
+        n = tekrar.kopyalari_isaretle(conn, kuru=args.kuru)
+        print(f"[tekrar-temizle] {n} birebir kopya{' (kuru — yazılmadı)' if args.kuru else ' kopya olarak işaretlendi'}")
     else:
         durum(conn)
     return 0

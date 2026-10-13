@@ -10,6 +10,8 @@ import psycopg2.extras
 from soruhavuzu import sik
 
 SEMA = Path(__file__).with_name("sema.sql")
+# 12. sınıf ikinci emre kadar dondurulmuş (2026-10-10): üretim, denetim ve sınıflandırma dokunmaz.
+DONDURULMUS_SINIFLAR = (12,)
 
 
 def baglan(dbname: str = "soru_havuzu"):
@@ -101,7 +103,7 @@ DENETLENECEK_SQL = (
     "LEFT JOIN kazanim kz ON kz.id = s.kazanim_id "
     "LEFT JOIN (SELECT ders, sinif, count(*) AS n FROM soru WHERE durum = 'onayli' "
     "GROUP BY ders, sinif) o ON o.ders = s.ders AND o.sinif = s.sinif "
-    "WHERE s.durum = 'uretildi' "
+    "WHERE s.durum = 'uretildi' AND NOT (s.sinif = ANY(%s)) "
     "ORDER BY COALESCE(o.n, 0), s.sinif DESC, s.ders, s.birim_id, s.id LIMIT %s"
 )
 
@@ -110,7 +112,7 @@ def denetlenecekler(conn, limit: int) -> list[dict]:
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
             DENETLENECEK_SQL,
-            (limit,),
+            (list(DONDURULMUS_SINIFLAR), limit),
         )
         return list(cur.fetchall())
 
@@ -153,9 +155,9 @@ def siradaki_kazanim(conn, bugun, haftalar: dict, denenen: set, hedef_toplam: in
             "  WHERE durum IN ('uretildi','onayli') AND kazanim_id IS NOT NULL GROUP BY kazanim_id) "
             "SELECT t.id, t.sinif, t.ders, t.hafta, t.kod, t.metin, COALESCE(s.n,0) AS n FROM tek t "
             "LEFT JOIN sayim s ON s.kazanim_id = t.id "
-            "WHERE COALESCE(s.n,0) < %s AND NOT (t.id = ANY(%s)) "
+            "WHERE COALESCE(s.n,0) < %s AND NOT (t.id = ANY(%s)) AND NOT (t.sinif = ANY(%s)) "
             "ORDER BY (t.hafta BETWEEN %s AND %s) DESC, COALESCE(s.n,0), t.hafta, t.id LIMIT 1",
-            (hedef_toplam, list(denenen) or [0], simdiki, simdiki + 3),
+            (hedef_toplam, list(denenen) or [0], list(DONDURULMUS_SINIFLAR), simdiki, simdiki + 3),
         )
         satir = cur.fetchone()
     return dict(satir) if satir else None

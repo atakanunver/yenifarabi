@@ -37,6 +37,39 @@ class Eleyici:
         return False
 
 
+# Aynı ders+sınıfta aynı soru metni VE aynı şık kümesi = birebir kopya (içe aktarma betikleri Eleyici'yi
+# atlıyor). Yalnızca metin aynı, şıklar farklıysa kopya sayılmaz (ortak yönergeli ayrı sorular).
+_KOPYA_SQL = """
+WITH anahtarli AS (
+  SELECT id, durum,
+         row_number() OVER (
+           PARTITION BY ders, sinif,
+                        lower(regexp_replace(soru, '\\s+', ' ', 'g')),
+                        (SELECT string_agg(lower(btrim(v)), '|' ORDER BY lower(btrim(v)))
+                           FROM jsonb_array_elements_text(secenekler) v)
+           ORDER BY (durum = 'onayli') DESC, id) AS sira
+  FROM soru
+  WHERE durum IN ('onayli', 'uretildi') AND NOT (sinif = ANY(%s))
+)
+SELECT id FROM anahtarli WHERE sira > 1
+"""
+
+
+def kopyalari_isaretle(conn, kuru: bool = False) -> int:
+    """Birebir kopyalardan ilkini (onaylı öncelikli, sonra en düşük id) bırakıp gerisini 'kopya' yapar."""
+    from soruhavuzu import vt
+
+    with conn.cursor() as cur:
+        cur.execute(_KOPYA_SQL, (list(vt.DONDURULMUS_SINIFLAR),))
+        idler = [r[0] for r in cur.fetchall()]
+        if idler and not kuru:
+            cur.execute(
+                "UPDATE soru SET durum='kopya', denetim_notu=COALESCE(denetim_notu||' | ','')||'birebir kopya' "
+                "WHERE id = ANY(%s)", (idler,))
+            conn.commit()
+    return len(idler)
+
+
 def _gomucu():
     """farabi-api'nin kullandığı bilgehan gömme istemcisi (server/uzak_model.py)."""
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "server"))
