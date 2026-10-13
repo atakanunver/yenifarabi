@@ -209,7 +209,59 @@ ALTER TABLE oturum ADD COLUMN son_nabiz TEXT;
 CREATE INDEX oturum_son_nabiz ON oturum(son_nabiz);
 """
 
-GOCLER = [SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4]
+# Bilgi Arenası (Günlük Görev + ortak XP/rozet katmanı). XP toplamı/seviyesi defterden türetilir.
+# bilgi_tur UNIQUE(kullanici_id, gun): günde bir görev; ödül çoğaltma DB seviyesinde engellenir.
+SEMA_V5 = """
+CREATE TABLE bilgi_tur (
+    id            INTEGER PRIMARY KEY,
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    gun           TEXT NOT NULL,
+    sinif         TEXT NOT NULL,
+    ders          TEXT NOT NULL,
+    basla         TEXT NOT NULL,
+    bitis         TEXT,
+    durum         TEXT NOT NULL DEFAULT 'acik' CHECK (durum IN ('acik', 'tamam', 'terk')),
+    dogru         INTEGER NOT NULL DEFAULT 0,
+    xp            INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (kullanici_id, gun)
+);
+CREATE INDEX bilgi_tur_kullanici ON bilgi_tur(kullanici_id, gun);
+CREATE TABLE bilgi_cevap (
+    tur_id        INTEGER NOT NULL REFERENCES bilgi_tur(id) ON DELETE CASCADE,
+    sira          INTEGER NOT NULL,
+    soru_id       INTEGER NOT NULL,
+    kazanim_id    INTEGER,
+    kazanim_kod   TEXT,
+    kazanim_metin TEXT,
+    soru          TEXT NOT NULL,
+    secenekler    TEXT NOT NULL,
+    dogru_index   INTEGER NOT NULL,
+    konu          TEXT,
+    cevap         INTEGER,
+    cevap_zamani  TEXT,
+    PRIMARY KEY (tur_id, sira)
+);
+CREATE INDEX bilgi_cevap_soru ON bilgi_cevap(soru_id);
+CREATE TABLE bilgi_xp (
+    id            INTEGER PRIMARY KEY,
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    kaynak        TEXT NOT NULL CHECK (kaynak IN ('arena_dogru', 'arena_bonus', 'maraton_tur')),
+    ref           TEXT NOT NULL,
+    miktar        INTEGER NOT NULL CHECK (miktar > 0),
+    gun           TEXT NOT NULL,
+    zaman         TEXT NOT NULL,
+    UNIQUE (kullanici_id, kaynak, ref)
+);
+CREATE INDEX bilgi_xp_kullanici ON bilgi_xp(kullanici_id);
+CREATE TABLE bilgi_rozet (
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    rozet_kodu    TEXT NOT NULL,
+    zaman         TEXT NOT NULL,
+    PRIMARY KEY (kullanici_id, rozet_kodu)
+);
+"""
+
+GOCLER = [SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5]
 
 
 def baglanti() -> sqlite3.Connection:
