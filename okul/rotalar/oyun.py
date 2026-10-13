@@ -4,6 +4,7 @@ import json
 import sqlite3
 
 import analitik
+import arena
 import maraton
 import yetki
 from deps import db_conn, render, rol
@@ -103,6 +104,7 @@ def oyna(
     s = maraton.siradaki(conn, maraton_id)
     if s is not None and maraton.sure_asildi(s):  # sayfa terk edilip geç dönüldü
         maraton.cevapla(conn, maraton_id, s["sira"], None)
+        arena.maraton_xp(conn, k["id"], maraton_id)  # süre dolumu turu bitirmiş olabilir
         return RedirectResponse(f"/ogrenci/maraton/{maraton_id}", status_code=303)
     if s is None:
         maraton.bitir(conn, maraton_id)
@@ -155,6 +157,7 @@ async def cevap(
         return RedirectResponse(f"/ogrenci/maraton/{maraton_id}", status_code=303)
     if sonuc["bitti"]:
         analitik.istekten(request, "test_bitir", str(maraton_id))
+        arena.maraton_xp(conn, k["id"], maraton_id)
     sonraki = f"/ogrenci/maraton/{maraton_id}" + ("/sonuc" if sonuc["bitti"] else "")
     if js:
         return JSONResponse({**sonuc, "sonraki": sonraki})
@@ -182,6 +185,7 @@ def sonuc(
         request, "ogrenci/maraton_sonuc.html", m=m, satirlar=satirlar,
         ders_ad=havuz.ders_adi(m["ders"]), kareler=maraton.ilerleme(conn, maraton_id),
         okul_sira=sira, seri=maraton.seri(conn, k["id"]), soru_sayisi=maraton.SORU_SAYISI,
+        xp_kazanc=arena.maraton_xp_miktar(conn, k["id"], maraton_id),
     )
 
 

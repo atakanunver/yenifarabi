@@ -5,6 +5,7 @@
 <section class="kart sonuc-ozet">
   <p class="buyuk-puan"><b>{{ m.puan }}</b> puan</p>
   <p>{{ ders_ad }} · <b>{{ m.dogru }}</b> / {{ soru_sayisi }} doğru</p>
+  {% if xp_kazanc %}<p><span class="etiket mor">+{{ xp_kazanc }} XP</span></p>{% endif %}
   <div class="kareler ilerleme">{% for d in kareler %}<i class="{{ 'dolu' if d == 'dogru' else ('eksik' if d == 'yanlis') }}"></i>{% endfor %}</div>
   <p class="maraton-ozet">
     <span><b>{{ seri }}</b> gün seri</span>

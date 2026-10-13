@@ -57,6 +57,15 @@ OZELLIKLER = {
         "Öğretmen: sınav/etkinlik ekleme", ("ogretmen",), True,
         "Sınav takvimini zümre toplantısında göster; yazılı tarihlerini platforma girmeyi zümre kararı yap.",
     ),
+    "arena_goruntule": ("Bilgi Arenası ekranı", ("ogrenci",), False, ""),
+    "arena_basla": (
+        "Arena: Günlük Görev başlatma", ("ogrenci",), True,
+        "Günlük Görev'i ana sayfada öne çıkar; sınıfta bir kez birlikte denet ve 5 dakikalık bir görev olduğunu vurgula.",
+    ),
+    "arena_tamamla": (
+        "Arena: Günlük Görev tamamlama", ("ogrenci",), True,
+        "Başlayıp bitirmeyenler varsa soruları ve ekran akışını gözden geçir; öğrencilere neden bıraktıklarını sor.",
+    ),
     "veli_gelisim_raporu": (
         "Veli: gelişim raporu", ("veli",), True,
         "Veli ana sayfasına 'Kazanım raporu' bağlantısı ekle; veli toplantısında kısa gösterim yap.",
@@ -71,6 +80,7 @@ _SAYFALAR = (
     (re.compile(r"^/ogrenci/odev/\d+$"), "odev_goruntule"),
     (re.compile(r"^/ogrenci/kazanimlar$"), "kazanim_raporu"),
     (re.compile(r"^/veli/kazanim$"), "veli_gelisim_raporu"),
+    (re.compile(r"^/ogrenci/arena$"), "arena_goruntule"),
     (re.compile(r"^/duyurular$"), "duyuru_goruntule"),
 )
 
