@@ -1,5 +1,6 @@
 """Dijital Okul — FastAPI uygulaması (port 9090, farabi-okul.service)."""
 
+import logging
 from contextlib import asynccontextmanager
 
 import analitik
@@ -8,7 +9,7 @@ import db
 from ayarlar import KOK
 from deps import GirisGerekli, SifreDegistirmeli, https_mi, render
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from rotalar import (
     anket,
@@ -69,6 +70,37 @@ async def _giris(request: Request, _e):
 @app.exception_handler(SifreDegistirmeli)
 async def _sifre(request: Request, _e):
     return RedirectResponse("/sifre", status_code=303)
+
+
+log = logging.getLogger("uvicorn.error")
+BAKIM_MESAJI = "Ş.M.U.A.L Bakım Yapılıyor ..."
+BAKIM_SAYFASI = """<!doctype html>
+<html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="30">
+<title>Ş.M.U.A.L Bakım Yapılıyor</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:1.5rem;
+background:#0a1030;color:#eaf1ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:26rem}h1{font-size:1.6rem;margin:.6rem 0}p{color:#a9b8e0;line-height:1.5}
+.simge{font-size:3rem}a{display:inline-block;margin-top:1rem;padding:.8rem 1.4rem;border-radius:12px;background:#22d3ee;
+color:#0a1030;font-weight:700;text-decoration:none}
+</style></head><body><main>
+<div class="simge" aria-hidden="true">🛠️</div>
+<h1>Ş.M.U.A.L Bakım Yapılıyor ...</h1>
+<p>Sistem kısa bir süre için bakımda. Birkaç dakika içinde otomatik olarak yenilenecek.</p>
+<a href="/">Şimdi yenile</a>
+</main></body></html>"""
+
+
+@app.exception_handler(Exception)
+async def _beklenmeyen(request: Request, e: Exception):
+    """Beklenmeyen sunucu hatası: kullanıcı ham 'Internal Server Error' yerine bakım mesajı görür (hata yine günlüğe düşer)."""
+    log.error("Beklenmeyen hata: %s %s", request.method, request.url.path, exc_info=e)
+    basliklar = {"Cache-Control": "no-store", "Retry-After": "30"}
+    if "application/json" in request.headers.get("accept", ""):
+        return JSONResponse({"mesaj": BAKIM_MESAJI}, status_code=503, headers=basliklar)
+    return HTMLResponse(BAKIM_SAYFASI, status_code=503, headers=basliklar)
 
 
 @app.exception_handler(HTTPException)
