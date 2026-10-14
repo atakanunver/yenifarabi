@@ -427,17 +427,6 @@ main {
 .uyari-kalan { font-size: 0.82rem; color: var(--renk-metin-soluk); }
 .uyari-baglanti { font-size: 0.85rem; color: var(--renk-birincil); text-decoration: none; margin-left: auto; }
 .uyari-baglanti:hover { text-decoration: underline; }
-.ogretmen-etiketi {
-  display: block;
-  max-width: 100%;
-  margin-top: 0.15rem;
-  font-size: 0.7rem;
-  line-height: 1.2;
-  color: var(--renk-metin-soluk);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .hucre-vurgu { outline: 3px solid var(--renk-birincil); outline-offset: -3px; }
 
 .pano-ozet {

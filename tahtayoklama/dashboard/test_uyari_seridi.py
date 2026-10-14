@@ -23,14 +23,14 @@ class TestUyariSeridi(unittest.TestCase):
         self.assertNotIn("/api/sistem-durumu", PANO)
 
     def test_ogretmen_hucreye_yazilir(self):
-        self.assertIn("satir.ogretmen", PANO)
+        self.assertIn("satir.ogretmen_kisa", PANO)
 
 
 class TestOgretmenAdi(unittest.TestCase):
     def setUp(self):
         self._tmp = TemporaryDirectory()
         dosya = Path(self._tmp.name) / "ogretmenler.json"
-        dosya.write_text(json.dumps({"program": {"9-A": {"pazartesi": {"1": ["AA BB"], "2": ["AA BB", "CC DD"]}}}}))
+        dosya.write_text(json.dumps({"program": {"9-A": {"pazartesi": {"1": ["AA BB"], "2": ["AA BB", "CC DD"]}}}, "kisa_ad": {"AA BB": "BB"}}))
         self._p = patch.object(ders_programi, "OGRETMEN_DOSYASI", dosya)
         self._p.start()
         ders_programi.yenile()
@@ -44,6 +44,11 @@ class TestOgretmenAdi(unittest.TestCase):
         pzt = date(2026, 10, 12)
         self.assertEqual(ders_programi.ogretmen_adi("9-A", pzt, 1), "AA BB")
         self.assertEqual(ders_programi.ogretmen_adi("9-A", pzt, 2), "AA BB / CC DD")
+
+    def test_kisa_ad_istisna_yoksa_son_sozcuk(self):
+        pzt = date(2026, 10, 12)
+        self.assertEqual(ders_programi.ogretmen_kisa_adi("9-A", pzt, 1), "BB")
+        self.assertEqual(ders_programi.ogretmen_kisa_adi("9-A", pzt, 2), "BB/DD")
 
     def test_olmayan_kayit_ve_hafta_sonu_none(self):
         self.assertIsNone(ders_programi.ogretmen_adi("9-A", date(2026, 10, 12), 5))

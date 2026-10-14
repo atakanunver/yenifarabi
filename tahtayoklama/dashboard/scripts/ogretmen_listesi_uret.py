@@ -40,6 +40,15 @@ def sayfadan(metin: str) -> dict | None:
     return {"ad_soyad": ad, "dersler": dersler, "siniflar": siniflar}
 
 
+# Panoda "KİM-EMİNE" biçimi için kısa ad: aSc adı "SOYAD [SOYAD2] AD [AD2]" sırasıyla gelir ve
+# soyad/ad sınırı otomatik ayrılamaz → varsayılan son sözcük; çok sözcüklü adlar buraya yazılır.
+KISA_AD_ISTISNA = {"KARAKOÇ AYŞE MERVE": "AYŞE"}
+
+
+def kisa_ad(ad_soyad: str) -> str:
+    return KISA_AD_ISTISNA.get(ad_soyad) or ad_soyad.split()[-1]
+
+
 GUNLER = ["pazartesi", "sali", "carsamba", "persembe", "cuma"]
 GUN_ETIKETLERI = ("Pa", "Sa", "Ça", "Pe", "Cu")
 SINIF_DESENI = re.compile(r"^\d+-[A-Z]$")
@@ -91,7 +100,7 @@ def main() -> None:
     liste = [o for o in (sayfadan(s.get_text()) for s in belge) if o]
     ders_programi = json.loads(DERS_PROGRAMI.read_text(encoding="utf-8")).get("siniflar", {})
     program, sorunlar = program_cikar(belge, ders_programi)
-    CIKTI.write_text(json.dumps({"ogretmenler": liste, "program": program}, ensure_ascii=False, indent=1), encoding="utf-8")
+    CIKTI.write_text(json.dumps({"ogretmenler": liste, "program": program, "kisa_ad": {o["ad_soyad"]: kisa_ad(o["ad_soyad"]) for o in liste}}, ensure_ascii=False, indent=1), encoding="utf-8")
     CIKTI.chmod(0o600)
     dolu = sum(len(sl) for g in ders_programi.values() for sl in g.values())
     atanan = sum(len(sl) for g in program.values() for sl in g.values())

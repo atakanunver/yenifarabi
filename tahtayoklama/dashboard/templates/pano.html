@@ -127,9 +127,11 @@ function hucreDoldur(hucre, satir) {
   const bilgi = DURUM_BILGISI[anahtar] || { pill: '', metin: satir.durum };
 
   hucre.className = 'hucre';
-  const dersEtiketi = (satir.ders_kisa_adi
-    ? `<span class="ders-etiketi">${satir.ders_kisa_adi}</span>` : '')
-    + (satir.ogretmen ? `<span class="ogretmen-etiketi" title="${satir.ogretmen}">${satir.ogretmen}</span>` : '');
+  // "KİM-EMİNE": ders kısaltması + öğretmenin ilk adı (tam ad üstüne gelince)
+  const etiketMetni = satir.ders_kisa_adi
+    ? satir.ders_kisa_adi + (satir.ogretmen_kisa ? '-' + satir.ogretmen_kisa : '') : '';
+  const dersEtiketi = etiketMetni
+    ? `<span class="ders-etiketi" title="${satir.ogretmen || ''}">${etiketMetni}</span>` : '';
   if (bilgi.bos) {
     // Yoklama durumu boş gösterilse de (ör. ders henüz başlamadı, tahta
     // hiç açılmamış) ders programı her zaman görünür kalmalı — kullanıcı

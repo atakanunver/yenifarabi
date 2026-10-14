@@ -81,17 +81,22 @@ def _yukle() -> dict:
 
 
 @lru_cache(maxsize=1)
-def _ogretmen_programi() -> dict:
+def _ogretmen_dosyasi() -> dict:
     try:
-        return json.loads(OGRETMEN_DOSYASI.read_text(encoding="utf-8")).get("program", {})
-    except (OSError, ValueError, AttributeError):
+        veri = json.loads(OGRETMEN_DOSYASI.read_text(encoding="utf-8"))
+        return veri if isinstance(veri, dict) else {}
+    except (OSError, ValueError):
         return {}  # dosya yok / bozuk: pano öğretmensiz çalışır
+
+
+def _ogretmen_programi() -> dict:
+    return _ogretmen_dosyasi().get("program", {})
 
 
 def yenile() -> None:
     """Dosya elle değiştiyse önbelleği temizler."""
     _yukle.cache_clear()
-    _ogretmen_programi.cache_clear()
+    _ogretmen_dosyasi.cache_clear()
 
 
 def ders_adi(sinif: str, tarih: date, ders_no: int) -> str | None:
@@ -115,3 +120,15 @@ def ogretmen_adi(sinif: str, tarih: date, ders_no: int) -> str | None:
         return None
     adlar = _ogretmen_programi().get(sinif, {}).get(gun, {}).get(str(ders_no))
     return " / ".join(adlar) if adlar else None
+
+
+def ogretmen_kisa_adi(sinif: str, tarih: date, ders_no: int) -> str | None:
+    """Panodaki "KİM-EMİNE" etiketi için öğretmen(ler)in ilk adı; birden çoksa "/" ile birleşir."""
+    gun = _GUN_ADLARI.get(tarih.isoweekday())
+    if gun is None:
+        return None
+    adlar = _ogretmen_programi().get(sinif, {}).get(gun, {}).get(str(ders_no))
+    if not adlar:
+        return None
+    kisa = _ogretmen_dosyasi().get("kisa_ad", {})
+    return "/".join(kisa.get(a) or a.split()[-1] for a in adlar)

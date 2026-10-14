@@ -206,6 +206,9 @@ def _durum_satirlari(conn, hedef_tarih: date) -> list[dict]:
         satir["ogretmen"] = ders_programi.ogretmen_adi(
             satir["sinif"], hedef_tarih, satir["ders_no"]
         )
+        satir["ogretmen_kisa"] = ders_programi.ogretmen_kisa_adi(
+            satir["sinif"], hedef_tarih, satir["ders_no"]
+        )
         sonuc.append(satir)
     return sonuc
 
