@@ -77,6 +77,23 @@ CREATE TABLE IF NOT EXISTS ayarlar (
     anahtar TEXT PRIMARY KEY,
     deger   TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS veli_mesajlari (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    telefon          TEXT NOT NULL,           -- normalize
+    metin            TEXT NOT NULL,
+    modem_zaman      TEXT NOT NULL,
+    alinma           TEXT NOT NULL DEFAULT (datetime('now')),
+    kisi_id          INTEGER,
+    kisi_ad          TEXT,
+    kisi_tur         TEXT,
+    sinif            TEXT,
+    cikis_talebi     INTEGER NOT NULL DEFAULT 0,
+    okundu           INTEGER NOT NULL DEFAULT 0,
+    bildirim_durum   INTEGER NOT NULL DEFAULT 0,  -- 0 bekliyor, 1 gitti, 2 gerek yok
+    bildirim_deneme  INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (telefon, modem_zaman, metin)
+);
 """
 
 _VARSAYILAN_SINIFLAR = ["9-A", "9-B", "10-A", "10-B", "11-A", "11-B", "12-A", "12-B"]

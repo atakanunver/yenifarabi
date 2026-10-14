@@ -25,6 +25,8 @@ import dogum_mantik
 import gonderim
 import arac_api
 import otomasyon
+import panel_api
+import veli_mesaj
 import sms_gonderici
 import yoklama_kaynak
 import yoklama_mantik
@@ -57,13 +59,16 @@ async def lifespan(app: FastAPI):
     arac_api.sema_kur()
     gorev = asyncio.create_task(otomasyon.otomasyon_arkaplan_dongusu())
     hatirlatma = asyncio.create_task(arac_api.hatirlatma_dongusu())  # Atos SMS aracı
+    veli_poller = asyncio.create_task(veli_mesaj.gelen_kutusu_dongusu())  # modem gelen kutusu
     yield
     gorev.cancel()
     hatirlatma.cancel()
+    veli_poller.cancel()
 
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(arac_api.router)  # /api/arac/* — Atos SMS aracı (anahtarlı)
+app.include_router(panel_api.router)  # /api/panel/* — dashboard veli mesajları (anahtarlı)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 

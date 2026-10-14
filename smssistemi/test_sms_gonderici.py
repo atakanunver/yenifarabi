@@ -147,3 +147,58 @@ def test_durdurma_sonrasi_cikis_hatasi_kalan_alicilari_kaydetmez():
     assert len(kaydedilenler) == 1
     assert kaydedilenler[0][0] == "Ali Veli"
     assert kaydedilenler[0][3] == "gonderildi"
+
+
+# --- 2026-10-14: giden kutusu temizliği + modem kilidi -------------------
+
+def _sahte_client_kurulumu(monkeypatch, giden_sayfalari):
+    from unittest.mock import MagicMock
+    client = MagicMock()
+    client.sms.get_sms_list.side_effect = giden_sayfalari
+    monkeypatch.setattr(sms_gonderici, "_baglan", lambda ayarlar: MagicMock())
+    monkeypatch.setattr(sms_gonderici, "Client", lambda c: client)
+    return client
+
+
+def test_toplu_gonder_sonunda_yalniz_giden_kutusu_temizlenir(monkeypatch):
+    from huawei_lte_api.enums.sms import BoxTypeEnum
+    sayfalar = [{"Messages": {"Message": [{"Index": "10"}, {"Index": "11"}]}}, {"Messages": {"Message": []}}]
+    client = _sahte_client_kurulumu(monkeypatch, sayfalar)
+    kayit = []
+    sms_gonderici.toplu_gonder({}, [("A", "05550000001", "mesaj")], lambda *a: kayit.append(a),
+                               _bos_bayrak(), 0)
+    assert kayit[0][3] == "gonderildi"
+    assert [c.args[0] for c in client.sms.delete_sms.call_args_list] == [10, 11]
+    for c in client.sms.get_sms_list.call_args_list:
+        assert c.kwargs["box_type"] == BoxTypeEnum.LOCAL_SENT  # gelen kutusuna dokunulmaz
+
+
+def test_silme_hatasi_gonderimi_bozmaz(monkeypatch):
+    client = _sahte_client_kurulumu(monkeypatch, [RuntimeError("modem")])
+    kayit = []
+    sms_gonderici.toplu_gonder({}, [("A", "05550000001", "mesaj")], lambda *a: kayit.append(a),
+                               _bos_bayrak(), 0)
+    assert [k[3] for k in kayit] == ["gonderildi"]  # hata kaydı eklenmedi
+    client.sms.delete_sms.assert_not_called()
+
+
+def test_toplu_gonder_modem_kilidini_tutar(monkeypatch):
+    import threading
+    gorulen = []
+
+    def sahte_baglan(ayarlar):
+        gorulen.append(sms_gonderici.modem_kilidi.acquire(blocking=False))  # RLock: aynı thread ise True
+        raise RuntimeError("x")
+
+    monkeypatch.setattr(sms_gonderici, "_baglan", sahte_baglan)
+    # Başka thread'den bakınca kilit alınamamalı
+    sonuc = []
+
+    def baska_thread_denesin(*a):
+        t = threading.Thread(target=lambda: sonuc.append(sms_gonderici.modem_kilidi.acquire(blocking=False)))
+        t.start(); t.join()
+
+    sms_gonderici.toplu_gonder({}, [("A", "05550000001", "m")], baska_thread_denesin, _bos_bayrak(), 0)
+    assert sonuc == [False]
+    assert sms_gonderici.modem_kilidi.acquire(blocking=False)  # bitince serbest
+    sms_gonderici.modem_kilidi.release()

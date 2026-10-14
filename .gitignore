@@ -162,3 +162,11 @@ _arsiv/
 *.db-shm
 *.sqlite
 *.sqlite3
+
+# CodeGraph yerel semantik dizin veritabanı
+.codegraph/
+tahtayoklama/dashboard/config/ogretmenler.json
+
+# SMS panel paylaşılan anahtarı (üretilir, commit edilmez)
+smssistemi/config/panel.json
+tahtayoklama/dashboard/config/sms_panel.json

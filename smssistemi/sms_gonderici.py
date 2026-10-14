@@ -14,6 +14,8 @@ eski `_kopru_session` Location-yeniden-yazma hack'ine gerek kalmadı.
 """
 
 import json
+import logging
+import threading
 import time
 from pathlib import Path
 from threading import Event
@@ -22,9 +24,21 @@ from typing import Callable
 import requests
 from huawei_lte_api.Client import Client
 from huawei_lte_api.Connection import Connection
-from huawei_lte_api.enums.sms import TextModeEnum
+from huawei_lte_api.enums.sms import BoxTypeEnum, TextModeEnum
 
 from gonderim import is_ascii
+
+log = logging.getLogger("smssistemi.modem")
+
+# Modemde tek oturum olur: toplu_gonder, gelen kutusu okuma ve bildirim
+# gönderimi bu kilit altında bağlanır. RLock: bildirim akışı kilidi tutarken
+# toplu_gonder'i çağırabilsin diye. Gelen kutusu poller'ı kilidi BEKLEMEZ
+# (alınamazsa turu atlar); gönderim ise sırasını bekler.
+modem_kilidi = threading.RLock()
+
+# Giden/gelen kutusu sayfalama sınırları (sonsuz döngü koruması).
+_SAYFA_BOYUTU = 50
+_AZAMI_SAYFA = 20
 
 MODEM_CONFIG_YOLU = Path(__file__).resolve().parent / "config" / "modem.json"
 
@@ -116,7 +130,90 @@ def baglantiyi_test_et(ayarlar: dict) -> dict:
     return {"cihaz": info.get("DeviceName", "?"), "sinyal": signal.get("rssi", "?")}
 
 
+def _yanittan_mesajlar(yanit: dict | None) -> list[dict]:
+    """huawei_lte_api yanıtı: {"Messages": {"Message": [..]}} (tek öğe dict olabilir)."""
+    ic = (yanit or {}).get("Messages") or {}
+    mesajlar = ic.get("Message") if isinstance(ic, dict) else ic
+    if not mesajlar:
+        return []
+    if isinstance(mesajlar, dict):
+        return [mesajlar]
+    return list(mesajlar)
+
+
+def _kutu_mesajlari(client: Client, kutu: BoxTypeEnum) -> list[dict]:
+    """Bir kutudaki tüm mesajları (sayfalayarak, üst sınırlı) ham dict olarak döner."""
+    sonuc: list[dict] = []
+    for sayfa in range(1, _AZAMI_SAYFA + 1):
+        yanit = client.sms.get_sms_list(page=sayfa, box_type=kutu, read_count=_SAYFA_BOYUTU)
+        mesajlar = _yanittan_mesajlar(yanit)
+        sonuc.extend(mesajlar)
+        if len(mesajlar) < _SAYFA_BOYUTU:
+            break
+    return sonuc
+
+
+def giden_kutusunu_temizle(client: Client) -> int:
+    """Modemin GİDEN (LOCAL_SENT) kutusunu siler; gelen kutusuna dokunmaz.
+    Hata gönderimi bozmaz — loglanır, silinen sayı döner."""
+    silinen = 0
+    try:
+        for _tur in range(_AZAMI_SAYFA):
+            mesajlar = _yanittan_mesajlar(
+                client.sms.get_sms_list(page=1, box_type=BoxTypeEnum.LOCAL_SENT, read_count=_SAYFA_BOYUTU)
+            )
+            if not mesajlar:
+                break
+            for m in mesajlar:
+                client.sms.delete_sms(int(m["Index"]))
+                silinen += 1
+    except Exception as exc:  # noqa: BLE001 - temizlik gönderimi bozmamalı
+        log.warning("giden kutusu temizliği başarısız (%s), silinen=%d", type(exc).__name__, silinen)
+    return silinen
+
+
+def gelen_kutusunu_isle(
+    ayarlar: dict,
+    isleyici: Callable[[list[dict]], list[int]],
+) -> int | None:
+    """Gelen kutusunu okur, `isleyici(mesajlar)`'a verir; isleyici DB'ye kaydedip
+    doğruladığı mesajların modem Index listesini döner, yalnızca onlar modemden
+    silinir (hata olursa modemde kalır — kayıp yok). Kilit alınamazsa None
+    (tur atlandı); aksi halde silinen sayı."""
+    if not modem_kilidi.acquire(blocking=False):
+        return None
+    try:
+        connection = _baglan(ayarlar)
+        with connection:
+            client = Client(connection)
+            mesajlar = _kutu_mesajlari(client, BoxTypeEnum.LOCAL_INBOX)
+            if not mesajlar:
+                return 0
+            silinecek = isleyici(mesajlar)
+            silinen = 0
+            for index in silinecek:
+                try:
+                    client.sms.delete_sms(int(index))
+                    silinen += 1
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("gelen mesaj silinemedi (%s)", type(exc).__name__)
+            return silinen
+    finally:
+        modem_kilidi.release()
+
+
 def toplu_gonder(
+    ayarlar: dict,
+    kisiler: list[tuple[str, str, str]],
+    sonuc_callback: Callable[[str, str, str, str, str | None], None],
+    durdur_bayragi: Event,
+    bekleme_sn: float,
+) -> None:
+    with modem_kilidi:
+        _toplu_gonder_kilitli(ayarlar, kisiler, sonuc_callback, durdur_bayragi, bekleme_sn)
+
+
+def _toplu_gonder_kilitli(
     ayarlar: dict,
     kisiler: list[tuple[str, str, str]],
     sonuc_callback: Callable[[str, str, str, str, str | None], None],
@@ -158,6 +255,7 @@ def toplu_gonder(
                 kaydedilen = i + 1
                 if i < len(kisiler) - 1 and not durdur_bayragi.is_set():
                     time.sleep(bekleme_sn)
+            giden_kutusunu_temizle(client)
     except Exception as exc:  # noqa: BLE001 - baglanti kurulduktan sonraki genel hata
         # `with connection:` bloğundan çıkışta (ör. modemden logout isteği)
         # da bu hataya düşülebilir — kullanıcı DURDUR'a bastıysa (durduruldu)
