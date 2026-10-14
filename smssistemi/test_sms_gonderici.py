@@ -202,3 +202,34 @@ def test_toplu_gonder_modem_kilidini_tutar(monkeypatch):
     assert sonuc == [False]
     assert sms_gonderici.modem_kilidi.acquire(blocking=False)  # bitince serbest
     sms_gonderici.modem_kilidi.release()
+
+
+def test_gelen_kutusu_turu_giden_kutusu_artiklarini_da_siler(monkeypatch):
+    """Modem gönderilen mesajı gecikmeyle yazar; poller turu artığı süpürür."""
+    import sms_gonderici
+
+    silinenler = []
+
+    class _Sms:
+        def get_sms_list(self, page=1, box_type=None, read_count=50, **kw):
+            if box_type == sms_gonderici.BoxTypeEnum.LOCAL_SENT and not silinenler:
+                return {"Messages": {"Message": [{"Index": "40000", "SmsType": "1"}]}, "Count": "1"}
+            return {"Messages": None, "Count": "0"}
+
+        def delete_sms(self, index):
+            silinenler.append(index)
+
+    class _Client:
+        sms = _Sms()
+
+    class _Baglanti:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(sms_gonderici, "_baglan", lambda ayarlar: _Baglanti())
+    monkeypatch.setattr(sms_gonderici, "Client", lambda c: _Client())
+    assert sms_gonderici.gelen_kutusunu_isle({}, lambda m: []) == 0
+    assert silinenler == [40000]

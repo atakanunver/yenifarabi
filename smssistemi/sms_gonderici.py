@@ -186,6 +186,9 @@ def gelen_kutusunu_isle(
         connection = _baglan(ayarlar)
         with connection:
             client = Client(connection)
+            # Modem gönderilen mesajı kutuya gecikmeyle yazar; gönderim sonundaki
+            # temizlik onu kaçırabilir. Her turda artıkları da burada süpür.
+            giden_kutusunu_temizle(client)
             mesajlar = _kutu_mesajlari(client, BoxTypeEnum.LOCAL_INBOX)
             if not mesajlar:
                 return 0

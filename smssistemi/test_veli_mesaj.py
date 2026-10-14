@@ -116,7 +116,10 @@ def conn2(c):  # sqlite nesnesi thread'e bağlı; aynı DB için yeni bağlantı
 
 def test_gelen_kutusu_isle_yalniz_dogrulananlari_siler(monkeypatch):
     client = MagicMock()
-    client.sms.get_sms_list.return_value = {"Messages": {"Message": [ham(7, "05550000002", "a"), ham(8, "05550000002", "b")]}}
+    gelen = {"Messages": {"Message": [ham(7, "05550000002", "a"), ham(8, "05550000002", "b")]}}
+    client.sms.get_sms_list.side_effect = lambda page=1, box_type=None, **kw: (
+        gelen if box_type == sms_gonderici.BoxTypeEnum.LOCAL_INBOX else {"Messages": None}
+    )
     monkeypatch.setattr(sms_gonderici, "_baglan", lambda ayarlar: MagicMock())
     monkeypatch.setattr(sms_gonderici, "Client", lambda c: client)
     assert sms_gonderici.gelen_kutusunu_isle({}, lambda m: [8]) == 1
@@ -129,7 +132,10 @@ def test_gelen_kutusu_isle_yalniz_dogrulananlari_siler(monkeypatch):
 
 def test_isleyici_hata_verirse_modemde_kalir(monkeypatch):
     client = MagicMock()
-    client.sms.get_sms_list.return_value = {"Messages": {"Message": [ham(7, "05550000002", "a")]}}
+    gelen = {"Messages": {"Message": [ham(7, "05550000002", "a")]}}
+    client.sms.get_sms_list.side_effect = lambda page=1, box_type=None, **kw: (
+        gelen if box_type == sms_gonderici.BoxTypeEnum.LOCAL_INBOX else {"Messages": None}
+    )
     monkeypatch.setattr(sms_gonderici, "_baglan", lambda ayarlar: MagicMock())
     monkeypatch.setattr(sms_gonderici, "Client", lambda c: client)
 
