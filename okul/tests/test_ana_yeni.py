@@ -97,7 +97,7 @@ def test_bekleyen_anket_bildirimi_ve_gorevi(istemci, ornek, conn, saat):
 def test_modul_baglantilari(istemci, ornek):
     giris(istemci, "mudur", "mudur-sifre")
     y = istemci.get("/yonetici").text
-    assert 'href="/yonetici/gelisim"' in y and 'href="/yonetici/anketler"' in y
+    assert 'href="/yonetici/gelisim"' in y and 'href="/yonetici/anketler"' in y and 'href="/yonetici/oduller"' in y
     giris(istemci, "hoca", "hoca-sifre")
     assert 'href="/ogretmen/hizli"' in istemci.get("/ogretmen/odev/yeni").text
     assert 'href="/ogretmen/gelisim/9-A"' in istemci.get("/ogretmen/sinif/9-A").text
