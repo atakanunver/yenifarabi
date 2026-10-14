@@ -2,6 +2,67 @@
 {% block icerik %}
 {% include "_ana_ekran.html" %}
 {% include "_saat.html" %}
+{% if su_anki_ders %}
+<section class="kart bilgi">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.4rem;">
+    <span class="etiket mor">🎯 ŞU ANKİ DERS · {{ su_anki_ders.no }}. DERS</span>
+    {% if su_anki_ders.saat %}<span class="soluk kucuk">{{ su_anki_ders.saat }}</span>{% endif %}
+  </div>
+  <div style="font-size:1.2rem; font-weight:700; margin:.3rem 0 .2rem;">
+    {{ su_anki_ders.sinif }} · {{ su_anki_ders.ders|baslik }}
+  </div>
+  {% if su_anki_ders.kazanim %}
+    <div class="kazanim-blok">
+      <div class="kazanim-blok-baslik">🎯 Bu Haftanın Kazanımı</div>
+      <div class="kazanim-blok-metin">{{ su_anki_ders.kazanim }}</div>
+    </div>
+  {% else %}
+    <p class="soluk kucuk" style="margin:.3rem 0 0;">Bu ders için haftalık kazanım bulunamadı.</p>
+  {% endif %}
+</section>
+{% elif siradaki_ders %}
+<section class="kart bilgi">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.4rem;">
+    <span class="etiket">⏳ SIRADAKİ DERS · {{ siradaki_ders.no }}. DERS</span>
+    {% if siradaki_ders.baslangic %}<span class="soluk kucuk">{{ siradaki_ders.baslangic }}'de başlıyor</span>{% endif %}
+  </div>
+  <div style="font-size:1.15rem; font-weight:700; margin:.3rem 0 .2rem;">
+    {{ siradaki_ders.sinif }} · {{ siradaki_ders.ders|baslik }}
+  </div>
+  {% if siradaki_ders.kazanim %}
+    <div class="kazanim-blok mavi">
+      <div class="kazanim-blok-baslik">🎯 Bu Haftanın Kazanımı</div>
+      <div class="kazanim-blok-metin">{{ siradaki_ders.kazanim }}</div>
+    </div>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if bugunku_dersler %}
+<section class="kart">
+  <h2>📅 Bugünkü Derslerim ({{ gun_adi }})</h2>
+  <ul class="liste">
+  {% for d in bugunku_dersler %}
+    <li style="display:block; {% if d.aktif %}background:rgba(142,68,173,0.06); border-radius:6px; padding:.5rem; margin:-.1rem 0;{% endif %}">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <span class="etiket {% if d.aktif %}mor{% endif %}">{{ d.no }}. Ders</span>
+          <b>{{ d.sinif }}</b> · {{ d.ders|baslik }}
+          {% if d.aktif %}<span class="etiket yesil" style="margin-left:.3rem; font-size:.7rem;">Şu an</span>{% endif %}
+        </div>
+        {% if d.saat %}<span class="soluk kucuk">{{ d.saat }}</span>{% endif %}
+      </div>
+      {% if d.kazanim %}
+        <div class="soluk kucuk" style="margin-top:.25rem; padding-left:.2rem; line-height:1.35;">
+          🎯 <b>Kazanım:</b> {{ d.kazanim }}
+        </div>
+      {% endif %}
+    </li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <details class="kart bilgi">
   <summary><b>📢 Yayındaki duyurular</b>{% if duyurular %} <span class="etiket">{{ duyurular|length }}</span>{% endif %}</summary>
   <ul class="liste">
@@ -14,6 +75,7 @@
   </ul>
   <p class="kucuk" style="margin:.5rem 0 0;"><a href="/duyurular">Tüm duyurular</a></p>
 </details>
+
 <h1>Sınıflarım</h1>
 <div class="kisayollar">
   {% if k.rol == 'ogretmen' %}<a class="tus ikincil" href="/ogretmen/planlar">📄 Yıllık planlarım</a>{% endif %}
@@ -21,9 +83,18 @@
 </div>
 <section class="kart">
   <ul class="liste">
-  {% for sinif, ders in gorevler %}
-    <li><a class="satir" href="/ogretmen/sinif/{{ sinif }}"><span class="etiket">{{ sinif }}</span><span>{{ ders|baslik if ders else 'Sınıf listesi' }}</span></a>
-      {% if ders %}<a class="tus ikincil kucuk sag" href="/ogretmen/odev/yeni?sinif={{ sinif }}&ders={{ ders|urlencode }}">Ödev ver</a>{% endif %}</li>
+  {% for g in gorevler_bilgi %}
+    <li style="display:block;">
+      <div style="display:flex; align-items:center; gap:.5rem; width:100%;">
+        <a class="satir" href="/ogretmen/sinif/{{ g.sinif }}"><span class="etiket">{{ g.sinif }}</span><span>{{ g.ders|baslik if g.ders else 'Sınıf listesi' }}</span></a>
+        {% if g.ders %}<a class="tus ikincil kucuk sag" href="/ogretmen/odev/yeni?sinif={{ g.sinif }}&ders={{ g.ders|urlencode }}">Ödev ver</a>{% endif %}
+      </div>
+      {% if g.kazanim %}
+        <div class="soluk kucuk" style="margin-top:.25rem; padding-left:.2rem; line-height:1.35;">
+          🎯 <b>Bu haftanın kazanımı:</b> {{ g.kazanim }}
+        </div>
+      {% endif %}
+    </li>
   {% else %}
     <li class="bos">Size henüz sınıf/ders atanmamış. Okul yönetimi görevlerinizi tanımlayınca burada görünecek.</li>
   {% endfor %}

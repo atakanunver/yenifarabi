@@ -20,6 +20,7 @@ GORUNEN_AD = {
     "edebiyat": "Edebiyat",
     "din": "Din Kültürü",
     "ingilizce": "İngilizce",
+    "almanca": "Almanca",
     "felsefe": "Felsefe",
     "turkce": "Türkçe",
     "gorsel_sanatlar": "Görsel Sanatlar",

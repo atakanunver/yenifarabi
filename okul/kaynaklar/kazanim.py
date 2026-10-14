@@ -4,10 +4,13 @@ ozet() saf fonksiyondur: Google Form kazanım testleri + platform içi test öde
 (ders, kazanım) bazında birleştirilir.
 """
 
+import json
 from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import date, timedelta
 
+import zaman
 from ayarlar import AYAR
 
 from kaynaklar import KaynakHatasi
@@ -138,3 +141,64 @@ def ders_ozeti(
         (ders, sum(d.basarili(esik) for d in liste), len(liste))
         for ders, liste in sorted(o.items())
     ]
+
+
+# --- yıllık plan kazanımları (tahtayoklama/data/kazanimlar.json) ---
+
+_plan_onbellek: dict = {"yol": None, "mtime": None, "veri": {}}
+
+
+def plan_kazanimlari() -> dict:
+    """tahtayoklama/data/kazanimlar.json — salt-okunur, dosya değişince mtime ile yeniden okunur."""
+    yol = AYAR.kazanim_yolu
+    try:
+        mtime = yol.stat().st_mtime
+        if _plan_onbellek.get("yol") != yol or _plan_onbellek.get("mtime") != mtime:
+            veri = json.loads(yol.read_text(encoding="utf-8"))
+            _plan_onbellek.update(
+                yol=yol, mtime=mtime, veri=veri if isinstance(veri, dict) else {}
+            )
+    except (OSError, ValueError):
+        return {}
+    return _plan_onbellek.get("veri", {})
+
+
+def haftalik_kazanim(sinif: str, ders: str, tarih: date | None = None) -> str | None:
+    """Bu haftanın kazanımı: yoklama tahtasındaki _kazanim() mantığıyla aynı kurallar.
+    haftalar (hafta no → o haftanın pazartesisi) içinde bugünü kapsayan hafta,
+    kazanimlar[düzey][ders][hafta]. Düzey sınıf adından ("10-A" → "10").
+    Tatil haftası/eksik plan/bulunamazsa None."""
+    if not sinif or not ders:
+        return None
+    kz = plan_kazanimlari()
+    if not kz:
+        return None
+    bugun = tarih or zaman.simdi().date()
+    duzey = sinif.split("-")[0]
+    hafta = None
+    for no, pazartesi in kz.get("haftalar", {}).items():
+        try:
+            baslangic = date.fromisoformat(pazartesi)
+            if baslangic <= bugun < baslangic + timedelta(days=7):
+                hafta = no
+                break
+        except (ValueError, TypeError):
+            continue
+    if hafta is None:
+        return None
+
+    ders_ham = ders.strip().lower()
+    metin = kz.get("kazanimlar", {}).get(duzey, {}).get(ders_ham, {}).get(hafta)
+    if not metin:
+        # Alternatif ad eşleme (matematik uygulamaları -> matematik, vb.)
+        eslestir = {
+            "matematik uygulamaları": "matematik",
+            "spor etkinlikleri": "beden eğitimi",
+        }
+        if ders_ham in eslestir:
+            metin = kz.get("kazanimlar", {}).get(duzey, {}).get(eslestir[ders_ham], {}).get(hafta)
+    if not isinstance(metin, str):
+        return None
+    satirlar = [" ".join(s.split()) for s in metin.split("\n")]
+    return "\n".join(s for s in satirlar if s) or None
+

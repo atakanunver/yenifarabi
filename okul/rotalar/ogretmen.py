@@ -6,11 +6,12 @@ import analitik
 import duyurular
 import odevler
 import yetki
+import zaman
 from deps import db_conn, istemci_ip, render, rol
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
-from kaynaklar import KaynakHatasi, kazanim, program
-from metin import sinif_seviyesi, tr_kucuk
+from kaynaklar import KaynakHatasi, kazanim, program, zil
+from metin import normalize_isim, sinif_seviyesi, tr_kucuk
 
 router = APIRouter(prefix="/ogretmen")
 OGRETMEN = rol("ogretmen", "yonetici")
@@ -37,10 +38,88 @@ def _odev(conn: sqlite3.Connection, k: sqlite3.Row, odev_id: int) -> sqlite3.Row
 def ana(
     request: Request, k=Depends(OGRETMEN), conn: sqlite3.Connection = Depends(db_conn)
 ):
+    t_gorevler = gorevler(conn, k)
+    an = zaman.simdi()
+    bugun = an.date()
+    gun_adi = program.GUNLER[bugun.weekday()]
+    z_durum = zil.durum(an)
+
+    # 1. Görevler + bu haftanın kazanımı
+    gorevler_bilgi = []
+    for s, d in t_gorevler:
+        kz = kazanim.haftalik_kazanim(s, d, bugun) if d else None
+        gorevler_bilgi.append({"sinif": s, "ders": d, "kazanim": kz})
+
+    # 2. Bugünkü dersler ve şu anki / sıradaki ders
+    bugunku_dersler = []
+    su_anki_ders = None
+    siradaki_ders = None
+
+    if gun_adi in program.OKUL_GUNLERI and not zil.tatil_adi(bugun):
+        try:
+            ders_saatleri = dict((d[0], (d[1], d[2])) for d in zil.dersler())
+        except KaynakHatasi:
+            ders_saatleri = {}
+
+        for s, d in t_gorevler:
+            if not d:
+                continue
+            hedef = normalize_isim(d)
+            try:
+                g_dersleri = program.gun_dersleri(s, gun_adi)
+            except KaynakHatasi:
+                g_dersleri = []
+            for no, ders_adi in g_dersleri:
+                if normalize_isim(ders_adi) == hedef:
+                    saat_aralik = ders_saatleri.get(no)
+                    saat_str = (
+                        f"{saat_aralik[0]} - {saat_aralik[1]}"
+                        if saat_aralik
+                        else ""
+                    )
+                    kz = kazanim.haftalik_kazanim(s, ders_adi, bugun)
+                    bugunku_dersler.append({
+                        "no": no,
+                        "sinif": s,
+                        "ders": ders_adi,
+                        "saat": saat_str,
+                        "baslangic": saat_aralik[0] if saat_aralik else "",
+                        "bitis": saat_aralik[1] if saat_aralik else "",
+                        "kazanim": kz,
+                        "aktif": False,
+                    })
+        bugunku_dersler.sort(key=lambda x: x["no"])
+
+        aktif_no = z_durum.get("no") if z_durum.get("tur") == "ders" else None
+        if aktif_no:
+            for item in bugunku_dersler:
+                if item["no"] == aktif_no:
+                    item["aktif"] = True
+                    su_anki_ders = item
+                    break
+
+        if not su_anki_ders:
+            siradaki_no = None
+            if z_durum.get("tur") == "once":
+                siradaki_no = 1
+            elif z_durum.get("tur") in ("teneffus", "ogle"):
+                siradaki_no = z_durum.get("sonraki")
+
+            if siradaki_no:
+                for item in bugunku_dersler:
+                    if item["no"] == siradaki_no:
+                        siradaki_ders = item
+                        break
+
     return render(
         request,
         "ogretmen/ana.html",
-        gorevler=gorevler(conn, k),
+        gorevler=t_gorevler,
+        gorevler_bilgi=gorevler_bilgi,
+        bugunku_dersler=bugunku_dersler,
+        su_anki_ders=su_anki_ders,
+        siradaki_ders=siradaki_ders,
+        gun_adi=program.GUN_ADLARI.get(gun_adi, gun_adi.capitalize()),
         odevler=odevler.ogretmen_odevleri(conn, k)[:10],
         duyurular=duyurular.gorunur_duyurular(conn, k, 5),
     )

@@ -35,3 +35,79 @@ def test_ders_ozeti():
         [],
     )
     assert kazanim.ders_ozeti(o, 0.7) == [("matematik", 1, 2)]
+
+
+def test_plan_kazanimlari_ve_haftalik_kazanim(tmp_path, monkeypatch):
+    import json
+    from datetime import date
+
+    from ayarlar import AYAR
+
+    veri = {
+        "haftalar": {
+            "1": "2026-09-14",
+            "2": "2026-09-21",
+            "5": "2026-10-12",
+        },
+        "kazanimlar": {
+            "10": {
+                "kimya": {"5": "KİM.10.1.4. Mol kavramı"},
+                "matematik": {"5": "MAT.10.1. Üçgen alanı"},
+            },
+            "9": {
+                "beden eğitimi": {"5": "TSE.9.2.1. Kuvvet tanımı"},
+            },
+        },
+    }
+    dosya = tmp_path / "kazanimlar.json"
+    dosya.write_text(json.dumps(veri), encoding="utf-8")
+    monkeypatch.setattr(AYAR, "kazanim_yolu", dosya)
+    # cache sıfırla
+    kazanim._plan_onbellek.clear()
+
+    # Tam eşleşme
+    assert kazanim.haftalik_kazanim("10-A", "kimya", date(2026, 10, 13)) == "KİM.10.1.4. Mol kavramı"
+    assert kazanim.haftalik_kazanim("10-B", "matematik", date(2026, 10, 15)) == "MAT.10.1. Üçgen alanı"
+
+    # Alternatif ad eşleşmesi: spor etkinlikleri -> beden eğitimi
+    assert kazanim.haftalik_kazanim("9-A", "spor etkinlikleri", date(2026, 10, 14)) == "TSE.9.2.1. Kuvvet tanımı"
+
+    # Hafta dışı / olmayan ders / geçersiz sınıf
+    assert kazanim.haftalik_kazanim("10-A", "fizik", date(2026, 10, 13)) is None
+    assert kazanim.haftalik_kazanim("10-A", "kimya", date(2026, 11, 1)) is None
+    assert kazanim.haftalik_kazanim("", "kimya") is None
+    assert kazanim.haftalik_kazanim("10-A", "") is None
+
+
+def test_ogretmen_ana_sayfa_kazanim(ornek, conn, tmp_path, monkeypatch):
+    import json
+
+    from app import app
+    from ayarlar import AYAR
+    from starlette.testclient import TestClient
+
+    veri = {
+        "haftalar": {"5": "2026-10-12"},
+        "kazanimlar": {
+            "10": {"kimya": {"5": "KİM.10.1.4. Mol kavramı"}},
+        },
+    }
+    dosya = tmp_path / "kazanimlar.json"
+    dosya.write_text(json.dumps(veri), encoding="utf-8")
+    monkeypatch.setattr(AYAR, "kazanim_yolu", dosya)
+    kazanim._plan_onbellek.clear()
+
+    # Hoca kullanıcısına görev ata
+    hoca_id = ornek["ogretmen"]
+    conn.execute("INSERT OR REPLACE INTO ogretmen_gorev (ogretmen_id, sinif, ders) VALUES (?, ?, ?)",
+                 (hoca_id, "10-A", "kimya"))
+    conn.commit()
+
+    # Giriş yap ve ana sayfayı iste
+    istemci = TestClient(app)
+    res_giris = istemci.post("/giris", data={"kullanici_adi": "hoca", "sifre": "hoca-sifre"})
+    assert res_giris.status_code in (200, 303)
+    res = istemci.get("/ogretmen")
+    assert res.status_code == 200
+    assert "KİM.10.1.4. Mol kavramı" in res.text
+
