@@ -481,3 +481,11 @@ details.kart > summary { cursor: pointer; min-height: 32px; }
 .anket-olcek input:focus-visible + span { outline: 3px solid var(--mavi); outline-offset: 2px; }
 .anket-grup { border-top: 1px dashed var(--cizgi); padding-top: .6rem; margin-top: .6rem; }
 .anket-grup h3 { margin: 0 0 .3rem; font-size: 1rem; }
+
+/* --- Öğrenci ana ekranı (yeniden tasarım) --- */
+.ana-ust { display: flex; justify-content: space-between; align-items: center; gap: .6rem; flex-wrap: wrap; margin-bottom: .4rem; }
+.ana-ust h1 { margin: 0; }
+.bugun-kart { border-left: 4px solid var(--mavi); }
+.bugun-liste .satir { min-height: 48px; }
+
+.arena input[type=number], .arena input[type=text], .arena select, .arena textarea { color: #0a1030; background: #fff; }

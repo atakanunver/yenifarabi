@@ -4,8 +4,11 @@ import json
 import sqlite3
 
 import analitik
+import arena
+import bugun
 import denemeler
 import duyurular
+import kisisel
 import maraton
 import odevler
 import sinavlar
@@ -42,10 +45,15 @@ def ana(
 ):
     o = _kendisi(conn, k)
     ozet, _, erisildi = ortak.kazanim_ozeti(conn, o)
+    arena_acik = arena.duzey_uygun(o["sinif"])
     return render(
         request,
-        "ogrenci/ana.html",
+        "ogrenci/ana_yeni.html",
         ogrenci=o,
+        bugun=bugun.gorevler(conn, o),
+        hafta=kisisel.bu_hafta(conn, o),
+        seviye=arena.seviye(conn, k["id"]) if arena_acik else None,
+        arena_acik=arena_acik,
         dersler=ortak.bugunku_dersler(o["sinif"]),
         odevler=ortak.bekleyen_odevler(conn, o)[:4],
         duyurular=duyurular.gorunur_duyurular(conn, k, 3),

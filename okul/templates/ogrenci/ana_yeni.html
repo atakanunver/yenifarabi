@@ -1,0 +1,102 @@
+{# Öğrenci ana ekranı (yeniden tasarım). Bağlam: ogrenci, bugun{gorevler,fazla_odev,tamamlanan,arena}, seviye|None, hafta{hedef,yapilan,yuzde,tamamlandi},
+   arena_acik(bool), dersler, duyurular, ders_ozeti, kazanim_erisildi, simdi, sinavlar, kalan, maraton, deneme_sayisi. #}
+{% extends "base.html" %}
+{% from "_makrolar.html" import kareler, kaynak_yok, odev_durum, sinav_satiri %}
+{% block icerik %}
+{% include "_ana_ekran.html" %}
+<div class="ana-ust">
+  <h1>Merhaba, <span class="fosfor">{{ ogrenci.ad_soyad.split(' ')[0] }}</span></h1>
+  {% if seviye %}<a class="etiket mor" href="/ogrenci/arena" aria-label="Seviye {{ seviye.no }}, {{ seviye.xp }} XP">Seviye {{ seviye.no }} · {{ seviye.xp }} XP</a>{% endif %}
+</div>
+
+<section class="kart bugun-kart" aria-labelledby="bugun-b">
+  <h2 id="bugun-b">Bugün ne yapacağım?</h2>
+  {% if bugun.gorevler %}
+  <ul class="liste bugun-liste">
+    {% for g in bugun.gorevler %}
+    <li>
+      {% if g.href %}<a class="satir" href="{{ g.href }}">{% else %}<div class="satir" aria-disabled="true">{% endif %}
+        <span><b>{{ g.baslik }}</b><br><span class="soluk kucuk">{{ g.alt }}</span></span>
+        <span class="sag">{% if g.tur == 'odev' %}{{ odev_durum(g.odev, simdi) }}{% elif g.get('kilitli') %}<span class="etiket sari">Kilitli</span>{% else %}<span class="etiket {{ 'kirmizi' if g.acil else 'mor' }}">{{ 'Yarın/bugün' if g.acil and g.tur != 'odev' else 'Başla' }}</span>{% endif %}</span>
+      {% if g.href %}</a>{% else %}</div>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% if bugun.fazla_odev %}<p class="kucuk"><a href="/ogrenci/odevler">{{ bugun.fazla_odev }} ödev daha →</a></p>{% endif %}
+  {% else %}
+  <p class="bos">Bugün için bekleyen bir şeyin yok.</p>
+  {% endif %}
+  {% for t in bugun.tamamlanan %}<p class="kucuk"><span class="etiket yesil">Tamam</span> {{ t }}</p>{% endfor %}
+</section>
+
+<section class="kart" aria-labelledby="hedef-b">
+  <h2 id="hedef-b">Haftalık hedefim <a href="/ogrenci/hedefim">{{ 'Detay' if hafta.hedef is not none else 'Hedef koy' }}</a></h2>
+  {% if hafta.hedef is none %}
+    <p class="soluk">Bu hafta için hedef koymadın. Bu hafta şu ana kadar <b>{{ hafta.yapilan.toplam }}</b> etkinlik yaptın.</p>
+  {% else %}
+    <p><b>{{ hafta.yapilan.toplam }}</b> / {{ hafta.hedef }} etkinlik{% if hafta.tamamlandi %} · <span class="etiket yesil">Hedefe ulaştın</span>{% endif %}</p>
+    <span class="oran-cubuk" role="progressbar" aria-label="Haftalık hedef" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ hafta.yuzde }}"><i style="width: {{ hafta.yuzde }}%"></i></span>
+  {% endif %}
+</section>
+
+<section class="kart" aria-labelledby="hizli-b">
+  <h2 id="hizli-b">Hızlı çalışma <a href="/ogrenci/liderlik">Sıralama</a></h2>
+  <p class="kucuk soluk">Birkaç dakikada sonuç al. Hızlı Mod = Soru Maratonu.</p>
+  <div class="tuslar">
+    {% if arena_acik %}<a class="tus buyuk" href="/ogrenci/arena">Günlük Görev · 5 soru</a>{% endif %}
+    <a class="tus {{ 'ikincil' if arena_acik }} buyuk" href="/ogrenci/maraton">Hızlı Mod · 10 soru</a>
+  </div>
+  {% if maraton is defined %}<p class="kucuk soluk"><b>{{ maraton.seri }}</b> gün seri · {% if maraton.sira %}Bu hafta okulda <b>{{ maraton.sira }}.</b> sıradasın{% else %}Bu hafta henüz oynamadın{% endif %}</p>
+  {% if maraton.kilit %}<p class="kucuk soluk">Ders sırasında kapalı · {{ maraton.kilit.bit }}'de açılır</p>{% endif %}{% endif %}
+</section>
+
+<section class="kart">
+  <h2>Gelişimim <a href="/ogrenci/gelisim">Ayrıntı</a></h2>
+  {% if not kazanim_erisildi %}{{ kaynak_yok("Kazanım testi sonuçları") }}{% endif %}
+  {% for ders, basarili, toplam in ders_ozeti %}
+  <div class="ders-satir">
+    <span>{{ ders|baslik }}</span>
+    <span class="oran">{{ basarili }}/{{ toplam }}</span>
+    {{ kareler(basarili, toplam) }}
+  </div>
+  {% else %}
+  <p class="bos">Testler çözüldükçe her kazanım burada bir kare olacak.</p>
+  {% endfor %}
+  {% set eksik = namespace(n=0) %}{% for _, b, t in ders_ozeti %}{% set eksik.n = eksik.n + t - b %}{% endfor %}
+  {% if eksik.n %}<p class="kucuk"><b>{{ eksik.n }}</b> kazanım için çalışma öneriliyor. <a href="/ogrenci/kazanimlar">Kazanımlarım →</a></p>{% endif %}
+</section>
+
+{% if deneme_sayisi %}
+<section class="kart bilgi">
+  <h2>Deneme sonuçların yayında <a href="/ogrenci/deneme">Sonuçlarım</a></h2>
+  <p class="kucuk">Yayınlanmış <b>{{ deneme_sayisi }}</b> deneme sonucun ve kişisel önerilerin seni bekliyor.</p>
+  <a class="tus tam" href="/ogrenci/deneme">Sonuçlarımı gör</a>
+</section>
+{% endif %}
+
+{% include "_saat.html" %}
+
+<div class="izgara iki">
+<section class="kart">
+  <h2>Bugünkü dersler <a href="/ogrenci/program">Program</a></h2>
+  {% if dersler is none %}{{ kaynak_yok("Ders programı") }}
+  {% elif dersler %}<ul class="liste">{% for no, ders in dersler %}<li><span class="saat">{{ no }}</span>{{ ders|baslik }}</li>{% endfor %}</ul>
+  {% else %}<p class="bos">Bugün ders yok.</p>{% endif %}
+</section>
+<section class="kart">
+  <h2>Yaklaşan sınavlar <a href="/ogrenci/sinavlar">Takvim</a></h2>
+  <ul class="liste sinavlar">
+  {% for s in sinavlar %}{{ sinav_satiri(s, kalan) }}
+  {% else %}<li class="bos">Önümüzdeki 14 günde sınav yok.</li>{% endfor %}
+  </ul>
+</section>
+</div>
+
+<section class="kart">
+  <h2>Duyurular <a href="/duyurular">Tümü</a></h2>
+  <ul class="liste">
+  {% for d in duyurular %}<li><span>{{ d.baslik }}<br><span class="soluk kucuk">{{ d.yayin|tarih }}</span></span></li>
+  {% else %}<li class="bos">Yeni duyuru yok.</li>{% endfor %}
+  </ul>
+</section>
+{% endblock %}
