@@ -2104,3 +2104,7 @@ Neden: Çift ödül/çift yanıt DB seviyesinde (UNIQUE/PK) engellensin; anoniml
 ## 2026-10-14 - Dijital okul: iki arena ayrı (bireysel smual.app / tahta Sınıf Arenası), haftalık ödül, avatar
 Ne yapıldı: smual.app Bilgi Arenası bireysel oyunlar için `okul.db`'de (bilgi_*, odul, avatar); tahta Sınıf Arenası (`/home/ata/arenasinif`, kendi `sonuclar.db`, sınıf düzeyi liderlik) ayrı kaldı; okul kodu ona bağlanmaz, soru havuzuna yalnızca SELECT (test ile korunur). Haftalık ödül (en çok etkinlik / en istikrarlı / en katılımcı sınıf, 12. sınıf dahil; duyuru + rozet + haftada 1 Nescafe): cuma kiosk'ta geçici, pazartesi kesin; sonuç `odul_hafta` işaretiyle bir kez yazılır. Arena liderliği (XP/doğru/çözülen, hafta + tüm zamanlar) bilinçli olarak açıldı (önceki "sıralama yok" kararı değişti). Avatar: özgün SVG, seviyeyle karakter/eşya açılır.
 Neden: İki sistemin puanları/liderliği karışmasın; tahta arenasındaki sınıf rekabeti ile bireysel gelişim ayrı ölçülsün. Ödüller çaba (etkinlik/gün/katılım) odaklı ve hileye karşı süre/günlük tavan kurallıdır.
+
+## 2026-10-14 - CLAUDE.md düzeni: farabi-okul kök dosyada, tekrar yok
+Ne yapıldı: Kök `CLAUDE.md`'ye `farabi-okul` (9090) servis ve komut satırları, tek test komutu, CRLF notu eklendi; CRLF notu `okul/CLAUDE.md`'den silindi (tek yerde). "12. sınıfa dokunulmaz" ifadesi kaldırıldı (kullanıcı kararı). Commit 135bec6.
+Neden: Çalışan dört servisten biri kök tabloda yoktu; aynı bilgi iki dosyada tekrar edince tutarsızlaşır.
