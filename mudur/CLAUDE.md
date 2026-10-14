@@ -31,8 +31,8 @@ python3 mudur/ders_programi_yukle.py --no-deploy   # yalnızca JSON/MD üret, ta
   ders_programi_yukle.py`'dekiyle **elle senkron** tutulmalı — tek kaynak
   yok; sapması geçmişte seçmeli ders adlarının RAG'de eşleşmemesine yol
   açtı. `TAHMIN_ISARETLI` adlar kesin değil, script sonunda raporlanır.
-- Program üç kopyada yaşar (kök CLAUDE.md "Ders programı ve zil
-  saatleri"); bu script yalnızca client kopyasını günceller.
+- Program üç kopyada yaşar (kök CLAUDE.md "Mevcut durum" →
+  "Ders programı/zil birden çok kopya"); bu script yalnızca client kopyasını günceller.
 
 ## Okuma sınırı
 
