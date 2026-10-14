@@ -152,3 +152,87 @@ def test_isleyici_hata_verirse_modemde_kalir(monkeypatch):
 def test_ulusal_bicimler_esit():
     for t in ("+905550000002", "905550000002", "05550000002", "0555 000 00 02", "5550000002"):
         assert veli_mesaj.ulusal(t) == "05550000002"
+
+
+# --- spam engeli (2026-10-14) ---
+
+def _spam_satirlari(conn):
+    return {r["metin"]: r for r in conn.execute("SELECT * FROM veli_mesajlari")}
+
+
+def test_kural_a_sistem_numarasi_spam(conn):
+    mesajlar = [ham(1, "REKLAMX", "indirim"), ham(2, "2020", "kampanya"), ham(3, "08501234567", "reklam3"),
+                ham(4, "05550000002", "veli mesajı")]
+    assert veli_mesaj.mesajlari_kaydet(conn, mesajlar, set()) == [1, 2, 3, 4]  # spam da DB'de -> modemden silinir
+    s = _spam_satirlari(conn)
+    for m in ("indirim", "kampanya", "reklam3"):
+        assert s[m]["spam"] == 1 and s[m]["spam_neden"] == "sistem numarası"
+        assert s[m]["okundu"] == 1 and s[m]["bildirim_durum"] == 2
+    assert s["veli mesajı"]["spam"] == 0 and s["veli mesajı"]["okundu"] == 0
+
+
+def test_kural_b_engelli_numara(conn):
+    conn.execute("INSERT INTO engelli_gonderenler (telefon, neden, zaman) VALUES ('05550007777', 'x', 'z')")
+    conn.commit()
+    veli_mesaj.mesajlari_kaydet(conn, [ham(1, "+905550007777", "yine ben")], set())
+    r = _spam_satirlari(conn)["yine ben"]
+    assert r["spam"] == 1 and r["spam_neden"] == "engelli" and r["okundu"] == 1 and r["bildirim_durum"] == 2
+
+
+def test_rehberli_kisi_elle_engellenirse_spam(conn):
+    conn.execute("INSERT INTO engelli_gonderenler (telefon) VALUES ('05550000002')")
+    conn.commit()
+    veli_mesaj.mesajlari_kaydet(conn, [ham(1, "05550000002", "rehberli")], set())
+    r = _spam_satirlari(conn)["rehberli"]
+    assert r["kisi_id"] is not None and r["spam"] == 1 and r["spam_neden"] == "engelli"
+
+
+def test_idare_numarasi_asla_spam_olmaz(conn):
+    conn.execute("INSERT INTO engelli_gonderenler (telefon) VALUES ('05558888888')")
+    conn.commit()
+    veli_mesaj.mesajlari_kaydet(conn, [ham(1, "05558888888", "idare"), ham(2, "2021", "kisa idare")],
+                                {"05558888888", "2021"})
+    s = _spam_satirlari(conn)
+    assert s["idare"]["spam"] == 0 and s["kisa idare"]["spam"] == 0
+
+
+def test_bildirimde_spam_yok(conn, monkeypatch):
+    veli_mesaj.mesajlari_kaydet(conn, [ham(1, "REKLAMX", "indirim")], set())
+    gonderilen = MagicMock()
+    monkeypatch.setattr(veli_mesaj.sms_gonderici, "toplu_gonder", gonderilen)
+    assert veli_mesaj.bildirim_gonder(conn, {}, [("Müdür", "05550009999")]) == 0
+    gonderilen.assert_not_called()
+
+
+def test_spam_7_gunden_eskiyi_siler(conn):
+    veli_mesaj.mesajlari_kaydet(conn, [ham(1, "REKLAMX", "eski"), ham(2, "2020", "yeni"),
+                                       ham(3, "05550000002", "normal")], set())
+    conn.execute("UPDATE veli_mesajlari SET alinma = datetime('now', '-8 days')")
+    conn.execute("UPDATE veli_mesajlari SET alinma = datetime('now', '-1 days') WHERE metin = 'yeni'")
+    conn.commit()
+    assert veli_mesaj.spam_temizle(conn) == 1
+    assert set(_spam_satirlari(conn)) == {"yeni", "normal"}  # normal mesaj eski olsa da silinmez
+
+
+def test_spam_modemden_yalniz_dbye_yazildiktan_sonra_silinir(conn, monkeypatch):
+    client = MagicMock()
+    gelen = {"Messages": {"Message": [ham(7, "REKLAMX", "indirim"), ham(8, "2020", "kampanya")]}}
+    client.sms.get_sms_list.side_effect = lambda page=1, box_type=None, **kw: (
+        gelen if box_type == sms_gonderici.BoxTypeEnum.LOCAL_INBOX else {"Messages": None}
+    )
+    monkeypatch.setattr(sms_gonderici, "_baglan", lambda ayarlar: MagicMock())
+    monkeypatch.setattr(sms_gonderici, "Client", lambda c: client)
+
+    def kotu(m):  # DB yazımı patlarsa spam da modemde kalır
+        raise sqlite3.OperationalError("disk")
+
+    with pytest.raises(sqlite3.OperationalError):
+        sms_gonderici.gelen_kutusunu_isle({}, kotu)
+    client.sms.delete_sms.assert_not_called()
+
+    def iyi(m):
+        return veli_mesaj.mesajlari_kaydet(conn, m, set())
+
+    assert sms_gonderici.gelen_kutusunu_isle({}, iyi) == 2
+    assert {c.args[0] for c in client.sms.delete_sms.call_args_list} == {7, 8}
+    assert conn.execute("SELECT COUNT(*) FROM veli_mesajlari WHERE spam = 1").fetchone()[0] == 2

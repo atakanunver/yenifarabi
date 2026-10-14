@@ -110,23 +110,36 @@ def mesajlari_kaydet(conn, ham_mesajlar: list[dict], yonetim_telefonlari: set[st
             continue
         if str(m.get("SmsType", "")) in ("7", "8"):
             continue
-        telefon = ulusal(str(m.get("Phone") or ""))
+        ham_tel = str(m.get("Phone") or "").strip()
+        telefon = ulusal(ham_tel)
+        if not telefon and ham_tel:
+            telefon = ham_tel[:20]  # alfanümerik gönderen (ör. firma adı): spam kuralı (a) yakalar
         metin = str(m.get("Content") or "")
         if not telefon or not metin:
             continue
         zaman = str(m.get("Date") or "") or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         yazilacak.append((index, telefon, metin, zaman))
 
+    engelliler = {r["telefon"] for r in conn.execute("SELECT telefon FROM engelli_gonderenler")}
     for _index, telefon, metin, zaman in yazilacak:
         e = rehber_eslestir(conn, telefon)
+        spam, spam_neden = 0, None
+        if telefon not in yonetim_telefonlari:  # idare numaraları ASLA spam olmaz
+            if telefon in engelliler:
+                spam, spam_neden = 1, "engelli"
+            elif e["kisi_id"] is None and not gonderim.is_valid_phone(telefon):
+                spam, spam_neden = 1, "sistem numarası"
         conn.execute(
             "INSERT OR IGNORE INTO veli_mesajlari "
-            "(telefon, metin, modem_zaman, kisi_id, kisi_ad, kisi_tur, sinif, cikis_talebi, bildirim_durum) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "(telefon, metin, modem_zaman, kisi_id, kisi_ad, kisi_tur, sinif, cikis_talebi, bildirim_durum, "
+            "okundu, spam, spam_neden) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 telefon, metin, zaman, e["kisi_id"], e["kisi_ad"], e["kisi_tur"], e["sinif"],
                 1 if cikis_talebi_mi(metin) else 0,
-                2 if telefon in yonetim_telefonlari else 0,  # idare numarası: bildirim döngüsünü engelle
+                # idare numarası ve spam: bildirim döngüsünü engelle
+                2 if (telefon in yonetim_telefonlari or spam) else 0,
+                1 if spam else 0, spam, spam_neden,
             ),
         )
     conn.commit()
@@ -140,6 +153,19 @@ def mesajlari_kaydet(conn, ham_mesajlar: list[dict], yonetim_telefonlari: set[st
         if var:
             dogrulanan.append(index)
     return dogrulanan
+
+
+SPAM_SAKLAMA_GUN = 7
+
+
+def spam_temizle(conn) -> int:
+    """7 günden eski spam satırlarını siler (alinma UTC). Dönen: silinen sayısı."""
+    cur = conn.execute(
+        "DELETE FROM veli_mesajlari WHERE spam = 1 AND alinma < datetime('now', ?)",
+        (f"-{SPAM_SAKLAMA_GUN} days",),
+    )
+    conn.commit()
+    return cur.rowcount
 
 
 def bildirim_metni(satirlar: list[dict]) -> str:
@@ -222,6 +248,7 @@ def tur_calistir() -> dict:
     ozet["silinen"] = sms_gonderici.gelen_kutusunu_isle(ayarlar, isleyici)
     conn = db.baglanti()
     try:
+        spam_temizle(conn)
         ozet["bildirilen"] = bildirim_gonder(conn, ayarlar, yonetim)
     finally:
         conn.close()

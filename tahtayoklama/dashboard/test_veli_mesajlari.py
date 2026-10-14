@@ -173,5 +173,79 @@ class TestRota(AnahtarDosyasi):
         self.assertEqual(h.exception.status_code, 502)
 
 
+SPAM = [{"id": 9, "kisi_ad": None, "kisi_tur": None, "sinif": None, "telefon": "*******",
+         "metin": "Kampanya <i>x</i>", "zaman": "2026-10-14 07:00", "cikis_talebi": 0, "okundu": 1,
+         "spam_neden": "sistem numarası"}]
+
+
+class TestSpam(AnahtarDosyasi):
+    def test_engelle_istegi_govde_ve_yontem(self):
+        self.anahtar_yaz()
+        with patch("urllib.request.urlopen", side_effect=lambda *a, **k: _yanit({"ok": True})) as u:
+            self.assertTrue(vm.engelle(5, "  reklam  "))
+            istek = u.call_args[0][0]
+            self.assertEqual((istek.get_method(), istek.full_url.rsplit("/", 2)[-2:]), ("POST", ["5", "engelle"]))
+            self.assertEqual(json.loads(istek.data), {"neden": "reklam"})
+            self.assertEqual(istek.get_header("Content-type"), "application/json")
+            vm.engelle(5, "x" * 200)
+            self.assertEqual(len(json.loads(u.call_args[0][0].data)["neden"]), 80)
+            self.assertTrue(vm.engeli_kaldir(5))
+            self.assertTrue(u.call_args[0][0].full_url.endswith("/5/engeli-kaldir"))
+        with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("x")):
+            self.assertFalse(vm.engelle(5))
+            self.assertFalse(vm.engeli_kaldir(5))
+
+    def test_liste_spam_parametresi(self):
+        self.anahtar_yaz()
+        with patch("urllib.request.urlopen", return_value=_yanit({"mesajlar": SPAM})) as u:
+            vm.mesajlari_getir(spam=True)
+            self.assertIn("spam=1", u.call_args[0][0].full_url)
+            vm.mesajlari_getir()
+            self.assertIn("spam=0", u.call_args[0][0].full_url)
+
+    def test_yetkisiz_engel_api_reddedilir(self):
+        with patch("auth.dogrula", return_value=False), patch("urllib.request.urlopen") as u:
+            for cagri in (vm.api_engelle(_istek(), 1), vm.api_engeli_kaldir(_istek(), 1)):
+                with self.assertRaises(HTTPException) as h:
+                    asyncio.run(cagri)
+                self.assertEqual(h.exception.status_code, 401)
+            u.assert_not_called()
+
+    def test_engel_api_servis_yoksa_502(self):
+        with patch("auth.dogrula", return_value=True):
+            for cagri in (vm.api_engelle(_istek(), 1), vm.api_engeli_kaldir(_istek(), 1)):
+                with self.assertRaises(HTTPException) as h:
+                    asyncio.run(cagri)
+                self.assertEqual(h.exception.status_code, 502)
+
+    def test_engel_api_basarili(self):
+        self.anahtar_yaz()
+        with patch("auth.dogrula", return_value=True), \
+                patch("urllib.request.urlopen", side_effect=lambda *a, **k: _yanit({"ok": True})):
+            self.assertEqual(asyncio.run(vm.api_engelle(_istek(), 1, vm._EngelGovde(neden="a"))).status_code, 200)
+            self.assertEqual(asyncio.run(vm.api_engeli_kaldir(_istek(), 1)).status_code, 200)
+
+    def test_gelen_sayfasinda_spam_dugmesi(self):
+        self.anahtar_yaz()
+        with patch("auth.dogrula", return_value=True), \
+                patch("urllib.request.urlopen", return_value=_yanit({"mesajlar": MSJ})):
+            html = asyncio.run(vm.sayfa(_istek())).body.decode()
+        self.assertIn("Spam, engelle", html)
+        self.assertIn("Engellenenler", html)
+        self.assertNotIn("Engeli kaldır", html)
+
+    def test_engellenenler_sekmesi(self):
+        self.anahtar_yaz()
+        with patch("auth.dogrula", return_value=True), \
+                patch("urllib.request.urlopen", return_value=_yanit({"mesajlar": SPAM})) as u:
+            html = asyncio.run(vm.sayfa(_istek(), engellenen=1)).body.decode()
+        self.assertIn("spam=1", u.call_args[0][0].full_url)
+        self.assertIn("Engeli kaldır", html)
+        self.assertIn("Sistem numarası", html)
+        self.assertIn("7 gün sonra silinir", html)
+        self.assertIn("&lt;i&gt;x&lt;/i&gt;", html)
+        self.assertNotIn("Spam, engelle", html)
+
+
 if __name__ == "__main__":
     unittest.main()

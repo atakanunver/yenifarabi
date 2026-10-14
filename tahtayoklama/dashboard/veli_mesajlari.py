@@ -17,6 +17,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 
 import auth
 import db
@@ -45,14 +46,17 @@ def _anahtar() -> str:
         return ""
 
 
-def _istek(yontem: str, yol: str = "", sorgu: str = ""):
+def _istek(yontem: str, yol: str = "", sorgu: str = "", govde: dict | None = None):
     """smssistemi panel API'sine tek istek. Başarıda çözülmüş JSON, her hatada None."""
     anahtar = _anahtar()
     if not anahtar:
         return None
-    istek = urllib.request.Request(
-        TABAN_URL + yol + sorgu, method=yontem, headers={"X-Sms-Panel-Key": anahtar}
-    )
+    basliklar = {"X-Sms-Panel-Key": anahtar}
+    veri = None
+    if govde is not None:
+        veri = json.dumps(govde).encode("utf-8")
+        basliklar["Content-Type"] = "application/json"
+    istek = urllib.request.Request(TABAN_URL + yol + sorgu, method=yontem, headers=basliklar, data=veri)
     try:
         with urllib.request.urlopen(istek, timeout=ZAMAN_ASIMI_SN) as yanit:
             return json.loads(yanit.read().decode("utf-8"))
@@ -60,8 +64,10 @@ def _istek(yontem: str, yol: str = "", sorgu: str = ""):
         return None
 
 
-def mesajlari_getir(sadece_okunmamis: bool = False, limit: int = LISTE_LIMITI) -> list[dict] | None:
-    veri = _istek("GET", "", f"?okunmamis={1 if sadece_okunmamis else 0}&limit={int(limit)}")
+def mesajlari_getir(sadece_okunmamis: bool = False, limit: int = LISTE_LIMITI,
+                    spam: bool = False) -> list[dict] | None:
+    veri = _istek("GET", "", f"?okunmamis={1 if sadece_okunmamis else 0}&limit={int(limit)}"
+                  f"&spam={1 if spam else 0}")
     if not isinstance(veri, dict) or not isinstance(veri.get("mesajlar"), list):
         return None
     return [m for m in veri["mesajlar"] if isinstance(m, dict)]
@@ -95,6 +101,19 @@ def mesaj_sil(mesaj_id: int) -> bool:
     return ok
 
 
+def engelle(mesaj_id: int, neden: str = "") -> bool:
+    govde = {"neden": neden.strip()[:80]} if neden and neden.strip() else {}
+    ok = isinstance(_istek("POST", f"/{int(mesaj_id)}/engelle", govde=govde), dict)
+    onbellegi_sifirla()
+    return ok
+
+
+def engeli_kaldir(mesaj_id: int) -> bool:
+    ok = isinstance(_istek("POST", f"/{int(mesaj_id)}/engeli-kaldir", govde={}), dict)
+    onbellegi_sifirla()
+    return ok
+
+
 def gonderen_etiketi(m: dict) -> tuple[str, str]:
     """(ad, alt satır): kayıtlı kişi → ad + 'Tür · sınıf'; yoksa 'Bilinmeyen numara …son4'."""
     ad = str(m.get("kisi_ad") or "").strip()
@@ -119,6 +138,7 @@ def goruntule(mesajlar: list[dict]) -> list[dict]:
             "zaman": str(m.get("zaman") or ""),
             "cikis": bool(m.get("cikis_talebi")),
             "okundu": bool(m.get("okundu")),
+            "spam_neden": str(m.get("spam_neden") or ""),
         })
     satirlar.sort(key=lambda s: not s["cikis"])  # kararlı sıralama
     return satirlar
@@ -134,18 +154,19 @@ def _oturum_gerekli(request: Request) -> None:
 
 
 @router.get("/veli-mesajlari", response_class=HTMLResponse)
-async def sayfa(request: Request, okunmamis: int = 0):
+async def sayfa(request: Request, okunmamis: int = 0, engellenen: int = 0):
     conn = db.baglanti()
     try:
         if not auth.dogrula(request, conn):
             return RedirectResponse("/giris", status_code=303)
     finally:
         conn.close()
-    ham = mesajlari_getir(bool(okunmamis))
+    ham = mesajlari_getir(bool(okunmamis) and not engellenen, spam=bool(engellenen))
     return templates.TemplateResponse(request, "veli_mesajlari.html", {
         "ulasilamiyor": ham is None,
         "mesajlar": goruntule(ham or []),
-        "sadece_okunmamis": bool(okunmamis),
+        "sadece_okunmamis": bool(okunmamis) and not engellenen,
+        "engellenen": bool(engellenen),
     })
 
 
@@ -172,5 +193,25 @@ async def api_sil(request: Request, mesaj_id: int):
     """Tarayıcıdan POST (SameSite=lax çerez çapraz-site POST'ta gitmez); smssistemi'ne DELETE gider."""
     _oturum_gerekli(request)
     if not mesaj_sil(mesaj_id):
+        raise HTTPException(502, "Mesaj servisine ulaşılamadı ya da mesaj bulunamadı.")
+    return JSONResponse({"ok": True})
+
+
+class _EngelGovde(BaseModel):
+    neden: str | None = None
+
+
+@router.post("/api/veli-mesajlari/{mesaj_id}/engelle")
+async def api_engelle(request: Request, mesaj_id: int, govde: _EngelGovde | None = None):
+    _oturum_gerekli(request)
+    if not engelle(mesaj_id, (govde.neden if govde else "") or ""):
+        raise HTTPException(502, "Mesaj servisine ulaşılamadı, mesaj bulunamadı ya da numara engellenemez.")
+    return JSONResponse({"ok": True})
+
+
+@router.post("/api/veli-mesajlari/{mesaj_id}/engeli-kaldir")
+async def api_engeli_kaldir(request: Request, mesaj_id: int):
+    _oturum_gerekli(request)
+    if not engeli_kaldir(mesaj_id):
         raise HTTPException(502, "Mesaj servisine ulaşılamadı ya da mesaj bulunamadı.")
     return JSONResponse({"ok": True})

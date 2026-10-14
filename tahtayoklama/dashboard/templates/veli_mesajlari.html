@@ -2,10 +2,14 @@
 {% block baslik_etiketi %}Velilerden Gelen Mesajlar — Yoklama ve Yönetim Paneli{% endblock %}
 {% block baslik %}Velilerden Gelen Mesajlar{% endblock %}
 {% block ust_sag %}
+<a class="dugme dugme-ikincil dugme-kucuk" href="/veli-mesajlari" aria-pressed="{{ 'false' if engellenen else 'true' }}">Gelen</a>
+<a class="dugme dugme-ikincil dugme-kucuk" href="/veli-mesajlari?engellenen=1" aria-pressed="{{ 'true' if engellenen else 'false' }}">Engellenenler</a>
+{% if not engellenen %}
 <a class="dugme dugme-ikincil dugme-kucuk" href="{{ '/veli-mesajlari' if sadece_okunmamis else '/veli-mesajlari?okunmamis=1' }}"
    {% if sadece_okunmamis %}aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>
   <svg class="ikon"><use href="#ik-{{ 'onay' if sadece_okunmamis else 'zil' }}"/></svg>
   {{ 'Tüm mesajlar' if sadece_okunmamis else 'Yalnızca okunmamışlar' }}</a>
+{% endif %}
 {% endblock %}
 
 {% block icerik %}
@@ -18,10 +22,11 @@
 {% elif not mesajlar %}
 <section class="kr-bos">
   <svg class="ikon ikon-buyuk"><use href="#ik-zil"/></svg>
-  <p class="kr-bos-baslik">{{ 'Okunmamış mesaj yok' if sadece_okunmamis else 'Henüz mesaj yok' }}</p>
-  <p>Velilerin okul numarasına gönderdiği SMS'ler burada listelenir.</p>
+  <p class="kr-bos-baslik">{{ 'Engellenen mesaj yok' if engellenen else ('Okunmamış mesaj yok' if sadece_okunmamis else 'Henüz mesaj yok') }}</p>
+  <p>{{ "Engellenen mesajlar 7 gün sonra silinir." if engellenen else "Velilerin okul numarasına gönderdiği SMS'ler burada listelenir." }}</p>
 </section>
 {% else %}
+{% if engellenen %}<p class="vm-alt">Engellenen mesajlar 7 gün sonra silinir.</p>{% endif %}
 <ul class="vm-liste" id="vm-liste">
   {% for m in mesajlar %}
   <li class="vm-kart{{ ' vm-cikis' if m.cikis }}{{ ' vm-okunmamis' if not m.okundu }}" data-id="{{ m.id }}">
@@ -31,12 +36,16 @@
       </div>
       <div class="vm-etiketler">
         {% if m.cikis %}<span class="rozet rozet-kirmizi"><svg class="ikon ikon-kucuk"><use href="#ik-uyari"/></svg>ÇIKIŞ TALEBİ</span>{% endif %}
-        {% if m.okundu %}<span class="rozet rozet-gri">Okundu</span>{% else %}<span class="rozet rozet-amber">Okunmadı</span>{% endif %}
+        {% if engellenen %}<span class="rozet rozet-gri">{{ 'Elle engellendi' if m.spam_neden == 'engelli' else ('Sistem numarası' if m.spam_neden == 'sistem numarası' else (m.spam_neden or 'Spam')) }}</span>
+        {% elif m.okundu %}<span class="rozet rozet-gri">Okundu</span>{% else %}<span class="rozet rozet-amber">Okunmadı</span>{% endif %}
         <time class="vm-zaman">{{ m.zaman }}</time>
       </div>
     </div>
     <p class="vm-metin">{{ m.metin }}</p>
     <div class="vm-eylem">
+      {% if engellenen %}
+      <button type="button" class="dugme dugme-kucuk" data-eylem="engeli-kaldir">Engeli kaldır</button>
+      {% else %}
       {% if not m.okundu %}<button type="button" class="dugme dugme-kucuk" data-eylem="okundu">
         <svg class="ikon"><use href="#ik-onay"/></svg> Okundu</button>{% endif %}
       <button type="button" class="dugme dugme-kucuk dugme-tehlike" data-eylem="sil-sor">Sil</button>
@@ -45,6 +54,14 @@
         <button type="button" class="dugme dugme-kucuk dugme-tehlike" data-eylem="sil">Evet, sil</button>
         <button type="button" class="dugme dugme-kucuk dugme-ikincil" data-eylem="vazgec">Vazgeç</button>
       </span>
+      <button type="button" class="dugme dugme-kucuk dugme-ikincil" data-eylem="engelle-sor">Spam, engelle</button>
+      <span class="vm-engel-onay" hidden>
+        <span>Bu numaradan gelen tüm mesajlar spam sayılsın mı?</span>
+        <input type="text" class="vm-engel-neden" maxlength="80" placeholder="Neden (isteğe bağlı)" aria-label="Engel nedeni">
+        <button type="button" class="dugme dugme-kucuk dugme-tehlike" data-eylem="engelle">Evet, engelle</button>
+        <button type="button" class="dugme dugme-kucuk dugme-ikincil" data-eylem="engelle-vazgec">Vazgeç</button>
+      </span>
+      {% endif %}
     </div>
   </li>
   {% endfor %}

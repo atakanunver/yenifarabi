@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import hmac
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from pydantic import BaseModel
 
 import db
 import veli_mesaj
@@ -46,15 +48,16 @@ def _satir(r) -> dict:
         "zaman": r["modem_zaman"],
         "cikis_talebi": r["cikis_talebi"],
         "okundu": r["okundu"],
+        "spam_neden": r["spam_neden"] if r["spam"] else None,
     }
 
 
 @router.get("/veli-mesajlari", dependencies=[Depends(anahtar_dogrula)])
-def liste(okunmamis: int = 0, limit: int = 100):
+def liste(okunmamis: int = 0, limit: int = 100, spam: int = 0):
     limit = max(1, min(int(limit), 500))
-    sorgu = "SELECT * FROM veli_mesajlari"
+    sorgu = f"SELECT * FROM veli_mesajlari WHERE spam = {1 if spam else 0}"
     if okunmamis:
-        sorgu += " WHERE okundu = 0"
+        sorgu += " AND okundu = 0"
     sorgu += " ORDER BY modem_zaman DESC, id DESC LIMIT ?"
     conn = db.baglanti()
     try:
@@ -69,7 +72,7 @@ def sayac():
     try:
         r = conn.execute(
             "SELECT COUNT(*) AS n, COALESCE(SUM(cikis_talebi), 0) AS c "
-            "FROM veli_mesajlari WHERE okundu = 0"
+            "FROM veli_mesajlari WHERE okundu = 0 AND spam = 0"
         ).fetchone()
         return {"okunmamis": r["n"], "cikis_talebi_okunmamis": r["c"]}
     finally:
@@ -98,5 +101,71 @@ def sil(mesaj_id: int):
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Mesaj bulunamadı.")
         return {"ok": True}
+    finally:
+        conn.close()
+
+
+class EngelGovde(BaseModel):
+    neden: str | None = None
+
+
+def _idare_numaralari() -> set[str]:
+    import arac_api  # geç içe aktarma (döngüsel bağımlılık riski)
+
+    try:
+        return {veli_mesaj.ulusal(tel) for _ad, tel in arac_api.yonetim_alicilari()}
+    except Exception:  # noqa: BLE001 - fail-closed: idare listesi okunamazsa engelleme yapılmaz
+        raise HTTPException(status_code=503, detail="İdare numaraları okunamadı.") from None
+
+
+@router.post("/veli-mesajlari/{mesaj_id}/engelle", dependencies=[Depends(anahtar_dogrula)])
+def engelle(mesaj_id: int, govde: EngelGovde | None = None):
+    neden = ((govde.neden if govde else None) or "").strip()[:80] or None
+    idare = _idare_numaralari()
+    conn = db.baglanti()
+    try:
+        m = conn.execute("SELECT telefon FROM veli_mesajlari WHERE id = ?", (mesaj_id,)).fetchone()
+        if m is None:
+            raise HTTPException(status_code=404, detail="Mesaj bulunamadı.")
+        tel = m["telefon"]
+        if tel in idare:
+            raise HTTPException(status_code=409, detail="İdare numarası engellenemez.")
+        conn.execute(
+            "INSERT OR IGNORE INTO engelli_gonderenler (telefon, neden, zaman) VALUES (?, ?, ?)",
+            (tel, neden, datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")),
+        )
+        cur = conn.execute(
+            "UPDATE veli_mesajlari SET spam = 1, spam_neden = 'engelli', okundu = 1 WHERE telefon = ?",
+            (tel,),
+        )
+        conn.commit()
+        return {"ok": True, "etkilenen": cur.rowcount}
+    finally:
+        conn.close()
+
+
+@router.post("/veli-mesajlari/{mesaj_id}/engeli-kaldir", dependencies=[Depends(anahtar_dogrula)])
+def engeli_kaldir(mesaj_id: int):
+    conn = db.baglanti()
+    try:
+        m = conn.execute(
+            "SELECT telefon, spam, spam_neden FROM veli_mesajlari WHERE id = ?", (mesaj_id,)
+        ).fetchone()
+        if m is None or not m["spam"]:
+            raise HTTPException(status_code=404, detail="Engellenmiş mesaj bulunamadı.")
+        if m["spam_neden"] == "engelli":
+            conn.execute("DELETE FROM engelli_gonderenler WHERE telefon = ?", (m["telefon"],))
+            cur = conn.execute(
+                "UPDATE veli_mesajlari SET spam = 0, spam_neden = NULL, okundu = 0 "
+                "WHERE telefon = ? AND spam_neden = 'engelli'",
+                (m["telefon"],),
+            )
+        else:  # 'sistem numarası': yalnızca bu mesaj
+            cur = conn.execute(
+                "UPDATE veli_mesajlari SET spam = 0, spam_neden = NULL, okundu = 0 WHERE id = ?",
+                (mesaj_id,),
+            )
+        conn.commit()
+        return {"ok": True, "etkilenen": cur.rowcount}
     finally:
         conn.close()

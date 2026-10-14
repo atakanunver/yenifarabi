@@ -217,6 +217,18 @@ def semayi_kur() -> None:
             conn.execute("ALTER TABLE kisiler ADD COLUMN veli_rol TEXT")
             conn.commit()
 
+        # Spam engeli (2026-10-14): engelli_gonderenler + veli_mesajlari.spam/spam_neden
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS engelli_gonderenler ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, telefon TEXT UNIQUE, neden TEXT, zaman TEXT)"
+        )
+        vm_sutunlar = [r["name"] for r in conn.execute("PRAGMA table_info(veli_mesajlari)").fetchall()]
+        if "spam" not in vm_sutunlar:
+            conn.execute("ALTER TABLE veli_mesajlari ADD COLUMN spam INTEGER NOT NULL DEFAULT 0")
+        if "spam_neden" not in vm_sutunlar:
+            conn.execute("ALTER TABLE veli_mesajlari ADD COLUMN spam_neden TEXT")
+        conn.commit()
+
         if conn.execute("SELECT COUNT(*) FROM siniflar").fetchone()[0] == 0:
             conn.executemany(
                 "INSERT INTO siniflar (ad) VALUES (?)", [(ad,) for ad in _VARSAYILAN_SINIFLAR]
