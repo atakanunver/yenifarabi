@@ -42,6 +42,7 @@ def ana(
         "ogretmen/ana.html",
         gorevler=gorevler(conn, k),
         odevler=odevler.ogretmen_odevleri(conn, k)[:10],
+        duyurular=duyurular.gorunur_duyurular(conn, k, 5),
     )
 
 

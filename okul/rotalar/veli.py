@@ -2,6 +2,7 @@
 
 import sqlite3
 
+import denemeler
 import duyurular
 import odevler
 import sinavlar
@@ -65,6 +66,7 @@ def ana(
         if c["kullanici_id"]
         else None,
         kalan=sinavlar.kalan_gun,
+        deneme_sayisi=denemeler.deneme_sayisi(conn, c["okul_no"]),
     )
 
 

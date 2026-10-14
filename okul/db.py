@@ -261,7 +261,30 @@ CREATE TABLE bilgi_rozet (
 );
 """
 
-GOCLER = [SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5]
+# Harici deneme sonuçları. `veri` serbest JSON (sütunlar PDF'e göre değişir); okul_no ile öğrenciye bağlanır.
+# yayinda=0 iken öğrenci/veli göremez. Başka öğrenciyle karşılaştırma verisi tutulmaz.
+SEMA_V6 = """
+CREATE TABLE deneme (
+    id         INTEGER PRIMARY KEY,
+    ad         TEXT NOT NULL UNIQUE,
+    tarih      TEXT,
+    ozet       TEXT NOT NULL DEFAULT '',
+    yayinda    INTEGER NOT NULL DEFAULT 0,
+    olusturma  TEXT NOT NULL
+);
+CREATE TABLE deneme_ogrenci (
+    deneme_id  INTEGER NOT NULL REFERENCES deneme(id),
+    okul_no    INTEGER NOT NULL,
+    girdi      INTEGER NOT NULL DEFAULT 1,
+    veri       TEXT NOT NULL DEFAULT '{}',
+    analiz     TEXT NOT NULL DEFAULT '',
+    tavsiye    TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (deneme_id, okul_no)
+);
+CREATE INDEX deneme_ogrenci_no ON deneme_ogrenci(okul_no);
+"""
+
+GOCLER = [SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6]
 
 
 def baglanti() -> sqlite3.Connection:

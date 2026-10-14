@@ -1,0 +1,17 @@
+{% for d in denemeler %}
+<section class="kart">
+  <h2>{{ d.ad }}{% if d.tarih %} <span class="soluk kucuk">{{ d.tarih|tarih }}</span>{% endif %}</h2>
+  {% if d.ozet %}<p class="kucuk soluk">{{ d.ozet }}</p>{% endif %}
+  {% if d.toplam_net is not none %}<p>Toplam net: <b>{{ d.toplam_net }}</b></p>{% endif %}
+  {% if d.dersler %}
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Ders</th><th>Net</th></tr></thead>
+    <tbody>{% for ders, net in d.dersler %}<tr><td>{{ ders }}</td><td>{{ net }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+  {% if d.analiz %}<h3>Analiz</h3>{% for p in d.analiz.split('\n') if p.strip() %}<p>{{ p }}</p>{% endfor %}{% endif %}
+  {% if d.tavsiye %}<h3>Tavsiye</h3>{% for p in d.tavsiye.split('\n') if p.strip() %}<p>{{ p }}</p>{% endfor %}{% endif %}
+</section>
+{% else %}
+<section class="kart"><p class="bos">Yayınlanmış deneme sonucu yok.</p></section>
+{% endfor %}

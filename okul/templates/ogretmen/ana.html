@@ -2,6 +2,18 @@
 {% block icerik %}
 {% include "_ana_ekran.html" %}
 {% include "_saat.html" %}
+<details class="kart bilgi">
+  <summary><b>📢 Yayındaki duyurular</b>{% if duyurular %} <span class="etiket">{{ duyurular|length }}</span>{% endif %}</summary>
+  <ul class="liste">
+  {% for d in duyurular %}
+    <li style="display:block;"><b>{{ d.baslik }}</b> <span class="soluk kucuk">{{ d.yayin|tarih }}</span>
+      <div class="kucuk" style="margin-top:.2rem; line-height:1.4; white-space:pre-line;">{{ d.metin }}</div></li>
+  {% else %}
+    <li class="bos">Yayında duyuru yok.</li>
+  {% endfor %}
+  </ul>
+  <p class="kucuk" style="margin:.5rem 0 0;"><a href="/duyurular">Tüm duyurular</a></p>
+</details>
 <h1>Sınıflarım</h1>
 <div class="kisayollar">
   {% if k.rol == 'ogretmen' %}<a class="tus ikincil" href="/ogretmen/planlar">📄 Yıllık planlarım</a>{% endif %}

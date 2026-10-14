@@ -15,6 +15,14 @@
   <p class="soluk" style="margin:.2rem 0 0">{{ cocuk.sinif }} · Okul no {{ cocuk.okul_no }}</p></div>
 </div>
 
+{% if deneme_sayisi %}
+<section class="kart bilgi">
+  <h2>Deneme sonuçları yayında <a href="/veli/deneme?ogr={{ cocuk.id }}">Sonuçlar</a></h2>
+  <p class="kucuk">{{ cocuk.ad_soyad.split(" ")[0] }} için yayınlanmış <b>{{ deneme_sayisi }}</b> deneme sonucu ve kişisel öneriler var.</p>
+  <a class="tus tam" href="/veli/deneme?ogr={{ cocuk.id }}">Sonuçları gör</a>
+</section>
+{% endif %}
+
 <section class="kart{{ ' uyari' if devamsizlik and devamsizlik|selectattr('tarih', 'equalto', bugun)|selectattr('tur', 'equalto', 'yok')|list }}">
   <h2>Devamsızlık <a href="/veli/devamsizlik?ogr={{ cocuk.id }}">Ayrıntı</a></h2>
   {% if devamsizlik is none %}{{ kaynak_yok("Yoklama bilgisi") }}

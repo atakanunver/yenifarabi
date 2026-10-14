@@ -4,6 +4,7 @@ import json
 import sqlite3
 
 import analitik
+import denemeler
 import duyurular
 import maraton
 import odevler
@@ -54,6 +55,7 @@ def ana(
         sinavlar=ortak.yaklasan_sinavlar(conn, o["sinif"]),
         kalan=sinavlar.kalan_gun,
         maraton=maraton.ana_ozet(conn, k["id"]),
+        deneme_sayisi=denemeler.deneme_sayisi(conn, o["okul_no"]),
     )
 
 
