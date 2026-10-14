@@ -50,3 +50,24 @@ def test_dusuk_skorda_da_kazanim_testi_tablosuna_gitmez():
     assert kaynak.bul(conn, Gomucu(), 10, "matematik", "x") is None
     cur = conn.cursor.return_value.__enter__.return_value
     assert not any("kazanim_test_soru" in str(c.args[0]) for c in cur.execute.call_args_list)
+
+
+def test_okuma_kisitli_kitapta_yalniz_izinli_parcalar_sorgulanir(tmp_path, monkeypatch):
+    import json
+
+    dosya = tmp_path / "okuma.json"
+    dosya.write_text(json.dumps({"10": [5, 6]}))
+    monkeypatch.setattr(kaynak, "OKUMA_DOSYASI", dosya)
+    conn = _farabi([(10, "Matematik"), (11, "Matematik")], [(5, 12, "metin", 0.30)])
+    kaynak.bul(conn, Gomucu(), 10, "matematik", "x")
+    cur = conn.cursor.return_value.__enter__.return_value
+    args = cur.execute.call_args.args[1]
+    assert args[1] == [10, 11] and args[2] == [10] and args[3] == [5, 6]  # 11 serbest, 10 kısıtlı
+
+
+def test_okuma_dosyasi_yoksa_kisitlama_yok(tmp_path, monkeypatch):
+    monkeypatch.setattr(kaynak, "OKUMA_DOSYASI", tmp_path / "yok.json")
+    conn = _farabi([(10, "Matematik")], [(1, 12, "a", 0.30)])
+    kaynak.bul(conn, Gomucu(), 10, "matematik", "x")
+    args = conn.cursor.return_value.__enter__.return_value.execute.call_args.args[1]
+    assert args[2] == [] and args[3] == []
