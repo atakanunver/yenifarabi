@@ -150,3 +150,29 @@ def test_sonuc_yoksa_uydurma_uyarisi(monkeypatch):
     t, _ = _arac(monkeypatch, Yanit(200, {"ogrenciler": [], "toplam": 0}))
     cikti = _c(t.ogrenci_bilgisi(ad="kimse", __user__=IDARE))
     assert "bulunamadı" in cikti and "uydurma" in cikti.lower()
+
+
+OGT = {
+    "ogretmenler": [
+        {"ad_soyad": "YILMAZ SAFİYE", "dersler": ["İng"], "siniflar": ["9-A", "9-B"]}
+    ],
+    "toplam": 1,
+}
+
+
+def test_ogretmen_bilgisi(monkeypatch):
+    t, s = _arac(monkeypatch, Yanit(200, OGT))
+    cikti = _c(t.ogretmen_bilgisi(ad="safiye", __user__=IDARE))
+    assert "YILMAZ SAFİYE" in cikti and "İng" in cikti and "9-A, 9-B" in cikti
+    assert s.cagrilar[0][2] == {"ad": "safiye"}
+
+
+def test_ogretmen_tahta_reddedilir_istek_atilmaz(monkeypatch):
+    t, s = _arac(monkeypatch, Yanit(200, OGT))
+    assert "erişilemez" in _c(t.ogretmen_bilgisi(__user__=TAHTA))
+    assert s.cagrilar == []
+
+
+def test_ogretmen_yoksa_uydurma_uyarisi(monkeypatch):
+    t, _ = _arac(monkeypatch, Yanit(200, {"ogretmenler": [], "toplam": 0}))
+    assert "uydurma" in _c(t.ogretmen_bilgisi(ad="x", __user__=IDARE))

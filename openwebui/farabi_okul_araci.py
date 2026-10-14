@@ -2,7 +2,7 @@
 title: Okul Bilgisi
 author: Farabi (Şehit Murat Ustaoğlu Anadolu Lisesi)
 version: 0.1.0
-description: Sınıfların ders programını (şu anki ders, bugün, belirli gün, haftalık) ve — yalnızca İdare/Öğretmen hesaplarına — öğrenci bilgisini (ad soyad, numara, sınıf) okulun yerel kayıtlarından getirir.
+description: Sınıfların ders programını (şu anki ders, bugün, belirli gün, haftalık) ve — yalnızca İdare/Öğretmen hesaplarına — öğrenci bilgisini (ad soyad, numara, sınıf) ve öğretmen listesini (ad soyad, verdiği dersler, sınıflar) okulun yerel kayıtlarından getirir.
 """
 
 # Bu dosya Open WebUI'ye `openwebui/kur.py` ile Tool olarak yüklenir; Open WebUI
@@ -118,7 +118,7 @@ class Tools:
             bas
             + "\n"
             + "\n".join(satirlar)
-            + "\n(Kaynak: okul ders programı. Öğretmen adı kayıtlı değil.)"
+            + "\n(Kaynak: okul ders programı. Öğretmen adı için ogretmen_bilgisi aracını kullan.)"
         )
 
     async def ogrenci_bilgisi(
@@ -162,3 +162,33 @@ class Tools:
             else ""
         )
         return "Okul kayıtlarındaki öğrenciler:\n" + "\n".join(satirlar) + ek
+
+    async def ogretmen_bilgisi(self, ad: str = "", __user__: dict | None = None) -> str:
+        """
+        Okulun öğretmen listesinden ad soyad, verdiği dersler ve girdiği sınıfları getirir.
+        "Okulda hangi öğretmenler var?", "Fizik öğretmeni kim?", "Safiye Yılmaz hangi sınıflara giriyor?"
+        gibi sorularda kullan; tahmin etme. Ad boşsa tüm liste gelir. Yalnızca İdare ve Öğretmen hesapları kullanabilir.
+        :param ad: Öğretmenin adı ve/veya soyadı (isteğe bağlı).
+        """
+        if not self._ogrenci_izni(__user__):
+            return "Öğretmen bilgisine bu hesapla erişilemez (yalnızca İdare ve Öğretmen hesapları)."
+        y = await self._get(__user__, "/ogretmen", {"ad": ad})
+        if y is None:
+            return ULASILAMADI
+        if y.status_code == 403:
+            return "Öğretmen bilgisine bu hesapla erişilemez (yalnızca İdare ve Öğretmen hesapları)."
+        v = self._json(y)
+        if y.status_code != 200 or not isinstance(v, dict):
+            return ULASILAMADI
+        liste = v.get("ogretmenler") or []
+        if not liste:
+            return "Kayıtlarda eşleşen öğretmen bulunamadı. İsim uydurma; kullanıcıya bulunamadığını söyle."
+        satirlar = [
+            f"- {o.get('ad_soyad')} — dersler: {', '.join(o.get('dersler') or []) or '?'}; "
+            f"sınıflar: {', '.join(o.get('siniflar') or []) or '?'}"
+            for o in liste
+        ]
+        return (
+            "Okul öğretmen listesi (kaynak: ders programı; dersler kısaltmadır, branş yazmaz):\n"
+            + "\n".join(satirlar)
+        )
