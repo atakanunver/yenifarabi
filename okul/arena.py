@@ -377,6 +377,15 @@ def maraton_xp(conn: sqlite3.Connection, kid: int, maraton_id: int) -> int:
     return miktar
 
 
+def maraton_xp_miktar(conn: sqlite3.Connection, kid: int, maraton_id: int) -> int:
+    """Bu Maraton turundan daha önce yazılmış XP (yoksa 0): sonuç ekranında gösterim için."""
+    r = conn.execute(
+        "SELECT miktar FROM bilgi_xp WHERE kullanici_id = ? AND kaynak = 'maraton_tur' AND ref = ?",
+        (kid, str(maraton_id)),
+    ).fetchone()
+    return r[0] if r else 0
+
+
 # --- Ekran verileri ---
 
 

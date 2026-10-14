@@ -1,0 +1,70 @@
+"""Şema göçünü geri alır (acil durum). Kullanım:
+
+    sudo systemctl stop farabi-okul          # önce servis durmalı
+    cp veri/okul.db veri/yedek/okul_<tarih>.db   # (ya da sqlite3 .backup)
+    venv/bin/python scripts/geri_al.py --hedef 4 [--db veri/okul.db] [--onayla]
+    git checkout <eski-commit>               # eski kod, yeni şemayı beklemez
+    sudo systemctl start farabi-okul
+
+Eski kodu çalıştırmadan GOCLER'i geri almayın: yeni kod açılışta eksik göçü yeniden uygular.
+--onayla olmadan yalnızca ne silineceğini (satır sayılarıyla) gösterir. Her adım tek işlemde çalışır.
+Silinen tablolardaki veri kurtarılamaz: önce yedek alın.
+"""
+
+import argparse
+import sqlite3
+import sys
+from pathlib import Path
+
+# user_version N'den N-1'e inmek için çalışan betik. Yeni göç eklenince buraya da eklenir.
+GERI = {
+    6: """
+DROP TABLE IF EXISTS deneme_ogrenci;
+DROP TABLE IF EXISTS deneme;
+""",
+    5: """
+DROP TABLE IF EXISTS bilgi_rozet;
+DROP TABLE IF EXISTS bilgi_xp;
+DROP TABLE IF EXISTS bilgi_cevap;
+DROP TABLE IF EXISTS bilgi_tur;
+""",
+}
+TABLOLAR = {6: ["deneme_ogrenci", "deneme"], 5: ["bilgi_rozet", "bilgi_xp", "bilgi_cevap", "bilgi_tur"]}
+
+
+def geri_al(db_yolu: Path, hedef: int, onayla: bool) -> int:
+    conn = sqlite3.connect(db_yolu)
+    try:
+        surum = conn.execute("PRAGMA user_version").fetchone()[0]
+        if hedef >= surum:
+            print(f"Zaten user_version={surum}; hedef {hedef} için yapılacak bir şey yok.")
+            return 0
+        for n in range(surum, hedef, -1):
+            if n not in GERI:
+                print(f"HATA: {n}. göç için geri alma betiği yok; durduruldu.", file=sys.stderr)
+                return 2
+        for n in range(surum, hedef, -1):
+            for t in TABLOLAR.get(n, []):
+                var = conn.execute("SELECT 1 FROM sqlite_master WHERE name = ?", (t,)).fetchone()
+                adet = conn.execute(f"SELECT count(*) FROM {t}").fetchone()[0] if var else 0
+                print(f"V{n}: {t} silinecek ({adet} satır)")
+        if not onayla:
+            print("Kuru çalıştırma: değişiklik yapılmadı. Uygulamak için --onayla ekleyin.")
+            return 0
+        for n in range(surum, hedef, -1):
+            conn.executescript(f"BEGIN;\n{GERI[n]}\nPRAGMA user_version = {n - 1};\nCOMMIT;")
+            print(f"V{n} geri alındı → user_version={n - 1}")
+        return 0
+    finally:
+        conn.close()
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--hedef", type=int, required=True)
+    ap.add_argument("--db", type=Path, default=Path(__file__).resolve().parent.parent / "veri" / "okul.db")
+    ap.add_argument("--onayla", action="store_true")
+    a = ap.parse_args()
+    if not a.db.exists():
+        sys.exit(f"Veritabanı yok: {a.db}")
+    sys.exit(geri_al(a.db, a.hedef, a.onayla))

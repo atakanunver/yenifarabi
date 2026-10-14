@@ -282,3 +282,31 @@ def test_v5_gocu_v4_verisini_korur(tmp_path, monkeypatch):
     assert {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE name LIKE 'bilgi_%' AND type='table'")} == {
         "bilgi_tur", "bilgi_cevap", "bilgi_xp", "bilgi_rozet"}
     c.close()
+
+
+def test_geri_alma_betigi(tmp_path, monkeypatch, capsys):
+    import importlib.util
+    from pathlib import Path
+
+    yol = tmp_path / "gb.db"
+    monkeypatch.setattr(AYAR, "db_yolu", yol)
+    db.sema_kur()
+    c = sqlite3.connect(yol)
+    c.execute("INSERT INTO kullanici (rol, ad_soyad, sifre_hash, sifre_degismeli, olusturma) VALUES ('ogrenci','A','x',0,'t')")
+    c.execute("INSERT INTO bilgi_xp (kullanici_id, kaynak, ref, miktar, gun, zaman) VALUES (1,'arena_bonus','1',10,'g','z')")
+    c.commit()
+    c.close()
+    spec = importlib.util.spec_from_file_location("geri_al", Path(__file__).resolve().parent.parent / "scripts" / "geri_al.py")
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    assert m.geri_al(yol, 4, onayla=False) == 0  # kuru çalıştırma
+    assert "bilgi_xp silinecek (1 satır)" in capsys.readouterr().out
+    assert sqlite3.connect(yol).execute("PRAGMA user_version").fetchone()[0] == len(db.GOCLER)
+    assert m.geri_al(yol, 4, onayla=True) == 0
+    c = sqlite3.connect(yol)
+    assert c.execute("PRAGMA user_version").fetchone()[0] == 4
+    assert c.execute("SELECT count(*) FROM sqlite_master WHERE name LIKE 'bilgi_%'").fetchone()[0] == 0
+    assert c.execute("SELECT count(*) FROM kullanici").fetchone()[0] == 1  # eski veri korunur
+    c.close()
+    db.sema_kur()  # ileri göç yeniden uygulanabilir
+    assert sqlite3.connect(yol).execute("PRAGMA user_version").fetchone()[0] == len(db.GOCLER)
