@@ -3,6 +3,7 @@
 {% block baslik %}Ödev ver — Dijital Okul{% endblock %}
 {% block icerik %}
 <h1>Ödev ver</h1>
+{% if MODULLER is defined %}<p><a class="tus ikincil" href="/ogretmen/hizli">⚡ Hızlı etkinlik ata</a></p>{% endif %}
 {% if not secenekler %}
 <div class="kart bilgi"><p>Size henüz sınıf/ders atanmamış. Okul yönetimi görevlerinizi tanımlayınca ödev verebilirsiniz.</p></div>
 {% else %}

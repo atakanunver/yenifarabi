@@ -5,6 +5,7 @@ import sqlite3
 import time
 from datetime import datetime
 
+import anket
 import auth
 import db
 from ayarlar import KOK
@@ -51,6 +52,8 @@ TEMPLATES.env.filters["tarih"] = _tarih
 TEMPLATES.env.filters["gun_adi"] = lambda g: GUN_ADLARI.get(g, g)
 TEMPLATES.env.filters["baslik"] = lambda s: (s or "")[:1].upper() + (s or "")[1:]
 TEMPLATES.env.globals["ROL_ADLARI"] = ROL_ADLARI
+# Yeni modül bağlantıları: yalnızca bu kodu çalıştıran süreçte tanımlı (şablonlarda `MODULLER is defined`).
+TEMPLATES.env.globals["MODULLER"] = True
 
 
 def _saat_verisi() -> dict:
@@ -132,8 +135,23 @@ def rol(*roller: str, post: bool = False):
     return bagimlilik
 
 
+def _anket_bekleyen(k) -> int:
+    """Yanıt bekleyen anket sayısı (öğrenci/veli/öğretmen). Hata sayfayı bozmaz: 0 döner."""
+    if k is None or k["rol"] not in anket.ROLLER or k["sifre_degismeli"]:
+        return 0
+    try:
+        c = db.baglanti()
+        try:
+            return anket.bekleyen_sayisi(c, k)
+        finally:
+            c.close()
+    except Exception:  # noqa: BLE001 — bildirim isteğe bağlıdır, sayfa açılmalı
+        return 0
+
+
 def render(request: Request, sablon: str, status_code: int = 200, **ctx):
     ctx.setdefault("k", getattr(request.state, "kullanici", None))
+    ctx.setdefault("anket_bekleyen", _anket_bekleyen(ctx["k"]))
     ctx["csrf"] = getattr(request.state, "csrf", "")
     ctx.setdefault("bugun_gun", GUNLER[zaman.simdi().weekday()])
     return TEMPLATES.TemplateResponse(request, sablon, ctx, status_code=status_code)

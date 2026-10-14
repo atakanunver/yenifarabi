@@ -8,6 +8,7 @@ liste boş döner ve ekran "bugün için bekleyen bir şey yok" der.
 import sqlite3
 from datetime import datetime, timedelta
 
+import anket
 import arena
 import kisisel
 import odevler
@@ -54,6 +55,10 @@ def gorevler(conn: sqlite3.Connection, ogrenci: sqlite3.Row, kilit: dict | None 
         elif gd["durum"] == "tamam":
             tamam.append(f"Günlük Görev tamamlandı ({gd['dogru']}/{gd['soru_sayisi']} doğru)")
         # 'yetersiz' / 'kaynak_yok': yapılabilir bir şey yok → görev gösterilmez
+    if kid:
+        for a in anket.kullanicinin_anketleri(conn, conn.execute("SELECT * FROM kullanici WHERE id = ?", (kid,)).fetchone())["bekleyen"][:1]:
+            liste.append({"tur": "anket", "baslik": f"Anket: {a['baslik']}", "alt": "Yanıtların anonim kaydedilir",
+                          "href": f"/anket/{a['id']}", "acil": False})
     for s in ortak.yaklasan_sinavlar(conn, ogrenci["sinif"], SINAV_GUN):
         g = (datetime.strptime(s["tarih"], "%Y-%m-%d").date() - simdi.date()).days  # noqa: DTZ007
         liste.append({

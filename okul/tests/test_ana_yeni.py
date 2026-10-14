@@ -76,3 +76,40 @@ def test_diger_roller_ana_ekrani_goremez(istemci, ornek, conn):
     istemci.cookies.clear()
     istemci.cookies.set(auth.COOKIE_ADI, auth.oturum_ac(conn, ornek["veli1"]))
     assert istemci.get("/ogrenci").status_code == 404
+
+
+def test_bekleyen_anket_bildirimi_ve_gorevi(istemci, ornek, conn, saat):
+    import anket
+
+    aid = anket.olustur(conn, ornek["yonetici"], "Okul memnuniyeti")
+    anket.soru_ekle(conn, aid, "olcek", "Memnun musun?", [], True, ["ogrenci", "veli", "ogretmen"])
+    anket.dagit(conn, aid, "ogrenci")
+    giris(istemci, "101", "ali-sifre")
+    t = istemci.get("/ogrenci").text
+    assert "Yanıtlamanı bekleyen 1 anket var" in t and "Anket: Okul memnuniyeti" in t and f'href="/anket/{aid}"' in t
+    assert "Yanıtlamanı bekleyen" not in istemci.get("/anket").text  # anket sayfasında tekrar yok
+    giris(istemci, "201", "ayse-sifre")  # 9-B: süzgeç yok, onun da görmesi beklenir
+    assert "Yanıtlamanı bekleyen 1 anket var" in istemci.get("/ogrenci").text
+    giris(istemci, "mudur", "mudur-sifre")
+    assert "Yanıtlamanı bekleyen" not in istemci.get("/yonetici").text  # yönetici katılımcı değil
+
+
+def test_modul_baglantilari(istemci, ornek):
+    giris(istemci, "mudur", "mudur-sifre")
+    y = istemci.get("/yonetici").text
+    assert 'href="/yonetici/gelisim"' in y and 'href="/yonetici/anketler"' in y
+    giris(istemci, "hoca", "hoca-sifre")
+    assert 'href="/ogretmen/hizli"' in istemci.get("/ogretmen/odev/yeni").text
+    assert 'href="/ogretmen/gelisim/9-A"' in istemci.get("/ogretmen/sinif/9-A").text
+
+
+def test_bildirim_hatasi_sayfayi_bozmaz(istemci, ornek, monkeypatch):
+    import anket
+
+    def patla(c, k):
+        raise RuntimeError("x")
+
+    monkeypatch.setattr(anket, "bekleyen_sayisi", patla)
+    giris(istemci, "101", "ali-sifre")
+    r = istemci.get("/ogrenci")
+    assert r.status_code == 200 and "Yanıtlamanı bekleyen" not in r.text

@@ -489,3 +489,4 @@ details.kart > summary { cursor: pointer; min-height: 32px; }
 .bugun-liste .satir { min-height: 48px; }
 
 .arena input[type=number], .arena input[type=text], .arena select, .arena textarea { color: #0a1030; background: #fff; }
+.anket-bildirim { display: block; text-decoration: none; color: inherit; font-weight: 600; margin: .6rem 0; }

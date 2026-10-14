@@ -14,7 +14,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/static/logo-64.png" type="image/png">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
-<link rel="stylesheet" href="/static/okul.css?v=12">
+<link rel="stylesheet" href="/static/okul.css?v=13">
 </head>
 <body>
 <header class="ust">
@@ -32,6 +32,7 @@
   {% for c in cocuklar %}<a href="{{ request.url.path }}?ogr={{ c.id }}" class="{{ 'secili' if cocuk and c.id == cocuk.id }}">{{ c.ad_soyad.split(' ')[0] }} · {{ c.sinif }}</a>{% endfor %}
 </nav>
 {% endif %}
+{% if anket_bekleyen and not request.url.path.startswith('/anket') %}<a class="not anket-bildirim" href="/anket">📝 Yanıtlamanı bekleyen {{ anket_bekleyen }} anket var →</a>{% endif %}
 {% block icerik %}{% endblock %}
 </main>
 
