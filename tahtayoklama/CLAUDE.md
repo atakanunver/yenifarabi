@@ -52,7 +52,7 @@ tahtayoklama/
 cd tahtayoklama/dashboard
 venv/bin/uvicorn app:app --reload --port 8010          # geliştirmede elle (lifespan polling'i de başlatır)
 venv/bin/python -m unittest discover -p 'test_*.py'    # tüm testler — pytest DEĞİL, venv'de pytest yok
-venv/bin/python -m unittest test_uzaktan_ekran -v      # tek dosya (modül adı, .py YOK)
+venv/bin/python -m unittest test_uzaktan_ekran -v      # tek dosya (modül adı, .py YOK; dashboard/ dizininden)
 venv/bin/python -m unittest test_uzaktan_ekran.TestUzaktanEkran.test_route_gecersiz_tahta   # tek test
 venv/bin/python scripts/sifre_belirle.py               # ortak pano şifresi → config/gizli.json
 
@@ -358,7 +358,7 @@ Kullanıcı isteği: `http://farabi.local:8010/admin/uzaktan` bölümünde tablo
 - Bilinmeyen tahta adı → 400 (`bilinmeyen` listesiyle); hiçbir şey çalıştırılmaz.
 - **Yeniden başlatma:** okul saatinde 409 (`ders_saatinde_mi`: ders günü ilk dersin
   başlangıcı – son dersin bitişi, teneffüs/öğle arası DAHİL, atlama yok); tahta başına
-  120 sn bekleme (`BEKLEME_SN`, atomik); 9-A'nın eski "otomatik giriş yok" uyarısı 2026-10-06'da kaldırıldı (autologin kurulu, canlı doğrulandı; Open WebUI aracındaki metin `openwebui/farabi_yonetim_araci.py` hâlâ eski — ayrıca güncellenmeli).
+  120 sn bekleme (`BEKLEME_SN`, atomik); 9-A'nın eski "otomatik giriş yok" uyarısı 2026-10-06'da kaldırıldı (autologin kurulu, canlı doğrulandı; `openwebui/farabi_yonetim_araci.py` de güncel).
   Tahtada `etapadmin` + `sudo -n /usr/bin/systemctl reboot` (kural: tahtaayar `reboot_sudoers`).
 - **Denetim:** her çağrı `uzaktan_denetim`'e yazılır (`ajan:<eylem>`, `kaynak`);
   reddedilen yeniden başlatma `<tahta>:ders_saati` koduyla.
@@ -543,7 +543,9 @@ tam olarak nerede çakıştığı hâlâ netleşmedi.
 5. Yeni ağır bağımlılık (paramiko, APScheduler, Redis, vb.) eklemeden önce
    onay iste.
 6. `dashboard/config/gizli.json` asla commit edilmez.
-7. Servis restart'ları yalnızca ders saatleri (08:00-17:00 TR) DIŞINDA.
+7. Servis restart'ları (`farabi-yoklama-dashboard` vb.) yalnızca ders saatleri (08:00-17:00 TR) DIŞINDA.
+   Bu, tahta yeniden başlatmadaki kuraldan (§5.2, `ders_saatinde_mi`: o günün ilk ders
+   başlangıcı – son ders bitişi, programa bağlı) ayrıdır; ikisi aynı pencere değildir.
 8. Son kabul testi (fiziksel/görsel doğrulama) HER ZAMAN kullanıcı
    tarafından yapılır, otomatikleştirilmez.
 
@@ -559,7 +561,7 @@ hiçbiri crontab/systemd timer'a bağlı değil:
   yapıyor, bu YAPMAZ. **KISALTMALAR sözlüğü mudur'unkiyle SENKRON
   tutulmalı** (iki ayrı dosya, tek doğru kaynak yok — geçmişte bunun
   senkron dışı kalması "seçmeli X" ders adlarının RAG'de eşleşmemesine
-  yol açmıştı, bkz. kök `sorunlar.md`/`DECISIONS.md`).
+  yol açmıştı, bkz. kök `DECISIONS.md`).
 - **`zil_yukle.py`** — kaynağı `mudur/giris cikis saatleri.jpg`, elle okunup
   `VARSAYILAN_SAATLER` sabitine gömülü. `--no-dagit` verilmedikçe
   `server/tahtalar.json`'daki her tahtaya SCP ile yazar.
