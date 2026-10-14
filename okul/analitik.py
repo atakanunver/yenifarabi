@@ -57,6 +57,10 @@ OZELLIKLER = {
         "Öğretmen: sınav/etkinlik ekleme", ("ogretmen",), True,
         "Sınav takvimini zümre toplantısında göster; yazılı tarihlerini platforma girmeyi zümre kararı yap.",
     ),
+    "ogretmen_hizli_etkinlik": (
+        "Öğretmen: hızlı etkinlik atama", ("ogretmen",), True,
+        "Öğretmen ana sayfasından Hızlı Etkinlik'e bağlantı ver; zümrede 3 soruluk çıkış bileti örneğini göster.",
+    ),
     "anket_yanitla": (
         "Anket yanıtlama", ("ogrenci", "veli", "ogretmen"), True,
         "Bekleyen anketi ana sayfada öne çıkar; son gün yaklaşırken duyuruyla hatırlat ve anketin anonim olduğunu belirt.",

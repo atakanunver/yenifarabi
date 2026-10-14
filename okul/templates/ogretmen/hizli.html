@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block baslik %}Hızlı etkinlik · Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Hızlı etkinlik ata</h1>
+<p class="soluk">Sınıfına tek adımda kısa bir test ata. Sorular onaylı soru havuzundan rastgele seçilir; öğrenciler ödev listesinde görür, sonuçları ödev sayfanda izlersin.</p>
+{% if not gorevler %}
+  <section class="kart"><p class="bos">Size tanımlı sınıf/ders görevi yok. Yönetici görev atadıktan sonra kullanabilirsiniz.</p></section>
+{% else %}
+<form class="kart" method="get" action="/ogretmen/hizli">
+  <label for="gorev">Sınıf ve ders</label>
+  <select id="gorev" onchange="var v=this.value.split('|');location.href='/ogretmen/hizli?sinif='+encodeURIComponent(v[0])+'&amp;ders='+encodeURIComponent(v[1])">
+    {% for s, d in gorevler %}<option value="{{ s }}|{{ d }}"{{ ' selected' if s == sinif and d == ders }}>{{ s }}{{ ' · ' ~ d if d }}</option>{% endfor %}
+  </select>
+  <noscript><button class="tus ikincil">Seç</button></noscript>
+</form>
+<form class="kart" method="post" action="/ogretmen/hizli">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="sinif" value="{{ sinif }}">
+  <input type="hidden" name="ders" value="{{ ders }}">
+  {% if havuz_hata %}<p class="not" role="status">Soru havuzuna şu an ulaşılamıyor; biraz sonra tekrar deneyin.</p>{% endif %}
+  <label for="havuz_ders">Soru havuzu dersi</label>
+  <select id="havuz_ders" name="havuz_ders" required>
+    {% if not secili_havuz %}<option value="">Seçin</option>{% endif %}
+    {% for h in havuz_dersleri %}<option value="{{ h }}"{{ ' selected' if h == secili_havuz }}>{{ h|baslik }}</option>{% endfor %}
+  </select>
+  <fieldset class="kart"><legend>Soru sayısı</legend>
+    {% for a in adetler %}<label class="anket-secenek"><input type="radio" name="adet" value="{{ a }}"{{ ' checked' if a == 5 }}> {{ a }} soru{{ ' (çıkış bileti)' if a == 3 }}</label>{% endfor %}
+  </fieldset>
+  <fieldset class="kart"><legend>Teslim</legend>
+    {% for kod, (ad, _) in sureler.items() %}<label class="anket-secenek"><input type="radio" name="sure" value="{{ kod }}"{{ ' checked' if kod == 'yarin' }}> {{ ad }} 23:59</label>{% endfor %}
+  </fieldset>
+  <label for="not">Öğrencilere not (isteğe bağlı)</label>
+  <textarea id="not" name="not" maxlength="500" rows="2"></textarea>
+  <div class="tuslar"><button class="tus buyuk tam"{{ ' disabled' if havuz_hata }}>Etkinliği ata</button></div>
+</form>
+{% endif %}
+{% endblock %}
