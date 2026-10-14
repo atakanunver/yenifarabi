@@ -14,7 +14,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/static/logo-64.png" type="image/png">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
-<link rel="stylesheet" href="/static/okul.css?v=20">
+<link rel="stylesheet" href="/static/okul.css?v=21">
 </head>
 <body>
 <header class="ust">
@@ -28,6 +28,12 @@
 </header>
 
 <main class="sayfa">
+{% if k and not k.sifre_degismeli and k.rol in ('ogretmen', 'yonetici') and request.url.path in ('/ogretmen', '/yonetici') %}
+<a class="kart sohbet-kart" href="/sohbet">
+  <b>Sohbet odası</b>{% if sohbet_okunmamis|default(0) %} <span class="sayi-rozet">{{ sohbet_okunmamis }} yeni</span>{% endif %}
+  <span class="soluk kucuk">Öğretmenler ve yöneticiler · mesajlar 30 gün sonra silinir</span>
+</a>
+{% endif %}
 {% if k and not k.sifre_degismeli and push_etkin() and request.url.path in ('/ogrenci', '/veli', '/ogretmen', '/yonetici', '/duyurular') %}
 <section class="kart" id="push-kart" data-csrf="{{ csrf }}" hidden>
   <h2 style="margin-top:0">Bildirimleri aç</h2>

@@ -22,6 +22,7 @@ log = logging.getLogger("okul.push")
 SABLONLAR = {
     "duyuru": ("Dijital Okul", "Yeni bir duyuru var.", "/duyurular"),
     "odev": ("Dijital Okul", "Yeni bir ödevin var.", "/ogrenci/odevler"),
+    "sohbet": ("Dijital Okul", "Yeni bir sohbet mesajı var.", "/sohbet"),
     "deneme": ("Dijital Okul", "Test bildirimi: bildirimler açık.", "/bildirimler"),
 }
 AZAMI_ABONELIK = 10  # kullanıcı başına cihaz

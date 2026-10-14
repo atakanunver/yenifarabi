@@ -20,6 +20,10 @@ from pathlib import Path
 
 # user_version N'den N-1'e inmek için çalışan betik. Yeni göç eklenince buraya da eklenir.
 GERI = {
+    12: """
+DROP TABLE IF EXISTS sohbet_okuma;
+DROP TABLE IF EXISTS sohbet_mesaj;
+""",
     11: """
 DROP TABLE IF EXISTS push_abonelik;
 """,

@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 import analitik
 import auth
 import db
+import sohbet as sohbet_modul
 from ayarlar import KOK
 from deps import GirisGerekli, SifreDegistirmeli, https_mi, render
 from fastapi import FastAPI, HTTPException, Request
@@ -28,6 +29,7 @@ from rotalar import (
     oyun,
     pano,
     push,
+    sohbet,
     veli,
     yonetici,
 )
@@ -36,6 +38,7 @@ from rotalar import (
 @asynccontextmanager
 async def omur(_app):
     db.sema_kur()
+    sohbet_modul.baslangic_temizligi()
     yield
     analitik.bosalt()
 
@@ -44,7 +47,7 @@ app = FastAPI(
     title="Dijital Okul", docs_url=None, redoc_url=None, openapi_url=None, lifespan=omur
 )
 app.mount("/static", StaticFiles(directory=str(KOK / "static")), name="static")
-for r in (giris, pano, belge_sinav, ogrenci, arena, avatar, anket, gelisim, etkinlik, kisisel, oduller, oyun, veli, deneme, ogretmen_liderlik, ogretmen, yonetici, push):
+for r in (giris, pano, belge_sinav, ogrenci, arena, avatar, anket, gelisim, etkinlik, kisisel, oduller, oyun, veli, deneme, ogretmen_liderlik, ogretmen, yonetici, push, sohbet):
     app.include_router(r.router)
 
 

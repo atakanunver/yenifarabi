@@ -402,9 +402,25 @@ CREATE TABLE push_abonelik (
 CREATE INDEX push_abonelik_kullanici ON push_abonelik(kullanici_id);
 """
 
+# Öğretmen+yönetici ortak sohbet odası (yalnızca metin, 30 gün saklanır; sohbet.py). sohbet_okuma: okunmamış sayacı + bildirim sıklığı.
+SEMA_V12 = """
+CREATE TABLE sohbet_mesaj (
+    id         INTEGER PRIMARY KEY,
+    yazar_id   INTEGER NOT NULL REFERENCES kullanici(id),
+    metin      TEXT NOT NULL,
+    olusturma  TEXT NOT NULL
+);
+CREATE INDEX sohbet_mesaj_zaman ON sohbet_mesaj(olusturma);
+CREATE TABLE sohbet_okuma (
+    kullanici_id  INTEGER PRIMARY KEY REFERENCES kullanici(id),
+    son_id        INTEGER NOT NULL DEFAULT 0,
+    son_push      TEXT
+);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
-    SEMA_V11,
+    SEMA_V11, SEMA_V12,
 ]
 
 

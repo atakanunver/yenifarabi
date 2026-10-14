@@ -11,6 +11,7 @@ import auth
 import avatar
 import db
 import push
+import sohbet
 from ayarlar import AYAR, KOK
 from fastapi import Depends, HTTPException, Request
 from fastapi.templating import Jinja2Templates
@@ -186,9 +187,24 @@ def _anket_bekleyen(k) -> int:
         return 0
 
 
+def _sohbet_okunmamis(request: Request, k) -> int:
+    """Öğretmen/yönetici ana sayfasındaki sohbet kartı için okunmamış mesaj sayısı. Hata sayfayı bozmaz: 0 döner."""
+    if k is None or k["rol"] not in sohbet.ROLLER or request.url.path not in ("/ogretmen", "/yonetici"):
+        return 0
+    try:
+        c = db.baglanti()
+        try:
+            return sohbet.okunmamis_sayisi(c, k["id"])
+        finally:
+            c.close()
+    except Exception:  # noqa: BLE001 — sayaç isteğe bağlıdır
+        return 0
+
+
 def render(request: Request, sablon: str, status_code: int = 200, **ctx):
     ctx.setdefault("k", getattr(request.state, "kullanici", None))
     ctx.setdefault("anket_bekleyen", _anket_bekleyen(ctx["k"]))
+    ctx.setdefault("sohbet_okunmamis", _sohbet_okunmamis(request, ctx["k"]))
     ctx["csrf"] = getattr(request.state, "csrf", "")
     ctx.setdefault("bugun_gun", GUNLER[zaman.simdi().weekday()])
     return TEMPLATES.TemplateResponse(request, sablon, ctx, status_code=status_code)

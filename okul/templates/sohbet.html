@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block baslik %}Sohbet odası — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Sohbet odası</h1>
+<p class="not-kutu kucuk">Bu oda öğretmenler ve yöneticilerle paylaşılır; yöneticiler de tüm mesajları görebilir. Yalnızca metin gönderilir, mesajlar {{ saklama_gun }} gün sonra silinir.</p>
+<section class="kart sohbet" id="sohbet" data-csrf="{{ csrf }}" data-son="{{ son_id }}">
+  <ol class="sohbet-liste" id="sohbet-liste" aria-live="polite">
+    {% for m in mesajlar %}
+    <li class="sohbet-mesaj{{ ' benim' if m.benim }}" data-id="{{ m.id }}">
+      <div class="sohbet-ust"><b>{{ m.yazar }}</b> <span class="soluk">{{ 'Yönetici' if m.rol == 'yonetici' else 'Öğretmen' }} · {{ m.zaman }}</span>{% if m.silinebilir %} <button type="button" class="sohbet-sil" title="Mesajı sil" aria-label="Mesajı sil">Sil</button>{% endif %}</div>
+      <div class="sohbet-metin">{{ m.metin }}</div>
+    </li>
+    {% endfor %}
+  </ol>
+  <p class="soluk kucuk" id="sohbet-bos" {% if mesajlar %}hidden{% endif %}>Henüz mesaj yok. İlk mesajı sen yaz.</p>
+  <form id="sohbet-form" method="post" action="/sohbet/gonder" class="sohbet-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="sohbet-metin" class="gizli-etiket">Mesajın</label>
+    <textarea id="sohbet-metin" name="metin" rows="2" maxlength="{{ azami }}" required placeholder="Mesajını yaz… (Enter: gönder, Shift+Enter: yeni satır)"></textarea>
+    <button class="tus" id="sohbet-gonder">Gönder</button>
+  </form>
+  <p class="hata" id="sohbet-hata" role="alert" hidden></p>
+</section>
+<script src="/static/sohbet.js?v=1" defer></script>
+{% endblock %}
