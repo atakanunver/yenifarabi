@@ -1610,3 +1610,21 @@ main p { color: var(--renk-metin-soluk); font-size: 0.88rem; line-height: 1.5; }
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
 }
+
+/* ---------- Velilerden gelen mesajlar (2026-10-14) ---------- */
+.vm-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.vm-kart { background: var(--renk-yuzey); border: 1px solid var(--renk-kenar); border-radius: var(--yaricap-buyuk);
+  padding: 0.65rem 0.9rem; box-shadow: var(--renk-golge); display: flex; flex-direction: column; gap: 0.4rem;
+  transition: background 0.15s ease; }
+.vm-kart.vm-okunmamis { border-left: 3px solid var(--renk-amber); }
+.vm-kart.vm-cikis { border-color: var(--renk-kirmizi); border-left: 4px solid var(--renk-kirmizi); background: var(--renk-kirmizi-zemin); }
+.vm-ust { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.4rem 0.8rem; }
+.vm-kim { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.1rem 0.6rem; }
+.vm-alt, .vm-zaman { font-size: 0.78rem; color: var(--renk-metin-soluk); }
+.vm-etiketler { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.vm-metin { margin: 0; font-size: 0.88rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.vm-eylem { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.vm-onay { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: var(--renk-kirmizi); }
+.vm-onay[hidden], .vm-eylem [hidden] { display: none; }
+.menu-sayac { display: inline-block; margin-left: 0.4rem; min-width: 1.2rem; padding: 0 0.4rem; border-radius: 999px;
+  background: var(--renk-kirmizi); color: #fff; font-size: 0.7rem; font-weight: 700; text-align: center; line-height: 1.3rem; }

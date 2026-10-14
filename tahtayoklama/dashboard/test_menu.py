@@ -6,7 +6,7 @@ import menu
 from app import app
 
 DAHILI = {"/", "/admin/tahtalar", "/admin/siniflar", "/admin/rapor", "/kazanim",
-          "/admin/uzaktan", "/servisler", "/sistem-durumu", "/sunucular"}
+          "/admin/uzaktan", "/servisler", "/sistem-durumu", "/sunucular", "/veli-mesajlari"}
 
 
 def _hrefler(ogeler):
@@ -62,7 +62,7 @@ class TestMenu(unittest.TestCase):
 
     def test_taban_tum_sablon_ortamlarinda_menu_var(self):
         import importlib
-        for ad in ("app", "sunucular", "kazanim_rapor", "admin", "uzaktan_yonetim", "servis_yonetimi", "yakinda"):
+        for ad in ("app", "sunucular", "kazanim_rapor", "admin", "uzaktan_yonetim", "servis_yonetimi", "yakinda", "veli_mesajlari"):
             mod = importlib.import_module(ad)
             tpl = getattr(mod, "templates", None)
             if tpl is not None:

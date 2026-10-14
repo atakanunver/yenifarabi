@@ -47,6 +47,7 @@ MENU: list[dict] = [
         {"ad": "smual.app yönetim paneli", "href": SMUAL_YONETIM_URL, "ikon": "kaydirici", "yeni_sekme": True},
     ]},
     {"ad": "İletişim", "kisayol": "i", "ogeler": [
+        {"ad": "Velilerden Gelen Mesajlar", "href": "/veli-mesajlari", "ikon": "zil"},
         {"ad": "SMS sistemi", "href": "/sms-git", "ikon": "zil", "yeni_sekme": True},
         {"ad": "Yoklama SMS", "href": "/yoklama-sms-git", "ikon": "zil", "yeni_sekme": True},
         {"ad": "SMS otomasyonu", "href": "/otomasyon-git", "ikon": "kaydirici", "yeni_sekme": True},

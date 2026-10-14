@@ -1,5 +1,30 @@
 // İkon şeridindeki mini sistem durumu rozeti (2026-10-08'den beri yalnız bu; menü/çekmece
 // menu.js'te, tema tema.js'te).
+// ---- Veli mesajları okunmamış sayacı (menü rozeti): hata → sessizce gizli, 30 sn'de bir ----
+(function () {
+  var baglar = document.querySelectorAll('a[href="/veli-mesajlari"]');
+  if (!baglar.length) return;
+  function yaz(n) {
+    baglar.forEach(function (a) {
+      var r = a.querySelector('.menu-sayac');
+      if (!n) { if (r) r.remove(); return; }
+      if (!r) { r = document.createElement('span'); r.className = 'menu-sayac'; a.appendChild(r); }
+      r.textContent = n > 99 ? '99+' : String(n);
+      r.setAttribute('aria-label', n + ' okunmamış mesaj');
+    });
+  }
+  function guncelle() {
+    if (document.hidden) return;
+    fetch('/api/veli-mesajlari/sayac').then(function (r) {
+      if (!r.ok) throw new Error('sayaç yok');
+      return r.json();
+    }).then(function (v) { yaz(v && typeof v.okunmamis === 'number' ? v.okunmamis : 0); })
+      .catch(function () { yaz(0); });
+  }
+  guncelle();
+  setInterval(guncelle, 30000);
+})();
+
 (function () {
   // ---- Mini sistem durumu rozeti (sidebar altı) ----
   var SICAKLIK_ALANI = document.getElementById('mini-durum-sicaklik');

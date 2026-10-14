@@ -1,0 +1,57 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Velilerden Gelen Mesajlar — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Velilerden Gelen Mesajlar{% endblock %}
+{% block ust_sag %}
+<a class="dugme dugme-ikincil dugme-kucuk" href="{{ '/veli-mesajlari' if sadece_okunmamis else '/veli-mesajlari?okunmamis=1' }}"
+   {% if sadece_okunmamis %}aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>
+  <svg class="ikon"><use href="#ik-{{ 'onay' if sadece_okunmamis else 'zil' }}"/></svg>
+  {{ 'Tüm mesajlar' if sadece_okunmamis else 'Yalnızca okunmamışlar' }}</a>
+{% endblock %}
+
+{% block icerik %}
+{% if ulasilamiyor %}
+<section class="kr-bos vm-uyari" role="alert">
+  <svg class="ikon ikon-buyuk"><use href="#ik-uyari"/></svg>
+  <p class="kr-bos-baslik">Mesaj servisine ulaşılamıyor</p>
+  <p>SMS servisi kapalı olabilir ya da bağlantı anahtarı tanımlı değil. Birazdan sayfayı yenileyin.</p>
+</section>
+{% elif not mesajlar %}
+<section class="kr-bos">
+  <svg class="ikon ikon-buyuk"><use href="#ik-zil"/></svg>
+  <p class="kr-bos-baslik">{{ 'Okunmamış mesaj yok' if sadece_okunmamis else 'Henüz mesaj yok' }}</p>
+  <p>Velilerin okul numarasına gönderdiği SMS'ler burada listelenir.</p>
+</section>
+{% else %}
+<ul class="vm-liste" id="vm-liste">
+  {% for m in mesajlar %}
+  <li class="vm-kart{{ ' vm-cikis' if m.cikis }}{{ ' vm-okunmamis' if not m.okundu }}" data-id="{{ m.id }}">
+    <div class="vm-ust">
+      <div class="vm-kim">
+        <strong>{{ m.ad }}</strong>{% if m.alt %}<span class="vm-alt">{{ m.alt }}</span>{% endif %}
+      </div>
+      <div class="vm-etiketler">
+        {% if m.cikis %}<span class="rozet rozet-kirmizi"><svg class="ikon ikon-kucuk"><use href="#ik-uyari"/></svg>ÇIKIŞ TALEBİ</span>{% endif %}
+        {% if m.okundu %}<span class="rozet rozet-gri">Okundu</span>{% else %}<span class="rozet rozet-amber">Okunmadı</span>{% endif %}
+        <time class="vm-zaman">{{ m.zaman }}</time>
+      </div>
+    </div>
+    <p class="vm-metin">{{ m.metin }}</p>
+    <div class="vm-eylem">
+      {% if not m.okundu %}<button type="button" class="dugme dugme-kucuk" data-eylem="okundu">
+        <svg class="ikon"><use href="#ik-onay"/></svg> Okundu</button>{% endif %}
+      <button type="button" class="dugme dugme-kucuk dugme-tehlike" data-eylem="sil-sor">Sil</button>
+      <span class="vm-onay" hidden>
+        <span>Bu mesaj kalıcı olarak silinsin mi?</span>
+        <button type="button" class="dugme dugme-kucuk dugme-tehlike" data-eylem="sil">Evet, sil</button>
+        <button type="button" class="dugme dugme-kucuk dugme-ikincil" data-eylem="vazgec">Vazgeç</button>
+      </span>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}
+
+{% block script %}
+<script src="/static/veli_mesajlari.js?v={{ agac.surum }}"></script>
+{% endblock %}
