@@ -11,6 +11,7 @@ import sqlite3
 from collections.abc import Callable, Iterable
 from urllib.parse import urlsplit
 
+import db
 import zaman
 from ayarlar import AYAR
 
@@ -156,3 +157,65 @@ def gonder(
     except Exception as e:  # noqa: BLE001
         log.warning("push toplu gönderim hatası: %s", type(e).__name__)
     return sonuc
+
+
+# --- Alıcı çözümleme + arka plan tetikleyicileri (Faz 2) ---
+# Alıcılar duyurular.gorunur_duyurular ile AYNI görünürlük kuralını izler; yalnızca bildirime abone, aktif ve
+# yazar dışındaki kullanıcılar döner.
+
+_ABONELI = (
+    "SELECT DISTINCT u.id FROM kullanici u JOIN push_abonelik p ON p.kullanici_id = u.id"
+    " WHERE u.aktif = 1 AND u.id != ?"
+)
+
+
+def duyuru_alicilari(conn: sqlite3.Connection, hedef_tur: str, hedef: str | None, yazar_id: int) -> list[int]:
+    if hedef_tur == "okul":
+        sql, par = _ABONELI, [yazar_id]
+    elif hedef_tur == "rol":
+        sql, par = _ABONELI + " AND u.rol = ?", [yazar_id, hedef]
+    elif hedef_tur == "sinif" and hedef:
+        sql = _ABONELI + (
+            " AND (u.rol = 'yonetici'"
+            " OR u.id IN (SELECT kullanici_id FROM ogrenci WHERE sinif = ? AND kullanici_id IS NOT NULL)"
+            " OR u.id IN (SELECT vo.veli_id FROM veli_ogrenci vo JOIN ogrenci o ON o.id = vo.ogrenci_id"
+            " WHERE o.sinif = ?)"
+            " OR u.id IN (SELECT ogretmen_id FROM ogretmen_gorev WHERE sinif = ?))"
+        )
+        par = [yazar_id, hedef, hedef, hedef]
+    else:
+        return []
+    return [r[0] for r in conn.execute(sql, par)]
+
+
+def odev_alicilari(conn: sqlite3.Connection, sinif: str, yazar_id: int) -> list[int]:
+    """Ödevin sınıfındaki öğrenciler (veliye gitmez: bildirim metni öğrenciye hitap eder)."""
+    return [
+        r[0]
+        for r in conn.execute(
+            _ABONELI + " AND u.id IN (SELECT kullanici_id FROM ogrenci WHERE sinif = ? AND kullanici_id IS NOT NULL)",
+            (yazar_id, sinif),
+        )
+    ]
+
+
+def _arkaplan(tur: str, alici_bul: Callable[[sqlite3.Connection], list[int]]) -> None:
+    """İstek bittikten sonra çalışır; kendi bağlantısını açar (istek bağlantısı kapanmış olabilir). Asla istisna fırlatmaz."""
+    if not etkin_mi():
+        return
+    try:
+        conn = db.baglanti()
+        try:
+            gonder(conn, alici_bul(conn), tur)
+        finally:
+            conn.close()
+    except Exception as e:  # noqa: BLE001
+        log.warning("push arka plan hatası (%s): %s", tur, type(e).__name__)
+
+
+def duyuru_bildir(hedef_tur: str, hedef: str | None, yazar_id: int) -> None:
+    _arkaplan("duyuru", lambda c: duyuru_alicilari(c, hedef_tur, hedef, yazar_id))
+
+
+def odev_bildir(sinif: str, yazar_id: int) -> None:
+    _arkaplan("odev", lambda c: odev_alicilari(c, sinif, yazar_id))

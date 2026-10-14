@@ -6,10 +6,11 @@ import sqlite3
 import analitik
 import duyurular
 import odevler
+import push
 import yetki
 import zaman
 from deps import db_conn, istemci_ip, render, rol
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from kaynaklar import KaynakHatasi, kazanim, program, zil
 from metin import normalize_isim, sinif_seviyesi, tr_kucuk
@@ -196,6 +197,7 @@ def odev_formu(
 @router.post("/odev/yeni")
 async def odev_olustur(
     request: Request,
+    arka: BackgroundTasks,
     k=Depends(OGRETMEN_POST),
     conn: sqlite3.Connection = Depends(db_conn),
 ):
@@ -227,6 +229,7 @@ async def odev_olustur(
     except (odevler.OdevHatasi, KaynakHatasi) as e:
         raise HTTPException(400, str(e)) from e
     analitik.istekten(request, "ogretmen_odev_olustur", str(odev_id))
+    arka.add_task(push.odev_bildir, sinif, k["id"])
     return RedirectResponse(f"/ogretmen/odev/{odev_id}", status_code=303)
 
 
@@ -280,6 +283,7 @@ def duyuru_formu(
 @router.post("/duyuru")
 def duyuru_ekle(
     request: Request,
+    arka: BackgroundTasks,
     baslik: str = Form(""),
     metin: str = Form(""),
     hedef_tur: str = Form("sinif"),
@@ -297,6 +301,7 @@ def duyuru_ekle(
     duyurular.duyuru_ekle(
         conn, k["id"], baslik, metin, hedef_tur, hedef_deger, bitis_str
     )
+    arka.add_task(push.duyuru_bildir, hedef_tur, hedef_deger, k["id"])
     return RedirectResponse("/duyurular", status_code=303)
 
 

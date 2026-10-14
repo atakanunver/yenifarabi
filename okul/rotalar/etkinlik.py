@@ -4,9 +4,10 @@ import sqlite3
 
 import analitik
 import etkinlik
+import push
 import yetki
 from deps import db_conn, render, rol
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from kaynaklar import KaynakHatasi, kazanim
 from metin import sinif_seviyesi, tr_kucuk
@@ -48,7 +49,7 @@ def form(
 
 
 @router.post("")
-async def ata(request: Request, k=Depends(OGRETMEN_POST), conn: sqlite3.Connection = Depends(db_conn)):
+async def ata(request: Request, arka: BackgroundTasks, k=Depends(OGRETMEN_POST), conn: sqlite3.Connection = Depends(db_conn)):
     f = await request.form()
     sinif = str(f.get("sinif", "")).strip()
     havuz_ders = str(f.get("havuz_ders", "")).strip()
@@ -64,9 +65,12 @@ async def ata(request: Request, k=Depends(OGRETMEN_POST), conn: sqlite3.Connecti
         adet = int(str(f.get("adet", "")))
     except ValueError:
         raise HTTPException(400, "Geçersiz soru sayısı.") from None
+    onceki_son = conn.execute("SELECT COALESCE(MAX(id), 0) FROM odev").fetchone()[0]
     try:
         odev_id = etkinlik.hizli_ata(conn, k["id"], sinif, ders, havuz_ders, adet, str(f.get("sure", "")), str(f.get("not", "")))
     except (etkinlik.EtkinlikHatasi, KaynakHatasi) as e:
         raise HTTPException(400, str(e)) from e
     analitik.istekten(request, "ogretmen_hizli_etkinlik", str(odev_id))
+    if odev_id > onceki_son:  # çift dokunmada eski ödev döner (TEKRAR_SN): ikinci kez bildirme
+        arka.add_task(push.odev_bildir, sinif, k["id"])
     return RedirectResponse(f"/ogretmen/odev/{odev_id}", status_code=303)

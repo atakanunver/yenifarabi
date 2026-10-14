@@ -196,3 +196,108 @@ def test_sema_v11_ve_geri_alma_betigi():
 
     assert len(db.GOCLER) >= 11 and "push_abonelik" in db.GOCLER[10]
     assert "push_abonelik" in geri_al.GERI[11]
+
+
+# --- Faz 2: alıcılar ve tetikleyiciler ---
+
+def _kur(conn, yeni_kullanici):
+    """9-A: öğrenci+veli+öğretmen; 10-A: öğrenci; hepsi bildirime abone."""
+    k = {}
+    k["yonetici"] = yeni_kullanici(conn, "yonetici", "Yon", "yon", sifre="Parola123")
+    k["ogretmen"] = yeni_kullanici(conn, "ogretmen", "Ogt", "ogt", sifre="Parola123")
+    k["ogr9"] = yeni_kullanici(conn, "ogrenci", "Ogr9", "ogr9", sifre="Parola123")
+    k["ogr10"] = yeni_kullanici(conn, "ogrenci", "Ogr10", "ogr10", sifre="Parola123")
+    k["veli9"] = yeni_kullanici(conn, "veli", "Veli9", "veli9", telefon="05550000001")
+    k["veli10"] = yeni_kullanici(conn, "veli", "Veli10", "veli10", telefon="05550000002")
+    conn.execute("INSERT INTO ogrenci (id, okul_no, ad_soyad, sinif, kullanici_id) VALUES (1, 1, 'A', '9-A', ?)", (k["ogr9"],))
+    conn.execute("INSERT INTO ogrenci (id, okul_no, ad_soyad, sinif, kullanici_id) VALUES (2, 2, 'B', '10-A', ?)", (k["ogr10"],))
+    conn.execute("INSERT INTO veli_ogrenci (veli_id, ogrenci_id) VALUES (?, 1)", (k["veli9"],))
+    conn.execute("INSERT INTO veli_ogrenci (veli_id, ogrenci_id) VALUES (?, 2)", (k["veli10"],))
+    conn.execute("INSERT INTO ogretmen_gorev (ogretmen_id, sinif, ders) VALUES (?, '9-A', 'matematik')", (k["ogretmen"],))
+    conn.commit()
+    for i, (ad, uid) in enumerate(k.items()):
+        push.abone_ol(conn, uid, f"https://x.example/{i}", "p", "a")
+    return k
+
+
+def test_duyuru_alicilari_gorunurluk_kuraliyla_ayni(conn, yeni_kullanici):
+    k = _kur(conn, yeni_kullanici)
+    sinif = set(push.duyuru_alicilari(conn, "sinif", "9-A", k["ogretmen"]))
+    assert sinif == {k["yonetici"], k["ogr9"], k["veli9"]}  # yazar (öğretmen) hariç; 10-A'dakiler yok
+    okul = set(push.duyuru_alicilari(conn, "okul", None, k["yonetici"]))
+    assert okul == set(k.values()) - {k["yonetici"]}
+    rol = set(push.duyuru_alicilari(conn, "rol", "veli", k["yonetici"]))
+    assert rol == {k["veli9"], k["veli10"]}
+    assert push.duyuru_alicilari(conn, "sinif", "", 0) == [] and push.duyuru_alicilari(conn, "x", "y", 0) == []
+
+
+def test_pasif_ve_abonesiz_kullanici_alici_olmaz(conn, yeni_kullanici):
+    k = _kur(conn, yeni_kullanici)
+    conn.execute("UPDATE kullanici SET aktif = 0 WHERE id = ?", (k["ogr9"],))
+    conn.execute("DELETE FROM push_abonelik WHERE kullanici_id = ?", (k["veli9"],))
+    conn.commit()
+    assert set(push.duyuru_alicilari(conn, "sinif", "9-A", k["ogretmen"])) == {k["yonetici"]}
+
+
+def test_odev_alicilari_yalniz_sinif_ogrencileri(conn, yeni_kullanici):
+    k = _kur(conn, yeni_kullanici)
+    assert push.odev_alicilari(conn, "9-A", k["ogretmen"]) == [k["ogr9"]]
+    assert push.odev_alicilari(conn, "11-A", k["ogretmen"]) == []
+
+
+def _yakala(monkeypatch):
+    cagrilar = []
+    monkeypatch.setattr(push, "_webpush_gonder", lambda ab, veri: cagrilar.append((ab["endpoint"], json.loads(veri))))
+    return cagrilar
+
+
+def _csrf(c):
+    return c.get("/ogretmen/duyuru").text.split('name="csrf" value="')[1].split('"')[0]
+
+
+def test_duyuru_rotasi_sinif_alicilarina_bildirir(conn, yeni_kullanici, etkin, monkeypatch):
+    k = _kur(conn, yeni_kullanici)
+    cagrilar = _yakala(monkeypatch)
+    with _istemci() as c:
+        c.cookies.set(auth.COOKIE_ADI, auth.oturum_ac(conn, k["ogretmen"]))
+        r = c.post("/ogretmen/duyuru", data={"csrf": _csrf(c), "baslik": "Gizli Baslik", "metin": "Gizli Metin", "hedef_tur": "sinif", "hedef": "9-A"}, follow_redirects=False)
+        assert r.status_code == 303
+    assert len(cagrilar) == 3  # öğrenci, veli, yönetici
+    for _, veri in cagrilar:
+        assert veri["govde"] == "Yeni bir duyuru var."
+        assert "Gizli" not in json.dumps(veri)  # başlık/metin payload'a girmez
+
+
+def test_odev_rotasi_ogrencilere_bildirir(conn, yeni_kullanici, etkin, monkeypatch):
+    k = _kur(conn, yeni_kullanici)
+    cagrilar = _yakala(monkeypatch)
+    with _istemci() as c:
+        c.cookies.set(auth.COOKIE_ADI, auth.oturum_ac(conn, k["ogretmen"]))
+        csrf = _csrf(c)
+        r = c.post("/ogretmen/odev/yeni", data={"csrf": csrf, "sinif": "9-A", "ders": "matematik", "tur": "klasik", "baslik": "Gizli Ödev", "aciklama": "", "teslim": "2030-01-01"}, follow_redirects=False)
+        assert r.status_code == 303
+    assert [v["govde"] for _, v in cagrilar] == ["Yeni bir ödevin var."]
+    assert "Gizli" not in json.dumps(cagrilar)
+
+
+def test_bildirim_hatasi_duyuruyu_bozmaz(conn, yeni_kullanici, etkin, monkeypatch):
+    k = _kur(conn, yeni_kullanici)
+
+    def patla(ab, veri):
+        raise RuntimeError("push servisi çöktü")
+
+    monkeypatch.setattr(push, "_webpush_gonder", patla)
+    with _istemci() as c:
+        c.cookies.set(auth.COOKIE_ADI, auth.oturum_ac(conn, k["ogretmen"]))
+        r = c.post("/ogretmen/duyuru", data={"csrf": _csrf(c), "baslik": "B", "metin": "M", "hedef_tur": "sinif", "hedef": "9-A"}, follow_redirects=False)
+        assert r.status_code == 303
+    assert conn.execute("SELECT COUNT(*) FROM duyuru").fetchone()[0] == 1
+
+
+def test_kapaliyken_rota_bildirim_denemez(conn, yeni_kullanici, monkeypatch):
+    k = _kur(conn, yeni_kullanici)
+    cagrilar = _yakala(monkeypatch)
+    with _istemci() as c:
+        c.cookies.set(auth.COOKIE_ADI, auth.oturum_ac(conn, k["ogretmen"]))
+        c.post("/ogretmen/duyuru", data={"csrf": _csrf(c), "baslik": "B", "metin": "M", "hedef_tur": "sinif", "hedef": "9-A"})
+    assert cagrilar == []
