@@ -2,8 +2,11 @@
 {% block baslik %}Sohbet odası — Dijital Okul{% endblock %}
 {% block icerik %}
 <h1>Sohbet odası</h1>
-<p class="not-kutu kucuk">Bu oda öğretmenler ve yöneticilerle paylaşılır; yöneticiler de tüm mesajları görebilir. Yalnızca metin gönderilir, mesajlar {{ saklama_gun }} gün sonra silinir.</p>
+<p class="not-kutu kucuk">Bu oda öğretmenler ve yöneticilerle paylaşılır; yöneticiler de tüm mesajları görebilir. Yalnızca metin gönderilir, mesajlar {{ saklama_gun }} gün sonra silinir. Çevrim içi durumun oda üyelerine görünür.</p>
 <section class="kart sohbet" id="sohbet" data-csrf="{{ csrf }}" data-son="{{ son_id }}">
+  <ul class="sohbet-uyeler" id="sohbet-uyeler" aria-label="Oda üyeleri">
+    {% for u in uyeler %}<li class="sohbet-uye{{ ' cevrimici' if u.cevrimici }}" title="{{ 'Çevrim içi' if u.cevrimici else 'Çevrim dışı' }}"><i aria-hidden="true"></i>{{ u.ad }}{% if u.ben %} (sen){% endif %}<span class="sr-only"> — {{ 'çevrim içi' if u.cevrimici else 'çevrim dışı' }}</span></li>{% endfor %}
+  </ul>
   <ol class="sohbet-liste" id="sohbet-liste" aria-live="polite">
     {% for m in mesajlar %}
     <li class="sohbet-mesaj{{ ' benim' if m.benim }}" data-id="{{ m.id }}">
@@ -21,5 +24,5 @@
   </form>
   <p class="hata" id="sohbet-hata" role="alert" hidden></p>
 </section>
-<script src="/static/sohbet.js?v=1" defer></script>
+<script src="/static/sohbet.js?v=2" defer></script>
 {% endblock %}

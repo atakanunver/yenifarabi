@@ -229,3 +229,52 @@ def test_gocu_ve_geri_alma():
 
     assert len(db.GOCLER) >= 12 and "sohbet_mesaj" in db.GOCLER[11] and "sohbet_okuma" in db.GOCLER[11]
     assert "sohbet_mesaj" in geri_al.GERI[12]
+
+
+# --- çevrim içi / çevrim dışı ---
+
+def _nabiz(conn, kid, saniye_once):
+    t = (zaman.simdi() - timedelta(seconds=saniye_once)).strftime(zaman.BICIM)
+    conn.execute(
+        "INSERT INTO oturum (token_hash, kullanici_id, olusturma, son_gorulme, son_nabiz) VALUES (?, ?, ?, ?, ?)",
+        (f"t{kid}{saniye_once}", kid, t, t, t),
+    )
+    conn.commit()
+
+
+def test_uyeler_cevrim_ici_durumu(conn, yeni_kullanici):
+    a = _kisi(conn, yeni_kullanici, "ogretmen", "ogta")
+    b = _kisi(conn, yeni_kullanici, "ogretmen", "ogtb")
+    c_ = _kisi(conn, yeni_kullanici, "ogretmen", "ogtc")
+    y = _kisi(conn, yeni_kullanici, "yonetici", "yon")
+    _kisi(conn, yeni_kullanici, "veli", "velix")
+    ogr = _kisi(conn, yeni_kullanici, "ogrenci", "ogrx")
+    _nabiz(conn, b, 20)  # çevrim içi
+    _nabiz(conn, c_, 600)  # eski nabız: çevrim dışı
+    k = conn.execute("SELECT * FROM kullanici WHERE id = ?", (y,)).fetchone()
+    durum = {u["ad"]: u["cevrimici"] for u in sohbet.uyeler(conn, k)}
+    assert durum == {"Yon": True, "Ogta": False, "Ogtb": True, "Ogtc": False}  # veli/öğrenci listede yok; kendi her zaman çevrim içi
+    assert ogr and a
+    sirali = [u["ad"] for u in sohbet.uyeler(conn, k)]
+    assert sirali[0] == "Yon" and set(sirali[:2]) == {"Yon", "Ogtb"}  # çevrim içiler önce, yönetici önde
+
+
+def test_pasif_uye_listede_yok(conn, yeni_kullanici):
+    a = _kisi(conn, yeni_kullanici, "ogretmen", "ogta")
+    b = _kisi(conn, yeni_kullanici, "ogretmen", "ogtb")
+    conn.execute("UPDATE kullanici SET aktif = 0 WHERE id = ?", (b,))
+    conn.commit()
+    k = conn.execute("SELECT * FROM kullanici WHERE id = ?", (a,)).fetchone()
+    assert [u["ad"] for u in sohbet.uyeler(conn, k)] == ["Ogta"]
+
+
+def test_sayfa_ve_json_uyeleri_icerir(conn, yeni_kullanici):
+    a = _kisi(conn, yeni_kullanici, "ogretmen", "ogta")
+    b = _kisi(conn, yeni_kullanici, "yonetici", "yon")
+    _nabiz(conn, b, 10)
+    with _istemci() as c:
+        _oturum(c, conn, a)
+        h = c.get("/sohbet").text
+        assert 'id="sohbet-uyeler"' in h and "Ogta (sen)" in h and "Yon" in h and "Çevrim içi durumun oda üyelerine görünür" in h
+        j = c.get("/sohbet/mesajlar").json()
+    assert {u["ad"]: u["cevrimici"] for u in j["uyeler"]} == {"Ogta": True, "Yon": True}

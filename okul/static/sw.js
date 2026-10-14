@@ -3,10 +3,10 @@
 // verileri ve POST istekleri (giriş, çıkış, formlar) hiçbir zaman önbelleğe alınmaz; her zaman ağdan gelir.
 // Güncelleme: SURUM değişince yeni worker hemen devreye girer ve eski önbellekleri siler. Önbellekteki
 // dosyalar sürüm sorgusuyla (?v=N) adreslendiğinden eski CSS/JS yeni HTML ile karışmaz.
-const SURUM = "okul-v25";
+const SURUM = "okul-v26";
 const CEVRIMDISI = "/static/cevrimdisi.html";
 const STATIK = [
-  "/static/okul.css?v=21",
+  "/static/okul.css?v=22",
   "/static/foto.js?v=1",
   "/static/kurulum.js?v=1",
   "/static/saat.js?v=1",
@@ -15,7 +15,7 @@ const STATIK = [
   "/static/push-ortak.js?v=1",
   "/static/push.js?v=2",
   "/static/push-kart.js?v=1",
-  "/static/sohbet.js?v=1",
+  "/static/sohbet.js?v=2",
   "/static/push-cikis.js?v=1",
   "/static/logo-64.png",
   "/static/logo-192.png",

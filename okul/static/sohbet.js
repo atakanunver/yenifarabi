@@ -49,10 +49,27 @@
     bos.hidden = true;
     if (asagida) kaydir();
   }
+  var uyeKutu = document.getElementById("sohbet-uyeler");
+  function uyeleriYaz(uyeler) {
+    if (!uyeKutu || !uyeler) return;
+    while (uyeKutu.firstChild) uyeKutu.removeChild(uyeKutu.firstChild);
+    uyeler.forEach(function (u) {
+      var li = document.createElement("li");
+      li.className = "sohbet-uye" + (u.cevrimici ? " cevrimici" : "");
+      li.title = u.cevrimici ? "Çevrim içi" : "Çevrim dışı";
+      var nokta = document.createElement("i"); nokta.setAttribute("aria-hidden", "true");
+      li.appendChild(nokta);
+      li.appendChild(document.createTextNode(u.ad + (u.ben ? " (sen)" : "")));
+      var sr = document.createElement("span"); sr.className = "sr-only";
+      sr.textContent = " — " + (u.cevrimici ? "çevrim içi" : "çevrim dışı");
+      li.appendChild(sr);
+      uyeKutu.appendChild(li);
+    });
+  }
   function getir() {
     return fetch("/sohbet/mesajlar?sonra=" + son, { credentials: "same-origin", headers: { Accept: "application/json" } })
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (j) { if (j) ekle(j.mesajlar || []); })
+      .then(function (j) { if (j) { ekle(j.mesajlar || []); uyeleriYaz(j.uyeler); } })
       .catch(function () {});
   }
 

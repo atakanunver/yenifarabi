@@ -10,6 +10,7 @@ import re
 import sqlite3
 from datetime import datetime, timedelta
 
+import analitik
 import db
 import push
 import zaman
@@ -121,6 +122,23 @@ def mesajlar(conn: sqlite3.Connection, k: sqlite3.Row, sonra_id: int = 0, limit:
         }
         for r in satirlar
     ]
+
+
+def uyeler(conn: sqlite3.Connection, k: sqlite3.Row) -> list[dict]:
+    """Oda üyeleri (aktif öğretmen+yönetici) ve çevrim içi durumu. Çevrim içi = son analitik.NABIZ_SURESI sn'de kalp atışı
+    gönderen (uygulaması AÇIK ve görünür) oturumu var. İstek sahibi odayı açtığı için her zaman çevrim içi gösterilir."""
+    esik = (zaman.simdi() - timedelta(seconds=analitik.NABIZ_SURESI)).strftime(zaman.BICIM)
+    satirlar = conn.execute(
+        "SELECT u.id, u.ad_soyad, u.rol, EXISTS(SELECT 1 FROM oturum o WHERE o.kullanici_id = u.id AND o.son_nabiz >= ?)"
+        " AS cevrimici FROM kullanici u WHERE u.aktif = 1 AND u.rol IN ('ogretmen', 'yonetici')",
+        (esik,),
+    ).fetchall()
+    liste = [
+        {"ad": r["ad_soyad"], "rol": r["rol"], "ben": r["id"] == k["id"], "cevrimici": bool(r["cevrimici"]) or r["id"] == k["id"]}
+        for r in satirlar
+    ]
+    liste.sort(key=lambda u: (not u["cevrimici"], u["rol"] != "yonetici", u["ad"].casefold()))
+    return liste
 
 
 def sil(conn: sqlite3.Connection, k: sqlite3.Row, mesaj_id: int) -> bool:

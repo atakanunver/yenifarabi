@@ -21,7 +21,7 @@ def oda(request: Request, k=Depends(UYE), conn: sqlite3.Connection = Depends(db_
     liste = sohbet.mesajlar(conn, k)
     sohbet.okundu(conn, k["id"], sohbet.en_son_id(conn))
     return render(
-        request, "sohbet.html", mesajlar=liste, son_id=liste[-1]["id"] if liste else 0,
+        request, "sohbet.html", mesajlar=liste, uyeler=sohbet.uyeler(conn, k), son_id=liste[-1]["id"] if liste else 0,
         saklama_gun=sohbet.SAKLAMA_GUN, azami=sohbet.AZAMI_METIN,
     )
 
@@ -30,7 +30,7 @@ def oda(request: Request, k=Depends(UYE), conn: sqlite3.Connection = Depends(db_
 def yeni_mesajlar(sonra: int = 0, k=Depends(UYE), conn: sqlite3.Connection = Depends(db_conn)):
     liste = sohbet.mesajlar(conn, k, max(sonra, 0))
     sohbet.okundu(conn, k["id"], sohbet.en_son_id(conn))
-    return JSONResponse({"mesajlar": liste}, headers={"Cache-Control": "no-store"})
+    return JSONResponse({"mesajlar": liste, "uyeler": sohbet.uyeler(conn, k)}, headers={"Cache-Control": "no-store"})
 
 
 @router.post("/gonder")

@@ -67,6 +67,12 @@ a { color: var(--mavi); }
 .sohbet-kart { display: flex; flex-direction: column; gap: .15rem; text-decoration: none; color: inherit; margin-bottom: .9rem; }
 .sayi-rozet { display: inline-block; margin-left: .4rem; padding: .05rem .5rem; border-radius: 999px; background: var(--fosfor, #ffe14d); color: #000; font-size: .72rem; font-weight: 800; }
 .not-kutu { padding: .5rem .75rem; border-left: 3px solid var(--fosfor, #ffe14d); background: rgba(0,0,0,.04); border-radius: 6px; margin: 0 0 .9rem; }
+.sohbet-uyeler { list-style: none; margin: 0 0 .7rem; padding: 0; display: flex; flex-wrap: wrap; gap: .35rem .5rem; }
+.sohbet-uye { display: inline-flex; align-items: center; gap: .35rem; padding: .15rem .6rem; border-radius: 999px; font-size: .78rem; background: rgba(0,0,0,.05); opacity: .65; }
+.sohbet-uye i { width: .55rem; height: .55rem; border-radius: 50%; background: #9aa0a6; flex: none; }
+.sohbet-uye.cevrimici { opacity: 1; }
+.sohbet-uye.cevrimici i { background: #1e9e52; box-shadow: 0 0 0 2px rgba(30,158,82,.25); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .sohbet-liste { list-style: none; margin: 0 0 .75rem; padding: 0; max-height: 55vh; overflow-y: auto; display: flex; flex-direction: column; gap: .5rem; }
 .sohbet-mesaj { max-width: 88%; padding: .45rem .7rem; border-radius: 12px; background: rgba(0,0,0,.06); align-self: flex-start; }
 .sohbet-mesaj.benim { align-self: flex-end; background: rgba(75,31,111,.12); }
