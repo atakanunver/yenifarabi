@@ -78,7 +78,7 @@ def _gecerli(s: dict) -> bool:
             isinstance(s.get("soru"), str)
             and s["soru"].strip()
             and isinstance(s.get("kisa_cevap"), str)
-            and s["kisa_cevap"].strip()
+            and s["kisa_cevap"].strip().lstrip(":;-–. ").strip()  # temizlenince boş kalan cevap geçersiz
             and isinstance(s.get("secenekler"), list)
             and len(s["secenekler"]) == 4
             and all(isinstance(x, str) and x.strip() for x in s["secenekler"])

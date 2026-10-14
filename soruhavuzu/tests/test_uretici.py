@@ -128,3 +128,8 @@ def test_500_bir_kez_tekrar_denenir():
     finally:
         uretici.httpx.Client = eski
     assert len(cagri) == 2
+
+
+def test_temizlenince_bos_kalan_kisa_cevap_elenir():
+    for bos in ("   ", ":", " - ", "."):
+        assert uretici.ayristir(json.dumps({"sorular": [{**IYI, "kisa_cevap": bos}]}), BIRIM) == []
