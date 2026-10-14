@@ -1,3 +1,5 @@
+> ⚠️ **2026-10-14:** `kazanim-test`, `kazanim-test-sonuc`, `kazanim-test-aylik` zamanlayıcıları /etc/systemd/system'den SİLİNDİ (artık kullanılmıyor). Kod, DB tabloları ve raporlar yerinde; pano `/kazanim` ve dijital okul gelişim mevcut veriyi göstermeye devam eder. Yeniden kurmak için `systemd/` altındaki birimleri `/etc`'ye kopyala.
+
 # kazanimtest
 
 Haftanın yıllık plan kazanımına göre soru seçer (MEB `kazanim_test_soru` → yetmezse

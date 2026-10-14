@@ -2108,3 +2108,11 @@ Neden: İki sistemin puanları/liderliği karışmasın; tahta arenasındaki sı
 ## 2026-10-14 - CLAUDE.md düzeni: farabi-okul kök dosyada, tekrar yok
 Ne yapıldı: Kök `CLAUDE.md`'ye `farabi-okul` (9090) servis ve komut satırları, tek test komutu, CRLF notu eklendi; CRLF notu `okul/CLAUDE.md`'den silindi (tek yerde). "12. sınıfa dokunulmaz" ifadesi kaldırıldı (kullanıcı kararı). Commit 135bec6.
 Neden: Çalışan dört servisten biri kök tabloda yoktu; aynı bilgi iki dosyada tekrar edince tutarsızlaşır.
+
+## 2026-10-14 - soru-havuzu-uret.timer yeniden açıldı (kullanıcı kararı)
+Ne yapıldı: 2026-10-10'da kapatılan `soru-havuzu-uret.timer` Atakan tarafından bilerek yeniden etkinleştirildi (hafta içi 17:15 TR; ders saatinde kendiliğinden durur). Diğer dört zamanlayıcı (kazanim-test, kazanim-test-sonuc, kazanim-test-aylik, farabi-idari-yukle) kapalı kaldı. Bugünkü çalışma 17:15–19:38'de hatasız bitti (üretim, LLM kazanım sınıflandırma, AGY denetimi).
+Neden: Soru bankası çalışmasına devam; kök CLAUDE.md "Mevcut durum" buna göre güncellendi.
+
+## 2026-10-14 - kazanim-test zamanlayıcıları silindi (kullanıcı kararı)
+Ne yapıldı: `kazanim-test`, `kazanim-test-sonuc`, `kazanim-test-aylik` timer+service birimleri `/etc/systemd/system/`'den silindi, `daemon-reload` yapıldı. Repodaki kopyalar (`kazanimtest/systemd/`, /etc ile birebir aynı doğrulandı) duruyor; `kazanimtest/` kodu, `form_testi`/`form_cevap`/`aylik_rapor` tabloları ve rapor JSON'ları silinmedi.
+Neden: Kullanıcı artık kullanılmadığını söyledi. Kod/DB bilerek bırakıldı: pano `/kazanim`, dijital okul gelişim ve smssistemi öğrenci/kişisel SMS uçları bu veriye/koda bağlı; tam kaldırma ayrı plan ve onay ister.
