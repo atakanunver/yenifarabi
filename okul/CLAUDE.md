@@ -28,6 +28,7 @@ Spec: `docs/superpowers/specs/2026-10-10-dijital-okul-design.md`.
 - kaynaklar/{program, yoklama, kazanim, soru, sms, zil}: dış veri okuyucular
   (ders programı mudur/ders_programi.json, devamsızlık yoklama_pano.db, kazanım + maraton soruları Postgres soru_havuzu, SMS smssistemi /api/arac/kod-sms, zil tahtayoklama/data/zil.json + okulun kendi tatil takvimi `config/takvim.json`)
 - Saat widget'ı (`_saat.html`, rol ana sayfaları) ve zil tablosu (`_zil_tablo.html`, program sayfaları) route'tan değil `deps.py`'deki Jinja global'lerinden (`saat_verisi`, `zil_cizelgesi`) beslenir; canlı durum `static/saat.js`'te, kural `kaynaklar/zil.py::durum` ile aynı tutulmalı. Yeni öğretim yılı/tatil = yalnızca `config/takvim.json`.
+- push (Web Push bildirimi: `push_abonelik` tablosu, VAPID anahtarı `config/gizli.json`'da — `scripts/vapid_olustur.py` üretir; anahtar yoksa özellik KAPALI ve `/bildirimler`, `/push/*` 404 verir; `rotalar/push.py`). Payload SABİT şablondur (`push.SABLONLAR`: "Yeni bir duyuru var." vb.) — ad/ders/not/devamsızlık ASLA konmaz, çünkü mesaj Google/Apple/Mozilla push sunucularından geçer; yeni tür = şablona sabit metin ekle. Gönderim asıl işlemi bozmaz (hata yutulur, loglanır); tetikleyiciler `BackgroundTasks` ile kendi DB bağlantısını açar: duyuru (alıcılar `gorunur_duyurular` kuralıyla aynı, yazar hariç), ödev ve hızlı etkinlik (yalnızca sınıfın öğrencileri). Çıkışta cihazın aboneliği silinir (`static/push-cikis.js` uç noktayı `/cikis` formuna ekler, en çok 1,5 sn bekler). Her şablonun sabit bir açılış yolu var (duyuru→/duyurular, ödev→/ogrenci/odevler); tıklayınca açık pencere o yola yönlendirilip yenilenir (eski sayfada kalmasın). İstemci: `static/push-ortak.js` (ortak abonelik akışı), `push.js` (yalnızca `/bildirimler`), `push-kart.js` (ana sayfalar + `/duyurular` üstündeki "Bildirimleri aç" kartı; abone olmayan, izni engellememiş, 7 gündür "Şimdi değil" dememiş herkese), `sw.js` `push`/`notificationclick`. Test: `push._webpush_gonder` monkeypatch'lenir, `conftest.py` VAPID'i kapatır.
 - rotalar/{giris, ogrenci, veli, ogretmen, yonetici, ortak, belge_sinav, oyun, arena, anket, gelisim, etkinlik, kisisel}; hepsi `app.py`'de `include_router` ile bağlanır (yeni rota modülü oraya da eklenmeli)
 
 ## Kurallar
@@ -37,6 +38,7 @@ Spec: `docs/superpowers/specs/2026-10-10-dijital-okul-design.md`.
 - Zaman için daima `zaman.simdi()` kullan (test edilebilirlik).
 - Şema değişikliği: `db.GOCLER` listesine yeni eleman ekle (eskileri değiştirme).
 - Tahta yoklaması isimle tutuluyor: aynı sınıfta aynı isim/eşleşmeyen isim veliye gösterilmez (yanlış çocuğa devamsızlık yazmamak için); yönetici `/yonetici/eslesmeyen`'de görür.
+- Üst çubuk (`.ust`) tek satır flex: yeni öğe eklerken dar telefonda (≤360px) taşıp Çıkış düğmesini itmediğini kontrol et (Çıkış `flex: none`, ad bölümü kısalır).
 - Oturum 1 yıl kayan çerez (bilinçli karar); ilk şifre ad+123, zorunlu değişim; veli girişi SMS kodu.
 
 ## Mimari notları (birden çok dosyayı okuyunca anlaşılır)

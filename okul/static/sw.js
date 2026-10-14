@@ -3,16 +3,18 @@
 // verileri ve POST istekleri (giriş, çıkış, formlar) hiçbir zaman önbelleğe alınmaz; her zaman ağdan gelir.
 // Güncelleme: SURUM değişince yeni worker hemen devreye girer ve eski önbellekleri siler. Önbellekteki
 // dosyalar sürüm sorgusuyla (?v=N) adreslendiğinden eski CSS/JS yeni HTML ile karışmaz.
-const SURUM = "okul-v20";
+const SURUM = "okul-v23";
 const CEVRIMDISI = "/static/cevrimdisi.html";
 const STATIK = [
-  "/static/okul.css?v=18",
+  "/static/okul.css?v=19",
   "/static/foto.js?v=1",
   "/static/kurulum.js?v=1",
   "/static/saat.js?v=1",
   "/static/maraton.js?v=1",
   "/static/nabiz.js?v=1",
-  "/static/push.js?v=1",
+  "/static/push-ortak.js?v=1",
+  "/static/push.js?v=2",
+  "/static/push-kart.js?v=1",
   "/static/push-cikis.js?v=1",
   "/static/logo-64.png",
   "/static/logo-192.png",
@@ -48,7 +50,13 @@ self.addEventListener("fetch", (e) => {
   }
 });
 
-// Web Push: yalnızca sunucunun gönderdiği sabit, veri içermeyen metin gösterilir. Tıklayınca ana sayfa açılır.
+// Web Push: yalnızca sunucunun gönderdiği sabit, veri içermeyen metin gösterilir. Tıklayınca bildirimin sayfası açılır.
+// Uygulama zaten açıksa pencere o sayfaya YÖNLENDİRİLİR (aynı adres olsa bile yeniden yüklenir): eski sayfada kalıp
+// yeni duyuruyu görmeme sorununu önler. Adres yalnızca aynı kaynaktaki bir yol olabilir.
+function guvenliYol(u) {
+  return typeof u === "string" && u.startsWith("/") && !u.startsWith("//") ? u : "/";
+}
+
 self.addEventListener("push", (e) => {
   let v = {};
   try { v = e.data ? e.data.json() : {}; } catch (_) { v = {}; }
@@ -57,17 +65,23 @@ self.addEventListener("push", (e) => {
       body: String(v.govde || "Yeni bir bildirimin var."),
       icon: "/static/logo-192.png",
       badge: "/static/logo-64.png",
-      data: { url: "/" },
+      data: { url: guvenliYol(v.url) },
     })
   );
 });
 
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
+  const yol = guvenliYol(e.notification.data && e.notification.data.url);
   e.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((ws) => {
-      for (const w of ws) { if ("focus" in w) return w.focus(); }
-      return clients.openWindow("/");
+      for (const w of ws) {
+        if ("navigate" in w) {
+          return w.navigate(yol).then((c) => (c || w).focus()).catch(() => w.focus());
+        }
+        if ("focus" in w) return w.focus();
+      }
+      return clients.openWindow(yol);
     })
   );
 });

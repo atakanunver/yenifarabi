@@ -38,7 +38,7 @@ def test_sabit_sablon_ve_veri_sizmaz(conn, yeni_kullanici, etkin):
     assert s["gonderilen"] == 1
     ab, veri = alinan[0]
     assert ab["endpoint"] == UC and ab["keys"] == {"p256dh": "p", "auth": "a"}
-    assert json.loads(veri) == {"baslik": "Dijital Okul", "govde": "Yeni bir duyuru var.", "url": "/"}
+    assert json.loads(veri) == {"baslik": "Dijital Okul", "govde": "Yeni bir duyuru var.", "url": "/duyurular"}
     assert "Ogr1" not in veri  # kullanıcı adı/ad soyad payload'a girmez
 
 
@@ -344,3 +344,29 @@ def test_cikis_betigi_yalniz_bildirim_acikken_yuklenir(conn, yeni_kullanici, etk
         assert "/static/push-cikis.js" in c.get("/duyurular").text
         monkeypatch.setattr(AYAR, "vapid_ozel", "")
         assert "/static/push-cikis.js" not in c.get("/duyurular").text
+
+
+# --- "Bildirimleri aç" kartı ---
+
+@pytest.mark.parametrize("rol,yol", [
+    ("ogrenci", "/ogrenci"), ("veli", "/veli"), ("ogretmen", "/ogretmen"), ("yonetici", "/yonetici"),
+    ("ogrenci", "/duyurular"),
+])
+def test_acma_karti_ana_sayfalarda_herkese_gorunur(conn, yeni_kullanici, etkin, rol, yol):
+    with _istemci() as c:
+        k = _giris(c, conn, yeni_kullanici, rol, "k" + rol)
+        if rol == "ogrenci":  # ana sayfa öğrenci kaydı ister
+            conn.execute("INSERT INTO ogrenci (okul_no, ad_soyad, sinif, kullanici_id) VALUES (77, 'T', '9-A', ?)", (k,))
+            conn.commit()
+        r = c.get(yol)
+        assert r.status_code == 200
+        assert 'id="push-kart"' in r.text and "/static/push-kart.js" in r.text and "/static/push-ortak.js" in r.text
+        assert 'data-csrf="' in r.text
+
+
+def test_acma_karti_diger_sayfalarda_ve_kapaliyken_yok(conn, yeni_kullanici, etkin, monkeypatch):
+    with _istemci() as c:
+        _giris(c, conn, yeni_kullanici, "ogrenci", "ogr1")
+        assert 'id="push-kart"' not in c.get("/ogrenci/odevler").text
+        monkeypatch.setattr(AYAR, "vapid_ozel", "")
+        assert 'id="push-kart"' not in c.get("/ogrenci").text

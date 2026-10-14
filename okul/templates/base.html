@@ -14,7 +14,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/static/logo-64.png" type="image/png">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
-<link rel="stylesheet" href="/static/okul.css?v=18">
+<link rel="stylesheet" href="/static/okul.css?v=19">
 </head>
 <body>
 <header class="ust">
@@ -22,12 +22,25 @@
   {% if k %}
   <span class="kim">{{ k.ad_soyad }}<br>{{ ROL_ADLARI[k.rol] }}</span>
   {% if k.rol != 'veli' and not k.sifre_degismeli %}<a class="profil-bag" href="/profil" title="Profilim">{{ vesikalik(k.id, k.foto, k.ad_soyad, 32) }}</a>{% endif %}
-  {% if push_etkin() and not k.sifre_degismeli %}<a class="bag" href="/bildirimler" title="Bildirimler" aria-label="Bildirimler">Bildirim</a>{% endif %}
+  {% if push_etkin() and not k.sifre_degismeli %}<a class="bag bag-zil" href="/bildirimler" title="Bildirimler" aria-label="Bildirimler">🔔</a>{% endif %}
   <form method="post" action="/cikis"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="bag">Çıkış</button></form>
   {% endif %}
 </header>
 
 <main class="sayfa">
+{% if k and not k.sifre_degismeli and push_etkin() and request.url.path in ('/ogrenci', '/veli', '/ogretmen', '/yonetici', '/duyurular') %}
+<section class="kart" id="push-kart" data-csrf="{{ csrf }}" hidden>
+  <h2 style="margin-top:0">Bildirimleri aç</h2>
+  <p class="kucuk">Yeni duyuru ve ödevler telefonuna bildirim olarak gelsin. Bildirimde kişisel bilgi yer almaz.</p>
+  <p id="push-kart-durum" class="soluk kucuk" role="status"></p>
+  <div class="tuslar">
+    <button type="button" class="tus" id="push-kart-ac">Bildirimleri aç</button>
+    <button type="button" class="tus ikincil" id="push-kart-gec">Şimdi değil</button>
+  </div>
+</section>
+<script src="/static/push-ortak.js?v=1" defer></script>
+<script src="/static/push-kart.js?v=1" defer></script>
+{% endif %}
 {% if cocuklar and cocuklar|length > 1 %}
 <nav class="cocuklar" aria-label="Çocuk seçimi">
   {% for c in cocuklar %}<a href="{{ request.url.path }}?ogr={{ c.id }}" class="{{ 'secili' if cocuk and c.id == cocuk.id }}">{{ c.ad_soyad.split(' ')[0] }} · {{ c.sinif }}</a>{% endfor %}

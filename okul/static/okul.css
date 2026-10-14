@@ -55,8 +55,11 @@ a { color: var(--mavi); }
 .marka { color: #fff; text-decoration: none; font-weight: 800; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: .5rem; }
 .marka img { width: 32px; height: 32px; border-radius: 50%; background: #fff; flex: none; }
 .marka span { color: var(--fosfor); }
-.ust .kim { margin-left: auto; font-size: .82rem; opacity: .85; text-align: right; }
+.ust .kim { margin-left: auto; font-size: .82rem; opacity: .85; text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ust form, .ust .bag, .ust .profil-bag, .ust .marka { flex: none; }
 .ust form { margin: 0; }
+.ust .bag-zil { padding: .2rem .5rem; line-height: 1.2; }
+@media (max-width: 400px) { .ust { gap: .5rem; padding-left: .75rem; padding-right: .75rem; } .marka b { font-size: .95rem; } }
 .ust .bag { color: #fff; font-size: .82rem; background: none; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; padding: .25rem .65rem; cursor: pointer; text-decoration: none; }
 
 /* --- sayfa --- */

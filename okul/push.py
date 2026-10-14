@@ -17,11 +17,12 @@ from ayarlar import AYAR
 
 log = logging.getLogger("okul.push")
 
-# tür -> (başlık, gövde). Yeni tür = buraya sabit metin ekle; serbest metin geçirilemez.
+# tür -> (başlık, gövde, açılacak sayfa). Yeni tür = buraya sabit metin ve sabit yol ekle; serbest metin geçirilemez.
+# Yol veri taşımaz (kimlik/ad yok): bildirime tıklayınca ilgili liste sayfası açılır.
 SABLONLAR = {
-    "duyuru": ("Dijital Okul", "Yeni bir duyuru var."),
-    "odev": ("Dijital Okul", "Yeni bir ödevin var."),
-    "deneme": ("Dijital Okul", "Test bildirimi: bildirimler açık."),
+    "duyuru": ("Dijital Okul", "Yeni bir duyuru var.", "/duyurular"),
+    "odev": ("Dijital Okul", "Yeni bir ödevin var.", "/ogrenci/odevler"),
+    "deneme": ("Dijital Okul", "Test bildirimi: bildirimler açık.", "/bildirimler"),
 }
 AZAMI_ABONELIK = 10  # kullanıcı başına cihaz
 AZAMI_HATA = 5  # ardışık geçici hatadan sonra abonelik silinir
@@ -120,8 +121,8 @@ def gonder(
         idler = sorted({int(i) for i in kullanici_idleri})
         if not idler:
             return sonuc
-        baslik, govde = SABLONLAR[tur]
-        veri = json.dumps({"baslik": baslik, "govde": govde, "url": "/"}, ensure_ascii=False)
+        baslik, govde, yol = SABLONLAR[tur]
+        veri = json.dumps({"baslik": baslik, "govde": govde, "url": yol}, ensure_ascii=False)
         gonder_fn = gonderici or _webpush_gonder
         yer = ",".join("?" * len(idler))
         satirlar = conn.execute(
