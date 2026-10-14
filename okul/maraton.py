@@ -33,8 +33,15 @@ class MaratonHatasi(Exception):
     pass
 
 
+# Ders saati kilidi 2026-10-14'te kaldırıldı (öğrenciler Maraton/Günlük Görev'i her zaman oynar).
+# Geri açmak için True yap: ders saatinde kilit() {'bit', 'no'} döner, rotalar 423 verir.
+DERS_KILIDI = False
+
+
 def kilit() -> dict | None:
-    """Ders saatinde {'bit': '10:30', 'no': 3}, değilse None. Zil okunamazsa (tur=yok) açık."""
+    """DERS_KILIDI açıksa ders saatinde {'bit': '10:30', 'no': 3}, değilse None. Zil okunamazsa (tur=yok) açık."""
+    if not DERS_KILIDI:
+        return None
     d = zil.durum(zaman.simdi())
     if d["tur"] == "ders":
         return {"bit": d["bit"], "no": d["no"]}

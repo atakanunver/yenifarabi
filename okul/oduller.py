@@ -314,3 +314,82 @@ def _avatar_ekle(conn: sqlite3.Connection, tablolar: dict) -> None:
     xp = {r[0]: r[1] for r in conn.execute(f"SELECT kullanici_id, SUM(miktar) FROM bilgi_xp WHERE kullanici_id IN ({yer}) GROUP BY 1", list(kidler))}
     for x in satirlar:
         x["av"] = {"cfg": avatar.cfg_temiz(cfg.get(x["kid"])), "sev": arena.seviye_hesapla(xp.get(x["kid"], 0))["no"]}
+
+
+# ---- Öğretmen görünümü: sınıfın TÜM öğrencileri (öğrenci ekranı yalnızca ilk 10'u gösterir) ----
+
+YUKSELEN_ILK = 5
+
+
+def _sira_ver(satirlar: list[dict], anahtar: str = "xp") -> None:
+    """Aynı değer aynı sırayı alır (1,1,3); satırlar `anahtar` azalan sıralı varsayılır."""
+    onceki, sira = None, 0
+    for i, x in enumerate(satirlar, 1):
+        if x[anahtar] != onceki:
+            sira, onceki = i, x[anahtar]
+        x["sira"] = sira
+
+
+def _sinif_ogrencileri(conn: sqlite3.Connection, sinif: str) -> list[dict]:
+    return [
+        dict(r) for r in conn.execute(
+            "SELECT o.id AS oid, o.kullanici_id AS kid, o.okul_no, o.ad_soyad FROM ogrenci o"
+            " JOIN kullanici k ON k.id = o.kullanici_id WHERE k.aktif = 1 AND o.sinif = ? ORDER BY o.okul_no", (sinif,)
+        )
+    ]
+
+
+def sinif_liderlik(conn: sqlite3.Connection, sinif: str, hb: str | None) -> dict:
+    """Bir sınıfın tam Arena tablosu (öğretmen için; 0 değerliler dahil). hb None = tüm zamanlar.
+    {'satirlar': [{oid, okul_no, ad_soyad, xp, dogru, cozulen, etkinlik, sira}], 'katilan', 'mevcut'} — xp'ye göre sıralı."""
+    ogr = _sinif_ogrencileri(conn, sinif)
+    veri = haftalik(conn, hb, testler=False)
+    xp = _xp_toplamlari(conn, hb)
+    for o in ogr:
+        v = veri.get(o["kid"], {})
+        o.update(xp=xp.get(o["kid"], 0), dogru=v.get("dogru", 0), cozulen=v.get("cozulen", 0), etkinlik=v.get("etkinlik", 0))
+    ogr.sort(key=lambda x: (-x["xp"], -x["dogru"], x["ad_soyad"]))
+    _sira_ver(ogr)
+    return {"satirlar": ogr, "katilan": sum(1 for o in ogr if o["etkinlik"] > 0), "mevcut": len(ogr)}
+
+
+def yukselenler(conn: sqlite3.Connection, sinif: str, hb: str) -> list[dict]:
+    """Geçen haftaya göre sınıf içi XP sırasında en çok yükselenler (en çok YUKSELEN_ILK). Bu hafta XP'si olanlar
+    arasından; geçen hafta hiç XP'si olmayanlar listenin sonunda eşit sayılır. [{oid, ad_soyad, once, simdi, atlama}]"""
+    def sirali(h: str) -> tuple[dict[int, tuple[int, int]], dict[int, dict]]:
+        t = sinif_liderlik(conn, sinif, h)["satirlar"]
+        return {o["oid"]: (o["sira"], o["xp"]) for o in t}, {o["oid"]: o for o in t}
+
+    simdi, ad = sirali(hb)
+    once, _ = sirali(onceki_hafta(hb))
+    cikti = []
+    for oid, (sira, xp) in simdi.items():
+        if xp <= 0:
+            continue
+        fark = once[oid][0] - sira
+        if fark > 0:
+            cikti.append({"oid": oid, "ad_soyad": ad[oid]["ad_soyad"], "once": once[oid][0], "simdi": sira, "atlama": fark})
+    cikti.sort(key=lambda x: (-x["atlama"], x["simdi"], x["ad_soyad"]))
+    return cikti[:YUKSELEN_ILK]
+
+
+def sinif_ozetleri(conn: sqlite3.Connection, hb: str | None, lider_siniflar: set[str] | None = None) -> list[dict]:
+    """Her sınıf için {sinif, mevcut, katilan, oran, xp, ort_xp, lider}. Sınıflar arası kıyas: oran (katılan/mevcut),
+    sonra katılan başına ortalama XP — toplam XP değil, kalabalık sınıf haksız avantaj kazanmasın. `lider` (en çok XP'li
+    öğrencinin kısa adı) yalnızca lider_siniflar içindeki sınıflar için doldurulur."""
+    ogr = _ogrenciler(conn)
+    veri = haftalik(conn, hb, testler=False)
+    xp = _xp_toplamlari(conn, hb)
+    siniflar: dict[str, dict] = {}
+    for kid, d in ogr.items():
+        s = siniflar.setdefault(d["sinif"], {"sinif": d["sinif"], "mevcut": 0, "katilan": 0, "xp": 0, "lider": None, "_en": 0})
+        s["mevcut"] += 1
+        s["katilan"] += int(kid in veri)
+        s["xp"] += xp.get(kid, 0)
+        if lider_siniflar and d["sinif"] in lider_siniflar and xp.get(kid, 0) > s["_en"]:
+            s["_en"], s["lider"] = xp[kid], d["ad"]
+    for s in siniflar.values():
+        s["oran"] = round(100 * s["katilan"] / s["mevcut"]) if s["mevcut"] else 0
+        s["ort_xp"] = round(s["xp"] / s["katilan"]) if s["katilan"] else 0
+        s.pop("_en")
+    return sorted(siniflar.values(), key=lambda x: (-x["oran"], -x["ort_xp"], x["sinif"]))

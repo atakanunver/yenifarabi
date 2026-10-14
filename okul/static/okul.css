@@ -496,6 +496,18 @@ details.kart > summary { cursor: pointer; min-height: 32px; }
 .liderlik-liste .ad { flex: 1; }
 .liderlik-liste li.ben { background: rgba(34, 211, 238, .14); border-radius: 8px; }
 .sekme-sec { display: flex; gap: .4rem; flex-wrap: wrap; }
+
+/* Öğretmen: kazanım ısı haritası + sınıf tablosunda kendi sınıfım */
+.isi-harita { display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: .5rem; margin: .5rem 0; }
+.isi { border-radius: 10px; padding: .55rem .65rem; border: 1px solid var(--cizgi); display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+.isi-yuzde { font-weight: 800; font-size: 1.15rem; }
+.isi-ad { font-size: .85rem; line-height: 1.25; overflow-wrap: anywhere; }
+.isi-n { font-size: .75rem; color: var(--soluk); }
+.isi-1 { background: #f9c7cf; border-color: var(--kirmizi); }
+.isi-2 { background: #fde2c4; border-color: #e08a1e; }
+.isi-3 { background: #f5f0b8; border-color: #b9a800; }
+.isi-4 { background: var(--yesil-acik); border-color: var(--yesil); }
+tr.ben td { background: rgba(122, 63, 168, .10); }
 .bugun-alt { margin-top: .9rem; padding-top: .8rem; border-top: 1px dashed var(--cizgi); }
 .bugun-hedef { display: block; text-decoration: none; color: inherit; margin-bottom: .6rem; }
 .bugun-hedef .oran-cubuk { margin-top: .3rem; }

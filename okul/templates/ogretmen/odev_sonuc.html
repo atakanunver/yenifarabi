@@ -6,6 +6,26 @@
 <p class="soluk">{{ odev.sinif }} · {{ odev.ders|baslik }} · {{ 'Test' if odev.tur == 'test' else 'Klasik ödev' }} · teslim {{ odev.teslim|tarih }}</p>
 <div class="kart bilgi"><p style="margin:0"><b>{{ tablo.teslim_sayisi }}</b> / {{ tablo.ogrenciler|length }} öğrenci {{ 'çözdü' if odev.tur == 'test' else 'yaptı olarak işaretledi' }}.</p></div>
 
+{% if soru_ist is defined and soru_ist and soru_ist[0].cevaplayan %}
+<section class="kart" aria-labelledby="soru-ist">
+  <h2 id="soru-ist">Soru bazında sınıf</h2>
+  {% set tekrarlar = soru_ist|selectattr('tekrar')|list %}
+  {% if tekrarlar %}
+  <div class="not" role="status"><b>Yarın tekrar edilebilir:</b>
+    {% for x in tekrarlar|sort(attribute='yuzde') %}Soru {{ x.sira }} (%{{ x.yuzde }}){{ ', ' if not loop.last }}{% endfor %}
+    <span class="kucuk soluk">· sınıfın en çok zorlandığı sorular, %70'in altı</span></div>
+  {% else %}<p class="kucuk soluk">Hiçbir soruda belirgin zorlanma yok (hepsi %70 ve üstü).</p>{% endif %}
+  {% for x in soru_ist %}
+  <div class="kazanim">
+    <span class="etiket {{ 'kirmizi' if x.tekrar else ('yesil' if x.yuzde is not none and x.yuzde >= 70 else '') }}">{{ x.sira }}</span>
+    <span>{{ x.metin|truncate(110) }}<br><span class="soluk kucuk">{{ x.dogru }}/{{ x.cevaplayan }} doğru{% if x.kazanim %} · {{ x.kazanim }}{% endif %}{% set yd = x.yanlis_dagilim %}{% if yd %} · yanlışlar:{% for sik, n in yd.items()|sort %} {{ ('boş' if sik == 'bos' else 'ABCDEFGH'[sik|int]) }}={{ n }}{% endfor %}{% endif %}</span></span>
+    <span class="yuzde {{ 'iyi' if x.yuzde is not none and x.yuzde >= 70 else 'zayif' }}">{{ ('%' ~ x.yuzde) if x.yuzde is not none else '—' }}</span>
+  </div>
+  {% endfor %}
+  <p class="kucuk soluk">Yalnızca sayımdır, öğrenci adı yok. Doğru şık: tam metin için aşağıdaki "Sorular" bölümüne bakın.</p>
+</section>
+{% endif %}
+
 {% if tablo.kazanimlar %}
 <section class="kart">
   <h2>Kazanım bazında sınıf</h2>

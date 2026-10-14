@@ -2,6 +2,17 @@
 {% block icerik %}
 {% include "_ana_ekran.html" %}
 {% include "_saat.html" %}
+{% if liderlik_pano is defined and liderlik_pano %}
+<section class="kart">
+  <h2>🏆 Arena bu hafta</h2>
+  <ul class="liste">
+  {% for s in liderlik_pano %}
+    <li><span><b><a href="/ogretmen/liderlik/{{ s.sinif }}">{{ s.sinif }}</a></b> · {{ s.katilan }}/{{ s.mevcut }} oynadı{% if s.lider %} · lider <b>{{ s.lider }}</b>{% endif %}</span><span class="soluk kucuk">{{ s.xp }} XP</span></li>
+  {% endfor %}
+  </ul>
+  <p class="kucuk"><a href="/ogretmen/liderlik">Tüm sınıflar ve haftalık ödüller →</a></p>
+</section>
+{% endif %}
 {% if su_anki_ders %}
 <section class="kart bilgi">
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.4rem;">

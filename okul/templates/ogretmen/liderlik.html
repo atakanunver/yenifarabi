@@ -1,0 +1,43 @@
+{# Öğretmen liderlik özeti. Bağlam: hafta_basi, benim(set), benim_liste, siniflar[{sinif,mevcut,katilan,oran,xp,ort_xp}], gecici, kategoriler, onceki_hafta, onceki[odul satırları]. #}
+{% extends "base.html" %}
+{% block baslik %}Liderlik · Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/ogretmen">← Ana sayfa</a></p>
+<h1>Arena liderliği</h1>
+<p class="kucuk soluk">Bireysel Bilgi Arenası (Günlük Görev + Hızlı Mod). Hafta pazartesi başlar ({{ hafta_basi|tarih }}). Sınıf tahtası oyunlarının puanları bu tabloda yoktur.</p>
+
+{% if benim_liste %}
+<section class="kart">
+  <h2>Sınıf listelerim</h2>
+  <p>{% for s in benim_liste %}<a class="tus ikincil kucuk" href="/ogretmen/liderlik/{{ s }}">{{ s }}</a> {% endfor %}</p>
+</section>
+{% endif %}
+
+<section class="kart" aria-labelledby="kiyas">
+  <h2 id="kiyas">Sınıflar arası katılım <span class="soluk kucuk">bu hafta</span></h2>
+  <div class="tablo-kap"><table>
+    <thead><tr><th class="sayi">#</th><th>Sınıf</th><th class="sayi">Katılan</th><th class="sayi">Oran</th><th class="sayi">Ort. XP</th></tr></thead>
+    <tbody>
+    {% for s in siniflar %}
+      <tr{{ ' class="ben"' if s.sinif in benim }}><td class="sayi">{{ loop.index }}</td><td>{{ s.sinif }}{% if s.sinif in benim %} <span class="etiket mor">benim</span>{% endif %}</td>
+        <td class="sayi">{{ s.katilan }}/{{ s.mevcut }}</td><td class="sayi">%{{ s.oran }}</td><td class="sayi">{{ s.ort_xp }}</td></tr>
+    {% else %}<tr><td colspan="5" class="bos">Henüz kayıtlı öğrenci yok.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  <p class="kucuk soluk">Sıralama önce katılım oranına, sonra katılan öğrenci başına ortalama XP'ye göredir; sınıf mevcudu büyük olan haksız avantaj kazanmasın diye toplam XP kullanılmaz. Başka sınıfların öğrencileri burada görünmez.</p>
+</section>
+
+<section class="kart">
+  <h2>Haftalık ödüller</h2>
+  <p class="kucuk soluk">Bu hafta (geçici) · {{ gecici.katilan_ogrenci }} / {{ gecici.toplam_ogrenci }} öğrenci etkinlik yaptı. Kesin sonuç hafta bitince yazılır; kiosk'ta cuma geçici, pazartesi kesin gösterilir.</p>
+  {% for kod, ad in kategoriler.items() %}
+    <p><b>{{ ad }}:</b>
+    {% for x in gecici[kod] %}{% if kod == 'sinif' %}{{ x.sinif }} (%{{ x.oran }}){% else %}{{ x.ad }} ({{ x.sinif }}) — {{ x.etkinlik if kod == 'etkinlik' else x.gun ~ ' gün' }}{% endif %}{% if x.sinif in benim %} <span class="etiket mor">sınıfım</span>{% endif %}{{ ', ' if not loop.last }}{% else %}<span class="soluk">henüz kimse şartı sağlamadı</span>{% endfor %}</p>
+  {% endfor %}
+  <h3>Geçen hafta ({{ onceki_hafta|tarih }})</h3>
+  {% for r in onceki %}
+    <p><b>{{ kategoriler[r.kategori] }}:</b> {% if r.kategori == 'sinif' %}{{ r.sinif }}{% else %}{{ r.ad_soyad }} ({{ r.sinif }}){% endif %}{% if r.sinif in benim %} <span class="etiket mor">sınıfım</span>{% endif %} <span class="kucuk soluk">{{ r.ayrinti }}</span></p>
+  {% else %}<p class="soluk">Geçen haftanın sonucu henüz kesinleşmedi ya da kimse şartı sağlamadı.</p>{% endfor %}
+  <p class="kucuk soluk">Şartlar: en çok etkinlik en az {{ min_etkinlik }}, en istikrarlı en az {{ min_gun }} farklı gün, en katılımcı sınıf için sınıfta en az {{ min_katilan }} katılımcı. Kazananı sınıfta kutlayabilirsiniz.</p>
+</section>
+{% endblock %}

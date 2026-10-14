@@ -155,6 +155,7 @@ def test_csrf_zorunlu(istemci, ornek, saat):
 
 
 def test_ders_saatinde_kilit(istemci, ornek, saat, monkeypatch):
+    monkeypatch.setattr("maraton.DERS_KILIDI", True)  # kilit varsayılan kapalı; açıkken davranış
     import json
     from datetime import datetime
 

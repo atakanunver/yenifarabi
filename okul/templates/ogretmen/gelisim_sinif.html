@@ -20,6 +20,13 @@
     <p><b>%{{ d.yuzde }}</b> doğru <span class="soluk kucuk">({{ d.soru }} soru)</span> {{ cubuk(d.yuzde) }}</p>
     <p>{{ trend(d.trend) }}</p>
     {% if d.kazanimlar %}
+    <h3 id="isi-{{ loop.index }}">Kazanım ısı haritası <span class="soluk kucuk">(hedef düzeye ulaşan öğrenci oranı)</span></h3>
+    <div class="isi-harita" role="list" aria-labelledby="isi-{{ loop.index }}">
+      {% for k in d.kazanimlar %}{% set sev = 1 if k.oran < 40 else (2 if k.oran < 60 else (3 if k.oran < 80 else 4)) %}
+      <div class="isi isi-{{ sev }}" role="listitem" title="{{ k.kazanim }}"><span class="isi-yuzde">%{{ k.oran }}</span><span class="isi-ad">{{ k.kazanim|truncate(60) }}</span><span class="isi-n">{{ k.ogrenci }} öğrenci · {{ ['Çok zayıf', 'Zayıf', 'Orta', 'İyi'][sev - 1] }}</span></div>
+      {% endfor %}
+    </div>
+    <p class="kucuk soluk">Koyu = sınıfça tekrar gereken. Renk tek başına gösterge değildir; yüzde ve seviye yazılıdır. Kazanım başına en az {{ r.esik_n }} öğrencinin verisi olmalı, aksi hâlde gösterilmez.</p>
     <h3>Sınıfça tekrar edilebilecek kazanımlar <span class="soluk kucuk">(hedef düzeye ulaşan öğrenci oranına göre, en düşükten)</span></h3>
     <div class="tablo-kap"><table><thead><tr><th>Kazanım</th><th class="sayi">Öğrenci</th><th class="sayi">Hedefe ulaşan</th></tr></thead><tbody>
     {% for k in d.kazanimlar[:8] %}<tr><td>{{ k.kazanim }}</td><td class="sayi">{{ k.ogrenci }}</td><td class="sayi">%{{ k.oran }}</td></tr>{% endfor %}

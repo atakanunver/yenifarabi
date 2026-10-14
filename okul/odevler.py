@@ -233,6 +233,39 @@ def sonuc_tablosu(conn: sqlite3.Connection, odev: sqlite3.Row) -> dict:
     }
 
 
+def soru_istatistik(conn: sqlite3.Connection, odev: sqlite3.Row) -> list[dict]:
+    """Test ödevinde soru bazında sınıf sonucu (kimlik yok, yalnızca sayım):
+    [{sira, metin, kazanim, dogru_cevap, cevaplayan, dogru, yuzde, yanlis_dagilim, tekrar}] — sorunun sırasıyla.
+    yuzde = doğru/cevaplayan (cevaplayan 0 ise None). yanlis_dagilim: şık -> sayı (boş bırakılan 'bos' anahtarı).
+    tekrar: en düşük başarılı en çok 3 soru ve yüzdesi < 70 ise True (cevaplayan >= 1)."""
+    if odev["tur"] != "test":
+        return []
+    soru_liste = sorular(conn, odev["id"])
+    cevaplar = [json.loads(r[0]) for r in conn.execute(
+        "SELECT t.cevaplar FROM odev_teslim t JOIN ogrenci g ON g.id = t.ogrenci_id"
+        " WHERE t.odev_id = ? AND g.sinif = ? AND t.cevaplar IS NOT NULL", (odev["id"], odev["sinif"]))]
+    cikti = []
+    for s in soru_liste:
+        sayim: dict[str, int] = defaultdict(int)
+        dogru = 0
+        for c in cevaplar:
+            v = c.get(str(s["id"]))
+            if v is None:
+                sayim["bos"] += 1
+            elif v == s["dogru"]:
+                dogru += 1
+            else:
+                sayim[str(v)] += 1
+        n = len(cevaplar)
+        cikti.append({"sira": s["sira"], "metin": s["metin"], "kazanim": s["kazanim"], "dogru_cevap": s["dogru"],
+                      "siklar": s["siklar"], "cevaplayan": n, "dogru": dogru,
+                      "yuzde": round(100 * dogru / n) if n else None, "yanlis_dagilim": dict(sayim), "tekrar": False})
+    zayif = sorted((x for x in cikti if x["yuzde"] is not None), key=lambda x: (x["yuzde"], x["sira"]))[:3]
+    for x in zayif:
+        x["tekrar"] = x["yuzde"] < 70
+    return cikti
+
+
 def ogrenci_kazanim_satirlari(
     conn: sqlite3.Connection, ogrenci_id: int
 ) -> list[tuple[str, str, bool]]:

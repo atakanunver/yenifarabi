@@ -1,0 +1,36 @@
+{# Sınıfın tam Arena tablosu. Bağlam: sinif, donem(hafta|tum), hafta_basi|None, t{satirlar[{oid,okul_no,ad_soyad,xp,dogru,cozulen,etkinlik,sira}],katilan,mevcut}, yukselenler. #}
+{% extends "base.html" %}
+{% block baslik %}{{ sinif }} liderlik · Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/ogretmen/liderlik">← Arena liderliği</a> · <a href="/ogretmen/sinif/{{ sinif }}">{{ sinif }} sınıf listesi</a></p>
+<div class="arena-ust"><h1>{{ sinif }} liderlik</h1>
+  <nav class="sekme-sec" aria-label="Dönem">
+    <a class="etiket {{ 'mor' if donem == 'hafta' else '' }}" href="/ogretmen/liderlik/{{ sinif }}?donem=hafta"{{ ' aria-current="page"' if donem == 'hafta' }}>Bu hafta</a>
+    <a class="etiket {{ 'mor' if donem == 'tum' else '' }}" href="/ogretmen/liderlik/{{ sinif }}?donem=tum"{{ ' aria-current="page"' if donem == 'tum' }}>Tüm zamanlar</a>
+  </nav></div>
+<p class="kucuk soluk">Bireysel Bilgi Arenası: Günlük Görev + Hızlı Mod. {% if hafta_basi %}Hafta pazartesi başlar ({{ hafta_basi|tarih }}).{% endif %} Katılan: <b>{{ t.katilan }}</b> / {{ t.mevcut }} öğrenci. Çok kısa süren turlar ve Hızlı Mod'da günde 2'den fazla tur sayılmaz. Sınıfın tamamı listelenir; öğrenciler kendi ekranlarında yalnızca ilk 10'u görür.</p>
+
+{% if yukselenler %}
+<section class="kart" aria-labelledby="yuk">
+  <h2 id="yuk">Bu hafta yükselenler</h2>
+  <ul class="liste">
+    {% for y in yukselenler %}<li><span>{{ y.ad_soyad }}</span><span><b>▲ {{ y.atlama }}</b> sıra <span class="soluk kucuk">({{ y.once }}. → {{ y.simdi }}.)</span></span></li>{% endfor %}
+  </ul>
+  <p class="kucuk soluk">Sınıf içi XP sırasında geçen haftaya göre en çok yükselenler; geçen hafta hiç XP'si olmayanlar listenin sonunda sayılır. Çabayı görmek için: sınıfta takdir edebilirsiniz.</p>
+</section>
+{% endif %}
+
+<section class="kart">
+  <h2>{{ 'Bu hafta' if donem == 'hafta' else 'Tüm zamanlar' }}</h2>
+  <div class="tablo-kap"><table>
+    <thead><tr><th class="sayi">#</th><th>Öğrenci</th><th class="sayi">XP</th><th class="sayi">Doğru</th><th class="sayi">Çözülen</th><th class="sayi">Etkinlik</th></tr></thead>
+    <tbody>
+    {% for o in t.satirlar %}
+      <tr><td class="sayi">{{ o.sira if o.xp else '—' }}</td><td><span class="soluk kucuk">{{ o.okul_no }}</span> {{ o.ad_soyad }}</td>
+        <td class="sayi"><b>{{ o.xp }}</b></td><td class="sayi">{{ o.dogru }}</td><td class="sayi">{{ o.cozulen }}</td><td class="sayi">{{ o.etkinlik }}</td></tr>
+    {% else %}<tr><td colspan="6" class="bos">Bu sınıfta hesabı olan öğrenci yok.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  <p class="kucuk soluk">"—" = {{ 'bu hafta' if donem == 'hafta' else 'henüz' }} XP kazanmamış. Bu tablo bir başarı notu değildir; katılımı ve oyunu görmek içindir.</p>
+</section>
+{% endblock %}

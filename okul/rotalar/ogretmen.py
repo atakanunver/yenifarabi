@@ -1,5 +1,6 @@
 """Öğretmen sayfaları (yönetici de kullanabilir): sınıflar, ödev/test oluşturma, sonuçlar, duyuru."""
 
+import logging
 import sqlite3
 
 import analitik
@@ -12,6 +13,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from kaynaklar import KaynakHatasi, kazanim, program, zil
 from metin import normalize_isim, sinif_seviyesi, tr_kucuk
+from rotalar import ogretmen_liderlik
 
 router = APIRouter(prefix="/ogretmen")
 OGRETMEN = rol("ogretmen", "yonetici")
@@ -32,6 +34,15 @@ def _odev(conn: sqlite3.Connection, k: sqlite3.Row, odev_id: int) -> sqlite3.Row
     if odev is None or (k["rol"] != "yonetici" and odev["ogretmen_id"] != k["id"]):
         raise HTTPException(404)
     return odev
+
+
+def _pano(conn: sqlite3.Connection, k: sqlite3.Row) -> list[dict]:
+    """Liderlik mini panosu yardımcı bir özelliktir: hata verirse öğretmen ana sayfası yine açılır."""
+    try:
+        return ogretmen_liderlik.mini_pano(conn, k)
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).exception("Liderlik mini panosu hesaplanamadı")
+        return []
 
 
 @router.get("")
@@ -122,6 +133,7 @@ def ana(
         gun_adi=program.GUN_ADLARI.get(gun_adi, gun_adi.capitalize()),
         odevler=odevler.ogretmen_odevleri(conn, k)[:10],
         duyurular=duyurular.gorunur_duyurular(conn, k, 5),
+        liderlik_pano=_pano(conn, k),
     )
 
 
@@ -233,6 +245,7 @@ def odev_sonuc(
         odev=odev,
         tablo=odevler.sonuc_tablosu(conn, odev),
         sorular=odevler.sorular(conn, odev_id) if odev["tur"] == "test" else [],
+        soru_ist=odevler.soru_istatistik(conn, odev),
     )
 
 

@@ -159,7 +159,8 @@ def test_formla_tum_maraton_ve_sonuc(istemci, ornek, saat):
     assert istemci.get(f"/ogrenci/maraton/{mid}", follow_redirects=False).status_code == 303
 
 
-def test_ders_saatinde_kilit(istemci, ornek, saat):
+def test_ders_saatinde_kilit(istemci, ornek, saat, monkeypatch):
+    monkeypatch.setattr("maraton.DERS_KILIDI", True)  # kilit 2026-10-14'te varsayılan kapalı
     csrf = giris(istemci, "101", "ali-sifre")
     mid = baslat(istemci, csrf)  # 10:00, zil.json yok -> açık
     istemci.get(f"/ogrenci/maraton/{mid}")
@@ -306,8 +307,8 @@ def test_ana_sayfa_karti(istemci, ornek):
 
 def test_sw_ve_css_surumu(istemci):
     sw = istemci.get("/sw.js").text
-    assert "okul-v17" in sw and "/static/maraton.js?v=1" in sw and "okul.css?v=17" in sw
-    assert "okul.css?v=17" in istemci.get("/giris").text
+    assert "okul-v18" in sw and "/static/maraton.js?v=1" in sw and "okul.css?v=18" in sw
+    assert "okul.css?v=18" in istemci.get("/giris").text
 
 
 def test_ayni_soru_iki_kez_puanlanmaz(conn, ornek, monkeypatch, saat):
@@ -325,3 +326,14 @@ def test_ayni_soru_iki_kez_puanlanmaz(conn, ornek, monkeypatch, saat):
     with pytest.raises(mr.MaratonHatasi):
         mr.cevapla(conn, mid, 1, 0)
     assert conn.execute("SELECT dogru FROM maraton WHERE id = ?", (mid,)).fetchone()[0] == 1
+
+
+def test_ders_saatinde_kilit_varsayilan_kapali(istemci, ornek, saat):
+    """Kilit kaldırıldı: ders saatinde de Maraton başlar ve cevap alınır."""
+    import json
+
+    csrf = giris(istemci, "101", "ali-sifre")
+    AYAR.zil_yolu.write_text(json.dumps(ZIL), encoding="utf-8")  # 10:00 = 3. ders
+    mid = baslat(istemci, csrf)
+    assert cevapla(istemci, csrf, mid, 1, 2).status_code != 423
+    assert "Ders sırasında kapalı" not in istemci.get("/ogrenci/maraton").text
