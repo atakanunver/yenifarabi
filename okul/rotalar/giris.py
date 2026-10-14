@@ -5,6 +5,7 @@ import sqlite3
 import analitik
 import auth
 import duyurular
+import push
 from deps import ANA_SAYFA, db_conn, https_mi, istemci_ip, mevcut_kullanici, render, rol
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
@@ -199,10 +200,13 @@ def sifre_degistir(
 @router.post("/cikis")
 def cikis(
     request: Request,
+    push_uc: str = Form(""),
     _k: sqlite3.Row = Depends(rol(post=True)),
     conn: sqlite3.Connection = Depends(db_conn),
 ):
     analitik.istekten(request, "cikis")
+    if push_uc:  # bu cihazın bildirim aboneliği (push-cikis.js yollar); yalnızca kendi kaydı silinir
+        push.abonelik_sil(conn, _k["id"], push_uc[: push.UC_NOKTA_AZAMI])
     auth.oturum_kapat(conn, request.state.token)
     request.state.token = None
     yanit = RedirectResponse("/giris", status_code=303)

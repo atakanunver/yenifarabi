@@ -301,3 +301,46 @@ def test_kapaliyken_rota_bildirim_denemez(conn, yeni_kullanici, monkeypatch):
         c.cookies.set(auth.COOKIE_ADI, auth.oturum_ac(conn, k["ogretmen"]))
         c.post("/ogretmen/duyuru", data={"csrf": _csrf(c), "baslik": "B", "metin": "M", "hedef_tur": "sinif", "hedef": "9-A"})
     assert cagrilar == []
+
+
+# --- çıkışta abonelik silme ---
+
+def test_cikista_yalniz_bu_cihazin_aboneligi_silinir(conn, yeni_kullanici, etkin):
+    a = _kullanici(conn, yeni_kullanici, kadi="ogr1")
+    b = _kullanici(conn, yeni_kullanici, kadi="ogr2")
+    push.abone_ol(conn, a, UC, "p", "a")
+    push.abone_ol(conn, a, "https://x.example/diger-cihaz", "p", "a")
+    push.abone_ol(conn, b, "https://x.example/baskasi", "p", "a")
+    with _istemci() as c:
+        c.cookies.set(auth.COOKIE_ADI, auth.oturum_ac(conn, a))
+        csrf = c.get("/bildirimler").text.split('data-csrf="')[1].split('"')[0]
+        # başkasının uç noktasını göndermek onu silemez
+        c.post("/cikis", data={"csrf": csrf, "push_uc": "https://x.example/baskasi"}, follow_redirects=False)
+    assert push.abonelik_sayisi(conn, b) == 1
+    assert push.abonelik_sayisi(conn, a) == 2  # kendi diğer cihazları da duruyor
+    with _istemci() as c:
+        c.cookies.set(auth.COOKIE_ADI, auth.oturum_ac(conn, a))
+        csrf = c.get("/bildirimler").text.split('data-csrf="')[1].split('"')[0]
+        r = c.post("/cikis", data={"csrf": csrf, "push_uc": UC}, follow_redirects=False)
+        assert r.status_code == 303
+    left = [r[0] for r in conn.execute("SELECT uc_nokta FROM push_abonelik WHERE kullanici_id = ?", (a,))]
+    assert left == ["https://x.example/diger-cihaz"]
+
+
+def test_cikis_push_alanisiz_calisir(conn, yeni_kullanici, etkin):
+    a = _kullanici(conn, yeni_kullanici)
+    push.abone_ol(conn, a, UC, "p", "a")
+    with _istemci() as c:
+        c.cookies.set(auth.COOKIE_ADI, auth.oturum_ac(conn, a))
+        csrf = c.get("/bildirimler").text.split('data-csrf="')[1].split('"')[0]
+        assert c.post("/cikis", data={"csrf": csrf}, follow_redirects=False).status_code == 303
+    assert push.abonelik_sayisi(conn, a) == 1
+
+
+def test_cikis_betigi_yalniz_bildirim_acikken_yuklenir(conn, yeni_kullanici, etkin, monkeypatch):
+    a = _kullanici(conn, yeni_kullanici)
+    with _istemci() as c:
+        c.cookies.set(auth.COOKIE_ADI, auth.oturum_ac(conn, a))
+        assert "/static/push-cikis.js" in c.get("/duyurular").text
+        monkeypatch.setattr(AYAR, "vapid_ozel", "")
+        assert "/static/push-cikis.js" not in c.get("/duyurular").text

@@ -63,6 +63,7 @@
 </nav>
 {% endif %}
 {% if k and not k.sifre_degismeli %}<script src="/static/nabiz.js?v=1" defer></script>{% endif %}
+{% if k and push_etkin() %}<script src="/static/push-cikis.js?v=1" defer></script>{% endif %}
 <script>
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }).catch(function () {});
 </script>
