@@ -20,6 +20,9 @@ def gecici_ortam(tmp_path, monkeypatch):
     monkeypatch.setattr(AYAR, "program_yolu", tmp_path / "program.json")
     monkeypatch.setattr(AYAR, "zil_yolu", tmp_path / "zil.json")
     monkeypatch.setattr(AYAR, "takvim_yolu", tmp_path / "takvim.json")
+    monkeypatch.setattr(AYAR, "kanallar_yolu", tmp_path / "kanallar.json")
+    monkeypatch.setattr(AYAR, "whatsapp_veli", "")  # gerçek davet bağlantıları gizli.json'da; testlere sızmaz
+    monkeypatch.setattr(AYAR, "whatsapp_ogrenci", "")
     monkeypatch.setattr(AYAR, "kazanim_yolu", tmp_path / "kazanimlar.json")
     monkeypatch.setattr(AYAR, "sms_anahtar", "test-anahtar")
     # Web Push: varsayılan KAPALI (gerçek VAPID anahtarı/ağ yok); push testleri kendisi açar

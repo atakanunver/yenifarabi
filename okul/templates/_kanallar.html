@@ -1,0 +1,19 @@
+{# Okulun dijital kanalları: config/kanallar.json doluysa sayfa altında küçük bir şerit. Dış bağlantılar yeni sekmede açılır. #}
+{# `kanallar is defined`: şablon, deps.py'yi henüz yüklememiş eski süreçte (restart öncesi) sayfayı 503'e düşürmesin #}
+{% set kn = kanallar(k.rol if k else none) if kanallar is defined else [] %}
+{% if kn %}
+<aside class="kanallar" aria-label="Okulumuzun dijital kanalları">
+  <span class="kanallar-baslik">Bizi takip edin</span>
+  {% for c in kn %}
+  <a class="kanal" href="{{ c.url }}" target="_blank" rel="noopener noreferrer" title="{{ c.ad }}" aria-label="{{ c.ad }} (yeni sekmede açılır)">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      {% if c.anahtar == 'instagram' %}<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r=".6"/>
+      {% elif c.anahtar == 'whatsapp' %}<path d="M4 20l1.4-4.2A8.5 8.5 0 1 1 8.2 18.6z"/><path d="M9 9.5c.3 2.6 2.6 4.9 5.3 5.3l1.2-1.4-1.9-.9-.8.8c-1-.4-1.8-1.2-2.2-2.2l.8-.8-.9-1.9z"/>
+      {% elif c.anahtar == 'youtube' %}<rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="M10 9.2v5.6l5-2.8z"/>
+      {% else %}<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.7 2.6 15.3 0 18M12 3c-2.6 2.7-2.6 15.3 0 18"/>{% endif %}
+    </svg>
+    <span>{{ c.ad }}</span>
+  </a>
+  {% endfor %}
+</aside>
+{% endif %}

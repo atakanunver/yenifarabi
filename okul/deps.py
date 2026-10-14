@@ -1,6 +1,7 @@
 """FastAPI bağımlılıkları: DB, oturum, rol + CSRF kontrolü, şablon render."""
 
 import hmac
+import json
 import sqlite3
 import time
 from datetime import datetime
@@ -10,7 +11,7 @@ import auth
 import avatar
 import db
 import push
-from ayarlar import KOK
+from ayarlar import AYAR, KOK
 from fastapi import Depends, HTTPException, Request
 from fastapi.templating import Jinja2Templates
 import zaman
@@ -59,6 +60,37 @@ TEMPLATES.env.globals["push_etkin"] = push.etkin_mi  # VAPID ayarlıysa bildirim
 TEMPLATES.env.globals["MODULLER"] = True
 TEMPLATES.env.globals["avatar_svg"] = avatar.svg
 TEMPLATES.env.globals["OYUN_NAV"] = True  # öğrenci alt menüsü oyun odaklı (yalnızca bu kodu çalıştıran süreçte)
+
+
+KANAL_ADLARI = {"web": "Okul web sitesi", "instagram": "Instagram", "youtube": "YouTube"}
+
+
+def _kanallar(rol: str | None = None) -> list[dict]:
+    """Okulun dijital kanalları (config/kanallar.json: {"web": "https://...", ...}). Yalnızca https adresleri ve bilinen
+    kanal adları alınır (javascript: vb. geçemez); dosya yok/bozuksa boş liste döner, sayfa bozulmaz."""
+    try:
+        veri = json.loads(AYAR.kanallar_yolu.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        veri = {}
+    if not isinstance(veri, dict):
+        veri = {}
+    sonuc = []
+    for anahtar, ad in KANAL_ADLARI.items():
+        url = veri.get(anahtar)
+        if isinstance(url, str) and url.startswith("https://") and len(url) <= 300 and " " not in url:
+            sonuc.append({"anahtar": anahtar, "ad": ad, "url": url})
+    # WhatsApp grupları: davet bağlantısı anahtar gibidir → herkese açık sayfada (giriş dahil) GÖSTERİLMEZ; her grup yalnızca
+    # kendi rolüne (ve yöneticiye) görünür: veli grubu veliye, öğrenci grubu öğrenciye.
+    for ad, wa, roller in (
+        ("Veli WhatsApp grubu", AYAR.whatsapp_veli, ("veli", "yonetici")),
+        ("Öğrenci WhatsApp grubu", AYAR.whatsapp_ogrenci, ("ogrenci", "yonetici")),
+    ):
+        if rol in roller and wa.startswith("https://chat.whatsapp.com/") and len(wa) <= 300 and " " not in wa:
+            sonuc.append({"anahtar": "whatsapp", "ad": ad, "url": wa})
+    return sonuc
+
+
+TEMPLATES.env.globals["kanallar"] = _kanallar
 
 
 def _saat_verisi() -> dict:

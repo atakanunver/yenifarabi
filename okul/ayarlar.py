@@ -18,6 +18,7 @@ class Ayarlar:
     program_yolu: Path = FARABI / "mudur" / "ders_programi.json"
     zil_yolu: Path = FARABI / "tahtayoklama" / "data" / "zil.json"
     takvim_yolu: Path = KOK / "config" / "takvim.json"
+    kanallar_yolu: Path = KOK / "config" / "kanallar.json"  # okulun dijital kanalları (alt şerit); dosya yoksa şerit gizli
     kazanim_yolu: Path = field(
         default=FARABI / "tahtayoklama" / "data" / "kazanimlar.json"
     )
@@ -29,6 +30,9 @@ class Ayarlar:
     vapid_ozel: str = ""
     vapid_acik: str = ""
     vapid_konu: str = ""
+    # Veli WhatsApp grubu davet bağlantısı: ANAHTAR gibidir (bağlantıyı bilen gruba girer) → yalnızca gizli.json, yalnızca veliye gösterilir
+    whatsapp_veli: str = ""
+    whatsapp_ogrenci: str = ""
 
 
 def yukle() -> Ayarlar:
@@ -40,6 +44,8 @@ def yukle() -> Ayarlar:
         a.vapid_ozel = g.get("vapid_ozel", "")
         a.vapid_acik = g.get("vapid_acik", "")
         a.vapid_konu = g.get("vapid_konu", "")
+        a.whatsapp_veli = g.get("whatsapp_veli", "")
+        a.whatsapp_ogrenci = g.get("whatsapp_ogrenci", "")
     return a
 
 

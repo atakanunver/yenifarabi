@@ -38,6 +38,8 @@ Spec: `docs/superpowers/specs/2026-10-10-dijital-okul-design.md`.
 - Zaman için daima `zaman.simdi()` kullan (test edilebilirlik).
 - Şema değişikliği: `db.GOCLER` listesine yeni eleman ekle (eskileri değiştirme).
 - Tahta yoklaması isimle tutuluyor: aynı sınıfta aynı isim/eşleşmeyen isim veliye gösterilmez (yanlış çocuğa devamsızlık yazmamak için); yönetici `/yonetici/eslesmeyen`'de görür.
+- Okul kanalları şeridi: `config/kanallar.json` (`web`/`instagram`/`youtube`, yalnızca https; her istekte okunur, restart gerekmez) → `templates/_kanallar.html` (sayfa altı, giriş dahil). Dosya yoksa şerit gizli. WhatsApp grup davet bağlantıları (`whatsapp_veli`, `whatsapp_ogrenci`) ANAHTAR gibidir: yalnızca gitignore'lu `config/gizli.json`'da durur (repo PUBLIC, `kanallar.json`'a YAZMA), giriş sayfasında görünmez, veli grubu yalnızca veliye, öğrenci grubu yalnızca öğrenciye (yöneticiye ikisi) gösterilir. Testler `conftest.py`'de bunları boşaltır.
+- ⚠️ Şablonlar canlıya ANINDA yansır, Python (`deps.py` global vb.) restart ister: yeni Jinja global kullanan şablonu `is defined` ile koru, değişiklikten hemen sonra `sudo systemctl restart farabi-okul` (2026-10-14'te korumasız global ~3 dk /giris 503 verdi).
 - Üst çubuk (`.ust`) tek satır flex: yeni öğe eklerken dar telefonda (≤360px) taşıp Çıkış düğmesini itmediğini kontrol et (Çıkış `flex: none`, ad bölümü kısalır).
 - Oturum 1 yıl kayan çerez (bilinçli karar); ilk şifre ad+123, zorunlu değişim; veli girişi SMS kodu.
 

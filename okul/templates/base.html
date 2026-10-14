@@ -14,7 +14,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/static/logo-64.png" type="image/png">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
-<link rel="stylesheet" href="/static/okul.css?v=19">
+<link rel="stylesheet" href="/static/okul.css?v=20">
 </head>
 <body>
 <header class="ust">
@@ -48,6 +48,7 @@
 {% endif %}
 {% if anket_bekleyen and not request.url.path.startswith('/anket') %}<a class="not anket-bildirim" href="/anket">📝 Yanıtlamanı bekleyen {{ anket_bekleyen }} anket var →</a>{% endif %}
 {% block icerik %}{% endblock %}
+{% include "_kanallar.html" %}
 </main>
 
 {% if k and not k.sifre_degismeli %}
