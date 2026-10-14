@@ -1,10 +1,12 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Farabi
 Sınıf akıllı tahtalarında sesli ders asistanı + aynı sunucuda okul operasyon
 servisleri (yoklama panosu, SMS). Monorepo; her alt projenin kendi `CLAUDE.md`'si
 var (client, server, tahtayoklama, smssistemi, tahtaayar, benchmark, mudur, dogum,
-soruhavuzu, kazanimtest, okul). Bu dosya: ortak kurallar + servisler arası resim.
+soruhavuzu, kazanimtest, okul; `openwebui/`, `webui-tema/` için CLAUDE.md yok). Bu dosya: ortak kurallar + servisler arası resim.
 
 - Kararlar/neden: `DECISIONS.md` (`grep "## <tarih>"`). Mimari (2026-09-13'te
   donmuş, çelişkide bu dosya esas): `docs/mimari.md`. Ağ envanteri, dağıtım,
@@ -15,7 +17,7 @@ soruhavuzu, kazanimtest, okul). Bu dosya: ortak kurallar + servisler arası resi
 ## Mevcut durum (kalıcı)
 - Tüm zamanlanmış işler KALICI KAPALI (2026-10-10): soru-havuzu-uret, kazanim-test,
   kazanim-test-sonuc, kazanim-test-aylik, farabi-idari-yukle. Açıkça istenmeden açma.
-- 12. sınıfa ikinci emre kadar dokunulmaz. 9-11 çalışmaları Maarif modeline göre.
+- 9-11 çalışmaları Maarif modeline göre (2026-10-10).
 - Ollama'da TEK model `qwen3.8:27b` (iki RTX 3060); başka model kurulmaz. Çağıran
   kod düşünmeyi kapatır (`think:false`). `CUDA_DEVICE_ORDER=PCI_BUS_ID` şart.
 - Gömme + reranker bilgehan'daki `farabi-embed`'de (`FARABI_EMBED_URL`).
@@ -28,7 +30,7 @@ soruhavuzu, kazanimtest, okul). Bu dosya: ortak kurallar + servisler arası resi
 - Ders programı/zil birden çok kopya, otomatik senkron yok: kaynak
   `mudur/ders_programi.json` ve `tahtayoklama/data/zil.json`; dağıtım
   `server/config_dagit.sh` (`--kuru` önce).
-- 10-A CMOS pili bitik: açılışta yanlış tarih (pano geçmişi ezmez).
+- 10-A CMOS pili bitik (2026-10 itibarıyla): açılışta yanlış tarih (pano geçmişi ezmez).
 
 ## Servisler (ayrı systemd birimi + ayrı venv; BİRLEŞTİRME)
 | Servis | Dizin | Port | Not |
@@ -36,6 +38,7 @@ soruhavuzu, kazanimtest, okul). Bu dosya: ortak kurallar + servisler arası resi
 | farabi-api | server/ | 8000 | RAG, kitap/PDF, YKS, LLM proxy, tahta auth |
 | farabi-yoklama-dashboard | tahtayoklama/dashboard/ | 8010 | yoklama, uzaktan yönetim, servisler |
 | farabi-smssistemi | smssistemi/ | 8020 | SMS, rehber, doğum günleri |
+| farabi-okul | okul/ | 9090 | dijital okul portalı, smual.app (Cloudflare Tunnel) |
 | ollama | — | 11434 | qwen3.8:27b |
 | open-webui | /opt/open-webui | 80 | Atos |
 Servisler arası bağ = HTTP + HMAC/paylaşılan anahtar. Tek DB istisnası: smssistemi
@@ -52,7 +55,10 @@ Servisler arası bağ = HTTP + HMAC/paylaşılan anahtar. Tek DB istisnası: sms
 | server | `venv/bin/python -m pytest tests/ -q` | `sudo systemctl restart farabi-api` |
 | tahtayoklama/dashboard | `venv/bin/python -m unittest discover -p 'test_*.py'` (pytest YOK) | `... restart farabi-yoklama-dashboard` |
 | smssistemi | `venv/bin/python -m pytest -q` | `... restart farabi-smssistemi` |
+| okul | `cd okul && venv/bin/python -m pytest -q` | `... restart farabi-okul` |
 | client | tahtada: `server/tahta-ssh.sh <derslik> "cd ~/farabi/client && venv/bin/python -m pytest tests/ -q"` | GitHub push |
+- Tek test: pytest projelerinde `venv/bin/python -m pytest tests/test_x.py::test_adi -q`; dashboard'da `venv/bin/python -m unittest test_modul.Sinif.test_adi`.
+- CRLF: `okul/` altındaki bazı dosyalar CRLF (`git ls-files --eol`); Python `open()` ile yeniden yazma, `newline=''` kullan ya da Edit aracı.
 - Tahta SSH: `server/tahta-ssh.sh [--admin] <derslik> "<komut>"`. Server logu
   yalnızca `journalctl -u farabi-api.service`.
 - Lint: `.venv-tools/bin/ruff check <dokunduğun dosya>`; F821/F811/F632 sıfır kalmalı,

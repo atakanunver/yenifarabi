@@ -12,7 +12,6 @@ Spec: `docs/superpowers/specs/2026-10-10-dijital-okul-design.md`.
 - Servis: `farabi-okul.service` (kurulum yorumu `okul/systemd/farabi-okul.service` içinde). Kod değişince: `sudo systemctl restart farabi-okul`.
 - İlk yönetici: `venv/bin/python scripts/yonetici_olustur.py "Ad Soyad" kullanici_adi`
 - CSS/JS değişirse sürüm sorgusunu (`okul.css?v=N` base.html'de, `*.js?v=N` onu yükleyen şablonda) ve `static/sw.js` içindeki SURUM + STATIK listesini artır; yeni statik JS STATIK'e de eklenir.
-- Bazı dosyalar CRLF (`git ls-files --eol`): Python `open()` ile yeniden yazınca tüm dosya diff'e düşer — `newline=''` kullan ya da Edit aracıyla değiştir.
 
 ## Modül haritası
 - ayarlar, zaman, metin: yapılandırma, saat, metin yardımcıları
