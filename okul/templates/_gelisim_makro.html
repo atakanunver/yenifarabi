@@ -1,0 +1,15 @@
+{# Gelişim ekranları ortak parçaları. #}
+{% macro kaynak_notu(r) -%}
+{% if not r.kaynak_erisildi %}<p class="not" role="status">Google Form kazanım testi verisine şu an ulaşılamıyor; yalnızca platform içi test ödevleri gösteriliyor.</p>{% endif %}
+{%- endmacro %}
+
+{% macro trend(t) -%}
+{% if t.durum == 'yetersiz' %}<span class="soluk kucuk">Karşılaştırma için veri yetersiz</span>
+{% elif t.durum == 'artti' %}<span class="kucuk">↑ son {{ 30 }} günde +{{ t.fark }} puan (%{{ t.once }} → %{{ t.son }})</span>
+{% elif t.durum == 'azaldi' %}<span class="kucuk">↓ son {{ 30 }} günde {{ t.fark }} puan (%{{ t.once }} → %{{ t.son }})</span>
+{% else %}<span class="kucuk">→ değişmedi (%{{ t.son }})</span>{% endif %}
+{%- endmacro %}
+
+{% macro cubuk(yuzde) -%}
+{% if yuzde is not none %}<span class="oran-cubuk" title="%{{ yuzde }}"><i style="width: {{ yuzde }}%"></i></span>{% endif %}
+{%- endmacro %}

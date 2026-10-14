@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_gelisim_makro.html" import kaynak_notu, trend, cubuk %}
+{% block baslik %}Gelişimim · Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Gelişimim</h1>
+<p class="soluk">Bu ekran yalnızca senin için. Çözdüğün testlerden hesaplanır; başkalarıyla karşılaştırılmaz.</p>
+{{ kaynak_notu(r) }}
+{% if not r.veri_var %}
+<section class="kart"><p class="bos">Henüz test sonucun yok. İlk testini çözdüğünde gelişimin burada görünecek.</p></section>
+{% endif %}
+{% for d in r.dersler %}
+<section class="kart">
+  <h2>{{ d.ders|baslik }}</h2>
+  {% if d.yeterli %}
+    <p><b>%{{ d.yuzde }}</b> doğru <span class="soluk kucuk">({{ d.dogru }}/{{ d.toplam }} soru)</span> {{ cubuk(d.yuzde) }}</p>
+    <p>{{ trend(d.trend) }}</p>
+  {% else %}
+    <p class="soluk">Daha çok soru çözdükçe yüzde gösterilecek ({{ d.toplam }} soru çözüldü).</p>
+  {% endif %}
+  <p class="kucuk soluk">{{ d.basarili_kazanim }} / {{ d.kazanimlar|length }} kazanımda hedef düzeye ulaştın (%{{ (r.esik * 100)|round|int }} üzeri).</p>
+</section>
+{% endfor %}
+{% if r.tekrar %}
+<section class="kart">
+  <h2>Tekrar edebileceğin kazanımlar</h2>
+  <ul class="liste">{% for t in r.tekrar %}<li>{{ t.ders|baslik }} · {{ t.kazanim }}<span class="sag kucuk soluk">{{ t.dogru }}/{{ t.toplam }} doğru</span></li>{% endfor %}</ul>
+  <p class="kucuk soluk">Bu bir yargı değil; tekrar çalışmanın en çok işine yarayacağı yerler.</p>
+</section>
+{% endif %}
+<section class="kart">
+  <h2>Son 30 gün</h2>
+  <p>Ödev: {% if r.odev.verilen %}{{ r.odev.teslim }} / {{ r.odev.verilen }} teslim{% else %}teslim tarihi gelen ödev yok{% endif %}</p>
+  {% if r.calisma %}<p>Çalışma: {{ r.calisma.arena }} Günlük Görev, {{ r.calisma.maraton }} Hızlı Mod turu</p>{% endif %}
+</section>
+{% endblock %}

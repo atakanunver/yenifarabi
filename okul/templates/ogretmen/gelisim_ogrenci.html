@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_gelisim_makro.html" import kaynak_notu, trend, cubuk %}
+{% block baslik %}{{ r.ogrenci.ad_soyad }} · Gelişim{% endblock %}
+{% block icerik %}
+<p><a href="/ogretmen/gelisim/{{ r.ogrenci.sinif }}">← {{ r.ogrenci.sinif }} gelişim raporu</a></p>
+<h1>{{ r.ogrenci.ad_soyad }} <span class="soluk kucuk">{{ r.ogrenci.sinif }} · {{ r.ogrenci.okul_no }}</span></h1>
+<p class="not">Bu rapor yalnızca kayıtlı test sonuçlarına dayanır; bir öğrenci hakkında kesin hüküm değildir. Erişiminiz KVKK kaydına işlenir.</p>
+{{ kaynak_notu(r) }}
+{% if not r.veri_var %}<section class="kart"><p class="bos">Bu öğrenci için kayıtlı test verisi yok.</p></section>{% endif %}
+{% for d in r.dersler %}
+<section class="kart">
+  <h2>{{ d.ders|baslik }}</h2>
+  {% if d.yeterli %}<p><b>%{{ d.yuzde }}</b> <span class="soluk kucuk">({{ d.dogru }}/{{ d.toplam }} soru)</span> {{ cubuk(d.yuzde) }}</p><p>{{ trend(d.trend) }}</p>
+  {% else %}<p class="soluk">Veri az: {{ d.toplam }} soru (yüzde için en az 5).</p>{% endif %}
+  <div class="tablo-kap"><table><thead><tr><th>Kazanım</th><th class="sayi">Doğru/Toplam</th><th class="sayi">%</th></tr></thead><tbody>
+  {% for k in d.kazanimlar %}<tr><td>{{ k.kazanim }}</td><td class="sayi">{{ k.dogru }}/{{ k.toplam }}</td><td class="sayi">{{ k.yuzde }}{{ ' ✓' if k.basarili }}</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endfor %}
+{% if r.tekrar %}
+<section class="kart">
+  <h2>Tekrar çalışması faydalı olabilecek kazanımlar</h2>
+  <ul class="liste">{% for t in r.tekrar %}<li>{{ t.ders|baslik }} · {{ t.kazanim }}<span class="sag kucuk">{{ t.dogru }}/{{ t.toplam }}</span></li>{% endfor %}</ul>
+  <p class="kucuk soluk">Ölçüt: en az 3 soruda %50'nin altı. Etiket veya risk puanı değildir.</p>
+</section>
+{% endif %}
+<section class="kart"><h2>Son 30 gün</h2>
+  <p>Ödev teslimi: {% if r.odev.verilen %}{{ r.odev.teslim }} / {{ r.odev.verilen }} (%{{ r.odev.oran }}){% else %}vadesi gelen ödev yok{% endif %}</p>
+  {% if r.calisma %}<p>Çalışma (Arena + Hızlı Mod): {{ r.calisma.toplam }} tur <span class="soluk kucuk">— akademik başarı göstergesi değildir</span></p>{% endif %}
+</section>
+{% endblock %}

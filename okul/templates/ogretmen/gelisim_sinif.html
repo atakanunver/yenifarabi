@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_gelisim_makro.html" import kaynak_notu, trend, cubuk %}
+{% block baslik %}{{ r.sinif }} · Gelişim raporu{% endblock %}
+{% block icerik %}
+<p><a href="/ogretmen/sinif/{{ r.sinif }}">← {{ r.sinif }}</a></p>
+<h1>{{ r.sinif }} gelişim raporu</h1>
+{{ kaynak_notu(r) }}
+<p class="kucuk soluk">Kaynaklar: platform içi test ödevleri ve Google Form kazanım testleri. {{ r.verili_ogrenci }} / {{ r.mevcut }} öğrencinin test verisi var. Verisi olan öğrenci sayısı {{ r.esik_n }}'ten az olan gruplar gösterilmez.</p>
+{% if tum_dersler %}
+<form method="get" class="filtre"><label for="ders">Ders</label>
+  <select id="ders" name="ders" onchange="this.form.submit()"><option value="">Tümü</option>{% for d in tum_dersler %}<option value="{{ d }}"{{ ' selected' if d == ders|lower }}>{{ d|baslik }}</option>{% endfor %}</select>
+  <noscript><button class="tus">Filtrele</button></noscript></form>
+{% endif %}
+{% for d in r.dersler %}
+<section class="kart">
+  <h2>{{ d.ders|baslik }} <span class="soluk kucuk">{{ d.ogrenci }} öğrenci verisi</span></h2>
+  {% if d.gizli %}
+    <p class="soluk">Yeterli öğrenci verisi yok (en az {{ r.esik_n }}); grup sonucu gizlendi.</p>
+  {% else %}
+    <p><b>%{{ d.yuzde }}</b> doğru <span class="soluk kucuk">({{ d.soru }} soru)</span> {{ cubuk(d.yuzde) }}</p>
+    <p>{{ trend(d.trend) }}</p>
+    {% if d.kazanimlar %}
+    <h3>Sınıfça tekrar edilebilecek kazanımlar <span class="soluk kucuk">(hedef düzeye ulaşan öğrenci oranına göre, en düşükten)</span></h3>
+    <div class="tablo-kap"><table><thead><tr><th>Kazanım</th><th class="sayi">Öğrenci</th><th class="sayi">Hedefe ulaşan</th></tr></thead><tbody>
+    {% for k in d.kazanimlar[:8] %}<tr><td>{{ k.kazanim }}</td><td class="sayi">{{ k.ogrenci }}</td><td class="sayi">%{{ k.oran }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    <p class="kucuk soluk">Bir kazanımın görünmesi için en az {{ r.esik_n }} öğrencinin verisi gerekir.</p>
+    {% endif %}
+  {% endif %}
+</section>
+{% else %}
+<section class="kart"><p class="bos">Bu sınıf için henüz test verisi yok.</p></section>
+{% endfor %}
+<section class="kart">
+  <h2>Öğrenciler <span class="soluk kucuk">son 30 gün</span></h2>
+  <p class="kucuk soluk">Ödev teslimi: {{ ('%' ~ r.odev_orani) if r.odev_orani is not none else 'vadesi gelen ödev yok' }} · Çalışan öğrenci: {{ r.calisan }} / {{ r.mevcut }}</p>
+  <div class="tablo-kap"><table><thead><tr><th>No</th><th>Ad</th><th class="sayi">Test %</th><th class="sayi">Ödev</th><th class="sayi">Çalışma</th></tr></thead><tbody>
+  {% for o in r.ogrenciler %}
+    <tr><td>{{ o.okul_no }}</td><td><a href="/ogretmen/ogrenci/{{ o.id }}/gelisim">{{ o.ad_soyad }}</a></td>
+      <td class="sayi">{{ ('%' ~ o.yuzde) if o.yuzde is not none else ('veri az' if o.toplam else '—') }}</td>
+      <td class="sayi">{% if o.odev.verilen %}{{ o.odev.teslim }}/{{ o.odev.verilen }}{% else %}—{% endif %}</td><td class="sayi">{{ o.calisma }}</td></tr>
+  {% endfor %}
+  </tbody></table></div>
+  <p class="kucuk soluk">"—" = kayıt yok, "veri az" = en az {{ r.min_soru }} soru gerekir. Çalışma sütunu Arena + Hızlı Mod turlarıdır; akademik başarı göstergesi değildir.</p>
+</section>
+{% endblock %}

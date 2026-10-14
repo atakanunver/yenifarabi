@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_gelisim_makro.html" import kaynak_notu, trend, cubuk %}
+{% block baslik %}Akademik gelişim · Dijital Okul{% endblock %}
+{% block icerik %}
+<p><a href="/yonetici">← Özet</a></p>
+<h1>Akademik gelişim</h1>
+{{ kaynak_notu(r) }}
+<section class="kart">
+  <h2>Veri kapsamı</h2>
+  <p>{{ r.verili }} / {{ r.ogrenci }} öğrencinin kayıtlı test verisi var.</p>
+  <p class="kucuk soluk">Kaynaklar: platform içi test ödevleri ve Google Form kazanım testleri. Kaynakta olmayan veri tahmin edilmez; verisi olan öğrenci sayısı {{ r.esik_n }}'ten az olan gruplar gizlenir; bir derste en az {{ r.min_soru }} soru yoksa yüzde gösterilmez. Bu ekran bireyleri değil gruplar halinde okul durumunu gösterir.</p>
+</section>
+{% for s in r.siniflar %}
+<section class="kart">
+  <h2>{{ s.sinif }} <span class="soluk kucuk">{{ s.verili }} / {{ s.mevcut }} öğrencinin verisi var</span></h2>
+  <p class="kucuk">Ödev teslimi (son {{ r.pencere }} gün): {{ ('%' ~ s.odev_orani) if s.odev_orani is not none else 'vadesi gelen ödev yok' }}
+    · Çalışma yapan öğrenci: {% if s.calisan_gizli %}<span class="soluk">gizli (küçük grup)</span>{% else %}{{ s.calisan }} / {{ s.mevcut }}{% endif %}</p>
+  {% if s.dersler %}
+  <div class="tablo-kap"><table><thead><tr><th>Ders</th><th class="sayi">Öğrenci</th><th>Doğru %</th><th>Eğilim</th></tr></thead><tbody>
+  {% for d in s.dersler %}
+    <tr><td>{{ d.ders|baslik }}</td><td class="sayi">{{ d.ogrenci }}</td>
+    {% if d.gizli %}<td colspan="2" class="soluk">yeterli öğrenci verisi yok (en az {{ r.esik_n }})</td>
+    {% else %}<td>%{{ d.yuzde }} {{ cubuk(d.yuzde) }}</td><td>{{ trend(d.trend) }}</td>{% endif %}</tr>
+  {% endfor %}
+  </tbody></table></div>
+  {% else %}<p class="bos">Bu sınıfta henüz test verisi yok.</p>{% endif %}
+  <p class="kucuk"><a href="/ogretmen/gelisim/{{ s.sinif }}">Sınıf raporu →</a></p>
+</section>
+{% else %}
+<section class="kart"><p class="bos">Henüz öğrenci aktarılmadı.</p></section>
+{% endfor %}
+{% endblock %}
