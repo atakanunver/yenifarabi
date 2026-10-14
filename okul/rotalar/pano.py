@@ -12,6 +12,7 @@ from datetime import date, timedelta
 
 import db
 import maraton
+import oduller
 import zaman
 from ayarlar import AYAR
 from fastapi import APIRouter, HTTPException, Request
@@ -100,6 +101,10 @@ async def pano(request: Request):
             (simdi, simdi),
         ).fetchall()
         birinci = _maraton_birincisi(conn)
+        try:
+            odul_ogeleri = oduller.kiosk_ogeleri(conn)  # yalnızca cuma/pazartesi dolu
+        except Exception:  # noqa: BLE001 — ödül hesabı pano ucunu düşürmesin
+            odul_ogeleri = []
     finally:
         conn.close()
     try:
@@ -110,6 +115,7 @@ async def pano(request: Request):
     duyuru = [{"baslik": r["baslik"], "metin": r["metin"]} for r in satirlar]
     if birinci:
         duyuru.insert(0, birinci)
+    duyuru[0:0] = odul_ogeleri
     return {
         "duyurular": duyuru,
         "program": program,

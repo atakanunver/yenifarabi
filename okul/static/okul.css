@@ -490,3 +490,56 @@ details.kart > summary { cursor: pointer; min-height: 32px; }
 
 .arena input[type=number], .arena input[type=text], .arena select, .arena textarea { color: #0a1030; background: #fff; }
 .anket-bildirim { display: block; text-decoration: none; color: inherit; font-weight: 600; margin: .6rem 0; }
+.liderlik-liste { list-style: none; margin: 0; padding: 0; }
+.liderlik-liste li { display: flex; justify-content: space-between; align-items: center; gap: .6rem; padding: .55rem .4rem; border-bottom: 1px dashed var(--cizgi); }
+.liderlik-liste li::before { content: attr(value) "."; font-weight: 700; min-width: 2rem; }
+.liderlik-liste .ad { flex: 1; }
+.liderlik-liste li.ben { background: rgba(34, 211, 238, .14); border-radius: 8px; }
+.sekme-sec { display: flex; gap: .4rem; flex-wrap: wrap; }
+.bugun-alt { margin-top: .9rem; padding-top: .8rem; border-top: 1px dashed var(--cizgi); }
+.bugun-hedef { display: block; text-decoration: none; color: inherit; margin-bottom: .6rem; }
+.bugun-hedef .oran-cubuk { margin-top: .3rem; }
+.avatar-sahne { text-align: center; }
+.avatar-sahne .avatar { filter: drop-shadow(0 6px 14px rgba(34, 211, 238, .25)); }
+.kademe-ad { font-weight: 800; letter-spacing: .04em; margin: .4rem 0 0; color: var(--altin); }
+.sonraki-acilis { background: rgba(251, 191, 36, .12); border: 1px dashed var(--altin); border-radius: 10px; padding: .5rem .7rem; font-size: .9rem; }
+.avatar-sec { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; }
+@media (min-width: 560px) { .avatar-sec { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.avatar-sec li > a, .avatar-sec li > div { display: flex; flex-direction: column; align-items: center; gap: .25rem; text-align: center; padding: .5rem .3rem; border: 2px solid var(--cizgi); border-radius: 12px; text-decoration: none; color: inherit; font-size: .78rem; min-height: 100px; justify-content: center; }
+.avatar-sec li.secili > a { border-color: var(--altin); box-shadow: 0 0 0 2px rgba(251, 191, 36, .3); }
+.avatar-sec li.kilitli > div { opacity: .55; }
+.kilit-ik { font-size: 1.6rem; }
+.avatar-mini { display: inline-flex; vertical-align: middle; margin-right: .4rem; }
+.seviye-atla { text-align: center; }
+.seviye-atla .avatar { animation: sicra 1s ease-out 2; }
+@keyframes sicra { 0%, 100% { transform: translateY(0) scale(1); } 40% { transform: translateY(-14px) scale(1.08); } 70% { transform: translateY(0) scale(.97); } }
+@media (prefers-reduced-motion: reduce) { .seviye-atla .avatar { animation: none; } }
+.avatar-satir { display: flex; gap: .8rem; align-items: center; }
+.avatar-satir > div { flex: 1; min-width: 0; }
+.avatar-satir .tus { margin: .3rem .3rem 0 0; }
+
+/* --- Ana ekran oyun alanı (.oyun-alani, .arena kapsamında) --- */
+.arena.oyun-alani { margin: 0 0 1rem; }
+.oyun-alani .hero { display: flex; gap: .9rem; align-items: center; }
+.oyun-alani .hero-bilgi { flex: 1; min-width: 0; }
+.oyun-alani .hero h1 { margin: 0 0 .15rem; font-size: 1.35rem; }
+.oyun-alani .hero-seviye { margin: 0 0 .35rem; color: var(--altin); }
+.oyun-kutulari { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; margin: .9rem 0; }
+.oyun-kutu { display: flex; flex-direction: column; align-items: flex-start; gap: .25rem; min-height: 112px; padding: .9rem; border-radius: 16px; text-decoration: none; color: #fff; border: 1px solid rgba(255,255,255,.18); position: relative; overflow: hidden; }
+.oyun-kutu svg { width: 34px; height: 34px; fill: currentColor; opacity: .95; }
+.oyun-kutu b { font-size: 1.05rem; }
+.oyun-kutu.gorev { background: linear-gradient(145deg, #6d28d9, #2563eb); }
+.oyun-kutu.hizli { background: linear-gradient(145deg, #0891b2, #059669); }
+.oyun-kutu.bitti { background: linear-gradient(145deg, #3b4a8c, #1d2656); }
+.oyun-kutu:active { transform: scale(.98); }
+.yaris { display: block; text-decoration: none; color: inherit; padding: .75rem; border-radius: 14px; background: rgba(251, 191, 36, .1); border: 1px solid rgba(251, 191, 36, .45); }
+.yaris-baslik { display: block; font-weight: 800; color: var(--altin); margin-bottom: .45rem; }
+.yaris-ilk { display: flex; gap: .5rem; margin-bottom: .45rem; }
+.yaris-sira { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: .1rem; padding: .35rem .2rem; border-radius: 10px; background: rgba(255,255,255,.06); position: relative; text-align: center; }
+.yaris-sira.ben { outline: 2px solid var(--turkuaz, #22d3ee); }
+.yaris-sira .sira-no { position: absolute; top: 2px; left: 6px; font-weight: 800; font-size: .8rem; }
+.yaris-sira .kucuk { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.yaris-mesaj { display: block; font-size: .92rem; }
+@media (min-width: 640px) { .oyun-kutu { min-height: 130px; } }
+.arena .oyun-kutu, .arena .oyun-kutu b { color: #fff; }
+.arena .oyun-kutu .kucuk { color: rgba(255, 255, 255, .85); }

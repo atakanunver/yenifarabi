@@ -34,7 +34,7 @@ def test_ana_ekran_bolumleri(istemci, ornek, conn, saat):
     assert "Merhaba" in t and "Ali" in t
     assert "Bugün ne yapacağım?" in t and "Limit çalışması" in t and 'href="/ogrenci/odev/1"' in t
     assert "Haftalık hedefim" in t and "Hedef koy" in t and "/ogrenci/hedefim" in t
-    assert "Hızlı çalışma" in t and 'href="/ogrenci/maraton"' in t and "Hızlı Mod" in t
+    assert 'href="/ogrenci/maraton"' in t and "Hızlı Mod" in t and 'href="/ogrenci/arena/liderlik"' in t
     assert "Gelişimim" in t and "/ogrenci/gelisim" in t
     # okul bilgisi korunur
     for korunan in ("Bugünkü dersler", "Yaklaşan sınavlar", "Duyurular"):
@@ -48,7 +48,7 @@ def test_seviye_ve_hedef_ilerlemesi(istemci, ornek, conn, saat):
     conn.commit()
     giris(istemci, "101", "ali-sifre")
     t = istemci.get("/ogrenci").text
-    assert "Seviye 2 · 60 XP" in t and "0</b> / 4 etkinlik" in t and 'aria-valuenow="0"' in t
+    assert "Seviye 2</b> · 60 XP" in t and "<b>0 / 4</b>" in t and 'aria-valuenow="0"' in t
     assert "Bu hafta için hedef koy" not in t  # hedef konduğu için görev yok
 
 
@@ -113,3 +113,38 @@ def test_bildirim_hatasi_sayfayi_bozmaz(istemci, ornek, monkeypatch):
     giris(istemci, "101", "ali-sifre")
     r = istemci.get("/ogrenci")
     assert r.status_code == 200 and "Yanıtlamanı bekleyen" not in r.text
+
+
+def test_oyun_alani_ve_yaris_seridi(istemci, ornek, conn, yeni_kullanici, saat):
+    for no, ad, xp in ((950, "Zeynep Kaya", 90), (951, "Mert Demir", 40)):
+        kid = yeni_kullanici(conn, "ogrenci", ad, str(no), sifre="x")
+        conn.execute("INSERT INTO ogrenci (okul_no, ad_soyad, sinif, kullanici_id) VALUES (?, ?, '10-A', ?)", (no, ad, kid))
+        conn.execute("INSERT INTO bilgi_xp (kullanici_id, kaynak, ref, miktar, gun, zaman) VALUES (?, 'arena_bonus', 'x', ?, '2026-10-12', 'z')", (kid, xp))
+    conn.execute("INSERT INTO bilgi_xp (kullanici_id, kaynak, ref, miktar, gun, zaman) VALUES (?, 'arena_bonus', 'y', 60, '2026-10-12', 'z')", (ornek["ogr1_k"],))
+    conn.commit()
+    giris(istemci, "101", "ali-sifre")
+    t = istemci.get("/ogrenci").text
+    assert "oyun-alani" in t and "Günlük Görev" in t and "Hızlı Mod" in t and "Bu haftanın XP yarışı" in t
+    assert "Zeynep K." in t and 'href="/ogrenci/arena/liderlik"' in t and 'class="avatar"' in t
+    assert "Sıran <b>2.</b>" in t and "1. sıradaki Zeynep K.'ı geçmek için <b>31 XP</b> daha" in t
+
+
+def test_yaris_bos_ve_birinci_mesaji(istemci, ornek, conn, saat):
+    giris(istemci, "101", "ali-sifre")
+    assert "İlk sen ol!" in istemci.get("/ogrenci").text
+    conn.execute("INSERT INTO bilgi_xp (kullanici_id, kaynak, ref, miktar, gun, zaman) VALUES (?, 'arena_bonus', 'y', 60, '2026-10-12', 'z')", (ornek["ogr1_k"],))
+    conn.commit()
+    assert "Birincisin!" in istemci.get("/ogrenci").text
+
+
+def test_alt_menu_oyun_odakli_ve_tek_aktif(istemci, ornek):
+    import re
+
+    giris(istemci, "101", "ali-sifre")
+    for yol, aktif in (("/ogrenci/arena/liderlik", "Liderlik"), ("/ogrenci/arena", "Oyun"), ("/ogrenci", "Ana sayfa"), ("/ogrenci/avatar", "Avatarım")):
+        t = istemci.get(yol).text
+        nav = t[t.index('<nav class="sekmeler"'):]
+        nav = nav[:nav.index("</nav>")]
+        assert [m for m in re.findall(r'<a href="[^"]+" class="aktif"[^>]*>.*?</svg>([^<]+)</a>', nav, re.S)] == [aktif], yol
+        for ad in ("Oyun", "Liderlik", "Ödevler", "Avatarım"):
+            assert ad in nav

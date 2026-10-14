@@ -11,7 +11,19 @@
     <h1>Bilgi Arenası</h1>
     <span class="seviye-rozeti" title="Seviye {{ seviye.no }}" aria-label="Seviye {{ seviye.no }}">{{ seviye.no }}</span>
   </div>
-  <section class="kart">{{ xp_cubuk(seviye) }}</section>
+  <section class="kart">
+    {% if avatar_cfg is defined %}
+    <div class="avatar-satir">
+      <a href="/ogrenci/avatar" aria-label="Avatarımı değiştir">{{ avatar_svg(avatar_cfg, seviye.no, 84) }}</a>
+      <div>{{ xp_cubuk(seviye) }}
+        {% if avatar_siradaki %}<p class="sonraki-acilis">🔓 <b>Seviye {{ avatar_siradaki[0] }}</b>'de: {{ avatar_siradaki[1]|join(', ') }}</p>{% endif %}
+        <a class="tus ikincil kucuk" href="/ogrenci/avatar">Avatarımı değiştir</a>
+        <a class="tus ikincil kucuk" href="/ogrenci/arena/liderlik">Liderlik</a></div>
+    </div>
+    {% else %}{{ xp_cubuk(seviye) }}{% endif %}
+  </section>
+
+  <p class="kucuk soluk">Bu, <b>bireysel</b> oyun alanı: puanların, seviyen ve liderlik tablon yalnızca smual.app'e aittir. Sınıf tahtasındaki oyunların (Sınıf Arenası) puanları ayrıdır, buraya karışmaz.</p>
 
   <div class="mod-izgara">
     <section class="kart neon" aria-labelledby="gorev-b">
@@ -45,6 +57,15 @@
     </section>
   </div>
 
+  {% if liderlik_ozet is defined %}
+  <section class="kart" aria-labelledby="lider-b">
+    <h2 id="lider-b">Bu haftanın XP liderleri <a href="/ogrenci/arena/liderlik">Tümü</a></h2>
+    {% if liderlik_ozet.ilk %}
+    <ol class="liderlik-liste">{% for x in liderlik_ozet.ilk[:3] %}<li{{ ' class="ben"' if x.ben }} value="{{ x.sira }}"><span class="ad">{{ x.ad }} <span class="soluk kucuk">{{ x.sinif }}</span></span><b>{{ x.deger }} XP</b></li>{% endfor %}</ol>
+    {% if liderlik_ozet.benim %}<p class="kucuk">Sıran: <b>{{ liderlik_ozet.benim.sira }}.</b></p>{% endif %}
+    {% else %}<p class="bos">Bu hafta henüz kimse XP kazanmadı. İlk sen ol!</p>{% endif %}
+  </section>
+  {% endif %}
   <section class="kart" aria-labelledby="tekrar-b">
     <h2 id="tekrar-b">Tekrar edilebilecek kazanımlar</h2>
     {% if tekrar %}

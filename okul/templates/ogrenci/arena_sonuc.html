@@ -9,9 +9,20 @@
   <section class="kart neon sonuc-ozet">
     <p class="buyuk-puan"><b>{{ tur.dogru }}</b> / {{ tur.soru_sayisi }} doğru</p>
     <p>{{ tur.ders_ad }} · <b>+{{ tur.xp }}</b> XP</p>
-    {% if seviye_atladi %}<p><span class="etiket altin">Seviye {{ seviye_atladi }}'e ulaştın</span></p>{% endif %}
+    {% if seviye_atladi %}
+    <div class="seviye-atla">
+      {% if avatar_cfg is defined %}{{ avatar_svg(avatar_cfg, seviye_atladi, 120) }}{% endif %}
+      <p><span class="etiket altin">Seviye {{ seviye_atladi }}'e ulaştın!</span></p>
+      {% if acilanlar is defined and acilanlar %}<p class="sonraki-acilis">🔓 Yeni açıldı: <b>{{ acilanlar|join(', ') }}</b> · <a href="/ogrenci/avatar">Avatarını güzelleştir →</a></p>{% endif %}
+    </div>
+    {% endif %}
     {% for r in yeni_rozetler %}<p><span class="etiket altin">Yeni rozet: {{ r.ad }}</span></p>{% endfor %}
     {{ xp_cubuk(seviye) }}
+    {% if yaris is defined and yaris and yaris.ben %}
+    <p class="yaris-mesaj">🏆 Haftalık XP sıran: <b>{{ yaris.ben.sira }}.</b>
+      {% if yaris.ust %}{{ yaris.ust.sira }}. sıradaki {{ yaris.ust.ad }}'ı geçmek için <b>{{ yaris.ust.fark + 1 }} XP</b> daha! <a href="/ogrenci/arena/liderlik">Liderlik →</a>
+      {% else %}Birincisin! <a href="/ogrenci/arena/liderlik">Liderlik →</a>{% endif %}</p>
+    {% endif %}
   </section>
 
   <section class="kart" aria-labelledby="oz-b">

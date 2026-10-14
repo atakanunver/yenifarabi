@@ -7,6 +7,7 @@ from datetime import datetime
 
 import anket
 import auth
+import avatar
 import db
 from ayarlar import KOK
 from fastapi import Depends, HTTPException, Request
@@ -54,6 +55,8 @@ TEMPLATES.env.filters["baslik"] = lambda s: (s or "")[:1].upper() + (s or "")[1:
 TEMPLATES.env.globals["ROL_ADLARI"] = ROL_ADLARI
 # Yeni modül bağlantıları: yalnızca bu kodu çalıştıran süreçte tanımlı (şablonlarda `MODULLER is defined`).
 TEMPLATES.env.globals["MODULLER"] = True
+TEMPLATES.env.globals["avatar_svg"] = avatar.svg
+TEMPLATES.env.globals["OYUN_NAV"] = True  # öğrenci alt menüsü oyun odaklı (yalnızca bu kodu çalıştıran süreçte)
 
 
 def _saat_verisi() -> dict:

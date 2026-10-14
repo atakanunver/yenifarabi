@@ -14,7 +14,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/static/logo-64.png" type="image/png">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
-<link rel="stylesheet" href="/static/okul.css?v=13">
+<link rel="stylesheet" href="/static/okul.css?v=17">
 </head>
 <body>
 <header class="ust">
@@ -39,7 +39,11 @@
 {% if k and not k.sifre_degismeli %}
 {% set ogr = ('?ogr=' ~ cocuk.id) if cocuk else '' %}
 {% if k.rol == 'ogrenci' %}
+  {% if OYUN_NAV is defined %}
+  {% set sekmeler = [('/ogrenci','Ana sayfa','ev'),('/ogrenci/arena','Oyun','oyun'),('/ogrenci/arena/liderlik','Liderlik','kupa'),('/ogrenci/odevler','Ödevler','odev'),('/ogrenci/avatar','Avatarım','kisi')] %}
+  {% else %}
   {% set sekmeler = [('/ogrenci','Ana sayfa','ev'),('/ogrenci/odevler','Ödevler','odev'),('/ogrenci/kazanimlar','Kazanımlar','kazanim'),('/ogrenci/program','Program','program'),('/duyurular','Duyurular','duyuru')] %}
+  {% endif %}
 {% elif k.rol == 'veli' %}
   {% set sekmeler = [('/veli'~ogr,'Ana sayfa','ev'),('/veli/devamsizlik'~ogr,'Devamsızlık','devam'),('/veli/kazanim'~ogr,'Kazanımlar','kazanim'),('/veli/odevler'~ogr,'Ödevler','odev'),('/duyurular','Duyurular','duyuru')] %}
 {% elif k.rol == 'ogretmen' %}
@@ -48,9 +52,12 @@
   {% set sekmeler = [('/yonetici','Özet','ev'),('/yonetici/aktarim','Aktarım','yukle'),('/yonetici/kullanicilar','Kullanıcılar','kisi'),('/yonetici/gorevler','Görevler','gorev'),('/ogretmen/duyuru','Duyuru','duyuru')] %}
 {% endif %}
 <nav class="sekmeler" aria-label="Ana menü">
+  {# etkin sekme: yolu eşleşenlerin en uzunu (örn. /ogrenci/arena/liderlik açıkken yalnızca Liderlik) #}
+  {% set en = namespace(uzun='') %}
+  {% for yol, ad, ik in sekmeler %}{% set temel = yol.split('?')[0] %}{% if (request.url.path == temel or (temel|length > 9 and request.url.path.startswith(temel))) and temel|length > en.uzun|length %}{% set en.uzun = temel %}{% endif %}{% endfor %}
   {% for yol, ad, ik in sekmeler %}
   {% set temel = yol.split('?')[0] %}
-  <a href="{{ yol }}" class="{{ 'aktif' if request.url.path == temel or (temel|length > 9 and request.url.path.startswith(temel)) }}">{{ ikon(ik) }}{{ ad }}</a>
+  <a href="{{ yol }}" class="{{ 'aktif' if temel == en.uzun }}"{{ ' aria-current="page"' if temel == en.uzun }}>{{ ikon(ik) }}{{ ad }}</a>
   {% endfor %}
 </nav>
 {% endif %}

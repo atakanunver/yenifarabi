@@ -9,7 +9,9 @@ import sqlite3
 
 import analitik
 import arena
+import avatar
 import maraton
+import oduller
 import yetki
 from deps import db_conn, render, rol
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -60,6 +62,9 @@ def merkez(request: Request, k=Depends(OGRENCI), conn: sqlite3.Connection = Depe
         son=arena.son_tur(conn, k["id"]),
         tekrar=arena.tekrar_onerileri(conn, k["id"]) or None,
         hafta=arena.hafta_ozeti(conn, k["id"]),
+        liderlik_ozet=oduller.liderlik(conn, oduller.hafta_basi(), k["id"])["xp"],
+        avatar_cfg=avatar.getir(conn, k["id"]),
+        avatar_siradaki=avatar.siradaki_acilis(arena.seviye(conn, k["id"])["no"]),
     )
 
 
@@ -82,6 +87,20 @@ def basla(
     if not var:
         analitik.istekten(request, "arena_basla", str(tur))
     return RedirectResponse(f"/ogrenci/arena/{tur}", status_code=303)
+
+
+@router.get("/liderlik")
+def liderlik(
+    request: Request, donem: str = "hafta", k=Depends(OGRENCI), conn: sqlite3.Connection = Depends(db_conn)
+):
+    """Bilgi Arenası liderliği: en çok XP kazanan, en çok doğru, en çok soru çözen (hafta ya da tüm zamanlar)."""
+    _kendisi(conn, k)
+    donem = "tum" if donem == "tum" else "hafta"
+    hb = oduller.hafta_basi() if donem == "hafta" else None
+    return render(
+        request, "ogrenci/arena_liderlik.html", donem=donem, hafta_basi=hb,
+        tablolar=oduller.liderlik(conn, hb, k["id"]), ilk=oduller.LIDER_ILK,
+    )
 
 
 @router.get("/ilerleme")
@@ -227,4 +246,9 @@ def sonuc(
         yeni_rozetler=[{"ad": r["ad"]} for r in yeni],
         seviye_atladi=arena.seviye_atladi(conn, k["id"], t),
         seviye=arena.seviye(conn, k["id"]),
+        avatar_cfg=avatar.getir(conn, k["id"]),
+        yaris=oduller.liderlik(conn, oduller.hafta_basi(), k["id"])["xp"],
+        acilanlar=avatar.acilanlar(
+            arena.seviye_hesapla(arena.toplam_xp(conn, k["id"]) - t["xp"])["no"], arena.seviye(conn, k["id"])["no"]
+        ),
     )

@@ -5,11 +5,13 @@ import sqlite3
 
 import analitik
 import arena
+import avatar
 import bugun
 import denemeler
 import duyurular
 import kisisel
 import maraton
+import oduller
 import odevler
 import sinavlar
 import yetki
@@ -50,10 +52,12 @@ def ana(
         request,
         "ogrenci/ana_yeni.html",
         ogrenci=o,
-        bugun=bugun.gorevler(conn, o),
+        bugun=bugun.gorevler(conn, o, arena_gorevi=False),
+        yaris=oduller.liderlik(conn, oduller.hafta_basi(), k["id"])["xp"] if arena_acik else None,
         hafta=kisisel.bu_hafta(conn, o),
         seviye=arena.seviye(conn, k["id"]) if arena_acik else None,
         arena_acik=arena_acik,
+        avatar_cfg=avatar.getir(conn, k["id"]) if arena_acik else None,
         dersler=ortak.bugunku_dersler(o["sinif"]),
         odevler=ortak.bekleyen_odevler(conn, o)[:4],
         duyurular=duyurular.gorunur_duyurular(conn, k, 3),

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block baslik %}Haftalık ödüller · Dijital Okul{% endblock %}
+{% block icerik %}
+<p><a href="/yonetici">← Özet</a></p>
+<h1>Haftalık ödüller</h1>
+<section class="kart">
+  <h2>Kurallar</h2>
+  <ul class="liste">
+    <li><span><b>En çok etkinlik</b> — Günlük Görev + Hızlı Mod turu + test ödevi (en az {{ min_etkinlik }}). 1 Nescafe kahve bu kategoriye.</span></li>
+    <li><span><b>En istikrarlı</b> — etkinlik yapılan farklı gün sayısı (en az {{ min_gun }}).</span></li>
+    <li><span><b>En katılımcı sınıf</b> — en az bir etkinlik yapan öğrenci / sınıf mevcudu (sınıfta en az {{ min_katilan }} katılımcı).</span></li>
+  </ul>
+  <p class="kucuk soluk">12. sınıf dahildir (Günlük Görev'e erişemez; Hızlı Mod ve test ödevi sayılır). Hızlı Mod günde en çok 2 tur, çok kısa süren turlar sayılmaz. Beraberlikte hepsi kazanır; tek kahveye idare karar verir. Cuma kiosk'ta geçici, pazartesi kesin sonuç gösterilir.</p>
+</section>
+<section class="kart">
+  <h2>Bu hafta (geçici) <span class="soluk kucuk">{{ bu_hafta|tarih }}</span></h2>
+  <p class="kucuk">{{ gecici.katilan_ogrenci }} / {{ gecici.toplam_ogrenci }} öğrenci etkinlik yaptı.</p>
+  {% for kod, ad in kategoriler.items() %}
+    <p><b>{{ ad }}:</b>
+    {% for x in gecici[kod] %}{% if kod == 'sinif' %}{{ x.sinif }} (%{{ x.oran }}){% else %}{{ x.ad }} ({{ x.sinif }}) — {{ x.etkinlik if kod == 'etkinlik' else x.gun ~ ' gün' }}{% endif %}{{ ', ' if not loop.last }}{% else %}<span class="soluk">henüz kimse şartı sağlamadı</span>{% endfor %}</p>
+  {% endfor %}
+</section>
+{% for h in haftalar %}
+<section class="kart">
+  <h2>{{ h.hafta_basi|tarih }} haftası</h2>
+  {% for r in h.kayitlar %}
+    <div class="satir">
+      <span><b>{{ h.adlar[r.kategori] }}</b>: {% if r.kategori == 'sinif' %}{{ r.sinif }}{% else %}{{ r.ad_soyad }} ({{ r.sinif }}){% endif %}<br><span class="kucuk soluk">{{ r.ayrinti }}</span></span>
+      {% if r.kahve %}
+      <form class="sag" method="post" action="/yonetici/oduller/{{ r.id }}/kahve">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        {% if r.kahve_teslim %}<span class="etiket yesil">Kahve verildi</span> <button class="tus ikincil kucuk" name="teslim" value="0">Geri al</button>
+        {% else %}<span class="etiket sari">Kahve bekliyor</span> <button class="tus kucuk" name="teslim" value="1">Verildi</button>{% endif %}
+      </form>{% endif %}
+    </div>
+  {% else %}
+    <p class="bos">Bu hafta ödül şartını sağlayan olmadı.</p>
+  {% endfor %}
+</section>
+{% endfor %}
+{% endblock %}

@@ -350,7 +350,44 @@ CREATE TABLE hedef (
 );
 """
 
-GOCLER = [SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8]
+# Haftalık ödüller (kiosk duyurusu + rozet + haftanın Nescafe'si). Hafta bittikten sonra bir kez yazılır, değişmez.
+# odul_hafta: haftanın sonucu yazıldı işareti (kazanan çıkmasa da; sonradan gelen veri sonucu değiştirmesin).
+# anahtar = "kullanici_id|sinif" (NULL'lar UNIQUE'i delmesin). Sınıf ödülü satırında kullanici_id NULL'dur.
+SEMA_V9 = """
+CREATE TABLE odul (
+    id            INTEGER PRIMARY KEY,
+    hafta_basi    TEXT NOT NULL,
+    kategori      TEXT NOT NULL CHECK (kategori IN ('etkinlik', 'istikrar', 'sinif')),
+    anahtar       TEXT NOT NULL,
+    kullanici_id  INTEGER REFERENCES kullanici(id),
+    sinif         TEXT,
+    deger         INTEGER NOT NULL,
+    ayrinti       TEXT NOT NULL DEFAULT '',
+    kahve         INTEGER NOT NULL DEFAULT 0,
+    kahve_teslim  TEXT,
+    zaman         TEXT NOT NULL,
+    UNIQUE (hafta_basi, kategori, anahtar)
+);
+CREATE INDEX odul_hafta_idx ON odul(hafta_basi);
+CREATE TABLE odul_hafta (
+    hafta_basi  TEXT PRIMARY KEY,
+    kapanis     TEXT NOT NULL
+);
+"""
+
+# Öğrenci avatarı: seçilen karakter + eşya kodları. Açık olup olmadığı seviyeye göre sunucuda doğrulanır (avatar.py).
+SEMA_V10 = """
+CREATE TABLE avatar (
+    kullanici_id  INTEGER PRIMARY KEY REFERENCES kullanici(id),
+    karakter      TEXT NOT NULL,
+    sapka         TEXT NOT NULL DEFAULT 'yok',
+    yuz           TEXT NOT NULL DEFAULT 'yok',
+    sirt          TEXT NOT NULL DEFAULT 'yok',
+    guncelleme    TEXT NOT NULL
+);
+"""
+
+GOCLER = [SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10]
 
 
 def baglanti() -> sqlite3.Connection:

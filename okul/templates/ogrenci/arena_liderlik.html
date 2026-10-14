@@ -1,0 +1,26 @@
+{# Arena liderliği. Bağlam: donem(hafta|tum), hafta_basi, tablolar{xp,dogru,cozulen}{ilk[{sira,ad,sinif,deger,ben}],benim|None,katilan}, ilk. #}
+{% extends "base.html" %}
+{% block baslik %}Liderlik · Bilgi Arenası{% endblock %}
+{% block icerik %}
+<div class="arena">
+  <div class="arena-ust"><h1>Liderlik</h1>
+    <nav class="sekme-sec" aria-label="Dönem">
+      <a class="etiket {{ 'mor' if donem == 'hafta' else '' }}" href="/ogrenci/arena/liderlik?donem=hafta"{{ ' aria-current="page"' if donem == 'hafta' }}>Bu hafta</a>
+      <a class="etiket {{ 'mor' if donem == 'tum' else '' }}" href="/ogrenci/arena/liderlik?donem=tum"{{ ' aria-current="page"' if donem == 'tum' }}>Tüm zamanlar</a>
+    </nav></div>
+  <p class="kucuk soluk"><b>Bireysel</b> liderlik: yalnızca smual.app'teki Günlük Görev ve Hızlı Mod'dan hesaplanır (sınıf tahtası oyunlarının puanları ayrıdır). {% if donem == 'hafta' %}Hafta pazartesi başlar ({{ hafta_basi|tarih }}).{% endif %} Çok kısa sürede bitirilen turlar ve Hızlı Mod'da günde 2'den fazla tur sayılmaz.</p>
+  {% for ad, baslik, birim in (('xp', 'En çok XP kazananlar', 'XP'), ('dogru', 'En çok doğru cevap', 'doğru'), ('cozulen', 'En çok soru çözenler', 'soru')) %}
+  {% set t = tablolar[ad] %}
+  <section class="kart" aria-labelledby="l-{{ ad }}">
+    <h2 id="l-{{ ad }}">{{ baslik }}</h2>
+    {% if t.ilk %}
+    <ol class="liderlik-liste">
+      {% for x in t.ilk %}<li{{ ' class="ben"' if x.ben }} value="{{ x.sira }}"><span class="ad">{% if x.av %}<span class="avatar-mini">{{ avatar_svg(x.av.cfg, x.av.sev, 30) }}</span>{% endif %}{{ x.ad }} <span class="soluk kucuk">{{ x.sinif }}</span></span><b>{{ x.deger }} {{ birim }}</b></li>{% endfor %}
+    </ol>
+    {% if t.benim %}<p class="kucuk">Sıran: <b>{{ t.benim.sira }}.</b> ({{ t.benim.deger }} {{ birim }})</p>{% endif %}
+    {% else %}<p class="bos">{{ 'Bu hafta' if donem == 'hafta' else 'Henüz' }} kimse listeye girmedi. İlk sen ol!</p>{% endif %}
+  </section>
+  {% endfor %}
+  <p class="kucuk"><a href="/ogrenci/arena">← Bilgi Arenası</a></p>
+</div>
+{% endblock %}

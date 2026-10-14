@@ -15,7 +15,7 @@ import odevler
 import zaman
 from rotalar import ortak
 
-MAX_GOREV = 4
+MAX_GOREV = 3
 SINAV_GUN = 7  # sınav bu kadar gün içindeyse tekrar görevi çıkar
 ODEV_SAAT_ACIL = 24
 
@@ -34,7 +34,7 @@ def _odev_gorevleri(conn: sqlite3.Connection, ogrenci: sqlite3.Row, simdi: datet
     return liste, max(len(bekleyen) - 2, 0)
 
 
-def gorevler(conn: sqlite3.Connection, ogrenci: sqlite3.Row, kilit: dict | None = None) -> dict:
+def gorevler(conn: sqlite3.Connection, ogrenci: sqlite3.Row, kilit: dict | None = None, arena_gorevi: bool = True) -> dict:
     """{'gorevler': [...], 'fazla_odev': n, 'tamamlanan': [...], 'arena': durum}.
     kilit: maraton.kilit() sonucu (ders saatinde None değil); Arena görevinde bilgi olarak kullanılır."""
     simdi = zaman.simdi()
@@ -42,7 +42,7 @@ def gorevler(conn: sqlite3.Connection, ogrenci: sqlite3.Row, kilit: dict | None 
     liste, fazla = _odev_gorevleri(conn, ogrenci, simdi)
     tamam: list[str] = []
     gd = arena.gorev_durumu(conn, kid, ogrenci["sinif"]) if arena.duzey_uygun(ogrenci["sinif"]) else None
-    if gd:
+    if gd and arena_gorevi:
         if gd["durum"] in ("hazir", "devam"):
             liste.append({
                 "tur": "arena", "baslik": "Günlük Görev" + (" (devam et)" if gd["durum"] == "devam" else ""),

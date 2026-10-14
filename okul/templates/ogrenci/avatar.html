@@ -1,0 +1,44 @@
+{# Avatar seçimi. Bağlam: seviye, secim(önizleme), kayitli, degisti, bolumler, kademe, siradaki(seviye, adlar)|None, hata, kaydedildi. #}
+{% extends "base.html" %}
+{% block baslik %}Avatarım · Bilgi Arenası{% endblock %}
+{% block icerik %}
+<div class="arena">
+  <div class="arena-ust"><h1>Avatarım</h1><span class="seviye-rozeti" aria-label="Seviye {{ seviye.no }}">{{ seviye.no }}</span></div>
+  {% if kaydedildi %}<p class="geri-bildirim dogru" role="status"><b>Kaydedildi!</b> Avatarın artık her yerde böyle görünecek.</p>{% endif %}
+  {% if hata %}<p class="geri-bildirim yanlis" role="alert">{{ hata }}</p>{% endif %}
+
+  <section class="kart avatar-sahne" aria-label="Önizleme">
+    {{ avatar_svg(secim, seviye.no, 168) }}
+    <p class="kademe-ad">{{ kademe[1] }} kademesi</p>
+    <p class="kucuk soluk">Seviye arttıkça çerçeven güzelleşir, yeni karakter ve eşyalar açılır.</p>
+    {% if siradaki %}<p class="sonraki-acilis">🔓 <b>Seviye {{ siradaki[0] }}</b>'de açılır: {{ siradaki[1]|join(', ') }}</p>{% endif %}
+    <form method="post" action="/ogrenci/avatar">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      {% for b in bolumler %}<input type="hidden" name="{{ b }}" value="{{ secim[b] }}">{% endfor %}
+      <div class="tuslar"><button class="tus buyuk"{{ ' disabled' if not degisti }}>{{ 'Bu avatarı kullan' if degisti else 'Kayıtlı avatarın bu' }}</button></div>
+    </form>
+  </section>
+
+  {% for b, (baslik, sozluk) in bolumler.items() %}
+  <section class="kart" aria-labelledby="av-{{ b }}">
+    <h2 id="av-{{ b }}">{{ baslik }}</h2>
+    <ul class="avatar-sec">
+      {% for kod, (ad, sev, _) in sozluk.items() %}
+      {% set acik = sev <= seviye.no %}
+      {% set deneme = dict(secim, **{b: kod}) %}
+      <li class="{{ 'secili' if secim[b] == kod }}{{ ' kilitli' if not acik }}">
+        {% if acik %}
+        <a href="/ogrenci/avatar?{% for bb in bolumler %}{{ bb }}={{ deneme[bb] }}{{ '&amp;' if not loop.last }}{% endfor %}"{{ ' aria-current="true"' if secim[b] == kod }}>
+          {% if b == 'karakter' %}{{ avatar_svg(deneme, seviye.no, 56) }}{% else %}<span class="eşya-ik">{{ avatar_svg(deneme, seviye.no, 56) }}</span>{% endif %}
+          <span>{{ ad }}</span></a>
+        {% else %}
+        <div aria-disabled="true"><span class="kilit-ik" aria-hidden="true">🔒</span><span>{{ ad }}</span><span class="kucuk">Seviye {{ sev }}'de açılır</span></div>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+  <p class="kucuk"><a href="/ogrenci/arena">← Bilgi Arenası</a></p>
+</div>
+{% endblock %}

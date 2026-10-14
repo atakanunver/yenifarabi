@@ -43,5 +43,14 @@
   </ul>
   <p class="kucuk"><a href="/ogrenci/arena/ilerleme">Arena ilerlemem →</a> · <a href="/ogrenci/gelisim">Gelişimim →</a></p>
 </section>
+{% if oduller is defined %}
+<section class="kart" aria-labelledby="odul-b">
+  <h2 id="odul-b">Haftalık ödüllerim</h2>
+  <p class="kucuk soluk">Her hafta okulda duyurulur: <b>En çok etkinlik</b> (Günlük Görev + Hızlı Mod + test ödevi, en az {{ odul_kurallari[0] }}; kazanan 1 Nescafe kahve alır), <b>en istikrarlı</b> (en az {{ odul_kurallari[1] }} farklı gün) ve <b>en katılımcı sınıf</b>. Cuma geçici, pazartesi kesin sonuç. Çok kısa süren turlar ve Hızlı Mod'da günde 2'den fazla tur sayılmaz.</p>
+  {% if oduller %}
+  <ul class="liste">{% for o in oduller %}<li><span><b>{{ o.ad }}</b> <span class="soluk kucuk">{{ o.hafta_basi|tarih }} haftası · {{ o.ayrinti }}</span>{% if o.kahve %}<br><span class="kucuk">{% if o.kahve_teslim %}☕ Kahve ödülün verildi{% else %}☕ Nescafe kahve ödülünü kazandın{% endif %}</span>{% endif %}</span></li>{% endfor %}</ul>
+  {% else %}<p class="bos">Henüz haftalık ödülün yok. Bu hafta sen kazanabilirsin!</p>{% endif %}
+</section>
+{% endif %}
 </div>
 {% endblock %}

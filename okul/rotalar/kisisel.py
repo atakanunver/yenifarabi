@@ -4,6 +4,7 @@ import sqlite3
 
 import arena
 import kisisel
+import oduller
 import yetki
 from deps import db_conn, render, rol
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -26,6 +27,7 @@ def _sayfa(request, conn, o, hata: str = "", status: int = 200):
         request, "ogrenci/hedefim.html", status_code=status, hafta=kisisel.bu_hafta(conn, o),
         gecmis=kisisel.gecmis(conn, o), rozetler=arena.rozetler(conn, o["kullanici_id"]), hata=hata,
         min_hedef=kisisel.MIN_HEDEF, max_hedef=kisisel.MAX_HEDEF,
+        oduller=oduller.ogrenci_oduller(conn, o), odul_kurallari=(oduller.MIN_ETKINLIK, oduller.MIN_GUN, oduller.MIN_KATILAN),
     )
 
 
