@@ -5,11 +5,13 @@ Farabi kaynak filtresi için (2026-10-04).
   Filtre her sohbet mesajına bunu ekler (model tarihi uydurmasın).
 - /ders-programi: sınıf → şu anki ders / bugün / belirli gün / hafta
   (data/ders_programi.json + zil.json; DB'deki ders_programi tablosu boş).
-  Öğretmen adı veri kaynağında YOK — öğretmene göre sorgu yapılamaz.
+  Ders programı verisinde öğretmen adı YOK (öğretmen→ders eşlemesi /ogretmen'den).
 - /ogrenci: panonun güncel sınıf listesinden (`ogrenciler` tablosu) no + ad soyad + sınıf.
   KVKK: yalnızca okul.json::ogrenci_izinli e-postaları ve Open WebUI admin
   rolü (kullanıcı kararı 2026-10-04: İdare + Öğretmen; tahta hesabı HARİÇ).
   Araç da aynı kontrolü yapar; burası ikinci kapı. Öğrenci adları loga YAZILMAZ.
+- /ogretmen: config/ogretmenler.json (scripts/ogretmen_listesi_uret.py, gitignore'lu)
+  → ad soyad, verdiği ders kısaltmaları, sınıflar. Aynı izin kuralı (2026-10-13).
 
 Erişim ajan_api.py ile aynı desen ama AYRI anahtar (config/okul.json,
 gitignore'lu): bu anahtar herkesin kullandığı araçta durur, tahta eylemi /
@@ -31,6 +33,7 @@ from fastapi.responses import JSONResponse
 log = logging.getLogger("okul_bilgisi")
 
 OKUL_AYAR_YOLU = Path(__file__).resolve().parent / "config" / "okul.json"
+OGRETMEN_YOLU = Path(__file__).resolve().parent / "config" / "ogretmenler.json"
 _YEREL = {"127.0.0.1", "::1"}
 AZAMI_OGRENCI = 60
 
@@ -239,3 +242,23 @@ async def ogrenci(request: Request, sinif: str = "", ad: str = "", no: str = "")
     # KVKK: ad/sorgu metni loga yazılmaz, yalnızca sayı.
     log.info("okul/ogrenci sorgusu: %d sonuç", len(liste))
     return JSONResponse({"ogrenciler": liste[:AZAMI_OGRENCI], "toplam": len(liste)})
+
+
+def _ogretmenler() -> list[dict]:
+    try:
+        veri = json.loads(OGRETMEN_YOLU.read_text(encoding="utf-8"))
+        return [o for o in veri.get("ogretmenler", []) if o.get("ad_soyad")]
+    except (OSError, ValueError, AttributeError, TypeError):
+        raise HTTPException(503, "Öğretmen listesi yüklenmemiş.")
+
+
+@router.get("/ogretmen")
+async def ogretmen(request: Request, ad: str = ""):
+    ayar = _dogrula(request)
+    _ogrenci_izni(request, ayar)
+    liste = _ogretmenler()
+    if ad.strip():
+        parcalar = _sade(ad).split()
+        liste = [o for o in liste if all(p in _sade(o["ad_soyad"]) for p in parcalar)]
+    log.info("okul/ogretmen sorgusu: %d sonuç", len(liste))
+    return JSONResponse({"ogretmenler": liste, "toplam": len(liste)})

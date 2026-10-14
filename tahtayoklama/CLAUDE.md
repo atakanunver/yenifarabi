@@ -371,7 +371,7 @@ Kullanıcı isteği: `http://farabi.local:8010/admin/uzaktan` bölümünde tablo
 | Tahta | IP | O gün ulaşılabilir mi | Not |
 |---|---|---|---|
 | 9-A | .245 | ✗ (No route to host) | 7 aktif sınıftan biri; sabah erken saatte kapalı olması muhtemel, arıza kanıtı değil |
-| 9-B | .239 | ✓ | normal |
+| 9-B | .235 | ✓ | normal — donanım değişti, yeni MAC 00:09:df:83:5c:45 (eski .239 / ...:5c:a9) |
 | 10-A | .242 | ✓ | normal |
 | 11-A | .228 | ✓ | normal |
 | 11-B | .233 | ✓ | normal |

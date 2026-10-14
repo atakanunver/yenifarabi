@@ -294,5 +294,62 @@ class TestOgrenci(Taban):
         self.assertFalse(any("Ayşe" in s or "ayşe" in s for s in kayit.output))
 
 
+class TestOgretmen(Taban):
+    LISTE = {
+        "ogretmenler": [
+            {"ad_soyad": "YILMAZ SAFİYE", "dersler": ["İng"], "siniflar": ["9-A"]},
+            {"ad_soyad": "BAYAR SEDAT", "dersler": ["Tarih"], "siniflar": ["10-A"]},
+        ]
+    }
+
+    def ogt(self, eposta="idare@farabi.local", rol="user", **sorgu):
+        with tempfile.TemporaryDirectory() as d:
+            yol = Path(d) / "ogretmenler.json"
+            yol.write_text(json.dumps(self.LISTE), encoding="utf-8")
+            with patch.object(ob, "OGRETMEN_YOLU", yol):
+                return self.cagir(
+                    ob.ogretmen,
+                    _istek(
+                        basliklar=_b(
+                            **{"X-Farabi-Kullanici": eposta, "X-Farabi-Rol": rol}
+                        )
+                    ),
+                    **sorgu,
+                )
+
+    def test_adsiz_tum_liste(self):
+        self.assertEqual(self.ogt()["toplam"], 2)
+
+    def test_turkce_aksansiz_arama(self):
+        v = self.ogt(ad="safiye yilmaz")
+        self.assertEqual([o["ad_soyad"] for o in v["ogretmenler"]], ["YILMAZ SAFİYE"])
+
+    def test_tahta_hesabi_403(self):
+        with self.assertRaises(HTTPException) as c:
+            self.ogt(eposta="tahta@farabi.local")
+        self.assertEqual(c.exception.status_code, 403)
+
+    def test_dosya_yoksa_503(self):
+        with patch.object(ob, "OGRETMEN_YOLU", Path("/yok/ogretmenler.json")):
+            with self.assertRaises(HTTPException) as c:
+                self.cagir(
+                    ob.ogretmen,
+                    _istek(
+                        basliklar=_b(
+                            **{
+                                "X-Farabi-Kullanici": "idare@farabi.local",
+                                "X-Farabi-Rol": "user",
+                            }
+                        )
+                    ),
+                )
+        self.assertEqual(c.exception.status_code, 503)
+
+    def test_ad_loga_yazilmaz(self):
+        with self.assertLogs("okul_bilgisi", level="INFO") as kayit:
+            self.ogt(ad="safiye")
+        self.assertFalse(any("safiye" in s.lower() for s in kayit.output))
+
+
 if __name__ == "__main__":
     unittest.main()

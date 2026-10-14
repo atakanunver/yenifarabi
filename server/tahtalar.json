@@ -27,7 +27,9 @@
     "admin": "etapadmin"
   },
   "9-B": {
-    "ip": "192.168.23.239",
+    "ip": "192.168.23.235",
+    "mac": "00:09:df:83:5c:45",
+    "_ip_notu": "2026-10-14: 9-B tahtası donanım değişimiyle yenilendi (eski MAC 00:09:df:83:5c:a9 / .239). Yeni tahta hostname vestel9b.",
     "kullanici": "ogretmen",
     "admin": "etapadmin"
   },
@@ -60,11 +62,6 @@
   },
   "tahta-234": {
     "ip": "192.168.23.234",
-    "kullanici": "ogretmen",
-    "admin": "etapadmin"
-  },
-  "tahta-235": {
-    "ip": "192.168.23.235",
     "kullanici": "ogretmen",
     "admin": "etapadmin"
   },
