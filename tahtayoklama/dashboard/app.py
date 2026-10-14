@@ -189,7 +189,8 @@ async def api_yenile(request: Request, tarih: str | None = None):
 
 def _durum_satirlari(conn, hedef_tarih: date) -> list[dict]:
     """Verilen tarihin yoklama önbelleği satırları (+ ders_kisa_adi) —
-    /api/durum ve /api/ajan/yoklama ortak kullanır."""
+    /api/durum ve /api/ajan/yoklama ortak kullanır. `ogretmen` config/ogretmenler.json'daki
+    program anahtarından gelir (dosya yoksa None)."""
     satirlar = conn.execute(
         "SELECT sinif, ders_no, durum, yok_isimleri, izinli_isimleri, "
         "kaynak_tahta, kaydedilme_saati, guncelleme_zamani "
@@ -200,6 +201,9 @@ def _durum_satirlari(conn, hedef_tarih: date) -> list[dict]:
     for s in satirlar:
         satir = dict(s)
         satir["ders_kisa_adi"] = ders_programi.ders_kisa_adi(
+            satir["sinif"], hedef_tarih, satir["ders_no"]
+        )
+        satir["ogretmen"] = ders_programi.ogretmen_adi(
             satir["sinif"], hedef_tarih, satir["ders_no"]
         )
         sonuc.append(satir)

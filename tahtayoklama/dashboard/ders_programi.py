@@ -6,14 +6,18 @@ değiştiğinde bu dosya elle güncellenmeli, iki proje arasında canlı bir ba�
 yok.
 """
 
+import json
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
-import json
 
 DERS_PROGRAMI_DOSYASI = (
     Path(__file__).resolve().parent.parent / "data" / "ders_programi.json"
 )
+
+# Öğretmen adları kişisel veri sayılmasa da public repoya girmez (gitignore'lu dosya):
+# scripts/ogretmen_listesi_uret.py aSc öğretmen PDF'inden "program" anahtarını üretir.
+OGRETMEN_DOSYASI = Path(__file__).resolve().parent / "config" / "ogretmenler.json"
 
 _GUN_ADLARI = {
     1: "pazartesi",
@@ -76,9 +80,18 @@ def _yukle() -> dict:
     return json.loads(DERS_PROGRAMI_DOSYASI.read_text(encoding="utf-8")).get("siniflar", {})
 
 
+@lru_cache(maxsize=1)
+def _ogretmen_programi() -> dict:
+    try:
+        return json.loads(OGRETMEN_DOSYASI.read_text(encoding="utf-8")).get("program", {})
+    except (OSError, ValueError, AttributeError):
+        return {}  # dosya yok / bozuk: pano öğretmensiz çalışır
+
+
 def yenile() -> None:
     """Dosya elle değiştiyse önbelleği temizler."""
     _yukle.cache_clear()
+    _ogretmen_programi.cache_clear()
 
 
 def ders_adi(sinif: str, tarih: date, ders_no: int) -> str | None:
@@ -93,3 +106,12 @@ def ders_kisa_adi(sinif: str, tarih: date, ders_no: int) -> str | None:
     if ad is None:
         return None
     return KISALTMALAR.get(ad, _buyuk_harf(ad))
+
+
+def ogretmen_adi(sinif: str, tarih: date, ders_no: int) -> str | None:
+    """O gün o sınıfta o ders saatine giren öğretmen(ler); birden çoksa " / " ile birleşir."""
+    gun = _GUN_ADLARI.get(tarih.isoweekday())
+    if gun is None:
+        return None
+    adlar = _ogretmen_programi().get(sinif, {}).get(gun, {}).get(str(ders_no))
+    return " / ".join(adlar) if adlar else None

@@ -13,6 +13,13 @@
 {% endblock %}
 
 {% block icerik %}
+<!-- Uyarı şeridi: yalnızca /api/durum verisinden türer (ek istek yok; sunucu durumu açılışta çekilmez) -->
+<section class="uyari-seridi" id="uyari-seridi" data-durum="yukleniyor" aria-live="polite" aria-label="Günün özeti">
+  <span class="uyari-ikon" aria-hidden="true"><svg class="ikon"><use href="#ik-nabiz"/></svg></span>
+  <div class="uyari-icerik" id="uyari-icerik"><span class="uyari-metin">Durum yükleniyor…</span></div>
+  <a class="uyari-baglanti" href="/sistem-durumu">Sunucu durumu</a>
+</section>
+
 <!-- Özet İstatistik Kartları -->
 <div class="pano-ozet" id="pano-ozet">
   <div class="pano-ozet-kart">
@@ -120,8 +127,9 @@ function hucreDoldur(hucre, satir) {
   const bilgi = DURUM_BILGISI[anahtar] || { pill: '', metin: satir.durum };
 
   hucre.className = 'hucre';
-  const dersEtiketi = satir.ders_kisa_adi
-    ? `<span class="ders-etiketi">${satir.ders_kisa_adi}</span>` : '';
+  const dersEtiketi = (satir.ders_kisa_adi
+    ? `<span class="ders-etiketi">${satir.ders_kisa_adi}</span>` : '')
+    + (satir.ogretmen ? `<span class="ogretmen-etiketi" title="${satir.ogretmen}">${satir.ogretmen}</span>` : '');
   if (bilgi.bos) {
     // Yoklama durumu boş gösterilse de (ör. ders henüz başlamadı, tahta
     // hiç açılmamış) ders programı her zaman görünür kalmalı — kullanıcı
@@ -175,6 +183,72 @@ function aktifDersiGuncelle() {
   });
 }
 
+const UYARI_AZAMI_ROZET = 8;
+
+function uyariGrubu(tur, baslik, ogeler, hucreyeGit) {
+  const grup = document.createElement('div');
+  grup.className = 'uyari-grup uyari-' + tur;
+  const b = document.createElement('span');
+  b.className = 'uyari-baslik';
+  b.textContent = `${baslik} (${ogeler.length})`;
+  grup.appendChild(b);
+  ogeler.slice(0, UYARI_AZAMI_ROZET).forEach(o => {
+    const d = document.createElement('button');
+    d.type = 'button';
+    d.className = 'uyari-rozet';
+    d.textContent = o.etiket;
+    d.title = hucreyeGit ? 'Tabloda göster' : '';
+    if (hucreyeGit) d.addEventListener('click', () => hucreyeGit(o));
+    grup.appendChild(d);
+  });
+  if (ogeler.length > UYARI_AZAMI_ROZET) {
+    const k = document.createElement('span');
+    k.className = 'uyari-kalan';
+    k.textContent = `+${ogeler.length - UYARI_AZAMI_ROZET} daha`;
+    grup.appendChild(k);
+  }
+  return grup;
+}
+
+function hucreyiVurgula(o) {
+  const h = document.getElementById(`hucre-${o.sinif}-${o.dersNo}`);
+  if (!h) return;
+  h.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+  h.classList.add('hucre-vurgu');
+  setTimeout(() => h.classList.remove('hucre-vurgu'), 2500);
+}
+
+function uyariSeriti(satirlar, bugunMu) {
+  const alinmadi = [];
+  const ulasilamaz = new Map();
+  const atanmamis = new Set();
+  for (const s of satirlar) {
+    if (s.durum === 'alinmadi') alinmadi.push({ sinif: s.sinif, dersNo: s.ders_no, etiket: `${s.sinif} · ${s.ders_no}. ders` });
+    else if (s.durum === 'tahta_ulasilamaz' && !ulasilamaz.has(s.sinif)) ulasilamaz.set(s.sinif, { sinif: s.sinif, dersNo: s.ders_no, etiket: s.sinif });
+    else if (s.durum === 'tahta_atanmamis') atanmamis.add(s.sinif);
+  }
+  const kap = document.getElementById('uyari-icerik');
+  const sorunlu = alinmadi.length > 0 || ulasilamaz.size > 0;
+  document.getElementById('uyari-seridi').dataset.durum = sorunlu ? 'uyari' : 'tamam';
+  kap.replaceChildren();
+  if (alinmadi.length) kap.appendChild(uyariGrubu('yoklama', 'Yoklama alınmadı', alinmadi, hucreyiVurgula));
+  if (ulasilamaz.size) kap.appendChild(uyariGrubu('tahta', 'Tahta ulaşılamaz', [...ulasilamaz.values()], hucreyiVurgula));
+  if (!sorunlu) {
+    const m = document.createElement('span');
+    m.className = 'uyari-metin';
+    m.textContent = bugunMu
+      ? 'Başlamış derslerin hepsinde yoklama alındı, tüm tahtalar ulaşılabilir.'
+      : 'Seçili günde eksik yoklama ya da ulaşılamayan tahta yok.';
+    kap.appendChild(m);
+  }
+  if (atanmamis.size) {
+    const n = document.createElement('span');
+    n.className = 'uyari-not';
+    n.textContent = `${atanmamis.size} sınıfa tahta atanmamış`;
+    kap.appendChild(n);
+  }
+}
+
 async function tabloyuGuncelle() {
   if (document.hidden) return;
   const tarih = TARIH_SECICI.value;
@@ -208,6 +282,8 @@ async function tabloyuGuncelle() {
       }
     }
   }
+
+  uyariSeriti(veri.satirlar, tarih === TARIH_SECICI.max);
 
   const elTam = document.getElementById('ozet-tam-ders');
   if (elTam) elTam.textContent = tamSayac;

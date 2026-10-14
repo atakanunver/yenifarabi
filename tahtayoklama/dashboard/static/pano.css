@@ -386,6 +386,60 @@ main {
 }
 
 /* ---------- Pano Özet Kartları (KPI) ---------- */
+/* Uyarı şeridi (2026-10-14): yalnızca /api/durum verisinden; yalnızca mevcut renk değişkenleri */
+.uyari-seridi {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--renk-yuzey);
+  border: 1px solid var(--renk-kenar);
+  border-left: 4px solid var(--renk-gri);
+  border-radius: var(--yaricap-buyuk);
+  box-shadow: var(--renk-golge);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.uyari-seridi[data-durum="tamam"] { border-left-color: var(--renk-yesil); background: var(--renk-yesil-zemin); }
+.uyari-seridi[data-durum="uyari"] { border-left-color: var(--renk-amber); background: var(--renk-amber-zemin); }
+.uyari-ikon { display: grid; place-items: center; color: var(--renk-gri); }
+.uyari-seridi[data-durum="tamam"] .uyari-ikon { color: var(--renk-yesil); }
+.uyari-seridi[data-durum="uyari"] .uyari-ikon { color: var(--renk-amber); }
+.uyari-icerik { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.25rem; flex: 1 1 18rem; min-width: 0; }
+.uyari-metin, .uyari-not { color: var(--renk-metin-soluk); font-size: 0.9rem; }
+.uyari-grup { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.uyari-baslik { font-weight: 600; font-size: 0.9rem; color: var(--renk-metin); }
+.uyari-rozet {
+  font: inherit; font-size: 0.82rem; cursor: pointer;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--renk-kenar-vurgu);
+  background: var(--renk-yuzey);
+  color: var(--renk-metin);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.uyari-yoklama .uyari-rozet { border-color: var(--renk-amber); }
+.uyari-tahta .uyari-rozet { border-color: var(--renk-kirmizi); }
+.uyari-tahta .uyari-baslik { color: var(--renk-kirmizi); }
+.uyari-rozet:hover { background: var(--renk-gri-zemin); }
+.uyari-rozet:focus-visible, .uyari-baglanti:focus-visible { outline: 2px solid var(--renk-birincil); outline-offset: 2px; }
+.uyari-kalan { font-size: 0.82rem; color: var(--renk-metin-soluk); }
+.uyari-baglanti { font-size: 0.85rem; color: var(--renk-birincil); text-decoration: none; margin-left: auto; }
+.uyari-baglanti:hover { text-decoration: underline; }
+.ogretmen-etiketi {
+  display: block;
+  max-width: 100%;
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  color: var(--renk-metin-soluk);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hucre-vurgu { outline: 3px solid var(--renk-birincil); outline-offset: -3px; }
+
 .pano-ozet {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
