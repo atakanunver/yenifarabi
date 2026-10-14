@@ -57,7 +57,7 @@ Servisler arası bağ = HTTP + HMAC/paylaşılan anahtar. Tek DB istisnası: sms
 | smssistemi | `venv/bin/python -m pytest -q` | `... restart farabi-smssistemi` |
 | okul | `cd okul && venv/bin/python -m pytest -q` | `... restart farabi-okul` |
 | client | tahtada: `server/tahta-ssh.sh <derslik> "cd ~/farabi/client && venv/bin/python -m pytest tests/ -q"` | GitHub push |
-- Tek test: pytest projelerinde `venv/bin/python -m pytest tests/test_x.py::test_adi -q`; dashboard'da `venv/bin/python -m unittest test_modul.Sinif.test_adi`.
+- Tek test: pytest projelerinde `venv/bin/python -m pytest tests/test_x.py::test_adi -q` (smssistemi'de `tests/` yok: `pytest test_x.py::test_adi -q`); dashboard'da `venv/bin/python -m unittest test_modul.Sinif.test_adi`.
 - CRLF: `okul/` altındaki bazı dosyalar CRLF (`git ls-files --eol`); Python `open()` ile yeniden yazma, `newline=''` kullan ya da Edit aracı.
 - Tahta SSH: `server/tahta-ssh.sh [--admin] <derslik> "<komut>"`. Server logu
   yalnızca `journalctl -u farabi-api.service`.

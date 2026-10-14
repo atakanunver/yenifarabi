@@ -148,7 +148,7 @@ okul_no [INTEGER], veli_rol [TEXT: 'Anne'|'Baba'|'Teyze'|'Anneanne']) tabloları
   seçim önceliklidir.
 - `kisisellestir`: `{isim}` (alıcı adı) ve `{ogrenci_adi}` (veli için bağlı
   öğrencinin adı, öğrenci için kendi adı) yer tutucularını destekler.
-- Ollama entegrasyonu: Farabi'deki `qwen2.5:14b` (`192.168.23.252:11434`) modeline
+- Ollama entegrasyonu: Farabi'deki `qwen3.8:27b` (`192.168.23.252:11434`) modeline
   bağlanan `POST /api/mesaj-duzelt` endpoint'i ve mesaj kutusu yanındaki "✨ Düzelt (AI)"
   butonu — taslak metni resmi Türkçe okul SMS'ine çevirir, `{isim}` ve
   `{ogrenci_adi}` yer tutucularını olduğu gibi korur.
@@ -220,12 +220,7 @@ proxy'nin adresi/kimlik bilgileri ayrı alanlarda (`proxy_host`,
 ⚠️ **WifiHttpProxy.exe, Müdür PC'de systemd/Windows servisi DEĞİL** —
 kullanıcının elle çalıştırdığı bir batch script + .exe. Müdür PC yeniden
 başlatılırsa otomatik ayağa kalkmayabilir; kalıcı hale getirme (görev
-zamanlayıcı/başlangıç klasörü) henüz yapılmadı. Ayrıca bu script'in
-kaynağında (kullanıcının ayrı bir amaçla — okulun filtrelenmiş
-Ethernet'ini Wi-Fi üzerinden atlatmak için — yazdırdığı) bir TTL=65
-ayarı (carrier-tethering-tespitini atlatmaya yönelik) vardı; bu ayar
-**bilinçli olarak devreye alınmadı**, yalnızca HTTP proxy kısmı
-kullanılıyor.
+zamanlayıcı/başlangıç klasörü) henüz yapılmadı.
 
 - `db.py` — SQLite (`veri/smssistemi.db`, gitignore'lu), tek durum kaynağı.
   `gonderimler` (her SMS satırı, `gonderim_id` ile toplu gönderim gruplanır)
