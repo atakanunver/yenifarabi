@@ -384,7 +384,8 @@ async def kayitlar(request: Request):
 
 
 @app.get("/rehber", response_class=HTMLResponse)
-async def rehber(request: Request, sinif_id: int | None = None, tur: str | None = None, mesaj: str | None = None):
+async def rehber(request: Request, sinif_id: str | None = None, tur: str | None = None, mesaj: str | None = None):
+    sinif_id = _bos_int(sinif_id)
     conn = db.baglanti()
     try:
         yonlendirme = _oturum_yoksa_giris(request, conn)
@@ -879,14 +880,23 @@ async def api_otomasyon_durum(request: Request, servis: str | None = None):
 # --- Doğum Günleri Modülü ----------------------------------------------------
 
 
+def _bos_int(deger: str | None) -> int | None:
+    """Filtre formlarındaki boş seçeneği ("Tüm Sınıflar" -> sinif_id=) None sayar."""
+    deger = (deger or "").strip()
+    return int(deger) if deger.isdigit() else None
+
+
 @app.get("/dogum-gunleri", response_class=HTMLResponse)
 async def dogum_gunleri(
     request: Request,
-    sinif_id: int | None = None,
+    sinif_id: str | None = None,
     tur: str | None = None,
     durum: str | None = None,
     mesaj: str | None = None,
 ):
+    sinif_id = _bos_int(sinif_id)
+    # Veli doğum tarihi tutulmuyor: yalnızca öğrenci ve personel listelenir.
+    tur = tur if tur in ("ogrenci", "personel") else None
     conn = db.baglanti()
     try:
         yonlendirme = _oturum_yoksa_giris(request, conn)
@@ -894,7 +904,10 @@ async def dogum_gunleri(
             return yonlendirme
         stats = dogum_mantik.dogum_gunu_istatistikleri(conn)
         siniflar = db.siniflar_listele(conn)
-        kisiler = db.kisiler_listele(conn, sinif_id=sinif_id, tur=tur)
+        kisiler = [
+            k for k in db.kisiler_listele(conn, sinif_id=sinif_id, tur=tur)
+            if k["tur"] in ("ogrenci", "personel")
+        ]
         if durum == "tanimli":
             kisiler = [k for k in kisiler if k.get("dogum_tarihi")]
         elif durum == "eksik":
@@ -963,6 +976,9 @@ async def dogum_kisi_tarih_kaydet(
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
+        satir = conn.execute("SELECT tur FROM kisiler WHERE id = ?", (kisi_id,)).fetchone()
+        if satir is None or satir["tur"] not in ("ogrenci", "personel"):
+            return RedirectResponse("/dogum-gunleri", status_code=303)
         iso = dogum_tarihi.strip() if dogum_tarihi and dogum_tarihi.strip() else None
         db.kisi_dogum_tarihi_guncelle(conn, kisi_id, iso)
     finally:

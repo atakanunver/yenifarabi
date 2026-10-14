@@ -100,3 +100,19 @@ async def test_dogum_gunleri_sayfa_durum_filtresi(test_db):
     resp_tanimli = await app.dogum_gunleri(req, durum="tanimli")
     assert len(resp_tanimli.context["kisiler"]) == 1
     assert resp_tanimli.context["kisiler"][0]["id"] == k1
+
+
+@pytest.mark.anyio
+async def test_dogum_gunleri_bos_sinif_filtresi_ve_veli_listelenmez(test_db):
+    """'Tüm Sınıflar' sinif_id= (boş) gönderir: 422 yerine liste dönmeli; veli listelenmemeli."""
+    sinif_id = db.sinif_ekle(test_db, "9-A") if hasattr(db, "sinif_ekle") else None
+    if sinif_id is None:
+        pytest.skip("sinif_ekle yok")
+    db.kisi_ekle(test_db, "Ali Öğrenci", "5550000001", sinif_id, "ogrenci", None)
+    db.kisi_ekle(test_db, "Veli Bir", "5550000002", sinif_id, "veli", None)
+    request = _sahte_oturum_request(test_db)
+    yanit = await app.dogum_gunleri(request, sinif_id="", tur="veli", durum=None, mesaj=None)
+    adlar = [k["ad_soyad"] for k in yanit.context["kisiler"]]
+    assert "Ali Öğrenci" in adlar
+    assert "Veli Bir" not in adlar
+    assert app._bos_int("") is None and app._bos_int("3") == 3
