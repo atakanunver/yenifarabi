@@ -18,6 +18,9 @@ from pathlib import Path
 
 # user_version N'den N-1'e inmek için çalışan betik. Yeni göç eklenince buraya da eklenir.
 GERI = {
+    8: """
+DROP TABLE IF EXISTS hedef;
+""",
     7: """
 DROP TABLE IF EXISTS anket_cevap;
 DROP TABLE IF EXISTS anket_yanit;
@@ -37,7 +40,7 @@ DROP TABLE IF EXISTS bilgi_cevap;
 DROP TABLE IF EXISTS bilgi_tur;
 """,
 }
-TABLOLAR = {7: ["anket_cevap", "anket_yanit", "anket_katilim", "anket_hedef", "anket_soru", "anket"], 6: ["deneme_ogrenci", "deneme"], 5: ["bilgi_rozet", "bilgi_xp", "bilgi_cevap", "bilgi_tur"]}
+TABLOLAR = {8: ["hedef"], 7: ["anket_cevap", "anket_yanit", "anket_katilim", "anket_hedef", "anket_soru", "anket"], 6: ["deneme_ogrenci", "deneme"], 5: ["bilgi_rozet", "bilgi_xp", "bilgi_cevap", "bilgi_tur"]}
 
 
 def geri_al(db_yolu: Path, hedef: int, onayla: bool) -> int:

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "ogrenci/_arena_makro.html" import rozet_ikon %}
+{% block baslik %}Haftalık hedefim · Dijital Okul{% endblock %}
+{% block icerik %}
+<div class="arena">
+<h1>Haftalık hedefim</h1>
+<p class="soluk">Hedefi sen koyarsın; ilerleme gerçekten yaptığın etkinliklerden hesaplanır. Bu sayfayı yalnızca sen görürsün, kimseyle karşılaştırılmaz.</p>
+{% if hata %}<p class="hata" role="alert">{{ hata }}</p>{% endif %}
+<section class="kart" aria-labelledby="hafta-b">
+  <h2 id="hafta-b">Bu hafta</h2>
+  {% if hafta.hedef is none %}
+    <p>Bu hafta için henüz hedef koymadın. Şu ana kadar <b>{{ hafta.yapilan.toplam }}</b> etkinlik yaptın.</p>
+  {% else %}
+    <p><b>{{ hafta.yapilan.toplam }}</b> / {{ hafta.hedef }} etkinlik{% if hafta.tamamlandi %} · <span class="etiket altin">Hedefe ulaştın</span>{% else %} · {{ hafta.kalan }} kaldı{% endif %}</p>
+    <div class="xp-cubuk" role="progressbar" aria-label="Haftalık hedef ilerlemesi" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ hafta.yuzde }}"><i style="width: {{ hafta.yuzde }}%"></i></div>
+  {% endif %}
+  <p class="kucuk soluk">Sayılan etkinlikler: Günlük Görev ({{ hafta.yapilan.arena }}), Hızlı Mod turu ({{ hafta.yapilan.maraton }}), test ödevi ({{ hafta.yapilan.test }}).</p>
+  <form method="post" action="/ogrenci/hedefim">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="hedef">{{ 'Hedefi değiştir' if hafta.hedef is not none else 'Bu hafta kaç etkinlik yapmak istersin?' }}</label>
+    <input id="hedef" name="hedef" type="number" inputmode="numeric" min="{{ min_hedef }}" max="{{ max_hedef }}" value="{{ hafta.hedef or 3 }}" required>
+    <div class="tuslar"><button class="tus">{{ 'Güncelle' if hafta.hedef is not none else 'Hedef koy' }}</button></div>
+  </form>
+  {% if hafta.hedef is not none and hafta.yapilan.toplam > 0 %}<p class="kucuk soluk">Etkinlik yaptıktan sonra hedef yalnızca yükseltilebilir.</p>{% endif %}
+</section>
+<section class="kart" aria-labelledby="gecmis-b">
+  <h2 id="gecmis-b">Son haftalar</h2>
+  <table><thead><tr><th>Hafta</th><th class="sayi">Yapılan</th><th class="sayi">Hedef</th><th>Durum</th></tr></thead><tbody>
+  {% for g in gecmis %}
+    <tr><td>{{ g.hafta_basi|tarih }}{{ ' (bu hafta)' if g.su_an }}</td><td class="sayi">{{ g.yapilan }}</td>
+      <td class="sayi">{{ g.hedef if g.hedef is not none else '—' }}</td>
+      <td>{% if g.hedef is none %}<span class="soluk">hedef konmamış</span>{% elif g.tamam %}Hedefe ulaştın{% elif g.su_an %}devam ediyor{% else %}ulaşılamadı{% endif %}</td></tr>
+  {% endfor %}
+  </tbody></table>
+</section>
+<section class="kart" aria-labelledby="rozet-b">
+  <h2 id="rozet-b">Rozetlerim</h2>
+  <ul class="rozet-izgara">
+  {% for r in rozetler %}
+    <li class="rozet{{ ' var' if r.kazanildi }}">{{ rozet_ikon() }}<b>{{ r.ad }}</b>{{ r.aciklama }}
+      {% if r.kazanildi %}<br><span class="kucuk">{{ r.tarih|tarih }}</span>{% else %}<br><span class="kucuk">Henüz kazanılmadı</span>{% endif %}</li>
+  {% endfor %}
+  </ul>
+  <p class="kucuk"><a href="/ogrenci/arena/ilerleme">Arena ilerlemem →</a> · <a href="/ogrenci/gelisim">Gelişimim →</a></p>
+</section>
+</div>
+{% endblock %}

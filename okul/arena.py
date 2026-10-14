@@ -35,6 +35,8 @@ ROZETLER = [
         "Kazanım Ustası",
         "Aynı kazanımda en az 3 ayrı günde, en az 6 soruda %80 ve üzeri başarı (tahmini eşleşme).",
     ),
+    ("hedef_ilk", "İlk Haftalık Hedef", "Koyduğun haftalık çalışma hedefine ulaştın."),
+    ("hedef_uc", "Üç Haftalık Hedef", "3 farklı haftada kendi koyduğun hedefe ulaştın."),
 ]
 _ROZET_AD = {k: a for k, a, _ in ROZETLER}
 

@@ -336,7 +336,19 @@ CREATE TABLE anket_cevap (
 CREATE INDEX anket_cevap_soru ON anket_cevap(soru_id);
 """
 
-GOCLER = [SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7]
+# Kişisel Gelişim: öğrencinin kendi koyduğu haftalık çalışma hedefi. İlerleme SAKLANMAZ; gerçek etkinliklerden
+# (Arena görevi, Hızlı Mod turu, test ödevi teslimi) her seferinde hesaplanır. Başkasıyla karşılaştırma yoktur.
+SEMA_V8 = """
+CREATE TABLE hedef (
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    hafta_basi    TEXT NOT NULL,
+    hedef_sayi    INTEGER NOT NULL CHECK (hedef_sayi BETWEEN 1 AND 14),
+    olusturma     TEXT NOT NULL,
+    PRIMARY KEY (kullanici_id, hafta_basi)
+);
+"""
+
+GOCLER = [SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8]
 
 
 def baglanti() -> sqlite3.Connection:
