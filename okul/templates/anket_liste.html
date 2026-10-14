@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block baslik %}Anketler · Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Anketler</h1>
+{% if tamam %}<p class="not" role="status">Yanıtın alındı, teşekkürler. Yanıtların anonim kaydedilir.</p>{% endif %}
+<section class="kart">
+  <h2>Yanıt bekleyen</h2>
+  {% for a in anketler.bekleyen %}
+    <a class="satir" href="/anket/{{ a.id }}"><span><b>{{ a.baslik }}</b>{% if a.kapanis %}<br><span class="kucuk soluk">Son gün: {{ a.kapanis|tarih }}</span>{% endif %}</span><span class="sag">Yanıtla →</span></a>
+  {% else %}
+    <p class="bos">Şu an yanıtlayacağın anket yok.</p>
+  {% endfor %}
+</section>
+{% if anketler.yanitlanan %}
+<section class="kart">
+  <h2>Yanıtladıkların</h2>
+  <ul class="liste">{% for a in anketler.yanitlanan %}<li>{{ a.baslik }}<span class="sag soluk kucuk">yanıtlandı</span></li>{% endfor %}</ul>
+</section>
+{% endif %}
+<p class="kucuk soluk">Anket yanıtları anonimdir: hangi yanıtı kimin verdiği kaydedilmez.</p>
+{% endblock %}

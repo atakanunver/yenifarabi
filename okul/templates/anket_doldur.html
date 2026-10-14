@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block baslik %}{{ a.baslik }} · Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>{{ a.baslik }}</h1>
+{% if a.aciklama %}<p>{{ a.aciklama }}</p>{% endif %}
+<p class="not">Yanıtların <b>anonim</b> kaydedilir; kimin ne yanıtladığı tutulmaz. Sonuçlar yalnızca gruplar halinde (en az 5 yanıtla) gösterilir.</p>
+{% if hata %}<p class="hata" role="alert">{{ hata }}</p>{% endif %}
+<form method="post" action="/anket/{{ a.id }}" class="anket">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% for s in sorular %}
+  <fieldset class="kart anket-soru">
+    <legend>{{ loop.index }}. {{ s.metin }}{% if s.zorunlu %} <span class="kucuk soluk">(zorunlu)</span>{% endif %}</legend>
+    {% if s.tur == 'tek' %}
+      {% for ad in s.secenekler %}<label class="anket-secenek"><input type="radio" name="s{{ s.id }}" value="{{ loop.index0 }}"{{ ' required' if s.zorunlu }}> {{ ad }}</label>{% endfor %}
+    {% elif s.tur == 'coklu' %}
+      {% for ad in s.secenekler %}<label class="anket-secenek"><input type="checkbox" name="s{{ s.id }}" value="{{ loop.index0 }}"> {{ ad }}</label>{% endfor %}
+    {% elif s.tur == 'olcek' %}
+      <div class="anket-olcek" role="radiogroup" aria-label="1 (hiç) ile 5 (çok) arasında">
+        {% for p in range(1, 6) %}<label><input type="radio" name="s{{ s.id }}" value="{{ p }}"{{ ' required' if s.zorunlu }}><span>{{ p }}</span></label>{% endfor %}
+      </div>
+      <p class="kucuk soluk">1 = hiç / çok kötü · 5 = çok / çok iyi</p>
+    {% else %}
+      <textarea name="s{{ s.id }}" maxlength="1000" rows="3" aria-label="{{ s.metin }}"{{ ' required' if s.zorunlu }}></textarea>
+    {% endif %}
+  </fieldset>
+  {% endfor %}
+  <div class="tuslar"><button class="tus buyuk tam">Gönder</button></div>
+</form>
+{% endblock %}

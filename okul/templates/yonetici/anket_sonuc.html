@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block baslik %}{{ a.baslik }} · Sonuçlar{% endblock %}
+{% block icerik %}
+<p><a href="/yonetici/anketler/{{ a.id }}">← Ankete dön</a></p>
+<h1>{{ a.baslik }} <span class="soluk kucuk">sonuçlar</span></h1>
+<section class="kart">
+  <h2>Katılım</h2>
+  {% for o in ozet %}
+    <p><b>{{ o.ad }}</b>: {{ o.yanit }} / {{ o.kitle }} yanıt{% if o.oran is not none %} · %{{ o.oran }}{% endif %}{{ '' if o.acik else ' · kapalı' }}
+      {% if o.oran is not none %}<span class="oran-cubuk" title="%{{ o.oran }}"><i style="width: {{ o.oran }}%"></i></span>{% endif %}</p>
+  {% else %}
+    <p class="bos">Anket henüz hiçbir gruba gönderilmedi.</p>
+  {% endfor %}
+  <p class="kucuk soluk">Gizlilik: yanıtlar anonimdir; bir grupta {{ esik }}'ten az yanıt varsa o grubun sonuçları (açık uçlu yazılar dahil) gösterilmez. Katılım oranı yalnızca sayıdır, kimin yanıtladığı bilinmez.</p>
+</section>
+{% for s in sorular %}
+<section class="kart">
+  <h2>{{ loop.index }}. {{ s.metin }}</h2>
+  <p class="kucuk soluk">{{ turler[s.tur] }}</p>
+  {% for r in s.roller_sonuc %}
+    <div class="anket-grup">
+      <h3>{{ r.ad }} <span class="soluk kucuk">{{ r.n }} yanıt</span></h3>
+      {% if r.gizli %}
+        <p class="soluk">Yeterli yanıt yok (en az {{ esik }} gerekir); sonuç gizlendi.</p>
+      {% elif s.tur in ('tek', 'coklu') %}
+        <table><tbody>{% for x in r.secenekler %}<tr><td>{{ x.ad }}</td><td class="sayi">{{ x.sayi }}</td>
+          <td><span class="oran-cubuk" title="%{{ x.yuzde }}"><i style="width: {{ x.yuzde }}%"></i></span></td><td class="sayi">%{{ x.yuzde }}</td></tr>{% endfor %}</tbody></table>
+      {% elif s.tur == 'olcek' %}
+        <p>Ortalama: <b>{{ r.ortalama }}</b> / 5</p>
+        <table><tbody>{% for x in r.dagilim %}<tr><td>{{ x.puan }}</td><td class="sayi">{{ x.sayi }}</td>
+          <td><span class="oran-cubuk" title="%{{ x.yuzde }}"><i style="width: {{ x.yuzde }}%"></i></span></td><td class="sayi">%{{ x.yuzde }}</td></tr>{% endfor %}</tbody></table>
+      {% else %}
+        <ul class="liste">{% for t in r.metinler %}<li>{{ t }}</li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+  {% endfor %}
+</section>
+{% endfor %}
+{% endblock %}

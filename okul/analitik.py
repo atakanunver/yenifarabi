@@ -57,6 +57,10 @@ OZELLIKLER = {
         "Öğretmen: sınav/etkinlik ekleme", ("ogretmen",), True,
         "Sınav takvimini zümre toplantısında göster; yazılı tarihlerini platforma girmeyi zümre kararı yap.",
     ),
+    "anket_yanitla": (
+        "Anket yanıtlama", ("ogrenci", "veli", "ogretmen"), True,
+        "Bekleyen anketi ana sayfada öne çıkar; son gün yaklaşırken duyuruyla hatırlat ve anketin anonim olduğunu belirt.",
+    ),
     "arena_goruntule": ("Bilgi Arenası ekranı", ("ogrenci",), False, ""),
     "arena_basla": (
         "Arena: Günlük Görev başlatma", ("ogrenci",), True,

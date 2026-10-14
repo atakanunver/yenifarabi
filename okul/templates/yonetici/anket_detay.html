@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block baslik %}{{ a.baslik }} · Anket{% endblock %}
+{% block icerik %}
+<p><a href="/yonetici/anketler">← Anketler</a></p>
+<h1>{{ a.baslik }}</h1>
+{% if a.aciklama %}<p>{{ a.aciklama }}</p>{% endif %}
+{% if hata %}<p class="hata" role="alert">{{ hata }}</p>{% endif %}
+
+<section class="kart">
+  <h2>Sorular <span class="soluk kucuk">{{ sorular|length }}</span></h2>
+  {% if not taslak %}<p class="not">Anket gönderildiği için sorular artık değiştirilemez.</p>{% endif %}
+  <ol class="liste">
+  {% for s in sorular %}
+    <li><span><b>{{ s.metin }}</b><br><span class="kucuk soluk">{{ turler[s.tur] }}{% if s.secenekler %}: {{ s.secenekler|join(' / ') }}{% endif %} · {{ 'zorunlu' if s.zorunlu else 'isteğe bağlı' }} · {% for r in s.roller %}{{ etiket[r] }}{{ ', ' if not loop.last }}{% endfor %}</span></span>
+      {% if taslak %}<form class="sag" method="post" action="/yonetici/anketler/{{ a.id }}/soru/{{ s.id }}/sil"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus ikincil kucuk">Sil</button></form>{% endif %}</li>
+  {% else %}
+    <li class="bos">Henüz soru yok.</li>
+  {% endfor %}
+  </ol>
+</section>
+
+{% if taslak %}
+<section class="kart">
+  <h2>Soru ekle</h2>
+  <form method="post" action="/yonetici/anketler/{{ a.id }}/soru">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="tur">Soru türü</label>
+    <select id="tur" name="tur">{% for kod, ad in turler.items() %}<option value="{{ kod }}">{{ ad }}</option>{% endfor %}</select>
+    <label for="metin">Soru</label>
+    <input id="metin" name="metin" type="text" required maxlength="500">
+    <label for="secenekler">Seçenekler (seçenekli sorularda her satıra bir seçenek, en çok 10)</label>
+    <textarea id="secenekler" name="secenekler" rows="3"></textarea>
+    <fieldset class="kart"><legend>Kime sorulsun</legend>
+      {% for r in roller %}<label class="anket-secenek"><input type="checkbox" name="roller" value="{{ r }}" checked> {{ etiket[r] }}</label>{% endfor %}
+    </fieldset>
+    <label class="anket-secenek"><input type="checkbox" name="zorunlu" value="1" checked> Zorunlu</label>
+    <div class="tuslar"><button class="tus">Soruyu ekle</button></div>
+  </form>
+</section>
+{% endif %}
+
+<section class="kart">
+  <h2>Gönderim <span class="soluk kucuk">her grup ayrı gönderilir</span></h2>
+  {% for r in roller %}
+    {% set h = hedefler.get(r) %}
+    <div class="anket-grup">
+      <h3>{{ etiket[r] }}</h3>
+      {% if h %}
+        {% set o = ozet.get(r) %}
+        <p>Gönderildi: {{ h.acilis|tarih }}{% if h.sinif_filtre %} · Süzgeç: {{ h.sinif_filtre }}{% endif %}{% if h.kapanis %} · Son gün: {{ h.kapanis|tarih }}{% endif %}
+          · <b>{{ 'Açık' if acik(h) else 'Kapalı' }}</b></p>
+        <p>{{ o.yanit }} / {{ o.kitle }} yanıt{% if o.oran is not none %} (%{{ o.oran }}){% endif %}</p>
+        {% if acik(h) %}<form method="post" action="/yonetici/anketler/{{ a.id }}/kapat"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="rol" value="{{ r }}"><button class="tus ikincil">Bu grup için kapat</button></form>{% endif %}
+      {% else %}
+        <form method="post" action="/yonetici/anketler/{{ a.id }}/dagit">
+          <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="rol" value="{{ r }}">
+          {% if r != 'ogretmen' %}
+          <label for="sinif-{{ r }}">Sınıf / düzey süzgeci (boş = tümü; ör. <code>9, 10-A</code>)</label>
+          <input id="sinif-{{ r }}" name="sinif" type="text" maxlength="100" placeholder="{{ siniflar|join(', ') }}">
+          {% endif %}
+          <label for="kapanis-{{ r }}">Son gün (isteğe bağlı)</label>
+          <input id="kapanis-{{ r }}" name="kapanis" type="date">
+          <div class="tuslar"><button class="tus"{{ ' disabled' if not sorular }}>{{ etiket[r] }}e gönder</button></div>
+        </form>
+      {% endif %}
+    </div>
+  {% endfor %}
+</section>
+
+<section class="kart">
+  <a class="tus" href="/yonetici/anketler/{{ a.id }}/sonuc">Sonuçları gör</a>
+  {% if taslak %}<form method="post" action="/yonetici/anketler/{{ a.id }}/sil" style="display:inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus ikincil">Taslağı sil</button></form>{% endif %}
+</section>
+{% endblock %}

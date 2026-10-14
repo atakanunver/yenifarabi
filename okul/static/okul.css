@@ -467,3 +467,17 @@ details.kart > summary { cursor: pointer; min-height: 32px; }
 .arena .sik.kilitli:not(.dogru):not(.yanlis) { opacity: .8; }
 .arena .sik .kucuk { display: block; flex-basis: 100%; color: var(--soluk); }
 .arena .mod-izgara { margin-bottom: .9rem; }
+
+/* --- Anket (yalnızca .anket / .anket-* içinde geçerli) --- */
+.anket-soru { border: 1px solid var(--cizgi); margin: .8rem 0; padding: .8rem 1rem; }
+.anket-soru legend { font-weight: 700; padding: 0 .3rem; }
+.anket-secenek { display: flex; align-items: center; gap: .55rem; font-weight: 400; margin: .3rem 0; min-height: 44px; }
+.anket-secenek input { width: 1.25rem; height: 1.25rem; flex: none; }
+.anket-olcek { display: flex; gap: .5rem; flex-wrap: wrap; }
+.anket-olcek label { margin: 0; }
+.anket-olcek input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.anket-olcek span { display: inline-flex; align-items: center; justify-content: center; min-width: 48px; min-height: 48px; border: 2px solid var(--cizgi); border-radius: 12px; font-weight: 700; cursor: pointer; background: var(--kagit); }
+.anket-olcek input:checked + span { border-color: var(--mavi); background: var(--mavi); color: #fff; }
+.anket-olcek input:focus-visible + span { outline: 3px solid var(--mavi); outline-offset: 2px; }
+.anket-grup { border-top: 1px dashed var(--cizgi); padding-top: .6rem; margin-top: .6rem; }
+.anket-grup h3 { margin: 0 0 .3rem; font-size: 1rem; }

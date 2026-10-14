@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block baslik %}Anketler · Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Anketler</h1>
+{% if hata %}<p class="hata" role="alert">{{ hata }}</p>{% endif %}
+<section class="kart">
+  <h2>Yeni anket</h2>
+  <form method="post" action="/yonetici/anketler">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="baslik">Başlık</label>
+    <input id="baslik" name="baslik" type="text" required maxlength="150">
+    <label for="aciklama">Açıklama (katılımcıya gösterilir)</label>
+    <textarea id="aciklama" name="aciklama" maxlength="1500" rows="3"></textarea>
+    <div class="tuslar"><button class="tus">Oluştur ve soru ekle</button></div>
+  </form>
+</section>
+<section class="kart">
+  <h2>Anketler</h2>
+  {% for a in anketler %}
+    <a class="satir" href="/yonetici/anketler/{{ a.id }}">
+      <span><b>{{ a.baslik }}</b><br><span class="kucuk soluk">{{ a.soru_sayisi }} soru ·
+        {% if a.taslak %}taslak{% else %}{% for g in a.gruplar %}{{ g.ad }}{{ '' if g.acik else ' (kapalı)' }}{{ ', ' if not loop.last }}{% endfor %} · {{ a.yanit }} yanıt{% endif %}</span></span>
+      <span class="sag">Aç →</span>
+    </a>
+  {% else %}
+    <p class="bos">Henüz anket yok.</p>
+  {% endfor %}
+</section>
+<p class="kucuk soluk">Yanıtlar anonimdir. Kimin yanıtladığı ya da yanıtlamadığı yönetici ekranında gösterilmez; yalnızca sayılar.</p>
+{% endblock %}

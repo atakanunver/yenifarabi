@@ -284,7 +284,59 @@ CREATE TABLE deneme_ogrenci (
 CREATE INDEX deneme_ogrenci_no ON deneme_ogrenci(okul_no);
 """
 
-GOCLER = [SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6]
+# Anket modülü: yönetici anket hazırlar, öğrenci/veli/öğretmen kitlesine AYRI AYRI gönderir.
+# Yanıtlar ANONİMDİR: anket_katilim "kim yanıtladı"yı (tek yanıt kuralı), anket_yanit/anket_cevap "ne yanıtlandı"yı tutar;
+# ikisi arasında bağ yoktur (yanıt id'si rastgele, katılımda sıra/saat yok). Sonuç, 5'ten az yanıtlı grupta gösterilmez.
+SEMA_V7 = """
+CREATE TABLE anket (
+    id          INTEGER PRIMARY KEY,
+    baslik      TEXT NOT NULL,
+    aciklama    TEXT NOT NULL DEFAULT '',
+    olusturan   INTEGER NOT NULL REFERENCES kullanici(id),
+    olusturma   TEXT NOT NULL
+);
+CREATE TABLE anket_soru (
+    id          INTEGER PRIMARY KEY,
+    anket_id    INTEGER NOT NULL REFERENCES anket(id) ON DELETE CASCADE,
+    sira        INTEGER NOT NULL,
+    tur         TEXT NOT NULL CHECK (tur IN ('tek', 'coklu', 'olcek', 'metin')),
+    metin       TEXT NOT NULL,
+    secenekler  TEXT NOT NULL DEFAULT '[]',
+    zorunlu     INTEGER NOT NULL DEFAULT 1,
+    roller      TEXT NOT NULL DEFAULT 'ogrenci,veli,ogretmen'
+);
+CREATE INDEX anket_soru_anket ON anket_soru(anket_id, sira);
+CREATE TABLE anket_hedef (
+    anket_id    INTEGER NOT NULL REFERENCES anket(id) ON DELETE CASCADE,
+    rol         TEXT NOT NULL CHECK (rol IN ('ogrenci', 'veli', 'ogretmen')),
+    sinif_filtre TEXT NOT NULL DEFAULT '',
+    acilis      TEXT NOT NULL,
+    kapanis     TEXT,
+    kapatildi   INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (anket_id, rol)
+);
+CREATE TABLE anket_katilim (
+    anket_id     INTEGER NOT NULL REFERENCES anket(id) ON DELETE CASCADE,
+    kullanici_id INTEGER NOT NULL REFERENCES kullanici(id),
+    rol          TEXT NOT NULL,
+    PRIMARY KEY (anket_id, kullanici_id)
+) WITHOUT ROWID;
+CREATE TABLE anket_yanit (
+    id          INTEGER PRIMARY KEY,
+    anket_id    INTEGER NOT NULL REFERENCES anket(id) ON DELETE CASCADE,
+    rol         TEXT NOT NULL,
+    sinif       TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX anket_yanit_anket ON anket_yanit(anket_id, rol);
+CREATE TABLE anket_cevap (
+    yanit_id    INTEGER NOT NULL REFERENCES anket_yanit(id) ON DELETE CASCADE,
+    soru_id     INTEGER NOT NULL REFERENCES anket_soru(id) ON DELETE CASCADE,
+    deger       TEXT NOT NULL
+);
+CREATE INDEX anket_cevap_soru ON anket_cevap(soru_id);
+"""
+
+GOCLER = [SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7]
 
 
 def baglanti() -> sqlite3.Connection:

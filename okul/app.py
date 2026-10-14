@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from rotalar import (
+    anket,
     arena,
     belge_sinav,
     deneme,
@@ -34,7 +35,7 @@ app = FastAPI(
     title="Dijital Okul", docs_url=None, redoc_url=None, openapi_url=None, lifespan=omur
 )
 app.mount("/static", StaticFiles(directory=str(KOK / "static")), name="static")
-for r in (giris, belge_sinav, ogrenci, arena, oyun, veli, deneme, ogretmen, yonetici):
+for r in (giris, belge_sinav, ogrenci, arena, anket, oyun, veli, deneme, ogretmen, yonetici):
     app.include_router(r.router)
 
 
