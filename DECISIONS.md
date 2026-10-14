@@ -1,3 +1,7 @@
+## 2026-10-13 - Soru havuzu üretimi başlatıldı, AGY denetimi geri açıldı, test zamanlayıcıları kapalı tutuldu
+- Ne: `soru-havuzu-uret.service` içinden `--denetimsiz` bayrağı kaldırıldı; servis AGY denetimi aktif olacak şekilde `/etc/systemd/system/soru-havuzu-uret.service` güncellendi ve yeniden başlatıldı. `soru-havuzu-uret.timer` devrede (`systemctl enable --now`). `kazanim-test.timer` ve `kazanim-test-sonuc.timer` kullanıcının isteğiyle kapalı (`disabled`) bırakıldı.
+- Neden: Kullanıcı talebi ("FABRIKA SORU URETIMINI AÇ", "agy denetimini aç", "2,3 KAPALI OLSUN"). AGY CLI kotasının çalıştığı canlı testle doğrulandı.
+
 ## 2026-10-10 - Soru üretimi, kazanım testi ve idari yükleme zamanlayıcıları kalıcı kapatıldı; 12. sınıf donduruldu; Maarif odağı
 - Ne: `systemctl disable --now` → `soru-havuzu-uret.timer`, `kazanim-test.timer`, `kazanim-test-sonuc.timer`, `kazanim-test-aylik.timer`, `farabi-idari-yukle.timer` (servisleri de durduruldu). Bu makinede zamanlanmış özet çıkarma işi yoktu. `farabi-api` (tahtada kitap sorusu/PDF) ÇALIŞIYOR, dokunulmadı.
 - Neden: kullanıcı kararı ("soru üretmeyi, özet çıkarmayı, ders kitabı ile ilgili iş ve işlemleri servisleri kalıcı olarak durdur"; kazanım testi, sonuçlar/aylık rapor ve idari yükleme ayrıca seçildi). 12. sınıf kitapları değişecek → 12. sınıfa ikinci emre kadar dokunulmaz; 9-10-11 Maarif modeline tabi, soru bankası çalışmaları Maarif öğrenme çıktılarına odaklı.
@@ -2055,3 +2059,36 @@ explicit capability-boundary decision, not a resurrected copy of this file.
 ## 2026-10-11 - Panel menüsü iş akışına göre yeniden kuruldu
 - Menü 14 başlığa çıktı (Kazanımlar, Google Form, SMS, Anons-Zil, Atos, EBYS, Pano, Kiosk); Düzen/Yardım/Çıkış kaldırıldı; /kazanim-rapor → /kazanim (308). Yapılmamış bölümler /b/<ad> yer tutucu.
 - Neden: kazanım ölçme smual.app üzerinden, form işleri ayrı başlıkta; kapsam büyük olduğu için aşamalandı (sıradaki: smual.app admin HMAC SSO, Google Form akışı, ağ tarama, Anons-Zil, EBYS). kazanimtest/systemd/veri yolu adları bilerek değişmedi.
+
+## 2026-10-11 - Open WebUI 0.12.0 yükseltmesi, HTTPS, TTS adaptörü
+- Open WebUI 0.11.0 → 0.12.0: venv'de pip yok, `uv pip install -U open-webui==0.12.0 --python /opt/open-webui/venv/bin/python` (cwd `/tmp` olmalı, aksi halde uv `/home/ata/uv.toml`'u openwebui kullanıcısıyla okuyamaz; proxy gerekir; torch/CUDA yeniden indiği için ~30 dk sürdü). Yedek: `webui.db.yedek-2026-10-11-0.11.0`.
+- Yavaşlık Ollama'dan değil (22–34 tok/s); `farabi*` modellerinde thinking açıktı → `params.think=false` yapıldı (`farabi-derin` düşünmeli kaldı).
+- Mikrofon/medya reddi: düz HTTP'de `getUserMedia` engelli → nginx'e 443 + kendinden imzalı sertifika (`/etc/nginx/ssl/`, SAN: farabi.local, farabi, localhost, 192.168.23.252). Port 80 aynen duruyor. Yedek: `~/nginx-default.yedek-2026-10-11`.
+- "Sesli oku" 500: TTS motoru `transformers` (`datasets` yok, zaten İngilizce). Çözüm: `atos-tts-shim.service` (`/opt/atos-tts-shim/shim.py`, 127.0.0.1:8095) OpenAI `/v1/audio/speech` isteğini Debian EMA TTS `/konus`'a çevirir; Open WebUI motoru `openai`. Ayrıca 0.12 pydub için `ffmpeg/ffprobe` istiyor → `apt install ffmpeg`.
+
+## 2026-10-12 - smual.app tüneli: Wi-Fi/proxy kopmasından sonra kendini toplama
+- Kök neden: Müdür PC'de Wi-Fi koptu → `WifiProxySvc` proxy'yi yeniden başlattı (15:06:52) → Farabi'deki `cloudflared`'ın `cf-edge-relay` üzerinden geçen 4 bağlantısı bayatladı ama `cloudflared /ready` "4 hazır" demeye devam etti; Cloudflare tarafı 1033 verdi (site kapalı).
+- Çözüm (iki katman): (1) Farabi `smual-saglik.timer` (5 dk): proxy üzerinden `https://smual.app/giris` 530/1033 ise relay+cloudflared restart (15 dk bekleme); (2) Müdür PC `CfTunelKurtarSvc` (C:\ProgramData\WifiHttpProxy\cftunel): proxy PID / Ethernet 2 / Wi-Fi 2 durumu değişince ~25 sn kararlılık bekler, Farabi'ye kısıtlı SSH anahtarıyla (`authorized_keys`: `command="sudo -n /usr/local/bin/smual-tetik.sh",from="192.168.23.243"`) tetik atar; Farabi tarafı 90 sn cooldown'lu.
+- Neden: bayat tüneli yalnızca bağlantı sayısına bakan cloudflared kendi başına anlamıyor; zayıf halka (Wi-Fi'li Müdür PC) değişmedi, kesinti saniyelere indi. Doğrulama: proxy süreci öldürülünce 15:46'da otomatik tetik, smual.app 200. Ethernet kablosu çıkarma yolu uzaktan denenemedi.
+
+## 2026-10-12 - Öğrenci listesi: e-Okul PDF tek gerçek kaynak, üç veritabanı eşitlendi
+- e-Okul "GÜNCEL ÖĞRENCİ LİSTESİ" PDF'i (okul_no anahtar, 97 öğrenci) esas alınarak tahta listesi (`yoklama_pano.db`), platform (`okul.db`) ve SMS (`smssistemi.db`) numaraya göre eşitlendi: 2 yeni öğrenci eklendi, 1 ayrılan öğrenci ve velileri silindi, yoklama önbelleğinde listede olmayan isimler (ayrılanlar, "No N" artıkları) temizlendi, sınıfı yanlış kayıtlı olanlar doğru sınıfa taşındı.
+- Neden: "eşleşmeyen yoklama" sayfası dolu çıkıyordu; ayrılan öğrencilerin kaydı üç sistemde tutarsız kalmıştı. Yeniden yaparken: önce `eslesmeyenler()` ve üç DB'nin `okul_no` farkı PDF'e karşı kontrol edilir; tahtaya listeyi `admin._tahtaya_roster_gonder` ile göndermek gerekir (yalnız DB'yi değiştirmek tahtadaki dosyayı güncellemez).
+
+2026-10-13 | Kullanım analitiği: tek `olay` tablosu (sayaç, UNIQUE tekilleştirme, tamponlu yazım), geçmiş veri uydurulmaz | yönetici panelinde gerçek kullanım; KVKK gereği içerik/IP/cihaz tutulmaz (okul/analitik.py)
+
+## 2026-10-13 - Atos öğretmen adlarını bulamıyordu: /api/okul/ogretmen + ogretmen_bilgisi aracı
+- Ne: aSc öğretmen ders programı PDF'inden 17 öğretmen (ad, ders kısaltmaları, sınıflar) `tahtayoklama/dashboard/config/ogretmenler.json`e (gitignore'lu, `scripts/ogretmen_listesi_uret.py`); `okul_bilgisi.py::/ogretmen` + `farabi_okul_araci.py::ogretmen_bilgisi`, izin kuralı öğrenci aramasıyla aynı (admin + okul.json izinlileri, tahta hariç).
+- Neden: "genel" Atos modu idari RAG'e kasıtlı kapalı (2026-10-05), ders programı verisinde öğretmen adı yok, `personel bilgi2026.xlsx` ise TC içeren 25 satırlık eğitim katılım listesi (aranmamalı). Araç Open WebUI'de elle güncellenmeli (kur.py API anahtarı "human session required" ile reddedildi).
+
+## 2026-10-14 - İngilizce 9: yazma/konuşma ve ENG.8 kazanımları üretimden çıkarıldı
+Ne yapıldı: soru_havuzu.kazanim tablosunda sinif=9 ders=ingilizce, 4 adet ENG.8.* (8. sınıf) ve 10 adet W/S (yazma/konuşma) kazanımı durum=kaynak_yok yapıldı (geri alma: durum=aktif). 12. sınıf ayrıca soruhavuzu/vt.DONDURULMUS_SINIFLAR ile üretim/denetim/sınıflandırmadan çıkarıldı; tekrar-temizle komutu eklendi.
+Neden: bu kazanımlardan 311 red / 10 onay çıkıyordu (ajan "kazanım dışı / kaynakta yok"); alıştırma sayfası chunk'ları yazma/konuşma becerisini çoktan seçmeli soruyla ölçemiyor, ENG.8 ise yanlış sınıf. L/R/V kazanımları açık.
+
+## 2026-10-14 - İngilizce 9: kaynak yalnızca "okuma metni" parçalarından (soruhavuzu/kaynak.py)
+Ne yapıldı: kitap 15 (İngilizce 9) 240 parçası yerel modelle okuma(71)/etkinlik(167)/belirsiz(2) diye etiketlendi; `/mnt/farabi-data/farabi/soru_havuzu/okuma_parcalari.json` (repo dışı) varsa `kaynak.bul` o kitapta yalnız okuma parçalarını getirir. Dosya silinirse kısıtlama kalkar.
+Neden: etkinlik/yönerge sayfalarından üretilen sorular %9-16 onay aldı; ≥1 okuma parçası olan kaynaklarda %31 (n=138), ama 2 okuma parçasında %17 (n=30) — kanıt zayıf ve monoton değil. Kısıtlı aramada 18 aktif kazanımın hepsi 3 okuma parçası buldu (önce 54 parçadan 10'u okumaydı). Gerçek etki bir sonraki üretimde ölçülmeli (İngilizce 9 onay oranı, hedef >%30).
+
+## 2026-10-14 - Matematik 11: MAT.11.3.6, 3.7, 3.8 kazanımları üretimden çıkarıldı
+Ne yapıldı: soru_havuzu.kazanim'da bu üç kazanım durum=kaynak_yok yapıldı (geri alma: durum=aktif).
+Neden: kazanım odaklı üretimden 52 red / 0 onay (3.7: 39/0, 3.8: 8/0, 3.6: 5/0); kaynak neredeyse hep Matematik 11 s. 61-62, ajan "kazanım dışı" diyor — kaynak eşleşmesi bu kazanımlar için doğru sayfayı bulmuyor. Kalıcı çözüm: kazanım→kitap sayfa eşlemesi.
