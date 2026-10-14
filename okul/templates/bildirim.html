@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block baslik %}Bildirimler — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Bildirimler</h1>
+<section class="kart" id="push-kutu" data-csrf="{{ csrf }}">
+  <h2>Bildirimler</h2>
+  <p class="soluk kucuk">Yeni duyuru ve ödevlerde telefonuna kısa bir bildirim gelir. Bildirimde kişisel bilgi yer almaz; ayrıntıyı uygulamada görürsün.</p>
+  <p id="push-durum" class="kucuk" role="status">Kontrol ediliyor…</p>
+  <div class="tuslar">
+    <button type="button" class="tus" id="push-ac" hidden>Bildirimleri aç</button>
+    <button type="button" class="tus ikincil" id="push-dene" hidden>Deneme gönder</button>
+    <button type="button" class="tus ikincil" id="push-kapat" hidden>Bildirimleri kapat</button>
+  </div>
+</section>
+<script src="/static/push.js?v=1" defer></script>
+{% endblock %}

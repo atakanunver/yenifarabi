@@ -22,6 +22,10 @@ def gecici_ortam(tmp_path, monkeypatch):
     monkeypatch.setattr(AYAR, "takvim_yolu", tmp_path / "takvim.json")
     monkeypatch.setattr(AYAR, "kazanim_yolu", tmp_path / "kazanimlar.json")
     monkeypatch.setattr(AYAR, "sms_anahtar", "test-anahtar")
+    # Web Push: varsayılan KAPALI (gerçek VAPID anahtarı/ağ yok); push testleri kendisi açar
+    monkeypatch.setattr(AYAR, "vapid_ozel", "")
+    monkeypatch.setattr(AYAR, "vapid_acik", "")
+    monkeypatch.setattr(AYAR, "vapid_konu", "")
     db.sema_kur()
     analitik.sifirla()
 

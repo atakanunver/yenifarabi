@@ -25,15 +25,21 @@ class Ayarlar:
     sms_url: str = "http://127.0.0.1:8020/api/arac/kod-sms"
     sms_anahtar: str = ""
     kazanim_esik: float = 0.7
+    # Web Push (VAPID): config/gizli.json; boşsa bildirim özelliği kapalı (push.py)
+    vapid_ozel: str = ""
+    vapid_acik: str = ""
+    vapid_konu: str = ""
 
 
 def yukle() -> Ayarlar:
     a = Ayarlar()
     gizli = KOK / "config" / "gizli.json"
     if gizli.exists():
-        a.sms_anahtar = json.loads(gizli.read_text(encoding="utf-8")).get(
-            "sms_arac_anahtar", ""
-        )
+        g = json.loads(gizli.read_text(encoding="utf-8"))
+        a.sms_anahtar = g.get("sms_arac_anahtar", "")
+        a.vapid_ozel = g.get("vapid_ozel", "")
+        a.vapid_acik = g.get("vapid_acik", "")
+        a.vapid_konu = g.get("vapid_konu", "")
     return a
 
 

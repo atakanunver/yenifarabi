@@ -3,7 +3,7 @@
 // verileri ve POST istekleri (giriş, çıkış, formlar) hiçbir zaman önbelleğe alınmaz; her zaman ağdan gelir.
 // Güncelleme: SURUM değişince yeni worker hemen devreye girer ve eski önbellekleri siler. Önbellekteki
 // dosyalar sürüm sorgusuyla (?v=N) adreslendiğinden eski CSS/JS yeni HTML ile karışmaz.
-const SURUM = "okul-v18";
+const SURUM = "okul-v19";
 const CEVRIMDISI = "/static/cevrimdisi.html";
 const STATIK = [
   "/static/okul.css?v=18",
@@ -12,6 +12,7 @@ const STATIK = [
   "/static/saat.js?v=1",
   "/static/maraton.js?v=1",
   "/static/nabiz.js?v=1",
+  "/static/push.js?v=1",
   "/static/logo-64.png",
   "/static/logo-192.png",
   "/static/apple-touch-icon.png",
@@ -44,4 +45,28 @@ self.addEventListener("fetch", (e) => {
   if (url.pathname.startsWith("/static/")) {
     e.respondWith(caches.match(istek).then((r) => r || fetch(istek)));
   }
+});
+
+// Web Push: yalnızca sunucunun gönderdiği sabit, veri içermeyen metin gösterilir. Tıklayınca ana sayfa açılır.
+self.addEventListener("push", (e) => {
+  let v = {};
+  try { v = e.data ? e.data.json() : {}; } catch (_) { v = {}; }
+  e.waitUntil(
+    self.registration.showNotification(String(v.baslik || "Dijital Okul"), {
+      body: String(v.govde || "Yeni bir bildirimin var."),
+      icon: "/static/logo-192.png",
+      badge: "/static/logo-64.png",
+      data: { url: "/" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((ws) => {
+      for (const w of ws) { if ("focus" in w) return w.focus(); }
+      return clients.openWindow("/");
+    })
+  );
 });

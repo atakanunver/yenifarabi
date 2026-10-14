@@ -9,6 +9,7 @@ import anket
 import auth
 import avatar
 import db
+import push
 from ayarlar import KOK
 from fastapi import Depends, HTTPException, Request
 from fastapi.templating import Jinja2Templates
@@ -54,6 +55,7 @@ TEMPLATES.env.filters["gun_adi"] = lambda g: GUN_ADLARI.get(g, g)
 TEMPLATES.env.filters["baslik"] = lambda s: (s or "")[:1].upper() + (s or "")[1:]
 TEMPLATES.env.globals["ROL_ADLARI"] = ROL_ADLARI
 # Yeni modül bağlantıları: yalnızca bu kodu çalıştıran süreçte tanımlı (şablonlarda `MODULLER is defined`).
+TEMPLATES.env.globals["push_etkin"] = push.etkin_mi  # VAPID ayarlıysa bildirim bağlantıları görünür
 TEMPLATES.env.globals["MODULLER"] = True
 TEMPLATES.env.globals["avatar_svg"] = avatar.svg
 TEMPLATES.env.globals["OYUN_NAV"] = True  # öğrenci alt menüsü oyun odaklı (yalnızca bu kodu çalıştıran süreçte)

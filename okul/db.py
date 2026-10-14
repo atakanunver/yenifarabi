@@ -387,7 +387,25 @@ CREATE TABLE avatar (
 );
 """
 
-GOCLER = [SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10]
+# Web Push abonelikleri (bildirim): cihaz başına bir uç nokta; içerik/kimlik verisi tutulmaz (push.py).
+SEMA_V11 = """
+CREATE TABLE push_abonelik (
+    id            INTEGER PRIMARY KEY,
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    uc_nokta      TEXT NOT NULL UNIQUE,
+    p256dh        TEXT NOT NULL,
+    auth          TEXT NOT NULL,
+    olusturma     TEXT NOT NULL,
+    son_basari    TEXT,
+    hata_sayisi   INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX push_abonelik_kullanici ON push_abonelik(kullanici_id);
+"""
+
+GOCLER = [
+    SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
+    SEMA_V11,
+]
 
 
 def baglanti() -> sqlite3.Connection:
