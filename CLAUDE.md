@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Çalışma ilkeleri
+1. **Önce düşün:** Sessiz varsayım yapma. Belirsizlik ya da birden fazla yorum varsa söyle, gerekirse sor.
+2. **Önce sadelik:** İsteneni yapan en az kodu yaz; spekülatif özellik ve gereksiz soyutlama ekleme.
+3. **Cerrahi değişiklik:** Yalnızca istenen satırlara dokun; komşu kodu "iyileştirme", stili/biçimi değiştirme. SSH ile birden çok makineye dağıtılan kodda özellikle önemli.
+4. **Hedef odaklı:** Görevi doğrulanabilir bir başarı kriterine çevir (test, `curl`, `systemctl is-active`, log satırı); kriter sağlanmadan "bitti" deme.
+
 # Farabi
 Sınıf akıllı tahtalarında sesli ders asistanı + aynı sunucuda okul operasyon
 servisleri (yoklama panosu, SMS). Monorepo; her alt projenin kendi `CLAUDE.md`'si
