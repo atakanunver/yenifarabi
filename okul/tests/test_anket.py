@@ -218,6 +218,10 @@ def test_anonimlik_semada_ve_verisinde(conn, ornek, a):
     assert str(kid) not in tum.split() and "Ali" not in tum
     yid = conn.execute("SELECT id FROM anket_yanit").fetchone()[0]
     assert yid > 10**6  # sıralı değil, rastgele
+    # dolaylı kimlik yok: sınıf sütunu yok, anket_cevap'ta rowid (ekleme sırası) yok
+    assert "sinif" not in {r[1] for r in conn.execute("PRAGMA table_info(anket_yanit)")}
+    with pytest.raises(sqlite3.OperationalError):
+        conn.execute("SELECT rowid FROM anket_cevap").fetchall()
     # katılım tablosunda sıra/saat bilgisi yok
     assert {r[1] for r in conn.execute("PRAGMA table_info(anket_katilim)")} == {"anket_id", "kullanici_id", "rol"}
 

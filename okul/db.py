@@ -286,7 +286,9 @@ CREATE INDEX deneme_ogrenci_no ON deneme_ogrenci(okul_no);
 
 # Anket modülü: yönetici anket hazırlar, öğrenci/veli/öğretmen kitlesine AYRI AYRI gönderir.
 # Yanıtlar ANONİMDİR: anket_katilim "kim yanıtladı"yı (tek yanıt kuralı), anket_yanit/anket_cevap "ne yanıtlandı"yı tutar;
-# ikisi arasında bağ yoktur (yanıt id'si rastgele, katılımda sıra/saat yok). Sonuç, 5'ten az yanıtlı grupta gösterilmez.
+# ikisi arasında bağ yoktur: yanıt id'si rastgele, katılımda sıra/saat yok, anket_cevap WITHOUT ROWID (fiziksel sıra rastgele
+# yanit_id'ye göre; ekleme sırası/rowid ile olay kaydına bağlanamaz), yanıtta sınıf gibi dolaylı kimlik sütunu yok.
+# Sonuç, 5'ten az yanıtlı grupta gösterilmez.
 SEMA_V7 = """
 CREATE TABLE anket (
     id          INTEGER PRIMARY KEY,
@@ -324,15 +326,15 @@ CREATE TABLE anket_katilim (
 CREATE TABLE anket_yanit (
     id          INTEGER PRIMARY KEY,
     anket_id    INTEGER NOT NULL REFERENCES anket(id) ON DELETE CASCADE,
-    rol         TEXT NOT NULL,
-    sinif       TEXT NOT NULL DEFAULT ''
+    rol         TEXT NOT NULL
 );
 CREATE INDEX anket_yanit_anket ON anket_yanit(anket_id, rol);
 CREATE TABLE anket_cevap (
     yanit_id    INTEGER NOT NULL REFERENCES anket_yanit(id) ON DELETE CASCADE,
     soru_id     INTEGER NOT NULL REFERENCES anket_soru(id) ON DELETE CASCADE,
-    deger       TEXT NOT NULL
-);
+    deger       TEXT NOT NULL,
+    PRIMARY KEY (yanit_id, soru_id, deger)
+) WITHOUT ROWID;
 CREATE INDEX anket_cevap_soru ON anket_cevap(soru_id);
 """
 

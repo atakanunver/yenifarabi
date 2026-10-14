@@ -3,6 +3,7 @@
 Gizlilik (varsayılan, değiştirilemez): yanıtlar ANONİMDİR.
 - `anket_katilim` yalnızca "bu kullanıcı bu anketi yanıtladı" der (tek yanıt kuralı, sıra/saat tutulmaz).
 - `anket_yanit` + `anket_cevap` yalnızca "ne yanıtlandı"yı tutar; yanıt id'si rastgeledir, kullanıcıya bağ yoktur.
+- Yanıtta sınıf/zaman/sıra gibi dolaylı kimlik bilgisi tutulmaz (anket_cevap WITHOUT ROWID).
 - Sonuçlar rol bazında verilir; bir rolde ESIK_N'den az yanıt varsa o rolün sonucu (açık uçlu metin dahil) gizlenir.
 Yönetici kimin yanıtlamadığını da göremez (yalnızca sayılar).
 Anket bir kez bir role gönderilince soruları değiştirilemez (sonuçlar karışmasın).
@@ -323,10 +324,6 @@ def yanitla(conn: sqlite3.Connection, k: sqlite3.Row, anket_id: int, girdi: dict
                     raise AnketHatasi("Geçersiz seçenek.")
                 gecerli.add(int(v))
             satirlar += [(s["id"], str(i)) for i in sorted(gecerli)]
-    sinif = ""
-    if k["rol"] == "ogrenci":
-        siniflar_ = _kullanici_siniflari(conn, k)
-        sinif = siniflar_[0] if siniflar_ else ""
     try:
         # katılım kaydı tek yanıt kuralını DB'de zorlar (paralel gönderim ikinciyi reddeder)
         conn.execute(
@@ -336,7 +333,7 @@ def yanitla(conn: sqlite3.Connection, k: sqlite3.Row, anket_id: int, girdi: dict
         conn.rollback()
         raise AnketHatasi("Bu anketi zaten yanıtladınız.") from e
     yid = secrets.randbits(62)  # rastgele: katılım sırasıyla eşleştirilemez
-    conn.execute("INSERT INTO anket_yanit (id, anket_id, rol, sinif) VALUES (?, ?, ?, ?)", (yid, anket_id, k["rol"], sinif))
+    conn.execute("INSERT INTO anket_yanit (id, anket_id, rol) VALUES (?, ?, ?)", (yid, anket_id, k["rol"]))
     conn.executemany(
         "INSERT INTO anket_cevap (yanit_id, soru_id, deger) VALUES (?, ?, ?)", [(yid, sid, d) for sid, d in satirlar]
     )

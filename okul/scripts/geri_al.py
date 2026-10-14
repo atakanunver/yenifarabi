@@ -2,13 +2,15 @@
 
     sudo systemctl stop farabi-okul          # önce servis durmalı
     cp veri/okul.db veri/yedek/okul_<tarih>.db   # (ya da sqlite3 .backup)
-    venv/bin/python scripts/geri_al.py --hedef 4 [--db veri/okul.db] [--onayla]
+    venv/bin/python scripts/geri_al.py --hedef 6 [--db veri/okul.db] [--onayla]   # yalnızca V7+V8'i geri alır
     git checkout <eski-commit>               # eski kod, yeni şemayı beklemez
     sudo systemctl start farabi-okul
 
 Eski kodu çalıştırmadan GOCLER'i geri almayın: yeni kod açılışta eksik göçü yeniden uygular.
 --onayla olmadan yalnızca ne silineceğini (satır sayılarıyla) gösterir. Her adım tek işlemde çalışır.
 Silinen tablolardaki veri kurtarılamaz: önce yedek alın.
+DİKKAT: --hedef, geri dönmek istediğiniz user_version'dır. Çalışan üretimde V5 (Arena XP/rozet) ve V6 (deneme sonuçları)
+CANLI VERİ tutar; --hedef 4 onları da siler. Önce kuru çalıştırmayı (--onayla olmadan) okuyun.
 """
 
 import argparse
