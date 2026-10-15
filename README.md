@@ -18,6 +18,10 @@ alt proje bulunuyor.
 | [`mudur/`](mudur) | Müdür yardımcısının kullandığı araçlar (ders programı kaynağı, sınıf Excel/PDF listeleri). |
 | [`dogum/`](dogum) | Eski Telegram doğum günü botu — UYKUDA (servis/cron kaydı yok); yerini smssistemi'nin Doğum Günleri modülü aldı. |
 | [`benchmark/`](benchmark) | RAG retrieval/eşik/katman ölçüm harness'ları — üretim koduna karşı veya bağımsız çalışır. |
+| [`okul/`](okul) | Dijital okul portalı (ŞMUAL) — öğrenci/veli/öğretmen/yönetici rolleriyle giriş (şifre + veli SMS kodu), duyuru, ödev/test, devamsızlık, anket, Bilgi Arenası (XP/rozet/haftalık ödül), kişisel gelişim, öğretmen-yönetici sohbet odası, Web Push bildirimi; mobil PWA. `farabi-okul.service` (:9090, smual.app Cloudflare Tunnel). |
+| [`soruhavuzu/`](soruhavuzu) | Oyunlar ve kazanım testleri için soru havuzu — yerel Ollama ile üretim, AGY denetimi, kazanım eşleştirme (Maarif modeli). Zamanlayıcıyla çalışır; 12. sınıf donduruldu. |
+| [`kazanimtest/`](kazanimtest) | Haftanın kazanımı testi (Google Form/Apps Script), kazanım analizi ve aylık rapor. Zamanlayıcıları kaldırıldı (2026-10-14), kod duruyor. |
+| [`openwebui/`](openwebui), [`webui-tema/`](webui-tema) | Open WebUI ("Atos") araçları ve teması — öğretmen/yönetici için SMS, yoklama ve tahta yönetimi araçları. |
 | [`docs/`](docs) | Tasarım kararları ve uygulama planları. |
 
 Her alt projenin kendi `CLAUDE.md` dosyası var (komutlar, mimari, bilinen
@@ -40,5 +44,5 @@ Detaylı mimari, geçmiş kararlar ve gerekçeleri için:
 
 Docker yok — her servis systemd altında ayrı bir birim ve ayrı venv olarak
 çalışır (`farabi-api`, `farabi-yoklama-dashboard`, `farabi-smssistemi`,
-`ollama`), sistemi devralacak biri `systemctl status` ile duruma bakabilir.
+`farabi-okul`, `ollama`, `open-webui`), sistemi devralacak biri `systemctl status` ile duruma bakabilir.
 Servisler birbirine yalnızca HTTP + HMAC ile bağlanır, birleştirilmez.

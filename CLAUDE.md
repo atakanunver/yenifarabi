@@ -16,7 +16,8 @@ soruhavuzu, kazanimtest, okul; `openwebui/`, `webui-tema/` için CLAUDE.md yok).
 
 - Kararlar/neden: `DECISIONS.md` (`grep "## <tarih>"`). Mimari (2026-09-13'te
   donmuş, çelişkide bu dosya esas): `docs/mimari.md`. Ağ envanteri, dağıtım,
-  SSH, zamanlayıcılar: `docs/runbook.md`. Eski analiz/planlar: `_arsiv/` (okuma).
+  SSH, zamanlayıcılar: `docs/runbook.md`. Sürüm notları: `CHANGELOG.md`;
+  `README.md` yalnızca Atakan isterse güncellenir. Eski analiz/planlar: `_arsiv/` (okuma).
 - ⚠️ `/home/ata/farabi` CANLI ÜRETİM — servisler buradan koşuyor. Master'a commit
   = deploy kaynağı; üretime almak = ilgili servisi restart.
 
@@ -98,7 +99,7 @@ kütüphane (Docker, Redis, Qdrant, Celery, yeni LLM, bulut API…) için önce 
 
 ## Okuma yasakları
 `data/`, `models/`, `*.onnx`, `venv/`, `__pycache__/`, `**/api_keys.json*`, `*.env`,
-`network.txt`, `gizli.json`; `mudur/SINIF/` ve e-Okul/yoklama/SMS dışa aktarımları
+`network.txt`, `apikeys.env`, `gizli.json`; `mudur/SINIF/` ve e-Okul/yoklama/SMS dışa aktarımları
 (kişisel veri). Halka açık kitap/YKS PDF'leri sayfa aralığıyla okunabilir.
 Log >1000 satır/>200 KB ise boyutu bildir, tamamını okumadan sor (grep/tail serbest).
 Log, hata avında birincil kanıttır; varsayımla debug etme.

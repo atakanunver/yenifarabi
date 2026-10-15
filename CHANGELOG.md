@@ -16,12 +16,36 @@ Bu proje [Semantic Versioning](https://semver.org/lang/tr/) kullanır.
   ekiyle (2026-10-01).
 - Dashboard: uzaktan yönetim denetim kaydı (`uzaktan_denetim` tablosu),
   oturumsuz tarayıcı isteği `/giris`'e yönlenir (2026-10-01).
+- Dashboard: `/api/ajan` makine API'si ve tahta yeniden başlatma (2026-10-03);
+  menü çubuğu kabuğu ve `/servisler` servis yönetimi sayfası, uyarı şeridi,
+  tahta donanım sağlığı (2026-10-08/14); `/kazanim-rapor` (2026-10-08).
+- Sunucu: `GET /api/egitim/kazanim` — haftanın yıllık plan kazanımı ders
+  çerçevesine; plan yalnızca öneridir (2026-10-06).
+- Yeni servis **okul** (`farabi-okul`, :9090): dijital okul portalı — roller,
+  duyuru, ödev/test, devamsızlık, anket, Bilgi Arenası, kişisel gelişim,
+  harici deneme sonuçları, sohbet odası, Web Push, PWA (2026-10-10/14).
+- smssistemi: `/api/arac/kod-sms`, `kisisel-taslak`/`kisisel-gonder`,
+  velilerden gelen mesajlar ve spam göndericileri engelleme (2026-10-08/14).
+- soruhavuzu: kazanım öncelikli gece üretimi, AGY denetimi, şık dengesi,
+  LLM ile kazanım sınıflandırma (2026-10-06/10).
+- kazanimtest: haftanın kazanımı testi, form sonuçları, kazanım analizi,
+  aylık rapor (2026-10-07/08; zamanlayıcılar 2026-10-14'te silindi).
+- Open WebUI "Atos": Farabi Yönetim aracı, SMS ve hatırlatma araçları
+  (2026-10-03/06).
 
 ### Changed
 
 - Ses kalıcı olarak Gemini Live'da; yerel ses (Pipecat) denemesi geri
   alındı (2026-09-28).
 - Kitap metni bulut sağlayıcılara gidebilir (kullanıcı kararı, 2026-09-29).
+- Ollama'da tek model `qwen3.8:27b`; RAG gömme/reranker bilgehan'daki
+  `farabi-embed` servisinde (2026-10-03/04).
+- İstemci: sistem promptu sadeleştirildi, `kitap_sorusu` zaman aşımı 35 sn
+  (2026-10-04/08).
+
+### Removed
+
+- İstemci: mikrofonsuz mod koddan kaldırıldı (2026-10-06).
 
 ### Fixed
 
