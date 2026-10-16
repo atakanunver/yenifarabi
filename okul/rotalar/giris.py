@@ -230,9 +230,9 @@ def duyuru_listesi(
     k: sqlite3.Row = Depends(mevcut_kullanici),
     conn: sqlite3.Connection = Depends(db_conn),
 ):
-    return render(
-        request, "duyurular.html", duyurular=duyurular.gorunur_duyurular(conn, k)
-    )
+    liste = duyurular.gorunur_duyurular(conn, k)
+    duyurular.okuma_kaydet(conn, k, liste)
+    return render(request, "duyurular.html", duyurular=liste)
 
 
 @router.get("/kvkk")

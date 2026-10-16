@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block baslik %}Duyuru okuma durumu — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Duyuru okuma durumu</h1>
+<p class="soluk">Bir duyuru, kullanıcı Duyurular sayfasını açınca okundu sayılır. Kayıt tutulmaya başlamadan önceki duyurular için sayılar eksik olabilir{% if liste and liste[0].kayit_basi %} (ilk kayıt: {{ liste[0].kayit_basi|tarih }}){% endif %}.</p>
+{% for d in liste %}
+<article class="kart">
+  <h2><a href="/yonetici/duyurular/{{ d.id }}">{{ d.baslik }}</a></h2>
+  <p class="soluk kucuk">{{ d.yazar }} · {{ d.yayin|tarih }} · {% if d.hedef_tur == 'okul' %}Tüm okul{% elif d.hedef_tur == 'sinif' %}{{ d.hedef }}{% else %}{{ ROL_ADLARI[d.hedef] }}{% endif %}</p>
+  <p>
+  {% for r in ['ogrenci', 'veli', 'ogretmen'] %}{% set o = ozet[d.id][r] %}{% if o[1] %}<span class="etiket">{{ ROL_ADLARI[r] }}: {{ o[0] }}/{{ o[1] }}</span> {% endif %}{% endfor %}
+  </p>
+</article>
+{% else %}
+<div class="kart"><p class="bos">Duyuru yok.</p></div>
+{% endfor %}
+<p class="kucuk"><a href="/yonetici">← Okul özeti</a></p>
+{% endblock %}

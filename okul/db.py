@@ -418,9 +418,19 @@ CREATE TABLE sohbet_okuma (
 );
 """
 
+# Duyuru okuma kaydı: kullanıcı /duyurular sayfasını açınca görünen duyurular için bir kez yazılır (yönetici raporu).
+SEMA_V13 = """
+CREATE TABLE duyuru_okuma (
+    duyuru_id     INTEGER NOT NULL REFERENCES duyuru(id) ON DELETE CASCADE,
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    zaman         TEXT NOT NULL,
+    PRIMARY KEY (duyuru_id, kullanici_id)
+);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
-    SEMA_V11, SEMA_V12,
+    SEMA_V11, SEMA_V12, SEMA_V13,
 ]
 
 

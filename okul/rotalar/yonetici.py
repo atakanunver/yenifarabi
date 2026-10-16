@@ -5,6 +5,7 @@ from datetime import timedelta
 
 import analitik
 import auth
+import duyurular
 import ice_aktar
 import zaman
 from deps import ROL_ADLARI, db_conn, render, rol
@@ -271,6 +272,35 @@ def erisim(
         " ORDER BY e.id DESC LIMIT 300"
     ).fetchall()
     return render(request, "yonetici/erisim.html", liste=liste)
+
+
+@router.get("/duyurular")
+def duyuru_okuma_liste(
+    request: Request, k=Depends(YONETICI), conn: sqlite3.Connection = Depends(db_conn)
+):
+    liste = conn.execute(
+        "SELECT d.*, u.ad_soyad AS yazar, (SELECT min(zaman) FROM duyuru_okuma) AS kayit_basi"
+        " FROM duyuru d JOIN kullanici u ON u.id = d.yazar_id ORDER BY d.yayin DESC, d.id DESC LIMIT 100"
+    ).fetchall()
+    ozet = {d["id"]: duyurular.okuma_raporu(conn, d)["roller"] for d in liste}
+    return render(request, "yonetici/duyurular.html", liste=liste, ozet=ozet)
+
+
+@router.get("/duyurular/{duyuru_id}")
+def duyuru_okuma_detay(
+    duyuru_id: int,
+    request: Request,
+    k=Depends(YONETICI),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    d = conn.execute(
+        "SELECT d.*, u.ad_soyad AS yazar FROM duyuru d JOIN kullanici u ON u.id = d.yazar_id WHERE d.id = ?",
+        (duyuru_id,),
+    ).fetchone()
+    if d is None:
+        raise HTTPException(404)
+    rapor = duyurular.okuma_raporu(conn, d)
+    return render(request, "yonetici/duyuru_okuma.html", d=d, **rapor)
 
 
 _ROL_RENK = {"ogrenci": "#2446c7", "ogretmen": "#1e8c5a", "veli": "#c08adb", "yonetici": "#d7263d"}

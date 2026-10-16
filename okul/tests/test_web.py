@@ -4,6 +4,7 @@ import io
 import json
 
 import auth
+import duyurular
 import ice_aktar
 import odevler
 import openpyxl
@@ -311,6 +312,7 @@ def test_tum_sayfalar_render_olur_dis_kaynak_yokken(
         "2026-10-20",
         [],
     )
+    duyurular.duyuru_ekle(conn, ornek["yonetici"], "Okul duyurusu", "x", "okul")
     giris(istemci, "101", "ali-sifre")
     for yol in (
         "/ogrenci",
@@ -344,6 +346,8 @@ def test_tum_sayfalar_render_olur_dis_kaynak_yokken(
         "/yonetici/gorevler",
         "/yonetici/eslesmeyen",
         "/yonetici/erisim",
+        "/yonetici/duyurular",
+        "/yonetici/duyurular/1",
         "/yonetici/sablon/ogrenci.xlsx",
     ):
         assert istemci.get(yol).status_code == 200, yol

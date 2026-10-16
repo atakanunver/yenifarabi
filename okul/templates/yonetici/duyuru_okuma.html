@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block baslik %}{{ d.baslik }} — Okuma durumu{% endblock %}
+{% block icerik %}
+<h1>{{ d.baslik }}</h1>
+<p class="soluk kucuk">{{ d.yazar }} · {{ d.yayin|tarih }} · {% if d.hedef_tur == 'okul' %}Tüm okul{% elif d.hedef_tur == 'sinif' %}{{ d.hedef }}{% else %}{{ ROL_ADLARI[d.hedef] }}{% endif %}</p>
+
+<section class="kart">
+  <h2>Genel</h2>
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Grup</th><th class="sayi">Okudu</th><th class="sayi">Okumadı</th><th class="sayi">Toplam</th></tr></thead>
+    <tbody>
+    {% for r, o in roller.items() %}{% if o[1] %}<tr><td>{{ ROL_ADLARI[r] }}</td><td class="sayi">{{ o[0] }}</td><td class="sayi">{{ o[1] - o[0] }}</td><td class="sayi">{{ o[1] }}</td></tr>{% endif %}{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+
+<section class="kart">
+  <h2>Sınıfa göre</h2>
+  <p class="soluk kucuk">Her hücre: okuyan / toplam. Birden çok sınıfı olan veli ve öğretmen her sınıfta sayılır.</p>
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Sınıf</th><th class="sayi">Öğrenci</th><th class="sayi">Veli</th><th class="sayi">Öğretmen</th><th class="sayi">Okumayan</th></tr></thead>
+    <tbody>
+    {% for s, g in siniflar.items() %}
+    <tr><td>{{ s }}</td>
+      {% for r in ['ogrenci', 'veli', 'ogretmen'] %}<td class="sayi">{{ g[r][0] }}/{{ g[r][1] }}</td>{% endfor %}
+      <td class="sayi"><b>{{ (g.ogrenci[1] - g.ogrenci[0]) + (g.veli[1] - g.veli[0]) + (g.ogretmen[1] - g.ogretmen[0]) }}</b></td></tr>
+    {% else %}<tr><td colspan="5" class="bos">Hedef kitle yok.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+
+<section class="kart">
+  <h2>Okumayanlar <span class="etiket">{{ okumayan|length }}</span></h2>
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Ad soyad</th><th>Grup</th><th>Sınıf</th></tr></thead>
+    <tbody>
+    {% for u in okumayan %}<tr><td>{{ u.ad }}</td><td>{{ ROL_ADLARI[u.rol] }}</td><td>{{ u.siniflar|join(', ') or '—' }}</td></tr>
+    {% else %}<tr><td colspan="3" class="bos">Herkes okudu.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+<p class="kucuk"><a href="/yonetici/duyurular">← Duyurular</a></p>
+{% endblock %}
