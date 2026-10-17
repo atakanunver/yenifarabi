@@ -7,6 +7,7 @@ Anahtar yok / servis kapalı / zaman aşımı → istemci None döner, sayfa ç�
 Telefonlar smssistemi'nde zaten maskelenir; mesaj metni log'a YAZILMAZ (bu modül hiç log atmaz).
 """
 
+import asyncio
 import json
 import re
 import time
@@ -161,7 +162,9 @@ async def sayfa(request: Request, okunmamis: int = 0, engellenen: int = 0):
             return RedirectResponse("/giris", status_code=303)
     finally:
         conn.close()
-    ham = mesajlari_getir(bool(okunmamis) and not engellenen, spam=bool(engellenen))
+    ham = await asyncio.to_thread(
+        mesajlari_getir, bool(okunmamis) and not engellenen, LISTE_LIMITI, bool(engellenen)
+    )
     return templates.TemplateResponse(request, "veli_mesajlari.html", {
         "ulasilamiyor": ham is None,
         "mesajlar": goruntule(ham or []),
@@ -173,7 +176,7 @@ async def sayfa(request: Request, okunmamis: int = 0, engellenen: int = 0):
 @router.get("/api/veli-mesajlari/sayac")
 async def api_sayac(request: Request):
     _oturum_gerekli(request)
-    veri = sayac_getir()
+    veri = await asyncio.to_thread(sayac_getir)
     if veri is None:
         return JSONResponse({"okunmamis": None, "cikis_talebi_okunmamis": None})
     return JSONResponse({"okunmamis": veri["okunmamis"],
@@ -183,7 +186,7 @@ async def api_sayac(request: Request):
 @router.post("/api/veli-mesajlari/{mesaj_id}/okundu")
 async def api_okundu(request: Request, mesaj_id: int):
     _oturum_gerekli(request)
-    if not okundu_isaretle(mesaj_id):
+    if not await asyncio.to_thread(okundu_isaretle, mesaj_id):
         raise HTTPException(502, "Mesaj servisine ulaşılamadı ya da mesaj bulunamadı.")
     return JSONResponse({"ok": True})
 
@@ -192,7 +195,7 @@ async def api_okundu(request: Request, mesaj_id: int):
 async def api_sil(request: Request, mesaj_id: int):
     """Tarayıcıdan POST (SameSite=lax çerez çapraz-site POST'ta gitmez); smssistemi'ne DELETE gider."""
     _oturum_gerekli(request)
-    if not mesaj_sil(mesaj_id):
+    if not await asyncio.to_thread(mesaj_sil, mesaj_id):
         raise HTTPException(502, "Mesaj servisine ulaşılamadı ya da mesaj bulunamadı.")
     return JSONResponse({"ok": True})
 
@@ -204,7 +207,7 @@ class _EngelGovde(BaseModel):
 @router.post("/api/veli-mesajlari/{mesaj_id}/engelle")
 async def api_engelle(request: Request, mesaj_id: int, govde: _EngelGovde | None = None):
     _oturum_gerekli(request)
-    if not engelle(mesaj_id, (govde.neden if govde else "") or ""):
+    if not await asyncio.to_thread(engelle, mesaj_id, (govde.neden if govde else "") or ""):
         raise HTTPException(502, "Mesaj servisine ulaşılamadı, mesaj bulunamadı ya da numara engellenemez.")
     return JSONResponse({"ok": True})
 
@@ -212,6 +215,6 @@ async def api_engelle(request: Request, mesaj_id: int, govde: _EngelGovde | None
 @router.post("/api/veli-mesajlari/{mesaj_id}/engeli-kaldir")
 async def api_engeli_kaldir(request: Request, mesaj_id: int):
     _oturum_gerekli(request)
-    if not engeli_kaldir(mesaj_id):
+    if not await asyncio.to_thread(engeli_kaldir, mesaj_id):
         raise HTTPException(502, "Mesaj servisine ulaşılamadı ya da mesaj bulunamadı.")
     return JSONResponse({"ok": True})

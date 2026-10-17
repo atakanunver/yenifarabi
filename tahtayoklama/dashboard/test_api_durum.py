@@ -89,6 +89,54 @@ class TestApiDurumIzinli(unittest.TestCase):
 
         asyncio.run(run_test())
 
+    def test_oturum_son_gorulme_sik_yazmaz(self):
+        import auth
+
+        conn = db.baglanti()
+        token = auth.oturum_olustur(conn)
+        conn.execute(
+            "UPDATE oturumlar SET son_gorulme = datetime('now', '-1 minutes') WHERE token = ?",
+            (token,),
+        )
+        conn.commit()
+        onceki = conn.execute(
+            "SELECT son_gorulme FROM oturumlar WHERE token = ?", (token,)
+        ).fetchone()["son_gorulme"]
+
+        self.assertTrue(auth.oturum_gecerli_mi(conn, token))
+        sonraki = conn.execute(
+            "SELECT son_gorulme FROM oturumlar WHERE token = ?", (token,)
+        ).fetchone()["son_gorulme"]
+        self.assertEqual(onceki, sonraki)
+
+        conn.execute(
+            "UPDATE oturumlar SET son_gorulme = datetime('now', '-6 minutes') WHERE token = ?",
+            (token,),
+        )
+        conn.commit()
+        eski = conn.execute(
+            "SELECT son_gorulme FROM oturumlar WHERE token = ?", (token,)
+        ).fetchone()["son_gorulme"]
+
+        self.assertTrue(auth.oturum_gecerli_mi(conn, token))
+        guncel = conn.execute(
+            "SELECT son_gorulme FROM oturumlar WHERE token = ?", (token,)
+        ).fetchone()["son_gorulme"]
+        conn.close()
+        self.assertNotEqual(eski, guncel)
+
+    def test_ana_sayfa_ilk_durum_icerir(self):
+        import auth
+
+        async def run_test():
+            with patch.object(auth, "oturum_gecerli_mi", return_value=True):
+                yanit = await app.ana_sayfa(self._istek(), tarih="2026-09-28")
+                html = yanit.body.decode()
+                self.assertIn("const ILK_DURUM =", html)
+                self.assertIn("Ali Veli", html)
+
+        asyncio.run(run_test())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -66,11 +66,13 @@ def oturum_gecerli_mi(conn, token: str | None) -> bool:
     ).fetchone()
     if satir is None:
         return False
-    conn.execute(
-        "UPDATE oturumlar SET son_gorulme = datetime('now') WHERE token = ?",
+    imlec = conn.execute(
+        "UPDATE oturumlar SET son_gorulme = datetime('now') "
+        "WHERE token = ? AND son_gorulme <= datetime('now', '-5 minutes')",
         (token,),
     )
-    conn.commit()
+    if imlec.rowcount:
+        conn.commit()
     return True
 
 
