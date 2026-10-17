@@ -1,6 +1,7 @@
 """acil.py testleri (2026-10-16): kanal bağımsızlığı, tatbikat SMS yolu, ekran sayfası."""
 
 import asyncio
+import json
 import unittest
 from unittest import mock
 
@@ -145,6 +146,52 @@ class TestYonetim(unittest.TestCase):
                 acil._makine_dogrula(istek)
             istek.headers = {"X-Acil-Anahtar": "dogru"}
             acil._makine_dogrula(istek)
+
+
+class TestMakineOkul(unittest.TestCase):
+    """Okul portalının çağırdığı makine uçları: tatbikat ayardan, sms_metni, durum."""
+
+    def _tetikle(self, govde, ayar):
+        istek = mock.Mock(headers={"X-Acil-Anahtar": "k"})
+
+        async def gov(_):
+            return govde
+
+        async def calis():
+            with (
+                mock.patch.object(acil, "_ayarlar", return_value={"makine_anahtar": "k", **ayar}),
+                mock.patch.object(acil.tahta_api, "_govde", gov),
+                mock.patch.object(acil, "_baslat", mock.AsyncMock(return_value={"tur": "kilit"})) as b,
+            ):
+                await acil.acil_makine_tetikle(istek)
+            return b
+
+        return asyncio.run(calis())
+
+    def test_tatbikat_verilmezse_ayardan(self):
+        b = self._tetikle({"tur": "kilit", "kaynak": "okul:1:A"}, {"tahta_alarm_tatbikat": False})
+        self.assertFalse(b.call_args.args[2])
+        b = self._tetikle({"tur": "kilit"}, {"tahta_alarm_tatbikat": True})
+        self.assertTrue(b.call_args.args[2])
+
+    def test_tatbikat_acik_verilirse_ayara_bakilmaz(self):
+        b = self._tetikle({"tur": "kilit", "tatbikat": True}, {"tahta_alarm_tatbikat": False})
+        self.assertTrue(b.call_args.args[2])
+
+    def test_sms_metni_kisaltilir_ve_temizlenir(self):
+        b = self._tetikle({"tur": "kilit", "sms_metni": "A\x00" + "b" * 400}, {})
+        self.assertLessEqual(len(b.call_args.kwargs["sms_metni"]), acil.SMS_METNI_AZAMI)
+        self.assertNotIn("\x00", b.call_args.kwargs["sms_metni"])
+
+    def test_durum_anahtarsiz_401_ve_icerik(self):
+        with mock.patch.object(acil, "_ayarlar", return_value={"makine_anahtar": "k", "tahta_alarm_tatbikat": True}):
+            with self.assertRaises(acil.HTTPException):
+                asyncio.run(acil.acil_makine_durum(mock.Mock(headers={})))
+            with mock.patch.object(acil, "son_olaylar", return_value=[{"tur": "kilit", "zaman": "z", "tatbikat": True}]):
+                r = asyncio.run(acil.acil_makine_durum(mock.Mock(headers={"X-Acil-Anahtar": "k"})))
+        d = json.loads(r.body)
+        self.assertEqual(d["aktif"]["tur"], "kilit")
+        self.assertTrue(d["tatbikat"])
 
 
 if __name__ == "__main__":

@@ -581,6 +581,9 @@ def _makine_dogrula(request: Request) -> None:
         raise HTTPException(401, "Anahtar geçersiz.")
 
 
+SMS_METNI_AZAMI = 160
+
+
 def _kaynak_etiketi(govde: dict) -> str:
     return "".join(c for c in str(govde.get("kaynak", "makine"))[:40] if c.isprintable())
 
@@ -592,8 +595,26 @@ async def acil_makine_tetikle(request: Request):
     tur = govde.get("tur")
     if tur not in TURLER:
         raise HTTPException(400, "Geçersiz tür.")
-    kayit = await _baslat(_ayarlar(), tur, bool(govde.get("tatbikat", True)), kaynak=_kaynak_etiketi(govde))
+    a = _ayarlar()
+    # tatbikat verilmezse tahta alarm modu (config) belirler; zil botu açıkça gönderdiği için etkilenmez.
+    tatbikat = govde.get("tatbikat")
+    tatbikat = bool(a.get("tahta_alarm_tatbikat", True)) if tatbikat is None else bool(tatbikat)
+    sms_metni = govde.get("sms_metni")
+    if sms_metni is not None:
+        sms_metni = "".join(c for c in str(sms_metni) if c.isprintable()).strip()[:SMS_METNI_AZAMI] or None
+    kayit = await _baslat(a, tur, tatbikat, kaynak=_kaynak_etiketi(govde), sms_metni=sms_metni)
     return JSONResponse(kayit)
+
+
+@router.get("/api/acil/makine/durum")
+async def acil_makine_durum(request: Request):
+    """Okul portalı için: aktif alarm var mı ve alarm modu tatbikat mı."""
+    _makine_dogrula(request)
+    aktif = aktif_alarm(son_olaylar())
+    return JSONResponse({
+        "aktif": {k: aktif.get(k) for k in ("zaman", "tur", "tatbikat", "istemci_ip")} if aktif else None,
+        "tatbikat": bool(_ayarlar().get("tahta_alarm_tatbikat", True)),
+    })
 
 
 @router.post("/api/acil/makine/yanlis-alarm")
