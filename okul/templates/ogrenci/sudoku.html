@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block baslik %}Sudoku Düellosu · Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Sudoku <span class="fosfor">Düellosu</span></h1>
+<p class="soluk">Sınıf arkadaşına meydan oku: ikiniz de aynı bulmacayı çözersiniz, kabulden sonra {{ 24 }} saat içinde istediğin zaman. Skor = süre + {{ 10 }} sn × hata; düşük olan kazanır.</p>
+{% if hata %}<div class="not" role="alert">{{ hata }}</div>{% endif %}
+
+<section class="kart">
+  <h2>Meydan oku</h2>
+  {% if arkadaslar %}
+  <form method="post" action="/ogrenci/sudoku/meydan-oku" class="sudoku-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Arkadaşın
+      <select name="rakip" required>
+        {% for a in arkadaslar %}<option value="{{ a.kid }}">{{ a.ad }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Zorluk
+      <select name="zorluk" required>
+        {% for kod, ad in zorluklar.items() %}<option value="{{ kod }}">{{ ad }} ({{ ipuclari[kod] }} ipucu)</option>{% endfor %}
+      </select>
+    </label>
+    <button class="tus tam">Meydan oku</button>
+  </form>
+  <p class="kucuk soluk">Basit ×1, orta ×2, zor ×3 puan. Galibiyet 3, beraberlik 1, mağlubiyet 0 (çarpanla).</p>
+  {% else %}<p class="bos">Sınıfında düello yapabileceğin başka öğrenci yok.</p>{% endif %}
+</section>
+
+{% if d.gelen %}
+<section class="kart">
+  <h2>Sana gelen meydan okumalar</h2>
+  <ul class="liste">
+  {% for x in d.gelen %}
+    <li><span>{{ x.rakip }} · {{ x.zorluk_ad }}</span>
+      <span class="sag">
+        <form method="post" action="/ogrenci/sudoku/{{ x.id }}/kabul" style="display:inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus">Kabul</button></form>
+        <form method="post" action="/ogrenci/sudoku/{{ x.id }}/red" style="display:inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus ikincil">Reddet</button></form>
+      </span></li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if d.suren %}
+<section class="kart">
+  <h2>Süren düellolar</h2>
+  <ul class="liste">
+  {% for x in d.suren %}
+    <li><span>{{ x.rakip }} · {{ x.zorluk_ad }}<br><small class="soluk">Son: {{ x.son_tarih|tarih }}</small></span>
+      <span class="sag">{% if x.oyun and x.oyun.bitis %}<a class="tus ikincil" href="/ogrenci/sudoku/{{ x.id }}/sonuc">Bitirdin</a>{% else %}<a class="tus" href="/ogrenci/sudoku/{{ x.id }}">{{ 'Devam et' if x.oyun else 'Oyna' }}</a>{% endif %}</span></li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if d.giden %}
+<section class="kart">
+  <h2>Yanıt bekleyen</h2>
+  <ul class="liste">{% for x in d.giden %}<li><span>{{ x.rakip }} · {{ x.zorluk_ad }}</span><span class="sag soluk kucuk">bekliyor</span></li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if d.biten %}
+<section class="kart">
+  <h2>Son düellolar</h2>
+  <ul class="liste">
+  {% for x in d.biten %}
+    <li><a class="satir" href="/ogrenci/sudoku/{{ x.id }}/sonuc"><span>{{ x.rakip }} · {{ x.zorluk_ad }}</span>
+      <span class="sag">{% if x.durum == 'red' %}reddedildi{% elif x.durum == 'doldu' %}süresi doldu{% elif x.benim == 'galibiyet' %}✓ kazandın{% elif x.benim == 'beraberlik' %}berabere{% else %}kaybettin{% endif %}</span></a></li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<a class="tus tam ikincil" href="/ogrenci/sudoku/liderlik">Haftalık sınıf tablosu</a>
+{% endblock %}

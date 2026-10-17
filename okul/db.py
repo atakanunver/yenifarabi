@@ -496,9 +496,37 @@ CREATE TABLE acil_dis_olay (
 CREATE INDEX acil_dis_olay_zaman ON acil_dis_olay(olusturma);
 """
 
+# Sudoku Düellosu (eşzamansız, sınıf içi). Puan saklanmaz; biten düellolardan türetilir. bilgi_xp'den bağımsız.
+SEMA_V18 = """
+CREATE TABLE sudoku_duello (
+    id         INTEGER PRIMARY KEY,
+    sinif      TEXT NOT NULL,
+    zorluk     TEXT NOT NULL CHECK (zorluk IN ('basit','orta','zor')),
+    bulmaca    TEXT NOT NULL,
+    cozum      TEXT NOT NULL,
+    kuran_kid  INTEGER NOT NULL REFERENCES kullanici(id),
+    rakip_kid  INTEGER NOT NULL REFERENCES kullanici(id),
+    durum      TEXT NOT NULL CHECK (durum IN ('bekliyor','surer','bitti','red','doldu')),
+    olusturma  TEXT NOT NULL,
+    son_tarih  TEXT
+);
+CREATE INDEX sudoku_duello_kuran ON sudoku_duello(kuran_kid, durum);
+CREATE INDEX sudoku_duello_rakip ON sudoku_duello(rakip_kid, durum);
+CREATE TABLE sudoku_oyun (
+    duello_id    INTEGER NOT NULL REFERENCES sudoku_duello(id),
+    kullanici_id INTEGER NOT NULL REFERENCES kullanici(id),
+    baslama      TEXT NOT NULL,
+    bitis        TEXT,
+    hata         INTEGER NOT NULL DEFAULT 0,
+    sure_sn      INTEGER,
+    UNIQUE (duello_id, kullanici_id)
+);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
+    SEMA_V18,
 ]
 
 

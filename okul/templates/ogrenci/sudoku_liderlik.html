@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block baslik %}Sudoku tablosu · Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Sudoku <span class="fosfor">tablosu</span></h1>
+<p class="soluk kucuk">{{ hafta_basi|tarih }} tarihinden beri · {{ sinif }} sınıfı · galibiyet {{ puan.galibiyet }}, beraberlik {{ puan.beraberlik }} puan (basit ×1, orta ×2, zor ×3)</p>
+<section class="kart">
+  {% if liste and liste|selectattr('oynanan')|list %}
+  <ol class="liderlik">
+  {% for x in liste %}
+    <li class="{{ 'ben' if x.kid == ben }}">
+      <span class="sira">{{ x.sira }}</span>
+      <span class="ad">{{ x.ad }} <span class="soluk kucuk">{{ x.galibiyet }}G · {{ x.oynanan }} düello</span></span>
+      <span class="toplam">{{ x.puan }}</span>
+    </li>
+  {% endfor %}
+  </ol>
+  {% else %}<p class="bos">Bu hafta biten düello yok. İlk meydan okuyan sen ol!</p>{% endif %}
+</section>
+<section class="kart">
+  <h2>Sınıflar arası</h2>
+  <p class="kucuk soluk">Katılan öğrenci başına ortalama puan ve katılım oranı (toplam puan değil).</p>
+  <ul class="liste">
+  {% for s in siniflar %}
+    <li class="{{ 'ben' if s.sinif == sinif }}"><span>{{ s.sinif }}</span><span class="sag">%{{ s.oran }} katılım · ort. {{ s.ort_puan }}</span></li>
+  {% endfor %}
+  </ul>
+</section>
+<a class="tus tam" href="/ogrenci/sudoku">Düellolarım</a>
+{% endblock %}

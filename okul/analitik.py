@@ -74,6 +74,15 @@ OZELLIKLER = {
         "Arena: Günlük Görev tamamlama", ("ogrenci",), True,
         "Başlayıp bitirmeyenler varsa soruları ve ekran akışını gözden geçir; öğrencilere neden bıraktıklarını sor.",
     ),
+    "sudoku_goruntule": ("Sudoku Düellosu ekranı", ("ogrenci",), False, ""),
+    "sudoku_meydan": (
+        "Sudoku: meydan okuma", ("ogrenci",), True,
+        "Sudoku Düellosu'nu sınıfta tanıt; ana sayfadaki oyun kartını öne çıkar ve haftalık sınıf tablosunu duyur.",
+    ),
+    "sudoku_bitir": (
+        "Sudoku: düello bitirme", ("ogrenci",), True,
+        "Meydan okuyup bitirmeyenler varsa süreyi (24 saat) ve bildirim akışını gözden geçir; öğrencilere neden bıraktıklarını sor.",
+    ),
     "veli_gelisim_raporu": (
         "Veli: gelişim raporu", ("veli",), True,
         "Veli ana sayfasına 'Kazanım raporu' bağlantısı ekle; veli toplantısında kısa gösterim yap.",
@@ -90,6 +99,7 @@ _SAYFALAR = (
     (re.compile(r"^/veli/kazanim$"), "veli_gelisim_raporu"),
     (re.compile(r"^/ogrenci/arena$"), "arena_goruntule"),
     (re.compile(r"^/duyurular$"), "duyuru_goruntule"),
+    (re.compile(r"^/ogrenci/sudoku$"), "sudoku_goruntule"),
 )
 
 
