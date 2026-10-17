@@ -42,6 +42,10 @@ GEC_KALMA_SINIRI = timedelta(
     hours=6
 )  # servis kapalıyken kaçan hatırlatma bundan geç gönderilmez
 TASLAK_OMRU = timedelta(minutes=30)
+TUM_OKUL = "TÜM OKUL"  # veli/öğrenci taslaklarında tüm sınıflar (Personel hariç); gönderimde alıcı sayısı onayı ister
+PERSONEL_SINIF = "Personel"  # rehberdeki personel (öğretmenler dahil) sınıfı
+TOPLU_GUNLUK_AZAMI = 500  # bir günde taslak yoluyla (veli/öğrenci/personel) gidebilecek toplam alıcı; test gönderimleri sayılmaz
+_TUM_OKUL_YAZIMLARI = {"tüm", "tum", "tüm okul", "tum okul", "tümü", "tumu", "okul", "hepsi", "herkes"}
 ZAMAN_BICIMI = "%Y-%m-%d %H:%M"
 
 SEMA = """
@@ -313,6 +317,8 @@ def acil(istek: AcilIstek):
 
 
 def _sinif_normalize(ad: str) -> str:
+    if (ad or "").strip().casefold() in _TUM_OKUL_YAZIMLARI:
+        return TUM_OKUL
     m = re.fullmatch(
         r"\s*(\d{1,2})\s*[-/.\s]?\s*([a-zA-ZçÇğĞıIİiöÖşŞüÜ])\s*(?:sınıfı|sinifi)?\s*",
         ad or "",
@@ -323,18 +329,24 @@ def _sinif_normalize(ad: str) -> str:
     return f"{m.group(1)}-{harf}"
 
 
+_SINIF_AD = re.compile(r"\d{1,2}-[A-ZÇĞİÖŞÜ]")
+
+
 def _alicilar(conn, sinif_ad: str, tur: str) -> list[tuple[str, str]]:
-    sinif = next((s for s in db.siniflar_listele(conn) if s["ad"] == sinif_ad), None)
-    if sinif is None:
-        return []
+    tum = db.siniflar_listele(conn)
+    if sinif_ad == TUM_OKUL:  # 9-A…12-B sınıfları; Personel/Bilinmeyen Sınıf sahte satırları HARİÇ
+        hedefler = [s for s in tum if _SINIF_AD.fullmatch(s["ad"])]
+    else:
+        hedefler = [s for s in tum if s["ad"] == sinif_ad]
     goruldu, alicilar = set(), []
-    for ad, tel in db.kisiler_telefonlu(conn, sinif["id"], tur):
-        tel = gonderim.normalize_phone(tel)
-        if (
-            gonderim.is_valid_phone(tel) and tel not in goruldu
-        ):  # aynı telefon (kardeş velisi vb.) tek SMS alır
-            goruldu.add(tel)
-            alicilar.append((ad, tel))
+    for sinif in hedefler:
+        for ad, tel in db.kisiler_telefonlu(conn, sinif["id"], tur):
+            tel = gonderim.normalize_phone(tel)
+            if (
+                gonderim.is_valid_phone(tel) and tel not in goruldu
+            ):  # aynı telefon (kardeş velisi vb.) tek SMS alır; sınıflar arası da tekilleşir
+                goruldu.add(tel)
+                alicilar.append((ad, tel))
     return alicilar
 
 
@@ -342,7 +354,7 @@ def _veli_alicilari(conn, sinif_ad: str) -> list[tuple[str, str]]:
     return _alicilar(conn, sinif_ad, "veli")
 
 
-_TUR_ETIKET = {"veli": "veli", "ogrenci": "öğrenci"}
+_TUR_ETIKET = {"veli": "veli", "ogrenci": "öğrenci", "personel": "personel/öğretmen"}
 
 
 def _test_alicisi(tel: str) -> list[tuple[str, str]]:
@@ -395,7 +407,17 @@ def _suresi_doldu(olusturma: str) -> bool:
     return simdi() - datetime.strptime(olusturma, ZAMAN_BICIMI) > TASLAK_OMRU
 
 
-def _taslak_gonder(taslak_id: str, tur: str) -> dict:
+def _bugun_giden(conn) -> int:
+    """Bugün taslak yoluyla gönderilen toplam alıcı (test gönderimleri hariç)."""
+    bugun = simdi().strftime("%Y-%m-%d")
+    return conn.execute(
+        "SELECT COALESCE(SUM(alici_sayisi), 0) FROM veli_taslaklari"
+        " WHERE durum = 'gonderildi' AND test_telefon IS NULL AND olusturma LIKE ?",
+        (bugun + "%",),
+    ).fetchone()[0]
+
+
+def _taslak_gonder(taslak_id: str, tur: str, onay_sayisi: int | None = None) -> dict:
     conn = db.baglanti()
     try:
         t = conn.execute(
@@ -416,6 +438,22 @@ def _taslak_gonder(taslak_id: str, tur: str) -> dict:
             alicilar = _alicilar(conn, t["sinif"], tur)
         if not alicilar:
             raise HTTPException(status_code=404, detail="Alıcı kalmadı.")
+        if t["sinif"] == TUM_OKUL and onay_sayisi != len(alicilar):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Tüm okul gönderimi: alıcı sayısını ({len(alicilar)}) kullanıcının kendisi yazarak onaylamalı; "
+                    "alici_sayisi olarak o sayıyı ver."
+                ),
+            )
+        if not t["test_telefon"] and _bugun_giden(conn) + len(alicilar) > TOPLU_GUNLUK_AZAMI:
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    f"Günlük toplu SMS sınırı ({TOPLU_GUNLUK_AZAMI} alıcı) aşılır; bugün {_bugun_giden(conn)} alıcıya "
+                    "gönderildi. Yarın dene ya da yönetici sınırı değiştirsin."
+                ),
+            )
         gid = gonder([(ad, tel, t["metin"]) for ad, tel in alicilar])
         conn.execute(
             "UPDATE veli_taslaklari SET durum = 'gonderildi', gonderim_id = ? WHERE id = ?",
@@ -439,11 +477,12 @@ def veli_taslak(istek: VeliTaslakIstek):
 
 class VeliGonderIstek(BaseModel):
     taslak_id: str
+    alici_sayisi: int | None = None  # yalnızca TÜM OKUL taslağında zorunlu: kullanıcının yazdığı alıcı sayısı
 
 
 @router.post("/veli-gonder", dependencies=[Depends(anahtar_dogrula)])
 def veli_gonder(istek: VeliGonderIstek):
-    return _taslak_gonder(istek.taslak_id, "veli")
+    return _taslak_gonder(istek.taslak_id, "veli", istek.alici_sayisi)
 
 
 # --- Öğrenci SMS'i (aynı desen; alıcı = sınıfın öğrencileri) -----------
@@ -462,7 +501,24 @@ def ogrenci_taslak(istek: OgrenciTaslakIstek):
 
 @router.post("/ogrenci-gonder", dependencies=[Depends(anahtar_dogrula)])
 def ogrenci_gonder(istek: VeliGonderIstek):
-    return _taslak_gonder(istek.taslak_id, "ogrenci")
+    return _taslak_gonder(istek.taslak_id, "ogrenci", istek.alici_sayisi)
+
+
+# --- Personel/öğretmen SMS'i (aynı desen; alıcı = rehberdeki "Personel" sınıfı) ---
+
+
+class PersonelTaslakIstek(BaseModel):
+    metin: str
+
+
+@router.post("/personel-taslak", dependencies=[Depends(anahtar_dogrula)])
+def personel_taslak(istek: PersonelTaslakIstek):
+    return _taslak_olustur(PERSONEL_SINIF, istek.metin, "personel")
+
+
+@router.post("/personel-gonder", dependencies=[Depends(anahtar_dogrula)])
+def personel_gonder(istek: VeliGonderIstek):
+    return _taslak_gonder(istek.taslak_id, "personel")
 
 
 # --- Kişiye özel SMS (okul_no ile öğrenci + velileri; {ad} doldurulur) ---

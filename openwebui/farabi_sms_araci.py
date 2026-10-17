@@ -135,39 +135,88 @@ class Tools:
             f'SMS gönderime alındı: {", ".join(y["alicilar"])}. Mesaj: "{y["metin"]}"'
         )
 
+    async def _taslak_hazirla(self, yol: str, govde: dict, kime: str) -> str:
+        try:
+            kod, y = await self._istek("POST", yol, govde)
+        except httpx.HTTPError:
+            return ULASILAMADI
+        if kod != 200:
+            return self._hata(kod, y)
+        tum = y.get("sinif") == "TÜM OKUL"
+        hedef = "tüm okul" if tum else y["sinif"]
+        ek = (
+            f" ÖNEMLİ: bu TÜM OKUL gönderimi. Göndermeden önce kullanıcıdan alıcı sayısını ({y['alici_sayisi']}) kendisinin "
+            f"yazmasını iste; yazdığı sayıyı gönder fonksiyonuna alici_sayisi olarak ver (sayıyı sen uydurma)."
+            if tum
+            else ""
+        )
+        return (
+            f"TASLAK hazır (henüz GÖNDERİLMEDİ). Taslak no: {y['taslak_id']} — {hedef} {kime}, "
+            f'{y["alici_sayisi"]} alıcı. Mesaj: "{y["metin"]}". Kullanıcıya bunu göster ve '
+            f"gönderilsin mi diye sor; {y['gecerlilik_dk']} dk içinde açık onay verirse gönder fonksiyonunu çağır.{ek}"
+        )
+
+    async def _taslak_gonder(self, yol: str, taslak_id: str, alici_sayisi: int, kime: str) -> str:
+        govde = {"taslak_id": taslak_id}
+        if alici_sayisi:
+            govde["alici_sayisi"] = alici_sayisi
+        try:
+            kod, y = await self._istek("POST", yol, govde)
+        except httpx.HTTPError:
+            return ULASILAMADI
+        if kod != 200:
+            return self._hata(kod, y)
+        hedef = "tüm okul" if y["sinif"] == "TÜM OKUL" else y["sinif"]
+        return f"{hedef} {kime} SMS gönderime alındı ({y['alici_sayisi']} alıcı)."
+
     async def veli_sms_taslak(self, sinif: str, metin: str) -> str:
         """
-        Bir sınıfın velilerine gidecek SMS için TASLAK hazırlar (henüz göndermez). Kullanıcı "9-A velilerine SMS at", "velilere kermesi bildir" dediğinde ÖNCE bunu çağır, sonucu kullanıcıya göster ve açıkça onay iste.
-        :param sinif: Sınıf adı, ör. "9-A".
+        Bir sınıfın velilerine (ya da TÜM okulun velilerine) gidecek SMS için TASLAK hazırlar (henüz göndermez). Kullanıcı "9-A velilerine SMS at", "10a velilerine kermesi bildir", "tüm velilere SMS gönder" dediğinde ÖNCE bunu çağır, sonucu kullanıcıya göster ve açıkça onay iste.
+        :param sinif: Sınıf adı, ör. "9-A" ("10a", "11 b" de olur); okuldaki tüm veliler için "TÜM".
         :param metin: Velilere gidecek mesaj; en fazla 300 karakter, nazik ve açık.
         :return: Taslak numarası, alıcı sayısı ve mesaj önizlemesi.
         """
-        try:
-            kod, y = await self._istek(
-                "POST", "/veli-taslak", {"sinif": sinif, "metin": metin}
-            )
-        except httpx.HTTPError:
-            return ULASILAMADI
-        if kod != 200:
-            return self._hata(kod, y)
-        return (
-            f"TASLAK hazır (henüz GÖNDERİLMEDİ). Taslak no: {y['taslak_id']} — {y['sinif']} velileri, "
-            f'{y["alici_sayisi"]} alıcı. Mesaj: "{y["metin"]}". Kullanıcıya bunu göster ve '
-            f"gönderilsin mi diye sor; {y['gecerlilik_dk']} dk içinde açık onay verirse veli_sms_gonder çağır."
-        )
+        return await self._taslak_hazirla("/veli-taslak", {"sinif": sinif, "metin": metin}, "velileri")
 
-    async def veli_sms_gonder(self, taslak_id: str) -> str:
+    async def veli_sms_gonder(self, taslak_id: str, alici_sayisi: int = 0) -> str:
         """
         Daha önce hazırlanmış veli SMS taslağını gönderir. YALNIZCA kullanıcı taslağı gördükten sonra açıkça onay verdiyse ("evet", "gönder", "onaylıyorum") çağır.
         :param taslak_id: veli_sms_taslak'ın döndürdüğü taslak numarası.
+        :param alici_sayisi: Yalnızca TÜM OKUL taslağında: kullanıcının kendi yazdığı alıcı sayısı. Diğerlerinde verme.
         :return: Gönderim sonucu.
         """
-        try:
-            kod, y = await self._istek("POST", "/veli-gonder", {"taslak_id": taslak_id})
-        except httpx.HTTPError:
-            return ULASILAMADI
-        if kod != 200:
-            return self._hata(kod, y)
-        return (
-            f"{y['sinif']} velilerine SMS gönderime alındı ({y['alici_sayisi']} alıcı)."
-        )
+        return await self._taslak_gonder("/veli-gonder", taslak_id, alici_sayisi, "velilerine")
+
+    async def ogrenci_sms_taslak(self, sinif: str, metin: str) -> str:
+        """
+        Bir sınıfın ÖĞRENCİLERİNE (ya da tüm okulun öğrencilerine) gidecek SMS için TASLAK hazırlar (henüz göndermez). Kullanıcı "11b öğrencilerine SMS gönder", "tüm öğrencilere duyur" dediğinde ÖNCE bunu çağır, sonucu göster ve açıkça onay iste.
+        :param sinif: Sınıf adı, ör. "11-B" ("11b" de olur); tüm öğrenciler için "TÜM".
+        :param metin: Öğrencilere gidecek mesaj; en fazla 300 karakter.
+        :return: Taslak numarası, alıcı sayısı ve mesaj önizlemesi.
+        """
+        return await self._taslak_hazirla("/ogrenci-taslak", {"sinif": sinif, "metin": metin}, "öğrencileri")
+
+    async def ogrenci_sms_gonder(self, taslak_id: str, alici_sayisi: int = 0) -> str:
+        """
+        Daha önce hazırlanmış öğrenci SMS taslağını gönderir. YALNIZCA kullanıcı taslağı gördükten sonra açıkça onay verdiyse çağır.
+        :param taslak_id: ogrenci_sms_taslak'ın döndürdüğü taslak numarası.
+        :param alici_sayisi: Yalnızca TÜM OKUL taslağında: kullanıcının kendi yazdığı alıcı sayısı. Diğerlerinde verme.
+        :return: Gönderim sonucu.
+        """
+        return await self._taslak_gonder("/ogrenci-gonder", taslak_id, alici_sayisi, "öğrencilerine")
+
+    async def personel_sms_taslak(self, metin: str) -> str:
+        """
+        Okulun öğretmenlerine/personeline (rehberdeki "Personel" kayıtları) gidecek SMS için TASLAK hazırlar (henüz göndermez). Kullanıcı "öğretmenlere SMS gönder" dediğinde ÖNCE bunu çağır, sonucu göster ve açıkça onay iste.
+        :param metin: Öğretmenlere gidecek mesaj; en fazla 300 karakter.
+        :return: Taslak numarası, alıcı sayısı ve mesaj önizlemesi.
+        """
+        return await self._taslak_hazirla("/personel-taslak", {"metin": metin}, "personeli")
+
+    async def personel_sms_gonder(self, taslak_id: str) -> str:
+        """
+        Daha önce hazırlanmış personel/öğretmen SMS taslağını gönderir. YALNIZCA kullanıcı taslağı gördükten sonra açıkça onay verdiyse çağır.
+        :param taslak_id: personel_sms_taslak'ın döndürdüğü taslak numarası.
+        :return: Gönderim sonucu.
+        """
+        return await self._taslak_gonder("/personel-gonder", taslak_id, 0, "personeline")

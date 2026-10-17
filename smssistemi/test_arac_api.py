@@ -2,7 +2,7 @@
 Uç fonksiyonları doğrudan çağrılır (venv'de httpx/TestClient yok, bkz. requirements-dev.txt)."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import arac_api as aa
 import db
@@ -375,3 +375,105 @@ def test_kod_sms_dogrulama(ortam):
     aa._kod_sms_gecmis.clear()
     assert _kod(aa.kod_sms, aa.KodSmsIstek(telefon="123", metin="x")) == 422
     assert _kod(aa.kod_sms, aa.KodSmsIstek(telefon="05321112233", metin="x" * 161)) == 422
+
+
+# --- Tüm okul / personel / günlük sınır ---
+
+def _kisi_ekle(sinif_ad, tur, telefonlar):
+    conn = db.baglanti()
+    sid = next((s["id"] for s in db.siniflar_listele(conn) if s["ad"] == sinif_ad), None)
+    if sid is None:
+        sid = db.sinif_ekle(conn, sinif_ad)
+    for i, tel in enumerate(telefonlar):
+        conn.execute(
+            "INSERT INTO kisiler (ad_soyad, telefon, sinif_id, tur) VALUES (?, ?, ?, ?)",
+            (f"{tur} {sinif_ad} {i}", tel, sid, tur),
+        )
+    conn.commit()
+    conn.close()
+
+
+@pytest.mark.parametrize("yazim", ["tüm", "TÜM", "Tum okul", "tümü", "hepsi", "herkes", " okul "])
+def test_tum_okul_yazimlari(yazim):
+    assert aa._sinif_normalize(yazim) == aa.TUM_OKUL
+
+
+def test_tum_veliler_siniflar_arasi_tekil_personel_haric(ortam):
+    giden, _ = ortam
+    _kisi_ekle("9-A", "veli", ["05551110001", "05551110002"])
+    _kisi_ekle("10-B", "veli", ["05551110002", "05551110003"])  # kardeş: aynı numara iki sınıfta
+    _kisi_ekle("Personel", "veli", ["05551110099"])  # sahte sınıf satırı alıcıya karışmaz
+    t = _taslak("tüm")
+    assert t["sinif"] == aa.TUM_OKUL and t["alici_sayisi"] == 3 and giden == []
+
+
+def test_tum_okul_gonderimi_alici_sayisi_onayi_ister(ortam):
+    giden, _ = ortam
+    _kisi_ekle("9-A", "veli", ["05551110001", "05551110002"])
+    tid = _taslak("tüm")["taslak_id"]
+    assert _kod(_gonder, tid) == 400  # onay yok
+    assert _kod(lambda x: aa.veli_gonder(aa.VeliGonderIstek(taslak_id=x, alici_sayisi=99)), tid) == 400  # yanlış sayı
+    assert giden == []
+    y = aa.veli_gonder(aa.VeliGonderIstek(taslak_id=tid, alici_sayisi=2))
+    assert y["alici_sayisi"] == 2 and y["sinif"] == aa.TUM_OKUL and len(giden[0]) == 2
+
+
+def test_tek_sinif_gonderimi_onay_sayisi_istemez(ortam):
+    _veli_ekle(["05551112233"])
+    assert _gonder(_taslak()["taslak_id"])["alici_sayisi"] == 1
+
+
+def test_tum_ogrenciler(ortam):
+    giden, _ = ortam
+    _kisi_ekle("9-A", "ogrenci", ["05552220001"])
+    _kisi_ekle("11-B", "ogrenci", ["05552220002"])
+    _kisi_ekle("11-B", "veli", ["05559990001"])  # veli öğrenci alıcısına karışmaz
+    t = aa.ogrenci_taslak(aa.OgrenciTaslakIstek(sinif="tüm", metin="Yarın tören var."))
+    assert t["alici_sayisi"] == 2
+    aa.ogrenci_gonder(aa.VeliGonderIstek(taslak_id=t["taslak_id"], alici_sayisi=2))
+    assert {tel for _, tel, _ in giden[0]} == {"05552220001", "05552220002"}
+
+
+def test_personel_taslak_onay_sonra_gonderir(ortam):
+    giden, _ = ortam
+    _kisi_ekle("Personel", "personel", ["05553330001", "05553330002", "", "123"])
+    _kisi_ekle("9-A", "personel", ["05553330009"])  # yalnızca "Personel" sınıfı
+    _kisi_ekle("9-A", "veli", ["05553330008"])
+    t = aa.personel_taslak(aa.PersonelTaslakIstek(metin="Yarın zümre toplantısı var."))
+    assert t["sinif"] == "Personel" and t["alici_sayisi"] == 2 and giden == []
+    assert aa.personel_gonder(aa.VeliGonderIstek(taslak_id=t["taslak_id"]))["alici_sayisi"] == 2
+    assert {tel for _, tel, _ in giden[0]} == {"05553330001", "05553330002"}
+    assert _kod(aa.personel_gonder, aa.VeliGonderIstek(taslak_id=t["taslak_id"])) == 404  # ikinci kez gitmez
+
+
+def test_personel_yoksa_404(ortam):
+    assert _kod(aa.personel_taslak, aa.PersonelTaslakIstek(metin="x")) == 404
+
+
+def test_taslak_turleri_birbirinin_ucundan_gonderilemez(ortam):
+    _kisi_ekle("Personel", "personel", ["05553330001"])
+    tid = aa.personel_taslak(aa.PersonelTaslakIstek(metin="x"))["taslak_id"]
+    assert _kod(_gonder, tid) == 404 and _kod(_o_gonder, tid) == 404
+
+
+def test_gunluk_toplu_sinir(ortam, monkeypatch):
+    giden, _ = ortam
+    monkeypatch.setattr(aa, "TOPLU_GUNLUK_AZAMI", 3)
+    _kisi_ekle("9-A", "veli", ["05551110001", "05551110002"])
+    _kisi_ekle("9-A", "ogrenci", ["05552220001", "05552220002"])
+    assert _gonder(_taslak()["taslak_id"])["alici_sayisi"] == 2  # bugün 2
+    t = _o_taslak()
+    assert _kod(_o_gonder, t["taslak_id"]) == 429 and len(giden) == 1  # 2 + 2 > 3
+    # test gönderimi sayılmaz
+    tt = aa.ogrenci_taslak(aa.OgrenciTaslakIstek(sinif="9-A", metin="x", test_telefon="05559990000"))
+    assert _o_gonder(tt["taslak_id"])["alici_sayisi"] == 1
+
+
+def test_gunluk_sinir_ertesi_gun_sifirlanir(ortam, monkeypatch):
+    _, saat = ortam
+    monkeypatch.setattr(aa, "TOPLU_GUNLUK_AZAMI", 2)
+    _kisi_ekle("9-A", "veli", ["05551110001", "05551110002"])
+    assert _gonder(_taslak()["taslak_id"])["alici_sayisi"] == 2
+    assert _kod(_gonder, _taslak()["taslak_id"]) == 429
+    saat["an"] = SIMDI + timedelta(days=1)
+    assert _gonder(_taslak()["taslak_id"])["alici_sayisi"] == 2
