@@ -14,15 +14,16 @@ buraya şifre yazılmaz.
    `vestel<düzey><şube>` deseninde — ör. `vestel9a`, ağ `192.168.23.0/24`,
    VLAN/güvenlik duvarı yok). **Sayım:** ağda 11 fiziksel tahta; **8'inde**
    Farabi client kurulu (aşağıdaki tablo = `config_dagit.sh`'in varsayılan
-   hedef listesi), 8'in **7'si** sınıf, 8.'si `fenlab`. Kalan 3 tahta
-   (`.234`, `.235`, `.236`) `server/tahtalar.json`'da `tahta-NNN` geçici
-   adıyla kayıtlı, sınıfı atanmamış, client kurulu değil. Kurulum tarihleri
+   hedef listesi), 8'in **7'si** sınıf, 8.'si `fenlab`. Kalan 2 tahta
+   (`.234`, `.236`) `server/tahtalar.json`'da `tahta-NNN` geçici
+   adıyla kayıtlı, sınıfı atanmamış, client kurulu değil. Eski 9-B (`.239`,
+   MAC `…:5c:a9`) 2026-10-14'te söküldü; yerine `.235`'teki tahta 9-B oldu. Kurulum tarihleri
    ve ayrıntıları DECISIONS.md'de.
 
    | Sınıf/Ad | IP             | Hostname  | Yoklama | Farabi client |
    |----------|----------------|-----------|---------|---------------|
    | 9-A      | 192.168.23.245 | vestel9a  | evet (Farabi client venv'ini paylaşır) | evet (pilot; tam klon yapısı `~/farabi/repo`) |
-   | 9-B      | 192.168.23.239 | vestel9b  | evet | evet |
+   | 9-B      | 192.168.23.235 | vestel9b  | evet | evet (2026-10-14 tahta değişti, eski .239) |
    | 10-A     | 192.168.23.242 | vestel10a | evet | evet |
    | 11-A     | 192.168.23.228 | vestel11a | evet | evet |
    | 11-B     | 192.168.23.233 | vestel11b | evet | evet |
