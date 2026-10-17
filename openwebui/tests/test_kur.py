@@ -94,7 +94,7 @@ class SahteApi:
 
     def __call__(self, yontem, yol, govde=None, yazma=True):
         self.cagrilar.append((yontem, yol, govde))
-        if yol == "/api/v1/auths/":
+        if yol in ("/api/v1/auths/", "/api/v1/configs/models"):  # anahtar kontrolü
             return {"id": "admin"}
         if yontem == "GET":
             return {"id": "x"} if self.var else None
@@ -160,6 +160,7 @@ def _main_calistir(monkeypatch, anahtar, capsys, ek=None):
     monkeypatch.setattr(kur, "hesaplari_kur", lambda *a: None)
     monkeypatch.setattr(kur, "hesaplari_kapat", lambda *a: None)
     monkeypatch.setattr(kur, "belge_araci_kur", lambda *a: None)
+    monkeypatch.setattr(kur, "hafiza_araci_kur", lambda *a: None)
     monkeypatch.setattr(kur, "sms_araci_kur", lambda *a: False)
     monkeypatch.setattr(kur, "filtreyi_kur", lambda *a: None)
     monkeypatch.setattr(kur, "modelleri_kur", lambda *a: ["farabi"])
@@ -274,7 +275,8 @@ def test_okul_ayari_oku(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("var", [True, False])
-def test_okul_araci_kur(var):
+def test_okul_araci_kur(var, monkeypatch):
+    monkeypatch.setattr(kur, "sms_anahtari_oku", lambda: "SMSK")
     api = SahteApi(var)
     kur.okul_araci_kur(api, {"anahtar": "OKUL", "ogrenci_izinli": ["idare@farabi.local", "x@y"]}, GRUPLAR)
     posts = [(y, g) for m, y, g in api.cagrilar if m == "POST"]
@@ -285,7 +287,18 @@ def test_okul_araci_kur(var):
     assert sorted(a["principal_id"] for a in erisim) == ["g-idr", "g-ogr"]
     assert dict(posts)["/api/v1/tools/id/farabi_okul/valves/update"] == {
         "api_url": "http://127.0.0.1:8010/api/okul", "api_key": "OKUL",
-        "ogrenci_izinli": "idare@farabi.local,x@y", "zaman_asimi_sn": 15.0}
+        "ogrenci_izinli": "idare@farabi.local,x@y", "zaman_asimi_sn": 15.0,
+        "sms_api_url": "http://127.0.0.1:8020/api/arac", "sms_api_key": "SMSK"}
+
+
+def test_oneriler_turkce_ve_dolu():
+    assert len(kur.ONERILER) >= 6
+    api = SahteApi(True)
+    kur.onerileri_kur(api)
+    yol, govde = next((y, g) for m, y, g in api.cagrilar if m == "POST")
+    assert yol == "/api/v1/configs/suggestions"
+    assert all(len(o["title"]) == 2 and o["content"] for o in govde["suggestions"])
+    assert not any("procrastination" in o["content"] for o in govde["suggestions"])
 
 
 def test_tahta_hesabi_izinli_listeye_girmez():
@@ -343,3 +356,21 @@ def test_yonetici_epostalari_envden():
     # 2026-10-06: kişisel e-postalar koddan .env'e taşındı.
     assert kur.yonetici_epostalari({"YONETICI_EPOSTALAR": " a@x.com, ,b@y.com "}) == ["a@x.com", "b@y.com"]
     assert kur.yonetici_epostalari({}) == []
+
+
+def test_hafiza_araci_kur_yalniz_idare():
+    api = SahteApi(False)
+    kur.hafiza_araci_kur(api, "WK", {"Öğretmenler": "g-ogr", "İdare": "g-idr"})
+    posts = dict((y, g) for m, y, g in api.cagrilar if m == "POST")
+    assert posts["/api/v1/tools/create"]["id"] == "farabi_hafiza"
+    assert [a["principal_id"] for a in posts["/api/v1/tools/id/farabi_hafiza/access/update"]["access_grants"]] == ["g-idr"]
+    assert posts["/api/v1/tools/id/farabi_hafiza/valves/update"]["api_key"] == "WK"
+
+
+def test_hafiza_araci_yalniz_hafiza_modlarina_baglanir():
+    gr = {"Öğretmenler": "g-ogr", "İdare": "g-idr"}
+    mod = {"id": "m", "ad": "M", "aciklama": "a", "kapsam": "genel", "think": False, "gruplar": ["İdare"]}
+    acik = kur.model_govdesi({**mod, "hafiza": True}, "c", "e", gr, arac_idleri=[kur.OKUL_ARAC_ID])
+    kapali = kur.model_govdesi(mod, "c", "e", gr, arac_idleri=[kur.OKUL_ARAC_ID])
+    assert acik["meta"]["toolIds"] == ["farabi_okul", "farabi_hafiza"] and acik["meta"]["farabi_hafiza"] is True
+    assert kapali["meta"]["toolIds"] == ["farabi_okul"] and kapali["meta"]["farabi_hafiza"] is False

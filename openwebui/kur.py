@@ -35,6 +35,8 @@ KAPALI_HESAPLAR = ("ogretmen@farabi.local", "idare@farabi.local", "tahta@farabi.
 # kişisel veri, public repoya yazılmaz (2026-10-06).
 BELGE_ARAC_ID = "farabi_belge"  # yalnızca İdare: evrakı mudur/'a yazıp RAG'e yükler
 SMS_ARAC_ID = "farabi_sms"  # yalnızca İdare: yönetime SMS hatırlatma / acil SMS, veli SMS'i
+HAFIZA_ARAC_ID = "farabi_hafiza"  # yalnızca İdare: ortak okul hafızası (hafiza: true modlara bağlanır)
+HAFIZA_API_URL = "http://127.0.0.1:8000/api/webui/hafiza"
 SMS_API_URL = "http://127.0.0.1:8020/api/arac"
 GOREV_MODEL_ID = "farabi-gorev"  # yalnızca arka plan görevleri (başlık) için, düşünme kapalı
 ARAC_ID = "farabi_yonetim"  # yalnızca admin: tahta yönetimi aracı (Tool)
@@ -47,6 +49,19 @@ TAHTA_EPOSTA = "tahta@farabi.local"  # öğrenci verisine ASLA erişmez (kullan�
 BUILTIN_KATEGORILER = ("time", "memory", "chats", "notes", "knowledge", "channels", "web_search",
                        "image_generation", "code_interpreter", "files", "tasks", "automations",
                        "calendar", "notifications", "subagents")
+
+
+# Açılış ekranı önerileri (2026-10-16): gerçek okul senaryoları, Türkçe. Başlık = [üst, alt] satır.
+ONERILER = [
+    ("Bugün okulda kimler var?", "öğrenci ve öğretmen durumu", "Bugün okulda kimler var? Öğrenci yoklamasını ve şu an dersi olan öğretmenleri göster."),
+    ("Ayşe öğretmenin şu an dersi var mı?", "öğretmen ders programı", "Ayşe öğretmenin şu an dersi var mı? Hangi sınıfta?"),
+    ("9-A'nın bugünkü dersleri", "sınıf ders programı", "9-A'nın bugünkü ders programı nedir, şu an hangi dersi var?"),
+    ("Çağla'nın velisinin telefonu", "veli iletişim", "Çağla isimli öğrencinin velisinin telefonu neydi?"),
+    ("Ayşe isimli öğrencinin telefonu", "öğrenci iletişim", "Ayşe isimli öğrencinin telefonu neydi?"),
+    ("2010 doğumlu öğrenci listesi", "PDF olarak", "2010 yılı doğumlu öğrencilerin listesini ver, PDF olarak da hazırla."),
+    ("Resmî yazıyı özetle", "cevap taslağı", "Eklediğim resmî yazıyı özetle ve idare adına cevap yazısı taslağı hazırla."),
+    ("Bugünün devamsızlık özeti", "sınıf sınıf yoklama", "Bugün hangi sınıflarda kimler devamsız?"),
+]
 
 
 def env_oku(yol: Path) -> dict[str, str]:
@@ -81,6 +96,7 @@ def model_govdesi(mod: dict, cekirdek: str, ek: str, grup_idleri: dict[str, str]
             "filterIds": [FILTRE_ID],
             "farabi_kapsam": mod["kapsam"],
             "farabi_think": bool(mod["think"]),
+            "farabi_hafiza": bool(mod.get("hafiza")),
         },
         # think BURAYA KONMAZ: Open WebUI model parametrelerini sohbet
         # ayarlarının üzerine yazar; varsayılanı filtre (farabi_think) verir.
@@ -89,10 +105,11 @@ def model_govdesi(mod: dict, cekirdek: str, ek: str, grup_idleri: dict[str, str]
                            "permission": "read"} for g in mod["gruplar"]],
         "is_active": True,
     }
-    if arac_idleri:
+    araclar = list(arac_idleri) + ([HAFIZA_ARAC_ID] if mod.get("hafiza") else [])
+    if araclar:
         # Okul Bilgisi aracı: native araç çağrısı; Open WebUI yerleşik araçları
         # (bellek, sohbetler, web...) kapalı — yonetim_model_govdesi ile aynı gerekçe.
-        govde["meta"].update({"toolIds": list(arac_idleri),
+        govde["meta"].update({"toolIds": araclar,
                               "capabilities": {"builtin_tools": False},
                               "builtinTools": {k: False for k in BUILTIN_KATEGORILER}})
         govde["params"]["function_calling"] = "native"
@@ -261,7 +278,8 @@ def okul_araci_kur(api: Api, okul: dict, grup_idleri: dict[str, str]) -> None:
     api("POST", f"/api/v1/tools/id/{OKUL_ARAC_ID}/access/update", {"access_grants": erisim})
     api("POST", f"/api/v1/tools/id/{OKUL_ARAC_ID}/valves/update",
         {"api_url": OKUL_API_URL, "api_key": okul["anahtar"],
-         "ogrenci_izinli": ",".join(okul.get("ogrenci_izinli") or []), "zaman_asimi_sn": 15.0})
+         "ogrenci_izinli": ",".join(okul.get("ogrenci_izinli") or []), "zaman_asimi_sn": 15.0,
+         "sms_api_url": SMS_API_URL, "sms_api_key": sms_anahtari_oku() or ""})
     print(f"araç kuruldu: {OKUL_ARAC_ID}")
 
 
@@ -305,6 +323,13 @@ def belge_araci_kur(api: Api, webui_key: str, grup_idleri: dict[str, str]) -> No
         "Sohbete eklenen evrakı kalıcı arşive (mudur/) yazar ve mevzuat/idari RAG'e yükler.",
         grup_idleri, {"api_url": "http://127.0.0.1:8000/api/webui/belge-kaydet",
                       "api_key": webui_key, "zaman_asimi_sn": 660.0})
+
+
+def hafiza_araci_kur(api: Api, webui_key: str, grup_idleri: dict[str, str]) -> None:
+    _yalniz_idare_araci_kur(
+        api, HAFIZA_ARAC_ID, "Atos Hafıza", "farabi_hafiza_araci.py",
+        "Okulun ortak kalıcı hafızası: onaylı kayıt, arama, unutma. Yalnızca İdare.",
+        grup_idleri, {"api_url": HAFIZA_API_URL, "api_key": webui_key, "zaman_asimi_sn": 20.0})
 
 
 def sms_anahtari_oku() -> str | None:
@@ -393,6 +418,9 @@ def kimlik_ayarlarini_kur(api: Api) -> None:
     cfg = api("GET", "/api/v1/auths/admin/config", yazma=False)
     if not cfg:
         raise SystemExit("kimlik ayarları okunamadı (/api/v1/auths/admin/config); kayıt kapatılamadı.")
+    if cfg.get("ENABLE_SIGNUP") is False and cfg.get("DEFAULT_USER_ROLE") == "user":
+        print("kimlik: kayıt zaten kapalı, varsayılan rol user (yazılmadı)")  # 0.12+ POST insan oturumu ister
+        return
     cfg.update({"ENABLE_SIGNUP": False, "DEFAULT_USER_ROLE": "user"})
     api("POST", "/api/v1/auths/admin/config", cfg)
     print("kimlik: kayıt kapalı, varsayılan rol user")
@@ -409,6 +437,14 @@ def ayarlari_kur(api: Api, mod_idleri: list[str]) -> None:
     print("ayarlar: varsayılan model farabi, etiket/takip üretimi kapalı, görev modeli farabi-gorev")
 
 
+
+def onerileri_kur(api: Api) -> None:
+    """Açılış önerilerini Türkçe senaryolarla değiştirir (global; modeller kendi öneri tanımlamaz)."""
+    api("POST", "/api/v1/configs/suggestions",
+        {"suggestions": [{"title": [u, a], "content": c} for u, a, c in ONERILER]})
+    print(f"öneriler: {len(ONERILER)} Türkçe öneri yazıldı")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--kuru", action="store_true", help="yalnızca okur, yazacaklarını listeler")
@@ -416,7 +452,7 @@ def main() -> int:
     env = env_oku(KOK / ".env")
     webui_key = json.loads((KOK.parent / "server/config/api_keys.json").read_text(encoding="utf-8"))["webui_key"]
     api = Api(env.get("OPENWEBUI_URL", "http://127.0.0.1:80"), env["OPENWEBUI_API_KEY"], a.kuru)
-    if api("GET", "/api/v1/auths/", yazma=False) is None:
+    if api("GET", "/api/v1/configs/models", yazma=False) is None:  # /auths/ Open WebUI 0.12+ da insan oturumu ister
         raise SystemExit("API anahtarı geçersiz ya da API anahtarları kapalı.")
     kimlik_ayarlarini_kur(api)
     grup_idleri = gruplari_kur(api)
@@ -424,11 +460,13 @@ def main() -> int:
     hesaplari_kapat(api)
     okul = okulu_hazirla(api, env, grup_idleri)
     belge_araci_kur(api, webui_key, grup_idleri)
+    hafiza_araci_kur(api, webui_key, grup_idleri)
     sms_var = sms_araci_kur(api, grup_idleri)
     filtreyi_kur(api, webui_key, okul)
     araclar = ([OKUL_ARAC_ID] if okul else []) + [BELGE_ARAC_ID] + ([SMS_ARAC_ID] if sms_var else [])
     mod_idleri = modelleri_kur(api, grup_idleri, araclar)
     ayarlari_kur(api, mod_idleri)
+    onerileri_kur(api)
     yonetimi_kur(api)  # en sonda: ajan.json/araç hatası yukarıdaki adımları engellemesin
     print("tamam")
     return 0

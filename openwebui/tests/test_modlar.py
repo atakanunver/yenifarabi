@@ -17,7 +17,7 @@ def test_14_mod_benzersiz_id():
 
 def test_alanlar_ve_ek_dosyalari_var():
     for x in _modlar():
-        assert set(x) == {"id", "ad", "aciklama", "kapsam", "think", "gruplar", "ek"}
+        assert set(x) - {"hafiza"} == {"id", "ad", "aciklama", "kapsam", "think", "gruplar", "ek"}
         assert x["kapsam"] in KAPSAMLAR
         assert (KOK / "promptlar" / x["ek"]).is_file()
 
@@ -37,3 +37,7 @@ def test_prompt_boyutu_sinirli():
     assert len(cekirdek) < 5000          # ~1.300 token
     for x in _modlar():
         assert len((KOK / "promptlar" / x["ek"]).read_text(encoding="utf-8")) < 1500
+
+
+def test_hafiza_yalniz_atos_ve_mudur_yrd():
+    assert sorted(x["id"] for x in _modlar() if x.get("hafiza")) == ["farabi", "farabi-mudur-yrd"]

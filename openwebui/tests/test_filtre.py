@@ -260,3 +260,47 @@ def test_zaman_hatasi_sohbeti_bozmaz():
     f._zaman = patla
     g = _calistir(f, _govde())
     assert "Kimya 10, s. 84" in g["messages"][0]["content"]
+
+
+# --- Atos hafızası (2026-10-16) ---
+
+HAFIZA_MODEL = {"info": {"meta": {"farabi_kapsam": "genel", "farabi_think": False, "farabi_hafiza": True}}}
+HAFIZA = {"durum": "ok", "sabit": [{"baslik": "Eğitim yılı", "icerik": "1 Eylül–30 Haziran", "tarih": "2026-10-16"}],
+          "kayitlar": [{"baslik": "Nöbet", "icerik": "Pazartesi güncellenir", "tarih": "2026-10-15"}]}
+
+
+def _hafizali(sonuc=HAFIZA, cagrilar=None):
+    f = _filtre(sonuc=None)
+
+    def _h(soru):
+        if cagrilar is not None:
+            cagrilar.append(soru)
+        return sonuc
+    f._hafiza = _h
+    return f
+
+
+def _hal(f, model, rol):
+    return asyncio.run(f.inlet(_govde("nöbet ne zaman"), __model__=model, __metadata__={}, __user__={"role": rol}))
+
+
+def test_hafiza_blogu_admin_ve_hafiza_modelinde_eklenir():
+    g = _hal(_hafizali(), HAFIZA_MODEL, "admin")
+    s = g["messages"][0]["content"]
+    assert "Okul hafızası" in s and "[Sabit, 2026-10-16] Eğitim yılı: 1 Eylül–30 Haziran" in s
+    assert "[İlgili, 2026-10-15] Nöbet: Pazartesi güncellenir" in s
+
+
+def test_hafiza_admin_olmayana_ya_da_hafizasiz_modele_gitmez():
+    cagri = []
+    f = _hafizali(cagrilar=cagri)
+    assert "Okul hafızası" not in _hal(f, HAFIZA_MODEL, "user")["messages"][0]["content"]
+    assert "Okul hafızası" not in _hal(f, KIMYA, "admin")["messages"][0]["content"]
+    assert cagri == []  # sunucuya hiç gidilmedi
+
+
+def test_hafiza_hatasi_sohbeti_bozmaz():
+    for bozuk in (None, {"durum": "hata", "sabit": [], "kayitlar": []}, {"durum": "ok", "sabit": [], "kayitlar": []}):
+        g = _hal(_hafizali(bozuk), HAFIZA_MODEL, "admin")
+        assert "Okul hafızası" not in str(g["messages"][0])
+        assert g["messages"][-1]["role"] == "user"

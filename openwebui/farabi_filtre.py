@@ -111,6 +111,22 @@ def kaynak_blogu(sonuc: dict) -> str | None:
     return blok
 
 
+HAFIZA_GIRIS = ("Okul hafızası (yöneticilerin onayladığı kalıcı notlar). Eski olabilir; belge ya da araç "
+                "sonucuyla çelişirse onlar geçerlidir. Kullandığın notun tarihini belirt.")
+
+
+def hafiza_blogu(sonuc: dict | None) -> str | None:
+    """Sabit notlar + ilgili kayıtlar; boşsa None. Bütçe sunucuda (≤1.500 karakter) kırpılır."""
+    if not isinstance(sonuc, dict) or sonuc.get("durum") != "ok":
+        return None
+    satirlar = []
+    for ad, anahtar in (("Sabit", "sabit"), ("İlgili", "kayitlar")):
+        for k in sonuc.get(anahtar) or []:
+            if isinstance(k, dict) and isinstance(k.get("baslik"), str) and isinstance(k.get("icerik"), str):
+                satirlar.append(f"- [{ad}, {k.get('tarih', '?')}] {k['baslik']}: {k['icerik']}")
+    return HAFIZA_GIRIS + "\n" + "\n".join(satirlar) if satirlar else None
+
+
 def sistem_mesajina_ekle(body: dict, blok: str) -> None:
     mesajlar = body.setdefault("messages", [])
     if mesajlar and mesajlar[0].get("role") == "system" and isinstance(mesajlar[0].get("content"), str):
@@ -127,6 +143,8 @@ class Filter:
         # Dashboard /api/okul (tarih + ders saati); yalnızca localhost + anahtar.
         okul_url: str = Field(default="http://127.0.0.1:8010/api/okul")
         okul_key: str = Field(default="")
+        # Atos hafızası (farabi-api /api/webui/hafiza/getir); yalnızca meta.farabi_hafiza=true modeller + admin.
+        hafiza_url: str = Field(default="http://127.0.0.1:8000/api/webui/hafiza/getir")
 
     def __init__(self):
         self.valves = self.Valves()
@@ -149,6 +167,21 @@ class Filter:
             print(f"[farabi_kaynak] arama başarısız: {type(e).__name__}: {e}")
             return None
 
+    def _hafiza(self, soru: str) -> dict | None:
+        """Okul hafızası (sabit notlar + ilgili kayıtlar). Bloklayan çağrı (to_thread); hata → None."""
+        try:
+            istek = urllib.request.Request(
+                self.valves.hafiza_url,
+                data=json.dumps({"soru": soru}).encode("utf-8"),
+                headers={"Content-Type": "application/json", "X-Farabi-WebUI-Key": self.valves.api_key},
+            )
+            acici = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with acici.open(istek, timeout=4.0) as r:
+                return json.load(r)
+        except Exception as e:  # noqa: BLE001 — hafıza sohbeti engellememeli
+            print(f"[farabi_kaynak] hafıza alınamadı: {type(e).__name__}")
+            return None
+
     def _zaman(self) -> str:
         """Tarih/saat + o anki ders saati. Bloklayan çağrı (to_thread ile).
         Okul API'si yoksa yerel saat (ders bilgisi olmadan) — asla istisna atmaz."""
@@ -165,17 +198,17 @@ class Filter:
         return yerel_zaman_metni()
 
     async def inlet(self, body: dict, __model__: dict | None = None,
-                    __metadata__: dict | None = None) -> dict:
+                    __metadata__: dict | None = None, __user__: dict | None = None) -> dict:
         if (__metadata__ or {}).get("task"):
             return body  # başlık/etiket gibi arka plan görevleri — arama yok
 
         try:
-            return await self._inlet_govde(body, __model__)
+            return await self._inlet_govde(body, __model__, __user__)
         except Exception as e:  # noqa: BLE001 — filtre hatası sohbeti engellememeli, gövde değişmeden gider
             print(f"[farabi_kaynak] inlet hatası: {type(e).__name__}: {e}")
             return body
 
-    async def _inlet_govde(self, body: dict, __model__: dict | None) -> dict:
+    async def _inlet_govde(self, body: dict, __model__: dict | None, __user__: dict | None = None) -> dict:
         meta = (((__model__ or {}).get("info") or {}).get("meta")) or {}
         # Open WebUI, filtrelerden ÖNCE params'ı body["options"]'a taşır ve Ollama'ya
         # giderken yalnızca options["think"]'i köke alır; üst düzey body["think"] atılır.
@@ -199,12 +232,21 @@ class Filter:
         async def _hic():
             return None
 
-        # Zaman ve kaynak araması paralel — toplam gecikme ikisinin en uzunu.
-        zaman, sonuc = await asyncio.gather(
+        hafiza_acik = bool(meta.get("farabi_hafiza")) and (__user__ or {}).get("role") == "admin" and bool(soru)
+
+        # Zaman, kaynak ve hafıza araması paralel — toplam gecikme üçünün en uzunu.
+        zaman, sonuc, hafiza = await asyncio.gather(
             _zaman_guvenli(),
-            asyncio.to_thread(self._ara, kapsam, soru) if (kapsam and soru) else _hic())
+            asyncio.to_thread(self._ara, kapsam, soru) if (kapsam and soru) else _hic(),
+            asyncio.to_thread(self._hafiza, soru) if hafiza_acik else _hic())
         if zaman:
             sistem_mesajina_ekle(body, zaman)
+        try:
+            hblok = hafiza_blogu(hafiza)
+            if hblok:
+                sistem_mesajina_ekle(body, hblok)
+        except Exception as e:  # noqa: BLE001
+            print(f"[farabi_kaynak] hafıza bloğu eklenemedi: {type(e).__name__}")
         try:
             blok = kaynak_blogu(sonuc) if sonuc else None
             if blok:

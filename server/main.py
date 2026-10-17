@@ -34,6 +34,7 @@ import proxy
 import uzak_model
 import ders_plani
 import belge_arsiv
+import hafiza
 import webui
 import yks
 from rag import EMBED_MODEL, RERANK_MODEL, RagMotoru
@@ -169,6 +170,7 @@ app.include_router(ders_hafizasi.router)
 # (webui.webui_anahtari_dogrula), tahta auth'una bağlı DEĞİL.
 app.include_router(webui.router)
 app.include_router(belge_arsiv.router)  # Atos "Belge Kalıcı Kayıt" aracı
+app.include_router(hafiza.router)  # Atos okul hafızası (/api/webui/hafiza/*, webui anahtarı)
 # GeoGebra çevrimdışı paketi (2026-09-25) — client/actions/geogebra.py'nin
 # yerel köprüsü dosyaları buradan çekip tahtada önbelleğe alır (paket ~120 MB,
 # git'e girmez, her tahtaya ayrı kopyalanmaz). Auth YOK, bilerek: içerik
