@@ -153,11 +153,15 @@ def _post(
         return json.loads(yanit.read() or b"{}")
 
 
-def _zil_istek(a: dict, yol: str, yontem: str = "POST"):
+def _zil_istek(a: dict, yol: str, yontem: str = "POST", govde: dict | None = None):
     kimlik = base64.b64encode(f"{a['zil_kullanici']}:{a['zil_parola']}".encode()).decode()
+    basliklar = {"Authorization": f"Basic {kimlik}"}
+    if govde is not None:
+        basliklar["Content-Type"] = "application/json"
     istek = urllib.request.Request(
-        a["zil_url"] + yol, data=b"" if yontem == "POST" else None, method=yontem,
-        headers={"Authorization": f"Basic {kimlik}"},
+        a["zil_url"] + yol,
+        data=json.dumps(govde).encode() if govde is not None else (b"" if yontem == "POST" else None),
+        method=yontem, headers=basliklar,
     )
     acici = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # LAN, proxy yok
     with acici.open(istek, timeout=10) as yanit:
@@ -175,7 +179,7 @@ def _zil_cal(a: dict, tur: str) -> dict:
     if not anons_id:
         raise RuntimeError("Siren çaldı; bu senaryonun anonsu zilde henüz tanımlı değil." if siren
                            else "Anons zilde tanımlı değil.")
-    sonuc = _zil_istek(a, f"/anons/cal/{anons_id}")
+    sonuc = _zil_istek(a, f"/anons/cal/{anons_id}?acil=1")  # ?acil=1: zil acil ses seviyesi (%90) + mikser hazırlığı
     if not sonuc.get("tamam"):
         raise RuntimeError(sonuc.get("hata", "zil hatası"))
     return {"kanal": "Zil", "basarili": True, "detay": ("Siren + anons" if siren else "Anons") + " çalındı."}
@@ -190,6 +194,8 @@ def _sms_gonder(a: dict, tur: str, tatbikat: bool, metin: str | None = None) -> 
             {"metin": TATBIKAT_ONEKI + metin},
             basliklar,
         )
+        if not r.get("alicilar"):
+            raise RuntimeError("SMS alıcı listesi boş (yönetim).")
         return {
             "kanal": "SMS",
             "basarili": True,
@@ -198,6 +204,8 @@ def _sms_gonder(a: dict, tur: str, tatbikat: bool, metin: str | None = None) -> 
     taslak = _post(
         f"{a['sms_url']}/api/arac/personel-taslak", {"metin": metin}, basliklar
     )
+    if not taslak.get("alici_sayisi"):
+        raise RuntimeError("SMS personel listesi boş.")
     _post(
         f"{a['sms_url']}/api/arac/personel-gonder",
         {"taslak_id": taslak["taslak_id"]},
@@ -245,6 +253,59 @@ async def _tahta_ekran_kapat(t: dict) -> dict:
         "basarili": sonuc.basarili,
         "detay": "Kapatıldı" if sonuc.basarili else "Ulaşılamadı",
     }
+
+
+def kaynak_adi(kaynak: str | None) -> str:
+    """Panel/tahta/telegram/okul kaynak etiketini insan okuyacağı kısa ada çevirir (≤40 kr)."""
+    k = str(kaynak or "makine")
+    if k.startswith("panel"):
+        return "Panel"
+    if k.startswith("tahta:"):
+        return f"Tahta {k[6:]}"
+    if k.startswith("telegram:"):
+        return f"Telegram: {k[9:]}"
+    if k.startswith("okul:"):
+        return f"Okul portalı: {k.split(':', 2)[-1]}"
+    return k[:40]
+
+
+def bildirim_metni(tur: str, tatbikat: bool, kaynak: str | None, saat: str, yanlis: bool = False) -> str:
+    """Telegram (zil botu) bildirimi. ≤500 kr."""
+    mod = "TATBİKAT" if tatbikat else "GERÇEK"
+    kim = kaynak_adi(kaynak)
+    if yanlis:
+        return f"❎ YANLIŞ ALARM ({mod}) — iptal eden: {kim}, saat {saat}. Normal düzene dönülebilir."[:500]
+    if tur == "gecti":
+        return f"✅ ACİL DURUM SONA ERDİ ({mod}) — bildiren: {kim}, saat {saat}. Tehlike geçti."[:500]
+    return f"🚨 ACİL DURUM: {TURLER[tur]['baslik']} — {mod} — başlatan: {kim}, saat {saat}."[:500]
+
+
+def _telegram_bildir(a: dict, metin: str) -> dict:
+    """Zil botuna (dosya tabanlı IPC, zil /acil/bildir) bildirim bırakır; bot yetkililere + isteğe bağlı gruba iletir."""
+    r = _zil_istek(a, "/acil/bildir", "POST", {"metin": metin})
+    if not r.get("tamam"):
+        raise RuntimeError(r.get("hata", "zil bildirimi kabul etmedi"))
+    return {"kanal": "Telegram", "basarili": True, "detay": "Bildirim zil botuna bırakıldı."}
+
+
+def _okul_bildir(a: dict, tur: str, tatbikat: bool, kaynak: str | None, yanlis: bool = False) -> dict:
+    """Okul portalına (push + kırmızı şerit) dış kaynaklı olay bildirir. Okul kendi tetiklediğini zaten kaydeder."""
+    tur = "yanlis_alarm" if yanlis else tur
+    _post(
+        f"{a.get('okul_url', 'http://127.0.0.1:9090')}/acil/dis-olay",
+        {"tur": tur, "tatbikat": tatbikat, "kaynak": kaynak_adi(kaynak)},
+        {"X-Acil-Anahtar": a["makine_anahtar"], "Content-Type": "application/json"},
+    )
+    return {"kanal": "Okul portalı", "basarili": True, "detay": "Push + şerit tetiklendi."}
+
+
+def _ek_kanallar(a: dict, tur: str, tatbikat: bool, kaynak: str | None, yanlis: bool = False) -> list:
+    """Tüm modlarda çalışan bilgilendirme kanalları (bağımsız; biri düşse diğerleri çalışır)."""
+    saat = datetime.now(ISTANBUL).strftime("%H:%M")
+    gorevler = [_guvenli("Telegram", _telegram_bildir, a, bildirim_metni(tur, tatbikat, kaynak, saat, yanlis))]
+    if not str(kaynak or "").startswith("okul:"):
+        gorevler.append(_guvenli("Okul portalı", _okul_bildir, a, tur, tatbikat, kaynak, yanlis))
+    return gorevler
 
 
 async def _guvenli(adi: str, fonk, *args) -> dict:
@@ -311,7 +372,7 @@ async def _baslat(
     ekranlar zaten başlamışsa (art arda tahta alarmı) yalnız SMS gider."""
     url = f"{a['ekran_url']}?tur={tur}&tatbikat={int(tatbikat)}"
     tahtalar = [] if yalniz_sms else tahta_kaydi.tahtalari_yukle()
-    gorevler = [_guvenli("SMS", _sms_gonder, a, tur, tatbikat, sms_metni)]
+    gorevler = [_guvenli("SMS", _sms_gonder, a, tur, tatbikat, sms_metni), *_ek_kanallar(a, tur, tatbikat, kaynak)]
     if not yalniz_sms:
         gorevler.insert(0, _guvenli("Zil anonsu", _zil_cal, a, tur))
     sonuclar = await asyncio.gather(
@@ -485,22 +546,25 @@ async def _yanlis_alarm(a: dict, kaynak: str | None, anons: bool = True) -> dict
     def ses():
         _zil_istek(a, "/youtube-cal/durdur")  # siren/anonsu keser
         if anons and a.get("anons_idleri", {}).get("gecti"):
-            _zil_istek(a, f"/anons/cal/{a['anons_idleri']['gecti']}")
+            _zil_istek(a, f"/anons/cal/{a['anons_idleri']['gecti']}?acil=1")
             return {"kanal": "Zil", "basarili": True, "detay": "Ses durduruldu, 'Tehlike geçti' çalındı."}
         return {"kanal": "Zil", "basarili": True, "detay": "Ses durduruldu."}
 
+    ek = _ek_kanallar(a, "gecti", tatbikat, kaynak, yanlis=True)
     sonuclar = await asyncio.gather(
         _guvenli("Zil", ses),
         _guvenli("SMS", _sms_gonder, a, "gecti", tatbikat, YANLIS_ALARM_SMS),
+        *ek,
         *(_tahta_ekran_kapat(t) for t in tahta_kaydi.tahtalari_yukle()),
     )
+    n_kanal = 2 + len(ek)
     kayit = {
         "zaman": datetime.now(ISTANBUL).isoformat(timespec="seconds"),
         "tur": "yanlis_alarm",
         "tatbikat": tatbikat,
         "istemci_ip": kaynak,
-        "kanallar": list(sonuclar[:2]),
-        "tahtalar": list(sonuclar[2:]),
+        "kanallar": list(sonuclar[:n_kanal]),
+        "tahtalar": list(sonuclar[n_kanal:]),
     }
     _olay_yaz(kayit)
     return kayit

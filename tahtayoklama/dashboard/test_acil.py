@@ -103,6 +103,8 @@ class TestTahtaAlarm(unittest.TestCase):
                 ),
                 mock.patch.object(acil, "_zil_cal") as z,
                 mock.patch.object(acil, "_tahta_ekran_ac") as e,
+                mock.patch.object(acil, "_telegram_bildir", return_value={"kanal": "Telegram", "basarili": True}),
+                mock.patch.object(acil, "_okul_bildir", return_value={"kanal": "Okul portalı", "basarili": True}),
                 mock.patch.object(acil, "_olay_yaz"),
             ):
                 k = await acil._baslat(
@@ -113,7 +115,7 @@ class TestTahtaAlarm(unittest.TestCase):
         k, z, e = asyncio.run(calistir())
         z.assert_not_called()
         e.assert_not_called()
-        self.assertEqual([x["kanal"] for x in k["kanallar"]], ["SMS"])
+        self.assertEqual([x["kanal"] for x in k["kanallar"]], ["SMS", "Telegram", "Okul portalı"])
 
 
 class TestYonetim(unittest.TestCase):
@@ -133,7 +135,7 @@ class TestYonetim(unittest.TestCase):
         a = {"anons_idleri": {"kilit": "3e5f4cf2"}, "siren_sn": 0}
         with mock.patch.object(acil, "_zil_istek", return_value={"tamam": True}) as z:
             acil._zil_cal(a, "kilit")
-        self.assertEqual([c.args[1] for c in z.call_args_list], ["/acil/siren-cal", "/anons/cal/3e5f4cf2"])
+        self.assertEqual([c.args[1] for c in z.call_args_list], ["/acil/siren-cal", "/anons/cal/3e5f4cf2?acil=1"])
         with mock.patch.object(acil, "_zil_istek", return_value={"tamam": True}) as z:
             with self.assertRaises(RuntimeError):
                 acil._zil_cal(a, "deprem")  # anonsu henüz yok → siren yine çalar
@@ -146,6 +148,105 @@ class TestYonetim(unittest.TestCase):
                 acil._makine_dogrula(istek)
             istek.headers = {"X-Acil-Anahtar": "dogru"}
             acil._makine_dogrula(istek)
+
+
+class TestTumKanallar(unittest.TestCase):
+    """Telegram + okul portalı bildirimi: her modda, bağımsız, kaynak etiketli (2026-10-17)."""
+
+    A = {"zil_url": "http://zil", "makine_anahtar": "k", "okul_url": "http://okul"}
+
+    def test_bildirim_metni(self):
+        m = acil.bildirim_metni("kilit", True, "telegram:Ali", "10:42")
+        self.assertIn("KİLİT-KAPI", m)
+        self.assertIn("TATBİKAT", m)
+        self.assertIn("Telegram: Ali", m)
+        self.assertIn("10:42", m)
+        self.assertIn("GERÇEK", acil.bildirim_metni("yangin", False, "tahta:9-A", "10:42"))
+        self.assertIn("Tahta 9-A", acil.bildirim_metni("yangin", False, "tahta:9-A", "10:42"))
+        self.assertIn("SONA ERDİ", acil.bildirim_metni("gecti", False, "panel:1.2.3.4", "10:42"))
+        self.assertIn("YANLIŞ ALARM", acil.bildirim_metni("gecti", False, "panel", "10:42", yanlis=True))
+        self.assertLessEqual(len(acil.bildirim_metni("kilit", True, "x" * 400, "10:42")), 500)
+
+    def test_telegram_zil_bildir_ucuna_json_gonderir(self):
+        with mock.patch.object(acil, "_zil_istek", return_value={"tamam": True}) as z:
+            r = acil._telegram_bildir(self.A, "merhaba")
+        self.assertEqual(z.call_args.args, (self.A, "/acil/bildir", "POST", {"metin": "merhaba"}))
+        self.assertTrue(r["basarili"])
+        with mock.patch.object(acil, "_zil_istek", return_value={"tamam": False, "hata": "x"}):
+            with self.assertRaises(RuntimeError):
+                acil._telegram_bildir(self.A, "m")
+
+    def test_okul_bildirimi_anahtar_ve_kaynak_etiketi(self):
+        with mock.patch.object(acil, "_post", return_value={}) as p:
+            acil._okul_bildir(self.A, "kilit", True, "telegram:Ali")
+        url, govde, basliklar = p.call_args.args[:3]
+        self.assertEqual(url, "http://okul/acil/dis-olay")
+        self.assertEqual(govde, {"tur": "kilit", "tatbikat": True, "kaynak": "Telegram: Ali"})
+        self.assertEqual(basliklar["X-Acil-Anahtar"], "k")
+        with mock.patch.object(acil, "_post", return_value={}) as p:
+            acil._okul_bildir(self.A, "gecti", False, "panel", yanlis=True)
+        self.assertEqual(p.call_args.args[1]["tur"], "yanlis_alarm")
+
+    def test_okul_kaynakli_olayda_okul_bildirimi_atlanir_telegram_gider(self):
+        async def kos(kaynak):
+            with (
+                mock.patch.object(acil, "_telegram_bildir", return_value={"kanal": "Telegram", "basarili": True}),
+                mock.patch.object(acil, "_okul_bildir", return_value={"kanal": "Okul portalı", "basarili": True}) as o,
+            ):
+                sonuc = await asyncio.gather(*acil._ek_kanallar(self.A, "kilit", True, kaynak))
+            return [x["kanal"] for x in sonuc], o
+
+        k, o = asyncio.run(kos("okul:5:Arzu"))
+        self.assertEqual(k, ["Telegram"])
+        o.assert_not_called()
+        k, o = asyncio.run(kos("tahta:9-A"))
+        self.assertEqual(k, ["Telegram", "Okul portalı"])
+
+    def test_kanallar_birbirinden_bagimsiz(self):
+        async def kos():
+            with (
+                mock.patch.object(acil, "_telegram_bildir", side_effect=RuntimeError("zil kapalı")),
+                mock.patch.object(acil, "_okul_bildir", return_value={"kanal": "Okul portalı", "basarili": True}),
+            ):
+                return await asyncio.gather(*acil._ek_kanallar(self.A, "kilit", False, "panel"))
+
+        t, o = asyncio.run(kos())
+        self.assertFalse(t["basarili"])
+        self.assertEqual(t["kanal"], "Telegram")
+        self.assertTrue(o["basarili"])
+
+    def test_sms_bos_liste_sessiz_basarili_sayilmaz(self):
+        with mock.patch.object(acil, "_post", return_value={"alicilar": []}):
+            with self.assertRaises(RuntimeError):
+                acil._sms_gonder(AYAR, "kilit", True)
+        with mock.patch.object(acil, "_post", return_value={"taslak_id": "t", "alici_sayisi": 0}):
+            with self.assertRaises(RuntimeError):
+                acil._sms_gonder(AYAR, "kilit", False)
+
+    def test_zil_istek_json_govde(self):
+        class Yanit:
+            def read(self):
+                return b'{"tamam": true}'
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        gorulen = {}
+
+        class Acici:
+            def open(self, istek, timeout=0):
+                gorulen["istek"] = istek
+                return Yanit()
+
+        a = {"zil_url": "http://zil", "zil_kullanici": "u", "zil_parola": "p"}
+        with mock.patch.object(acil.urllib.request, "build_opener", return_value=Acici()):
+            acil._zil_istek(a, "/acil/bildir", "POST", {"metin": "x"})
+        i = gorulen["istek"]
+        self.assertEqual(json.loads(i.data), {"metin": "x"})
+        self.assertEqual(i.get_header("Content-type"), "application/json")
 
 
 class TestMakineOkul(unittest.TestCase):
