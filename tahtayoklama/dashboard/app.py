@@ -29,6 +29,8 @@ import sistem_durumu
 import ssh_istemci
 import sunucular
 import tahta_api
+import acil
+import kameralar
 import yakinda
 import uzaktan_baslat
 import uzaktan_yonetim
@@ -114,6 +116,8 @@ app.include_router(tahta_api.router)
 app.include_router(kazanim_rapor.router)
 app.include_router(servis_yonetimi.router)
 app.include_router(veli_mesajlari.router)
+app.include_router(kameralar.router)
+app.include_router(acil.router)
 app.include_router(yakinda.router)
 
 

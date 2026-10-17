@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=ACİL ALARM
+Comment=Tehlike anında okul geneli kilit-kapı alarmı (3 sn basılı tut + PIN)
+Exec=/home/ogretmen/tahtayoklama/venv/bin/python3 /home/ogretmen/tahtayoklama/acil_alarm.py
+Icon=dialog-warning
+Terminal=false
+Categories=Utility;

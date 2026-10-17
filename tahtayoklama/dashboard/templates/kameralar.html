@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>DVR Kameralar — Yoklama ve Yönetim Paneli</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #0b0d10; color: #e6e6e6;
+    font-family: -apple-system, Segoe UI, Arial, sans-serif;
+    height: 100vh; display: flex; flex-direction: column;
+  }
+  header {
+    padding: 8px 14px; background: #14171c; border-bottom: 1px solid #262b33;
+    display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+  }
+  header a.geri { color: #9aa3b2; text-decoration: none; font-size: 13px; }
+  header a.geri:hover { color: #e6e6e6; }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; color: #cfd3da; }
+  header span { font-size: 12px; color: #7a8290; }
+  #grid {
+    flex: 1; display: grid; gap: 4px; padding: 4px;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    min-height: 0;
+  }
+  .tile {
+    position: relative; background: #000; border: 1px solid #1c2026;
+    border-radius: 4px; overflow: hidden; cursor: zoom-in;
+    user-select: none; -webkit-user-select: none;
+  }
+  .tile iframe { width: 100%; height: 100%; border: 0; pointer-events: none; }
+  .tile .label {
+    position: absolute; left: 0; top: 0; z-index: 2;
+    background: rgba(0,0,0,.55); color: #fff; font-size: 11px;
+    padding: 2px 6px; border-bottom-right-radius: 4px;
+  }
+  .tile.enlarged {
+    position: fixed; inset: 46px 0 0 0; z-index: 10;
+    grid-column: auto; grid-row: auto; border-radius: 0; cursor: zoom-out;
+  }
+  #grid.has-enlarged .tile:not(.enlarged) { display: none; }
+  .hint { font-size: 11px; color: #5c6372; margin-left: auto; }
+</style>
+</head>
+<body>
+<header>
+  <a class="geri" href="/">← Panele dön</a>
+  <h1>🎥 DVR Kameralar</h1>
+  <span id="status">yükleniyor…</span>
+  <a class="geri" href="/kameralar-ip">IP Kameralar (yedek) →</a>
+  <span class="hint">Büyütmek/küçültmek için bir kareye çift tıkla</span>
+</header>
+<div id="grid"></div>
+
+<script>
+// Not (2026-10-16): hepsi DVR kanali - IP kameralardan daha kaliteli goruldugu
+// icin tamamen DVR'a gecildi (bagimsiz IP'ler ayni kameralarin kopyasiydi).
+const CAMERAS = [
+  { name: "giris_dvr",        label: "Giriş" },
+  { name: "onbahce_dvr",      label: "Ön Bahçe" },
+  { name: "altkoridor_dvr",   label: "Alt Koridor" },
+  { name: "ustkoridor_dvr",   label: "Üst Koridor" },
+  { name: "ogretmenler_dvr",  label: "Öğretmenler" },
+  { name: "yanbahce_dvr",     label: "Yan Bahçe" },
+  { name: "dis1_dvr",         label: "Dış 1" },
+  { name: "dis2_dvr",         label: "Dış 2" },
+  { name: "d11_dvr",          label: "Kamera 11" },
+];
+
+// Not: Chrome'da .local (mDNS) adları bazen cozulmuyor/gecikiyor (bilinen sorun,
+// 2026-10-15). Bu yuzden hostname yerine sabit IP kullaniliyor - dashboard hangi
+// adresten acilirsa acilsin kameralar hep IP uzerinden baglanir.
+const MEDIAMTX_WEBRTC = `http://192.168.23.252:8889`;
+const grid = document.getElementById("grid");
+document.getElementById("status").textContent = CAMERAS.length + " kamera";
+
+for (const cam of CAMERAS) {
+  const tile = document.createElement("div");
+  tile.className = "tile";
+  tile.dataset.name = cam.name;
+
+  const label = document.createElement("div");
+  label.className = "label";
+  label.textContent = cam.label;
+
+  const iframe = document.createElement("iframe");
+  iframe.src = `${MEDIAMTX_WEBRTC}/${cam.name}/`;
+  iframe.allow = "autoplay";
+
+  tile.appendChild(iframe);
+  tile.appendChild(label);
+  tile.addEventListener("mousedown", (e) => { if (e.detail > 1) e.preventDefault(); });
+  tile.addEventListener("dblclick", () => {
+    window.getSelection()?.removeAllRanges();
+    const isEnlarged = tile.classList.contains("enlarged");
+    document.querySelectorAll(".tile.enlarged").forEach(t => t.classList.remove("enlarged"));
+    grid.classList.remove("has-enlarged");
+    if (!isEnlarged) {
+      tile.classList.add("enlarged");
+      grid.classList.add("has-enlarged");
+    }
+  });
+  grid.appendChild(tile);
+}
+</script>
+</body>
+</html>

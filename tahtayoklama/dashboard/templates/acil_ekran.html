@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>{{ t.baslik }}</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: {{ t.renk }}; color: #fff; font-family: Arial, sans-serif; display: flex; flex-direction: column; padding: 3vh 5vw; }
+  .tatbikat { background: #ffd400; color: #000; font-weight: 800; text-align: center; font-size: 4vh; padding: 1vh; border-radius: 1vh; margin-bottom: 2vh; }
+  h1 { font-size: 11vh; margin: 0 0 1vh; letter-spacing: .05em; }
+  .anons { font-size: 3.6vh; margin: 0 0 3vh; opacity: .95; }
+  ol { font-size: 4.4vh; line-height: 1.35; margin: 0; padding-left: 1.3em; }
+  .alt { margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
+  .saat { font-size: 3vh; opacity: .85; }
+  #kapat-ac { background: rgba(0,0,0,.35); color: #fff; border: 1px solid rgba(255,255,255,.5); border-radius: 1vh; font-size: 2.4vh; padding: 1.2vh 2vw; }
+  #pin-kutu { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.85); align-items: center; justify-content: center; flex-direction: column; gap: 2vh; }
+  #pin-kutu.acik { display: flex; }
+  #pin-goster { font-size: 6vh; letter-spacing: 1vw; min-height: 7vh; }
+  #pin-mesaj { font-size: 3vh; }
+  .tuslar { display: grid; grid-template-columns: repeat(3, 14vh); gap: 1.5vh; }
+  .tuslar button { font-size: 4.5vh; height: 11vh; border: 0; border-radius: 1.2vh; background: #444; color: #fff; }
+  .tuslar button.tamam { background: #1b7a35; }
+  #vazgec { font-size: 2.8vh; padding: 1.2vh 3vw; border: 0; border-radius: 1vh; background: #666; color: #fff; }
+</style>
+</head>
+<body>
+{% if tatbikat %}<div class="tatbikat">TATBİKAT — Gerçek bir olay yoktur</div>{% endif %}
+<h1>{{ t.baslik }}</h1>
+<p class="anons">{{ t.anons }}</p>
+<ol>{% for a in t.adimlar %}<li>{{ a }}</li>{% endfor %}</ol>
+<div class="alt"><div class="saat" id="saat"></div><button type="button" id="kapat-ac">Ekranı kapat (PIN)</button></div>
+<div id="pin-kutu">
+  <div id="pin-mesaj">Ekranı kapatmak için PIN girin</div>
+  <div id="pin-goster"></div>
+  <div class="tuslar" id="tuslar"></div>
+  <button type="button" id="vazgec">Vazgeç</button>
+</div>
+<script>
+const s = document.getElementById('saat');
+const yaz = () => s.textContent = new Date().toLocaleTimeString('tr-TR');
+yaz(); setInterval(yaz, 1000);
+
+// Yalnız BU tahtanın ekranını kapatır; tahtayı sunucu istek IP'sinden tanır, PIN'i sunucu doğrular.
+let pin = '';
+const kutu = document.getElementById('pin-kutu'), goster = document.getElementById('pin-goster'),
+      mesaj = document.getElementById('pin-mesaj'), tuslar = document.getElementById('tuslar');
+const guncelle = () => goster.textContent = '●'.repeat(pin.length);
+['1','2','3','4','5','6','7','8','9','Sil','0','Tamam'].forEach(t => {
+  const b = document.createElement('button'); b.type = 'button'; b.textContent = t;
+  if (t === 'Tamam') b.className = 'tamam';
+  b.addEventListener('click', async () => {
+    if (t === 'Sil') { pin = pin.slice(0, -1); return guncelle(); }
+    if (t !== 'Tamam') { if (pin.length < 8) pin += t; return guncelle(); }
+    if (!pin) return;
+    mesaj.textContent = 'Kapatılıyor…';
+    try {
+      const r = await fetch('/api/acil/ekran-kapat', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({pin})});
+      mesaj.textContent = r.ok ? 'Kapatılıyor…' : (r.status === 403 ? 'PIN hatalı.' : r.status === 429 ? 'Çok fazla yanlış PIN, 10 dk bekleyin.' : 'Kapatılamadı (' + r.status + ').');
+    } catch (e) { mesaj.textContent = 'Sunucuya ulaşılamadı.'; }
+    pin = ''; guncelle();
+  });
+  tuslar.appendChild(b);
+});
+document.getElementById('kapat-ac').addEventListener('click', () => { pin = ''; guncelle(); mesaj.textContent = 'Ekranı kapatmak için PIN girin'; kutu.classList.add('acik'); });
+document.getElementById('vazgec').addEventListener('click', () => kutu.classList.remove('acik'));
+</script>
+</body>
+</html>
