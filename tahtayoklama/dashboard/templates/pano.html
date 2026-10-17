@@ -3,6 +3,7 @@
 {% block baslik %}Yoklama Panosu{% endblock %}
 
 {% block ust_sag %}
+<a href="/acil" style="background:#b00020;color:#fff;font-weight:800;padding:6px 14px;border-radius:8px;text-decoration:none">🚨 ACİL DURUM</a>
 <label>Tarih:
   <input type="date" id="tarih-secici" value="{{ tarih }}" max="{{ bugun }}">
 </label>
@@ -13,6 +14,19 @@
 {% endblock %}
 
 {% block icerik %}
+<a id="acil-serit" href="/acil" hidden style="display:block;background:#b00020;color:#fff;font-weight:800;font-size:18px;padding:12px 16px;border-radius:10px;margin-bottom:12px;text-decoration:none"></a>
+<script>
+(async function acilDurum() {
+  try {
+    const r = await fetch('/api/acil/durum'); if (!r.ok) return;
+    const d = await r.json(), a = d.aktif, s = document.getElementById('acil-serit');
+    s.hidden = !a;
+    if (a) s.textContent = '⚠ AKTİF ALARM: ' + ((d.turler[a.tur] || {}).baslik || a.tur) + (a.tatbikat ? ' (tatbikat)' : '') +
+      ' — ' + (a.zaman || '').slice(11, 16) + ' — ' + (a.istemci_ip || '') + ' · Yönetmek için tıklayın';
+  } catch (e) {}
+  setTimeout(acilDurum, 10000);
+})();
+</script>
 <!-- Uyarı şeridi: yalnızca /api/durum verisinden türer (ek istek yok; sunucu durumu açılışta çekilmez) -->
 <section class="uyari-seridi" id="uyari-seridi" data-durum="yukleniyor" aria-live="polite" aria-label="Günün özeti">
   <span class="uyari-ikon" aria-hidden="true"><svg class="ikon"><use href="#ik-nabiz"/></svg></span>
@@ -251,12 +265,17 @@ function uyariSeriti(satirlar, bugunMu) {
   }
 }
 
-async function tabloyuGuncelle() {
-  if (document.hidden) return;
+const ILK_DURUM = {% if ilk_durum is defined %}{{ ilk_durum | tojson }}{% else %}null{% endif %};
+
+async function tabloyuGuncelle(ilkVeri) {
+  if (!ilkVeri && document.hidden) return;
   const tarih = TARIH_SECICI.value;
-  const yanit = await fetch(`/api/durum?tarih=${tarih}`);
-  if (!yanit.ok) { toastGoster('Durum alınamadı.', true); return; }
-  const veri = await yanit.json();
+  let veri = (ilkVeri && ilkVeri.satirlar && ilkVeri.tarih === tarih) ? ilkVeri : null;
+  if (!veri) {
+    const yanit = await fetch(`/api/durum?tarih=${tarih}`);
+    if (!yanit.ok) { toastGoster('Durum alınamadı.', true); return; }
+    veri = await yanit.json();
+  }
   const bulunanlar = new Set();
   let tamSayac = 0;
   let yokSayac = 0;
@@ -350,7 +369,7 @@ TARIH_SECICI.addEventListener('change', () => {
   window.location = url;
 });
 
-tabloyuGuncelle();
+tabloyuGuncelle(ILK_DURUM);
 YENILEME_ZAMANLAYICI = setInterval(tabloyuGuncelle, 60000);
 setInterval(aktifDersiGuncelle, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) tabloyuGuncelle(); });

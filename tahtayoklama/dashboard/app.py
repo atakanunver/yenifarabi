@@ -365,6 +365,7 @@ async def ana_sayfa(request: Request, tarih: str | None = None):
                 sinif_tahta[r["sinif_id"]] = r["id"]
 
         ders_saatleri = zil.ders_saatleri()
+        ilk_durum = {"tarih": hedef, "satirlar": _durum_satirlari(conn, date.fromisoformat(hedef))}
     finally:
         conn.close()
 
@@ -377,5 +378,6 @@ async def ana_sayfa(request: Request, tarih: str | None = None):
             "siniflar": siniflar,
             "sinif_tahta": sinif_tahta,
             "ders_saatleri": ders_saatleri,
+            "ilk_durum": ilk_durum,
         },
     )
