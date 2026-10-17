@@ -19,14 +19,20 @@
     "sonra buraya derslik: {ip, kullanici, admin} olarak tek satır ekleyin.",
     "'tahta-NNN' adları henüz hangi fiziksel derslik/şube olduğu",
     "doğrulanmamış tahtalar için geçici IP-tabanlı isim — sınıf",
-    "netleştikçe uygun 'derslik' adına yeniden adlandırılmalı."
+    "netleştikçe uygun 'derslik' adına yeniden adlandırılmalı.",
+    "KİMLİK (2026-10-17): asıl kimlik avahi hostname'dir (vestel9b → vestel9b.local, sınıfı o belirler);",
+    "ip ve mac DHCP/donanımla DEĞİŞEBİLİR, 'son bilinen' değerdir. IP'yi önce 'hostname.local' (mDNS) ile doğrula."
   ],
   "9-A": {
+    "hostname": "vestel9a",
     "ip": "192.168.23.245",
+    "mac": "00:09:df:83:55:d1",
+    "_mac_notu": "2026-10-17: wiki'den; 9-A o gün ağda olmadığı için canlı doğrulanamadı (vestel9a.local çözülmedi).",
     "kullanici": "ogretmen",
     "admin": "etapadmin"
   },
   "9-B": {
+    "hostname": "vestel9b",
     "ip": "192.168.23.235",
     "mac": "00:09:df:83:5c:45",
     "_ip_notu": "2026-10-14: 9-B tahtası donanım değişimiyle yenilendi (eski MAC 00:09:df:83:5c:a9 / .239). Yeni tahta hostname vestel9b.",
@@ -34,29 +40,40 @@
     "admin": "etapadmin"
   },
   "10-A": {
+    "hostname": "vestel10a",
     "ip": "192.168.23.242",
+    "mac": "00:09:df:84:14:1e",
     "kullanici": "ogretmen",
     "admin": "etapadmin"
   },
   "11-A": {
+    "hostname": "vestel11a",
     "ip": "192.168.23.228",
+    "mac": "00:09:df:83:50:6e",
     "kullanici": "ogretmen",
     "admin": "etapadmin"
   },
   "12-A": {
+    "hostname": "vestel12a",
     "ip": "192.168.23.226",
     "mac": "00:09:df:83:ff:cc",
+    "mac_wifi": "78:92:9c:b3:a5:0e",
+    "_ag_notu": "2026-10-17: kablolu arayüz (enp3s0, mac) down; tahta .226'yı Wi-Fi'dan (wlp2s0, mac_wifi) alıyor. Not: Wake-on-LAN hiçbir tahtada çalışmıyor (BIOS dahil denendi).",
     "_ip_notu": "2026-09-22: DHCP kirası .231 -> .226 değişti. Aynı fiziksel tahta (MAC ve hostname 'vestel12a' ile doğrulandı), sınıf değişmedi.",
     "kullanici": "ogretmen",
     "admin": "etapadmin"
   },
   "12-B": {
+    "hostname": "vestel12b",
     "ip": "192.168.23.240",
+    "mac": "00:09:df:8c:1a:e8",
     "kullanici": "ogretmen",
     "admin": "etapadmin"
   },
   "11-B": {
+    "hostname": "vestel11b",
     "ip": "192.168.23.233",
+    "mac": "00:09:df:8b:0c:c4",
     "kullanici": "ogretmen",
     "admin": "etapadmin"
   },
@@ -66,6 +83,7 @@
     "admin": "etapadmin"
   },
   "fenlab": {
+    "hostname": "fenlab",
     "ip": "192.168.23.244",
     "kullanici": "ogretmen",
     "admin": "etapadmin",

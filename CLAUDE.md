@@ -34,8 +34,9 @@ soruhavuzu, kazanimtest, okul; `openwebui/`, `webui-tema/` için CLAUDE.md yok).
 - Open WebUI adı "Atos"; yalnızca iki yönetici.
 - Okul ağı SSL-inceleme yapıyor: yeni venv'de certifi'ye MEB sertifikası eklenmeli;
   `HF_HUB_OFFLINE=1` açık.
-- IP değil hostname/MAC esas. IP değişirse: `server/tahtalar.json`, dashboard
-  SQLite `tahtalar`, `docs/runbook.md` tablosu.
+- Asıl kimlik avahi hostname (`vestel9b` → `vestel9b.local`; sınıfı o belirler); IP ve MAC değişebilir
+  (12-A kablosuz olunca MAC de değişti). Önce `getent hosts <hostname>.local`. IP/MAC değişirse:
+  `server/tahtalar.json`, dashboard SQLite `tahtalar`, `docs/runbook.md` tablosu.
 - Ders programı/zil birden çok kopya, otomatik senkron yok: kaynak
   `mudur/ders_programi.json` ve `tahtayoklama/data/zil.json`; dağıtım
   `server/config_dagit.sh` (`--kuru` önce).
