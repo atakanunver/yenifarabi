@@ -571,6 +571,7 @@ tr.ben td { background: rgba(122, 63, 168, .10); }
 .oyun-kutu b { font-size: 1.05rem; }
 .oyun-kutu.gorev { background: linear-gradient(145deg, #6d28d9, #2563eb); }
 .oyun-kutu.hizli { background: linear-gradient(145deg, #0891b2, #059669); }
+.oyun-kutu.sudoku { background: linear-gradient(145deg, #f97316, #db2777); }
 .oyun-kutu.bitti { background: linear-gradient(145deg, #3b4a8c, #1d2656); }
 .oyun-kutu:active { transform: scale(.98); }
 .yaris { display: block; text-decoration: none; color: inherit; padding: .75rem; border-radius: 14px; background: rgba(251, 191, 36, .1); border: 1px solid rgba(251, 191, 36, .45); }
