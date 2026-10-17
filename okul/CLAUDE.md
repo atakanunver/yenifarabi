@@ -11,6 +11,7 @@ Spec: `docs/superpowers/specs/2026-10-10-dijital-okul-design.md`.
 - Test: `cd okul && venv/bin/python -m pytest -q`. Tek test: `venv/bin/python -m pytest tests/test_odevler.py::test_adi -q`. Lint: repo kökünden `.venv-tools/bin/ruff check okul/<dosya>` (okul/ kapsam listesinde değil; yalnızca dokunduğun dosyayı ver)
 - Servis: `farabi-okul.service` (kurulum yorumu `okul/systemd/farabi-okul.service` içinde). Kod değişince: `sudo systemctl restart farabi-okul`.
 - İlk yönetici: `venv/bin/python scripts/yonetici_olustur.py "Ad Soyad" kullanici_adi`
+- Yıllık planlar: `venv/bin/python scripts/yillik_planlari_aktar.py` (argümansız; `/mnt/farabi-data/farabi/YILLIK PLANLAR 2026_2027` altındaki .docx'leri koddaki `PLAN_HARITASI` (öğretmen id, sınıf, ders) ile `belgeler`/db'ye aktarır; yeni plan = haritaya satır ekle)
 - CSS/JS değişirse sürüm sorgusunu (`okul.css?v=N` base.html'de, `*.js?v=N` onu yükleyen şablonda) ve `static/sw.js` içindeki SURUM + STATIK listesini artır; yeni statik JS STATIK'e de eklenir.
 
 ## Modül haritası
