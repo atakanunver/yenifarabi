@@ -351,5 +351,79 @@ class TestOgretmen(Taban):
         self.assertFalse(any("safiye" in s.lower() for s in kayit.output))
 
 
+class TestOgretmenSimdiVeOkulda(Taban):
+    """/ogretmen-simdi ve /okulda (2026-10-16). Aynı adı taşıyan iki öğretmen de dönmeli."""
+
+    def setUp(self):
+        super().setUp()
+        veri = {
+            "ogretmenler": [
+                {"ad_soyad": "ÇİÇEK AYŞE", "dersler": ["Mat"], "siniflar": ["11-A"]},
+                {"ad_soyad": "KARAKOÇ AYŞE MERVE", "dersler": ["Ing"], "siniflar": ["11-A"]},
+            ],
+            "program": {
+                "11-A": {"pazartesi": {"1": ["ÇİÇEK AYŞE"], "2": ["KARAKOÇ AYŞE MERVE"]}}
+            },
+        }
+        (self.tmp / "ogretmenler.json").write_text(json.dumps(veri), encoding="utf-8")
+        y = patch.object(ob, "OGRETMEN_YOLU", self.tmp / "ogretmenler.json")
+        y.start()
+        self.addCleanup(y.stop)
+
+    def _yoklama(self, tarih, ders_no, yok, izinli=()):
+        conn = db.baglanti()
+        conn.execute(
+            "INSERT INTO yoklama_onbellek (tarih, sinif, ders_no, durum, yok_isimleri, izinli_isimleri) "
+            "VALUES (?, '11-A', ?, 'alindi', ?, ?)",
+            (tarih, ders_no, json.dumps(yok), json.dumps(list(izinli))),
+        )
+        conn.commit()
+        conn.close()
+
+    def test_iki_aysenin_ikisi_de_doner_ve_simdiki_ders_dogru(self):
+        self.saat(PAZARTESI_0820)  # 1. ders
+        v = self.cagir(
+            ob.ogretmen_simdi,
+            _istek(basliklar=_b(**{"X-Farabi-Kullanici": "idare@farabi.local", "X-Farabi-Rol": "user"})),
+            ad="Ayşe",
+        )
+        d = {o["ad_soyad"]: o for o in v["ogretmenler"]}
+        self.assertEqual(set(d), {"ÇİÇEK AYŞE", "KARAKOÇ AYŞE MERVE"})
+        self.assertEqual(d["ÇİÇEK AYŞE"]["simdi_ders"]["sinif"], "11-A")
+        self.assertIsNone(d["KARAKOÇ AYŞE MERVE"]["simdi_ders"])
+        self.assertEqual(len(d["KARAKOÇ AYŞE MERVE"]["bugun"]), 1)
+
+    def test_tahta_hesabi_403(self):
+        with self.assertRaises(HTTPException) as c:
+            asyncio.run(
+                ob.ogretmen_simdi(
+                    _istek(basliklar=_b(**{"X-Farabi-Kullanici": "tahta@farabi.local", "X-Farabi-Rol": "user"})),
+                    ad="Ayşe",
+                )
+            )
+        self.assertEqual(c.exception.status_code, 403)
+
+    def test_yoklama_yoksa_alinmadi_tum_liste_mevcut_sayilmaz(self):
+        self.saat(PAZARTESI_0820)
+        v = self.cagir(
+            ob.okulda,
+            _istek(basliklar=_b(**{"X-Farabi-Kullanici": "x@y", "X-Farabi-Rol": "admin"})),
+        )
+        s = v["siniflar"][0]
+        self.assertEqual(s["yoklama"], "alinmadi")
+        self.assertNotIn("mevcut", s)
+
+    def test_yoklama_varsa_mevcut_yok_izinli(self):
+        self.saat(PAZARTESI_0820)
+        self._yoklama("2026-10-05", 1, ["Mehmet Demir"])
+        v = self.cagir(
+            ob.okulda,
+            _istek(basliklar=_b(**{"X-Farabi-Kullanici": "x@y", "X-Farabi-Rol": "admin"})),
+        )
+        s = v["siniflar"][0]
+        self.assertEqual((s["yoklama"], s["toplam"], s["mevcut"], s["yok"]), ("alindi", 2, 1, ["Mehmet Demir"]))
+        self.assertEqual(v["dersi_olan_ogretmenler"], [{"ad_soyad": "ÇİÇEK AYŞE", "sinif": "11-A"}])
+
+
 if __name__ == "__main__":
     unittest.main()

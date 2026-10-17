@@ -262,3 +262,142 @@ async def ogretmen(request: Request, ad: str = ""):
         liste = [o for o in liste if all(p in _sade(o["ad_soyad"]) for p in parcalar)]
     log.info("okul/ogretmen sorgusu: %d sonuç", len(liste))
     return JSONResponse({"ogretmenler": liste, "toplam": len(liste)})
+
+
+# --- 2026-10-16: öğretmen anlık durumu + "bugün okulda kimler var" (Atos senaryoları) ---
+
+
+def _ogretmen_programi() -> dict:
+    try:
+        return json.loads(OGRETMEN_YOLU.read_text(encoding="utf-8")).get("program", {})
+    except (OSError, ValueError, AttributeError, TypeError):
+        raise HTTPException(503, "Öğretmen listesi yüklenmemiş.")
+
+
+def _ogretmen_slotlari(isogun: int) -> dict[str, list[dict]]:
+    """Öğretmen adı → o günün ders hücreleri ([{no, baslangic, bitis, sinif}], ders sırasıyla)."""
+    gun = _GUN_ANAHTARI.get(isogun)
+    saatler = {d["no"]: d for d in zil.ders_saatleri()}
+    sonuc: dict[str, list[dict]] = {}
+    if not gun:
+        return sonuc
+    for sinif, gunler in _ogretmen_programi().items():
+        for no, adlar in (gunler.get(gun) or {}).items():
+            saat = saatler.get(int(no))
+            for ad in adlar:
+                sonuc.setdefault(ad, []).append(
+                    {
+                        "no": int(no),
+                        "baslangic": saat["baslangic"] if saat else "",
+                        "bitis": saat["bitis"] if saat else "",
+                        "sinif": sinif,
+                    }
+                )
+    for liste in sonuc.values():
+        liste.sort(key=lambda x: x["no"])
+    return sonuc
+
+
+@router.get("/ogretmen-simdi")
+async def ogretmen_simdi(request: Request, ad: str = ""):
+    """Eşleşen HER öğretmen için (aynı ad birden çok kişide olabilir) şu anki ders + bugünkü dersler."""
+    ayar = _dogrula(request)
+    _ogrenci_izni(request, ayar)
+    if not ad.strip():
+        raise HTTPException(400, "ad gerekli.")
+    parcalar = _sade(ad).split()
+    liste = [o for o in _ogretmenler() if all(p in _sade(o["ad_soyad"]) for p in parcalar)]
+    bilgi = simdi_bilgisi()
+    slotlar = _ogretmen_slotlari(zil.simdi_istanbul().isoweekday())
+    sonuc = []
+    for o in liste:
+        bugun = slotlar.get(o["ad_soyad"], [])
+        simdiki = next((x for x in bugun if x["no"] == bilgi["ders_no"]), None)
+        sonuc.append(
+            {
+                "ad_soyad": o["ad_soyad"],
+                "dersler": o.get("dersler") or [],
+                "simdi_ders": simdiki,
+                "bugun": bugun,
+            }
+        )
+    log.info("okul/ogretmen-simdi sorgusu: %d sonuç", len(sonuc))
+    return JSONResponse({"simdi": bilgi["metin"], "durum": bilgi["durum"], "ogretmenler": sonuc})
+
+
+def _bugun_yoklamasi(tarih: str) -> dict[str, dict]:
+    """sinif → bugünkü EN SON yoklama kaydı ({ders_no, yok, izinli})."""
+    conn = db.baglanti()
+    try:
+        satirlar = conn.execute(
+            "SELECT sinif, ders_no, yok_isimleri, izinli_isimleri FROM yoklama_onbellek "
+            "WHERE tarih = ? AND durum = 'alindi' ORDER BY ders_no",
+            (tarih,),
+        ).fetchall()
+    finally:
+        conn.close()
+    sonuc: dict[str, dict] = {}
+    for r in satirlar:  # ders_no artan: sonuncu kazanır
+        def _liste(ham):
+            try:
+                v = json.loads(ham or "[]")
+                return [str(x) for x in v] if isinstance(v, list) else []
+            except ValueError:
+                return []
+
+        sonuc[_sinif_anahtari(r["sinif"])] = {
+            "ders_no": r["ders_no"],
+            "yok": _liste(r["yok_isimleri"]),
+            "izinli": _liste(r["izinli_isimleri"]),
+        }
+    return sonuc
+
+
+@router.get("/okulda")
+async def okulda(request: Request, tarih: str = ""):
+    """Bugün okulda kimler var: sınıf sınıf yoklama (mevcut/yok/izinli) + şu an dersi olan öğretmenler.
+    Yoklama alınmamış sınıf için "alınmadı" döner — tüm liste mevcut sayılmaz."""
+    ayar = _dogrula(request)
+    _ogrenci_izni(request, ayar)
+    an = zil.simdi_istanbul()
+    gun = tarih.strip() or an.date().isoformat()
+    yoklama = _bugun_yoklamasi(gun)
+    mevcut_sayisi: dict[str, int] = {}
+    for o in _rosterlar():
+        mevcut_sayisi[o["sinif"]] = mevcut_sayisi.get(o["sinif"], 0) + 1
+    siniflar = []
+    for sinif in sorted(mevcut_sayisi):
+        toplam = mevcut_sayisi[sinif]
+        y = yoklama.get(_sinif_anahtari(sinif))
+        if y is None:
+            siniflar.append({"sinif": sinif, "toplam": toplam, "yoklama": "alinmadi"})
+        else:
+            yok, izinli = y["yok"], y["izinli"]
+            siniflar.append(
+                {
+                    "sinif": sinif,
+                    "toplam": toplam,
+                    "yoklama": "alindi",
+                    "ders_no": y["ders_no"],
+                    "mevcut": max(toplam - len(yok) - len(izinli), 0),
+                    "yok": yok,
+                    "izinli": izinli,
+                }
+            )
+    bilgi = simdi_bilgisi()
+    ogretmenler = []
+    if gun == an.date().isoformat() and bilgi["ders_no"] is not None:
+        for ad, slotlar in _ogretmen_slotlari(an.isoweekday()).items():
+            for s in slotlar:
+                if s["no"] == bilgi["ders_no"]:
+                    ogretmenler.append({"ad_soyad": ad, "sinif": s["sinif"]})
+    log.info("okul/okulda sorgusu: %d sınıf", len(siniflar))
+    return JSONResponse(
+        {
+            "tarih": gun,
+            "simdi": bilgi["metin"],
+            "siniflar": siniflar,
+            "dersi_olan_ogretmenler": sorted(ogretmenler, key=lambda x: x["ad_soyad"]),
+            "not": "Öğretmen için giriş-çıkış kaydı yok; liste yalnızca ders programına göre şu an dersi olanlardır.",
+        }
+    )

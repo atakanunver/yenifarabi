@@ -24,6 +24,7 @@ import db
 import dogum_mantik
 import gonderim
 import arac_api
+import rehber_api
 import otomasyon
 import panel_api
 import veli_mesaj
@@ -68,6 +69,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(arac_api.router)  # /api/arac/* — Atos SMS aracı (anahtarlı)
+app.include_router(rehber_api.router)  # /api/arac/ogrenci-iletisim — Atos okul bilgisi (salt-okunur, anahtarlı)
 app.include_router(panel_api.router)  # /api/panel/* — dashboard veli mesajları (anahtarlı)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")

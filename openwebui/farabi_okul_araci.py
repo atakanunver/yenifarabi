@@ -2,7 +2,7 @@
 title: Okul Bilgisi
 author: Farabi (Şehit Murat Ustaoğlu Anadolu Lisesi)
 version: 0.1.0
-description: Sınıfların ders programını (şu anki ders, bugün, belirli gün, haftalık) ve — yalnızca İdare/Öğretmen hesaplarına — öğrenci bilgisini (ad soyad, numara, sınıf) ve öğretmen listesini (ad soyad, verdiği dersler, sınıflar) okulun yerel kayıtlarından getirir.
+description: Sınıfların ders programını (şu anki ders, bugün, belirli gün, haftalık) ve — yalnızca İdare/Öğretmen hesaplarına — öğrenci bilgisini (ad soyad, numara, sınıf) ve öğretmen listesini (ad soyad, verdiği dersler, sınıflar) okulun yerel kayıtlarından getirir. 2026-10-16: öğretmenin anlık dersi, bugün okulda kimler var (yoklama), ve YALNIZCA yöneticiye öğrenci/veli telefonu, doğum yılına göre liste ve PDF.
 """
 
 # Bu dosya Open WebUI'ye `openwebui/kur.py` ile Tool olarak yüklenir; Open WebUI
@@ -12,10 +12,16 @@ description: Sınıfların ders programını (şu anki ders, bugün, belirli gü
 # Öğrenci erişimi (2026-10-04 kullanıcı kararı): admin + Valves.ogrenci_izinli
 # e-postaları (İdare, Öğretmen); tahta hesabı HARİÇ. Sunucu aynı kontrolü yapar.
 
+import io
+import uuid
+
 import httpx
 from pydantic import BaseModel
 
 ULASILAMADI = "Okul bilgisi servisine ulaşılamadı."
+YONETICI_RET = "Telefon ve doğum bilgisine yalnızca yönetici hesabı erişebilir."
+FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+FONT_KALIN = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 OGRENCI_RET = (
     "Öğrenci bilgisine bu hesapla erişilemez (yalnızca İdare ve Öğretmen hesapları)."
 )
@@ -26,6 +32,8 @@ class Tools:
         api_url: str = "http://127.0.0.1:8010/api/okul"
         api_key: str = ""
         ogrenci_izinli: str = ""  # virgüllü e-posta listesi (kur.py yazar)
+        sms_api_url: str = "http://127.0.0.1:8020/api/arac"  # öğrenci/veli telefon sorgusu (salt okunur)
+        sms_api_key: str = ""
         zaman_asimi_sn: float = 15.0
 
     def __init__(self):
@@ -192,3 +200,221 @@ class Tools:
             "Okul öğretmen listesi (kaynak: ders programı; dersler kısaltmadır, branş yazmaz):\n"
             + "\n".join(satirlar)
         )
+
+
+    # --- 2026-10-16: Atos senaryoları ---------------------------------------
+
+    @staticmethod
+    def _yonetici(user) -> bool:
+        return isinstance(user, dict) and user.get("role") == "admin"
+
+    async def _sms_get(self, yol: str, params: dict):
+        try:
+            async with httpx.AsyncClient(timeout=self.valves.zaman_asimi_sn) as c:
+                return await c.get(
+                    self.valves.sms_api_url.rstrip("/") + yol,
+                    headers={"X-Sms-Arac-Key": self.valves.sms_api_key},
+                    params=params,
+                )
+        except Exception:  # noqa: BLE001 — istisna metni LLM'e gitmemeli
+            return None
+
+    async def okulda_kimler_var(
+        self, tarih: str = "", __user__: dict | None = None
+    ) -> str:
+        """
+        "Bugün okulda kimler var?", "kimler devamsız?": sınıf sınıf yoklama (mevcut/yok/izinli) + şu an dersi olan öğretmenler.
+        Yoklaması alınmamış sınıfı mevcut sayma. Öğretmen giriş-çıkış kaydı yok; yalnızca ders programına göre.
+        :param tarih: YYYY-AA-GG; boşsa bugün.
+        """
+        if not self._ogrenci_izni(__user__):
+            return OGRENCI_RET
+        y = await self._get(__user__, "/okulda", {"tarih": tarih})
+        if y is None:
+            return ULASILAMADI
+        if y.status_code == 403:
+            return OGRENCI_RET
+        v = self._json(y)
+        if y.status_code != 200 or not isinstance(v, dict):
+            return ULASILAMADI
+        satirlar = [f"{v.get('simdi')}", f"Tarih: {v.get('tarih')}", "Öğrenci yoklaması:"]
+        for s in v.get("siniflar") or []:
+            if s.get("yoklama") != "alindi":
+                satirlar.append(f"- {s['sinif']}: yoklama alınmadı ({s['toplam']} öğrenci kayıtlı)")
+                continue
+            ek = f"; izinli: {', '.join(s['izinli'])}" if s.get("izinli") else ""
+            yok = f"; yok: {', '.join(s['yok'])}" if s.get("yok") else "; devamsız yok"
+            satirlar.append(
+                f"- {s['sinif']}: {s['mevcut']}/{s['toplam']} mevcut ({s['ders_no']}. ders yoklaması){yok}{ek}"
+            )
+        ogr = v.get("dersi_olan_ogretmenler") or []
+        satirlar.append(
+            "Şu an dersi olan öğretmenler: "
+            + (", ".join(f"{o['ad_soyad']} ({o['sinif']})" for o in ogr) if ogr else "yok (ders saati dışı olabilir)")
+        )
+        satirlar.append(f"({v.get('not', '')})")
+        return "\n".join(satirlar)
+
+    async def ogretmen_simdi(self, ad: str, __user__: dict | None = None) -> str:
+        """
+        "Ayşe öğretmenin şu an dersi var mı?", "Sedat hoca bugün hangi sınıflara giriyor?" sorularında kullan.
+        Aynı ada sahip birden çok öğretmen olabilir: HEPSİNİ listele, birini seçme; gerekirse kullanıcıya hangisi olduğunu sor.
+        :param ad: Öğretmenin adı ve/veya soyadı.
+        """
+        if not self._ogrenci_izni(__user__):
+            return "Öğretmen bilgisine bu hesapla erişilemez (yalnızca İdare ve Öğretmen hesapları)."
+        y = await self._get(__user__, "/ogretmen-simdi", {"ad": ad})
+        if y is None:
+            return ULASILAMADI
+        if y.status_code == 403:
+            return "Öğretmen bilgisine bu hesapla erişilemez (yalnızca İdare ve Öğretmen hesapları)."
+        v = self._json(y)
+        if y.status_code != 200 or not isinstance(v, dict):
+            return ULASILAMADI
+        liste = v.get("ogretmenler") or []
+        if not liste:
+            return "Kayıtlarda eşleşen öğretmen bulunamadı. İsim uydurma; kullanıcıya bulunamadığını söyle."
+        satirlar = [v.get("simdi", "")]
+        for o in liste:
+            s = o.get("simdi_ders")
+            durum = f"ŞU AN {s['no']}. derste {s['sinif']} sınıfında" if s else "şu an dersi yok"
+            bugun = ", ".join(f"{d['no']}. ders {d['baslangic']}–{d['bitis']} {d['sinif']}" for d in o.get("bugun") or [])
+            satirlar.append(
+                f"- {o['ad_soyad']} ({', '.join(o.get('dersler') or []) or '?'}): {durum}. "
+                f"Bugünkü dersleri: {bugun or 'yok'}"
+            )
+        return "\n".join(satirlar)
+
+    @staticmethod
+    def _tarih(d: str) -> str:
+        p = (d or "").split("-")
+        return f"{p[2]}.{p[1]}.{p[0]}" if len(p) == 3 else (d or "—")
+
+    async def _iletisim(self, ad: str, sinif: str, dogum_yili: str, limit: int):
+        y = await self._sms_get(
+            "/ogrenci-iletisim",
+            {"ad": ad, "sinif": sinif, "dogum_yili": dogum_yili, "limit": limit},
+        )
+        if y is None:
+            return None, ULASILAMADI
+        v = self._json(y)
+        if y.status_code == 400:
+            return None, "Arama için ad, sınıf ya da doğum yılı (4 haneli) verin."
+        if y.status_code != 200 or not isinstance(v, dict):
+            return None, ULASILAMADI
+        return v, ""
+
+    async def ogrenci_iletisim(
+        self,
+        ad: str = "",
+        sinif: str = "",
+        dogum_yili: str = "",
+        __user__: dict | None = None,
+    ) -> str:
+        """
+        Öğrencinin ve velilerinin (anne/baba) telefonu, doğum tarihi. Yalnızca yönetici. "Çağla'nın velisinin telefonu?", "2010 doğumlular?".
+        Aynı ada birden çok öğrenci çıkarsa hepsini göster. Kayıtta olmayanı uydurma. Anne-baba ayrı/maddi/hastalık listeleri için ogrenci_ozel_durum kullanılır.
+        :param ad: Ad ve/veya soyad.
+        :param sinif: Örn. "9-A".
+        :param dogum_yili: 4 haneli yıl, örn. "2010".
+        """
+        if not self._yonetici(__user__):
+            return YONETICI_RET
+        v, hata = await self._iletisim(ad, sinif, dogum_yili, 60)
+        if v is None:
+            return hata
+        liste = v.get("ogrenciler") or []
+        if not liste:
+            return "Kayıtlarda eşleşen öğrenci bulunamadı. İsim ya da numara uydurma."
+        satirlar = []
+        for o in liste:
+            veliler = "; ".join(f"{x['rol']} {x['ad_soyad']}: {x['telefon'] or 'kayıtlı değil'}" for x in o["veliler"]) or "veli kaydı yok"
+            satirlar.append(
+                f"- {o['ad_soyad']} — {o['sinif']}, no {o['okul_no']}, doğum {self._tarih(o['dogum_tarihi'])}; "
+                f"öğrenci tel: {o['ogrenci_telefon'] or 'kayıtlı değil'}; veliler: {veliler}"
+            )
+        ek = f"\n(Toplam {v['toplam']}, ilk {len(liste)} gösterildi.)" if v["toplam"] > len(liste) else ""
+        return "Okul rehberi kayıtları:\n" + "\n".join(satirlar) + ek
+
+    async def ogrenci_listesi_pdf(
+        self,
+        baslik: str = "Öğrenci Listesi",
+        sinif: str = "",
+        dogum_yili: str = "",
+        telefon_dahil: bool = False,
+        __user__: dict | None = None,
+    ) -> str:
+        """
+        Öğrenci listesini PDF yapar, indirme bağlantısı verir. Yalnızca yönetici. Listeyi sunucu çizer; veriyi sen yazma, bağlantıyı AYNEN ver.
+        :param baslik: PDF başlığı.
+        :param sinif: Sınıf filtresi.
+        :param dogum_yili: 4 haneli doğum yılı.
+        :param telefon_dahil: True ise öğrenci/veli telefonları da yazılır (yalnızca istenirse).
+        """
+        if not self._yonetici(__user__):
+            return YONETICI_RET
+        if not (sinif.strip() or dogum_yili.strip()):
+            return "PDF için sınıf ya da doğum yılı belirtin (tüm okul dökümü için sınıf sınıf isteyin)."
+        v, hata = await self._iletisim("", sinif, dogum_yili, 500)
+        if v is None:
+            return hata
+        liste = v.get("ogrenciler") or []
+        if not liste:
+            return "Bu ölçüte uyan öğrenci kaydı yok; PDF üretilmedi."
+        try:
+            veri = self._pdf_uret(baslik, liste, bool(telefon_dahil))
+            fid, ad = await self._pdf_kaydet(veri, baslik, __user__)
+        except Exception:  # noqa: BLE001 — iç hata metni modele gitmesin
+            return "PDF üretilemedi (sunucu hatası)."
+        return (
+            f"PDF hazır ({len(liste)} öğrenci): [{ad}](/api/v1/files/{fid}/content?attachment=true) "
+            "— bağlantıyı kullanıcıya aynen ver; yalnızca bu hesap açabilir."
+        )
+
+    def _pdf_uret(self, baslik: str, liste: list, telefon: bool) -> bytes:
+        from fpdf import FPDF
+
+        pdf = FPDF(orientation="L" if telefon else "P", format="A4")
+        pdf.add_font("DejaVu", "", FONT)
+        pdf.add_font("DejaVu", "B", FONT_KALIN)
+        pdf.set_auto_page_break(True, 15)
+        pdf.add_page()
+        pdf.set_font("DejaVu", "B", 14)
+        pdf.cell(0, 9, baslik, new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("DejaVu", "", 8)
+        pdf.cell(0, 5, f"Şehit Murat Ustaoğlu Anadolu Lisesi — {len(liste)} öğrenci", new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(2)
+        sutunlar = [("No", 12), ("Ad Soyad", 60), ("Sınıf", 16), ("Doğum", 24)]
+        if telefon:
+            sutunlar += [("Öğrenci Tel", 32), ("Veliler (telefon)", 130)]
+        pdf.set_font("DejaVu", "B", 9)
+        for ad, w in sutunlar:
+            pdf.cell(w, 7, ad, border=1)
+        pdf.ln()
+        pdf.set_font("DejaVu", "", 9)
+        for o in liste:
+            hucre = [str(o["okul_no"] or ""), o["ad_soyad"], o["sinif"], self._tarih(o["dogum_tarihi"])]
+            if telefon:
+                hucre += [o["ogrenci_telefon"] or "—", "; ".join(f"{x['rol']}: {x['telefon'] or '—'}" for x in o["veliler"])]
+            for (_, w), metin in zip(sutunlar, hucre):
+                pdf.cell(w, 6.5, metin, border=1)
+            pdf.ln()
+        return bytes(pdf.output())
+
+    @staticmethod
+    async def _pdf_kaydet(veri: bytes, baslik: str, user: dict):
+        from open_webui.models.files import FileForm, Files
+        from open_webui.storage.provider import Storage
+
+        fid = str(uuid.uuid4())
+        guvenli = "".join(c if c.isalnum() or c in " -_" else "_" for c in baslik).strip().replace(" ", "_") or "liste"
+        ad = f"{guvenli}.pdf"
+        _, yol = Storage.upload_file(io.BytesIO(veri), f"{fid}_{ad}", {"OpenWebUI-File-Id": fid})
+        await Files.insert_new_file(
+            user["id"],
+            FileForm(
+                id=fid, filename=ad, path=yol,
+                meta={"name": ad, "content_type": "application/pdf", "size": len(veri)},
+            ),
+        )
+        return fid, ad
