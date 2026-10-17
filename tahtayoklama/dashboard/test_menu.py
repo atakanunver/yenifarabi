@@ -7,7 +7,7 @@ from app import app
 
 DAHILI = {"/", "/admin/tahtalar", "/admin/siniflar", "/admin/rapor", "/kazanim",
           "/admin/uzaktan", "/servisler", "/sistem-durumu", "/sunucular", "/veli-mesajlari",
-          "/acil", "/kameralar", "/kameralar-ip"}
+          "/acil", "/kameralar", "/kameralar-ip", "/zamanlanmis-gorevler"}
 
 
 def _ogeler(ust):
@@ -77,7 +77,7 @@ class TestMenu(unittest.TestCase):
 
     def test_taban_tum_sablon_ortamlarinda_menu_var(self):
         import importlib
-        for ad in ("app", "sunucular", "kazanim_rapor", "admin", "uzaktan_yonetim", "servis_yonetimi", "yakinda", "veli_mesajlari"):
+        for ad in ("app", "sunucular", "kazanim_rapor", "admin", "uzaktan_yonetim", "servis_yonetimi", "zamanlanmis_gorevler", "yakinda", "veli_mesajlari"):
             mod = importlib.import_module(ad)
             tpl = getattr(mod, "templates", None)
             if tpl is not None:

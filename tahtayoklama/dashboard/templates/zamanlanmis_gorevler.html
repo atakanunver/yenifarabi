@@ -1,0 +1,237 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Zamanlanmış Görevler — Farabi Panel{% endblock %}
+{% block baslik %}Zamanlanmış Görevler{% endblock %}
+{% block ust_sag %}<button type="button" class="dugme dugme-ikincil" id="yenile"><svg class="ikon"><use href="#ik-yenile"/></svg> Yenile</button>{% endblock %}
+{% block icerik %}
+<div class="servis-sayfa">
+<section class="kpi-satir" aria-live="polite">
+  <div class="kpi"><span class="kpi-etiket">Farabi görevi</span><strong id="kpi-farabi">—</strong></div>
+  <div class="kpi"><span class="kpi-etiket">Eklenen görev</span><strong id="kpi-panel">—</strong></div>
+  <div class="kpi kpi-genis"><span class="kpi-etiket">Sıradaki görev</span><strong id="kpi-siradaki">—</strong></div>
+  <div class="kpi" id="ders-saati-rozeti" hidden><span class="rozet rozet-amber">Ders saati</span>
+    <span class="kpi-etiket">Derse etki eden işlemler ikinci onay ister</span></div>
+</section>
+
+<h2 class="bolum-baslik" id="farabi-baslik">Farabi görevleri</h2>
+<div class="tablo-sarici"><table class="servis-zaman-tablo" id="farabi-tablo" aria-labelledby="farabi-baslik">
+  <thead><tr><th>Görev</th><th>Zaman</th><th>Sonraki</th><th>Etkin</th><th><span class="gorsel-gizli">Eylemler</span></th></tr></thead>
+  <tbody><tr><td colspan="5"><div class="iskelet iskelet-satir"></div></td></tr></tbody>
+</table></div>
+
+<h2 class="bolum-baslik" id="panel-baslik">Eklenen görevler</h2>
+<p><button type="button" class="dugme" id="gorev-ekle"><svg class="ikon"><use href="#ik-arti"/></svg> Görev ekle</button></p>
+<div class="tablo-sarici"><table class="servis-zaman-tablo" id="panel-tablo" aria-labelledby="panel-baslik">
+  <thead><tr><th>Görev</th><th>Zaman</th><th>Sonraki</th><th>Etkin</th><th><span class="gorsel-gizli">Eylemler</span></th></tr></thead>
+  <tbody><tr><td colspan="5"><div class="iskelet iskelet-satir"></div></td></tr></tbody>
+</table></div>
+
+<h2 class="bolum-baslik" id="tahta-baslik">Tahtalar (salt-okunur)</h2>
+<p class="soluk kucuk">Tahtalardaki ekran kapatma, gece yeniden başlatma ve cron kayıtları yalnızca gösterilir; buradan değiştirilemez.
+  Windows (Müdür PC) görev zamanlayıcısı bu turda yönetilemiyor.</p>
+<div class="tablo-sarici"><table class="servis-zaman-tablo" id="tahta-tablo" aria-labelledby="tahta-baslik">
+  <thead><tr><th>Tahta</th><th>Zamanlayıcılar</th></tr></thead>
+  <tbody><tr><td colspan="2"><div class="iskelet iskelet-satir"></div></td></tr></tbody>
+</table></div>
+
+<details class="sistem-zamanlayicilar">
+  <summary class="bolum-baslik" id="sistem-baslik">Sistem (salt-okunur)</summary>
+  <div class="tablo-sarici"><table class="servis-zaman-tablo" id="sistem-tablo" aria-labelledby="sistem-baslik">
+    <thead><tr><th>Zamanlayıcı</th><th>Zaman</th><th>Sonraki</th><th>Son çalışma</th></tr></thead>
+    <tbody><tr><td colspan="4"><div class="iskelet iskelet-satir"></div></td></tr></tbody>
+  </table></div>
+</details>
+</div>
+
+<dialog class="pencere" id="onay-penceresi" aria-labelledby="onay-baslik">
+  <h2 id="onay-baslik">Emin misiniz?</h2>
+  <p id="onay-metin"></p>
+  <p class="uyari-not" id="onay-uyari" hidden><svg class="ikon"><use href="#ik-uyari"/></svg> <span></span></p>
+  <form method="dialog" class="pencere-dugmeler">
+    <button class="dugme dugme-ikincil" value="iptal">Vazgeç</button>
+    <button class="dugme" id="onay-evet" value="evet">Devam</button>
+  </form>
+</dialog>
+
+<dialog class="pencere" id="form-penceresi" aria-labelledby="form-baslik">
+  <h2 id="form-baslik">Görev</h2>
+  <form id="gorev-form" class="yeni-form" autocomplete="off">
+    <div id="alan-ad"><label>Görev adı <input type="text" id="f-ad" maxlength="40"></label></div>
+    <div id="alan-sablon"><label>Ne yapılsın?
+      <select id="f-sablon"></select></label></div>
+    <fieldset id="alan-tahta"><legend>Tahtalar</legend>
+      <label><input type="checkbox" id="f-hepsi"> Hepsi</label>
+      <div id="f-tahtalar"></div></fieldset>
+    <fieldset id="f-gunler"><legend>Günler</legend></fieldset>
+    <label>Saat <input type="time" id="f-saat" value="21:00"></label>
+    <details><summary>Gelişmiş ifade</summary>
+      <label>OnCalendar ifadesi (doluysa gün ve saatin yerine geçer)
+        <input type="text" id="f-ifade" maxlength="100" placeholder="Mon..Fri *-*-* 21:00:00 Europe/Istanbul"></label></details>
+    <p class="son-hata" id="f-hata" hidden></p>
+    <div class="pencere-dugmeler">
+      <button type="button" class="dugme dugme-ikincil" id="f-vazgec">Vazgeç</button>
+      <button type="submit" class="dugme" id="f-kaydet">Kaydet</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+{% block script %}
+<script>
+(function () {
+  var GUN = [['Mon', 'Pzt'], ['Tue', 'Sal'], ['Wed', 'Çar'], ['Thu', 'Per'], ['Fri', 'Cum'], ['Sat', 'Cmt'], ['Sun', 'Paz']];
+  var veri = null, formKip = null;   // formKip: {tur:'ekle'} | {tur:'saat', birim}
+
+  function el(etiket, sinif, metin) { var e = document.createElement(etiket); if (sinif) e.className = sinif; if (metin != null) e.textContent = metin; return e; }
+  function tarih(t) { if (!t) return null; var m = /(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})/.exec(t);
+    if (!m) return null; var d = new Date(m[1] + 'T' + m[2] + (/ UTC$/.test(t) ? 'Z' : '')); return isNaN(d) ? null : d; }
+  function zaman(t) { var d = tarih(t); if (!d) return t || '—';
+    return d.toLocaleString('tr-TR', {weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}); }
+  function etiket(e) { return (veri && veri.eylem_etiketleri[e]) || e || '—'; }
+  function gunMetni(g) {
+    var p = g.ifade_parcalari;
+    if (!p) return g.normal || g.ifade || '—';
+    var ad = p.gunler.map(function (x) { return GUN.filter(function (k) { return k[0] === x; })[0][1]; });
+    return (p.gunler.length === 7 ? 'Her gün' : ad.join(' ')) + ' ' + p.saat;
+  }
+  function sarTablo(id, satirlar, bosMetin, sutun) {
+    var tb = document.querySelector('#' + id + ' tbody'); tb.textContent = '';
+    if (!satirlar.length) { var tr = el('tr'), td = el('td', 'soluk', bosMetin); td.colSpan = sutun; tr.appendChild(td); tb.appendChild(tr); }
+    satirlar.forEach(function (s) { tb.appendChild(s); });
+  }
+  function dugme(metin, sinif, tikla) { var b = el('button', 'dugme dugme-kucuk ' + sinif, metin); b.type = 'button'; b.addEventListener('click', tikla); return b; }
+
+  function yonetilenSatir(g) {
+    var tr = el('tr'), ad = el('td');
+    ad.appendChild(el('strong', null, g.sinif === 'panel' ? g.birim.replace(/^farabi-gorev-/, '') : g.birim));
+    if (g.sinif === 'panel') ad.appendChild(el('div', 'soluk kucuk', etiket(g.eylem) + ' · ' + (g.tahtalar === 'hepsi' ? 'Tüm tahtalar' : (g.tahtalar || '—').replace(/,/g, ', '))));
+    tr.appendChild(ad);
+    var z = el('td', null, gunMetni(g));
+    if (g.normal && g.ifade_parcalari) z.title = g.normal;
+    tr.appendChild(z);
+    tr.appendChild(el('td', null, g.etkin ? zaman(g.sonraki) : 'Kapalı'));
+    var et = el('td'), a = el('input', 'anahtar'); a.type = 'checkbox'; a.setAttribute('role', 'switch'); a.checked = g.etkin;
+    a.setAttribute('aria-label', g.birim + ' etkin');
+    a.addEventListener('change', function () { a.checked = !a.checked;
+      onayAc(g.birim + ' ' + (g.etkin ? 'kapatılsın mı?' : 'açılsın mı?'), null, g.etkin ? 'Kapat' : 'Aç', function () { gonder({eylem: g.etkin ? 'kapat' : 'ac', birim: g.birim}); }); });
+    et.appendChild(a); tr.appendChild(et);
+    var ey = el('div', 'eylem-hucre'), eyTd = el('td'); eyTd.appendChild(ey);
+    ey.appendChild(dugme('Şimdi çalıştır', 'dugme-ikincil', function () {
+      onayAc(g.birim + ' şimdi çalıştırılsın mı?', null, 'Çalıştır', function () { gonder({eylem: 'calistir', birim: g.birim}); }); }));
+    ey.appendChild(dugme('Saati değiştir', 'dugme-ikincil', function () { formAc({tur: 'saat', birim: g.birim}, g); }));
+    if (g.sinif === 'farabi') ey.appendChild(dugme('Varsayılana dön', 'dugme-ikincil', function () {
+      onayAc(g.birim + ' varsayılan saatine dönsün mü?', null, 'Sıfırla', function () { gonder({eylem: 'takvim-sifirla', birim: g.birim}); }); }));
+    if (g.sinif === 'panel') ey.appendChild(dugme('Sil', 'dugme-tehlike', function () {
+      onayAc(g.birim.replace(/^farabi-gorev-/, '') + ' görevi kalıcı olarak silinecek.', null, 'Sil', function () { gonder({eylem: 'sil', birim: g.birim}); }); }));
+    tr.appendChild(eyTd);
+    return tr;
+  }
+  function ciz() {
+    var f = veri.gorevler.filter(function (g) { return g.sinif === 'farabi'; });
+    var p = veri.gorevler.filter(function (g) { return g.sinif === 'panel'; });
+    var s = veri.gorevler.filter(function (g) { return g.sinif === 'sistem'; });
+    sarTablo('farabi-tablo', f.map(yonetilenSatir), 'Farabi görevi bulunamadı.', 5);
+    sarTablo('panel-tablo', p.map(yonetilenSatir), 'Henüz görev eklenmedi.', 5);
+    sarTablo('sistem-tablo', s.map(function (g) {
+      var tr = el('tr'); tr.appendChild(el('td', null, g.birim));
+      tr.appendChild(el('td', null, g.ifade || '—')); tr.appendChild(el('td', null, zaman(g.sonraki)));
+      tr.appendChild(el('td', null, zaman(g.son_tetik))); return tr; }), 'Sistem zamanlayıcısı yok.', 4);
+    document.getElementById('kpi-farabi').textContent = f.filter(function (g) { return g.etkin; }).length + '/' + f.length + ' açık';
+    document.getElementById('kpi-panel').textContent = p.length;
+    var sirada = f.concat(p).filter(function (g) { return g.etkin && tarih(g.sonraki); })
+      .sort(function (a, b) { return tarih(a.sonraki) - tarih(b.sonraki); })[0];
+    document.getElementById('kpi-siradaki').textContent = sirada ? sirada.birim.replace(/^farabi-gorev-/, '') + ' · ' + zaman(sirada.sonraki) : '—';
+    document.getElementById('ders-saati-rozeti').hidden = !veri.ders_saati;
+  }
+  function yukle() {
+    return fetch('/zamanlanmis-gorevler/api/liste').then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (j) { veri = j; ciz(); })
+      .catch(function () { window.farabiToast('Görev listesi alınamadı. Sayfayı yenileyin.'); });
+  }
+  function tahtalariYukle(taze) {
+    fetch('/zamanlanmis-gorevler/api/tahtalar' + (taze ? '?taze=1' : '')).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (j) {
+        sarTablo('tahta-tablo', j.tahtalar.map(function (t) {
+          var tr = el('tr'); tr.appendChild(el('td', null, t.tahta)); var td = el('td');
+          if (!t.ulasilabilir) td.appendChild(el('span', 'rozet rozet-gri', 'Ulaşılamadı'));
+          else if (!t.timer.length && !t.cron.length) td.appendChild(el('span', 'soluk', 'Kayıt yok'));
+          t.timer.concat(t.cron).forEach(function (s) { td.appendChild(el('div', 'soluk kucuk', s)); });
+          tr.appendChild(td); return tr; }), 'Tahta bulunamadı.', 2);
+      }).catch(function () { sarTablo('tahta-tablo', [], 'Tahta bilgisi alınamadı.', 2); });
+  }
+  function onayAc(metin, uyari, evetMetni, sonra) {
+    var p = document.getElementById('onay-penceresi'), u = document.getElementById('onay-uyari');
+    document.getElementById('onay-metin').textContent = metin;
+    u.hidden = !uyari; if (uyari) u.querySelector('span').textContent = uyari;
+    document.getElementById('onay-evet').textContent = evetMetni;
+    p.returnValue = ''; p.onclose = function () { if (p.returnValue === 'evet') sonra(); };
+    p.showModal();
+  }
+  function gonder(govde, sonraKapat) {
+    return fetch('/zamanlanmis-gorevler/api/eylem', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(govde)})
+      .then(function (r) { return r.json().then(function (j) { return {s: r.status, j: j}; }); })
+      .then(function (x) {
+        if (x.s === 409) {   // ders saati: ikinci onay
+          onayAc(govde.birim + '.', x.j.onay_gerekli, 'Yine de çalıştır', function () { govde.onay = true; gonder(govde); });
+          return;
+        }
+        if (x.s >= 400) { window.farabiToast((x.j && x.j.detail) || 'İşlem reddedildi.'); return; }
+        window.farabiToast(x.j.ok ? 'Tamam.' : 'Başarısız — ' + x.j.mesaj);
+        if (x.j.ok && sonraKapat) sonraKapat();
+        else if (!x.j.ok && document.getElementById('form-penceresi').open) { var h = document.getElementById('f-hata'); h.hidden = false; h.textContent = x.j.mesaj; }
+        setTimeout(yukle, 800);
+      }).catch(function () { window.farabiToast('Sunucuya ulaşılamadı.'); });
+  }
+
+  // ── form ──
+  var fp = document.getElementById('form-penceresi');
+  function formHazirla() {
+    var gk = document.getElementById('f-gunler'); gk.textContent = ''; gk.appendChild(el('legend', null, 'Günler'));
+    GUN.forEach(function (g) { var l = el('label'), c = el('input'); c.type = 'checkbox'; c.value = g[0]; l.appendChild(c); l.appendChild(document.createTextNode(' ' + g[1] + ' ')); gk.appendChild(l); });
+    var sb = document.getElementById('f-sablon'); sb.textContent = '';
+    Object.keys(veri.eylem_etiketleri).forEach(function (k) { var o = el('option', null, veri.eylem_etiketleri[k]); o.value = k; sb.appendChild(o); });
+    var tk = document.getElementById('f-tahtalar'); tk.textContent = '';
+    veri.tahta_adlari.forEach(function (t) { var l = el('label'), c = el('input'); c.type = 'checkbox'; c.value = t; l.appendChild(c); l.appendChild(document.createTextNode(' ' + t + ' ')); tk.appendChild(l); });
+    document.getElementById('f-hepsi').checked = false;
+    document.getElementById('f-ad').value = ''; document.getElementById('f-ifade').value = '';
+    document.getElementById('f-hata').hidden = true;
+  }
+  function gunSec(liste) { document.querySelectorAll('#f-gunler input').forEach(function (c) { c.checked = liste.indexOf(c.value) >= 0; }); }
+  function formAc(kip, g) {
+    if (!veri) return;
+    formKip = kip; formHazirla();
+    var saatMi = kip.tur === 'saat';
+    document.getElementById('form-baslik').textContent = saatMi ? 'Saati değiştir — ' + kip.birim : 'Görev ekle';
+    ['alan-ad', 'alan-sablon', 'alan-tahta'].forEach(function (i) { document.getElementById(i).hidden = saatMi; });
+    var p = saatMi && g && g.ifade_parcalari;
+    gunSec(p ? p.gunler : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+    document.getElementById('f-saat').value = p ? p.saat : '21:00';
+    if (saatMi && g && !p && g.ifade) document.getElementById('f-ifade').value = g.ifade;
+    fp.showModal();
+  }
+  document.getElementById('f-hepsi').addEventListener('change', function () {
+    document.querySelectorAll('#f-tahtalar input').forEach(function (c) { c.disabled = this.checked; }, this); });
+  document.getElementById('gorev-ekle').addEventListener('click', function () { formAc({tur: 'ekle'}); });
+  document.getElementById('f-vazgec').addEventListener('click', function () { fp.close(); });
+  document.getElementById('gorev-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var h = document.getElementById('f-hata'); h.hidden = true;
+    var gunler = Array.prototype.map.call(document.querySelectorAll('#f-gunler input:checked'), function (c) { return c.value; });
+    var ifade = document.getElementById('f-ifade').value.trim(), saat = document.getElementById('f-saat').value;
+    if (!ifade && (!gunler.length || !saat)) { h.hidden = false; h.textContent = 'En az bir gün ve saat seçin.'; return; }
+    var govde = {gunler: gunler, saat: saat, ifade: ifade};
+    if (formKip.tur === 'saat') { govde.eylem = 'takvim'; govde.birim = formKip.birim; }
+    else {
+      govde.eylem = 'olustur'; govde.ad = document.getElementById('f-ad').value; govde.sablon = document.getElementById('f-sablon').value;
+      if (!govde.ad.trim()) { h.hidden = false; h.textContent = 'Görev adı yazın.'; return; }
+      govde.tahtalar = document.getElementById('f-hepsi').checked ? 'hepsi' :
+        Array.prototype.map.call(document.querySelectorAll('#f-tahtalar input:checked'), function (c) { return c.value; });
+      if (govde.tahtalar !== 'hepsi' && !govde.tahtalar.length) { h.hidden = false; h.textContent = 'En az bir tahta seçin.'; return; }
+    }
+    gonder(govde, function () { fp.close(); });
+  });
+
+  document.getElementById('yenile').addEventListener('click', function () { yukle(); tahtalariYukle(true); });
+  yukle(); tahtalariYukle(false);
+  setInterval(function () { if (!document.hidden && !document.getElementById('onay-penceresi').open && !fp.open) yukle(); }, 30000);
+})();
+</script>
+{% endblock %}

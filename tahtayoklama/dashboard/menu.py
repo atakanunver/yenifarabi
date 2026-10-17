@@ -133,8 +133,8 @@ MENU: list[dict] = [
         "ogeler": [
             {"ad": "Servis yönetimi", "href": "/servisler", "ikon": "sunucu"},
             {
-                "ad": "Zamanlayıcılar",
-                "href": "/servisler#zamanlayicilar",
+                "ad": "Zamanlanmış görevler",
+                "href": "/zamanlanmis-gorevler",
                 "ikon": "saat",
             },
             {"ayrac": True},

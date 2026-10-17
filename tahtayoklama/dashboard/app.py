@@ -25,6 +25,7 @@ import db
 import ders_programi
 import kazanim_rapor
 import servis_yonetimi
+import zamanlanmis_gorevler
 import sistem_durumu
 import ssh_istemci
 import sunucular
@@ -115,6 +116,7 @@ app.include_router(sunucular.router)
 app.include_router(tahta_api.router)
 app.include_router(kazanim_rapor.router)
 app.include_router(servis_yonetimi.router)
+app.include_router(zamanlanmis_gorevler.router)
 app.include_router(veli_mesajlari.router)
 app.include_router(kameralar.router)
 app.include_router(acil.router)

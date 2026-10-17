@@ -1,0 +1,2 @@
+# /etc/sudoers.d/farabi-zamanlayici — dashboard yalnızca beyaz listeli betiği çağırır (2026-10-17)
+ata ALL=(root) NOPASSWD: /usr/local/sbin/farabi-zamanlayici

@@ -1,0 +1,107 @@
+#!/bin/bash
+# farabi-zamanlayici — dashboard'un (/zamanlanmis-gorevler) TEK ayrıcalıklı yazma kapısı (2026-10-17).
+# Kurulum: sudo install -o root -g root -m 755 scripts/farabi-zamanlayici /usr/local/sbin/farabi-zamanlayici
+#          sudo install -o root -g root -m 440 scripts/farabi-zamanlayici.sudoers /etc/sudoers.d/farabi-zamanlayici
+# Yönetilen birim listesi zamanlanmis_gorevler.YONETILEN ile BİREBİR aynı olmalı (test karşılaştırır).
+# Serbest komut YOK: panelin eklediği görevler yalnızca sabit EYLEMLER listesinden üretilir.
+set -euo pipefail
+SYSTEMCTL="${FARABI_ZAMANLAYICI_SYSTEMCTL:-/usr/bin/systemctl}"
+ANALYZE="${FARABI_ZAMANLAYICI_ANALYZE:-/usr/bin/systemd-analyze}"
+DIZIN="${FARABI_ZAMANLAYICI_DIZIN:-/etc/systemd/system}"
+DASHBOARD="${FARABI_ZAMANLAYICI_DASHBOARD:-/home/ata/farabi/tahtayoklama/dashboard}"
+YONETILEN="kazanim-test kazanim-test-sonuc kazanim-test-aylik soru-havuzu-uret farabi-idari-yukle farabi-tahta-karart-haftaici farabi-tahta-karart-haftasonu"
+EYLEMLER="ekran_karart ekran_kaldir yoklama_kapat chrome_kapat"
+GOREV_ONEKI="farabi-gorev-"
+
+reddet() { echo "farabi-zamanlayici: izin yok: $*" >&2; exit 2; }
+listede() { local x; for x in $2; do [[ "$x" == "$1" ]] && return 0; done; return 1; }
+
+gecerli_id() { [[ "$1" =~ ^[a-z0-9][a-z0-9-]{0,29}$ ]]; }
+# Birim adını (zamanlayıcı) çözer: yönetilen listede ya da farabi-gorev-<id> olmalı.
+birim_dogrula() {
+  if listede "$1" "$YONETILEN"; then return 0; fi
+  if [[ "$1" == ${GOREV_ONEKI}* ]] && gecerli_id "${1#"$GOREV_ONEKI"}"; then return 0; fi
+  return 1
+}
+# Zamanlayıcının tetiklediği servis (karartma timer'ları ortak servisi kullanır).
+servis_adi() {
+  case "$1" in
+    farabi-tahta-karart-haftaici|farabi-tahta-karart-haftasonu) echo "farabi-tahta-karart" ;;
+    *) echo "$1" ;;
+  esac
+}
+takvim_dogrula() {
+  local t="$1"
+  [[ -n "$t" && ${#t} -le 100 && "$t" != -* ]] || return 1
+  [[ "$t" =~ ^[A-Za-z0-9\ .,:*/_+~-]+$ ]] || return 1
+  "$ANALYZE" calendar "$t" >/dev/null 2>&1
+}
+tahtalar_dogrula() {
+  local t="$1" x
+  [[ -n "$t" && ${#t} -le 200 ]] || return 1
+  [[ "$t" == "hepsi" ]] && return 0
+  local IFS=','
+  for x in $t; do
+    [[ "$x" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,19}$ ]] || return 1
+  done
+  return 0
+}
+yenile() { "$SYSTEMCTL" daemon-reload; }
+
+[[ $# -ge 2 ]] || reddet "kullanım: farabi-zamanlayici <eylem> <birim|id> [argümanlar]"
+eylem="$1"; hedef="$2"
+
+case "$eylem" in
+  ac|kapat|calistir|takvim|takvim-sifirla)
+    birim_dogrula "$hedef" || reddet "$eylem $hedef"
+    case "$eylem" in
+      ac)       [[ $# -eq 2 ]] || reddet "$eylem argüman"; exec "$SYSTEMCTL" enable --now "$hedef.timer" ;;
+      kapat)    [[ $# -eq 2 ]] || reddet "$eylem argüman"; exec "$SYSTEMCTL" disable --now "$hedef.timer" ;;
+      calistir) [[ $# -eq 2 ]] || reddet "$eylem argüman"; exec "$SYSTEMCTL" start --no-block "$(servis_adi "$hedef").service" ;;
+      takvim)
+        [[ $# -eq 3 ]] || reddet "takvim: <birim> <ifade>"
+        takvim_dogrula "$3" || reddet "takvim ifadesi geçersiz"
+        # Panelin eklediği görev: ana .timer dosyasındaki OnCalendar zaten tek satır; drop-in yine de çalışır.
+        mkdir -p "$DIZIN/$hedef.timer.d"
+        printf '[Timer]\nOnCalendar=\nOnCalendar=%s\n' "$3" > "$DIZIN/$hedef.timer.d/zaman.conf"
+        yenile
+        # Zamanlayıcı etkinse yeni takvimi hemen al.
+        if "$SYSTEMCTL" is-active --quiet "$hedef.timer"; then "$SYSTEMCTL" restart "$hedef.timer"; fi ;;
+      takvim-sifirla)
+        [[ $# -eq 2 ]] || reddet "$eylem argüman"
+        rm -f "$DIZIN/$hedef.timer.d/zaman.conf"
+        rmdir "$DIZIN/$hedef.timer.d" 2>/dev/null || true
+        yenile
+        if "$SYSTEMCTL" is-active --quiet "$hedef.timer"; then "$SYSTEMCTL" restart "$hedef.timer"; fi ;;
+    esac ;;
+
+  olustur)
+    [[ $# -eq 5 ]] || reddet "olustur: <id> <eylem> <tahtalar> <ifade>"
+    id="$2"; gorev="$3"; tahtalar="$4"; ifade="$5"
+    gecerli_id "$id" || reddet "olustur: geçersiz id"
+    listede "$gorev" "$EYLEMLER" || reddet "olustur: eylem listede değil"
+    tahtalar_dogrula "$tahtalar" || reddet "olustur: geçersiz tahta listesi"
+    takvim_dogrula "$ifade" || reddet "olustur: takvim ifadesi geçersiz"
+    birim="${GOREV_ONEKI}${id}"
+    [[ ! -e "$DIZIN/$birim.timer" && ! -e "$DIZIN/$birim.service" ]] || reddet "olustur: $birim zaten var"
+    printf '[Unit]\nDescription=Farabi zamanlanmış görev %s (%s)\nAfter=farabi-yoklama-dashboard.service\n\n[Service]\nType=oneshot\nUser=ata\nWorkingDirectory=%s\nExecStart=%s/venv/bin/python scripts/tahta_eylem_zamanli.py %s %s\nTimeoutStartSec=6min\n' \
+      "$id" "$gorev" "$DASHBOARD" "$DASHBOARD" "$gorev" "$tahtalar" > "$DIZIN/$birim.service"
+    printf '[Unit]\nDescription=Farabi zamanlanmış görev %s (%s)\n\n[Timer]\nOnCalendar=%s\nPersistent=false\n\n[Install]\nWantedBy=timers.target\n' \
+      "$id" "$gorev" "$ifade" > "$DIZIN/$birim.timer"
+    chmod 644 "$DIZIN/$birim.service" "$DIZIN/$birim.timer"
+    yenile
+    exec "$SYSTEMCTL" enable --now "$birim.timer" ;;
+
+  sil)
+    [[ $# -eq 2 ]] || reddet "sil: <id>"
+    gecerli_id "$hedef" || reddet "sil: geçersiz id"
+    birim="${GOREV_ONEKI}${hedef}"
+    [[ -e "$DIZIN/$birim.timer" ]] || reddet "sil: $birim yok"
+    "$SYSTEMCTL" disable --now "$birim.timer" || true
+    rm -f "$DIZIN/$birim.timer" "$DIZIN/$birim.service" "$DIZIN/$birim.timer.d/zaman.conf"
+    rmdir "$DIZIN/$birim.timer.d" 2>/dev/null || true
+    yenile
+    "$SYSTEMCTL" reset-failed "$birim.service" 2>/dev/null || true ;;
+
+  *) reddet "$eylem $hedef" ;;
+esac
