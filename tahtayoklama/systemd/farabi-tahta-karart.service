@@ -1,0 +1,10 @@
+[Unit]
+Description=Farabi tahtalarda zamanlı ekran karartma (dashboard "Ekranı karart" düğmesinin aynısı)
+After=farabi-yoklama-dashboard.service
+
+[Service]
+Type=oneshot
+User=ata
+WorkingDirectory=/home/ata/farabi/tahtayoklama/dashboard
+ExecStart=/home/ata/farabi/tahtayoklama/dashboard/venv/bin/python scripts/tahta_karart_zamanli.py
+TimeoutStartSec=6min

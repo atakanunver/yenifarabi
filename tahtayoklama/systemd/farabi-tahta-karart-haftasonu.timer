@@ -1,0 +1,10 @@
+[Unit]
+Description=Tahta karartma — Cumartesi-Pazar 17:00 (TR)
+
+[Timer]
+OnCalendar=Sat,Sun *-*-* 17:00:00 Europe/Istanbul
+Persistent=false
+Unit=farabi-tahta-karart.service
+
+[Install]
+WantedBy=timers.target
