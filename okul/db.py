@@ -470,9 +470,35 @@ CREATE TABLE acil_konum (
 CREATE INDEX acil_konum_zaman ON acil_konum(olusturma);
 """
 
+# Öğrenci acil bildirimi: yalnızca yöneticiler görür, 24 saat sonra silinir (acil.py).
+SEMA_V16 = """
+CREATE TABLE acil_ogrenci (
+    id            INTEGER PRIMARY KEY,
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    enlem         REAL,
+    boylam        REAL,
+    dogruluk_m    REAL,
+    olusturma     TEXT NOT NULL
+);
+CREATE INDEX acil_ogrenci_zaman ON acil_ogrenci(olusturma);
+"""
+
+# Acil durum: panel/Telegram/tahta kaynaklı (okul dışı) olaylar — push + şerit için (acil.py). acil_olay okul kullanıcısı gerektirir.
+SEMA_V17 = """
+CREATE TABLE acil_dis_olay (
+    id         INTEGER PRIMARY KEY,
+    tur        TEXT NOT NULL,
+    tatbikat   INTEGER NOT NULL DEFAULT 0,
+    kaynak     TEXT NOT NULL,
+    olusturma  TEXT NOT NULL,
+    kapanis    TEXT
+);
+CREATE INDEX acil_dis_olay_zaman ON acil_dis_olay(olusturma);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
-    SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15,
+    SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
 ]
 
 

@@ -28,6 +28,8 @@ AKTIF_SAAT = 12  # bu süreden eski alarm aktif sayılmaz (kapatılmamış olsa 
 KONUM_SAKLAMA_SAAT = 24
 KONUM_DAKIKA_AZAMI = 3
 KONUM_PUSH_ARALIK_DK = 3
+OGRENCI_DAKIKA_AZAMI = 3  # öğrenci başına 10 dakikada (GPS yeniden denemesine izin)
+OGRENCI_PUSH_ARALIK_DK = 2
 TEMIZLIK_ARALIK = timedelta(hours=1)
 UST_KAT = {"9-A", "9-B", "10-A", "12-B"}  # dashboard acil.UST_KAT ile aynı (okul 2 katlı)
 SABIT_YERLER = ("Bahçe / toplanma alanı", "Giriş katı koridor", "Üst kat koridor", "Müdür odası", "Öğretmenler odası")
@@ -131,9 +133,10 @@ def jeton_gecerli(jeton: str, oturum_token: str, kid: int, tur: str, yer: str) -
 
 
 def aktif(conn: sqlite3.Connection) -> dict | None:
-    """Kapatılmamış, başarılı, son AKTIF_SAAT içindeki en son alarm (yoksa None)."""
+    """Kapatılmamış en son alarm (okul portalından başarılı başlatılan ya da panel/Telegram/tahta kaynaklı), son AKTIF_SAAT içinde."""
     sinir = (zaman.simdi() - timedelta(hours=AKTIF_SAAT)).strftime(zaman.BICIM)
     yer = ",".join("?" * len(ALARM_TURLERI))
+    adaylar = []
     r = conn.execute(
         f"SELECT o.id, o.tur, o.yer, o.tatbikat, o.olusturma, u.ad_soyad FROM acil_olay o"
         f" JOIN kullanici u ON u.id = o.kullanici_id"
@@ -141,12 +144,60 @@ def aktif(conn: sqlite3.Connection) -> dict | None:
         f" ORDER BY o.id DESC LIMIT 1",
         (*ALARM_TURLERI, sinir),
     ).fetchone()
-    if r is None:
-        return None
-    return {
-        "id": r["id"], "tur": r["tur"], "tur_ad": TURLER[r["tur"]]["ad"], "yer": r["yer"] or "",
-        "tatbikat": bool(r["tatbikat"]), "ad": r["ad_soyad"], "saat": r["olusturma"][11:16],
-    }
+    if r is not None:
+        adaylar.append((r["olusturma"], {
+            "id": r["id"], "tur": r["tur"], "tur_ad": TURLER[r["tur"]]["ad"], "yer": r["yer"] or "",
+            "tatbikat": bool(r["tatbikat"]), "ad": r["ad_soyad"], "saat": r["olusturma"][11:16],
+        }))
+    d = conn.execute(
+        f"SELECT id, tur, tatbikat, kaynak, olusturma FROM acil_dis_olay"
+        f" WHERE tur IN ({yer}) AND kapanis IS NULL AND olusturma >= ? ORDER BY id DESC LIMIT 1",
+        (*ALARM_TURLERI, sinir),
+    ).fetchone()
+    if d is not None:
+        adaylar.append((d["olusturma"], {
+            "id": f"d{d['id']}", "tur": d["tur"], "tur_ad": TURLER[d["tur"]]["ad"], "yer": "",
+            "tatbikat": bool(d["tatbikat"]), "ad": d["kaynak"], "saat": d["olusturma"][11:16],
+        }))
+    return max(adaylar, key=lambda x: x[0])[1] if adaylar else None
+
+
+def son_olaylar(conn: sqlite3.Connection, limit: int = 5) -> list[dict]:
+    """/acil sayfasındaki kısa geçmiş: okul portalı + dış kaynaklı olaylar, en yeni önce (kaynak etiketli)."""
+    sonuc = [
+        {"tur_ad": TURLER[r["tur"]]["ad"], "kim": r["ad_soyad"], "tatbikat": bool(r["tatbikat"]), "zaman": r["olusturma"]}
+        for r in conn.execute(
+            "SELECT o.tur, o.tatbikat, o.olusturma, u.ad_soyad FROM acil_olay o JOIN kullanici u ON u.id = o.kullanici_id"
+            " WHERE o.basarili = 1 ORDER BY o.id DESC LIMIT ?", (limit,),
+        )
+    ] + [
+        {"tur_ad": TURLER[r["tur"]]["ad"], "kim": r["kaynak"], "tatbikat": bool(r["tatbikat"]), "zaman": r["olusturma"]}
+        for r in conn.execute("SELECT tur, tatbikat, kaynak, olusturma FROM acil_dis_olay ORDER BY id DESC LIMIT ?", (limit,))
+    ]
+    sonuc.sort(key=lambda x: x["zaman"], reverse=True)
+    return [{**o, "zaman": o["zaman"][5:16].replace("-", ".")} for o in sonuc[:limit]]
+
+
+def dis_olay_ekle(conn: sqlite3.Connection, tur: str, tatbikat: bool, kaynak: str) -> int:
+    """Panel/Telegram/tahta kaynaklı olay. Kapatan türler (gecti/yanlis_alarm) açık alarmları iki tabloda da kapatır."""
+    if tur not in TURLER:
+        raise AcilHatasi("Geçersiz tür.")
+    kaynak = "".join(c for c in str(kaynak or "")[:40] if c.isprintable()).strip() or "Panel"
+    simdi = zaman.simdi_str()
+    kapat = tur in KAPATAN_TURLER
+    cur = conn.execute(
+        "INSERT INTO acil_dis_olay (tur, tatbikat, kaynak, olusturma, kapanis) VALUES (?, ?, ?, ?, ?)",
+        (tur, 1 if tatbikat else 0, kaynak, simdi, simdi if kapat else None),
+    )
+    if kapat:
+        yer = ",".join("?" * len(ALARM_TURLERI))
+        conn.execute(f"UPDATE acil_olay SET kapanis = ? WHERE kapanis IS NULL AND tur IN ({yer})", (simdi, *ALARM_TURLERI))
+        conn.execute(
+            f"UPDATE acil_dis_olay SET kapanis = ? WHERE kapanis IS NULL AND tur IN ({yer}) AND id != ?",
+            (simdi, *ALARM_TURLERI, cur.lastrowid),
+        )
+    conn.commit()
+    return cur.lastrowid
 
 
 def _sms_metni(k: sqlite3.Row, tur: str, yer: str) -> str:
@@ -186,6 +237,10 @@ def baslat(conn: sqlite3.Connection, k: sqlite3.Row, tur: str, yer: str, jeton: 
             f"UPDATE acil_olay SET kapanis = ? WHERE kapanis IS NULL AND tur IN ({','.join('?' * len(ALARM_TURLERI))}) AND id != ?",
             (simdi, *ALARM_TURLERI, olay_id),
         )
+        conn.execute(
+            f"UPDATE acil_dis_olay SET kapanis = ? WHERE kapanis IS NULL AND tur IN ({','.join('?' * len(ALARM_TURLERI))})",
+            (simdi, *ALARM_TURLERI),
+        )
     conn.commit()
     yetki.erisim_kaydet(conn, k, f"acil:{tur}", None, None)
     return {"olay_id": olay_id, "tatbikat": bool(sonuc.get("tatbikat")), "kanallar": sonuc.get("kanallar", [])}
@@ -216,6 +271,7 @@ def _konum_esigi() -> str:
 
 def temizle(conn: sqlite3.Connection) -> int:
     n = conn.execute("DELETE FROM acil_konum WHERE olusturma < ?", (_konum_esigi(),)).rowcount
+    n += conn.execute("DELETE FROM acil_ogrenci WHERE olusturma < ?", (_konum_esigi(),)).rowcount
     conn.commit()
     return n
 
@@ -287,28 +343,82 @@ def konumlar(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
     return sonuc
 
 
+# --- öğrenci acil bildirimi (yalnızca yöneticiler görür) ---
+
+
+def ogrenci_bildir(conn: sqlite3.Connection, k: sqlite3.Row, enlem="", boylam="", dogruluk="") -> tuple[int, bool]:
+    """(kayıt id, push gitmeli mi). GPS isteğe bağlı (izin verilmezse yalnızca öğrenci+sınıf iner); alarm/SMS TETİKLENMEZ."""
+    if k["rol"] != "ogrenci":
+        raise AcilHatasi("Geçersiz istek.", 404)
+    e, b, d = _sayi(enlem, -90, 90, "enlem"), _sayi(boylam, -180, 180, "boylam"), _sayi(dogruluk, 0, 5000, "doğruluk")
+    if (e is None) != (b is None):
+        raise AcilHatasi("Enlem ve boylam birlikte gönderilmeli.")
+    if e is None:
+        d = None
+    on_dk = (zaman.simdi() - timedelta(minutes=10)).strftime(zaman.BICIM)
+    if conn.execute("SELECT COUNT(*) FROM acil_ogrenci WHERE kullanici_id = ? AND olusturma >= ?", (k["id"], on_dk)).fetchone()[0] >= OGRENCI_DAKIKA_AZAMI:
+        raise AcilHatasi("Bildirimin zaten iletildi. Öğretmeninin söylediklerini yap, gerekirse 112'yi ara.", 429)
+    push_aralik = (zaman.simdi() - timedelta(minutes=OGRENCI_PUSH_ARALIK_DK)).strftime(zaman.BICIM)
+    bildir_mi = (
+        conn.execute("SELECT COUNT(*) FROM acil_ogrenci WHERE kullanici_id = ? AND olusturma >= ?", (k["id"], push_aralik)).fetchone()[0] == 0
+    )
+    cur = conn.execute(
+        "INSERT INTO acil_ogrenci (kullanici_id, enlem, boylam, dogruluk_m, olusturma) VALUES (?, ?, ?, ?, ?)",
+        (k["id"], e, b, d, zaman.simdi_str()),
+    )
+    conn.commit()
+    _temizle_gerekirse(conn)
+    return cur.lastrowid, bildir_mi
+
+
+def ogrenci_bildirimleri(conn: sqlite3.Connection, limit: int = 50) -> list[dict]:
+    """Son 24 saat, öğrenci başına en yenisi (en yeni önce). YALNIZCA yönetici sayfasında kullanılır."""
+    sonuc = []
+    for r in conn.execute(
+        "SELECT a.*, u.ad_soyad FROM acil_ogrenci a JOIN kullanici u ON u.id = a.kullanici_id"
+        " WHERE a.olusturma >= ? AND a.id = (SELECT MAX(id) FROM acil_ogrenci WHERE kullanici_id = a.kullanici_id)"
+        " ORDER BY a.id DESC LIMIT ?",
+        (_konum_esigi(), limit),
+    ):
+        o = yetki.ogrenci_kaydi(conn, r["kullanici_id"])
+        sonuc.append({
+            "id": r["id"], "ad_soyad": r["ad_soyad"], "sinif": o["sinif"] if o else "", "zaman": r["olusturma"][11:16],
+            "dogruluk_m": r["dogruluk_m"],
+            "harita": f"https://www.google.com/maps?q={r['enlem']},{r['boylam']}" if r["enlem"] is not None else "",
+        })
+    return sonuc
+
+
+def son_imza(conn: sqlite3.Connection) -> str:
+    """Konum + öğrenci bildirimi en yeni id'leri: sayfa değişince yenilensin (acil.js)."""
+    k = conn.execute("SELECT COALESCE(MAX(id), 0) FROM acil_konum").fetchone()[0]
+    o = conn.execute("SELECT COALESCE(MAX(id), 0) FROM acil_ogrenci").fetchone()[0]
+    return f"{k}-{o}"
+
+
 # --- bildirim (push, sabit şablon) ---
 
 
-def bildirim_alicilari(conn: sqlite3.Connection, haric_id: int) -> list[int]:
+def bildirim_alicilari(conn: sqlite3.Connection, haric_id: int, roller: tuple[str, ...] = ROLLER) -> list[int]:
+    yer = ",".join("?" * len(roller))
     return [
         r[0]
         for r in conn.execute(
-            "SELECT DISTINCT u.id FROM kullanici u JOIN push_abonelik p ON p.kullanici_id = u.id"
-            " WHERE u.aktif = 1 AND u.rol IN ('ogretmen', 'yonetici') AND u.id != ?",
-            (haric_id,),
+            f"SELECT DISTINCT u.id FROM kullanici u JOIN push_abonelik p ON p.kullanici_id = u.id"
+            f" WHERE u.aktif = 1 AND u.rol IN ({yer}) AND u.id != ?",
+            (*roller, haric_id),
         )
     ]
 
 
-def bildir(haric_id: int) -> None:
+def bildir(haric_id: int, roller: tuple[str, ...] = ROLLER, sablon: str = "acil") -> None:
     """Arka plan görevi: kendi bağlantısını açar, asla istisna fırlatmaz."""
     if not push.etkin_mi():
         return
     try:
         conn = db.baglanti()
         try:
-            push.gonder(conn, bildirim_alicilari(conn, haric_id), "acil")
+            push.gonder(conn, bildirim_alicilari(conn, haric_id, roller), sablon)
         finally:
             conn.close()
     except Exception as e:  # noqa: BLE001

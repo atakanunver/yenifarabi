@@ -29,31 +29,13 @@
 
 {% if k and not k.sifre_degismeli and k.rol in ('ogretmen', 'yonetici') %}
 <a id="acil-serit" class="acil-serit" href="/acil" role="alert"{% if not acil_aktif|default(none) %} hidden{% endif %}><b>ACİL DURUM<span id="acil-serit-tur">{% if acil_aktif|default(none) %}: {{ acil_aktif.tur_ad }}{% if acil_aktif.tatbikat %} (TATBİKAT){% endif %}{% endif %}</span></b> <span id="acil-serit-kim">{% if acil_aktif|default(none) %}{{ acil_aktif.ad }} · {{ acil_aktif.saat }}{% endif %}</span> · Ayrıntı →</a>
-<script src="/static/acil.js?v=1" defer></script>
+<script src="/static/acil.js?v=2" defer></script>
 {% endif %}
 <main class="sayfa">
 {% if k and not k.sifre_degismeli and k.rol in ('ogretmen', 'yonetici') and request.url.path in ('/ogretmen', '/yonetici') %}
 <a class="kart sohbet-kart" href="/sohbet">
   <b>Sohbet odası</b>{% if sohbet_okunmamis|default(0) %} <span class="sayi-rozet">{{ sohbet_okunmamis }} yeni</span>{% endif %}
   <span class="soluk kucuk">Öğretmenler ve yöneticiler · mesajlar 30 gün sonra silinir</span>
-</a>
-{% endif %}
-{% if k and not k.sifre_degismeli and k.rol in ('ogrenci', 'ogretmen') and request.url.path in ('/ogrenci', '/ogretmen') %}
-<a class="kart acil-kart" href="tel:112"><b>📞 112'yi ara</b><span class="soluk kucuk">Acil Çağrı Merkezi · dokununca telefon açılır</span></a>
-{% endif %}
-{% if k and not k.sifre_degismeli and k.rol in ('ogretmen', 'yonetici') and request.url.path in ('/ogretmen', '/yonetici') %}
-<a class="kart acil-kart" href="/acil"><b>ACİL DURUM</b><span class="soluk kucuk">Alarm başlat · konum gönder</span></a>
-{% endif %}
-{% if k and not k.sifre_degismeli and k.rol in ('ogrenci', 'ogretmen') and request.url.path in ('/ogrenci', '/ogretmen') %}
-<a class="kart sohbet-kart" href="/kutu">
-  <b>Dilek / istek / şikayet kutusu</b>
-  <span class="soluk kucuk">Yöneticiye yaz · yönetici adını görür</span>
-</a>
-{% endif %}
-{% if k and not k.sifre_degismeli and k.rol == 'yonetici' and request.url.path == '/yonetici' %}
-<a class="kart sohbet-kart" href="/yonetici/kutu">
-  <b>Dilek / istek / şikayet kutusu</b>{% if kutu_yeni|default(0) %} <span class="sayi-rozet">{{ kutu_yeni }} yeni</span>{% endif %}
-  <span class="soluk kucuk">Öğrenci ve öğretmen kayıtları</span>
 </a>
 {% endif %}
 {% if k and not k.sifre_degismeli and push_etkin() and request.url.path in ('/ogrenci', '/veli', '/ogretmen', '/yonetici', '/duyurular') %}
@@ -76,6 +58,27 @@
 {% endif %}
 {% if anket_bekleyen and not request.url.path.startswith('/anket') %}<a class="not anket-bildirim" href="/anket">📝 Yanıtlamanı bekleyen {{ anket_bekleyen }} anket var →</a>{% endif %}
 {% block icerik %}{% endblock %}
+{% if k and not k.sifre_degismeli and k.rol in ('ogrenci', 'ogretmen') and request.url.path in ('/ogrenci', '/ogretmen') %}
+<a class="acil-dugme" style="margin:.6rem 0" href="tel:112">📞 112'yi ara<br><small style="font-weight:400">Acil Çağrı Merkezi · dokununca telefon açılır</small></a>
+{% endif %}
+{% if k and not k.sifre_degismeli and k.rol == 'ogrenci' and request.url.path == '/ogrenci' %}
+<a class="acil-dugme" style="margin:.6rem 0" href="/acil/ogrenci">🚨 Acil Durum Var Konumumu İdareye Gönder</a>
+{% endif %}
+{% if k and not k.sifre_degismeli and k.rol in ('ogrenci', 'ogretmen') and request.url.path in ('/ogrenci', '/ogretmen') %}
+<a class="kart sohbet-kart" href="/kutu" style="background:#3b4048;border-color:#3b4048;color:#fff;text-align:center">
+  <b>Dilek İstek Şikayet Kutusu</b>
+  <span class="kucuk" style="color:#d5d9de">Yöneticiye yaz · yönetici adını görür</span>
+</a>
+{% endif %}
+{% if k and not k.sifre_degismeli and k.rol == 'yonetici' and request.url.path == '/yonetici' %}
+<a class="kart sohbet-kart" href="/yonetici/kutu" style="background:#3b4048;border-color:#3b4048;color:#fff;text-align:center">
+  <b>Dilek İstek Şikayet Kutusu</b>{% if kutu_yeni|default(0) %} <span class="sayi-rozet">{{ kutu_yeni }} yeni</span>{% endif %}
+  <span class="kucuk" style="color:#d5d9de">Öğrenci ve öğretmen kayıtları</span>
+</a>
+{% endif %}
+{% if k and not k.sifre_degismeli and k.rol in ('ogretmen', 'yonetici') and request.url.path in ('/ogretmen', '/yonetici') %}
+<a class="acil-dugme" style="margin:.6rem 0" href="/acil">ACİL DURUM<br><small style="font-weight:400">Alarm başlat · konum gönder</small></a>
+{% endif %}
 {% include "_kanallar.html" %}
 </main>
 

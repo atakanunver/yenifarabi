@@ -307,7 +307,7 @@ def test_ana_sayfa_karti(istemci, ornek):
 
 def test_sw_ve_css_surumu(istemci):
     sw = istemci.get("/sw.js").text
-    assert "okul-v27" in sw and "/static/maraton.js?v=1" in sw and "okul.css?v=23" in sw
+    assert "okul-v28" in sw and "/static/maraton.js?v=1" in sw and "okul.css?v=23" in sw
     assert "okul.css?v=23" in istemci.get("/giris").text
 
 

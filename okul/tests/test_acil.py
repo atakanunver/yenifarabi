@@ -406,3 +406,252 @@ def test_geri_al_v15():
     from scripts import geri_al
 
     assert 15 in geri_al.GERI and "acil_konum" in geri_al.GERI[15] and "acil_olay" in geri_al.GERI[15]
+
+
+# --- öğrenci acil bildirimi (yalnızca yöneticiler görür) ---
+
+
+def _ogr_gonder(c, **veri):
+    return c.post("/acil/ogrenci", data={"csrf": _csrf(c, "/acil/ogrenci"), **veri})
+
+
+@pytest.mark.parametrize("rol", ["ogretmen", "yonetici", "veli"])
+def test_ogrenci_bildirimi_yalniz_ogrenci_gonderir(conn, yeni_kullanici, dashboard, rol):
+    k = _kisi(conn, yeni_kullanici, rol, "no" + rol)
+    with _istemci() as c:
+        _oturum(c, conn, k)
+        assert c.get("/acil/ogrenci").status_code == 404
+        assert c.post("/acil/ogrenci", data={}).status_code in (400, 404)
+    assert conn.execute("SELECT COUNT(*) FROM acil_ogrenci").fetchone()[0] == 0
+
+
+def test_ogrenci_ana_sayfada_dugme_var_ogretmende_yok(conn, yeni_kullanici, dashboard):
+    st = _kisi(conn, yeni_kullanici, "ogrenci", "dugmeli")
+    og = _kisi(conn, yeni_kullanici, "ogretmen", "dugmesiz")
+    with _istemci() as c:
+        _oturum(c, conn, st)
+        assert 'href="/acil/ogrenci"' in c.get("/ogrenci").text
+    with _istemci() as c:
+        _oturum(c, conn, og)
+        assert 'href="/acil/ogrenci"' not in c.get("/ogretmen").text
+
+
+def test_ogrenci_gonderir_yalniz_yonetici_gorur_alarm_tetiklenmez(conn, yeni_kullanici, dashboard, monkeypatch):
+    st = _kisi(conn, yeni_kullanici, "ogrenci", "cocuk")
+    yon = _kisi(conn, yeni_kullanici, "yonetici", "mudur")
+    og = _kisi(conn, yeni_kullanici, "ogretmen", "hoca")
+    for kid in (yon, og, st):
+        conn.execute(
+            "INSERT INTO push_abonelik (kullanici_id, uc_nokta, p256dh, auth, olusturma) VALUES (?, ?, 'p', 'a', ?)",
+            (kid, f"https://fcm.googleapis.com/{kid}", zaman.simdi_str()),
+        )
+    conn.commit()
+    gonderilen = []
+    monkeypatch.setattr(push, "etkin_mi", lambda: True)
+    monkeypatch.setattr(push, "gonder", lambda c, idler, tur, **kw: gonderilen.append((list(idler), tur)))
+    with _istemci() as c:
+        _oturum(c, conn, st)
+        r = _ogr_gonder(c, enlem="39.9", boylam="32.8", dogruluk="15")
+        assert r.status_code == 200 and "idareye iletildi" in r.text and 'href="tel:112"' in r.text
+    assert gonderilen == [([yon], "acil")]  # yalnızca yönetici; öğretmen/öğrenci yok
+    assert not dashboard["tetikle"] and _olay_sayisi(conn) == 0 and acil.aktif(conn) is None  # alarm/SMS yok
+    with _istemci() as c:
+        _oturum(c, conn, yon)
+        html = c.get("/acil").text
+        assert "Öğrenciden acil bildirim" in html and "Cocuk" in html and "9-A" in html and "google.com/maps?q=39.9,32.8" in html
+    with _istemci() as c:
+        _oturum(c, conn, og)
+        html = c.get("/acil").text
+        assert "Öğrenciden acil bildirim" not in html and "Cocuk" not in html  # öğretmen görmez
+
+
+def test_ogrenci_konumsuz_gonderebilir(conn, yeni_kullanici, dashboard):
+    st = _kisi(conn, yeni_kullanici, "ogrenci", "izinsiz")
+    yon = _kisi(conn, yeni_kullanici, "yonetici", "mudur2")
+    with _istemci() as c:
+        _oturum(c, conn, st)
+        assert "idareye iletildi" in _ogr_gonder(c).text
+    with _istemci() as c:
+        _oturum(c, conn, yon)
+        assert "yalnızca ad ve sınıf" in c.get("/acil").text
+
+
+@pytest.mark.parametrize("veri", [{"enlem": "91", "boylam": "10"}, {"enlem": "10"}, {"enlem": "x", "boylam": "10"}])
+def test_ogrenci_gecersiz_konum(conn, yeni_kullanici, dashboard, veri):
+    st = _kisi(conn, yeni_kullanici, "ogrenci", "gecersizk")
+    with _istemci() as c:
+        _oturum(c, conn, st)
+        assert _ogr_gonder(c, **veri).status_code == 400
+    assert conn.execute("SELECT COUNT(*) FROM acil_ogrenci").fetchone()[0] == 0
+
+
+def test_ogrenci_hiz_siniri_ve_csrf(conn, yeni_kullanici, dashboard):
+    st = _kisi(conn, yeni_kullanici, "ogrenci", "cok")
+    with _istemci() as c:
+        _oturum(c, conn, st)
+        assert c.post("/acil/ogrenci", data={"csrf": "yanlis"}).status_code == 400
+        for _ in range(acil.OGRENCI_DAKIKA_AZAMI):
+            assert _ogr_gonder(c).status_code == 200
+        assert _ogr_gonder(c).status_code == 429
+
+
+def test_ogrenci_bildirimi_24_saat_sonra_silinir(conn, yeni_kullanici, dashboard):
+    st = _kisi(conn, yeni_kullanici, "ogrenci", "eskiogr")
+    eski = (zaman.simdi() - timedelta(hours=acil.KONUM_SAKLAMA_SAAT + 1)).strftime(zaman.BICIM)
+    conn.execute("INSERT INTO acil_ogrenci (kullanici_id, olusturma) VALUES (?, ?)", (st, eski))
+    conn.commit()
+    assert acil.ogrenci_bildirimleri(conn) == []
+    assert acil.temizle(conn) == 1
+
+
+def test_geri_al_v16():
+    from scripts import geri_al
+
+    assert 16 in geri_al.GERI and "acil_ogrenci" in geri_al.GERI[16]
+
+
+# --- panel/Telegram/tahta kaynaklı olay (dashboard → okul) ---
+
+
+@pytest.fixture
+def dis_anahtar(monkeypatch):
+    import rotalar.acil as rota_acil
+    from ayarlar import AYAR
+
+    monkeypatch.setattr(AYAR, "acil_anahtar", "gizli-k")
+    monkeypatch.setattr(rota_acil, "_lan_mi", lambda request: True)  # TestClient LAN sayılsın
+    return {"X-Acil-Anahtar": "gizli-k"}
+
+
+def _dis(c, headers, **govde):
+    return c.post("/acil/dis-olay", json={"tur": "kilit", "tatbikat": True, "kaynak": "Telegram: Ali", **govde}, headers=headers)
+
+
+def test_dis_olay_anahtarsiz_ve_yanlis_anahtar_404(conn, monkeypatch):
+    import rotalar.acil as rota_acil
+    from ayarlar import AYAR
+
+    monkeypatch.setattr(rota_acil, "_lan_mi", lambda request: True)
+    with _istemci() as c:
+        assert _dis(c, {"X-Acil-Anahtar": "x"}).status_code == 404  # sunucuda anahtar yok
+        monkeypatch.setattr(AYAR, "acil_anahtar", "dogru")
+        assert _dis(c, {}).status_code == 404
+        assert _dis(c, {"X-Acil-Anahtar": "yanlis"}).status_code == 404
+    assert conn.execute("SELECT COUNT(*) FROM acil_dis_olay").fetchone()[0] == 0
+
+
+def test_dis_olay_tunel_basligi_ve_ag_siniri():
+    from types import SimpleNamespace
+
+    from rotalar import pano
+
+    lan = SimpleNamespace(headers={}, client=SimpleNamespace(host="192.168.23.252"))
+    assert pano._lan_mi(lan) is True
+    tunel = SimpleNamespace(headers={"cf-connecting-ip": "1.2.3.4"}, client=SimpleNamespace(host="127.0.0.1"))
+    assert pano._lan_mi(tunel) is False
+    dis_ip = SimpleNamespace(headers={}, client=SimpleNamespace(host="8.8.8.8"))
+    assert pano._lan_mi(dis_ip) is False
+
+
+def test_dis_olay_tunelden_gelirse_404(conn, monkeypatch):
+    from ayarlar import AYAR
+
+    monkeypatch.setattr(AYAR, "acil_anahtar", "k")  # _lan_mi gerçek: TestClient 'testclient' host → LAN dışı
+    with _istemci() as c:
+        assert _dis(c, {"X-Acil-Anahtar": "k", "cf-connecting-ip": "1.2.3.4"}).status_code == 404
+
+
+def test_dis_olay_serit_ve_push_tum_personele(conn, yeni_kullanici, dashboard, dis_anahtar, monkeypatch):
+    og = _kisi(conn, yeni_kullanici, "ogretmen", "hoca")
+    yon = _kisi(conn, yeni_kullanici, "yonetici", "mudur")
+    for kid in (og, yon):
+        conn.execute(
+            "INSERT INTO push_abonelik (kullanici_id, uc_nokta, p256dh, auth, olusturma) VALUES (?, ?, 'p', 'a', ?)",
+            (kid, f"https://fcm.googleapis.com/{kid}", zaman.simdi_str()),
+        )
+    conn.commit()
+    gonderilen = []
+    monkeypatch.setattr(push, "etkin_mi", lambda: True)
+    monkeypatch.setattr(push, "gonder", lambda c, idler, tur, **kw: gonderilen.append((sorted(idler), tur)))
+    with _istemci() as c:
+        assert _dis(c, dis_anahtar).status_code == 200
+        _oturum(c, conn, og)
+        assert "Telegram: Ali" in c.get("/ogretmen").text and ": Kilit-kapı (TATBİKAT)</span>" in c.get("/ogretmen").text
+        assert c.get("/acil/durum").json()["aktif"]["ad"] == "Telegram: Ali"
+        assert "Telegram: Ali" in c.get("/acil").text  # son olaylar
+    assert gonderilen == [(sorted([og, yon]), "acil")]
+    assert not dashboard["tetikle"]  # okul alarm TETİKLEMEZ, yalnızca bildirir
+
+
+def test_dis_olay_gecti_kapatir_ve_bitti_push(conn, yeni_kullanici, dashboard, dis_anahtar, monkeypatch):
+    og = _kisi(conn, yeni_kullanici, "ogretmen", "hoca2")
+    conn.execute(
+        "INSERT INTO push_abonelik (kullanici_id, uc_nokta, p256dh, auth, olusturma) VALUES (?, 'https://fcm.googleapis.com/z', 'p', 'a', ?)",
+        (og, zaman.simdi_str()),
+    )
+    conn.commit()
+    gonderilen = []
+    monkeypatch.setattr(push, "etkin_mi", lambda: True)
+    monkeypatch.setattr(push, "gonder", lambda c, idler, tur, **kw: gonderilen.append(tur))
+    with _istemci() as c:
+        assert _dis(c, dis_anahtar, tur="yangin", kaynak="Panel").status_code == 200
+        assert acil.aktif(conn)["tur"] == "yangin"
+        assert _dis(c, dis_anahtar, tur="gecti", kaynak="Panel").status_code == 200
+    assert acil.aktif(conn) is None
+    assert gonderilen == ["acil", "acil_bitti"]
+
+
+@pytest.mark.parametrize(
+    "govde",
+    [{"tur": "reklam"}, {"tur": 5}, {"tatbikat": "evet"}, {"kaynak": 7}],
+)
+def test_dis_olay_gecersiz_govde(conn, dis_anahtar, govde):
+    with _istemci() as c:
+        assert _dis(c, dis_anahtar, **govde).status_code in (400,)
+        assert c.post("/acil/dis-olay", content=b"bozuk", headers=dis_anahtar).status_code == 400
+    assert conn.execute("SELECT COUNT(*) FROM acil_dis_olay").fetchone()[0] == 0
+
+
+def test_okul_ve_dis_olaylar_birbirini_kapatir(conn, yeni_kullanici, dashboard, dis_anahtar, monkeypatch):
+    yon = _kisi(conn, yeni_kullanici, "yonetici", "karma")
+    with _istemci() as c:
+        _oturum(c, conn, yon)
+        assert _basla(c, tur="yangin", yer="").status_code == 303  # okul kaynaklı
+        gercek = zaman.simdi
+        monkeypatch.setattr(zaman, "simdi", lambda: gercek() + timedelta(seconds=5))  # dış olay daha yeni (aynı saniye eşitliği olmasın)
+        assert _dis(c, dis_anahtar, tur="deprem", kaynak="Tahta 9-A").status_code == 200  # daha yeni, dış kaynaklı
+        assert acil.aktif(conn)["tur"] == "deprem"  # en yeni kazanır
+        assert _basla(c, tur="gecti", yer="").status_code == 303  # okuldan kapat → ikisi de kapanır
+    assert acil.aktif(conn) is None
+
+
+def test_okul_gecti_bitti_push_sablonu(conn, yeni_kullanici, dashboard, monkeypatch):
+    a = _kisi(conn, yeni_kullanici, "ogretmen", "kapatan")
+    b = _kisi(conn, yeni_kullanici, "yonetici", "duyan")
+    for kid in (a, b):
+        conn.execute(
+            "INSERT INTO push_abonelik (kullanici_id, uc_nokta, p256dh, auth, olusturma) VALUES (?, ?, 'p', 'a', ?)",
+            (kid, f"https://fcm.googleapis.com/{kid}", zaman.simdi_str()),
+        )
+    conn.commit()
+    gonderilen = []
+    monkeypatch.setattr(push, "etkin_mi", lambda: True)
+    monkeypatch.setattr(push, "gonder", lambda c, idler, tur, **kw: gonderilen.append((list(idler), tur)))
+    with _istemci() as c:
+        _oturum(c, conn, a)
+        assert _basla(c, tur="kilit", yer="").status_code == 303
+        assert _basla(c, tur="gecti", yer="").status_code == 303
+    assert gonderilen == [([b], "acil"), ([b], "acil_bitti")]
+
+
+def test_son_olaylar_siralama_ve_sinir(conn):
+    for i in range(7):
+        acil.dis_olay_ekle(conn, "kilit", True, f"Kaynak {i}")
+    liste = acil.son_olaylar(conn, 5)
+    assert len(liste) == 5 and liste[0]["kim"] == "Kaynak 6"
+
+
+def test_geri_al_v17():
+    from scripts import geri_al
+
+    assert 17 in geri_al.GERI and "acil_dis_olay" in geri_al.GERI[17]

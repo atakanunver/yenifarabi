@@ -27,6 +27,21 @@
   }
   if (serit || sayfa) { sor(); setInterval(sor, 10000); }
 
+  var ogr = document.getElementById("ogr-acil-form");
+  if (ogr) {
+    var od = document.getElementById("ogr-durum");
+    if (navigator.geolocation) {
+      od.textContent = "Konum alınıyor…";
+      navigator.geolocation.getCurrentPosition(function (p) {
+        document.getElementById("ogr-enlem").value = p.coords.latitude;
+        document.getElementById("ogr-boylam").value = p.coords.longitude;
+        document.getElementById("ogr-dogruluk").value = Math.round(p.coords.accuracy);
+        od.textContent = "Konum alındı (±" + Math.round(p.coords.accuracy) + " m).";
+      }, function () { od.textContent = "Konum izni verilmedi; yalnızca adın ve sınıfın gidecek."; },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+    } else { od.textContent = "Bu cihaz konum vermiyor; yalnızca adın ve sınıfın gidecek."; }
+    return;
+  }
   if (!sayfa) return;
   var kutu = document.getElementById("konum-gps");
   var durum = document.getElementById("konum-durum");

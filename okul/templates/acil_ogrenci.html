@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block baslik %}Acil durum — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Acil durum</h1>
+{% if hata %}
+<div class="kart acil-kart" role="alert"><p>{{ hata }}</p></div>
+{% elif tamam %}
+<div class="kart acil-kart" role="status">
+  <p><b>Bildirimin idareye iletildi.</b></p>
+  <p>Güvenli bir yerde kal ve öğretmeninin söylediklerini yap. Hayati tehlike varsa 112'yi ara.</p>
+</div>
+{% else %}
+<div class="kart acil-kart">
+  <p><b>Acil bir durum varsa konumunu ve adını idareye gönderebilirsin.</b></p>
+  <p class="kucuk">Telefonun konum izni isteyecek; vermezsen yalnızca adın ve sınıfın gider. Bildirim yalnızca okul yöneticilerine ulaşır. Yanlışlıkla basma.</p>
+</div>
+<form method="post" action="/acil/ogrenci" id="ogr-acil-form">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="enlem" id="ogr-enlem">
+  <input type="hidden" name="boylam" id="ogr-boylam">
+  <input type="hidden" name="dogruluk" id="ogr-dogruluk">
+  <p id="ogr-durum" class="soluk kucuk" role="status"></p>
+  <button class="acil-dugme" style="width:100%;border:0;font-size:1rem;cursor:pointer">Evet, Acil Durum Var — Konumumu İdareye Gönder</button>
+</form>
+<p><a href="/ogrenci">Vazgeç</a></p>
+<script src="/static/acil.js?v=2" defer></script>
+{% endif %}
+<a class="acil-dugme" style="margin:.6rem 0" href="tel:112">📞 112'yi ara</a>
+<p class="kucuk"><a href="/ogrenci">← Ana sayfa</a></p>
+{% endblock %}
