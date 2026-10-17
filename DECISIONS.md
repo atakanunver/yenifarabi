@@ -2124,3 +2124,7 @@ Neden: Veli/öğrenci duyuru ve ödevden haberdar olsun. Push mesajı tarayıcı
 ## 2026-10-14 - Dijital okul: öğretmen+yönetici sohbet odası (metin, 30 gün)
 Ne yapıldı: `okul/` içine tek ortak sohbet odası eklendi (`/sohbet`, şema V12). Üyeler öğretmen ve yönetici; yalnızca metin, dosya/foto yok; mesajlar 30 gün sonra silinir (okuma sorguları süresi dolanı göstermez, fiziksel silme açılışta ve saatte bir). Güncelleme polling ile (WebSocket yok, yeni bağımlılık yok); bildirim mevcut Web Push altyapısıyla, sabit metin, alıcı başına 10 dk'da bir. Giriş ana sayfa kartıyla (alt menü sekmesi yok).
 Neden: Kullanıcı kararları — yönetici öğretmenlerin yazdığını okuyabilir (odanın üstünde açıkça yazar), eski `veri/yedek/` dosyaları temizlenmez (30 günden eski mesaj içerebilir), yönetici her mesajı silebilir. Düz metin ve kısa saklama KVKK yükünü ve disk büyümesini sınırlar; WhatsApp'tan farkı okul hesabı/rol entegrasyonu ve bildirim.
+
+## 2026-10-17 - Tahtalarda Wake-on-LAN çalışmıyor (denendi, bırakıldı)
+**Ne yapıldı:** Hiçbir tahtada WoL çalıştırılamadı; BIOS ayarları dahil Atakan çok uğraştı. 9-A'ya 3 magic paket (kablolu MAC, yayın adresi) denendi, cevap gelmedi. `wol-vestel-boards.sh` zaten hiçbir cron'da değildi (root crontab'ı boş, 24 Ağu'dan beri; son log 23 Ağu); betik `/usr/local/sbin`'den silindi. Tahtayı uyandırmak fiziksel (güç düğmesi/fiş). Wiki `vestel-tahtalar.md`'ye de işlendi.
+**Neden:** Aynı denemeyi tekrar önermeyelim; kimlik bilgisi ayrı: asıl kimlik avahi hostname, IP/MAC değişebilir (12-A kablosuz olunca MAC değişti).
