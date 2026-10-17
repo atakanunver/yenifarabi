@@ -21,7 +21,7 @@ class TestYakinda(unittest.TestCase):
     def test_menudeki_b_yollari_tanimli(self):
         yollar = {f"/b/{ad}" for ad in yakinda.BOLUMLER}
         for ust in menu.MENU:
-            for o in ust["ogeler"]:
+            for o in ust.get("ogeler", []):
                 if o.get("href", "").startswith("/b/"):
                     self.assertIn(o["href"], yollar, o["href"])
 
