@@ -3,7 +3,7 @@
 (function () {
   var cubuk = document.querySelector('.menubar');
   if (!cubuk) return;
-  var ustler = Array.prototype.slice.call(cubuk.querySelectorAll('.ust-menu-dugme'));
+  var ustler = Array.prototype.slice.call(cubuk.querySelectorAll('button.ust-menu-dugme'));
   var acik = null;
 
   function ogeler(panel) {

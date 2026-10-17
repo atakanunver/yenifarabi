@@ -44,11 +44,20 @@
     <ul role="menubar" class="menubar" aria-label="Ana menü">
       {% for ust in agac.menu %}
       <li role="none" class="ust-menu">
+        {% if ust.ogeler %}
         <button type="button" role="menuitem" aria-haspopup="true" aria-expanded="false"
-                class="ust-menu-dugme" data-kisayol="{{ ust.kisayol }}">{{ ust.ad }}</button>
+                class="ust-menu-dugme" data-kisayol="{{ ust.kisayol }}">
+          {% if ust.ikon %}<svg class="ikon {{ ust.ikon_sinif or '' }}"><use href="#ik-{{ ust.ikon }}"/></svg>{% endif %}{{ ust.ad }}</button>
         <ul role="menu" class="menu-panel" aria-label="{{ ust.ad }}" hidden>
           {% for o in ust.ogeler %}{{ oge(o) }}{% endfor %}
         </ul>
+        {% else %}
+        <a role="menuitem" class="ust-menu-dugme{{ ' ust-menu-vurgu' if ust.buyuk }}{{ ' aktif' if ust.aktif }}"
+           href="{{ baglanti(ust) }}" data-kisayol="{{ ust.kisayol }}"
+           {% if ust.aktif %}aria-current="page"{% endif %}
+           {% if ust.yeni_sekme %}target="_blank" rel="noopener"{% endif %}>
+          {% if ust.ikon %}<svg class="ikon {{ ust.ikon_sinif or '' }}"><use href="#ik-{{ ust.ikon }}"/></svg>{% endif %}{{ ust.ad }}</a>
+        {% endif %}
       </li>
       {% endfor %}
     </ul>
@@ -68,8 +77,14 @@
   <div class="cekmece-ortu" id="cekmece-ortu" hidden></div>
   <aside class="cekmece" id="cekmece" aria-label="Menü" hidden>
     {% for ust in agac.menu %}
-    <details class="cekmece-grup"><summary>{{ ust.ad }}</summary>
+    {% if ust.ogeler %}
+    <details class="cekmece-grup"><summary>{% if ust.ikon %}<svg class="ikon {{ ust.ikon_sinif or '' }}"><use href="#ik-{{ ust.ikon }}"/></svg>{% endif %}{{ ust.ad }}</summary>
       <ul class="cekmece-liste">{% for o in ust.ogeler %}{{ oge(o) }}{% endfor %}</ul></details>
+    {% else %}
+    <a class="cekmece-tek{{ ' ust-menu-vurgu' if ust.buyuk }}" href="{{ baglanti(ust) }}"
+       {% if ust.yeni_sekme %}target="_blank" rel="noopener"{% endif %}>
+      {% if ust.ikon %}<svg class="ikon {{ ust.ikon_sinif or '' }}"><use href="#ik-{{ ust.ikon }}"/></svg>{% endif %}{{ ust.ad }}</a>
+    {% endif %}
     {% endfor %}
   </aside>
   <div class="icerik-alani">
