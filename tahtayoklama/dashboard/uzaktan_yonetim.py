@@ -221,7 +221,18 @@ async def _ekran_karart_tek(t: dict, form) -> dict:
             f"setsid env DISPLAY={display} XAUTHORITY={xauthority} eta-screen-cover "
             f"</dev/null >/tmp/yonetim_karart.log 2>&1 &",
         )
-        await asyncio.sleep(1.5)
+        # Yavaş tahtada (11-A, 2026-10-17) pencere 1,5 sn'de açılmıyor, wmctrl pencereyi bulamadan
+        # "tamam" dönüyor ve pencere küçük kalıyordu: listede görünene kadar (en çok ~10 sn) bekle.
+        for _ in range(10):
+            await asyncio.sleep(1)
+            gorundu = await ssh_istemci.komut_calistir(
+                t["ip"],
+                t["kullanici"],
+                f"env DISPLAY={display} XAUTHORITY={xauthority} wmctrl -l "
+                f"| grep -q {shlex.quote(_ETA_SCREEN_COVER_BASLIK)}",
+            )
+            if gorundu.basarili:
+                break
     sonuc = await ssh_istemci.komut_calistir(
         t["ip"], t["kullanici"],
         f"env DISPLAY={display} XAUTHORITY={xauthority} "

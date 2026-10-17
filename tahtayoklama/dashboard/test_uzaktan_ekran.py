@@ -79,6 +79,32 @@ class TestUzaktanEkran(unittest.TestCase):
 
         asyncio.run(run_test())
 
+    def test_ekran_karart_pencere_gec_acilirsa_bekler(self):
+        # Yavaş tahta (11-A): pencere ilk iki yoklamada yok; tam ekran komutu pencere görününce gitmeli.
+        tahta = {"ad": "11-A", "ip": "192.168.23.228", "kullanici": "ogretmen"}
+        yoklama_sonuclari = iter([False, False, True])
+        komutlar = []
+
+        async def sahte_ssh(ip, kullanici, komut, *a, **k):
+            komutlar.append(komut)
+            if "pgrep" in komut:
+                return ssh_istemci.SSHSonuc(False, b"", b"")
+            if "wmctrl -l" in komut:
+                return ssh_istemci.SSHSonuc(next(yoklama_sonuclari), b"", b"")
+            return ssh_istemci.SSHSonuc(True, b"", b"")
+
+        async def run_test():
+            with patch("ssh_istemci.komut_calistir", side_effect=sahte_ssh), \
+                 patch("ssh_istemci.x_ortamini_kesfet", new_callable=AsyncMock) as mock_x, \
+                 patch("uzaktan_yonetim.asyncio.sleep", new_callable=AsyncMock):
+                mock_x.return_value = (":0", "/home/ogretmen/.Xauthority", 1000)
+                sonuc = await uzaktan_yonetim._ekran_karart_tek(tahta, None)
+            self.assertTrue(sonuc["basarili"])
+            self.assertEqual(sum("wmctrl -l" in k for k in komutlar), 3)
+            self.assertIn("maximized_vert", komutlar[-1])
+
+        asyncio.run(run_test())
+
     def test_route_unauthenticated(self):
         scope = {
             "type": "http",
