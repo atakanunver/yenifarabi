@@ -431,6 +431,9 @@ details.kart > summary { cursor: pointer; min-height: 32px; }
 .arena a { color: var(--cyan); }
 .arena .kart { border-color: var(--cizgi); }
 .arena .kart.neon { border-color: var(--cyan); box-shadow: 0 0 0 1px rgba(34, 211, 238, .35), 0 10px 28px -14px rgba(34, 211, 238, .7); }
+.arena .kart.sudoku { background: linear-gradient(145deg, #f97316, #db2777); border-color: rgba(255, 255, 255, .25); color: #fff; }
+.arena .kart.sudoku h2, .arena .kart.sudoku p { color: #fff; }
+.arena .kart.sudoku .tus { background: #fff; color: #9d174d; border-color: transparent; }
 .arena .tus { background: var(--cyan); color: #04122e; }
 .arena .tus.ikincil { background: var(--mavi-acik); color: var(--cyan); border: 1px solid var(--cizgi); }
 .arena .tus[aria-disabled=true] { opacity: .55; cursor: not-allowed; }
