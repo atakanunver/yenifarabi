@@ -45,7 +45,7 @@ class TestMenu(unittest.TestCase):
 
     def test_yeni_menu_yapisi(self):
         adlar = [u["ad"] for u in menu.MENU]
-        self.assertEqual(adlar, ["Acil Durum", "Yoklama", "Tahtalar", "Eğitim", "İletişim", "Kameralar", "Sistem",
+        self.assertEqual(adlar, ["Ana Menü", "Acil Durum", "Yoklama", "Tahtalar", "Eğitim", "İletişim", "Kameralar", "Sistem",
                           "Zil Paneli", "Atos Yapay Zeka", "Temalar", "Ayarlar"])
         for kalkan in ("EBYS", "Pano", "Kiosk", "Google Form", "Anons-Zil", "Uygulamalar"):
             self.assertNotIn(kalkan, adlar)

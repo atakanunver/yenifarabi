@@ -15,69 +15,171 @@ def statik_surum() -> str:
     simdi = time.monotonic()
     if _surum_onbellek.get("t", -1e9) + 10 < simdi:
         try:
-            enson = max(f.stat().st_mtime for f in STATIK_DIZINI.iterdir() if f.is_file())
+            enson = max(
+                f.stat().st_mtime for f in STATIK_DIZINI.iterdir() if f.is_file()
+            )
         except (OSError, ValueError):
             enson = 0
         _surum_onbellek.update(t=simdi, v=str(int(enson)))
     return _surum_onbellek["v"]
 
 
-ZIL_PANELI = "http://192.168.23.230:8090/"   # kimlik gömülmez; tarayıcı Basic Auth sorar
+ZIL_PANELI = "http://192.168.23.230:8090/"  # kimlik gömülmez; tarayıcı Basic Auth sorar
 
 SMUAL_URL = "https://smual.app"
-SMUAL_YONETIM_URL = SMUAL_URL + "/yonetici"   # şifresiz giriş (SSO) sonraki aşamada
+SMUAL_YONETIM_URL = SMUAL_URL + "/yonetici"  # şifresiz giriş (SSO) sonraki aşamada
 
 # 2026-10-13: menü 8 başlığa indirildi (iş akışına göre). EBYS/Duyuru panosu/Kiosk ve diğer
 # "/b/<ad>" yer tutucuları menüden çıktı; sayfaları yapılınca buraya eklenir (yakinda.py'de
 # yer tutucu sayfalar duruyor). Yazdır/Tema/Şerit/Çıkış "Ayarlar" altında.
 MENU: list[dict] = [
-    {"ad": "Yoklama", "kisayol": "y", "ogeler": [
-        {"ad": "Pano", "href": "/", "ikon": "ev"},
-        {"ad": "Rapor", "href": "/admin/rapor", "ikon": "grafik"},
-        {"ad": "Sınıflar", "href": "/admin/siniflar", "ikon": "kullanicilar"},
-    ]},
-    {"ad": "Tahtalar", "kisayol": "t", "ogeler": [
-        {"ad": "Uzaktan yönetim", "href": "/admin/uzaktan", "ikon": "kaydirici"},
-        {"ad": "Tahta kayıtları", "href": "/admin/tahtalar", "ikon": "monitor"},
-    ]},
-    {"ad": "Eğitim", "kisayol": "e", "ogeler": [
-        {"ad": "Kazanım raporu", "href": "/kazanim", "ikon": "hedef"},
-        {"ayrac": True},
-        {"ad": "smual.app", "href": SMUAL_URL, "ikon": "yildiz", "yeni_sekme": True},
-        {"ad": "smual.app yönetim paneli", "href": SMUAL_YONETIM_URL, "ikon": "kaydirici", "yeni_sekme": True},
-    ]},
-    {"ad": "İletişim", "kisayol": "i", "ogeler": [
-        {"ad": "Velilerden Gelen Mesajlar", "href": "/veli-mesajlari", "ikon": "zil"},
-        {"ad": "SMS sistemi", "href": "/sms-git", "ikon": "zil", "yeni_sekme": True},
-        {"ad": "Yoklama SMS", "href": "/yoklama-sms-git", "ikon": "zil", "yeni_sekme": True},
-        {"ad": "SMS otomasyonu", "href": "/otomasyon-git", "ikon": "kaydirici", "yeni_sekme": True},
-        {"ad": "Doğum günleri", "href": "/dogum", "ikon": "pasta", "yeni_sekme": True},
-        {"ayrac": True},
-        {"ad": "Zil paneli", "href": ZIL_PANELI, "ikon": "zil", "yeni_sekme": True},
-    ]},
-    {"ad": "Sistem", "kisayol": "s", "ogeler": [
-        {"ad": "Servis yönetimi", "href": "/servisler", "ikon": "sunucu"},
-        {"ad": "Zamanlayıcılar", "href": "/servisler#zamanlayicilar", "ikon": "saat"},
-        {"ayrac": True},
-        {"ad": "Sistem durumu", "href": "/sistem-durumu", "ikon": "nabiz"},
-        {"ad": "Sunucular", "href": "/sunucular", "ikon": "katman"},
-    ]},
-    {"ad": "Atos", "kisayol": "o", "ogeler": [
-        {"ad": "Atos yapay zeka", "href": "atos", "ikon": "yildiz", "yeni_sekme": True},
-        {"ad": "İş ve ayarlar", "href": "/b/atos", "ikon": "kaydirici"},
-    ]},
-    {"ad": "Ayarlar", "kisayol": "g", "ogeler": [
-        {"ad": "Tema", "alt": [
+    {"ad": "Ana Menü", "kisayol": "h", "ikon": "ev", "href": "/"},
+    {
+        "ad": "Acil Durum",
+        "kisayol": "a",
+        "ikon": "uyari",
+        "ogeler": [{"ad": "Acil Durum", "href": "/acil", "ikon": "uyari"}],
+    },
+    {
+        "ad": "Yoklama",
+        "kisayol": "y",
+        "ikon": "ev",
+        "ogeler": [
+            {"ad": "Pano", "href": "/", "ikon": "ev"},
+            {"ad": "Rapor", "href": "/admin/rapor", "ikon": "grafik"},
+            {"ad": "Sınıflar", "href": "/admin/siniflar", "ikon": "kullanicilar"},
+        ],
+    },
+    {
+        "ad": "Tahtalar",
+        "kisayol": "t",
+        "ikon": "tahta",
+        "ikon_sinif": "ikon-yesil",
+        "ogeler": [
+            {"ad": "Uzaktan yönetim", "href": "/admin/uzaktan", "ikon": "kaydirici"},
+            {"ad": "Tahta kayıtları", "href": "/admin/tahtalar", "ikon": "monitor"},
+        ],
+    },
+    {
+        "ad": "Eğitim",
+        "kisayol": "e",
+        "ikon": "hedef",
+        "ogeler": [
+            {"ad": "Kazanım raporu", "href": "/kazanim", "ikon": "hedef"},
+            {"ayrac": True},
+            {
+                "ad": "smual.app",
+                "href": SMUAL_URL,
+                "ikon": "yildiz",
+                "yeni_sekme": True,
+            },
+            {
+                "ad": "smual.app yönetim paneli",
+                "href": SMUAL_YONETIM_URL,
+                "ikon": "kaydirici",
+                "yeni_sekme": True,
+            },
+        ],
+    },
+    {
+        "ad": "İletişim",
+        "kisayol": "i",
+        "ikon": "zil",
+        "ogeler": [
+            {
+                "ad": "Velilerden Gelen Mesajlar",
+                "href": "/veli-mesajlari",
+                "ikon": "zil",
+            },
+            {
+                "ad": "SMS sistemi",
+                "href": "/sms-git",
+                "ikon": "zil",
+                "yeni_sekme": True,
+            },
+            {
+                "ad": "Yoklama SMS",
+                "href": "/yoklama-sms-git",
+                "ikon": "zil",
+                "yeni_sekme": True,
+            },
+            {
+                "ad": "SMS otomasyonu",
+                "href": "/otomasyon-git",
+                "ikon": "kaydirici",
+                "yeni_sekme": True,
+            },
+            {
+                "ad": "Doğum günleri",
+                "href": "/dogum",
+                "ikon": "pasta",
+                "yeni_sekme": True,
+            },
+        ],
+    },
+    {
+        "ad": "Kameralar",
+        "kisayol": "k",
+        "ikon": "kamera",
+        "ogeler": [
+            {"ad": "DVR Kameralar", "href": "/kameralar", "ikon": "kamera"},
+            {"ad": "IP Kameralar (yedek)", "href": "/kameralar-ip", "ikon": "kamera"},
+        ],
+    },
+    {
+        "ad": "Sistem",
+        "kisayol": "s",
+        "ikon": "sunucu",
+        "ogeler": [
+            {"ad": "Servis yönetimi", "href": "/servisler", "ikon": "sunucu"},
+            {
+                "ad": "Zamanlayıcılar",
+                "href": "/servisler#zamanlayicilar",
+                "ikon": "saat",
+            },
+            {"ayrac": True},
+            {"ad": "Sistem durumu", "href": "/sistem-durumu", "ikon": "nabiz"},
+            {"ad": "Sunucular", "href": "/sunucular", "ikon": "katman"},
+        ],
+    },
+    {
+        "ad": "Zil Paneli",
+        "kisayol": "z",
+        "ikon": "zil",
+        "href": ZIL_PANELI,
+        "yeni_sekme": True,
+    },
+    {
+        "ad": "Atos Yapay Zeka",
+        "kisayol": "o",
+        "ikon": "yildiz",
+        "href": "atos",
+        "yeni_sekme": True,
+        "buyuk": True,
+    },
+    {
+        "ad": "Temalar",
+        "kisayol": "m",
+        "ikon": "gunes",
+        "ogeler": [
             {"ad": "Klasik", "eylem": "tema:klasik", "ikon": "gunes"},
             {"ad": "Yumuşak", "eylem": "tema:yumusak", "ikon": "bulut"},
             {"ad": "Koyu", "eylem": "tema:koyu", "ikon": "ay"},
-        ]},
-        {"ad": "Kenar şeridini gizle/göster", "eylem": "serit"},
-        {"ad": "Yazdır", "eylem": "yazdir"},
-        {"ad": "Klavye kısayolları", "eylem": "kisayollar"},
-        {"ayrac": True},
-        {"ad": "Çıkış", "eylem": "cikis", "ikon": "cikis"},
-    ]},
+        ],
+    },
+    {
+        "ad": "Ayarlar",
+        "kisayol": "g",
+        "ikon": "kaydirici",
+        "ogeler": [
+            {"ad": "Atos iş ve ayarlar", "href": "/b/atos", "ikon": "kaydirici"},
+            {"ad": "Kenar şeridini gizle/göster", "eylem": "serit"},
+            {"ad": "Yazdır", "eylem": "yazdir"},
+            {"ad": "Klavye kısayolları", "eylem": "kisayollar"},
+            {"ayrac": True},
+            {"ad": "Çıkış", "eylem": "cikis", "ikon": "cikis"},
+        ],
+    },
 ]
 
 SERIT: list[dict] = [
@@ -99,9 +201,12 @@ def _eslesir(href: str, yol: str) -> bool:
 def menu_agaci(yol: str) -> dict:
     menu, serit = copy.deepcopy(MENU), copy.deepcopy(SERIT)
     for ust in menu:
-        for o in ust["ogeler"]:
-            if _eslesir(o.get("href", ""), yol):
-                o["aktif"] = True
+        if "ogeler" in ust:
+            for o in ust["ogeler"]:
+                if _eslesir(o.get("href", ""), yol):
+                    o["aktif"] = True
+        elif _eslesir(ust.get("href", ""), yol):
+            ust["aktif"] = True
     for s in serit:
         if _eslesir(s["href"], yol):
             s["aktif"] = True
