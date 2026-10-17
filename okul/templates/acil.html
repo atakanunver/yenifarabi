@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block baslik %}Acil durum — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Acil durum</h1>
+{% if uyari %}<p class="kart hata" role="alert">{{ uyari }} Zil düğmesini ve 112'yi kullanın.</p>{% endif %}
+{% if hata %}<p class="kart hata" role="alert">{{ hata }}</p>{% endif %}
+{% if basladi %}<p class="kart" role="status"><b>{{ basladi.ad }}</b> başlatıldı{% if basladi.tatbikat %} (TATBİKAT modu){% endif %}.</p>{% endif %}
+{% if tatbikat is not none %}<p class="soluk">Alarm modu: <b>{% if tatbikat %}TATBİKAT (SMS yalnızca 2 yöneticiye gider){% else %}GERÇEK (tüm personele SMS gider){% endif %}</b></p>{% endif %}
+
+{% if aktif %}
+<div class="kart acil-kart" id="acil-aktif">
+  <b>AKTİF ALARM: {{ aktif.tur_ad }}{% if aktif.tatbikat %} (TATBİKAT){% endif %}</b>
+  <span class="soluk kucuk">{{ aktif.ad }}{% if aktif.yer %} · {{ aktif.yer }}{% endif %} · {{ aktif.saat }}</span>
+</div>
+{% endif %}
+
+<a class="acil-dugme" href="tel:112">📞 112'yi ara (Acil Çağrı Merkezi)</a>
+
+<h2>Alarm başlat</h2>
+<p class="kucuk soluk">Her düğme iki onay ister; ikincisinde şifreni yazarsın.</p>
+<div class="acil-dugmeler">
+  {% for t, b in turler.items() if b.alarm %}<a class="acil-dugme" href="/acil/onay/{{ t }}">{{ b.ad }}</a>{% endfor %}
+</div>
+<div class="acil-dugmeler">
+  {% for t, b in turler.items() if not b.alarm %}<a class="acil-dugme {{ t }}" href="/acil/onay/{{ t }}">{{ b.ad }}</a>{% endfor %}
+</div>
+
+<h2>Konumumu gönder</h2>
+<form class="kart" method="post" action="/acil/konum" id="konum-form">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="enlem" id="konum-enlem">
+  <input type="hidden" name="boylam" id="konum-boylam">
+  <input type="hidden" name="dogruluk" id="konum-dogruluk">
+  <label for="konum-yer">Neredesin?</label>
+  <select id="konum-yer" name="yer" required>
+    <option value="">Seç…</option>
+    {% for y in yerler %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+  </select>
+  <label class="kucuk"><input type="checkbox" id="konum-gps"> Telefonumun konumunu da ekle</label>
+  <p id="konum-durum" class="soluk kucuk" role="status"></p>
+  <p class="kucuk soluk">Konum yalnızca öğretmenler ve yöneticiler tarafından, adınla görülür; 24 saat sonra silinir.</p>
+  <div class="tuslar"><button class="tus tam">Konumumu gönder</button></div>
+</form>
+
+<h2>Paylaşılan konumlar</h2>
+{% for c in konumlar %}
+<article class="kart">
+  <b>{{ c.ad_soyad }}</b> <span class="soluk kucuk">({{ 'Yönetici' if c.rol == 'yonetici' else 'Öğretmen' }} · {{ c.zaman }})</span><br>
+  {{ c.yer }}{% if c.harita %} · <a href="{{ c.harita }}" target="_blank" rel="noopener noreferrer">Haritada aç</a>{% if c.dogruluk_m %} <span class="soluk kucuk">(±{{ c.dogruluk_m|round|int }} m)</span>{% endif %}{% endif %}
+</article>
+{% else %}
+<div class="kart"><p class="bos">Paylaşılan konum yok.</p></div>
+{% endfor %}
+<p class="kucuk"><a href="/{{ k.rol }}">← Ana sayfa</a></p>
+{% endblock %}

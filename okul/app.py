@@ -3,6 +3,7 @@
 import logging
 from contextlib import asynccontextmanager
 
+import acil as acil_modul
 import analitik
 import auth
 import db
@@ -13,6 +14,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from rotalar import (
+    acil,
     anket,
     arena,
     avatar,
@@ -22,6 +24,7 @@ from rotalar import (
     gelisim,
     giris,
     kisisel,
+    kutu,
     ogrenci,
     oduller,
     ogretmen,
@@ -39,6 +42,7 @@ from rotalar import (
 async def omur(_app):
     db.sema_kur()
     sohbet_modul.baslangic_temizligi()
+    acil_modul.baslangic_temizligi()
     yield
     analitik.bosalt()
 
@@ -47,7 +51,7 @@ app = FastAPI(
     title="Dijital Okul", docs_url=None, redoc_url=None, openapi_url=None, lifespan=omur
 )
 app.mount("/static", StaticFiles(directory=str(KOK / "static")), name="static")
-for r in (giris, pano, belge_sinav, ogrenci, arena, avatar, anket, gelisim, etkinlik, kisisel, oduller, oyun, veli, deneme, ogretmen_liderlik, ogretmen, yonetici, push, sohbet):
+for r in (giris, pano, belge_sinav, ogrenci, arena, avatar, anket, gelisim, etkinlik, kisisel, oduller, oyun, veli, deneme, ogretmen_liderlik, ogretmen, yonetici, push, sohbet, kutu, acil):
     app.include_router(r.router)
 
 

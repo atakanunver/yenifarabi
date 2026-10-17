@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block baslik %}{{ bilgi.ad }} — 1. onay — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>{{ bilgi.ad }} — 1. onay</h1>
+{% if uyari %}<p class="kart hata" role="alert">{{ uyari }} Zil düğmesini ve 112'yi kullanın.</p>{% endif %}
+<div class="kart acil-kart">
+  <p><b>Bu işlem gerçek bir okul alarmıdır.</b> {{ bilgi.etki }}</p>
+  <p>Mod: <b>{% if tatbikat is none %}bilinmiyor{% elif tatbikat %}TATBİKAT (SMS yalnızca 2 yöneticiye){% else %}GERÇEK (tüm personele SMS){% endif %}</b></p>
+</div>
+<form class="kart" method="post" action="/acil/onay/{{ tur }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="yer">Neredesin? (isteğe bağlı; SMS'e eklenir)</label>
+  <select id="yer" name="yer">
+    <option value="">Belirtmeyeceğim</option>
+    {% for y in yerler %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+  </select>
+  <div class="tuslar"><button class="tus tehlike tam">Evet, devam et</button></div>
+</form>
+<p><a href="/acil">Vazgeç</a></p>
+{% endblock %}

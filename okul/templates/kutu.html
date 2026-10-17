@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block baslik %}Dilek / istek / şikayet — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Dilek / istek / şikayet kutusu</h1>
+<p class="soluk">Yazdıkların okul yöneticisine gider. <b>Yönetici adını ve sınıfını görür.</b></p>
+{% if request.query_params.get('gonderildi') %}<p class="kart" role="status">Kaydın yöneticiye iletildi. Teşekkürler.</p>{% endif %}
+{% if hata %}<p class="kart hata" role="alert">{{ hata }}</p>{% endif %}
+<form class="kart" method="post" action="/kutu/gonder">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="tur">Tür</label>
+  <select id="tur" name="tur">
+    {% for t, ad in turler.items() %}<option value="{{ t }}"{% if t == secili_tur %} selected{% endif %}>{{ ad }}</option>{% endfor %}
+  </select>
+  <label for="metin">Yazın (en çok {{ azami }} karakter)</label>
+  <textarea id="metin" name="metin" required maxlength="{{ azami }}">{{ metin }}</textarea>
+  <div class="tuslar"><button class="tus tam">Gönder</button></div>
+</form>
+<h2>Gönderdiklerim</h2>
+{% for r in kayitlar %}
+<article class="kart">
+  <p class="soluk kucuk">{{ r.tur_ad }} · {{ r.zaman }} · <span class="etiket">{{ r.durum_ad }}</span></p>
+  <p style="white-space:pre-wrap">{{ r.metin }}</p>
+</article>
+{% else %}
+<div class="kart"><p class="bos">Henüz bir şey göndermedin.</p></div>
+{% endfor %}
+<p class="kucuk"><a href="/{{ k.rol }}">← Ana sayfa</a></p>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block baslik %}Dilek / istek / şikayet — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Dilek / istek / şikayet kutusu</h1>
+<p class="soluk">{{ yeni }} yeni kayıt. Gönderenler adlı görünür; durumu elle işaretlersin.</p>
+<form class="kart" method="get" action="/yonetici/kutu">
+  <label for="durum">Durum</label>
+  <select id="durum" name="durum">
+    <option value="">Hepsi</option>
+    {% for d, ad in durumlar.items() %}<option value="{{ d }}"{% if d == durum %} selected{% endif %}>{{ ad }}</option>{% endfor %}
+  </select>
+  <label for="tur">Tür</label>
+  <select id="tur" name="tur">
+    <option value="">Hepsi</option>
+    {% for t, ad in turler.items() %}<option value="{{ t }}"{% if t == tur %} selected{% endif %}>{{ ad }}</option>{% endfor %}
+  </select>
+  <div class="tuslar"><button class="tus tam">Filtrele</button></div>
+</form>
+{% for r in kayitlar %}
+<article class="kart">
+  <p class="soluk kucuk">{{ r.tur_ad }} · {{ r.ad_soyad }} ({{ ROL_ADLARI[r.rol] }}{% if r.sinif %}, {{ r.sinif }}{% endif %}) · {{ r.zaman }} · <span class="etiket">{{ r.durum_ad }}</span></p>
+  <p style="white-space:pre-wrap">{{ r.metin }}</p>
+  <form method="post" action="/yonetici/kutu/{{ r.id }}/durum" class="tuslar">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% for d, ad in durumlar.items() %}{% if d != r.durum %}<button class="tus ikincil" name="durum" value="{{ d }}">{{ ad }} yap</button>{% endif %}{% endfor %}
+  </form>
+</article>
+{% else %}
+<div class="kart"><p class="bos">Kayıt yok.</p></div>
+{% endfor %}
+<p class="kucuk"><a href="/yonetici">← Okul özeti</a></p>
+{% endblock %}

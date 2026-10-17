@@ -428,9 +428,51 @@ CREATE TABLE duyuru_okuma (
 );
 """
 
+# Dilek/istek/şikayet kutusu (öğrenci+öğretmen → yönetici; adlı; yönetici yalnızca durum işaretler; kutu.py).
+SEMA_V14 = """
+CREATE TABLE kutu_kayit (
+    id            INTEGER PRIMARY KEY,
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    tur           TEXT NOT NULL CHECK (tur IN ('dilek', 'istek', 'sikayet')),
+    metin         TEXT NOT NULL,
+    durum         TEXT NOT NULL DEFAULT 'yeni' CHECK (durum IN ('yeni', 'okundu', 'cozuldu')),
+    olusturma     TEXT NOT NULL,
+    guncelleme    TEXT
+);
+CREATE INDEX kutu_kayit_durum ON kutu_kayit(durum, olusturma);
+CREATE INDEX kutu_kayit_kullanici ON kutu_kayit(kullanici_id, olusturma);
+"""
+
+# Acil durum: okul portalından basılan alarm izi + öğretmen/yönetici konum paylaşımı (acil.py). Konumlar 24 saat sonra silinir.
+SEMA_V15 = """
+CREATE TABLE acil_olay (
+    id            INTEGER PRIMARY KEY,
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    tur           TEXT NOT NULL,
+    yer           TEXT,
+    tatbikat      INTEGER,
+    basarili      INTEGER NOT NULL DEFAULT 0,
+    sonuc_json    TEXT,
+    jeton         TEXT NOT NULL UNIQUE,
+    olusturma     TEXT NOT NULL,
+    kapanis       TEXT
+);
+CREATE INDEX acil_olay_zaman ON acil_olay(olusturma);
+CREATE TABLE acil_konum (
+    id            INTEGER PRIMARY KEY,
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    yer           TEXT NOT NULL,
+    enlem         REAL,
+    boylam        REAL,
+    dogruluk_m    REAL,
+    olusturma     TEXT NOT NULL
+);
+CREATE INDEX acil_konum_zaman ON acil_konum(olusturma);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
-    SEMA_V11, SEMA_V12, SEMA_V13,
+    SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15,
 ]
 
 

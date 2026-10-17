@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block baslik %}{{ bilgi.ad }} — 2. onay — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>{{ bilgi.ad }} — 2. onay</h1>
+{% if uyari %}<p class="kart hata" role="alert">{{ uyari }} Zil düğmesini ve 112'yi kullanın.</p>{% endif %}
+{% if hata %}<p class="kart hata" role="alert">{{ hata }}</p>{% endif %}
+<div class="kart acil-kart">
+  <p><b>{{ bilgi.ad|upper }}</b> başlatılacak{% if yer %} ({{ yer }}){% endif %}.
+  Mod: <b>{% if tatbikat is none %}bilinmiyor{% elif tatbikat %}TATBİKAT{% else %}GERÇEK{% endif %}</b>. Onay 60 saniye geçerlidir.</p>
+</div>
+<form class="kart" method="post" action="/acil/baslat" autocomplete="off">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="tur" value="{{ tur }}">
+  <input type="hidden" name="yer" value="{{ yer }}">
+  <input type="hidden" name="jeton" value="{{ jeton }}">
+  <label for="sifre">Şifreni yaz</label>
+  <input id="sifre" name="sifre" type="password" required autocomplete="current-password">
+  <div class="tuslar"><button class="tus tehlike tam">{{ bilgi.ad|upper }} — ALARMI BAŞLAT</button></div>
+</form>
+<p><a href="/acil">Vazgeç</a></p>
+{% endblock %}

@@ -11,6 +11,8 @@ import auth
 import avatar
 import db
 import push
+import acil
+import kutu
 import sohbet
 from ayarlar import AYAR, KOK
 from fastapi import Depends, HTTPException, Request
@@ -201,10 +203,40 @@ def _sohbet_okunmamis(request: Request, k) -> int:
         return 0
 
 
+def _kutu_yeni(request: Request, k) -> int:
+    """Yönetici ana sayfasındaki kutu kartı için 'yeni' kayıt sayısı. Hata sayfayı bozmaz: 0 döner."""
+    if k is None or k["rol"] != "yonetici" or request.url.path != "/yonetici":
+        return 0
+    try:
+        c = db.baglanti()
+        try:
+            return kutu.yeni_sayisi(c)
+        finally:
+            c.close()
+    except Exception:  # noqa: BLE001 — sayaç isteğe bağlıdır
+        return 0
+
+
+def _acil_aktif(k):
+    """Öğretmen/yönetici sayfalarındaki kırmızı şerit için aktif alarm (yoksa None). Hata sayfayı bozmaz: None döner."""
+    if k is None or k["rol"] not in acil.ROLLER or k["sifre_degismeli"]:
+        return None
+    try:
+        c = db.baglanti()
+        try:
+            return acil.aktif(c)
+        finally:
+            c.close()
+    except Exception:  # noqa: BLE001 — şerit isteğe bağlıdır
+        return None
+
+
 def render(request: Request, sablon: str, status_code: int = 200, **ctx):
     ctx.setdefault("k", getattr(request.state, "kullanici", None))
     ctx.setdefault("anket_bekleyen", _anket_bekleyen(ctx["k"]))
     ctx.setdefault("sohbet_okunmamis", _sohbet_okunmamis(request, ctx["k"]))
+    ctx.setdefault("acil_aktif", _acil_aktif(ctx["k"]))
+    ctx.setdefault("kutu_yeni", _kutu_yeni(request, ctx["k"]))
     ctx["csrf"] = getattr(request.state, "csrf", "")
     ctx.setdefault("bugun_gun", GUNLER[zaman.simdi().weekday()])
     return TEMPLATES.TemplateResponse(request, sablon, ctx, status_code=status_code)

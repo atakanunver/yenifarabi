@@ -584,3 +584,13 @@ tr.ben td { background: rgba(122, 63, 168, .10); }
 @media (min-width: 640px) { .oyun-kutu { min-height: 130px; } }
 .arena .oyun-kutu, .arena .oyun-kutu b { color: #fff; }
 .arena .oyun-kutu .kucuk { color: rgba(255, 255, 255, .85); }
+
+/* Acil durum */
+.acil-serit { display: block; background: var(--kirmizi); color: #fff; padding: .6rem 1rem; text-align: center; text-decoration: none; font-weight: 600; }
+.acil-serit[hidden] { display: none; }
+.acil-kart { border-left: 6px solid var(--kirmizi); background: var(--kirmizi-acik); }
+.acil-dugmeler { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: .8rem 0; }
+.acil-dugme { display: block; text-align: center; padding: 1rem .6rem; border-radius: 10px; color: #fff; font-weight: 700; text-decoration: none; background: var(--kirmizi); }
+.acil-dugme.gecti { background: var(--yesil); }
+.acil-dugme.yanlis_alarm { background: var(--soluk); }
+.tus.tehlike { background: var(--kirmizi); color: #fff; }

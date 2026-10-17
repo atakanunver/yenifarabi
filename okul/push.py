@@ -23,6 +23,7 @@ SABLONLAR = {
     "duyuru": ("Dijital Okul", "Yeni bir duyuru var.", "/duyurular"),
     "odev": ("Dijital Okul", "Yeni bir ödevin var.", "/ogrenci/odevler"),
     "sohbet": ("Dijital Okul", "Yeni bir sohbet mesajı var.", "/sohbet"),
+    "acil": ("Dijital Okul", "Acil durum bildirimi var!", "/acil"),
     "deneme": ("Dijital Okul", "Test bildirimi: bildirimler açık.", "/bildirimler"),
 }
 AZAMI_ABONELIK = 10  # kullanıcı başına cihaz
