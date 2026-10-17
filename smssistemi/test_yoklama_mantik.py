@@ -23,6 +23,8 @@ CREATE TABLE yoklama_onbellek (
     durum TEXT NOT NULL,
     yok_isimleri TEXT,
     izinli_isimleri TEXT,
+    yok_nolari TEXT,
+    izinli_nolari TEXT,
     kaynak_tahta TEXT,
     kaydedilme_saati TEXT,
     UNIQUE(tarih, sinif, ders_no)
@@ -54,11 +56,30 @@ def pano(tmp_path, monkeypatch):
     conn.commit()
     monkeypatch.setattr(yoklama_kaynak, "YOKLAMA_DB_YOLU", yol)
 
-    def ekle(sinif, ders_no, durum="alindi", yok=(), izinli=(), tarih=TARIH):
+    def ekle(
+        sinif,
+        ders_no,
+        durum="alindi",
+        yok=(),
+        izinli=(),
+        tarih=TARIH,
+        yok_nolari=(),
+        izinli_nolari=(),
+    ):
         conn.execute(
             "INSERT INTO yoklama_onbellek (tarih, sinif, ders_no, durum, "
-            "yok_isimleri, izinli_isimleri) VALUES (?, ?, ?, ?, ?, ?)",
-            (tarih, sinif, ders_no, durum, json.dumps(list(yok)), json.dumps(list(izinli))),
+            "yok_isimleri, izinli_isimleri, yok_nolari, izinli_nolari) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                tarih,
+                sinif,
+                ders_no,
+                durum,
+                json.dumps(list(yok)),
+                json.dumps(list(izinli)),
+                json.dumps(list(yok_nolari)),
+                json.dumps(list(izinli_nolari)),
+            ),
         )
         conn.commit()
 
@@ -70,8 +91,10 @@ def _sinif_id(conn, ad):
     return next(s["id"] for s in db.siniflar_listele(conn) if s["ad"] == ad)
 
 
-def _ogrenci_ekle(conn, ad_soyad, sinif_ad):
-    return db.kisi_ekle(conn, ad_soyad, None, _sinif_id(conn, sinif_ad), "ogrenci")
+def _ogrenci_ekle(conn, ad_soyad, sinif_ad, okul_no=None):
+    return db.kisi_ekle(
+        conn, ad_soyad, None, _sinif_id(conn, sinif_ad), "ogrenci", okul_no=okul_no
+    )
 
 
 def _veli_ekle(conn, ad_soyad, telefon, sinif_ad, ogrenci_id):
@@ -335,3 +358,19 @@ def test_cozulmemis_no_ismine_sebep_yazilir(test_db, pano):
         pano("9-A", ders, yok=["No 237"])
     ozet = yoklama_mantik.devamsiz_ozet(test_db, tarih=TARIH, esik=4)
     assert _ogrenci(ozet, "No 237")["eslesme_notu"] == "Panoda öğrenci numarası çözülememiş"
+
+
+def test_okul_no_ile_eslesme_isim_farkina_ragmen_calisir(test_db, pano):
+    """Pano yok_nolari listesinde okul_no varsa, isim 'No 237' veya farklı
+    yazılmış olsa bile rehberdeki okul_no üzerinden eşleşir."""
+    ogr = _ogrenci_ekle(test_db, "Mert Can", "9-A", okul_no=237)
+    _veli_ekle(test_db, "Mert Can Annesi", "05554443322", "9-A", ogr)
+    for ders in range(1, 9):
+        pano("9-A", ders, yok=["No 237"], yok_nolari=[237])
+
+    ozet = yoklama_mantik.devamsiz_ozet(test_db, tarih=TARIH, esik=4)
+    kayit = _ogrenci(ozet, "Mert Can")
+    assert kayit["eslesme_durumu"] == yoklama_mantik.ESLESME_TAMAM
+    assert kayit["okul_no"] == 237
+    assert [v["telefon"] for v in kayit["veliler"]] == ["05554443322"]
+

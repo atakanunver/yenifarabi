@@ -61,18 +61,41 @@ def _json_liste(deger) -> list[str]:
     return [str(x) for x in cozulen] if isinstance(cozulen, list) else []
 
 
+def _json_no_liste(deger) -> list[int]:
+    """`yok_nolari`/`izinli_nolari` JSON dizisini int listesine çevirir."""
+    if not deger:
+        return []
+    try:
+        cozulen = json.loads(deger)
+    except (ValueError, TypeError):
+        return []
+    if not isinstance(cozulen, list):
+        return []
+    sonuc = []
+    for x in cozulen:
+        if isinstance(x, int) and not isinstance(x, bool):
+            sonuc.append(x)
+        elif isinstance(x, str) and x.isdigit():
+            sonuc.append(int(x))
+    return sonuc
+
+
 def gunun_satirlari(tarih: str) -> list[dict]:
     """Verilen günün (YYYY-MM-DD) tüm yoklama satırlarını döndürür.
 
     Her satır bir (sınıf, ders) çiftidir: `{sinif, ders_no, durum,
-    yok_isimleri: [...], izinli_isimleri: [...], kaydedilme_saati}`.
+    yok_isimleri: [...], izinli_isimleri: [...], yok_nolari: [...],
+    izinli_nolari: [...], kaydedilme_saati}`.
     Filtreleme YAPILMAZ — 'alinmadi'/'tahta_ulasilamaz' satırları da döner,
     çünkü üst katman "bu sınıfın yoklaması eksik" uyarısını bunlardan üretir.
     """
     conn = _baglan()
     try:
+        sutunlar = {r["name"] for r in conn.execute("PRAGMA table_info(yoklama_onbellek)")}
+        no_var = "yok_nolari" in sutunlar and "izinli_nolari" in sutunlar
+        ek_secim = ", yok_nolari, izinli_nolari" if no_var else ""
         satirlar = conn.execute(
-            "SELECT sinif, ders_no, durum, yok_isimleri, izinli_isimleri, "
+            f"SELECT sinif, ders_no, durum, yok_isimleri, izinli_isimleri{ek_secim}, "
             "kaydedilme_saati FROM yoklama_onbellek WHERE tarih = ? "
             "ORDER BY sinif, ders_no",
             (tarih,),
@@ -89,6 +112,8 @@ def gunun_satirlari(tarih: str) -> list[dict]:
             "durum": s["durum"],
             "yok_isimleri": _json_liste(s["yok_isimleri"]),
             "izinli_isimleri": _json_liste(s["izinli_isimleri"]),
+            "yok_nolari": _json_no_liste(s["yok_nolari"]) if no_var else [],
+            "izinli_nolari": _json_no_liste(s["izinli_nolari"]) if no_var else [],
             "kaydedilme_saati": s["kaydedilme_saati"],
         }
         for s in satirlar

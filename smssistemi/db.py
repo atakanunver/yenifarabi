@@ -407,6 +407,26 @@ def kisi_bul_isimle(conn: sqlite3.Connection, ad_soyad: str, sinif_id: int, tur:
     return dict(satir) if satir else None
 
 
+def kisi_bul_okul_no(
+    conn: sqlite3.Connection, okul_no: int, sinif_id: int | None = None
+) -> dict | None:
+    """Okul numarasıyla öğrenci arar. `sinif_id` verilirse yalnızca o sınıfta,
+    verilmezse tüm sınıflarda arar (sınıf değişikliği uyarısı için)."""
+    if sinif_id is not None:
+        satir = conn.execute(
+            "SELECT id, ad_soyad, telefon, sinif_id, tur, ogrenci_kisi_id, okul_no, veli_rol FROM kisiler "
+            "WHERE sinif_id = ? AND tur = 'ogrenci' AND okul_no = ?",
+            (sinif_id, okul_no),
+        ).fetchone()
+    else:
+        satir = conn.execute(
+            "SELECT id, ad_soyad, telefon, sinif_id, tur, ogrenci_kisi_id, okul_no, veli_rol FROM kisiler "
+            "WHERE tur = 'ogrenci' AND okul_no = ?",
+            (okul_no,),
+        ).fetchone()
+    return dict(satir) if satir else None
+
+
 def kisiler_listele(
     conn: sqlite3.Connection, sinif_id: int | None = None, tur: str | None = None
 ) -> list[dict]:

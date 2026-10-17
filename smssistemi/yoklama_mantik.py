@@ -87,13 +87,14 @@ def _sinif_ozetleri(satirlar: list[dict]) -> tuple[dict, list[dict]]:
 
     Döner: (`dahil`, `haric`) — `dahil` yalnızca en az bir 'alindi' dersi olan
     sınıfları içerir: {sinif: {"alinan": n, "yok": {isim: adet},
-    "izinli": {isim}}}. `haric` ise sebebiyle birlikte dışarıda bırakılanlar.
+    "izinli": {isim}, "no_haritasi": {isim: okul_no}}}. `haric` ise sebebiyle
+    birlikte dışarıda bırakılanlar.
     """
     toplam: dict[str, dict] = {}
     for satir in satirlar:
         sinif = satir["sinif"]
         girdi = toplam.setdefault(
-            sinif, {"alinan": 0, "yok": {}, "izinli": set(), "durumlar": {}}
+            sinif, {"alinan": 0, "yok": {}, "izinli": set(), "durumlar": {}, "no_haritasi": {}}
         )
         durum = satir["durum"]
         if durum != yoklama_kaynak.DURUM_ALINDI:
@@ -105,7 +106,12 @@ def _sinif_ozetleri(satirlar: list[dict]) -> tuple[dict, list[dict]]:
         # (kural 3) — izinli ders "yok" sayılmaz.
         izinliler = set(satir["izinli_isimleri"])
         girdi["izinli"].update(izinliler)
-        for isim in satir["yok_isimleri"]:
+        yok_isimleri = satir["yok_isimleri"]
+        yok_nolari = satir.get("yok_nolari") or []
+        es_uzunluk = len(yok_nolari) == len(yok_isimleri)
+        for idx, isim in enumerate(yok_isimleri):
+            if es_uzunluk:
+                girdi["no_haritasi"][isim] = yok_nolari[idx]
             if isim in izinliler:
                 continue
             girdi["yok"][isim] = girdi["yok"].get(isim, 0) + 1
@@ -149,31 +155,48 @@ def _kayitsiz_siniflar(conn, gorulen: set[str]) -> list[dict]:
 
 
 def _ogrenciyi_eslestir(
-    conn, ad_soyad: str, sinif_id: int | None, sinif_adi_ile: dict[int, str]
+    conn,
+    ad_soyad: str,
+    sinif_id: int | None,
+    sinif_adi_ile: dict[int, str],
+    okul_no: int | None = None,
 ) -> tuple[str, dict | None, list[dict], str | None]:
-    """İsim → rehberdeki öğrenci → telefonlu veliler.
+    """Okul no (varsa) veya İsim → rehberdeki öğrenci → telefonlu veliler.
     Döner: (eslesme_durumu, ogrenci|None, veliler, not).
 
     Eşleştirme SINIF KAPSAMLIDIR ve bilinçli olarak öyle kalır: aynı ad iki
     farklı sınıfta bulunabilir, sınıfsız eşleştirme yanlış ailenin telefonuna
-    SMS gönderme riski taşır. Ama isim başka bir sınıfta bulunuyorsa bu bir
+    SMS gönderme riski taşır. Ama öğrenci başka bir sınıfta bulunuyorsa bu bir
     veri uyuşmazlığı belirtisidir (öğrenci sınıf değiştirmiş, bir taraftaki
     liste bayat) — SMS yine gönderilmez, fakat sebep `not` alanında
     kullanıcıya söylenir. 2026-09-23'te canlı veride gerçekten bulundu:
     panoda 11-A görünen bir öğrenci rehberde 11-B kayıtlıydı."""
-    if _COZULMEMIS_ISIM_RE.match(ad_soyad.strip()):
-        return ESLESME_YOK, None, [], "Panoda öğrenci numarası çözülememiş"
     if sinif_id is None:
+        if _COZULMEMIS_ISIM_RE.match(ad_soyad.strip()):
+            return ESLESME_YOK, None, [], "Panoda öğrenci numarası çözülememiş"
         return ESLESME_YOK, None, [], "Bu sınıf rehberde kayıtlı değil"
-    # `kisi_bul_isimle` SQL içinde tr_norm() kullanır — Türkçe İ/I ve boşluk
-    # farkları burada zaten tolere edilir (db.py:315).
-    ogrenci = db.kisi_bul_isimle(conn, ad_soyad, sinif_id, "ogrenci")
+
+    ogrenci = None
+    if okul_no is not None:
+        ogrenci = db.kisi_bul_okul_no(conn, okul_no, sinif_id)
+        if ogrenci is None:
+            baska_no = db.kisi_bul_okul_no(conn, okul_no)
+            if baska_no is not None:
+                baska_sinif = sinif_adi_ile.get(baska_no["sinif_id"], "?")
+                return ESLESME_YOK, None, [], f"Rehberde {baska_sinif} sınıfında kayıtlı"
+
     if ogrenci is None:
-        baska = db.kisi_bul_isimle_sinifsiz(conn, ad_soyad, "ogrenci")
-        if baska is not None:
-            baska_sinif = sinif_adi_ile.get(baska["sinif_id"], "?")
-            return ESLESME_YOK, None, [], f"Rehberde {baska_sinif} sınıfında kayıtlı"
-        return ESLESME_YOK, None, [], "Rehberde bu isimde öğrenci yok"
+        if _COZULMEMIS_ISIM_RE.match(ad_soyad.strip()):
+            return ESLESME_YOK, None, [], "Panoda öğrenci numarası çözülememiş"
+        # `kisi_bul_isimle` SQL içinde tr_norm() kullanır — Türkçe İ/I ve boşluk
+        # farkları burada zaten tolere edilir (db.py:315).
+        ogrenci = db.kisi_bul_isimle(conn, ad_soyad, sinif_id, "ogrenci")
+        if ogrenci is None:
+            baska = db.kisi_bul_isimle_sinifsiz(conn, ad_soyad, "ogrenci")
+            if baska is not None:
+                baska_sinif = sinif_adi_ile.get(baska["sinif_id"], "?")
+                return ESLESME_YOK, None, [], f"Rehberde {baska_sinif} sınıfında kayıtlı"
+            return ESLESME_YOK, None, [], "Rehberde bu isimde öğrenci yok"
     veliler = db.veliler_ogrenci_ile(conn, ogrenci["id"])
     if not veliler:
         return ESLESME_TELEFONSUZ, ogrenci, [], None
@@ -197,16 +220,24 @@ def devamsiz_ozet(conn, tarih: str | None = None, esik: int = ESIK_VARSAYILAN) -
     ogrenciler = []
     for sinif in sorted(dahil, key=db._sinif_sira_anahtari):
         veri = dahil[sinif]
+        no_haritasi = veri.get("no_haritasi", {})
         for ad_soyad, yok_sayisi in veri["yok"].items():
             if yok_sayisi < esik:
                 continue
+            okul_no = no_haritasi.get(ad_soyad)
             durum, ogrenci, veliler, not_metni = _ogrenciyi_eslestir(
-                conn, ad_soyad, sinif_id_ile.get(sinif), sinif_adi_ile
+                conn, ad_soyad, sinif_id_ile.get(sinif), sinif_adi_ile, okul_no=okul_no
+            )
+            gorunen_ad = (
+                ogrenci["ad_soyad"]
+                if ogrenci and _COZULMEMIS_ISIM_RE.match(ad_soyad.strip())
+                else ad_soyad
             )
             ogrenciler.append(
                 {
                     "sinif": sinif,
-                    "ad_soyad": ad_soyad,
+                    "ad_soyad": gorunen_ad,
+                    "okul_no": okul_no or (ogrenci["okul_no"] if ogrenci else None),
                     "yok_sayisi": yok_sayisi,
                     "alinan_sayisi": veri["alinan"],
                     "izinli_mi": ad_soyad in veri["izinli"],

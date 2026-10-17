@@ -64,9 +64,19 @@ def _yok_isimlerini_coz(kayit: dict, roster_by_no: dict[str, str], hedef_durum: 
     return isimler
 
 
+def _yok_nolarini_coz(kayit: dict, hedef_durum: str) -> list[int]:
+    nolar = []
+    for no, durum in kayit.get("durumlar", {}).items():
+        if durum == hedef_durum and str(no).isdigit():
+            nolar.append(int(no))
+    return nolar
+
+
 def onbellege_yaz(conn, tarih: str, sinif_adi: str, ders_no: int, durum: str,
                   yok_isimleri: list[str], izinli_isimleri: list[str],
-                  kaynak_tahta: str | None, kaydedilme_saati: str | None) -> None:
+                  kaynak_tahta: str | None, kaydedilme_saati: str | None,
+                  yok_nolari: list[int] | None = None,
+                  izinli_nolari: list[int] | None = None) -> None:
     """yoklama_onbellek'e TEK yazma yolu — hem SSH polling'i hem tahta
     istemcisinin itmesi (tahta_api.py) bunu kullanır (iki kopya senkron
     kalmasın diye)."""
@@ -74,12 +84,14 @@ def onbellege_yaz(conn, tarih: str, sinif_adi: str, ders_no: int, durum: str,
         """
         INSERT INTO yoklama_onbellek
             (tarih, sinif, ders_no, durum, yok_isimleri, izinli_isimleri,
-             kaynak_tahta, kaydedilme_saati, guncelleme_zamani)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+             yok_nolari, izinli_nolari, kaynak_tahta, kaydedilme_saati, guncelleme_zamani)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         ON CONFLICT(tarih, sinif, ders_no) DO UPDATE SET
             durum = excluded.durum,
             yok_isimleri = excluded.yok_isimleri,
             izinli_isimleri = excluded.izinli_isimleri,
+            yok_nolari = excluded.yok_nolari,
+            izinli_nolari = excluded.izinli_nolari,
             kaynak_tahta = excluded.kaynak_tahta,
             kaydedilme_saati = excluded.kaydedilme_saati,
             guncelleme_zamani = datetime('now')
@@ -104,6 +116,8 @@ def onbellege_yaz(conn, tarih: str, sinif_adi: str, ders_no: int, durum: str,
             tarih, sinif_adi, ders_no, durum,
             json.dumps(yok_isimleri, ensure_ascii=False),
             json.dumps(izinli_isimleri, ensure_ascii=False),
+            json.dumps(yok_nolari) if yok_nolari is not None else None,
+            json.dumps(izinli_nolari) if izinli_nolari is not None else None,
             kaynak_tahta, kaydedilme_saati,
         ),
     )
@@ -148,6 +162,8 @@ def itilen_kaydi_yaz(conn, kayit: dict, kaynak_tahta: str) -> bool:
         _yok_isimlerini_coz(kayit, roster, _YOK),
         _yok_isimlerini_coz(kayit, roster, _IZINLI),
         kaynak_tahta, kayit.get("kaydedilme_saati"),
+        _yok_nolarini_coz(kayit, _YOK),
+        _yok_nolarini_coz(kayit, _IZINLI),
     )
     conn.commit()
     return True
@@ -223,10 +239,13 @@ async def bir_tur_calistir(conn, tarih: str, tam_tarama: bool = True) -> None:
                 durum = "alindi"
                 yok_isimleri = _yok_isimlerini_coz(kayit, roster_by_no, _YOK)
                 izinli_isimleri = _yok_isimlerini_coz(kayit, roster_by_no, _IZINLI)
+                yok_nolari = _yok_nolarini_coz(kayit, _YOK)
+                izinli_nolari = _yok_nolarini_coz(kayit, _IZINLI)
                 kaynak_tahta = kayit.get("_kaynak_tahta")
                 kaydedilme_saati = kayit.get("kaydedilme_saati")
             else:
                 yok_isimleri, izinli_isimleri = [], []
+                yok_nolari, izinli_nolari = [], []
                 kaynak_tahta, kaydedilme_saati = None, None
 
                 if not zil.okul_gunu_mu(hedef_tarih):
@@ -252,5 +271,6 @@ async def bir_tur_calistir(conn, tarih: str, tam_tarama: bool = True) -> None:
             onbellege_yaz(
                 conn, tarih, sinif_adi, ders_no, durum, yok_isimleri,
                 izinli_isimleri, kaynak_tahta, kaydedilme_saati,
+                yok_nolari, izinli_nolari,
             )
     conn.commit()

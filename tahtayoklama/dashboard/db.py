@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS yoklama_onbellek (
     durum         TEXT NOT NULL,
     yok_isimleri  TEXT,
     izinli_isimleri TEXT,
+    yok_nolari    TEXT,
+    izinli_nolari TEXT,
     kaynak_tahta  TEXT,
     kaydedilme_saati TEXT,
     guncelleme_zamani TEXT NOT NULL DEFAULT (datetime('now')),
@@ -136,6 +138,12 @@ def semayi_kur() -> None:
         sutunlar = [r["name"] for r in conn.execute("PRAGMA table_info(tahta_nabiz)")]
         if "saglik" not in sutunlar:
             conn.execute("ALTER TABLE tahta_nabiz ADD COLUMN saglik TEXT")
+        # Yoklama önbelleğinde okul_no listeleri (JSON int dizisi) — eski satırlarda NULL.
+        sutunlar = [r["name"] for r in conn.execute("PRAGMA table_info(yoklama_onbellek)")]
+        if "yok_nolari" not in sutunlar:
+            conn.execute("ALTER TABLE yoklama_onbellek ADD COLUMN yok_nolari TEXT")
+        if "izinli_nolari" not in sutunlar:
+            conn.execute("ALTER TABLE yoklama_onbellek ADD COLUMN izinli_nolari TEXT")
         conn.commit()
     finally:
         conn.close()

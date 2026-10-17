@@ -15,7 +15,8 @@ def pano():
         CREATE TABLE ogrenciler (id INTEGER PRIMARY KEY, sinif_id INTEGER, no INTEGER,
             ad_soyad TEXT, cinsiyet TEXT, aktif INTEGER DEFAULT 1);
         CREATE TABLE yoklama_onbellek (id INTEGER PRIMARY KEY, tarih TEXT, sinif TEXT,
-            ders_no INTEGER, durum TEXT, yok_isimleri TEXT, izinli_isimleri TEXT);
+            ders_no INTEGER, durum TEXT, yok_isimleri TEXT, izinli_isimleri TEXT,
+            yok_nolari TEXT, izinli_nolari TEXT);
         INSERT INTO siniflar (id, ad) VALUES (1, '9-A'), (2, '9-B');
         INSERT INTO ogrenciler (sinif_id, no, ad_soyad) VALUES
             (1, 101, 'Ali Veli'), (1, 102, 'Can Demir'),
@@ -24,10 +25,10 @@ def pano():
         """
     )
 
-    def ekle(tarih, sinif, ders_no, durum, yok=(), izinli=()):
+    def ekle(tarih, sinif, ders_no, durum, yok=(), izinli=(), yok_nolari=None, izinli_nolari=None):
         c.execute(
             "INSERT INTO yoklama_onbellek (tarih, sinif, ders_no, durum, yok_isimleri,"
-            " izinli_isimleri) VALUES (?, ?, ?, ?, ?, ?)",
+            " izinli_isimleri, yok_nolari, izinli_nolari) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 tarih,
                 sinif,
@@ -35,6 +36,8 @@ def pano():
                 durum,
                 json.dumps(list(yok)),
                 json.dumps(list(izinli)),
+                json.dumps(list(yok_nolari)) if yok_nolari is not None else None,
+                json.dumps(list(izinli_nolari)) if izinli_nolari is not None else None,
             ),
         )
         c.commit()
@@ -70,6 +73,24 @@ def test_alinmamis_yoklama_sayilmaz(pano):
 
 def test_ayni_isimli_ogrenciler_icin_veri_gosterilmez(pano):
     assert yoklama.devamsizlik(103, "9-A") == []
+    assert yoklama.devamsizlik(104, "9-A") == []
+
+
+def test_okul_no_ile_dogrudan_eslesir(pano):
+    """yok_nolari ve izinli_nolari dolu olduğunda aynı isimli iki öğrenci bile
+    okul_no üzerinden karışmadan eşleşir."""
+    pano(
+        "2026-10-08",
+        "9-A",
+        1,
+        "alindi",
+        yok=["Ece Su"],
+        yok_nolari=[103],
+        izinli_nolari=[],
+    )
+    assert [(x.tarih, x.ders_no, x.tur) for x in yoklama.devamsizlik(103, "9-A")] == [
+        ("2026-10-08", 1, "yok")
+    ]
     assert yoklama.devamsizlik(104, "9-A") == []
 
 

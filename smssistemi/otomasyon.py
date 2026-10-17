@@ -103,23 +103,39 @@ def son_sonuc_oku(conn, servis: str = "ilk_ders") -> dict | None:
 
 
 def _ogrenciyi_eslestir(
-    conn, ad_soyad: str, sinif_id: int | None, sinif_adi_ile: dict[int, str]
+    conn,
+    ad_soyad: str,
+    sinif_id: int | None,
+    sinif_adi_ile: dict[int, str],
+    okul_no: int | None = None,
 ) -> tuple[str, dict | None, list[dict], str | None]:
-    """İsim -> rehberdeki öğrenci -> telefonlu veliler.
+    """Okul no (varsa) veya İsim -> rehberdeki öğrenci -> telefonlu veliler.
     Döner: (eslesme_durumu, ogrenci|None, veliler, not).
     """
-    if _COZULMEMIS_ISIM_RE.match(ad_soyad.strip()):
-        return ESLESME_YOK, None, [], "Panoda öğrenci numarası çözülememiş"
     if sinif_id is None:
+        if _COZULMEMIS_ISIM_RE.match(ad_soyad.strip()):
+            return ESLESME_YOK, None, [], "Panoda öğrenci numarası çözülememiş"
         return ESLESME_YOK, None, [], "Bu sınıf rehberde kayıtlı değil"
 
-    ogrenci = db.kisi_bul_isimle(conn, ad_soyad, sinif_id, "ogrenci")
+    ogrenci = None
+    if okul_no is not None:
+        ogrenci = db.kisi_bul_okul_no(conn, okul_no, sinif_id)
+        if ogrenci is None:
+            baska_no = db.kisi_bul_okul_no(conn, okul_no)
+            if baska_no is not None:
+                baska_sinif = sinif_adi_ile.get(baska_no["sinif_id"], "?")
+                return ESLESME_YOK, None, [], f"Rehberde {baska_sinif} sınıfında kayıtlı"
+
     if ogrenci is None:
-        baska = db.kisi_bul_isimle_sinifsiz(conn, ad_soyad, "ogrenci")
-        if baska is not None:
-            baska_sinif = sinif_adi_ile.get(baska["sinif_id"], "?")
-            return ESLESME_YOK, None, [], f"Rehberde {baska_sinif} sınıfında kayıtlı"
-        return ESLESME_YOK, None, [], "Rehberde bu isimde öğrenci yok"
+        if _COZULMEMIS_ISIM_RE.match(ad_soyad.strip()):
+            return ESLESME_YOK, None, [], "Panoda öğrenci numarası çözülememiş"
+        ogrenci = db.kisi_bul_isimle(conn, ad_soyad, sinif_id, "ogrenci")
+        if ogrenci is None:
+            baska = db.kisi_bul_isimle_sinifsiz(conn, ad_soyad, "ogrenci")
+            if baska is not None:
+                baska_sinif = sinif_adi_ile.get(baska["sinif_id"], "?")
+                return ESLESME_YOK, None, [], f"Rehberde {baska_sinif} sınıfında kayıtlı"
+            return ESLESME_YOK, None, [], "Rehberde bu isimde öğrenci yok"
 
     veliler = db.veliler_ogrenci_ile(conn, ogrenci["id"])
     if not veliler:
@@ -152,12 +168,15 @@ def devamsizlar_derle(
 
     # 6. ders için sabah 1. ders yoklama listesini de kontrol edelim
     sabah_yok_kumesi: set[tuple[str, str]] = set()
+    sabah_yok_no_kumesi: set[tuple[str, int]] = set()
     if ders_no == 6:
         for s in satirlar:
             if s.get("ders_no") == 1 and s.get("durum") == yoklama_kaynak.DURUM_ALINDI:
                 sinif_adi = s["sinif"]
                 for isim in s.get("yok_isimleri", []):
                     sabah_yok_kumesi.add((sinif_adi, isim))
+                for no in s.get("yok_nolari") or []:
+                    sabah_yok_no_kumesi.add((sinif_adi, no))
 
     gorulen_siniflar: dict[str, dict] = {}
     for s in hedef_ders_satirlari:
@@ -198,24 +217,41 @@ def devamsizlar_derle(
     for sinif_ad in dahil_siniflar:
         satir = gorulen_siniflar[sinif_ad]
         izinliler = set(satir.get("izinli_isimleri", []))
+        izinli_nolari = set(satir.get("izinli_nolari") or [])
         yoklar = satir.get("yok_isimleri", [])
+        yok_nolari = satir.get("yok_nolari") or []
+        es_uzunluk = len(yok_nolari) == len(yoklar)
 
-        for ad_soyad in yoklar:
-            if ad_soyad in izinliler:
+        for idx, ad_soyad in enumerate(yoklar):
+            okul_no = yok_nolari[idx] if es_uzunluk else None
+            if ad_soyad in izinliler or (okul_no is not None and okul_no in izinli_nolari):
                 izinli_sayisi += 1
                 continue
 
             durum, ogrenci, veliler, not_metni = _ogrenciyi_eslestir(
-                conn, ad_soyad, sinif_id_ile.get(sinif_ad), sinif_adi_ile
+                conn, ad_soyad, sinif_id_ile.get(sinif_ad), sinif_adi_ile, okul_no=okul_no
+            )
+            gorunen_ad = (
+                ogrenci["ad_soyad"]
+                if ogrenci and _COZULMEMIS_ISIM_RE.match(ad_soyad.strip())
+                else ad_soyad
             )
 
-            sabah_da_yok = (sinif_ad, ad_soyad) in sabah_yok_kumesi if ders_no == 6 else False
+            sabah_da_yok = (
+                (
+                    (sinif_ad, ad_soyad) in sabah_yok_kumesi
+                    or (okul_no is not None and (sinif_ad, okul_no) in sabah_yok_no_kumesi)
+                )
+                if ders_no == 6
+                else False
+            )
             if ders_no == 6 and not sabah_da_yok:
                 yalnizca_ogle_sayisi += 1
 
             ogrenci_kayit = {
                 "sinif": sinif_ad,
-                "ad_soyad": ad_soyad,
+                "ad_soyad": gorunen_ad,
+                "okul_no": okul_no or (ogrenci["okul_no"] if ogrenci else None),
                 "eslesme_durumu": durum,
                 "eslesme_notu": not_metni,
                 "ogrenci_kisi_id": ogrenci["id"] if ogrenci else None,

@@ -48,6 +48,24 @@ def _isimler(alan: str | None) -> list[str]:
     return [str(x) for x in liste if str(x).strip()]
 
 
+def _nolar(alan: str | None) -> set[int] | None:
+    if alan is None:
+        return None
+    try:
+        liste = json.loads(alan)
+    except ValueError:
+        return None
+    if not isinstance(liste, list):
+        return None
+    sonuc: set[int] = set()
+    for x in liste:
+        try:
+            sonuc.add(int(x))
+        except (TypeError, ValueError):
+            continue
+    return sonuc
+
+
 def _pano_ogrencileri(c: sqlite3.Connection) -> list[tuple[str, int, str]]:
     """(sınıf, no, ad_soyad) — id sırasıyla."""
     return c.execute(
@@ -57,7 +75,16 @@ def _pano_ogrencileri(c: sqlite3.Connection) -> list[tuple[str, int, str]]:
 
 
 def _yoklamalar(c: sqlite3.Connection, sinif: str | None, baslangic: str | None):
-    sql = "SELECT tarih, sinif, ders_no, yok_isimleri, izinli_isimleri FROM yoklama_onbellek WHERE durum = 'alindi'"
+    sutunlar = {r[1] for r in c.execute("PRAGMA table_info(yoklama_onbellek)").fetchall()}
+    no_sec = (
+        "yok_nolari, izinli_nolari"
+        if "yok_nolari" in sutunlar and "izinli_nolari" in sutunlar
+        else "NULL, NULL"
+    )
+    sql = (
+        f"SELECT tarih, sinif, ders_no, yok_isimleri, izinli_isimleri, {no_sec}"
+        " FROM yoklama_onbellek WHERE durum = 'alindi'"
+    )
     params: list = []
     if sinif:
         sql += " AND sinif = ?"
@@ -78,10 +105,21 @@ def devamsizlik(
             if ad is None:
                 return []
             hedef = normalize_isim(ad)
-            if sum(1 for _, _, a in ogrenciler if normalize_isim(a) == hedef) > 1:
-                return []
+            ayni_isim_var = sum(1 for _, _, a in ogrenciler if normalize_isim(a) == hedef) > 1
             sonuc = []
-            for tarih, _, ders_no, yok, izinli in _yoklamalar(c, sinif, baslangic):
+            for tarih, _, ders_no, yok, izinli, yok_no_ham, izinli_no_ham in _yoklamalar(
+                c, sinif, baslangic
+            ):
+                yok_nolar = _nolar(yok_no_ham)
+                izinli_nolar = _nolar(izinli_no_ham)
+                if yok_nolar is not None or izinli_nolar is not None:
+                    if yok_nolar and okul_no in yok_nolar:
+                        sonuc.append(Devamsizlik(tarih, ders_no, "yok"))
+                    elif izinli_nolar and okul_no in izinli_nolar:
+                        sonuc.append(Devamsizlik(tarih, ders_no, "izinli"))
+                    continue
+                if ayni_isim_var:
+                    continue
                 if hedef in {normalize_isim(x) for x in _isimler(yok)}:
                     sonuc.append(Devamsizlik(tarih, ders_no, "yok"))
                 elif hedef in {normalize_isim(x) for x in _isimler(izinli)}:
@@ -96,7 +134,7 @@ def sinif_yok_sayilari(baslangic: str) -> dict[str, int]:
     try:
         with _baglan() as c:
             sayac: Counter = Counter()
-            for _, sinif, _, yok, _ in _yoklamalar(c, None, baslangic):
+            for _, sinif, _, yok, _, _, _ in _yoklamalar(c, None, baslangic):
                 sayac[sinif] += len(_isimler(yok))
             return dict(sayac)
     except sqlite3.Error as e:
@@ -151,7 +189,7 @@ def eslesmeyenler(platform: dict[int, str], baslangic: str) -> list[dict]:
                 )
 
     goruldu = set()
-    for _, sinif, _, yok, izinli in yoklamalar:
+    for _, sinif, _, yok, izinli, _, _ in yoklamalar:
         for isim in _isimler(yok) + _isimler(izinli):
             n = normalize_isim(isim)
             if n not in sinif_isimleri[sinif] and (sinif, n) not in goruldu:

@@ -126,6 +126,8 @@ class TestTahtaApi(unittest.TestCase):
         s = self._satir()
         self.assertEqual(s["durum"], "alindi")
         self.assertEqual(json.loads(s["yok_isimleri"]), ["Ali Veli"])
+        self.assertEqual(json.loads(s["yok_nolari"]), [1])
+        self.assertEqual(json.loads(s["izinli_nolari"]), [])
         self.assertEqual(s["kaynak_tahta"], "9-A")
         self.assertEqual(s["kaydedilme_saati"], "09:00:00")
 
