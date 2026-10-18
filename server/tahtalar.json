@@ -93,5 +93,13 @@
     "ip": "192.168.23.236",
     "kullanici": "ogretmen",
     "admin": "etapadmin"
+  },
+  "sporodasi": {
+    "hostname": "sporodasi",
+    "ip": "192.168.23.239",
+    "mac": "00:09:df:83:5c:a9",
+    "_not": "2026-10-18: eski 9-B tahtası (değişimden önceki MAC) spor odasına kondu, hostname sporodasi. Sınıfı atanmamış ortak tahta (fenlab gibi); IP/MAC son bilinen değerdir, kimlik hostname.",
+    "kullanici": "ogretmen",
+    "admin": "etapadmin"
   }
 }
