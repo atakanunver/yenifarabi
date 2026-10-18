@@ -2157,3 +2157,8 @@ Neden: Kullanıcı üst menüde ikon + yeni görsel kimlik istedi; 3 öneri (Ta�
 ## 2026-10-17 - Atos çekirdek istem: dil/kısalık/kaynak kuralları, davranış eval'i (`benchmark/model_davranis_eval.py`)
 - Ne yapıldı: `openwebui/promptlar/cekirdek.md` — "her zaman Türkçe" (çeviri/yabancı dil dersi hariç), metin cevapları ≤4-5 cümle, kaynak yoksa "Bu konuda kaynağım yok" (genel mevzuat bilgisiyle cevap kuralı kaldırıldı, kullanıcı kararı), hafıza kaydı önce `onaylandi=False`, araç sonucu gelmeden "kayıt yok/silindi" yok. Ölçüm: 40 sentetik senaryo, baseline 37/40 → 40/40 (u06 harness düzeltmesiyle), rapor `benchmark/reports/davranis_baseline2_20261017.json` (salt-okunur).
 - Neden/ders: ilk kısalık cümlesi ("doğrudan cevaba başlar, giriş yazmazsın") modeli ARAÇ ÇAĞIRMAKTAN caydırdı (5 gerileme; tek satır çıkarılınca 6/6). Kısalık kuralına "araç kullanmayı engellemez" eklenince düzeldi. İstem değişikliklerini canlıya almadan önce eval ile ölç. Canlı etki için `kur.py` ile DB senkronu gerekir (kullanıcı çalıştırır).
+
+## 2026-10-18 - Kamera ızgarası: ffmpeg yeniden bağlanma döngüsü
+- 2026-10-16 15:05 DVR (.99) bağlantıları kısa süre koptu; 7 H265 DVR kanalının ffmpeg'i çıktı ve bir daha başlamadı (servis `active` göründüğü için fark edilmedi). Yalnız mediamtx'in kendisinin çektiği H264 kanallar (8, 11) yaşadı.
+- `kameralar/systemd-run.sh` içinde `start_cam` artık `while true; do ffmpeg ...; sleep 5; done &` döngüsü. `start.sh` (elle test, PID dosyalı) değişmedi.
+- Neden: mediamtx `source:` yolları kendiliğinden yeniden bağlanır, dışarıdan yayın yapan ffmpeg süreçleri bağlanmaz; servisin Restart=on-failure'ı tek bir ffmpeg ölümünü görmez.
