@@ -14,6 +14,7 @@ import maraton
 import oduller
 import odevler
 import sinavlar
+import sinifpdf
 import yetki
 import zaman
 from ayarlar import AYAR
@@ -105,6 +106,9 @@ def odev_detay(
         teslim=teslim,
         sorular=sorular,
         cevaplar=cevaplar,
+        eki=sinifpdf.odev_eki(conn, odev_id),
+        foto=sinifpdf.foto_getir(conn, odev_id, o["id"]),
+        ogrenci_id=o["id"],
     )
 
 

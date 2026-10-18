@@ -106,6 +106,27 @@ def plan_kaydet(veri: bytes, dosya_adi: str) -> Dosya:
     return _kaydet("plan", veri, tur)
 
 
+def pdf_kaydet(veri: bytes) -> Dosya:
+    if not veri:
+        raise DosyaHatasi("Bir PDF seçin.")
+    if len(veri) > PLAN_AZAMI:
+        raise DosyaHatasi("PDF en fazla 10 MB olabilir.")
+    if veri[:5] != b"%PDF-":
+        raise DosyaHatasi("Yalnızca PDF dosyası yükleyebilirsiniz.")
+    return _kaydet("pdf", veri, "pdf")
+
+
+def odev_foto_kaydet(veri: bytes) -> Dosya:
+    if not veri:
+        raise DosyaHatasi("Bir fotoğraf seçin.")
+    if len(veri) > FOTO_AZAMI:
+        raise DosyaHatasi("Fotoğraf en fazla 5 MB olabilir.")
+    tur = foto_turu(veri)
+    if tur is None:
+        raise DosyaHatasi("Yalnızca JPG, PNG ya da WEBP fotoğraf yükleyebilirsiniz.")
+    return _kaydet("odev_foto", veri, tur)
+
+
 def yol(klasor: str, depo_adi: str) -> Path:
     # depo_adi her zaman bizim ürettiğimiz ad; yine de yol dışına çıkmayı engelle
     if not depo_adi or "/" in depo_adi or "\\" in depo_adi or depo_adi.startswith("."):

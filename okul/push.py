@@ -22,6 +22,7 @@ log = logging.getLogger("okul.push")
 SABLONLAR = {
     "duyuru": ("Dijital Okul", "Yeni bir duyuru var.", "/duyurular"),
     "odev": ("Dijital Okul", "Yeni bir ödevin var.", "/ogrenci/odevler"),
+    "pdf": ("Dijital Okul", "Yeni bir dosya paylaşıldı.", "/ogrenci/dosyalar"),
     "sohbet": ("Dijital Okul", "Yeni bir sohbet mesajı var.", "/sohbet"),
     "acil": ("Dijital Okul", "Acil durum bildirimi var!", "/acil"),
     "acil_bitti": ("Dijital Okul", "Acil durum sona erdi.", "/acil"),
@@ -223,3 +224,7 @@ def duyuru_bildir(hedef_tur: str, hedef: str | None, yazar_id: int) -> None:
 
 def odev_bildir(sinif: str, yazar_id: int) -> None:
     _arkaplan("odev", lambda c: odev_alicilari(c, sinif, yazar_id))
+
+
+def pdf_bildir(sinif: str, yazar_id: int) -> None:
+    _arkaplan("pdf", lambda c: odev_alicilari(c, sinif, yazar_id))

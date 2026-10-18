@@ -7,6 +7,7 @@ import analitik
 import duyurular
 import odevler
 import push
+import sinifpdf
 import yetki
 import zaman
 from deps import db_conn, istemci_ip, render, rol
@@ -249,6 +250,10 @@ def odev_sonuc(
         tablo=odevler.sonuc_tablosu(conn, odev),
         sorular=odevler.sorular(conn, odev_id) if odev["tur"] == "test" else [],
         soru_ist=odevler.soru_istatistik(conn, odev),
+        eki=sinifpdf.odev_eki(conn, odev_id),
+        fotolar={
+            r[0] for r in conn.execute("SELECT ogrenci_id FROM odev_foto WHERE odev_id = ?", (odev_id,))
+        },
     )
 
 
@@ -257,6 +262,7 @@ def odev_sil(
     odev_id: int, k=Depends(OGRETMEN_POST), conn: sqlite3.Connection = Depends(db_conn)
 ):
     _odev(conn, k, odev_id)
+    sinifpdf.odev_silinirken(conn, odev_id)
     conn.execute("DELETE FROM odev WHERE id = ?", (odev_id,))
     conn.commit()
     return RedirectResponse("/ogretmen", status_code=303)

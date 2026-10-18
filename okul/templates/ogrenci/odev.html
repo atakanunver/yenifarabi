@@ -7,6 +7,25 @@
 {% if odev.aciklama %}<div class="kart"><p style="white-space: pre-line; margin: 0">{{ odev.aciklama }}</p></div>{% endif %}
 
 {% if odev.tur == 'klasik' %}
+  {% if eki is defined and eki %}
+  <div class="kart">
+    <p style="margin:0">📄 <a href="/pdf/{{ eki.pdf_id }}" target="_blank">{{ eki.baslik }}</a>{% if eki.sayfa_bas %} <span class="soluk">· s. {{ eki.sayfa_bas }}{% if eki.sayfa_bit != eki.sayfa_bas %}-{{ eki.sayfa_bit }}{% endif %}</span>{% endif %}</p>
+  </div>
+  <div class="kart">
+    {% if foto is defined and foto %}
+    <p><span class="etiket yesil">Fotoğraf yüklendi</span> {{ foto.zaman|tarih }}</p>
+    <img src="/odev-foto/{{ odev.id }}/{{ ogrenci_id }}" alt="Yüklediğin cevap fotoğrafı" style="max-width:100%;border-radius:.5rem">
+    {% endif %}
+    <form method="post" action="/ogrenci/odev/{{ odev.id }}/foto" enctype="multipart/form-data" data-foto-odev>
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label for="dosya">{{ 'Fotoğrafı değiştir' if foto is defined and foto else 'Cevaplarının fotoğrafını yükle' }}</label>
+      <input id="dosya" name="dosya" type="file" accept="image/*" required>
+      <img data-onizleme alt="" hidden style="max-width:100%;border-radius:.5rem;margin-top:.5rem">
+      <button class="tus tam">Gönder</button>
+    </form>
+    <script src="/static/foto-odev.js?v=1" defer></script>
+  </div>
+  {% else %}
   <div class="kart">
   {% if teslim %}
     <p><span class="etiket yesil">Yapıldı</span> {{ teslim.zaman|tarih }} tarihinde işaretledin.</p>
@@ -18,6 +37,7 @@
     </form>
   {% endif %}
   </div>
+  {% endif %}
 {% elif teslim %}
   <div class="kart bilgi">
     <p class="puan">{{ teslim.puan }}<span class="kucuk soluk"> / 100</span></p>

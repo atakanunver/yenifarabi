@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block baslik %}PDF gönder — Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/ogretmen">← Sınıflarım</a></p>
+<h1>PDF gönder</h1>
+<p class="soluk">PDF'i seçtiğiniz sınıfın öğrencileri "Dosyalar" sayfasında görür. Yükledikten sonra aynı PDF'ten foto teslimli ödev verebilirsiniz.</p>
+{% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+{% if not secenekler %}
+<div class="kart bilgi"><p>Size henüz sınıf/ders atanmamış.</p></div>
+{% else %}
+<form class="kart" method="post" action="/ogretmen/pdf" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="secim">Sınıf ve ders</label>
+  <select id="secim" name="secim">
+    {% for s, d in secenekler %}<option value="{{ s }}|{{ d }}">{{ s }} · {{ d|baslik if d else 'tüm dersler' }}</option>{% endfor %}
+  </select>
+  {% if k.rol == 'yonetici' %}<label for="ders">Ders</label><input id="ders" name="ders" type="text" required>{% endif %}
+  <label for="baslik">Başlık <span class="soluk kucuk">(boşsa dosya adı)</span></label>
+  <input id="baslik" name="baslik" type="text" maxlength="120" placeholder="Senaryo çalışma föyü">
+  <label for="dosya">PDF <span class="soluk kucuk">(en fazla 10 MB)</span></label>
+  <input id="dosya" name="dosya" type="file" required accept=".pdf,application/pdf">
+  <div class="tuslar"><button class="tus">Gönder ve ödev ver →</button></div>
+</form>
+{% endif %}
+
+<section class="kart">
+  <h2>Gönderdiklerim</h2>
+  <ul class="liste">
+  {% for p in pdfler %}
+    <li class="satir"><span><a href="/pdf/{{ p.id }}" target="_blank">📄 {{ p.baslik }}</a><br><span class="soluk kucuk">{{ p.sinif }} · {{ p.ders|baslik }} · {{ (p.boyut / 1024)|round|int }} KB · {{ p.zaman|tarih }}</span></span>
+      <span class="sag"><a class="tus ikincil kucuk" href="/ogretmen/pdf/{{ p.id }}/odev">Ödev ver</a></span>
+      <form method="post" action="/ogretmen/pdf/{{ p.id }}/sil" onsubmit="return confirm('PDF silinsin mi? Bağlı ödevler PDF\'siz kalır.')">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus tehlike kucuk">Sil</button></form></li>
+  {% else %}
+    <li class="bos">Henüz PDF göndermediniz.</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}

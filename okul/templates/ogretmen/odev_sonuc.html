@@ -4,6 +4,7 @@
 <p class="kucuk"><a href="/ogretmen">← Sınıflarım</a></p>
 <h1>{{ odev.baslik }}</h1>
 <p class="soluk">{{ odev.sinif }} · {{ odev.ders|baslik }} · {{ 'Test' if odev.tur == 'test' else 'Klasik ödev' }} · teslim {{ odev.teslim|tarih }}</p>
+{% if eki is defined and eki %}<div class="kart"><p style="margin:0">📄 <a href="/pdf/{{ eki.pdf_id }}" target="_blank">{{ eki.baslik }}</a>{% if eki.sayfa_bas %} · s. {{ eki.sayfa_bas }}{% if eki.sayfa_bit != eki.sayfa_bas %}-{{ eki.sayfa_bit }}{% endif %}{% endif %}</p></div>{% endif %}
 <div class="kart bilgi"><p style="margin:0"><b>{{ tablo.teslim_sayisi }}</b> / {{ tablo.ogrenciler|length }} öğrenci {{ 'çözdü' if odev.tur == 'test' else 'yaptı olarak işaretledi' }}.</p></div>
 
 {% if soru_ist is defined and soru_ist and soru_ist[0].cevaplayan %}
@@ -47,7 +48,7 @@
     <tbody>
     {% for o in tablo.ogrenciler %}
     <tr><td class="sayi">{{ o.okul_no }}</td><td>{{ o.ad_soyad }}</td>
-      <td>{% if o.durum %}<span class="etiket yesil">{{ 'Çözdü' if o.durum == 'tamam' else 'Yaptı' }}</span>{% else %}<span class="etiket kirmizi">Bekliyor</span>{% endif %}</td>
+      <td>{% if o.durum %}<span class="etiket yesil">{{ 'Çözdü' if o.durum == 'tamam' else 'Yaptı' }}</span>{% if fotolar is defined and o.id in fotolar %} <a href="/odev-foto/{{ odev.id }}/{{ o.id }}" target="_blank">📷 Fotoğraf</a>{% endif %}{% else %}<span class="etiket kirmizi">Bekliyor</span>{% endif %}</td>
       {% if odev.tur == 'test' %}<td class="sayi">{{ o.puan if o.puan is not none else '—' }}</td>{% endif %}</tr>
     {% endfor %}
     </tbody>

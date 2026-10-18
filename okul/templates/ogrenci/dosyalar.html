@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block baslik %}Dosyalar — Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/ogrenci">← Ana sayfa</a></p>
+<h1>Dosyalar</h1>
+<section class="kart">
+  <ul class="liste">
+  {% for p in pdfler %}
+    <li><a class="satir" href="/pdf/{{ p.id }}" target="_blank"><span>📄 {{ p.baslik }}<br><span class="soluk kucuk">{{ p.ders|baslik }} · {{ p.ogretmen }} · {{ p.zaman|tarih }}</span></span></a></li>
+  {% else %}
+    <li class="bos">Öğretmenlerin gönderdiği dosya yok.</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}

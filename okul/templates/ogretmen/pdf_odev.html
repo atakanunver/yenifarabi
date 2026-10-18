@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block baslik %}PDF'ten ödev — Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/ogretmen/pdf">← PDF gönder</a></p>
+<h1>PDF'ten ödev ver</h1>
+<p class="soluk">📄 <a href="/pdf/{{ pdf.id }}" target="_blank">{{ pdf.baslik }}</a> · {{ pdf.sinif }} · {{ pdf.ders|baslik }}. Öğrenciler cevaplarını fotoğraf olarak yükler; yalnızca siz görürsünüz.</p>
+{% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+<form class="kart" method="post" action="/ogretmen/pdf/{{ pdf.id }}/odev">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="baslik">Başlık</label>
+  <input id="baslik" name="baslik" type="text" required maxlength="120" value="{{ pdf.baslik }} — soru çözümü">
+  <div class="tuslar">
+    <div><label for="sayfa_bas">Başlangıç sayfası</label><input id="sayfa_bas" name="sayfa_bas" type="number" min="1" max="9999" inputmode="numeric"></div>
+    <div><label for="sayfa_bit">Bitiş sayfası</label><input id="sayfa_bit" name="sayfa_bit" type="number" min="1" max="9999" inputmode="numeric"></div>
+  </div>
+  <label for="aciklama">Açıklama <span class="soluk kucuk">(boşsa sayfa aralığından otomatik yazılır)</span></label>
+  <textarea id="aciklama" name="aciklama" maxlength="4000"></textarea>
+  <label for="teslim">Son teslim</label>
+  <input id="teslim" name="teslim" type="datetime-local" required>
+  <button class="tus tam">Ödevi yayınla</button>
+</form>
+{% endblock %}
