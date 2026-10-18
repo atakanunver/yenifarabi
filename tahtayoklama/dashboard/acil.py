@@ -260,6 +260,8 @@ def kaynak_adi(kaynak: str | None) -> str:
     k = str(kaynak or "makine")
     if k.startswith("panel"):
         return "Panel"
+    if k.startswith("guvenlik"):
+        return "Güvenlik (kapı)"
     if k.startswith("tahta:"):
         return f"Tahta {k[6:]}"
     if k.startswith("telegram:"):

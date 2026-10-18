@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Güvenlik Ekranı</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; height: 100vh; overflow: hidden; background: #0b0d10; color: #e6e6e6;
+         font-family: -apple-system, Segoe UI, Arial, sans-serif;
+         display: grid; grid-template-columns: 1fr 300px; user-select: none; -webkit-user-select: none; }
+
+  /* Kameralar */
+  #grid { display: grid; gap: 4px; padding: 4px; grid-template-columns: repeat(3, 1fr);
+          grid-template-rows: repeat(3, 1fr); min-height: 0; min-width: 0; }
+  .kare { position: relative; background: #000; border: 3px solid #1c2026; border-radius: 6px; overflow: hidden; cursor: zoom-in; }
+  .kare iframe { width: 100%; height: 100%; border: 0; pointer-events: none; }
+  .kare .ad { position: absolute; left: 0; top: 0; z-index: 2; background: rgba(0,0,0,.6); color: #fff;
+              font-size: 15px; font-weight: 600; padding: 3px 8px; border-bottom-right-radius: 6px; }
+  .kare .rozet { position: absolute; right: 0; top: 0; z-index: 2; font-size: 13px; font-weight: 700; padding: 3px 8px;
+                 border-bottom-left-radius: 6px; display: none; }
+  .kare.yedek .rozet { display: block; background: #b58900; color: #000; }
+  .kare .yok { position: absolute; inset: 0; z-index: 3; display: none; place-items: center; background: rgba(0,0,0,.8);
+               color: #ff8a8a; font-size: 20px; font-weight: 800; }
+  .kare.baglanti-yok .yok { display: grid; }
+  .kare.hareket { border-color: #ff1744; animation: hareket 0.8s infinite; }
+  @keyframes hareket { 50% { border-color: #4a0010; } }
+  .kare.buyuk { position: fixed; inset: 0 300px 0 0; z-index: 10; cursor: zoom-out; border-radius: 0; }
+  #grid.buyutuldu .kare:not(.buyuk) { visibility: hidden; }
+
+  /* Sağ panel */
+  aside { background: #14171c; border-left: 1px solid #262b33; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  #saat { font-size: 30px; font-weight: 700; text-align: center; line-height: 1.1; }
+  #tarih { font-size: 14px; color: #9aa3b2; text-align: center; }
+  #durum { font-size: 18px; font-weight: 800; text-align: center; padding: 10px; border-radius: 10px; background: #1b5e20; color: #fff; }
+  #durum.aktif { background: #b00020; animation: yanip 1.2s infinite; }
+  #durum.bilinmiyor { background: #444; }
+  @keyframes yanip { 50% { opacity: .7; } }
+  h2 { font-size: 13px; letter-spacing: .08em; color: #9aa3b2; margin: 6px 0 0; }
+  .dugme { border: 0; border-radius: 10px; color: #fff; font-weight: 800; cursor: pointer; width: 100%; }
+  .alarm { font-size: 22px; min-height: 64px; }
+  .haber { font-size: 16px; min-height: 46px; background: #2b3340; text-align: left; padding: 0 14px; }
+  #iptal { font-size: 18px; min-height: 60px; background: #ffb300; color: #000; display: none; }
+  #durum.aktif + #iptal { display: block; }
+  #hareket-modu { font-size: 16px; min-height: 46px; background: #2b3340; }
+  #hareket-modu.acik { background: #8b0000; }
+  .bosluk { flex: 1; }
+  .telefon { font-size: 15px; color: #cfd3da; display: flex; justify-content: space-between; }
+  .telefon b { font-size: 18px; color: #fff; }
+  #sonuc { font-size: 15px; padding: 8px; border-radius: 8px; background: #1f2630; display: none; }
+
+  /* Onay penceresi */
+  #onay { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.85); display: none; place-items: center; }
+  #onay.acik { display: grid; }
+  #onay .kutu { background: #14171c; border: 2px solid #39404b; border-radius: 16px; padding: 32px; width: min(720px, 92vw); text-align: center; }
+  #onay h3 { font-size: 34px; margin: 0 0 8px; }
+  #onay p { font-size: 18px; color: #cfd3da; margin: 0 0 24px; }
+  #onay .secenekler { display: grid; gap: 14px; }
+  #onay .secenekler button { font-size: 26px; min-height: 78px; }
+  #onay .vazgec { background: #4a5260; }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+
+<aside>
+  <div id="saat">--:--</div>
+  <div id="tarih"></div>
+  <div id="durum" class="bilinmiyor">Durum alınıyor…</div>
+  <button type="button" class="dugme" id="iptal">YANLIŞ ALARM — İPTAL</button>
+
+  <h2>ACİL ALARM</h2>
+  {% for anahtar, t in alarmlar.items() %}
+  <button type="button" class="dugme alarm" style="background: {{ t.renk }}" data-tur="{{ anahtar }}" data-ad="{{ t.baslik }}">{{ t.baslik }}</button>
+  {% endfor %}
+
+  <h2>YÖNETİME HABER VER</h2>
+  {% for anahtar, ad in nedenler.items() %}
+  <button type="button" class="dugme haber" data-neden="{{ anahtar }}" data-ad="{{ ad }}">{{ ad }}</button>
+  {% endfor %}
+
+  <div id="sonuc"></div>
+  <div class="bosluk"></div>
+  <button type="button" class="dugme" id="hareket-modu">HAREKET MODU: KAPALI</button>
+  {% for t in telefonlar %}<div class="telefon"><span>{{ t.ad }}</span><b>{{ t.no }}</b></div>{% endfor %}
+</aside>
+
+<div id="onay" role="dialog" aria-modal="true">
+  <div class="kutu">
+    <h3 id="onay-baslik"></h3>
+    <p id="onay-metin"></p>
+    <div class="secenekler" id="onay-secenekler"></div>
+  </div>
+</div>
+
+<script>
+// DVR kanalı ana kaynak; DVR yolu hazır değilse aynı fiziksel kameranın IP akışına
+// geçilir (eşleme: wiki nodes/ip-kameralar.md "Fiziksel kamera çakışmaları").
+const KAMERALAR = [
+  { dvr: "giris_dvr",       ip: "giris_ip",         ad: "Giriş" },
+  { dvr: "onbahce_dvr",     ip: "onbahce_ip",       ad: "Ön Bahçe" },
+  { dvr: "altkoridor_dvr",  ip: "altkoridor_ip",    ad: "Alt Koridor" },
+  { dvr: "ustkoridor_dvr",  ip: "ustkoridor_ip",    ad: "Üst Koridor" },
+  { dvr: "ogretmenler_dvr", ip: "ogretmenler_ip",   ad: "Öğretmenler" },
+  { dvr: "yanbahce_dvr",    ip: "arkataraf",        ad: "Yan Bahçe" },
+  { dvr: "dis1_dvr",        ip: null,               ad: "Dış 1" },
+  { dvr: "dis2_dvr",        ip: "disbina_kaliteli", ad: "Dış 2" },
+  { dvr: "d11_dvr",         ip: null,               ad: "Kamera 11" },
+];
+// kameralar.html ile aynı: .local adı Chrome'da bazen çözülmüyor, sabit IP.
+const MEDIAMTX_WEBRTC = "http://192.168.23.252:8889";
+const HAREKET_SN = 10;
+const $ = id => document.getElementById(id);
+const grid = $("grid");
+
+function sakla(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function oku(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+// --- Kareler ---------------------------------------------------------------
+for (const k of KAMERALAR) {
+  const kare = document.createElement("div");
+  kare.className = "kare";
+  kare.innerHTML = '<div class="ad"></div><div class="rozet">YEDEK</div><div class="yok">BAĞLANTI YOK</div>';
+  kare.querySelector(".ad").textContent = k.ad;
+  k.iframe = document.createElement("iframe");
+  k.iframe.allow = "autoplay";
+  kare.prepend(k.iframe);
+  k.kare = kare;
+  k.kaynak = null;
+  k.bekleyen = null; k.sayac = 0;
+  kaynakAta(k, k.dvr);
+  kare.addEventListener("click", () => {
+    const buyuk = kare.classList.contains("buyuk");
+    document.querySelectorAll(".kare.buyuk").forEach(x => x.classList.remove("buyuk"));
+    grid.classList.toggle("buyutuldu", !buyuk);
+    if (!buyuk) kare.classList.add("buyuk");
+  });
+  grid.appendChild(kare);
+}
+
+function kaynakAta(k, yol) {
+  if (k.kaynak === yol) return;
+  k.kaynak = yol;
+  k.iframe.src = `${MEDIAMTX_WEBRTC}/${yol}/`;
+  k.kare.classList.toggle("yedek", yol !== k.dvr);
+}
+
+// Titremeyi önlemek için kaynak değişikliği art arda 2 yoklamada aynı çıkarsa uygulanır.
+function kameralariGuncelle(hazir) {
+  if (!hazir) return;  // mediamtx API'si yoksa dokunma
+  for (const k of KAMERALAR) {
+    let hedef = k.dvr, yok = false;
+    if (!hazir[k.dvr]) {
+      if (k.ip && hazir[k.ip]) hedef = k.ip; else yok = true;
+    }
+    k.kare.classList.toggle("baglanti-yok", yok);
+    if (hedef === k.kaynak) { k.bekleyen = null; k.sayac = 0; continue; }
+    if (k.bekleyen === hedef) k.sayac++; else { k.bekleyen = hedef; k.sayac = 1; }
+    if (k.sayac >= 2) { kaynakAta(k, hedef); k.bekleyen = null; k.sayac = 0; }
+  }
+}
+
+// --- Hareket modu ----------------------------------------------------------
+let hareketModu = oku("guvenlik_hareket_modu") === "1";
+let sonBip = 0, sesBaglam = null;
+function hareketDugmesi() {
+  const d = $("hareket-modu");
+  d.classList.toggle("acik", hareketModu);
+  d.textContent = "HAREKET MODU: " + (hareketModu ? "AÇIK" : "KAPALI");
+  if (!hareketModu) KAMERALAR.forEach(k => k.kare.classList.remove("hareket"));
+}
+$("hareket-modu").addEventListener("click", () => {
+  hareketModu = !hareketModu;
+  sakla("guvenlik_hareket_modu", hareketModu ? "1" : "0");
+  hareketDugmesi();
+});
+hareketDugmesi();
+
+function bip() {
+  const simdi = Date.now();
+  if (simdi - sonBip < 5000) return;
+  sonBip = simdi;
+  try {
+    sesBaglam = sesBaglam || new AudioContext();
+    const o = sesBaglam.createOscillator(), g = sesBaglam.createGain();
+    o.frequency.value = 880; g.gain.value = 0.15;
+    o.connect(g); g.connect(sesBaglam.destination);
+    o.start(); o.stop(sesBaglam.currentTime + 0.25);
+  } catch (e) {}
+}
+
+function hareketGuncelle(hareket, simdi) {
+  if (!hareketModu) return;
+  let yeni = false;
+  for (const k of KAMERALAR) {
+    const son = Math.max(hareket[k.dvr] || 0, (k.ip && hareket[k.ip]) || 0);
+    const var_ = simdi - son < HAREKET_SN;
+    if (var_ && !k.kare.classList.contains("hareket")) yeni = true;
+    k.kare.classList.toggle("hareket", var_);
+  }
+  if (yeni) bip();
+}
+
+// --- Saat ve durum ---------------------------------------------------------
+function saatYaz() {
+  const d = new Date();
+  $("saat").textContent = d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  $("tarih").textContent = d.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" });
+}
+saatYaz(); setInterval(saatYaz, 1000);
+
+async function istek(url, govde) {
+  const r = await fetch(url, govde === undefined ? {} :
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(govde) });
+  if (r.status === 401) { location.href = "/guvenlik/giris"; throw new Error("Oturum yok"); }
+  if (!r.ok) {
+    let mesaj = r.status + "";
+    try { mesaj = (await r.json()).detail || mesaj; } catch (e) {}
+    throw new Error(mesaj);
+  }
+  return r.json();
+}
+
+async function yenile() {
+  try {
+    const d = await istek("/api/guvenlik/durum");
+    const kutu = $("durum");
+    kutu.classList.remove("bilinmiyor");
+    kutu.classList.toggle("aktif", !!d.aktif);
+    kutu.textContent = d.aktif
+      ? "⚠ " + d.aktif.baslik + (d.aktif.tatbikat ? " (TATBİKAT)" : "") + " — " + (d.aktif.zaman || "").slice(11, 16)
+      : "● NORMAL";
+    kameralariGuncelle(d.kameralar);
+    hareketGuncelle(d.hareket || {}, d.simdi);
+  } catch (e) {
+    $("durum").className = "bilinmiyor";
+    $("durum").textContent = "Sunucuya ulaşılamıyor";
+  }
+}
+yenile(); setInterval(yenile, 3000);
+
+// --- Onay penceresi ----------------------------------------------------------
+let mesgul = false;
+function onayAc(baslik, metin, secenekler) {
+  $("onay-baslik").textContent = baslik;
+  $("onay-metin").textContent = metin;
+  const kutu = $("onay-secenekler");
+  kutu.replaceChildren();
+  const vazgec = document.createElement("button");
+  vazgec.type = "button"; vazgec.className = "dugme vazgec"; vazgec.textContent = "VAZGEÇ";
+  vazgec.addEventListener("click", onayKapat);
+  for (const s of secenekler) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "dugme"; b.textContent = s.yazi;
+    b.style.background = s.renk; if (s.yaziRengi) b.style.color = s.yaziRengi;
+    b.addEventListener("click", () => { onayKapat(); s.eylem(); });
+    kutu.appendChild(b);
+  }
+  kutu.appendChild(vazgec);
+  $("onay").classList.add("acik");
+  vazgec.focus();  // Enter/Space yanlışlıkla alarm vermesin
+}
+function onayKapat() { $("onay").classList.remove("acik"); }
+document.addEventListener("keydown", e => { if (e.key === "Escape") onayKapat(); });
+
+function sonucYaz(metin) {
+  const s = $("sonuc");
+  s.textContent = metin; s.style.display = "block";
+  clearTimeout(sonucYaz.z); sonucYaz.z = setTimeout(() => { s.style.display = "none"; }, 20000);
+}
+function ozet(r) {
+  const k = (r.kanallar || []).map(x => (x.basarili ? "✔ " : "✖ ") + x.kanal).join("  ");
+  return r.tahta_toplam ? k + "  · Tahtalar " + r.tahta_basarili + "/" + r.tahta_toplam : k;
+}
+async function gonder(baslik, url, govde) {
+  if (mesgul) return;
+  mesgul = true;
+  document.querySelectorAll("aside .dugme").forEach(b => b.disabled = true);
+  sonucYaz(baslik + " — gönderiliyor…");
+  try { sonucYaz(baslik + ": " + ozet(await istek(url, govde))); }
+  catch (e) { sonucYaz(baslik + " — HATA: " + e.message); }
+  document.querySelectorAll("aside .dugme").forEach(b => b.disabled = false);
+  mesgul = false;
+  yenile();
+}
+
+document.querySelectorAll(".alarm").forEach(d => d.addEventListener("click", () => {
+  const ad = d.dataset.ad, tur = d.dataset.tur;
+  onayAc(ad + " alarmı verilsin mi?", "Siren ve anons çalar, personele SMS gider, tahtalarda talimat ekranı açılır.", [
+    { yazi: "GERÇEK OLAY — BAŞLAT", renk: "#b00020", eylem: () => gonder(ad + " (GERÇEK)", "/api/guvenlik/alarm", { tur, tatbikat: false }) },
+    { yazi: "TATBİKAT", renk: "#ffb300", yaziRengi: "#000", eylem: () => gonder(ad + " (tatbikat)", "/api/guvenlik/alarm", { tur, tatbikat: true }) },
+  ]);
+}));
+$("iptal").addEventListener("click", () => {
+  onayAc("Yanlış alarm iptal edilsin mi?", "Ses durur, tahta ekranları kapanır, alarmı alanlara \"YANLIŞ ALARM\" SMS'i gider.", [
+    { yazi: "EVET, İPTAL ET", renk: "#ffb300", yaziRengi: "#000", eylem: () => gonder("Yanlış alarm iptali", "/api/guvenlik/iptal", {}) },
+  ]);
+});
+document.querySelectorAll(".haber").forEach(d => d.addEventListener("click", () => {
+  onayAc("Yönetime bildirilsin mi?", "\"" + d.dataset.ad + "\" — yöneticilere SMS ve Telegram gider. Siren çalmaz.", [
+    { yazi: "EVET, BİLDİR", renk: "#1565c0", eylem: () => gonder(d.dataset.ad, "/api/guvenlik/haber", { neden: d.dataset.neden }) },
+  ]);
+}));
+</script>
+</body>
+</html>

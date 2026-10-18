@@ -31,6 +31,7 @@ import ssh_istemci
 import sunucular
 import tahta_api
 import acil
+import guvenlik
 import kameralar
 import yakinda
 import uzaktan_baslat
@@ -120,6 +121,7 @@ app.include_router(zamanlanmis_gorevler.router)
 app.include_router(veli_mesajlari.router)
 app.include_router(kameralar.router)
 app.include_router(acil.router)
+app.include_router(guvenlik.router)
 app.include_router(yakinda.router)
 
 

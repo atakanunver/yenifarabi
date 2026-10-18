@@ -124,6 +124,7 @@ MENU: list[dict] = [
         "ogeler": [
             {"ad": "DVR Kameralar", "href": "/kameralar", "ikon": "kamera"},
             {"ad": "IP Kameralar (yedek)", "href": "/kameralar-ip", "ikon": "kamera"},
+            {"ad": "Güvenlik ekranı", "href": "/guvenlik", "ikon": "kamera"},
         ],
     },
     {

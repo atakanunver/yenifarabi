@@ -90,7 +90,7 @@ const $ = id => document.getElementById(id);
 let turler = {}, tahtaTatbikat = true;
 const OLAY_ADLARI = {yanlis_alarm: 'YANLIŞ ALARM İPTALİ', ekranlari_kapat: 'Ekranlar kapatıldı', tahta_modu: 'Tahta alarm modu',
   tahta_alarm_yanlis_pin: 'Tahta: yanlış PIN', ekran_kapat_tahtadan: 'Tahtadan ekran kapatıldı',
-  ekran_kapat_yanlis_pin: 'Ekran kapatma: yanlış PIN', zil_siren: 'Siren çalındı', zil_durdur: 'Ses durduruldu', zil_anons: 'Anons çalındı'};
+  ekran_kapat_yanlis_pin: 'Ekran kapatma: yanlış PIN', zil_siren: 'Siren çalındı', zil_durdur: 'Ses durduruldu', zil_anons: 'Anons çalındı', guvenlik_uyari: 'Güvenlik: yönetime haber'};
 const olayAdi = t => (turler[t] && turler[t].baslik) || OLAY_ADLARI[t] || t;
 const saat = z => (z || '').replace('T', ' ').slice(0, 19);
 
