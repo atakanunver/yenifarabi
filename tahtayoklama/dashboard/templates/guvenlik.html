@@ -97,6 +97,7 @@
 <script>
 // DVR kanalı ana kaynak; DVR yolu hazır değilse aynı fiziksel kameranın IP akışına
 // geçilir (eşleme: wiki nodes/ip-kameralar.md "Fiziksel kamera çakışmaları").
+// Kamera 11'in bağımsız IP'si yok.
 const KAMERALAR = [
   { dvr: "giris_dvr",       ip: "giris_ip",         ad: "Giriş" },
   { dvr: "onbahce_dvr",     ip: "onbahce_ip",       ad: "Ön Bahçe" },
@@ -104,7 +105,7 @@ const KAMERALAR = [
   { dvr: "ustkoridor_dvr",  ip: "ustkoridor_ip",    ad: "Üst Koridor" },
   { dvr: "ogretmenler_dvr", ip: "ogretmenler_ip",   ad: "Öğretmenler" },
   { dvr: "yanbahce_dvr",    ip: "arkataraf",        ad: "Yan Bahçe" },
-  { dvr: "dis1_dvr",        ip: null,               ad: "Dış 1" },
+  { dvr: "dis1_dvr",        ip: "rsvideo_250",      ad: "Dış 1" },  // .250 = DIS1 (2026-10-18 görüntüyle doğrulandı)
   { dvr: "dis2_dvr",        ip: "disbina_kaliteli", ad: "Dış 2" },
   { dvr: "d11_dvr",         ip: null,               ad: "Kamera 11" },
 ];
