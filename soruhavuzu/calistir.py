@@ -8,6 +8,8 @@ uret     ders saati dışında çalışır. Başlangıçta ve (pencere hâlâ a�
          Her pakette ders saati yeniden kontrol edilir.
 siniflandir  kazanımsız onaylı soruları LLM ile kazanıma bağlar [--kuru] [--limit N] [--zorla]
 sik-karistir  durum IN (uretildi, onayli, askida) soruların şıklarını kanonik sıraya geçirir [--kuru]
+sekil-tara  şekil/grafik/tablo atfı yapan onaylı/bekleyen soruları 'askida'ya alır [--uygula; yoksa kuru]
+         (uret her turun başında uygular; geri al: sekil-geri-al <dosya>)
 denetle  AGY ile tüm 'uretildi' soruları tek seferde denetler (elle; sınırsız)
 durum    özet sayılar (sınıf başına onaylı dahil)"""
 
@@ -19,7 +21,7 @@ from pathlib import Path
 
 import psycopg2
 
-from soruhavuzu import denetci, etiketle, kazanimlar, kaynak, kaynaklar, sik, siniflandir, tekrar, uretici, vt, zaman
+from soruhavuzu import denetci, etiketle, kazanimlar, kaynak, kaynaklar, sekil, sik, siniflandir, tekrar, uretici, vt, zaman
 
 VERI = Path("/mnt/farabi-data/farabi")
 # Kaldığı yer işareti (2026-10-09): her kazanım sonunda yazılır, yeniden başlayınca okunur.
@@ -62,6 +64,9 @@ def uret(
     """2026-10-08: kazanım öncelikli — her soru bir kazanımla (spec soru-havuzu-kazanim-eslesmesi)."""
     bulucu = bulucu or kaynak.bul
     ureten = ureten or uretici.uret_kazanim
+    r = sekil_tara(conn, uygula=True)  # aktarma betiklerinden sızan şekil atıflı soruları karantinaya al
+    if r["bulunan"]:
+        print(f"[uret] {len(r['bulunan'])} şekil atıflı soru askıya alındı ({r['dosya']})", flush=True)
     gomucu = tekrar._gomucu()
     eleyici = tekrar.Eleyici(gomucu)
     eleyici.yukle(conn)
@@ -171,6 +176,50 @@ def denetle(
         print(f"[denetle] {n} karar", flush=True)
 
 
+def sekil_tara(conn, uygula: bool = False, sinif: int | None = None) -> dict:
+    """Şekil/grafik/tablo atfı yapıp şekli taşımayan soruları karantinaya (durum='askida') alır; silmez.
+    Önceki durum JSON dosyasına yazılır (sekil-geri-al ile geri döner). Aktarma betikleri vt.soru_ekle'yi
+    atlayıp doğrudan INSERT ettiği için tek geçit yerine her turda taranır (idempotent)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, sinif, ders, soru, secenekler, durum FROM soru WHERE durum IN ('onayli','uretildi') ORDER BY id"
+        )
+        satirlar = cur.fetchall()
+    bulunan = []
+    for sid, sn, ders, soru, sec, durum_ in satirlar:
+        if sinif is not None and sn != sinif:
+            continue
+        m = sekil.eslesme(soru, sec)
+        if m:
+            bulunan.append({"id": sid, "sinif": sn, "ders": ders, "onceki": durum_, "eslesme": m, "soru": soru[:100]})
+    dosya = None
+    if uygula and bulunan:
+        dosya = VERI / "soru_havuzu" / f"sekil_askida_{datetime.now():%Y%m%d_%H%M%S}.json"
+        dosya.parent.mkdir(parents=True, exist_ok=True)
+        dosya.write_text(json.dumps(bulunan, ensure_ascii=False, indent=1), encoding="utf-8")
+        with conn.cursor() as cur:
+            for b in bulunan:
+                cur.execute(
+                    "UPDATE soru SET durum='askida', denetim_notu=%s, denetim_at=now() WHERE id=%s",
+                    (f"sekil_atfi: {b['eslesme']}"[:200], b["id"]),
+                )
+        conn.commit()
+    return {"bulunan": bulunan, "dosya": str(dosya) if dosya else None}
+
+
+def sekil_geri_al(conn, dosya: str) -> int:
+    kayit = json.loads(Path(dosya).read_text(encoding="utf-8"))
+    with conn.cursor() as cur:
+        for b in kayit:
+            cur.execute(
+                "UPDATE soru SET durum=%s, denetim_notu=NULL WHERE id=%s AND durum='askida' "
+                "AND denetim_notu LIKE 'sekil_atfi%%'",
+                (b["onceki"], b["id"]),
+            )
+    conn.commit()
+    return len(kayit)
+
+
 def sik_karistir(conn, kuru: bool = False) -> dict:
     """Mevcut soruların şıklarını kanonik sıraya geçirir (tek işlemde); doğru şık metni korunur."""
     with conn.cursor() as cur:
@@ -231,6 +280,10 @@ def main() -> int:
     p_sin.add_argument("--kuru", action="store_true")
     p_sin.add_argument("--limit", type=int, default=None)
     p_sin.add_argument("--zorla", action="store_true", help="Ders saati kontrolünü atla")
+    p_sk = sub.add_parser("sekil-tara")
+    p_sk.add_argument("--uygula", action="store_true")
+    p_sk.add_argument("--sinif", type=int, default=None)
+    sub.add_parser("sekil-geri-al").add_argument("dosya")
     sub.add_parser("sik-karistir").add_argument("--kuru", action="store_true")
     sub.add_parser("tekrar-temizle").add_argument("--kuru", action="store_true")
     sub.add_parser("durum")
@@ -271,6 +324,16 @@ def main() -> int:
             conn, tekrar._gomucu(), kuru=args.kuru, limit=args.limit, ders_saati_kontrol=not args.zorla
         )
         print(f"[siniflandir] bitti: {s}{' (kuru — yazılmadı)' if args.kuru else ''}", flush=True)
+    elif komut == "sekil-tara":
+        r = sekil_tara(conn, uygula=args.uygula, sinif=args.sinif)
+        from collections import Counter
+        for (sn, d, o), n in sorted(Counter((b["sinif"], b["ders"], b["onceki"]) for b in r["bulunan"]).items()):
+            print(f"  {sn:>2} {d:<10} {o:<8} {n}")
+        for b in r["bulunan"][:20]:
+            print(f"  #{b['id']} [{b['eslesme']}] {b['soru']}")
+        print(f"[sekil-tara] {len(r['bulunan'])} soru{' askıya alındı: ' + r['dosya'] if r['dosya'] else ' (kuru — yazılmadı)'}")
+    elif komut == "sekil-geri-al":
+        print(f"[sekil-geri-al] {sekil_geri_al(conn, args.dosya)} kayıt işlendi")
     elif komut == "sik-karistir":
         s = sik_karistir(conn, kuru=args.kuru)
         harf = "ABCD"

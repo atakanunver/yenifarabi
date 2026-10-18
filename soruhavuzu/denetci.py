@@ -46,7 +46,10 @@ def istem(paket: list[dict]) -> str:
         "dersin kendi bilgisini/becerisini ölçmeli: ders kitabındaki bir örnek, hikâye ya da problem "
         "bağlamından çıkarılmış ders dışı bilgi soruları (ör. matematik kitabında bir günün tarihi, "
         "bir kişinin adı, bir yerin özelliği) ve saçma, anlamsız ya da cevabı sorudan belli olan "
-        "sorular GEÇERSİZDİR — metinde geçse bile reddet. Kazanımı belirtilmiş soru o kazanımı "
+        "sorular GEÇERSİZDİR — metinde geçse bile reddet. Soru \"şekildeki\", \"grafiğe göre\", "
+        "\"tabloya göre\", \"haritada gösterilen\" gibi öğrencinin göremeyeceği bir şekil/grafik/tablo/görsele "
+        "atıf yapıyorsa (bilgi soru metninde tam verilmedikçe) GEÇERSİZ (neden: şekil atfı). "
+        "Kazanımı belirtilmiş soru o kazanımı "
         "ölçmüyorsa GEÇERSİZ (neden: kazanım dışı). Dosya oluşturma, araç "
         "kullanma; yalnızca her id için bir karar içeren JSON döndür: "
         '{"kararlar": [{"id": 1, "gecerli": true, "neden": "kısa gerekçe"}]}\n'
