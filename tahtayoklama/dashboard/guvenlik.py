@@ -38,8 +38,8 @@ HAREKET_DURUM = Path.home() / "farabi" / "kameralar" / "hareket" / "durum.json"
 MEDIAMTX_API = "http://127.0.0.1:9997/v3/paths/list"
 COOKIE_ADI = "guvenlik_oturum"
 OTURUM_SN = (
-    60 * 60 * 24 * 365
-)  # laptop kapıda sürekli açık; şifre değişince anahtar da değişir
+    60 * 60
+)  # görevli kalkınca başkası kullanamasın: girişten 1 saat sonra şifre tekrar sorulur
 ALARMLAR = ("kilit", "tahliye", "yangin", "deprem")
 NEDENLER = {
     "supheli": "Şüpheli kişi / araç",
@@ -122,6 +122,14 @@ async def giris_gonder(request: Request, sifre: str = Form(...)):
     yanit.set_cookie(
         COOKIE_ADI, cerez_uret(a), httponly=True, samesite="lax", max_age=OTURUM_SN
     )
+    return yanit
+
+
+@router.post("/guvenlik/cikis")
+async def cikis():
+    """KİLİTLE düğmesi: görevli yerinden kalkarken ekranı hemen kilitler."""
+    yanit = RedirectResponse("/guvenlik/giris", status_code=303)
+    yanit.delete_cookie(COOKIE_ADI)
     return yanit
 
 

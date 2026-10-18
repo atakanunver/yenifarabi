@@ -45,6 +45,7 @@
   #durum.aktif + #iptal { display: block; }
   #hareket-modu { font-size: 16px; min-height: 46px; background: #2b3340; }
   #hareket-modu.acik { background: #8b0000; }
+  #kilitle { font-size: 16px; min-height: 46px; background: #4a5260; }
   .bosluk { flex: 1; }
   .telefon { font-size: 15px; color: #cfd3da; display: flex; justify-content: space-between; }
   .telefon b { font-size: 18px; color: #fff; }
@@ -83,6 +84,7 @@
   <div id="sonuc"></div>
   <div class="bosluk"></div>
   <button type="button" class="dugme" id="hareket-modu">HAREKET MODU: KAPALI</button>
+  <form method="post" action="/guvenlik/cikis"><button type="submit" class="dugme" id="kilitle">🔒 KİLİTLE</button></form>
   {% for t in telefonlar %}<div class="telefon"><span>{{ t.ad }}</span><b>{{ t.no }}</b></div>{% endfor %}
 </aside>
 

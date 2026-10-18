@@ -42,6 +42,17 @@ class TestCerez(unittest.TestCase):
         self.assertFalse(guvenlik.cerez_gecerli(AYAR, "bozuk", simdi=1001))
         self.assertFalse(guvenlik.cerez_gecerli(AYAR, None))
 
+    def test_oturum_bir_saatte_duser(self):
+        c = guvenlik.cerez_uret(AYAR, simdi=1000)
+        self.assertTrue(guvenlik.cerez_gecerli(AYAR, c, simdi=1000 + 3599))
+        self.assertFalse(guvenlik.cerez_gecerli(AYAR, c, simdi=1000 + 3601))
+
+    def test_kilitle_cerezi_siler(self):
+        y = asyncio.run(guvenlik.cikis())
+        self.assertEqual(y.headers["location"], "/guvenlik/giris")
+        self.assertIn(f"{guvenlik.COOKIE_ADI}=", y.headers["set-cookie"])
+        self.assertIn("Max-Age=0", y.headers["set-cookie"])
+
     def test_suresi_dolmus_ve_baska_anahtar(self):
         c = guvenlik.cerez_uret(AYAR, simdi=1000)
         self.assertFalse(
