@@ -19,6 +19,7 @@ ek olarak hata metinlerinden de maskelenir.
 import asyncio
 import json
 import re
+import socket
 import time
 import urllib.error
 import urllib.request
@@ -69,6 +70,23 @@ MAKINELER = {
         "host": "192.168.23.251",
         "proxy_dugmesi": False,
     },
+    # Hostname esas (IP DHCP ile değişir). "kontroller" = ek TCP port denetimi.
+    "zil": {
+        "ad": "Zil PC",
+        "rol": "Zil/anons Telegram botu + web paneli",
+        "host": "zil.local",
+        "kullanici": "atakan",
+        "proxy_dugmesi": False,
+        "kontroller": (("Zil paneli", 8090),),
+    },
+    "kiosk": {
+        "ad": "Kiosk PC",
+        "rol": "Giriş kapısı yüz tanıma + dijital pano web servisi",
+        "host": "kiosk.local",
+        "kullanici": "atakan",
+        "proxy_dugmesi": True,
+        "kontroller": (("Pano web servisi", 5000),),
+    },
 }
 
 _PAROLALI_URL = re.compile(r"(https?://)[^/\s:@]+:[^/\s@]+@")
@@ -118,7 +136,7 @@ def komut_argumanlari(makine: str, alt: str) -> list[str]:
         "IdentitiesOnly=yes",
         "-o",
         "StrictHostKeyChecking=accept-new",
-        f"ata@{tanim['host']}",
+        f"{tanim.get('kullanici', 'ata')}@{tanim['host']}",
         alt,
     ]
 
@@ -164,17 +182,35 @@ def _chatterbox_oku() -> dict:
         return {"ulasilabilir": False, "hata": _maskele(str(e))[:200]}
 
 
+def _hafif_oku(tanim: dict) -> dict:
+    sonuc = []
+    for ad, port in tanim["kontroller"]:
+        baslangic = time.perf_counter()
+        try:
+            with socket.create_connection((tanim["host"], port), timeout=3):
+                sonuc.append({"ad": ad, "port": port, "acik": True,
+                              "ms": round((time.perf_counter() - baslangic) * 1000)})
+        except OSError:
+            sonuc.append({"ad": ad, "port": port, "acik": False})
+    return {"ulasilabilir": any(k["acik"] for k in sonuc), "kontroller": sonuc}
+
+
 async def _topla() -> dict:
     sonuclar = await asyncio.gather(*(_calistir(ad, "durum") for ad in MAKINELER))
     chatterbox = await asyncio.to_thread(_chatterbox_oku)
+    portlar = await asyncio.gather(
+        *(asyncio.to_thread(_hafif_oku, t) if t.get("kontroller") else asyncio.sleep(0)
+          for t in MAKINELER.values())
+    )
     makineler = []
-    for (anahtar, tanim), durum in zip(MAKINELER.items(), sonuclar):
+    for (anahtar, tanim), durum, port in zip(MAKINELER.items(), sonuclar, portlar):
         makineler.append(
             {
                 "anahtar": anahtar,
                 "ad": tanim["ad"],
                 "rol": tanim["rol"],
                 "proxy_dugmesi": tanim["proxy_dugmesi"],
+                "portlar": port["kontroller"] if port else [],
                 **durum,
             }
         )

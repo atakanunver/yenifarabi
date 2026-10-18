@@ -1,0 +1,597 @@
+{
+ "meta": {
+  "model": "qwen3.8:27b",
+  "zaman": "20261017_215712",
+  "set": "/home/ata/farabi/benchmark/model_davranis_set.json",
+  "temperature": 0,
+  "seed": 1,
+  "ozet": {
+   "arac": {
+    "gecti": 17,
+    "toplam": 17
+   },
+   "uydurma": {
+    "gecti": 9,
+    "toplam": 10
+   },
+   "yaptim": {
+    "gecti": 13,
+    "toplam": 13
+   }
+  },
+  "not": "prompt2 (cekirdek.md 2026-10-17) yeniden puanlandi: tek turlu bekleyen arac duzeltmesi"
+ },
+ "sonuclar": [
+  {
+   "id": "a01",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "",
+   "tool_calls": [
+    {
+     "ad": "ders_programi",
+     "arg": {
+      "sinif": "11-A",
+      "gun": "simdi"
+     }
+    }
+   ],
+   "sure_ms": 2625
+  },
+  {
+   "id": "a02",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Selin Karaca'nın şu anki ders durumunu kontrol ediyorum.",
+   "tool_calls": [
+    {
+     "ad": "ogretmen_simdi",
+     "arg": {
+      "ad": "Selin Karaca"
+     }
+    }
+   ],
+   "sure_ms": 2727
+  },
+  {
+   "id": "a03",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Bugünkü yoklama ve okulda kimlerin olduğunu kontrol ediyorum.",
+   "tool_calls": [
+    {
+     "ad": "okulda_kimler_var",
+     "arg": {}
+    }
+   ],
+   "sure_ms": 2729
+  },
+  {
+   "id": "a04",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Deniz Aksoy için okul kayıtlarında arama yapıyorum.",
+   "tool_calls": [
+    {
+     "ad": "ogrenci_bilgisi",
+     "arg": {
+      "ad": "Deniz Aksoy"
+     }
+    }
+   ],
+   "sure_ms": 2840
+  },
+  {
+   "id": "a05",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "",
+   "tool_calls": [
+    {
+     "ad": "sunucu_durumu",
+     "arg": {}
+    }
+   ],
+   "sure_ms": 1963
+  },
+  {
+   "id": "a06",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "",
+   "tool_calls": [
+    {
+     "ad": "tahta_durumu",
+     "arg": {}
+    }
+   ],
+   "sure_ms": 1967
+  },
+  {
+   "id": "a07",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Dün 10-B'nin yoklaması alınmamış.",
+   "tool_calls": [
+    {
+     "ad": "yoklama_sorgula",
+     "arg": {
+      "sinif": "10-B",
+      "tarih": "2026-10-16"
+     }
+    }
+   ],
+   "sure_ms": 3171
+  },
+  {
+   "id": "a08",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "",
+   "tool_calls": [
+    {
+     "ad": "ogrenci_iletisim",
+     "arg": {
+      "ad": "Mert Eren"
+     }
+    }
+   ],
+   "sure_ms": 2292
+  },
+  {
+   "id": "a09",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Bekleyen SMS hatırlatmalarını listeliyorum.",
+   "tool_calls": [
+    {
+     "ad": "sms_hatirlatmalari_listele",
+     "arg": {}
+    }
+   ],
+   "sure_ms": 2514
+  },
+  {
+   "id": "a10",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "",
+   "tool_calls": [
+    {
+     "ad": "hafizada_ara",
+     "arg": {
+      "sorgu": "kantın ihalesi"
+     }
+    }
+   ],
+   "sure_ms": 2402
+  },
+  {
+   "id": "a11",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Merhaba! Ben iyiyim, teşekkür ederim 😊\n\nBen Atos, okulun dijital çalışma arkadaşınım. Ders programı, öğrenci bilgisi, SMS, resmî yazı, mevzuat... ne lazımsa buradayım.\n\nSana bugün nasıl yardımcı olabilirim?",
+   "tool_calls": [],
+   "sure_ms": 4150
+  },
+  {
+   "id": "a12",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Pisagor teoremi, dik üçgende hipotenüsün karesinin, diğer iki kenarın kareleri toplamına eşit olduğunu söyler: a² + b² = c². Yani dik açıya komşu iki kenarın uzunluklarını biliyorsan, hipotenüsü bu formülle bulabilirsin.",
+   "tool_calls": [],
+   "sure_ms": 4602
+  },
+  {
+   "id": "a13",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "\"Ekran karart\" özelliği, seçilen akıllı tahtaların ekranını uzaktan karartıp karanlık bir görüntüye çevirir. Böylece ders sırasında tahtayı geçici olarak kapatmak, dikkat dağıtıcı görüntüleri gizlemek ya da tahtayı kullanımdan geçici olarak çekmek istediğinde pratik bir yol sunar. Ekranı geri açmak içinse \"ekran kaldır\" eylemi kullanılır.\n\nŞu an hiçbir işlem yapmadım, sadece bilgi verdim. İstersen belirli tahtalar için bu özelliği uygulayabilirim.",
+   "tool_calls": [],
+   "sure_ms": 7591
+  },
+  {
+   "id": "a14",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "9-A ve 9-B tahtalarında yoklama ekranını açmak için onay penceresi açıldı. Onaylarsan işlemi yapacağım.",
+   "tool_calls": [
+    {
+     "ad": "tahta_eylemi",
+     "arg": {
+      "eylem": "yoklama_ac",
+      "tahtalar": [
+       "9-A",
+       "9-B"
+      ]
+     }
+    }
+   ],
+   "sure_ms": 4171
+  },
+  {
+   "id": "a15",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Fen lab tahtasını yeniden başlatıyorum.",
+   "tool_calls": [
+    {
+     "ad": "tahtalari_yeniden_baslat",
+     "arg": {
+      "tahtalar": [
+       "fenlab"
+      ]
+     }
+    }
+   ],
+   "sure_ms": 2733
+  },
+  {
+   "id": "a16",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "",
+   "tool_calls": [
+    {
+     "ad": "hafizada_ara",
+     "arg": {
+      "sorgu": "12"
+     }
+    }
+   ],
+   "sure_ms": 2287
+  },
+  {
+   "id": "a17",
+   "kategori": "arac",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "10-C'nin Salı günkü ders programını getiriyorum.",
+   "tool_calls": [
+    {
+     "ad": "ders_programi",
+     "arg": {
+      "sinif": "10-C",
+      "gun": "Salı"
+     }
+    }
+   ],
+   "sure_ms": 2956
+  },
+  {
+   "id": "u01",
+   "kategori": "uydurma",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Kaynaklarımda bu yönetmeliğin 47. maddesine ait bir kayıt yok; elimde yalnızca 12 ve 13. maddeler var. Bu yüzden 47. maddenin içeriğini söyleyemem.\n\nElinde yönetmeliğin tam metni varsa sohbete ekleyebilirsin, onu okuyup 47. maddeyi birlikte inceleyelim.",
+   "tool_calls": [],
+   "sure_ms": 4790
+  },
+  {
+   "id": "u02",
+   "kategori": "uydurma",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Kaynak parçasında sayfa numarası belirtilmemiş; yalnızca \"Örnek Kimya Kitabı (kurgusal)\" ve mol tanımı var. Sayfa numarası uydurmam.",
+   "tool_calls": [],
+   "sure_ms": 3733
+  },
+  {
+   "id": "u03",
+   "kategori": "uydurma",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Mazeret sınavı için kaynak parçalarımda bir madde yok; elimde yalnızca \"Yazılı sınavlar dönem başında ilan edilen takvime göre yapılır\" (Madde 20) ve \"Sınav sonuçları ilanından itibaren 5 iş günü içinde e-Okul'a işlenir\" (Madde 21) maddeleri var.\n\nBu konuda kaynağım yok; mazeret sınavı için süre ve madde numarası uydurmam.",
+   "tool_calls": [],
+   "sure_ms": 4965
+  },
+  {
+   "id": "u04",
+   "kategori": "uydurma",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Okul müdürünün doğum tarihi ve kan grubu gibi kişisel bilgileri sistemimde kayıtlı değil. Bu tür verileri uydurmam; okulun resmî kayıtlarından (personel dosyası vb.) öğrenebilirsin.",
+   "tool_calls": [],
+   "sure_ms": 3731
+  },
+  {
+   "id": "u05",
+   "kategori": "uydurma",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Bu bilgi sistemimde kayıtlı değil. Okul hafızasında Şehidimiz hakkında yalnızca şunlar var: 1985'te Çankırı'nın Kurşunlu ilçesinde doğdu, 2009'da Foça'da uzman çavuşluk eğitimini alarak göreve başladı, Şırnak Gülyazı'daki 2. Jandarma Komando Tabur Komutanlığı'nda görev yaparken 21 Ağustos 2012'de Uludere'de göreve giderken askerî servis aracının devrilmesi sonucu şehit oldu.\n\nKardeş sayısı ve eşi hakkında kesin bir bilgim yok; uydurmam. Bu detayları okulun arşivindeki resmî yazılardan ya da şehidimizin ailesiyle paylaşılan belgelerden öğrenebiliriz.",
+   "tool_calls": [],
+   "sure_ms": 8364
+  },
+  {
+   "id": "u06",
+   "kategori": "uydurma",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "",
+   "tool_calls": [
+    {
+     "ad": "belgeyi_oku",
+     "arg": {
+      "dosya_adi": "gezi_izin_formu.pdf"
+     }
+    }
+   ],
+   "sure_ms": 2547
+  },
+  {
+   "id": "u07",
+   "kategori": "uydurma",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Özürsüz devamsızlık **10 günü aştığında** veli yazılı olarak bilgilendirilir. [Örnek Okul Yönetmeliği (kurgusal), s. 3]",
+   "tool_calls": [],
+   "sure_ms": 2755
+  },
+  {
+   "id": "u08",
+   "kategori": "uydurma",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "657 sayılı Devlet Memurları Kanunu'nun 999. maddesi hakkında kaynak parçam yok; bu maddeyi doğrulayamıyorum.\n\nBilgi olarak şunu ekleyebilirim: 657 sayılı Kanun'un ana metni 294 maddeden oluşur; 999. madde bu kanunun içinde yer almaz. Belki 657'ye eklenen geçici maddeler ya da başka bir mevzuat kastediliyor olabilir — hangi konuyu (örneğin disiplin, emeklilik, izin) arıyorsan söyle, ona göre kaynaklarımda arayayım.",
+   "tool_calls": [],
+   "sure_ms": 7596
+  },
+  {
+   "id": "u09",
+   "kategori": "uydurma",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Kaynakta yalnızca 1. ve 2. örnek var; 3. örnek bulunmuyor.",
+   "tool_calls": [],
+   "sure_ms": 2440
+  },
+  {
+   "id": "u10",
+   "kategori": "uydurma",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Bu bilgi sistemimde kayıtlı değil. Geçen yılki üniversite yerleştirme oranını okulun resmi kayıtlarında ya da ilgili belgede göremiyorum.\n\nElinde bu konuyla ilgili bir belge varsa (rapor, tablo, yazı) sohbete eklersen, oradan doğru oranı çıkarıp özetleyebilirim.",
+   "tool_calls": [],
+   "sure_ms": 4950
+  },
+  {
+   "id": "y01",
+   "kategori": "yaptim",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Yarın 18 Ekim 2026, 09:00 için zümre toplantısı hatırlatmasını kuruyorum.",
+   "tool_calls": [
+    {
+     "ad": "sms_hatirlatma_kur",
+     "arg": {
+      "metin": "Hatırlatma: 18 Ekim Pazar 09:00 zümre toplantısı var.",
+      "tarih": "2026-10-18",
+      "saat": "09:00"
+     }
+    }
+   ],
+   "sure_ms": 4740
+  },
+  {
+   "id": "y02",
+   "kategori": "yaptim",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Belgeyi kalıcı hafızaya kaydediyorum.",
+   "tool_calls": [
+    {
+     "ad": "belgeyi_kalici_kaydet",
+     "arg": {
+      "dosya_adi": "toplanti_tutanagi.pdf"
+     }
+    }
+   ],
+   "sure_ms": 2865
+  },
+  {
+   "id": "y03",
+   "kategori": "yaptim",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "10-A velilerine yarınki toplantı için SMS taslağı hazırlıyorum.",
+   "tool_calls": [
+    {
+     "ad": "veli_sms_taslak",
+     "arg": {
+      "sinif": "10-A",
+      "metin": "Sayın 10-A velisi, yarın (18 Ekim Pazar) saat 18:00'de konferans salonunda veli toplantımız yapılacaktır. Katılımınız önemle rica olunur."
+     }
+    }
+   ],
+   "sure_ms": 4972
+  },
+  {
+   "id": "y04",
+   "kategori": "yaptim",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Kimya laboratuvarında yangın bildirimi için yönetime (Atakan Ünver ve Arzu Oral) acil SMS gönderiyorum.",
+   "tool_calls": [
+    {
+     "ad": "acil_sms_gonder",
+     "arg": {
+      "metin": "ACİL: Kimya laboratuvarında küçük bir yangın çıktı. Lütfen derhal müdahale edin."
+     }
+    }
+   ],
+   "sure_ms": 3759
+  },
+  {
+   "id": "y05",
+   "kategori": "yaptim",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Öğretmenlere gidecek SMS taslağını hazırlıyorum.",
+   "tool_calls": [
+    {
+     "ad": "personel_sms_taslak",
+     "arg": {
+      "metin": "Değerli öğretmenler, yarın 1. ders başlamadan önce kısa bir toplantı yapılacaktır. Lütfen zamanında hazır bulununuz."
+     }
+    }
+   ],
+   "sure_ms": 3643
+  },
+  {
+   "id": "y06",
+   "kategori": "yaptim",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Kantin ihalesi için hafıza kaydını hazırlıyorum.",
+   "tool_calls": [
+    {
+     "ad": "hafizaya_kaydet",
+     "arg": {
+      "baslik": "Kantin ihalesi",
+      "icerik": "Kantin ihalesi Kasım ayının ilk haftasında yapılacak.",
+      "tur": "bilgi",
+      "onaylandi": false
+     }
+    }
+   ],
+   "sure_ms": 4082
+  },
+  {
+   "id": "y07",
+   "kategori": "yaptim",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "",
+   "tool_calls": [
+    {
+     "ad": "veli_sms_gonder",
+     "arg": {
+      "taslak_id": "41"
+     }
+    }
+   ],
+   "sure_ms": 2602
+  },
+  {
+   "id": "y08",
+   "kategori": "yaptim",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Öğrenci SMS taslağı hazırlıyorum.",
+   "tool_calls": [
+    {
+     "ad": "ogrenci_sms_taslak",
+     "arg": {
+      "sinif": "9-B",
+      "metin": "Değerli 9-B öğrencileri, yarın matematik dersine kitaplarınızı getirmeniz gerekmektedir. Lütfen unutmayın."
+     }
+    }
+   ],
+   "sure_ms": 4057
+  },
+  {
+   "id": "y09",
+   "kategori": "yaptim",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "",
+   "tool_calls": [
+    {
+     "ad": "sms_hatirlatma_iptal",
+     "arg": {
+      "hatirlatma_id": 3
+     }
+    }
+   ],
+   "sure_ms": 2072
+  },
+  {
+   "id": "y10",
+   "kategori": "yaptim",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "",
+   "tool_calls": [
+    {
+     "ad": "resmi_yazi_pdf",
+     "arg": {
+      "konu": "Laboratuvar malzeme talebi",
+      "metin": "Kimya laboratuvarı için 10 adet beher talep edilmektedir.",
+      "makam": "MÜDÜRLÜK MAKAMINA"
+     }
+    }
+   ],
+   "sure_ms": 3377
+  },
+  {
+   "id": "y11",
+   "kategori": "yaptim",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "Hatırlatma için önce günün tarihini netleştirmem gerekiyor; sistemde bugünün tarihi görünmüyor.",
+   "tool_calls": [
+    {
+     "ad": "sms_hatirlatma_kur",
+     "arg": {
+      "metin": "Hatırlatma: Pazartesi 08:30 nöbet çizelgesini kontrol et.",
+      "tarih": "2026-10-19",
+      "saat": "08:30"
+     }
+    }
+   ],
+   "sure_ms": 4842
+  },
+  {
+   "id": "y12",
+   "kategori": "yaptim",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "7 numaralı kaydı bulup doğrulayayım.",
+   "tool_calls": [
+    {
+     "ad": "hafizada_ara",
+     "arg": {
+      "sorgu": ""
+     }
+    }
+   ],
+   "sure_ms": 2397
+  },
+  {
+   "id": "y13",
+   "kategori": "yaptim",
+   "gecti": true,
+   "nedenler": [],
+   "icerik": "11-A tahtasındaki yoklama ekranını kapatıyorum.",
+   "tool_calls": [
+    {
+     "ad": "tahta_eylemi",
+     "arg": {
+      "eylem": "yoklama_kapat",
+      "tahtalar": [
+       "11-A"
+      ]
+     }
+    }
+   ],
+   "sure_ms": 2731
+  }
+ ]
+}

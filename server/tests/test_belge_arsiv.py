@@ -101,3 +101,49 @@ def test_rag_hatasi_bildirilir(ist, monkeypatch):
     monkeypatch.setattr(ba, "rag_yukle", lambda yol: ("hata", None, "Belge"))
     y = _gonder(c, "a.pdf", b"%PDF").json()
     assert y["durum"] == "rag_hatasi" and y["arsiv"] == "kaydedildi"
+
+
+# --- belge-oku (2026-10-16): arşive/RAG'a yazmaz ---
+
+def _oku(c, ad, veri, anahtar=ANAHTAR):
+    return c.post(
+        "/api/webui/belge-oku",
+        headers={"X-Farabi-WebUI-Key": anahtar},
+        json={"ad": ad, "icerik_b64": base64.b64encode(veri).decode()},
+    )
+
+
+def test_oku_anahtarsiz_401(ist):
+    assert _oku(ist[0], "a.pdf", b"x", anahtar="yanlis").status_code == 401
+
+
+def test_oku_metni_doner_ve_yazmaz(ist, monkeypatch):
+    c, klasor, yuklenen = ist
+    monkeypatch.setattr(ba.idari_yukle, "sayfa_metinleri",
+                        lambda yol: [(1, "Sayı: 123\nKonu: Toplantı", False), (2, "taranmış sayfa", True)])
+    y = _oku(c, "yazi.pdf", b"%PDF-1").json()
+    assert y["durum"] == "ok" and y["sayfa"] == 2 and y["ocr_sayfa"] == 1
+    assert "--- Sayfa 1 ---\nSayı: 123" in y["metin"] and "taranmış sayfa" in y["metin"]
+    assert list(klasor.iterdir()) == [] and yuklenen == []  # arşive/RAG'a hiçbir şey yazılmadı
+
+
+def test_oku_desteklenmeyen_ve_bos_ve_bozuk(ist, monkeypatch):
+    c, _, _ = ist
+    assert _oku(c, "a.exe", b"x").json()["durum"] == "desteklenmiyor"
+    monkeypatch.setattr(ba.idari_yukle, "sayfa_metinleri", lambda yol: [(1, "  ", True)])
+    assert _oku(c, "bos.png", b"x").json()["durum"] == "bos"
+
+    def bozuk(yol):
+        raise RuntimeError("SIR-AYRINTI")
+
+    monkeypatch.setattr(ba.idari_yukle, "sayfa_metinleri", bozuk)
+    y = _oku(c, "k.pdf", b"x").json()
+    assert y["durum"] == "hata" and "SIR-AYRINTI" not in str(y)
+
+
+def test_oku_uzun_metin_kisaltilir(ist, monkeypatch):
+    c, _, _ = ist
+    monkeypatch.setattr(ba, "OKU_AZAMI_KARAKTER", 100)
+    monkeypatch.setattr(ba.idari_yukle, "sayfa_metinleri", lambda yol: [(1, "a" * 500, False)])
+    y = _oku(c, "u.pdf", b"x").json()
+    assert y["kisaltildi"] is True and len(y["metin"]) <= 100

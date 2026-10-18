@@ -1,11 +1,14 @@
 """Öğretmen liderlik ekranları: sınıfın tam Arena tablosu, sınıflar arası kıyas, haftalık ödül özeti.
 
-Yetkisiz sınıf = 404. Öğrenci adları yalnızca kendi sınıfının öğretmenine (ve yöneticiye) gösterilir; sınıflar arası
+Yetkisiz sınıf = 404. TAM öğrenci adları yalnızca kendi sınıfının öğretmenine (ve yöneticiye) gösterilir; sınıflar arası
 kıyasta yalnızca sınıf toplamları vardır. Ödül kazananı kiosk'ta zaten herkese açıktır. Adlı görüntüleme erişim kaydına yazılır.
+2026-10-15: öğrencilerin kendi ekranında gördüğü okul geneli liderlikler (Soru Maratonu + Bilgi Arenası) öğretmene de açıldı;
+bunlar öğrenciyle AYNI veridir (kısa ad "Ayşe K." + sınıf), yani öğretmene öğrencinin görmediği bir şey eklenmez.
 """
 
 import sqlite3
 
+import maraton
 import oduller
 import yetki
 from deps import db_conn, istemci_ip, render, rol
@@ -13,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 router = APIRouter(prefix="/ogretmen/liderlik")
 OGRETMEN = rol("ogretmen", "yonetici")
+MARATON_ILK = 20  # okul geneli Maraton tablosunda gösterilen öğrenci sayısı (öğrenci ekranı da sınırlı)
 
 
 def benim_siniflarim(conn: sqlite3.Connection, k: sqlite3.Row) -> list[str]:
@@ -31,12 +35,19 @@ def mini_pano(conn: sqlite3.Connection, k: sqlite3.Row) -> list[dict]:
 
 
 @router.get("")
-def genel(request: Request, k=Depends(OGRETMEN), conn: sqlite3.Connection = Depends(db_conn)):
+def genel(
+    request: Request, donem: str = "hafta", k=Depends(OGRETMEN), conn: sqlite3.Connection = Depends(db_conn)
+):
     hb = oduller.hafta_basi()
     benim = benim_siniflarim(conn, k)
     onceki = oduller.onceki_hafta(hb)
+    donem = "tum" if donem == "tum" else "hafta"
+    maraton_tum = maraton.liderlik(conn)  # öğrenci ekranıyla aynı: bu hafta, her öğrencinin en iyi 3 maratonu
     return render(
         request, "ogretmen/liderlik.html", hafta_basi=hb, benim=set(benim), benim_liste=benim,
+        donem=donem, arena=oduller.liderlik(conn, hb if donem == "hafta" else None), arena_ilk=oduller.LIDER_ILK,
+        maraton_ilk=maraton_tum[:MARATON_ILK], maraton_toplam=len(maraton_tum), maraton_en_iyi=maraton.EN_IYI,
+        maraton_siniflarim=[d for d in maraton_tum if d["sinif"] in set(benim)],
         siniflar=oduller.sinif_ozetleri(conn, hb), gecici=oduller.siralama(conn, hb), kategoriler=oduller.KATEGORILER,
         onceki_hafta=onceki, onceki=oduller.kayitli(conn, onceki),
         min_etkinlik=oduller.MIN_ETKINLIK, min_gun=oduller.MIN_GUN, min_katilan=oduller.MIN_KATILAN,

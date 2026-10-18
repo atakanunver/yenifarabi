@@ -26,7 +26,7 @@
       <thead>
         <tr>
           <th style="width: 38px;"></th><th>Tahta</th><th>IP</th><th>Bağlantı</th>
-          <th>Oturum</th><th>Yoklama</th><th>Chrome</th><th>Ekran</th><th>Screenshot</th>
+          <th>Oturum</th><th>Yoklama</th><th>Chrome</th><th>Ekran</th><th>Screenshot</th><th>Sistem Bilgisi</th>
         </tr>
       </thead>
       <tbody>
@@ -83,6 +83,16 @@
             </a>
             {% else %}
             <span class="ss-link-pasif" title="{{ 'Kontrol ediliyor' if t.ulasilabilir is none else 'Tahta ulaşılamaz' }}">—</span>
+            {% endif %}
+          </td>
+          <td class="hucre-sistem">
+            {% if t.ulasilabilir is none %}
+            <span class="pill pill-yukleniyor">…</span>
+            {% elif t.ulasilabilir and t.cpu %}
+            <span class="mono">{{ t.cpu }}</span><br>
+            <span class="sinif-etiket">{{ t.ram_gb }} GB RAM</span>
+            {% else %}
+            <span class="ss-link-pasif">—</span>
             {% endif %}
           </td>
         </tr>
@@ -210,6 +220,15 @@ async function tahtaDurumlariniGetir(yenile = false) {
           ssCell.innerHTML = `<a href="/admin/uzaktan/ekran-goruntusu/${t.ad}?ham=1" target="_blank" rel="noopener noreferrer" class="ss-link-btn" title="${t.ad} ekran görüntüsünü yeni sekmede aç"><svg class="ikon"><use href="#ik-kamera"/></svg><span>Ekran Aç</span><svg class="ikon mini-ok"><use href="#ik-buyut"/></svg></a>`;
         } else {
           ssCell.innerHTML = `<span class="ss-link-pasif" title="Tahta ulaşılamaz">—</span>`;
+        }
+      }
+
+      const sistemCell = satir.querySelector('.hucre-sistem');
+      if (sistemCell) {
+        if (t.ulasilabilir && t.cpu) {
+          sistemCell.innerHTML = `<span class="mono">${t.cpu}</span><br><span class="sinif-etiket">${t.ram_gb} GB RAM</span>`;
+        } else {
+          sistemCell.innerHTML = `<span class="ss-link-pasif">—</span>`;
         }
       }
     }

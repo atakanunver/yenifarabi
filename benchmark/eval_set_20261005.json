@@ -1,0 +1,352 @@
+[
+  {
+    "id": 1,
+    "soru": "Canlıların ortak özellikleri ve arkelerin prokaryotik hücre yapısı",
+    "kapsam": "biyoloji",
+    "sinif": 9,
+    "tur": "egitim",
+    "beklenen_id": 1,
+    "beklenen_sayfa": 53,
+    "kw": "Arkeler"
+  },
+  {
+    "id": 2,
+    "soru": "Harita projeksiyon yöntemleri ve silindirik projeksiyon özellikleri",
+    "kapsam": "cografya",
+    "sinif": 9,
+    "tur": "egitim",
+    "beklenen_id": 17,
+    "beklenen_sayfa": 34,
+    "kw": "projeksiyon"
+  },
+  {
+    "id": 3,
+    "soru": "İslamda bilgi kaynakları selim akıl ve sadık haber",
+    "kapsam": "din",
+    "sinif": 9,
+    "tur": "egitim",
+    "beklenen_id": 18,
+    "beklenen_sayfa": 18,
+    "kw": "selim akıl"
+  },
+  {
+    "id": 4,
+    "soru": "Kümelerde birleşim ve kesişim işlemi özellikleri",
+    "kapsam": "matematik",
+    "sinif": 9,
+    "tur": "egitim",
+    "beklenen_id": 11,
+    "beklenen_sayfa": 11,
+    "kw": "kesişim"
+  },
+  {
+    "id": 5,
+    "soru": "Tarih öğrenmenin bireye ve topluma sağladığı yararlar",
+    "kapsam": "tarih",
+    "sinif": 9,
+    "tur": "egitim",
+    "beklenen_id": 21,
+    "beklenen_sayfa": 13,
+    "kw": "Tarih"
+  },
+  {
+    "id": 6,
+    "soru": "Edebi metinler ile öğretici metinlerin sınıflandırılması",
+    "kapsam": "edebiyat",
+    "sinif": 9,
+    "tur": "egitim",
+    "beklenen_id": 22,
+    "beklenen_sayfa": 27,
+    "kw": "öğretici metin"
+  },
+  {
+    "id": 7,
+    "soru": "Kimya laboratuvarında uyulması gereken güvenlik önlemleri ve kuralları",
+    "kapsam": "kimya",
+    "sinif": 9,
+    "tur": "egitim",
+    "beklenen_id": 20,
+    "beklenen_sayfa": 18,
+    "kw": "Güvenlik"
+  },
+  {
+    "id": 8,
+    "soru": "Elektrik devrelerinde Ohm yasası ve direnç hesabı",
+    "kapsam": "fizik",
+    "sinif": 10,
+    "tur": "egitim",
+    "beklenen_id": 8,
+    "beklenen_sayfa": 197,
+    "kw": "Ohm"
+  },
+  {
+    "id": 9,
+    "soru": "Fonksiyonlarda bire bir ve örten fonksiyon tanımı",
+    "kapsam": "matematik",
+    "sinif": 10,
+    "tur": "egitim",
+    "beklenen_id": 10,
+    "beklenen_sayfa": 179,
+    "kw": "örten"
+  },
+  {
+    "id": 10,
+    "soru": "Malazgirt zaferinden sonra Anadoluda kurulan ilk Türk beylikleri",
+    "kapsam": "tarih",
+    "sinif": 10,
+    "tur": "egitim",
+    "beklenen_id": 13,
+    "beklenen_sayfa": 21,
+    "kw": "Saltuklular"
+  },
+  {
+    "id": 11,
+    "soru": "Türkiye akarsularının rejimleri ve özellikleri",
+    "kapsam": "cografya",
+    "sinif": 10,
+    "tur": "egitim",
+    "beklenen_id": 6,
+    "beklenen_sayfa": 38,
+    "kw": "akarsu"
+  },
+  {
+    "id": 12,
+    "soru": "Felsefi düşüncenin refleksif ve eleştirel olma özelliği",
+    "kapsam": "felsefe",
+    "sinif": 10,
+    "tur": "egitim",
+    "beklenen_id": 7,
+    "beklenen_sayfa": 27,
+    "kw": "refleksif"
+  },
+  {
+    "id": 13,
+    "soru": "Dede Korkut Hikayelerinin genel özellikleri ve destan geleneği",
+    "kapsam": "edebiyat",
+    "sinif": 10,
+    "tur": "egitim",
+    "beklenen_id": 14,
+    "beklenen_sayfa": 35,
+    "kw": "Dede Korkut"
+  },
+  {
+    "id": 14,
+    "soru": "İnsanda sindirim sisteminde mekanik ve kimyasal sindirim",
+    "kapsam": "biyoloji",
+    "sinif": 10,
+    "tur": "egitim",
+    "beklenen_id": 5,
+    "beklenen_sayfa": 45,
+    "kw": "Mekanik sindirim"
+  },
+  {
+    "id": 15,
+    "soru": "Kimyasal tepkime denklemleri ve tepkimelerde kütlenin korunumu",
+    "kapsam": "kimya",
+    "sinif": 10,
+    "tur": "egitim",
+    "beklenen_id": 9,
+    "beklenen_sayfa": 62,
+    "kw": "kütlenin korunumu"
+  },
+  {
+    "id": 16,
+    "soru": "Nöronda impuls iletimi ranvier boğumu ve miyelin kılıf",
+    "kapsam": "biyoloji",
+    "sinif": 11,
+    "tur": "egitim",
+    "beklenen_id": 34,
+    "beklenen_sayfa": 50,
+    "kw": "Ranvier"
+  },
+  {
+    "id": 17,
+    "soru": "Bir boyutta sabit ivmeli hareket ve hız denklemleri",
+    "kapsam": "fizik",
+    "sinif": 11,
+    "tur": "egitim",
+    "beklenen_id": 26,
+    "beklenen_sayfa": 10,
+    "kw": "ivme"
+  },
+  {
+    "id": 18,
+    "soru": "Karlofça Antlaşmasının Osmanlı Devleti açısından önemi",
+    "kapsam": "tarih",
+    "sinif": 11,
+    "tur": "egitim",
+    "beklenen_id": 28,
+    "beklenen_sayfa": 15,
+    "kw": "Karlofça"
+  },
+  {
+    "id": 19,
+    "soru": "Ekosistemlerde biyoçeşitliliği etkileyen faktörler",
+    "kapsam": "cografya",
+    "sinif": 11,
+    "tur": "egitim",
+    "beklenen_id": 25,
+    "beklenen_sayfa": 71,
+    "kw": "biyoçeşitlilik"
+  },
+  {
+    "id": 20,
+    "soru": "Kimyasal tepkimelerde denge ve karbonik asit oluşumu",
+    "kapsam": "kimya",
+    "sinif": 11,
+    "tur": "egitim",
+    "beklenen_id": 27,
+    "beklenen_sayfa": 131,
+    "kw": "denge"
+  },
+  {
+    "id": 21,
+    "soru": "Kurana göre Hz Muhammedin peygamberlik görevi ve tebliğ",
+    "kapsam": "din",
+    "sinif": 11,
+    "tur": "egitim",
+    "beklenen_id": 33,
+    "beklenen_sayfa": 20,
+    "kw": "tebliğ"
+  },
+  {
+    "id": 22,
+    "soru": "Edebiyatta yazar ve yazıldığı dönemin özellikleri tiyatro metni incelemesi",
+    "kapsam": "edebiyat",
+    "sinif": 11,
+    "tur": "egitim",
+    "beklenen_id": 30,
+    "beklenen_sayfa": 260,
+    "kw": "yazıldığı dönemin"
+  },
+  {
+    "id": 23,
+    "soru": "Logaritma fonksiyonunun tanım kümesi ve özellikleri",
+    "kapsam": "matematik",
+    "sinif": 12,
+    "tur": "egitim",
+    "beklenen_id": 36,
+    "beklenen_sayfa": 13,
+    "kw": "logaritma"
+  },
+  {
+    "id": 24,
+    "soru": "Son Osmanlı Mebusan Meclisi ve Misak-ı Milli kararları",
+    "kapsam": "tarih",
+    "sinif": 12,
+    "tur": "egitim",
+    "beklenen_id": 16,
+    "beklenen_sayfa": 56,
+    "kw": "Misak-ı Millî"
+  },
+  {
+    "id": 25,
+    "soru": "Cumhuriyet dönemi saf öz şiir anlayışının özellikleri",
+    "kapsam": "edebiyat",
+    "sinif": 12,
+    "tur": "egitim",
+    "beklenen_id": 35,
+    "beklenen_sayfa": 20,
+    "kw": "saf şiir"
+  },
+  {
+    "id": 26,
+    "soru": "657 sayılı kanuna göre memura doğum yapan eşi için babalık izni kaç gün verilir?",
+    "kapsam": "idari",
+    "sinif": null,
+    "tur": "idari",
+    "beklenen_id": 3,
+    "beklenen_sayfa": 15,
+    "kw": "babalık"
+  },
+  {
+    "id": 27,
+    "soru": "Devlet memuruna aylıktan kesme cezasını gerektiren fiil ve haller nelerdir?",
+    "kapsam": "idari",
+    "sinif": null,
+    "tur": "idari",
+    "beklenen_id": 3,
+    "beklenen_sayfa": 18,
+    "kw": "Aylıktan kesme"
+  },
+  {
+    "id": 28,
+    "soru": "Ortaöğretim kurumlarında öğrencinin özürsüz devamsızlık hakkı kaç gündür?",
+    "kapsam": "idari",
+    "sinif": null,
+    "tur": "idari",
+    "beklenen_id": 7,
+    "beklenen_sayfa": 13,
+    "kw": "özürsüz"
+  },
+  {
+    "id": 29,
+    "soru": "Ortaöğretim kurumlarında sorumluluk sınavları hangi dönemlerde yapılır?",
+    "kapsam": "idari",
+    "sinif": null,
+    "tur": "idari",
+    "beklenen_id": 7,
+    "beklenen_sayfa": 21,
+    "kw": "sorumluluk"
+  },
+  {
+    "id": 30,
+    "soru": "Ortaöğretim kurumları yönetmeliğine göre nöbetçi öğretmenin görevleri nelerdir?",
+    "kapsam": "idari",
+    "sinif": null,
+    "tur": "idari",
+    "beklenen_id": 7,
+    "beklenen_sayfa": 42,
+    "kw": "nöbet"
+  },
+  {
+    "id": 31,
+    "soru": "Milli Eğitim Bakanlığı öğretmenlerinin haftalık aylık karşılığı ders saatleri",
+    "kapsam": "idari",
+    "sinif": null,
+    "tur": "idari",
+    "beklenen_id": 12,
+    "beklenen_sayfa": 2,
+    "kw": "aylık karşılığı"
+  },
+  {
+    "id": 32,
+    "soru": "Okullarda sosyal etkinlikler kurulu kimlerden oluşur ve görevleri nelerdir?",
+    "kapsam": "idari",
+    "sinif": null,
+    "tur": "idari",
+    "beklenen_id": 1,
+    "beklenen_sayfa": 2,
+    "kw": "sosyal etkinlikler kurulu"
+  },
+  {
+    "id": 33,
+    "soru": "Ortak yazılı sınavlara mazereti nedeniyle giremeyen öğrencilerin sınavı",
+    "kapsam": "idari",
+    "sinif": null,
+    "tur": "idari",
+    "beklenen_id": 19,
+    "beklenen_sayfa": 3,
+    "kw": "mazeret"
+  },
+  {
+    "id": 34,
+    "soru": "Zümre öğretmenler kurulu toplantıları ders yılı içinde ne zaman yapılır?",
+    "kapsam": "idari",
+    "sinif": null,
+    "tur": "idari",
+    "beklenen_id": 20,
+    "beklenen_sayfa": 1,
+    "kw": "zümre"
+  },
+  {
+    "id": 35,
+    "soru": "Öğrencilerin okul kılık ve kıyafet kuralları ve serbest kıyafet uygulaması",
+    "kapsam": "idari",
+    "sinif": null,
+    "tur": "idari",
+    "beklenen_id": 14,
+    "beklenen_sayfa": 1,
+    "kw": "kıyafet"
+  }
+]

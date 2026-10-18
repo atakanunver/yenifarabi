@@ -46,6 +46,8 @@ SERVISLER = {
                "farabi-yoklama-dashboard", "farabi-smssistemi", "sinif-arena", "chrony"],
     "debian": ["ema-tts", "ollama", "ssh"],
     "bilgehan": ["ssh", "nvidia-persistenced", "farabi-embed", "chatterbox-tts", "chrony"],
+    "zil": ["ses_bot", "ses_dashboard", "ssh"],
+    "kiosk": ["ssh"],
 }
 
 
@@ -112,12 +114,59 @@ def _cpu_model() -> str | None:
     return None
 
 
+def _cpu_sicaklik() -> float | None:
+    """CPU sıcaklığı (°C): önce coretemp/k10temp/zenpower, yoksa thermal_zone."""
+    import glob
+    for ad_yolu in sorted(glob.glob("/sys/class/hwmon/hwmon*/name")):
+        try:
+            with open(ad_yolu) as f:
+                ad = f.read().strip()
+            if ad not in ("coretemp", "k10temp", "zenpower"):
+                continue
+            degerler = []
+            for t in glob.glob(os.path.dirname(ad_yolu) + "/temp*_input"):
+                with open(t) as f:
+                    degerler.append(int(f.read().strip()) / 1000)
+            if degerler and max(degerler) >= 10:  # <10 °C = bozuk sensör (debian k10temp 0,1)
+                return round(max(degerler), 1)
+        except (OSError, ValueError):
+            continue
+    for t in sorted(glob.glob("/sys/class/thermal/thermal_zone*/temp")):
+        try:
+            with open(t.replace("/temp", "/type")) as f:
+                tur = f.read().strip()
+            if tur not in ("x86_pkg_temp", "cpu-thermal", "acpitz"):
+                continue
+            with open(t) as f:
+                return round(int(f.read().strip()) / 1000, 1)
+        except (OSError, ValueError):
+            continue
+    return None
+
+
+def _fanlar() -> list[dict]:
+    """hwmon fan*_input okumaları (devir/dk); 0 dönen (boş soket) fanlar atlanır."""
+    import glob
+    sonuc = []
+    for yol in sorted(glob.glob("/sys/class/hwmon/hwmon*/fan*_input")):
+        try:
+            with open(yol) as f:
+                rpm = int(f.read().strip())
+            with open(os.path.join(os.path.dirname(yol), "name")) as f:
+                cip = f.read().strip()
+        except (OSError, ValueError):
+            continue
+        if rpm > 0:
+            sonuc.append({"ad": f"{cip} {os.path.basename(yol)[:-6]}", "rpm": rpm})
+    return sonuc
+
+
 def _gpular() -> list[dict]:
     if not shutil.which("nvidia-smi"):
         return []
     kod, cikti = _calistir(
         "nvidia-smi",
-        "--query-gpu=index,name,memory.used,memory.total,temperature.gpu,utilization.gpu",
+        "--query-gpu=index,name,memory.used,memory.total,temperature.gpu,utilization.gpu,fan.speed",
         "--format=csv,noheader,nounits",
     )
     if kod != 0:
@@ -125,7 +174,7 @@ def _gpular() -> list[dict]:
     gpular = []
     for satir in cikti.strip().splitlines():
         p = [x.strip() for x in satir.split(",")]
-        if len(p) < 6:
+        if len(p) < 7:
             continue
 
         def sayi(x):
@@ -136,7 +185,7 @@ def _gpular() -> list[dict]:
 
         gpular.append({"indeks": sayi(p[0]), "ad": p[1], "vram_kullanilan_mib": sayi(p[2]),
                        "vram_toplam_mib": sayi(p[3]), "sicaklik_c": sayi(p[4]),
-                       "kullanim_yuzde": sayi(p[5])})
+                       "kullanim_yuzde": sayi(p[5]), "fan_yuzde": sayi(p[6])})
     return gpular
 
 
@@ -183,6 +232,8 @@ def durum() -> dict:
         "load": list(os.getloadavg()),
         "cpu_cekirdek": os.cpu_count(),
         "cpu_model": _cpu_model(),
+        "cpu_sicaklik_c": _cpu_sicaklik(),
+        "fanlar": _fanlar(),
         "ram": _bellek(),
         "disk": {"toplam_gib": round(disk.total / 2**30, 1), "kullanilan_gib": round(disk.used / 2**30, 1),
                  "yuzde": round(disk.used / disk.total * 100, 1)},

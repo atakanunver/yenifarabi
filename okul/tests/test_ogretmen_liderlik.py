@@ -115,7 +115,7 @@ def test_genel_ekran_baska_sinif_ogrencisi_gorunmez(istemci, conn, ornek, sinif9
     assert r.status_code == 200 and "9-B" in r.text and "9-A" in r.text
     assert "Ayşe Kaya" not in r.text  # 9-B öğrencisi (sınıf ödülü satırı hariç, sadece toplamlar)
     ana = istemci.get("/ogretmen")
-    assert ana.status_code == 200 and "Arena bu hafta" in ana.text and "lider <b>Cem D.</b>" in ana.text
+    assert ana.status_code == 200 and "Yarışmalar bu hafta" in ana.text and "lider <b>Cem D.</b>" in ana.text
     assert "Ayşe" not in ana.text
 
 
@@ -183,3 +183,60 @@ def test_isi_haritasi_sablon():
     assert s.count('class="isi isi-') == 4
     for sev, oran, ad in ((1, 20, "Çok zayıf"), (2, 50, "Zayıf"), (3, 70, "Orta"), (4, 90, "İyi")):
         assert f"isi isi-{sev}" in s and f"%{oran}" in s and ad in s  # renk + yüzde + yazı
+
+
+# --- öğretmene açılan okul geneli yarışma tabloları (öğrencinin gördüğüyle aynı veri) ---
+
+def _maraton(conn, kid, sinif, puan, gun=HB):
+    conn.execute(
+        "INSERT INTO maraton (kullanici_id, sinif, duzey, ders, basla, bitis, puan, dogru) VALUES (?, ?, 9, 'matematik', ?, ?, ?, 5)",
+        (kid, sinif, gun + " 10:00:00", gun + " 10:05:00", puan),
+    )
+    conn.commit()
+
+
+def test_ogretmen_maraton_ve_arena_okul_geneli_gorur(istemci, conn, ornek, sinif9, saat):
+    _maraton(conn, sinif9["cem"], "9-A", 80)
+    _maraton(conn, ornek["ogr2_k"], "9-B", 95)  # başka sınıf: kısa adla okul tablosunda görünür
+    giris(istemci, "hoca", "hoca-sifre")
+    r = istemci.get("/ogretmen/liderlik")
+    assert r.status_code == 200
+    assert "Soru Maratonu" in r.text and "Bilgi Arenası" in r.text and "En çok XP" in r.text
+    assert "Ayşe K." in r.text and "Cem D." in r.text  # kısa adlar (öğrencinin gördüğü gibi)
+    assert "Ayşe Kaya" not in r.text and "Cem Demir" not in r.text  # tam ad yok
+    assert "Sınıflarımdaki öğrenciler" in r.text
+    assert r.text.index("Ayşe K.") < r.text.index("Cem D.")  # 95 > 80: maraton sırası
+
+
+def test_maraton_tablosu_ogrenciyle_ayni_veri(istemci, conn, ornek, sinif9, saat):
+    import maraton
+
+    _maraton(conn, sinif9["cem"], "9-A", 80)
+    _maraton(conn, ornek["ogr2_k"], "9-B", 95)
+    giris(istemci, "hoca", "hoca-sifre")
+    r = istemci.get("/ogretmen/liderlik")
+    for d in maraton.liderlik(conn):
+        assert d["ad"] in r.text
+
+
+def test_arena_donem_tum_zamanlar(istemci, conn, ornek, sinif9, saat):
+    _xp(conn, sinif9["deniz"], 500, "2026-10-01", "t1")
+    giris(istemci, "hoca", "hoca-sifre")
+    assert "Deniz A." not in istemci.get("/ogretmen/liderlik").text  # bu hafta yok
+    r = istemci.get("/ogretmen/liderlik?donem=tum")
+    assert r.status_code == 200 and "Deniz A." in r.text
+    assert istemci.get("/ogretmen/liderlik?donem=zzz").status_code == 200  # geçersiz değer haftaya düşer
+
+
+def test_yarisma_tablolari_ogrenci_ve_veliye_kapali(istemci, conn, ornek, sinif9, saat):
+    giris(istemci, "101", "ali-sifre")
+    assert istemci.get("/ogretmen/liderlik").status_code == 404
+    giris(istemci, "mudur", "mudur-sifre")
+    assert "Soru Maratonu" in istemci.get("/ogretmen/liderlik").text  # yönetici de görür
+
+
+def test_ana_sayfalarda_yarisma_baglantisi_hep_gorunur(istemci, conn, ornek, saat):
+    giris(istemci, "hoca", "hoca-sifre")
+    assert 'href="/ogretmen/liderlik"' in istemci.get("/ogretmen").text
+    giris(istemci, "mudur", "mudur-sifre")
+    assert 'href="/ogretmen/liderlik"' in istemci.get("/yonetici").text

@@ -137,7 +137,7 @@ class TestProxyUcu(unittest.TestCase):
 
     def test_bilinmeyen_makine_404(self):
         with self.assertRaises(HTTPException) as c:
-            self._cagir("zil", {"eylem": "ac"})
+            self._cagir("yok-makine", {"eylem": "ac"})
         self.assertEqual(c.exception.status_code, 404)
 
     def test_proxy_dugmesi_olmayan_makine_400(self):
@@ -168,6 +168,22 @@ class TestChatterbox(unittest.TestCase):
             sunucular, "CHATTERBOX_URL", "http://127.0.0.1:9/saglik/detay"
         ):
             d = sunucular._chatterbox_oku()
+        self.assertFalse(d["ulasilabilir"])
+
+
+class TestHafif(unittest.TestCase):
+    def test_acik_ve_kapali_port(self):
+        with patch.object(sunucular.socket, "create_connection") as cc:
+            cc.side_effect = [unittest.mock.MagicMock(), OSError("red")]
+            d = sunucular._hafif_oku(
+                {"host": "x", "kontroller": (("SSH", 22), ("Panel", 8090))}
+            )
+        self.assertTrue(d["ulasilabilir"])
+        self.assertEqual([k["acik"] for k in d["kontroller"]], [True, False])
+
+    def test_hepsi_kapaliysa_ulasilamaz(self):
+        with patch.object(sunucular.socket, "create_connection", side_effect=OSError):
+            d = sunucular._hafif_oku({"host": "x", "kontroller": (("SSH", 22),)})
         self.assertFalse(d["ulasilabilir"])
 
 

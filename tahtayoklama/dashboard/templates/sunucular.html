@@ -120,6 +120,17 @@ async function proxyDegistir(m, eylem, onay) {
   if (kart) kart.append(el('div', basarili ? 'sunucu-sonuc sonuc-ok' : 'sunucu-sonuc sonuc-hata', mesaj));
 }
 
+function portCipleri(m) {
+  const sl = el('div', 'sunucu-servisler');
+  for (const k of m.portlar || []) {
+    const r = el('span', 'sunucu-servis');
+    r.append(nokta(k.acik ? 'nokta-yesil' : 'nokta-kirmizi'), document.createTextNode(`${k.ad} :${k.port}`));
+    r.append(el('span', 'soluk', k.acik ? ` ${k.ms} ms` : ' yanıt yok'));
+    sl.append(r);
+  }
+  return sl;
+}
+
 function makineKarti(m) {
   const kart = el('section', 'sunucu-kart');
   kart.dataset.makine = m.anahtar;
@@ -131,19 +142,27 @@ function makineKarti(m) {
 
   if (!m.ulasilabilir) {
     kart.append(el('p', 'sunucu-hata', 'Ulaşılamıyor: ' + (m.hata || 'bilinmeyen hata')));
+    if ((m.portlar || []).length) kart.append(portCipleri(m));
     return kart;
   }
   ust.append(proxyAlani(m));
 
   const izgara = el('div', 'sunucu-olcumler');
-  const ram = m.ram, disk = m.disk;
+  const ram = m.ram, disk = m.disk, t = m.cpu_sicaklik_c, fanlar = m.fanlar || [];
   const yuk = m.load ? m.load[0] / (m.cpu_cekirdek || 1) : 0;
   izgara.append(
     olcum('Yük (1 dk)', m.load ? m.load[0].toFixed(2) : '—', `${m.cpu_cekirdek} çekirdek`, yuk > 1 ? 'uyari' : null),
-    olcum('RAM', `${gib(ram.kullanilan_mib)} / ${gib(ram.toplam_mib)}`,
-      ram.swap_toplam_mib ? `swap ${gib(ram.swap_kullanilan_mib)} / ${gib(ram.swap_toplam_mib)}` : 'swap yok',
+    olcum('CPU sıcaklığı', t == null ? '—' : `${t.toFixed(0)} °C`, t == null ? 'sensör yok / betik eski' : null,
+      t == null ? null : (t >= 85 ? 'hata' : (t >= 70 ? 'uyari' : null))),
+    olcum('Boş RAM', gib(ram.toplam_mib - ram.kullanilan_mib),
+      `kullanılan ${gib(ram.kullanilan_mib)} / ${gib(ram.toplam_mib)}` +
+      (ram.swap_toplam_mib ? ` · swap ${gib(ram.swap_kullanilan_mib)} / ${gib(ram.swap_toplam_mib)}` : ' · swap yok'),
       ram.kullanilan_mib / ram.toplam_mib > 0.9 ? 'hata' : null),
-    olcum('Disk /', `%${disk.yuzde}`, `${disk.kullanilan_gib} / ${disk.toplam_gib} GB`, disk.yuzde > 90 ? 'hata' : null),
+    olcum('Disk doluluğu (/)', `%${disk.yuzde}`,
+      `${disk.kullanilan_gib} / ${disk.toplam_gib} GB · boş ${(disk.toplam_gib - disk.kullanilan_gib).toFixed(1)} GB`,
+      disk.yuzde > 90 ? 'hata' : (disk.yuzde > 75 ? 'uyari' : null)),
+    olcum('Fan hızı', fanlar.length ? `${Math.max(...fanlar.map(f => f.rpm))} rpm` : '—',
+      fanlar.length ? fanlar.map(f => `${f.ad.replace(/^\S+ /, '')} ${f.rpm}`).join(' · ') : 'okunamadı (sensör yok / betik eski)'),
     olcum('Çalışma', sure(m.uptime_sn), m.cpu_model || ''),
     olcum('Saat (NTP)', m.ntp && m.ntp.senkron ? 'Senkron' : 'Senkron DEĞİL', m.ntp ? m.ntp.leap : '',
       m.ntp && m.ntp.senkron ? null : 'hata'),
@@ -156,7 +175,7 @@ function makineKarti(m) {
       const satir = el('div', 'sunucu-gpu');
       const bas = el('div', 'sunucu-gpu-ust');
       bas.append(el('span', 'servis-adi', `GPU${g.indeks} · ${g.ad}`),
-        el('span', 'soluk', `${g.vram_kullanilan_mib} / ${g.vram_toplam_mib} MiB · ${g.sicaklik_c}°C · %${g.kullanim_yuzde}`));
+        el('span', 'soluk', `${g.vram_kullanilan_mib} / ${g.vram_toplam_mib} MiB · ${g.sicaklik_c}°C · %${g.kullanim_yuzde}` + (g.fan_yuzde != null ? ` · fan %${g.fan_yuzde}` : '')));
       satir.append(bas, cubuk(g.vram_kullanilan_mib / g.vram_toplam_mib));
       gpular.append(satir);
     }
@@ -173,6 +192,7 @@ function makineKarti(m) {
     }
     kart.append(sl);
   }
+  if ((m.portlar || []).length) kart.append(portCipleri(m));
   return kart;
 }
 

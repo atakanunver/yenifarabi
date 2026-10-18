@@ -1,0 +1,609 @@
+{
+  "tarih": "2026-10-07T06:28:16.754783",
+  "model": "qwen3.8:27b",
+  "toplam_test": 36,
+  "arac_testleri": {
+    "toplam": 29,
+    "dogru": 28,
+    "oran": 96.6
+  },
+  "arac_yok_testleri": {
+    "toplam": 7,
+    "dogru": 6,
+    "oran": 85.7
+  },
+  "genel": {
+    "toplam": 36,
+    "dogru": 34,
+    "oran": 94.4
+  },
+  "arguman_hatalari_sayisi": 0,
+  "gecikme_ms": {
+    "medyan": 2894.8,
+    "p90": 6793.31,
+    "ortalama": 3790.35,
+    "min": 1854.2,
+    "max": 16895.64
+  },
+  "yanlislar": [
+    {
+      "cumle": "bir video aç",
+      "kip": "ogretmenli",
+      "beklenen": "youtube_video",
+      "alternatif": null,
+      "secilen": null,
+      "secilen_args": {},
+      "emin_mi": false,
+      "aciklama": "Konusuz video açma isteği."
+    },
+    {
+      "cumle": "Çocuklar hazır mıyız derse başlayalım mı?",
+      "kip": "ogretmenli",
+      "beklenen": null,
+      "alternatif": null,
+      "secilen": "yoklama_al",
+      "secilen_args": {},
+      "emin_mi": true,
+      "aciklama": "Sınıf içi hitap ve soru — araç yok."
+    }
+  ],
+  "arguman_hatalari": [],
+  "detaylar": [
+    {
+      "idx": 1,
+      "cumle": "dokuzuncu sınıf biyoloji kitabında mitoz neydi",
+      "kip": "ogretmenli",
+      "beklenen": "kitap_sorusu",
+      "alternatif": "ders_icerigi",
+      "secilen": "kitap_sorusu",
+      "secilen_args": {
+        "soru": "Dokuzuncu sınıf biyoloji kitabına göre mitoz bölünme nedir? Tanımı ve amacı nedir?",
+        "ders": "biyoloji",
+        "sinif": "9"
+      },
+      "dogru": true,
+      "latency_ms": 16895.64,
+      "emin_mi": false,
+      "arg_hatalari": [],
+      "aciklama": "Kitapta geçen mitoz tanımını soruyor (kitap_sorusu / ders_icerigi)."
+    },
+    {
+      "idx": 2,
+      "cumle": "9. sınıf matematik kitabından fonksiyonlar konusunu getir",
+      "kip": "ogretmenli",
+      "beklenen": "ders_icerigi",
+      "alternatif": null,
+      "secilen": "ders_icerigi",
+      "secilen_args": {
+        "ders": "matematik",
+        "konu": "fonksiyonlar",
+        "sinif": "9"
+      },
+      "dogru": true,
+      "latency_ms": 3657.62,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Kitaptan konu iskeletini getirme talebi."
+    },
+    {
+      "idx": 3,
+      "cumle": "fizik kitabının 45. sayfasını aç",
+      "kip": "ogretmenli",
+      "beklenen": "pdf_sayfa",
+      "alternatif": null,
+      "secilen": "pdf_sayfa",
+      "secilen_args": {
+        "sayfa": 45,
+        "ders": "fizik"
+      },
+      "dogru": true,
+      "latency_ms": 2501.4,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Belirli bir sayfa numarasını yansıtma."
+    },
+    {
+      "idx": 4,
+      "cumle": "kimya kitabında periyodik cetvel için ne yazıyor?",
+      "kip": "ogretmenli",
+      "beklenen": "kitap_sorusu",
+      "alternatif": null,
+      "secilen": "kitap_sorusu",
+      "secilen_args": {
+        "soru": "Periyodik cetvel için ne yazıyor?",
+        "ders": "kimya"
+      },
+      "dogru": true,
+      "latency_ms": 2725.04,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Kitaptaki somut içeriği sorgulama."
+    },
+    {
+      "idx": 5,
+      "cumle": "ekrandaki soruyu oku",
+      "kip": "ogretmenli",
+      "beklenen": "ekrandaki_soruyu_oku",
+      "alternatif": null,
+      "secilen": "ekrandaki_soruyu_oku",
+      "secilen_args": {},
+      "dogru": true,
+      "latency_ms": 3035.97,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Tahta ekranındaki soruyu OCR ile okuma."
+    },
+    {
+      "idx": 6,
+      "cumle": "ekrandaki soruyu oku ve çöz",
+      "kip": "ogretmenli",
+      "beklenen": "ekrandaki_soruyu_oku",
+      "alternatif": null,
+      "secilen": "ekrandaki_soruyu_oku",
+      "secilen_args": {
+        "talimat": "okuma, çöz ve açıkla"
+      },
+      "dogru": true,
+      "latency_ms": 4371.66,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Ekrandaki soruyu okuyup çözme talimatı."
+    },
+    {
+      "idx": 7,
+      "cumle": "bir video aç",
+      "kip": "ogretmenli",
+      "beklenen": "youtube_video",
+      "alternatif": null,
+      "secilen": null,
+      "secilen_args": {},
+      "dogru": false,
+      "latency_ms": 8438.59,
+      "emin_mi": false,
+      "arg_hatalari": [],
+      "aciklama": "Konusuz video açma isteği."
+    },
+    {
+      "idx": 8,
+      "cumle": "mitoz bölünmeyle ilgili bir video aç",
+      "kip": "ogretmenli",
+      "beklenen": "youtube_video",
+      "alternatif": null,
+      "secilen": "youtube_video",
+      "secilen_args": {
+        "query": "mitoz bölünme konu anlatımı"
+      },
+      "dogru": true,
+      "latency_ms": 2301.25,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Konulu YouTube video arama ve açma."
+    },
+    {
+      "idx": 9,
+      "cumle": "türev ile ilgili çıkmış yks sorularını göster",
+      "kip": "ogretmenli",
+      "beklenen": "yks_sorulari",
+      "alternatif": null,
+      "secilen": "yks_sorulari",
+      "secilen_args": {
+        "ders": "matematik",
+        "konu": "türev"
+      },
+      "dogru": true,
+      "latency_ms": 2518.69,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Çıkmış YKS sorusu getirme."
+    },
+    {
+      "idx": 10,
+      "cumle": "geçen ders nerede kalmıştık?",
+      "kip": "ogretmenli",
+      "beklenen": "ders_hafizasi",
+      "alternatif": null,
+      "secilen": "ders_hafizasi",
+      "secilen_args": {},
+      "dogru": true,
+      "latency_ms": 3366.53,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Geçmiş ders hatırlatma."
+    },
+    {
+      "idx": 11,
+      "cumle": "vikipedi'den fotosentez maddesini aç",
+      "kip": "ogretmenli",
+      "beklenen": "site_goster",
+      "alternatif": null,
+      "secilen": "site_goster",
+      "secilen_args": {
+        "arama": "fotosentez"
+      },
+      "dogru": true,
+      "latency_ms": 3153.94,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Vikipedi / resmî web sayfası açma."
+    },
+    {
+      "idx": 12,
+      "cumle": "geogebra'da y = 2x + 1 grafiğini çiz",
+      "kip": "ogretmenli",
+      "beklenen": "geogebra",
+      "alternatif": null,
+      "secilen": "geogebra",
+      "secilen_args": {
+        "komutlar": [
+          "f(x) = 2x + 1"
+        ],
+        "temizle": true
+      },
+      "dogru": true,
+      "latency_ms": 2983.6,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "GeoGebra matematik grafiği çizimi."
+    },
+    {
+      "idx": 13,
+      "cumle": "eba'dan periyodik tablo videosunu aç",
+      "kip": "ogretmenli",
+      "beklenen": "eba",
+      "alternatif": null,
+      "secilen": "eba",
+      "secilen_args": {
+        "action": "video",
+        "query": "periyodik tablo"
+      },
+      "dogru": true,
+      "latency_ms": 2401.6,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "EBA eğitim portalı içeriği."
+    },
+    {
+      "idx": 14,
+      "cumle": "ekran görüntüsü al",
+      "kip": "ogretmenli",
+      "beklenen": "ekran_goruntusu_al",
+      "alternatif": null,
+      "secilen": "ekran_goruntusu_al",
+      "secilen_args": {},
+      "dogru": true,
+      "latency_ms": 2398.13,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Ekran görüntüsü kaydetme."
+    },
+    {
+      "idx": 15,
+      "cumle": "bize kloroplast yapısını gösteren bir görsel üret",
+      "kip": "ogretmenli",
+      "beklenen": "gorsel_uret",
+      "alternatif": null,
+      "secilen": "gorsel_uret",
+      "secilen_args": {
+        "konu": "Kloroplast yapısı: çift zar, stroma, tilakoitler, grana, lumen ve fotosentez için gerekli pigmentler"
+      },
+      "dogru": true,
+      "latency_ms": 5776.08,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Yapay zekâ görsel üretimi."
+    },
+    {
+      "idx": 16,
+      "cumle": "derse başlamadan önce yoklamayı alalım",
+      "kip": "ogretmenli",
+      "beklenen": "yoklama_al",
+      "alternatif": null,
+      "secilen": "yoklama_al",
+      "secilen_args": {},
+      "dogru": true,
+      "latency_ms": 2840.87,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Yoklama alma çağrısı."
+    },
+    {
+      "idx": 17,
+      "cumle": "dersi bitir",
+      "kip": "ogretmenli",
+      "beklenen": "shutdown_farabi",
+      "alternatif": null,
+      "secilen": "shutdown_farabi",
+      "secilen_args": {},
+      "dogru": true,
+      "latency_ms": 2400.42,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Dersi bitirme ve tahtayı kapatma."
+    },
+    {
+      "idx": 18,
+      "cumle": "bugünkü dersimiz bitti tahtayı kapat",
+      "kip": "ogretmenli",
+      "beklenen": "shutdown_farabi",
+      "alternatif": null,
+      "secilen": "shutdown_farabi",
+      "secilen_args": {},
+      "dogru": true,
+      "latency_ms": 1854.2,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Dersi sonlandırma."
+    },
+    {
+      "idx": 19,
+      "cumle": "James Webb teleskobunun en son keşiflerini internette araştır",
+      "kip": "ogretmenli",
+      "beklenen": "web_search",
+      "alternatif": null,
+      "secilen": "web_search",
+      "secilen_args": {
+        "query": "James Webb teleskobu en son keşifler 2025",
+        "mode": "news"
+      },
+      "dogru": true,
+      "latency_ms": 3945.82,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "İnternet araması."
+    },
+    {
+      "idx": 20,
+      "cumle": "tahtaya yüklenen pdf dosyasını özetle",
+      "kip": "ogretmenli",
+      "beklenen": "file_processor",
+      "alternatif": null,
+      "secilen": "file_processor",
+      "secilen_args": {
+        "action": "summarize"
+      },
+      "dogru": true,
+      "latency_ms": 2302.59,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Dosya işleme ve özetleme."
+    },
+    {
+      "idx": 21,
+      "cumle": "google aç",
+      "kip": "talimat",
+      "beklenen": "web_ac",
+      "alternatif": null,
+      "secilen": "web_ac",
+      "secilen_args": {
+        "hedef": "google"
+      },
+      "dogru": true,
+      "latency_ms": 2948.73,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Tarayıcıda site açma."
+    },
+    {
+      "idx": 22,
+      "cumle": "eba.gov.tr aç",
+      "kip": "talimat",
+      "beklenen": "web_ac",
+      "alternatif": null,
+      "secilen": "web_ac",
+      "secilen_args": {
+        "hedef": "eba.gov.tr"
+      },
+      "dogru": true,
+      "latency_ms": 2188.07,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Tarayıcıda belirli bir URL açma."
+    },
+    {
+      "idx": 23,
+      "cumle": "pardus kalem uygulamasını aç",
+      "kip": "talimat",
+      "beklenen": "uygulama_ac",
+      "alternatif": null,
+      "secilen": "uygulama_ac",
+      "secilen_args": {
+        "uygulama": "kalem"
+      },
+      "dogru": true,
+      "latency_ms": 2316.21,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Masaüstü uygulaması açma."
+    },
+    {
+      "idx": 24,
+      "cumle": "çizim uygulamasını aç",
+      "kip": "talimat",
+      "beklenen": "uygulama_ac",
+      "alternatif": null,
+      "secilen": "uygulama_ac",
+      "secilen_args": {
+        "uygulama": "çizim"
+      },
+      "dogru": true,
+      "latency_ms": 2248.69,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Çizim uygulaması açma."
+    },
+    {
+      "idx": 25,
+      "cumle": "ev dizinini aç",
+      "kip": "talimat",
+      "beklenen": "dosya_ac",
+      "alternatif": null,
+      "secilen": "dosya_ac",
+      "secilen_args": {
+        "hedef": "ev dizini"
+      },
+      "dogru": true,
+      "latency_ms": 2143.71,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Genel dosya / klasör açma."
+    },
+    {
+      "idx": 26,
+      "cumle": "youtube'u kapat",
+      "kip": "talimat",
+      "beklenen": "pencere_kapat",
+      "alternatif": null,
+      "secilen": "pencere_kapat",
+      "secilen_args": {
+        "hedef": "youtube"
+      },
+      "dogru": true,
+      "latency_ms": 2139.34,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Açık pencereyi kapatma."
+    },
+    {
+      "idx": 27,
+      "cumle": "tarayıcıyı kapat",
+      "kip": "talimat",
+      "beklenen": "pencere_kapat",
+      "alternatif": null,
+      "secilen": "pencere_kapat",
+      "secilen_args": {
+        "hedef": "chrome"
+      },
+      "dogru": true,
+      "latency_ms": 2135.57,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Tarayıcı penceresini kapatma."
+    },
+    {
+      "idx": 28,
+      "cumle": "öğretmen talimat modundan çık",
+      "kip": "talimat",
+      "beklenen": "talimat_modundan_cik",
+      "alternatif": null,
+      "secilen": "talimat_modundan_cik",
+      "secilen_args": {},
+      "dogru": true,
+      "latency_ms": 1962.86,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Talimat modundan çıkış."
+    },
+    {
+      "idx": 29,
+      "cumle": "normal derse dön",
+      "kip": "talimat",
+      "beklenen": "talimat_modundan_cik",
+      "alternatif": null,
+      "secilen": "talimat_modundan_cik",
+      "secilen_args": {},
+      "dogru": true,
+      "latency_ms": 1918.24,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Ders moduna dönüş."
+    },
+    {
+      "idx": 30,
+      "cumle": "Günaydın Farabi, bugün nasılsın?",
+      "kip": "ogretmenli",
+      "beklenen": null,
+      "alternatif": null,
+      "secilen": null,
+      "secilen_args": {},
+      "dogru": true,
+      "latency_ms": 4242.62,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Selamlama ve hal hatır — araç yok."
+    },
+    {
+      "idx": 31,
+      "cumle": "Çocuklar hazır mıyız derse başlayalım mı?",
+      "kip": "ogretmenli",
+      "beklenen": null,
+      "alternatif": null,
+      "secilen": "yoklama_al",
+      "secilen_args": {},
+      "dogru": false,
+      "latency_ms": 5114.12,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Sınıf içi hitap ve soru — araç yok."
+    },
+    {
+      "idx": 32,
+      "cumle": "Aferin Ahmet, cevabın çok güzeldi.",
+      "kip": "ogretmenli",
+      "beklenen": null,
+      "alternatif": null,
+      "secilen": null,
+      "secilen_args": {},
+      "dogru": true,
+      "latency_ms": 3704.83,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Öğrenciye pekiştirme — araç yok."
+    },
+    {
+      "idx": 33,
+      "cumle": "Mitoz bölünme vücut hücrelerinde görülür değil mi çocuklar?",
+      "kip": "ogretmenli",
+      "beklenen": null,
+      "alternatif": null,
+      "secilen": null,
+      "secilen_args": {},
+      "dogru": true,
+      "latency_ms": 7810.54,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Ders anlatım sorusu — araç yok."
+    },
+    {
+      "idx": 34,
+      "cumle": "İkinci soruya kim cevap vermek ister?",
+      "kip": "ogretmenli",
+      "beklenen": null,
+      "alternatif": null,
+      "secilen": null,
+      "secilen_args": {},
+      "dogru": true,
+      "latency_ms": 3807.84,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Söz isteme — araç yok."
+    },
+    {
+      "idx": 35,
+      "cumle": "Bugünkü konumuz çok zevkli, dikkatle dinleyin.",
+      "kip": "ogretmenli",
+      "beklenen": null,
+      "alternatif": null,
+      "secilen": null,
+      "secilen_args": {},
+      "dogru": true,
+      "latency_ms": 8738.22,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Öğretmen yönlendirmesi — araç yok."
+    },
+    {
+      "idx": 36,
+      "cumle": "Teşekkür ederim Farabi, eline sağlık.",
+      "kip": "talimat",
+      "beklenen": null,
+      "alternatif": null,
+      "secilen": null,
+      "secilen_args": {},
+      "dogru": true,
+      "latency_ms": 3163.28,
+      "emin_mi": true,
+      "arg_hatalari": [],
+      "aciklama": "Talimat modunda teşekkür/selamlama — araç yok."
+    }
+  ]
+}

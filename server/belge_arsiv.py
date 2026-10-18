@@ -17,6 +17,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import idari_yukle
@@ -122,3 +123,51 @@ def belge_kaydet(istek: BelgeIstek):
         "rag": rag,
         "parca": parca,
     }
+
+
+# --- 2026-10-16: kaydetmeden oku (OCR) — Atos "belgeyi_oku" aracı -------------------------
+OKU_AZAMI_SAYFA = 40
+OKU_AZAMI_KARAKTER = 30000
+
+
+@router.post("/api/webui/belge-oku", dependencies=[Depends(webui_anahtari_dogrula)])
+def belge_oku(istek: BelgeIstek):
+    """Dosyayı ARŞİVE/RAG'a YAZMADAN metne çevirir: PDF metni, metinsiz sayfalar ve jpg/png için
+    yerel tesseract (tur+eng), docx/xlsx. Sonuç yalnızca çağırana döner; saklanmaz."""
+    ad = guvenli_ad(istek.ad)
+    if ad is None:
+        return {
+            "durum": "desteklenmiyor",
+            "ad": istek.ad,
+            "mesaj": "Desteklenen türler: " + ", ".join(sorted(idari_yukle.UZANTILAR)),
+        }
+    try:
+        veri = base64.b64decode(istek.icerik_b64, validate=True)
+    except (binascii.Error, ValueError):
+        raise HTTPException(status_code=400, detail="icerik_b64 geçersiz") from None
+    if not veri or len(veri) > AZAMI_BAYT:
+        return {"durum": "hata", "ad": ad, "mesaj": "Dosya boş ya da 40 MB'tan büyük."}
+    with tempfile.TemporaryDirectory(prefix="belge-oku-") as gecici:
+        yol = Path(gecici) / ("belge" + Path(ad).suffix.lower())
+        yol.write_bytes(veri)
+        try:
+            sayfalar = idari_yukle.sayfa_metinleri(yol)
+        except Exception:  # noqa: BLE001 — bozuk dosya; ayrıntı yanıta sızmasın
+            log.warning("belge-oku okunamadı", exc_info=True)
+            return {"durum": "hata", "ad": ad, "mesaj": "Dosya okunamadı (bozuk ya da desteklenmeyen içerik)."}
+    toplam = len(sayfalar)
+    parcalar, ocrli, uzunluk = [], 0, 0
+    for no, metin, ocr in sayfalar[:OKU_AZAMI_SAYFA]:
+        metin = (metin or "").strip()
+        if not metin:
+            continue
+        ocrli += 1 if ocr else 0
+        parca = f"--- Sayfa {no} ---\n{metin}"
+        if uzunluk + len(parca) > OKU_AZAMI_KARAKTER:
+            parcalar.append(parca[: max(OKU_AZAMI_KARAKTER - uzunluk, 0)])
+            return {"durum": "ok", "ad": ad, "sayfa": toplam, "ocr_sayfa": ocrli, "kisaltildi": True,
+                    "metin": "\n\n".join(parcalar)}
+        parcalar.append(parca)
+        uzunluk += len(parca)
+    return {"durum": "ok" if parcalar else "bos", "ad": ad, "sayfa": toplam, "ocr_sayfa": ocrli,
+            "kisaltildi": toplam > OKU_AZAMI_SAYFA, "metin": "\n\n".join(parcalar)}

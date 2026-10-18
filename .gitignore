@@ -170,3 +170,14 @@ tahtayoklama/dashboard/config/ogretmenler.json
 # SMS panel paylaşılan anahtarı (üretilir, commit edilmez)
 smssistemi/config/panel.json
 tahtayoklama/dashboard/config/sms_panel.json
+
+# Acil Durum (2026-10-16) — zil parolası + SMS anahtarı
+tahtayoklama/dashboard/config/acil.json
+
+# 2026-10-18 — public repoya girmemeli: kamera RTSP şifreleri + TLS anahtarı + binary,
+# ses örnekleri, yedekler, loglar, iç analiz raporu
+kameralar/
+benchmark/reports/**/*.wav
+*.bak-*
+*.log
+analizatakanekim2026.txt

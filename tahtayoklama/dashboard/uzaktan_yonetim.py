@@ -14,6 +14,7 @@ import asyncio
 import base64
 from datetime import datetime
 import io
+import re
 import shlex
 import time
 from pathlib import Path
@@ -50,14 +51,36 @@ _PYTHON_ADAYLARI = [
 _DURUM_KOMUTU = (
     "U=$(id -un); "
     "SID=$(loginctl list-sessions --no-legend 2>/dev/null | awk -v u=\"$U\" '$3==u{print $1; exit}'); "
-    "if [ -z \"$SID\" ]; then OTURUM=giris_ekrani; else "
-    "L=$(loginctl show-session \"$SID\" -p LockedHint --value 2>/dev/null); "
-    "if [ \"$L\" = yes ]; then OTURUM=kilitli; else OTURUM=acik; fi; fi; "
+    'if [ -z "$SID" ]; then OTURUM=giris_ekrani; else '
+    'L=$(loginctl show-session "$SID" -p LockedHint --value 2>/dev/null); '
+    'if [ "$L" = yes ]; then OTURUM=kilitli; else OTURUM=acik; fi; fi; '
     "Y=0; pgrep -f '[t]ahtayoklama/yoklama.py' >/dev/null 2>&1 && Y=1; "
     "C=0; pgrep -f '[g]oogle-chrome' >/dev/null 2>&1 && C=1; "
     "K=0; pgrep -f '[e]ta-screen-cover' >/dev/null 2>&1 && K=1; "
-    "echo \"$OTURUM $Y $C $K\""
+    "CPU=$(awk -F': ' '/^model name/ {print $2; exit}' /proc/cpuinfo 2>/dev/null); "
+    "RAMKB=$(awk '/MemTotal/ {print $2; exit}' /proc/meminfo 2>/dev/null); "
+    "RAMGB=$(( (RAMKB + 1048575) / 1048576 )); "
+    'echo "$OTURUM $Y $C $K"; '
+    'echo "${CPU}|${RAMGB}"'
 )
+
+# ham CPU adini (ör. "Intel(R) Core(TM) i3-3240 CPU @ 3.40GHz") kisa forma
+# (ör. "i3-3240") indirger - Sistem Bilgisi sutununda gosterilecek.
+_CPU_KISA_RE = re.compile(
+    r"(i[3579]-[0-9A-Za-z]+|Ryzen\s?\d\s?\w*|Celeron\s?[0-9A-Za-z]*|Pentium\s?[0-9A-Za-z]*|Atom\s?[0-9A-Za-z]*|Core\s?2\s?\w*)",
+    re.IGNORECASE,
+)
+
+
+def _cpu_kisa_ad(ham: str) -> str | None:
+    ham = ham.strip()
+    if not ham:
+        return None
+    eslesme = _CPU_KISA_RE.search(ham)
+    if eslesme:
+        return eslesme.group(1).strip()
+    parcalar = ham.split()
+    return " ".join(parcalar[:3]) if parcalar else None
 
 
 def _dogrula(request: Request) -> None:
@@ -73,7 +96,9 @@ def _dogrula(request: Request) -> None:
         conn.close()
 
 
-def _denetim_yaz(request: Request, eylem: str, sonuclar: list[dict], kaynak: str | None = None) -> None:
+def _denetim_yaz(
+    request: Request, eylem: str, sonuclar: list[dict], kaynak: str | None = None
+) -> None:
     """Uzaktan eylemi uzaktan_denetim tablosuna yazar. Yalnızca eylem adı,
     tahta adları ve ok/hata durumu saklanır (URL, dosya adı/içeriği asla).
     Log hatası eylemi ASLA engellemez veya değiştirmez."""
@@ -85,7 +110,8 @@ def _denetim_yaz(request: Request, eylem: str, sonuclar: list[dict], kaynak: str
         if adlar:
             sonuc = ",".join(
                 f"{r['tahta']}:{r.get('denetim_kodu') or ('ok' if r.get('basarili') else 'hata')}"
-                for r in sonuclar if r.get("tahta") is not None
+                for r in sonuclar
+                if r.get("tahta") is not None
             )
         else:
             sonuc = "secim_yok"
@@ -114,16 +140,45 @@ def _url_normallestir(ham: str) -> str:
 # Durum tablosu
 # --------------------------------------------------------------------
 
+
 async def _tahta_durumu(t: dict) -> dict:
-    sonuc = await ssh_istemci.komut_calistir(t["ip"], t["kullanici"], _DURUM_KOMUTU, zaman_asimi=6)
-    varsayilan = {**t, "ulasilabilir": False, "oturum": "bilinmiyor", "yoklama": False, "chrome": False, "karartildi": False}
+    sonuc = await ssh_istemci.komut_calistir(
+        t["ip"], t["kullanici"], _DURUM_KOMUTU, zaman_asimi=6
+    )
+    varsayilan = {
+        **t,
+        "ulasilabilir": False,
+        "oturum": "bilinmiyor",
+        "yoklama": False,
+        "chrome": False,
+        "karartildi": False,
+        "cpu": None,
+        "ram_gb": None,
+    }
     if not sonuc.basarili:
         return varsayilan
-    parcalar = sonuc.stdout.decode("utf-8", errors="replace").strip().split()
+    satirlar = sonuc.stdout.decode("utf-8", errors="replace").strip().splitlines()
+    if not satirlar:
+        return varsayilan
+    parcalar = satirlar[0].split()
     if len(parcalar) < 4:
         return varsayilan
     oturum, y, c, k = parcalar[:4]
-    return {**t, "ulasilabilir": True, "oturum": oturum, "yoklama": y == "1", "chrome": c == "1", "karartildi": k == "1"}
+    cpu = ram_gb = None
+    if len(satirlar) > 1 and "|" in satirlar[1]:
+        ham_cpu, _, ham_ram = satirlar[1].partition("|")
+        cpu = _cpu_kisa_ad(ham_cpu)
+        ram_gb = ham_ram.strip() or None
+    return {
+        **t,
+        "ulasilabilir": True,
+        "oturum": oturum,
+        "yoklama": y == "1",
+        "chrome": c == "1",
+        "karartildi": k == "1",
+        "cpu": cpu,
+        "ram_gb": ram_gb,
+    }
 
 
 async def tum_durumlar() -> list[dict]:
@@ -143,7 +198,11 @@ async def durumlar_al(yenile: bool = False) -> list[dict]:
     global _onbellek_durumlar, _onbellek_zamani
     async with _kilit:
         simdi = time.monotonic()
-        if yenile or _onbellek_durumlar is None or (simdi - _onbellek_zamani > _DURUM_ONBELLEK_SN):
+        if (
+            yenile
+            or _onbellek_durumlar is None
+            or (simdi - _onbellek_zamani > _DURUM_ONBELLEK_SN)
+        ):
             _onbellek_durumlar = await tum_durumlar()
             _onbellek_zamani = simdi
         return _onbellek_durumlar
@@ -154,9 +213,12 @@ async def durumlar_al(yenile: bool = False) -> list[dict]:
 # çalıştırıcı (_eylem_calistir_ve_render) tarafından paralel çağrılır.
 # --------------------------------------------------------------------
 
+
 async def _python_yolu_bul(ip: str, kullanici: str) -> str | None:
     for aday in _PYTHON_ADAYLARI:
-        sonuc = await ssh_istemci.komut_calistir(ip, kullanici, f"test -x {shlex.quote(aday)}")
+        sonuc = await ssh_istemci.komut_calistir(
+            ip, kullanici, f"test -x {shlex.quote(aday)}"
+        )
         if sonuc.basarili:
             return aday
     return None
@@ -165,16 +227,33 @@ async def _python_yolu_bul(ip: str, kullanici: str) -> str | None:
 async def _yoklama_ac_tek(t: dict, form) -> dict:
     py = await _python_yolu_bul(t["ip"], t["kullanici"])
     if py is None:
-        return {"tahta": t["ad"], "basarili": False, "detay": "Python yorumlayıcısı bulunamadı (venv eksik)."}
+        return {
+            "tahta": t["ad"],
+            "basarili": False,
+            "detay": "Python yorumlayıcısı bulunamadı (venv eksik).",
+        }
     sonuc = await uzaktan_baslat.baslat(
-        {"ip": t["ip"], "ssh_kullanici": t["kullanici"], "python_yolu": py, "ad": t["ad"]}
+        {
+            "ip": t["ip"],
+            "ssh_kullanici": t["kullanici"],
+            "python_yolu": py,
+            "ad": t["ad"],
+        }
     )
     return {"tahta": t["ad"], "basarili": sonuc["basarili"], "detay": sonuc["detay"]}
 
 
 async def _yoklama_kapat_tek(t: dict, form) -> dict:
-    sonuc = await ssh_istemci.komut_calistir(t["ip"], t["kullanici"], "pkill -f '[t]ahtayoklama/yoklama.py'; true")
-    return {"tahta": t["ad"], "basarili": sonuc.basarili, "detay": "Kapatıldı." if sonuc.basarili else f"SSH hatası: {sonuc.stderr.decode(errors='replace')[:200]}"}
+    sonuc = await ssh_istemci.komut_calistir(
+        t["ip"], t["kullanici"], "pkill -f '[t]ahtayoklama/yoklama.py'; true"
+    )
+    return {
+        "tahta": t["ad"],
+        "basarili": sonuc.basarili,
+        "detay": "Kapatıldı."
+        if sonuc.basarili
+        else f"SSH hatası: {sonuc.stderr.decode(errors='replace')[:200]}",
+    }
 
 
 async def _web_ac_tek(t: dict, form) -> dict:
@@ -183,14 +262,22 @@ async def _web_ac_tek(t: dict, form) -> dict:
         return {"tahta": t["ad"], "basarili": False, "detay": "URL boş."}
     ortam = await ssh_istemci.x_ortamini_kesfet(t["ip"], t["kullanici"])
     if ortam is None:
-        return {"tahta": t["ad"], "basarili": False, "detay": "Aktif masaüstü oturumu bulunamadı (tahta kapalı olabilir)."}
+        return {
+            "tahta": t["ad"],
+            "basarili": False,
+            "detay": "Aktif masaüstü oturumu bulunamadı (tahta kapalı olabilir).",
+        }
     display, xauthority, _uid = ortam
-    calisiyor = await ssh_istemci.komut_calistir(t["ip"], t["kullanici"], "pgrep -f '[g]oogle-chrome'")
+    calisiyor = await ssh_istemci.komut_calistir(
+        t["ip"], t["kullanici"], "pgrep -f '[g]oogle-chrome'"
+    )
     if not calisiyor.basarili:
         # Golden image'dan miras kalan eski Singleton kilidi — chrome
         # çalışmıyorsa güvenle temizlenebilir (bkz. yerel tahta_ssh.py).
         await ssh_istemci.komut_calistir(
-            t["ip"], t["kullanici"], f"rm -f /home/{t['kullanici']}/.config/google-chrome/Singleton*"
+            t["ip"],
+            t["kullanici"],
+            f"rm -f /home/{t['kullanici']}/.config/google-chrome/Singleton*",
         )
     komut = (
         f"setsid env DISPLAY={display} XAUTHORITY={xauthority} "
@@ -198,12 +285,28 @@ async def _web_ac_tek(t: dict, form) -> dict:
         f"</dev/null >/tmp/yonetim_chrome.log 2>&1 &"
     )
     sonuc = await ssh_istemci.komut_calistir(t["ip"], t["kullanici"], komut)
-    return {"tahta": t["ad"], "basarili": sonuc.basarili, "detay": f"Sayfa açıldı: {url}" if sonuc.basarili else sonuc.stderr.decode(errors="replace")[:200]}
+    return {
+        "tahta": t["ad"],
+        "basarili": sonuc.basarili,
+        "detay": f"Sayfa açıldı: {url}"
+        if sonuc.basarili
+        else sonuc.stderr.decode(errors="replace")[:200],
+    }
 
 
 async def _chrome_kapat_tek(t: dict, form) -> dict:
-    sonuc = await ssh_istemci.komut_calistir(t["ip"], t["kullanici"], "pkill -f '[g]oogle-chrome'; true")
-    return {"tahta": t["ad"], "basarili": sonuc.basarili, "detay": "Kapatıldı." if sonuc.basarili else f"SSH hatası: {sonuc.stderr.decode(errors='replace')[:200]}"}
+    sonuc = await ssh_istemci.komut_calistir(
+        # Asıl süreç /opt/google/chrome/chrome — '[g]oogle-chrome' yalnız sarmalayıcıyı
+        # yakalıyor, Chrome açık kalıyordu (2026-10-16, bkz. acil.py CHROME_KAPAT).
+        t["ip"], t["kullanici"], "pkill -f '[g]oogle-chrome'; pkill -f '[/]opt/google/chrome/chrome'; true"
+    )
+    return {
+        "tahta": t["ad"],
+        "basarili": sonuc.basarili,
+        "detay": "Kapatıldı."
+        if sonuc.basarili
+        else f"SSH hatası: {sonuc.stderr.decode(errors='replace')[:200]}",
+    }
 
 
 _ETA_SCREEN_COVER_BASLIK = "tr.org.pardus.eta-screen-cover"
@@ -212,12 +315,19 @@ _ETA_SCREEN_COVER_BASLIK = "tr.org.pardus.eta-screen-cover"
 async def _ekran_karart_tek(t: dict, form) -> dict:
     ortam = await ssh_istemci.x_ortamini_kesfet(t["ip"], t["kullanici"])
     if ortam is None:
-        return {"tahta": t["ad"], "basarili": False, "detay": "Aktif masaüstü oturumu bulunamadı (tahta kapalı olabilir)."}
+        return {
+            "tahta": t["ad"],
+            "basarili": False,
+            "detay": "Aktif masaüstü oturumu bulunamadı (tahta kapalı olabilir).",
+        }
     display, xauthority, _uid = ortam
-    calisiyor = await ssh_istemci.komut_calistir(t["ip"], t["kullanici"], "pgrep -f '[e]ta-screen-cover'")
+    calisiyor = await ssh_istemci.komut_calistir(
+        t["ip"], t["kullanici"], "pgrep -f '[e]ta-screen-cover'"
+    )
     if not calisiyor.basarili:
         await ssh_istemci.komut_calistir(
-            t["ip"], t["kullanici"],
+            t["ip"],
+            t["kullanici"],
             f"setsid env DISPLAY={display} XAUTHORITY={xauthority} eta-screen-cover "
             f"</dev/null >/tmp/yonetim_karart.log 2>&1 &",
         )
@@ -234,16 +344,31 @@ async def _ekran_karart_tek(t: dict, form) -> dict:
             if gorundu.basarili:
                 break
     sonuc = await ssh_istemci.komut_calistir(
-        t["ip"], t["kullanici"],
+        t["ip"],
+        t["kullanici"],
         f"env DISPLAY={display} XAUTHORITY={xauthority} "
         f"wmctrl -r {shlex.quote(_ETA_SCREEN_COVER_BASLIK)} -b add,maximized_vert,maximized_horz",
     )
-    return {"tahta": t["ad"], "basarili": sonuc.basarili, "detay": "Karartıldı (tam ekran)." if sonuc.basarili else sonuc.stderr.decode(errors="replace")[:200]}
+    return {
+        "tahta": t["ad"],
+        "basarili": sonuc.basarili,
+        "detay": "Karartıldı (tam ekran)."
+        if sonuc.basarili
+        else sonuc.stderr.decode(errors="replace")[:200],
+    }
 
 
 async def _ekran_kaldir_tek(t: dict, form) -> dict:
-    sonuc = await ssh_istemci.komut_calistir(t["ip"], t["kullanici"], "pkill -f '[e]ta-screen-cover'; true")
-    return {"tahta": t["ad"], "basarili": sonuc.basarili, "detay": "Karartma kaldırıldı." if sonuc.basarili else f"SSH hatası: {sonuc.stderr.decode(errors='replace')[:200]}"}
+    sonuc = await ssh_istemci.komut_calistir(
+        t["ip"], t["kullanici"], "pkill -f '[e]ta-screen-cover'; true"
+    )
+    return {
+        "tahta": t["ad"],
+        "basarili": sonuc.basarili,
+        "detay": "Karartma kaldırıldı."
+        if sonuc.basarili
+        else f"SSH hatası: {sonuc.stderr.decode(errors='replace')[:200]}",
+    }
 
 
 async def _duvar_kagidi_tek(t: dict, icerik: bytes, uzanti: str) -> dict:
@@ -254,13 +379,23 @@ async def _duvar_kagidi_tek(t: dict, icerik: bytes, uzanti: str) -> dict:
         f"mkdir -p {ev}/Resimler && cat > {shlex.quote(uzak_yol)}.tmp && "
         f"mv {shlex.quote(uzak_yol)}.tmp {shlex.quote(uzak_yol)}"
     )
-    yazma = await ssh_istemci.komut_calistir(t["ip"], t["kullanici"], yaz_komutu, stdin_bytes=icerik, zaman_asimi=25)
+    yazma = await ssh_istemci.komut_calistir(
+        t["ip"], t["kullanici"], yaz_komutu, stdin_bytes=icerik, zaman_asimi=25
+    )
     if not yazma.basarili:
-        return {"tahta": t["ad"], "basarili": False, "detay": f"Dosya yazılamadı: {yazma.stderr.decode(errors='replace')[:200]}"}
+        return {
+            "tahta": t["ad"],
+            "basarili": False,
+            "detay": f"Dosya yazılamadı: {yazma.stderr.decode(errors='replace')[:200]}",
+        }
 
     ortam = await ssh_istemci.x_ortamini_kesfet(t["ip"], t["kullanici"])
     if ortam is None:
-        return {"tahta": t["ad"], "basarili": False, "detay": "Dosya gönderildi ama aktif oturum yok — duvar kağıdı ayarlanamadı."}
+        return {
+            "tahta": t["ad"],
+            "basarili": False,
+            "detay": "Dosya gönderildi ama aktif oturum yok — duvar kağıdı ayarlanamadı.",
+        }
     display, xauthority, uid = ortam
     uri = f"file://{uzak_yol}"
     # Asıl görünür etki org.cinnamon.desktop.background'a bağlı (masaüstü
@@ -284,7 +419,13 @@ async def _duvar_kagidi_tek(t: dict, icerik: bytes, uzanti: str) -> dict:
         f"bash -c {shlex.quote(ic_komut)}"
     )
     sonuc = await ssh_istemci.komut_calistir(t["ip"], t["kullanici"], komut)
-    return {"tahta": t["ad"], "basarili": sonuc.basarili, "detay": "Duvar kağıdı değiştirildi." if sonuc.basarili else sonuc.stderr.decode(errors="replace")[:200]}
+    return {
+        "tahta": t["ad"],
+        "basarili": sonuc.basarili,
+        "detay": "Duvar kağıdı değiştirildi."
+        if sonuc.basarili
+        else sonuc.stderr.decode(errors="replace")[:200],
+    }
 
 
 # Makine API'si (ajan_api.py) için ad → eylem haritası. Duvar kağıdı YOK.
@@ -304,6 +445,7 @@ EYLEMLER = {
 # Route'lar
 # --------------------------------------------------------------------
 
+
 @router.get("/uzaktan/api/durumlar")
 async def api_uzaktan_durumlar(request: Request, yenile: int = 0):
     _dogrula(request)
@@ -320,12 +462,30 @@ async def uzaktan_sayfa(request: Request, yenile: int = 0):
     else:
         # Hızlı iskelet: sayfa beklemeden 1 ms'de render edilir; durumlar arka planda doldurulur
         ham = tahta_kaydi.tahtalari_yukle()
-        tahtalar = [{**t, "ulasilabilir": None, "oturum": "yukleniyor", "yoklama": False, "chrome": False, "karartildi": False} for t in ham]
+        tahtalar = [
+            {
+                **t,
+                "ulasilabilir": None,
+                "oturum": "yukleniyor",
+                "yoklama": False,
+                "chrome": False,
+                "karartildi": False,
+                "cpu": None,
+                "ram_gb": None,
+            }
+            for t in ham
+        ]
         yukleniyor = True
-    return templates.TemplateResponse(request, "uzaktan_yonetim.html", {"tahtalar": tahtalar, "yukleniyor": yukleniyor, "sonuclar": None})
+    return templates.TemplateResponse(
+        request,
+        "uzaktan_yonetim.html",
+        {"tahtalar": tahtalar, "yukleniyor": yukleniyor, "sonuclar": None},
+    )
 
 
-async def _eylem_calistir_ve_render(request: Request, eylem, eylem_adi: str) -> HTMLResponse:
+async def _eylem_calistir_ve_render(
+    request: Request, eylem, eylem_adi: str
+) -> HTMLResponse:
     _dogrula(request)
     form = await request.form()
     secilenler = set(form.getlist("tahta"))
@@ -333,10 +493,16 @@ async def _eylem_calistir_ve_render(request: Request, eylem, eylem_adi: str) -> 
     if hedefler:
         sonuclar = list(await asyncio.gather(*(eylem(t, form) for t in hedefler)))
     else:
-        sonuclar = [{"tahta": None, "basarili": False, "detay": "Hiçbir tahta seçilmedi."}]
+        sonuclar = [
+            {"tahta": None, "basarili": False, "detay": "Hiçbir tahta seçilmedi."}
+        ]
     _denetim_yaz(request, eylem_adi, sonuclar)
     durumlar = await durumlar_al(yenile=True)
-    return templates.TemplateResponse(request, "uzaktan_yonetim.html", {"tahtalar": durumlar, "yukleniyor": False, "sonuclar": sonuclar})
+    return templates.TemplateResponse(
+        request,
+        "uzaktan_yonetim.html",
+        {"tahtalar": durumlar, "yukleniyor": False, "sonuclar": sonuclar},
+    )
 
 
 @router.post("/uzaktan/yoklama-ac", response_class=HTMLResponse)
@@ -389,19 +555,30 @@ async def duvar_kagidi_route(request: Request):
 
     hedefler = [t for t in tahta_kaydi.tahtalari_yukle() if t["ad"] in secilenler]
     if hedefler:
-        sonuclar = list(await asyncio.gather(*(_duvar_kagidi_tek(t, icerik, uzanti) for t in hedefler)))
+        sonuclar = list(
+            await asyncio.gather(
+                *(_duvar_kagidi_tek(t, icerik, uzanti) for t in hedefler)
+            )
+        )
     else:
-        sonuclar = [{"tahta": None, "basarili": False, "detay": "Hiçbir tahta seçilmedi."}]
+        sonuclar = [
+            {"tahta": None, "basarili": False, "detay": "Hiçbir tahta seçilmedi."}
+        ]
     _denetim_yaz(request, "duvar_kagidi", sonuclar)
     durumlar = await tum_durumlar()
-    return templates.TemplateResponse(request, "uzaktan_yonetim.html", {"tahtalar": durumlar, "sonuclar": sonuclar})
+    return templates.TemplateResponse(
+        request, "uzaktan_yonetim.html", {"tahtalar": durumlar, "sonuclar": sonuclar}
+    )
 
 
 # --------------------------------------------------------------------
 # Ekran Görüntüsü (Screenshot) ve Önizleme
 # --------------------------------------------------------------------
 
-def _gorsel_optimize_et(baytlar: bytes, maks_genislik: int = 1280, kalite: int = 75) -> tuple[bytes, str, int | None, int | None]:
+
+def _gorsel_optimize_et(
+    baytlar: bytes, maks_genislik: int = 1280, kalite: int = 75
+) -> tuple[bytes, str, int | None, int | None]:
     """Gelen ekran görüntüsünü Pillow ile optimize eder (maksimum genişliğe ölçekler ve JPEG yapar)."""
     try:
         with Image.open(io.BytesIO(baytlar)) as img:
@@ -420,7 +597,9 @@ def _gorsel_optimize_et(baytlar: bytes, maks_genislik: int = 1280, kalite: int =
         return baytlar, mime, None, None
 
 
-async def _ekran_goruntusu_al(t: dict) -> tuple[bool, bytes, str, int | None, int | None]:
+async def _ekran_goruntusu_al(
+    t: dict,
+) -> tuple[bool, bytes, str, int | None, int | None]:
     """Tahtadan X11 masaüstü ekran görüntüsü alır.
     Önce DISPLAY=:0 ile import/gnome-screenshot komutunu dener;
     olmazsa derin X ortamı keşfi ile dener."""
@@ -445,7 +624,13 @@ async def _ekran_goruntusu_al(t: dict) -> tuple[bool, bytes, str, int | None, in
     # 2. X ortamını derin keşfetme ile yedek deneme
     ortam = await ssh_istemci.x_ortamini_kesfet(ip, user)
     if ortam is None:
-        return False, b"", "Tahtaya ulaşılamıyor veya aktif masaüstü oturumu (X11) bulunamadı.", None, None
+        return (
+            False,
+            b"",
+            "Tahtaya ulaşılamıyor veya aktif masaüstü oturumu (X11) bulunamadı.",
+            None,
+            None,
+        )
 
     display, xauth, _uid = ortam
     yedek_komut = (
@@ -461,7 +646,10 @@ async def _ekran_goruntusu_al(t: dict) -> tuple[bool, bytes, str, int | None, in
         opt_bayt, mime, w, h = _gorsel_optimize_et(sonuc2.stdout)
         return True, opt_bayt, "", w, h
 
-    hata = sonuc.stderr.decode("utf-8", errors="replace").strip() or "Ekran görüntüsü alınamadı (tahta kilitli veya kapalı olabilir)."
+    hata = (
+        sonuc.stderr.decode("utf-8", errors="replace").strip()
+        or "Ekran görüntüsü alınamadı (tahta kilitli veya kapalı olabilir)."
+    )
     return False, b"", hata, None, None
 
 
@@ -512,7 +700,9 @@ async def ekran_goruntusu_route(request: Request, tahta_adi: str, ham: int = 0):
                 "ip": tahta["ip"],
                 "hata": hata,
             },
-            status_code=502 if ("ulaşıl" in hata.lower() or "kapalı" in hata.lower()) else 500,
+            status_code=502
+            if ("ulaşıl" in hata.lower() or "kapalı" in hata.lower())
+            else 500,
         )
 
     if ham:
@@ -523,16 +713,20 @@ async def ekran_goruntusu_route(request: Request, tahta_adi: str, ham: int = 0):
         }
         return Response(content=gorsel_bayt, media_type="image/jpeg", headers=headers)
 
-    gorsel_b64 = "data:image/jpeg;base64," + base64.b64encode(gorsel_bayt).decode("ascii")
+    gorsel_b64 = "data:image/jpeg;base64," + base64.b64encode(gorsel_bayt).decode(
+        "ascii"
+    )
     simdi = datetime.now(_ISTANBUL).strftime("%H:%M:%S")
 
-    return JSONResponse({
-        "basarili": True,
-        "tahta": tahta_adi,
-        "ip": tahta["ip"],
-        "zaman": simdi,
-        "gorsel": gorsel_b64,
-        "genislik": w,
-        "yukseklik": h,
-        "boyut_kb": round(len(gorsel_bayt) / 1024, 1),
-    })
+    return JSONResponse(
+        {
+            "basarili": True,
+            "tahta": tahta_adi,
+            "ip": tahta["ip"],
+            "zaman": simdi,
+            "gorsel": gorsel_b64,
+            "genislik": w,
+            "yukseklik": h,
+            "boyut_kb": round(len(gorsel_bayt) / 1024, 1),
+        }
+    )

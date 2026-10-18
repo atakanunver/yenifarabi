@@ -3,8 +3,8 @@
 {% block baslik %}Liderlik · Dijital Okul{% endblock %}
 {% block icerik %}
 <p class="kucuk"><a href="/ogretmen">← Ana sayfa</a></p>
-<h1>Arena liderliği</h1>
-<p class="kucuk soluk">Bireysel Bilgi Arenası (Günlük Görev + Hızlı Mod). Hafta pazartesi başlar ({{ hafta_basi|tarih }}). Sınıf tahtası oyunlarının puanları bu tabloda yoktur.</p>
+<h1>Yarışmalar ve liderlik</h1>
+<p class="kucuk soluk">Öğrencilerin gördüğü yarışmalar: Soru Maratonu ve Bilgi Arenası (Günlük Görev + Hızlı Mod). Hafta pazartesi başlar ({{ hafta_basi|tarih }}). Sınıf tahtası oyunlarının (Sınıf Arenası) puanları ayrı sistemdedir, bu ekranda yoktur.</p>
 
 {% if benim_liste %}
 <section class="kart">
@@ -25,6 +25,47 @@
     </tbody>
   </table></div>
   <p class="kucuk soluk">Sıralama önce katılım oranına, sonra katılan öğrenci başına ortalama XP'ye göredir; sınıf mevcudu büyük olan haksız avantaj kazanmasın diye toplam XP kullanılmaz. Başka sınıfların öğrencileri burada görünmez.</p>
+</section>
+
+<section class="kart" aria-labelledby="maraton-baslik">
+  <h2 id="maraton-baslik">Soru Maratonu <span class="soluk kucuk">bu hafta · okul geneli</span></h2>
+  <p class="kucuk soluk">Her öğrencinin bu haftaki en iyi {{ maraton_en_iyi }} maratonunun toplamı. Öğrencilerin kendi ekranında gördüğü liste ile aynıdır (kısa ad). Katılan: {{ maraton_toplam }} öğrenci.</p>
+  <div class="tablo-kap"><table>
+    <thead><tr><th class="sayi">#</th><th>Öğrenci</th><th>Sınıf</th><th class="sayi">Puan</th><th class="sayi">Maraton</th></tr></thead>
+    <tbody>
+    {% for d in maraton_ilk %}
+      <tr{{ ' class="ben"' if d.sinif in benim }}><td class="sayi">{{ d.sira }}</td><td>{{ d.ad }}</td><td>{{ d.sinif }}{% if d.sinif in benim %} <span class="etiket mor">sınıfım</span>{% endif %}</td><td class="sayi">{{ d.toplam }}</td><td class="sayi">{{ d.adet }}</td></tr>
+    {% else %}<tr><td colspan="5" class="bos">Bu hafta henüz tamamlanan maraton yok.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  {% if maraton_toplam > maraton_ilk|length %}<p class="kucuk soluk">İlk {{ maraton_ilk|length }} öğrenci gösteriliyor.</p>{% endif %}
+  {% if benim_liste and maraton_siniflarim %}
+  <h3>Sınıflarımdaki öğrenciler</h3>
+  <div class="tablo-kap"><table>
+    <thead><tr><th class="sayi">Okul sırası</th><th>Öğrenci</th><th>Sınıf</th><th class="sayi">Puan</th></tr></thead>
+    <tbody>{% for d in maraton_siniflarim %}<tr><td class="sayi">{{ d.sira }}</td><td>{{ d.ad }}</td><td>{{ d.sinif }}</td><td class="sayi">{{ d.toplam }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+</section>
+
+<section class="kart" aria-labelledby="arena-baslik">
+  <h2 id="arena-baslik">Bilgi Arenası <span class="soluk kucuk">okul geneli · ilk {{ arena_ilk }}</span></h2>
+  <p class="kucuk">
+    {% if donem == 'hafta' %}<b>Bu hafta</b> · <a href="?donem=tum">Tüm zamanlar</a>{% else %}<a href="?donem=hafta">Bu hafta</a> · <b>Tüm zamanlar</b>{% endif %}
+    <span class="soluk">— öğrencilerin kendi ekranındaki üç tablo (kısa ad). Sınıfınızın tamamı için "Sınıf listelerim" bölümüne bakın.</span>
+  </p>
+  {% for anahtar, baslik in [('xp', 'En çok XP'), ('dogru', 'En çok doğru'), ('cozulen', 'En çok soru çözen')] %}
+  <h3>{{ baslik }}</h3>
+  <div class="tablo-kap"><table>
+    <thead><tr><th class="sayi">#</th><th>Öğrenci</th><th>Sınıf</th><th class="sayi">{{ 'XP' if anahtar == 'xp' else 'Adet' }}</th></tr></thead>
+    <tbody>
+    {% for x in arena[anahtar].ilk %}
+      <tr{{ ' class="ben"' if x.sinif in benim }}><td class="sayi">{{ x.sira }}</td><td>{{ x.ad }}</td><td>{{ x.sinif }}{% if x.sinif in benim %} <span class="etiket mor">sınıfım</span>{% endif %}</td><td class="sayi">{{ x.deger }}</td></tr>
+    {% else %}<tr><td colspan="4" class="bos">{{ 'Bu hafta' if donem == 'hafta' else 'Henüz' }} kimse puan almadı.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  <p class="kucuk soluk">Katılan: {{ arena[anahtar].katilan }} öğrenci.</p>
+  {% endfor %}
 </section>
 
 <section class="kart">

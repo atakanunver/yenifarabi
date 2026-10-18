@@ -523,10 +523,41 @@ CREATE TABLE sudoku_oyun (
 );
 """
 
+# Öğretmenin sınıfa gönderdiği PDF + ödevin PDF eki (sayfa aralığı) + öğrencinin tek foto teslimi.
+# Foto teslimi odev_teslim'e 'yapti' olarak da yazılır (mevcut listeler değişmeden çalışır).
+SEMA_V19 = """
+CREATE TABLE sinif_pdf (
+    id          INTEGER PRIMARY KEY,
+    ogretmen_id INTEGER NOT NULL REFERENCES kullanici(id),
+    sinif       TEXT NOT NULL,
+    ders        TEXT NOT NULL,
+    baslik      TEXT NOT NULL,
+    dosya_adi   TEXT NOT NULL,
+    depo_adi    TEXT NOT NULL,
+    boyut       INTEGER NOT NULL,
+    zaman       TEXT NOT NULL
+);
+CREATE INDEX sinif_pdf_sinif ON sinif_pdf(sinif, zaman);
+CREATE TABLE odev_pdf (
+    odev_id   INTEGER PRIMARY KEY REFERENCES odev(id) ON DELETE CASCADE,
+    pdf_id    INTEGER NOT NULL REFERENCES sinif_pdf(id) ON DELETE CASCADE,
+    sayfa_bas INTEGER,
+    sayfa_bit INTEGER
+);
+CREATE TABLE odev_foto (
+    odev_id    INTEGER NOT NULL REFERENCES odev(id) ON DELETE CASCADE,
+    ogrenci_id INTEGER NOT NULL REFERENCES ogrenci(id),
+    depo_adi   TEXT NOT NULL,
+    tur        TEXT NOT NULL,
+    zaman      TEXT NOT NULL,
+    PRIMARY KEY (odev_id, ogrenci_id)
+);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
-    SEMA_V18,
+    SEMA_V18, SEMA_V19,
 ]
 
 
