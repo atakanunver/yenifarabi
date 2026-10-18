@@ -61,6 +61,9 @@ OZELLIKLER = {
         "Öğretmen: hızlı etkinlik atama", ("ogretmen",), True,
         "Öğretmen ana sayfasından Hızlı Etkinlik'e bağlantı ver; zümrede 3 soruluk çıkış bileti örneğini göster.",
     ),
+    "soru_bildir": (
+        "Soru bildirimi", ("ogrenci",), False, "",
+    ),
     "ogretmen_pdf_gonder": (
         "Öğretmen: sınıfa PDF gönderme", ("ogretmen",), True,
         "Öğretmenlere 'PDF gönder' ekranını ve PDF'ten foto teslimli ödev vermeyi kısa bir örnekle tanıt.",

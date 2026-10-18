@@ -10,6 +10,7 @@ import sqlite3
 from datetime import datetime, timedelta
 
 import odevler
+import soru_bildirim
 import zaman
 from kaynaklar import arena_soru
 
@@ -63,7 +64,7 @@ def hizli_ata(
     if onceki and (simdi - datetime.strptime(onceki["olusturma"], zaman.BICIM)).total_seconds() < TEKRAR_SN:
         return onceki["id"]
     seviye = int(sinif.split("-", 1)[0])
-    sorular = arena_soru.sorular(seviye, havuz_ders, _atanmis_idler(conn, sinif), adet)
+    sorular = arena_soru.sorular(seviye, havuz_ders, _atanmis_idler(conn, sinif), adet, yasak=soru_bildirim.gizli_idler(conn))
     if len(sorular) < adet:
         raise EtkinlikHatasi("Bu ders için havuzda yeterli onaylı soru yok.")
     teslim = (simdi + timedelta(days=SURELER[sure][1])).strftime("%Y-%m-%d")

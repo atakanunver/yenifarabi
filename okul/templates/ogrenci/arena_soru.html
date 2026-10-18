@@ -30,6 +30,7 @@
       <b>{{ 'Doğru!' if geri.dogru else 'Bu soruyu birlikte gözden geçirelim.' }}</b>
       {% if not geri.dogru %}Doğru cevap: <b style="display:inline">{{ 'ABCDEFGH'[geri.dogru_index] }}</b>.{% endif %}
     </div>
+    {% include "ogrenci/_soru_bildir.html" %}
     <div class="tuslar"><a class="tus tam" href="{{ geri.sonraki }}" autofocus>{{ 'Sonucu gör' if soru.sira == tur.soru_sayisi else 'Sonraki soru' }}</a></div>
   {% endif %}
   </div>

@@ -27,7 +27,7 @@ def havuz(monkeypatch):
     """Postgres yok: kaynaklar.soru taklit edilir; sorular() çağrıları kaydedilir."""
     cagrilar = []
 
-    def sorular(sinif, ders, haric_ids, n=10, gorulme=None):
+    def sorular(sinif, ders, haric_ids, n=10, gorulme=None, yasak=None):
         cagrilar.append({"sinif": sinif, "ders": ders, "haric": list(haric_ids), "n": n})
         taban = 1000 * sinif
         return [

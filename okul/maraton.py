@@ -8,6 +8,7 @@ import json
 import sqlite3
 from datetime import datetime, timedelta
 
+import soru_bildirim
 import zaman
 from kaynaklar import KaynakHatasi, zil
 from kaynaklar import soru as havuz
@@ -97,7 +98,7 @@ def baslat(conn: sqlite3.Connection, kullanici_id: int, sinif: str, ders: str) -
     """Yeni maraton: eskisi açıksa terk edilir; sorular havuzdan okul.db'ye kopyalanır."""
     seviye = duzey(sinif)
     gorulen = gorulme(conn, kullanici_id)
-    sorular = havuz.sorular(seviye, ders, list(gorulen), SORU_SAYISI, gorulen)
+    sorular = havuz.sorular(seviye, ders, list(gorulen), SORU_SAYISI, gorulen, soru_bildirim.gizli_idler(conn))
     if len(sorular) < SORU_SAYISI:
         raise MaratonHatasi("Bu derste yeterli soru yok.")
     for eski in conn.execute(

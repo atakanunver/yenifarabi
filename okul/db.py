@@ -554,10 +554,24 @@ CREATE TABLE odev_foto (
 );
 """
 
+# Öğrencinin "bu soruda sorun var" bildirimi (havuz Postgres'te salt-okunur olduğu için okul.db'de tutulur).
+# Kişisel veri yok: yalnızca kim/hangi soru/tür; aynı öğrenci aynı soruyu bir kez bildirir.
+SEMA_V20 = """
+CREATE TABLE soru_bildirim (
+    id           INTEGER PRIMARY KEY,
+    soru_id      INTEGER NOT NULL,
+    kullanici_id INTEGER NOT NULL REFERENCES kullanici(id),
+    tur          TEXT NOT NULL CHECK (tur IN ('sekil','cevap','anlasilmiyor')),
+    zaman        TEXT NOT NULL,
+    UNIQUE (soru_id, kullanici_id)
+);
+CREATE INDEX soru_bildirim_soru ON soru_bildirim(soru_id);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
-    SEMA_V18, SEMA_V19,
+    SEMA_V18, SEMA_V19, SEMA_V20,
 ]
 
 

@@ -73,21 +73,24 @@ def sorular(
     haric_ids: list[int],
     n: int = 10,
     gorulme: dict[int, int] | None = None,
+    yasak: list[int] | None = None,
 ) -> list[dict]:
-    """n rastgele soru. Önce haric_ids dışındakiler; yetmezse en az görülenlerle tamamlanır."""
+    """n rastgele soru. Önce haric_ids dışındakiler; yetmezse en az görülenlerle tamamlanır.
+    yasak: öğrenci bildirimleriyle gizlenen sorular — hiçbir koşulda dönmez."""
     haric = list(haric_ids)
+    yasak = list(yasak or []) or [0]
     with _baglan() as c, c.cursor() as cur:
         cur.execute(
             f"SELECT {_SUTUN} FROM soru WHERE sinif = %s AND ders = %s AND {_FILTRE}"
-            " AND id <> ALL(%s) ORDER BY random() LIMIT %s",
-            (sinif, ders, haric, n),
+            " AND id <> ALL(%s) AND id <> ALL(%s) ORDER BY random() LIMIT %s",
+            (sinif, ders, haric, yasak, n),
         )
         sonuc = [_satir(r) for r in cur.fetchall()]
         if len(sonuc) < n and haric:
             cur.execute(
                 f"SELECT {_SUTUN} FROM soru WHERE sinif = %s AND ders = %s AND {_FILTRE}"
-                " AND id = ANY(%s)",
-                (sinif, ders, haric),
+                " AND id = ANY(%s) AND id <> ALL(%s)",
+                (sinif, ders, haric, yasak),
             )
             eski = [_satir(r) for r in cur.fetchall()]
             random.shuffle(eski)
@@ -96,3 +99,12 @@ def sorular(
             sonuc += eski[: n - len(sonuc)]
     random.shuffle(sonuc)
     return sonuc
+
+
+def getir(idler: list[int]) -> dict[int, dict]:
+    """Yönetici bildirim listesi için: durumdan bağımsız {id: {soru, ders, sinif, durum}}."""
+    if not idler:
+        return {}
+    with _baglan() as c, c.cursor() as cur:
+        cur.execute("SELECT id, soru, ders, sinif, durum FROM soru WHERE id = ANY(%s)", (list(idler),))
+        return {r[0]: {"soru": r[1], "ders": r[2], "sinif": r[3], "durum": r[4]} for r in cur.fetchall()}

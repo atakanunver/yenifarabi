@@ -30,6 +30,8 @@
     </ul>
     {% if s.cevap == -1 %}<p class="kucuk soluk">Süre doldu.</p>{% elif s.cevap == -2 %}<p class="kucuk soluk">Cevaplanmadı.</p>{% endif %}
     {% if s.kaynak %}<p class="kucuk soluk">Kaynak: {{ s.kaynak }}</p>{% endif %}
+    {% set soru = {"soru_id": s.soru_id, "bildirildi": s.soru_id in bildirilen} %}{% set geri_yol = "/ogrenci/maraton/" ~ m.id ~ "/sonuc" %}
+    {% include "ogrenci/_soru_bildir.html" %}
   </details>
   {% endfor %}
 </section>

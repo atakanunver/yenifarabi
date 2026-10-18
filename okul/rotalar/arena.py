@@ -12,6 +12,7 @@ import arena
 import avatar
 import maraton
 import oduller
+import soru_bildirim
 import yetki
 from deps import db_conn, render, rol
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -123,6 +124,8 @@ def _soru_ekrani(request, conn, t, s, geri=None):
         "soru": s["soru"],
         "konu": s["konu"],
         "secenekler": json.loads(s["secenekler"]),
+        "soru_id": s["soru_id"],
+        "bildirildi": soru_bildirim.bildirdi_mi(conn, t["kullanici_id"], s["soru_id"]),
     }
     return render(
         request,

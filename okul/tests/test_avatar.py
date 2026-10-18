@@ -126,7 +126,7 @@ def test_seviye_atlayinca_acilan_bildirilir(istemci, ornek, conn, monkeypatch, s
     from datetime import timedelta  # noqa: F401
     import arena
 
-    monkeypatch.setattr(arena_soru, "sorular", lambda sinif, ders, haric, n=5, g=None: [
+    monkeypatch.setattr(arena_soru, "sorular", lambda sinif, ders, haric, n=5, g=None, yasak=None: [
         {"id": 100 + i, "konu": "K", "soru": "S?", "secenekler": ["a", "b"], "dogru_index": 1, "kazanim_id": 1,
          "kazanim_kod": "K.1", "kazanim_metin": "M"} for i in range(n)])
     monkeypatch.setattr(arena.maraton, "kilit", lambda: None)

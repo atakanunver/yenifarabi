@@ -84,13 +84,13 @@ def havuz_dersleri(seviye: int) -> list[str]:
         return [r[0] for r in cur.fetchall()]
 
 
-def havuz_sorulari(seviye: int, ders: str, limit: int = 40) -> list[dict]:
+def havuz_sorulari(seviye: int, ders: str, limit: int = 40, yasak: list[int] | None = None) -> list[dict]:
     with _baglan() as c, c.cursor() as cur:
         cur.execute(
             "SELECT id, konu, soru, secenekler, dogru_index FROM soru"
-            " WHERE durum = 'onayli' AND sinif = %s AND ders = %s"
+            " WHERE durum = 'onayli' AND sinif = %s AND ders = %s AND id <> ALL(%s)"
             " ORDER BY kullanim_sayisi, id DESC LIMIT %s",
-            (seviye, ders, limit),
+            (seviye, ders, list(yasak or []) or [0], limit),
         )
         return [_havuz_satiri(r) for r in cur.fetchall()]
 

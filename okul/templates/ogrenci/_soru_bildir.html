@@ -1,0 +1,18 @@
+{# "Bu soruda sorun mu var?" Bağlam: soru{soru_id, bildirildi}, isteğe bağlı geri_yol (yoksa bulunulan sayfa). #}
+{% if soru.soru_id %}
+{% if soru.bildirildi %}
+<p class="kucuk soluk">Bildirimin alındı, teşekkürler.</p>
+{% else %}
+<details class="kucuk">
+  <summary>Bu soruda sorun mu var?</summary>
+  <form method="post" action="/ogrenci/soru-bildir" class="tuslar">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="soru_id" value="{{ soru.soru_id }}">
+    <input type="hidden" name="geri" value="{{ geri_yol if geri_yol is defined else request.url.path }}">
+    <button class="tus ikincil kucuk" name="tur" value="sekil">Şekil / grafik görünmüyor</button>
+    <button class="tus ikincil kucuk" name="tur" value="cevap">Cevap yanlış görünüyor</button>
+    <button class="tus ikincil kucuk" name="tur" value="anlasilmiyor">Soru anlaşılmıyor</button>
+  </form>
+</details>
+{% endif %}
+{% endif %}

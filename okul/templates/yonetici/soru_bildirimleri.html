@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block baslik %}Soru bildirimleri — Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/yonetici">← Okul özeti</a></p>
+<h1>Soru bildirimleri</h1>
+<p class="soluk">Öğrencilerin "bu soruda sorun var" dediği sorular. {{ esik }} farklı öğrenci bildirince soru okulda otomatik gizlenir; havuzda ise gece turunda karantinaya (askıya) alınır.</p>
+{% if hata %}<div class="not" role="status">Soru havuzuna ulaşılamadı; soru metinleri gösterilemiyor.</div>{% endif %}
+<section class="kart">
+  <ul class="liste">
+  {% for s in satirlar %}
+    {% set q = sorular.get(s.soru_id) %}
+    <li class="satir"><span>
+      <b>#{{ s.soru_id }}</b>{% if q %} · {{ q.sinif }}. sınıf {{ q.ders|baslik }} · <span class="etiket">{{ q.durum }}</span>{% endif %}
+      {% if s.soru_id in gizli %}<span class="etiket kirmizi">Gizlendi</span>{% endif %}<br>
+      {% if q %}{{ q.soru[:160] }}{{ '…' if q.soru|length > 160 }}<br>{% endif %}
+      <span class="soluk kucuk">{{ s.kisi }} öğrenci ·
+        {% for t, n in s.turler.items() %}{{ turler[t] }}: {{ n }}{{ ' · ' if not loop.last }}{% endfor %}</span>
+    </span></li>
+  {% else %}
+    <li class="bos">Henüz bildirim yok.</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endblock %}

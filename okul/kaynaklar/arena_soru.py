@@ -33,22 +33,28 @@ def _satir(r) -> dict:
 
 
 def sorular(
-    sinif: int, ders: str, haric_ids: list[int], n: int = 5, gorulme: dict[int, int] | None = None
+    sinif: int,
+    ders: str,
+    haric_ids: list[int],
+    n: int = 5,
+    gorulme: dict[int, int] | None = None,
+    yasak: list[int] | None = None,
 ) -> list[dict]:
-    """n rastgele soru; önce görülmemişler, yetmezse en az görülenlerle tamamlanır."""
+    """n rastgele soru; önce görülmemişler, yetmezse en az görülenlerle tamamlanır. yasak: bildirimle gizlenenler."""
     haric = list(haric_ids)
+    yasak = list(yasak or []) or [0]
     with _baglan() as c, c.cursor() as cur:
         cur.execute(
             f"SELECT {_SUTUN} FROM {_KAYNAK} WHERE s.sinif = %s AND s.ders = %s AND {_F}"
-            " AND s.id <> ALL(%s) ORDER BY random() LIMIT %s",
-            (sinif, ders, haric, n),
+            " AND s.id <> ALL(%s) AND s.id <> ALL(%s) ORDER BY random() LIMIT %s",
+            (sinif, ders, haric, yasak, n),
         )
         sonuc = [_satir(r) for r in cur.fetchall()]
         if len(sonuc) < n and haric:
             cur.execute(
                 f"SELECT {_SUTUN} FROM {_KAYNAK} WHERE s.sinif = %s AND s.ders = %s AND {_F}"
-                " AND s.id = ANY(%s)",
-                (sinif, ders, haric),
+                " AND s.id = ANY(%s) AND s.id <> ALL(%s)",
+                (sinif, ders, haric, yasak),
             )
             eski = [_satir(r) for r in cur.fetchall()]
             random.shuffle(eski)

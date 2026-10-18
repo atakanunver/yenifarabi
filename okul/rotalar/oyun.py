@@ -6,6 +6,7 @@ import sqlite3
 import analitik
 import arena
 import maraton
+import soru_bildirim
 import yetki
 from deps import db_conn, render, rol
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -183,6 +184,7 @@ def sonuc(
     )
     return render(
         request, "ogrenci/maraton_sonuc.html", m=m, satirlar=satirlar,
+        bildirilen={s["soru_id"] for s in satirlar if soru_bildirim.bildirdi_mi(conn, k["id"], s["soru_id"])},
         ders_ad=havuz.ders_adi(m["ders"]), kareler=maraton.ilerleme(conn, maraton_id),
         okul_sira=sira, seri=maraton.seri(conn, k["id"]), soru_sayisi=maraton.SORU_SAYISI,
         xp_kazanc=arena.maraton_xp_miktar(conn, k["id"], maraton_id),

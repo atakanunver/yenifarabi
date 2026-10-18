@@ -20,7 +20,7 @@ ZIL = {
 
 @pytest.fixture
 def istemci(monkeypatch):
-    def sorular(sinif, ders, haric, n=5, gorulme=None):
+    def sorular(sinif, ders, haric, n=5, gorulme=None, yasak=None):
         return [
             {"id": 7000 + i, "konu": "Konu", "soru": f"Arena sorusu {7000 + i}?",
              "secenekler": ["a", "b", "c", "d"], "dogru_index": 2, "kazanim_id": 3,
@@ -30,7 +30,7 @@ def istemci(monkeypatch):
 
     monkeypatch.setattr(arena_soru, "sorular", sorular)
     monkeypatch.setattr(havuz, "dersler", lambda s: [("matematik", 40)])
-    monkeypatch.setattr(havuz, "sorular", lambda sinif, ders, haric, n=10, g=None: [
+    monkeypatch.setattr(havuz, "sorular", lambda sinif, ders, haric, n=10, g=None, yasak=None: [
         {"id": 9000 + i, "konu": "K", "soru": f"M{i}?", "secenekler": ["a", "b", "c", "d"],
          "dogru_index": 2, "kaynak": "k"} for i in range(n)])
     monkeypatch.setattr(kazanim, "form_sonuclari", lambda okul_no: [])

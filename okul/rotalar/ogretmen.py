@@ -8,6 +8,7 @@ import duyurular
 import odevler
 import push
 import sinifpdf
+import soru_bildirim
 import yetki
 import zaman
 from deps import db_conn, istemci_ip, render, rol
@@ -177,7 +178,7 @@ def odev_formu(
         try:
             havuz_dersleri = kazanim.havuz_dersleri(sinif_seviyesi(sinif))
             if havuz_ders:
-                havuz = kazanim.havuz_sorulari(sinif_seviyesi(sinif), havuz_ders)
+                havuz = kazanim.havuz_sorulari(sinif_seviyesi(sinif), havuz_ders, yasak=soru_bildirim.gizli_idler(conn))
         except KaynakHatasi:
             havuz_hata = True
     return render(

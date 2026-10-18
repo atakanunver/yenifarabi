@@ -12,6 +12,7 @@ import zlib
 from datetime import timedelta
 
 import maraton
+import soru_bildirim
 import zaman
 from kaynaklar import KaynakHatasi, arena_soru
 from kaynaklar import soru as havuz
@@ -176,7 +177,7 @@ def baslat(conn: sqlite3.Connection, kullanici_id: int, sinif: str) -> int:
     gun = bugun()
     ders = gunun_dersi(kullanici_id, gun, dersler)
     g = _gorulen(conn, kullanici_id)
-    sorular = arena_soru.sorular(maraton.duzey(sinif), ders, list(g), SORU_SAYISI, g)
+    sorular = arena_soru.sorular(maraton.duzey(sinif), ders, list(g), SORU_SAYISI, g, soru_bildirim.gizli_idler(conn))
     if len(sorular) < SORU_SAYISI:
         raise ArenaHatasi("Bu derste yeterli soru yok.")
     # dünden kalan yarım tur: kapatılır (ödül gün içinde cevaplananlar için zaten verildi)

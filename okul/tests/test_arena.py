@@ -16,7 +16,7 @@ from kaynaklar import soru as havuz
 def sahte(monkeypatch):
     """Postgres yok: havuz taklit edilir. dogru_index her zaman 1; kazanım 7 (KOD.1) hepsinde."""
 
-    def sorular(sinif, ders, haric, n=5, gorulme=None):
+    def sorular(sinif, ders, haric, n=5, gorulme=None, yasak=None):
         return [
             {"id": 100 * sinif + i, "konu": "K", "soru": f"S{i}?", "secenekler": ["a", "b", "c"],
              "dogru_index": 1, "kazanim_id": 7, "kazanim_kod": "MAT.9.1", "kazanim_metin": "Metin"}
@@ -182,7 +182,7 @@ def test_kazanim_ustasi_az_gun_veya_dusuk_basari(conn, ornek, sahte, saat):
 def test_kazanimsiz_soru_ustalik_saymaz(conn, ornek, monkeypatch, saat):
     monkeypatch.setattr(maraton, "kilit", lambda: None)
     monkeypatch.setattr(havuz, "dersler", lambda s: [("matematik", 40)])
-    monkeypatch.setattr(arena_soru, "sorular", lambda sinif, ders, haric, n=5, g=None: [
+    monkeypatch.setattr(arena_soru, "sorular", lambda sinif, ders, haric, n=5, g=None, yasak=None: [
         {"id": 900 + len(haric) + i, "konu": "K", "soru": "S?", "secenekler": ["a", "b"], "dogru_index": 1,
          "kazanim_id": None, "kazanim_kod": None, "kazanim_metin": None} for i in range(n)])
     k = ornek["ogr1_k"]

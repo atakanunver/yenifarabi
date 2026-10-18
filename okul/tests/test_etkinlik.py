@@ -10,7 +10,7 @@ from kaynaklar import KaynakHatasi, arena_soru, kazanim
 def istemci(monkeypatch):
     cagrilar = []
 
-    def sorular(sinif, ders, haric, n=5, gorulme=None):
+    def sorular(sinif, ders, haric, n=5, gorulme=None, yasak=None):
         cagrilar.append({"sinif": sinif, "ders": ders, "haric": list(haric), "n": n})
         taban = 100 * sinif + len(haric)
         return [{"id": taban + i, "konu": f"Konu{i}", "soru": f"S{taban + i}?", "secenekler": ["a", "b", "c", "d"],

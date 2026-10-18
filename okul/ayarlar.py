@@ -36,6 +36,8 @@ class Ayarlar:
     # Veli WhatsApp grubu davet bağlantısı: ANAHTAR gibidir (bağlantıyı bilen gruba girer) → yalnızca gizli.json, yalnızca veliye gösterilir
     whatsapp_veli: str = ""
     whatsapp_ogrenci: str = ""
+    # soruhavuzu → okul /api/soru-bildirim paylaşılan anahtarı (config/gizli.json "soru_havuzu_anahtar"); boşsa uç kapalı
+    soru_anahtar: str = ""
 
 
 def yukle() -> Ayarlar:
@@ -50,6 +52,7 @@ def yukle() -> Ayarlar:
         a.vapid_konu = g.get("vapid_konu", "")
         a.whatsapp_veli = g.get("whatsapp_veli", "")
         a.whatsapp_ogrenci = g.get("whatsapp_ogrenci", "")
+        a.soru_anahtar = g.get("soru_havuzu_anahtar", "")
     return a
 
 

@@ -21,7 +21,7 @@ def istemci(monkeypatch):
     monkeypatch.setattr(
         kazanim,
         "havuz_sorulari",
-        lambda seviye, ders, limit=40: [
+        lambda seviye, ders, limit=40, yasak=None: [
             {
                 "id": 5,
                 "konu": "Kesir",

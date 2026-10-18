@@ -15,7 +15,7 @@ from kaynaklar import soru as havuz
 def havuz_var(monkeypatch):
     monkeypatch.setattr(maraton, "kilit", lambda: None)
     monkeypatch.setattr(havuz, "dersler", lambda s: [("matematik", 40)])
-    monkeypatch.setattr(arena_soru, "sorular", lambda sinif, ders, haric, n=5, g=None: [
+    monkeypatch.setattr(arena_soru, "sorular", lambda sinif, ders, haric, n=5, g=None, yasak=None: [
         {"id": 100 + len(haric) + i, "konu": "K", "soru": "S?", "secenekler": ["a", "b"], "dogru_index": 1,
          "kazanim_id": 1, "kazanim_kod": "K.1", "kazanim_metin": "M"} for i in range(n)])
 
