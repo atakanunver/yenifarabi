@@ -30,22 +30,22 @@
   #grid.buyutuldu .kare:not(.buyuk) { visibility: hidden; }
 
   /* Sağ panel */
-  aside { background: #14171c; border-left: 1px solid #262b33; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  aside { background: #14171c; border-left: 1px solid #262b33; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; }
   #saat { font-size: 30px; font-weight: 700; text-align: center; line-height: 1.1; }
   #tarih { font-size: 14px; color: #9aa3b2; text-align: center; }
   #durum { font-size: 18px; font-weight: 800; text-align: center; padding: 10px; border-radius: 10px; background: #1b5e20; color: #fff; }
   #durum.aktif { background: #b00020; animation: yanip 1.2s infinite; }
   #durum.bilinmiyor { background: #444; }
   @keyframes yanip { 50% { opacity: .7; } }
-  h2 { font-size: 13px; letter-spacing: .08em; color: #9aa3b2; margin: 6px 0 0; }
+  h2 { font-size: 13px; letter-spacing: .08em; color: #9aa3b2; margin: 4px 0 0; }
   .dugme { border: 0; border-radius: 10px; color: #fff; font-weight: 800; cursor: pointer; width: 100%; }
-  .alarm { font-size: 22px; min-height: 64px; }
-  .haber { font-size: 16px; min-height: 46px; background: #2b3340; text-align: left; padding: 0 14px; }
+  .alarm { font-size: 19px; min-height: 48px; }
+  .haber { font-size: 15px; min-height: 40px; background: #2b3340; text-align: left; padding: 0 14px; }
   #iptal { font-size: 18px; min-height: 60px; background: #ffb300; color: #000; display: none; }
   #durum.aktif + #iptal { display: block; }
-  #hareket-modu { font-size: 16px; min-height: 46px; background: #2b3340; }
+  #hareket-modu { font-size: 15px; min-height: 40px; background: #2b3340; }
   #hareket-modu.acik { background: #8b0000; }
-  #kilitle { font-size: 16px; min-height: 46px; background: #4a5260; }
+  #kilitle { font-size: 15px; min-height: 40px; background: #4a5260; }
   .bosluk { flex: 1; }
   .telefon { font-size: 15px; color: #cfd3da; display: flex; justify-content: space-between; }
   .telefon b { font-size: 18px; color: #fff; }
