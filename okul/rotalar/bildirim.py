@@ -17,11 +17,15 @@ from kaynaklar import soru as havuz
 router = APIRouter()
 
 
-def _geri_yol(yol: str) -> str:
-    """Açık yönlendirmeyi önle: yalnızca /ogrenci/ altındaki yerel yollar."""
-    if yol.startswith("/ogrenci/") and "//" not in yol and "\\" not in yol and "\n" not in yol:
+def _geri_yol(yol: str, onek: str = "/ogrenci") -> str:
+    """Açık yönlendirmeyi önle: yalnızca verilen önek altındaki yerel yollar."""
+    if yol.startswith(onek + "/") and "//" not in yol and "\\" not in yol and "\n" not in yol:
         return yol
-    return "/ogrenci"
+    return onek
+
+
+def _json_mu(request: Request) -> bool:
+    return "application/json" in request.headers.get("accept", "")
 
 
 @router.post("/ogrenci/soru-bildir")
@@ -40,6 +44,37 @@ def bildir(
     if yeni:
         analitik.istekten(request, "soru_bildir", str(soru_id))
     return RedirectResponse(_geri_yol(geri), status_code=303)
+
+
+@router.post("/ogretmen/soru-bildir")
+def ogretmen_bildir(
+    soru_id: int = Form(...),
+    tur: str = Form(...),
+    kaynak: str = Form("odev"),
+    geri: str = Form("/ogretmen"),
+    request: Request = None,
+    k=Depends(rol("ogretmen", "yonetici", post=True)),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    """Öğretmen/yönetici havuzdaki herhangi bir soruyu bildirir (ağırlık 2: tek bildirim soruyu gizler)."""
+    try:
+        yeni = soru_bildirim.bildir(conn, k["id"], soru_id, tur, rol=k["rol"], kaynak=kaynak[:20])
+    except soru_bildirim.BildirimHatasi as e:
+        if _json_mu(request):
+            return JSONResponse({"tamam": False, "mesaj": str(e)}, status_code=400)
+        raise HTTPException(400, str(e)) from e
+    if yeni:
+        analitik.istekten(request, "soru_bildir", str(soru_id))
+    if _json_mu(request):
+        return JSONResponse({"tamam": True, "yeni": yeni})
+    return RedirectResponse(_geri_yol(geri, "/ogretmen"), status_code=303)
+
+
+@router.post("/yonetici/soru-bildirimleri/{soru_id}/iptal")
+def iptal(soru_id: int, k=Depends(rol("yonetici", post=True)), conn: sqlite3.Connection = Depends(db_conn)):
+    """"Sorun yok": bu sorunun mevcut bildirimleri sayılmaz, soru okulda yeniden açılır."""
+    soru_bildirim.iptal_et(conn, soru_id)
+    return RedirectResponse("/yonetici/soru-bildirimleri", status_code=303)
 
 
 @router.get("/yonetici/soru-bildirimleri")
@@ -106,6 +141,18 @@ async def api_sonuc(pdf_id: int, request: Request, conn: sqlite3.Connection = De
     if not ok:
         raise HTTPException(404)
     return JSONResponse({"tamam": True})
+
+
+@router.post("/api/soru-bildirim")
+async def api_tahta(request: Request, conn: sqlite3.Connection = Depends(db_conn)):
+    """Tahta Sınıf Arenası: {soru_id, tur, sube}. Kimlik yok; şube düzeyinde, günde bir kez, ağırlık 1."""
+    _servis_anahtari(request)
+    try:
+        govde = await request.json()
+        yeni = soru_bildirim.bildir_tahta(conn, int(govde.get("soru_id", 0)), str(govde.get("tur", "")), str(govde.get("sube", "")))
+    except (soru_bildirim.BildirimHatasi, ValueError, TypeError, AttributeError) as e:
+        raise HTTPException(400, str(e)) from e
+    return JSONResponse({"tamam": True, "yeni": yeni})
 
 
 @router.get("/api/soru-bildirim")

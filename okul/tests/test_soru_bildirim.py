@@ -80,7 +80,7 @@ def test_yonetici_listesi(istemci, conn, ornek, monkeypatch):
     soru_bildirim.bildir(conn, ornek["ogr1_k"], 500, "sekil")
     giris(istemci, "mudur", "mudur-sifre")
     r = istemci.get("/yonetici/soru-bildirimleri")
-    assert r.status_code == 200 and "#500" in r.text and "Şekil / grafik görünmüyor" in r.text
+    assert r.status_code == 200 and "#500" in r.text and "Şekil / grafik yok" in r.text
 
 
 def test_api_anahtar_ve_tunel(istemci, conn, ornek, monkeypatch):
@@ -92,6 +92,77 @@ def test_api_anahtar_ve_tunel(istemci, conn, ornek, monkeypatch):
     assert istemci.get("/api/soru-bildirim", headers={"X-Soru-Anahtar": "gizli-anahtar", "CF-Ray": "x"}).status_code == 404
     r = istemci.get("/api/soru-bildirim", headers={"X-Soru-Anahtar": "gizli-anahtar"})
     assert r.status_code == 200
-    assert r.json()["sorular"] == [{"soru_id": 500, "kisi": 1, "turler": {"sekil": 1}, "son": r.json()["sorular"][0]["son"]}]
+    o = r.json()["sorular"][0]
+    assert (o["soru_id"], o["kisi"], o["agirlik"], o["turler"], o["roller"]) == (500, 1, 1, {"sekil": 1}, {"ogrenci": 1})
     monkeypatch.setattr(AYAR, "soru_anahtar", "")  # anahtar tanımsızsa uç kapalı
     assert istemci.get("/api/soru-bildirim", headers={"X-Soru-Anahtar": ""}).status_code == 404
+
+
+def _havuz_var(monkeypatch, *idler):
+    from kaynaklar import soru as havuz
+
+    monkeypatch.setattr(havuz, "getir", lambda ids: {i: {"soru": "s", "ders": "fizik", "sinif": 9, "durum": "onayli"} for i in ids if i in idler})
+
+
+def test_ogretmen_tek_bildirimle_gizler(conn, ornek, monkeypatch):
+    _havuz_var(monkeypatch, 700)
+    assert soru_bildirim.bildir(conn, ornek["ogretmen"], 700, "sacma", rol="ogretmen", kaynak="odev") is True
+    assert soru_bildirim.gizli_idler(conn) == [700]
+    with pytest.raises(soru_bildirim.BildirimHatasi):  # havuzda olmayan soru
+        soru_bildirim.bildir(conn, ornek["ogretmen"], 701, "sacma", rol="ogretmen")
+    o = soru_bildirim.ozet(conn)[0]
+    assert o["agirlik"] == 2 and o["roller"] == {"ogretmen": 1}
+
+
+def test_tahta_sube_gunde_bir_ve_agirlik_1(conn, ornek, monkeypatch):
+    _havuz_var(monkeypatch, 710)
+    assert soru_bildirim.bildir_tahta(conn, 710, "alakasiz", "9-a") is True
+    assert soru_bildirim.bildir_tahta(conn, 710, "sacma", "9-A") is False  # aynı şube aynı gün
+    assert soru_bildirim.gizli_idler(conn) == []
+    assert soru_bildirim.bildir_tahta(conn, 710, "alakasiz", "10-B") is True
+    assert soru_bildirim.gizli_idler(conn) == [710]
+    with pytest.raises(soru_bildirim.BildirimHatasi):
+        soru_bildirim.bildir_tahta(conn, 710, "alakasiz", "'; drop")
+
+
+def test_iptal_soruyu_yeniden_acar(conn, ornek, monkeypatch):
+    _havuz_var(monkeypatch, 720)
+    soru_bildirim.bildir(conn, ornek["ogretmen"], 720, "cevap", rol="ogretmen")
+    assert soru_bildirim.iptal_et(conn, 720) == 1
+    assert soru_bildirim.gizli_idler(conn) == [] and soru_bildirim.ozet(conn) == []
+
+
+def test_web_ogretmen_ve_tahta_ve_iptal(istemci, conn, ornek, monkeypatch):
+    _havuz_var(monkeypatch, 730)
+    monkeypatch.setattr(AYAR, "soru_anahtar", "gizli-anahtar")
+    csrf = giris(istemci, "201", "ayse-sifre")  # öğrenci öğretmen ucunu göremez
+    assert istemci.post("/ogretmen/soru-bildir", data={"csrf": csrf, "soru_id": 730, "tur": "sacma"}).status_code == 404
+    csrf = giris(istemci, "hoca", "hoca-sifre")
+    r = istemci.post("/ogretmen/soru-bildir", data={"csrf": csrf, "soru_id": 730, "tur": "sacma"}, headers={"Accept": "application/json"})
+    assert r.status_code == 200 and r.json() == {"tamam": True, "yeni": True}
+    r = istemci.post("/ogretmen/soru-bildir", data={"csrf": csrf, "soru_id": 999, "tur": "sacma"}, headers={"Accept": "application/json"})
+    assert r.status_code == 400
+    kotu = {"soru_id": 730, "tur": "alakasiz", "sube": "9-A"}
+    assert istemci.post("/api/soru-bildirim", json=kotu).status_code == 404
+    assert istemci.post("/api/soru-bildirim", json=kotu, headers={"X-Soru-Anahtar": "gizli-anahtar", "CF-Ray": "x"}).status_code == 404
+    assert istemci.post("/api/soru-bildirim", json={**kotu, "sube": "x"}, headers={"X-Soru-Anahtar": "gizli-anahtar"}).status_code == 400
+    assert istemci.post("/api/soru-bildirim", json=kotu, headers={"X-Soru-Anahtar": "gizli-anahtar"}).status_code == 200
+    csrf = giris(istemci, "mudur", "mudur-sifre")
+    assert istemci.post("/yonetici/soru-bildirimleri/730/iptal", data={"csrf": csrf}, follow_redirects=False).status_code == 303
+    assert soru_bildirim.gizli_idler(conn) == []
+
+
+def test_goc_eski_satirlar_korunur(tmp_path):
+    import sqlite3
+
+    import db
+
+    p = tmp_path / "g.db"
+    c = sqlite3.connect(p)
+    for i in range(21):
+        c.executescript(db.GOCLER[i])
+    c.execute("INSERT INTO kullanici (id, rol, ad_soyad, kullanici_adi, olusturma) VALUES (1, 'ogrenci', 'A', 'a', '2026-10-18 09:00:00')")
+    c.execute("INSERT INTO soru_bildirim (soru_id, kullanici_id, tur, zaman) VALUES (5, 1, 'cevap', '2026-10-18 10:00:00')")
+    c.commit()
+    c.executescript(db.GOCLER[21])
+    assert c.execute("SELECT soru_id, tur, rol, iptal FROM soru_bildirim").fetchall() == [(5, "cevap", "ogrenci", 0)]

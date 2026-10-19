@@ -20,6 +20,22 @@ from pathlib import Path
 
 # user_version N'den N-1'e inmek için çalışan betik. Yeni göç eklenince buraya da eklenir.
 GERI = {
+    22: """
+CREATE TABLE soru_bildirim_eski (
+    id           INTEGER PRIMARY KEY,
+    soru_id      INTEGER NOT NULL,
+    kullanici_id INTEGER NOT NULL REFERENCES kullanici(id),
+    tur          TEXT NOT NULL CHECK (tur IN ('sekil','cevap','anlasilmiyor')),
+    zaman        TEXT NOT NULL,
+    UNIQUE (soru_id, kullanici_id)
+);
+INSERT OR IGNORE INTO soru_bildirim_eski (id, soru_id, kullanici_id, tur, zaman)
+    SELECT id, soru_id, kullanici_id, tur, zaman FROM soru_bildirim
+    WHERE kullanici_id IS NOT NULL AND tur IN ('sekil','cevap','anlasilmiyor');
+DROP TABLE soru_bildirim;
+ALTER TABLE soru_bildirim_eski RENAME TO soru_bildirim;
+CREATE INDEX soru_bildirim_soru ON soru_bildirim(soru_id);
+""",
     21: """
 ALTER TABLE sinif_pdf DROP COLUMN soru_zaman;
 ALTER TABLE sinif_pdf DROP COLUMN soru_not;

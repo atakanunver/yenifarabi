@@ -581,10 +581,33 @@ ALTER TABLE sinif_pdf ADD COLUMN soru_not TEXT;
 ALTER TABLE sinif_pdf ADD COLUMN soru_zaman TEXT;
 """
 
+# Soru bildirimi genişletildi: öğretmen/yönetici/tahta bildirimi, yeni sebepler, rol ağırlığı, yönetici iptali.
+# SQLite CHECK değiştirilemediği için tablo yeniden kurulur; eski satırlar rol='ogrenci' olarak taşınır.
+SEMA_V22 = """
+CREATE TABLE soru_bildirim_yeni (
+    id           INTEGER PRIMARY KEY,
+    soru_id      INTEGER NOT NULL,
+    kullanici_id INTEGER REFERENCES kullanici(id),
+    tur          TEXT NOT NULL CHECK (tur IN ('sekil','cevap','anlasilmiyor','alakasiz','sacma')),
+    zaman        TEXT NOT NULL,
+    rol          TEXT NOT NULL DEFAULT 'ogrenci' CHECK (rol IN ('ogrenci','ogretmen','yonetici','tahta')),
+    kaynak       TEXT NOT NULL DEFAULT '',
+    sube         TEXT,
+    iptal        INTEGER NOT NULL DEFAULT 0
+);
+INSERT INTO soru_bildirim_yeni (id, soru_id, kullanici_id, tur, zaman)
+    SELECT id, soru_id, kullanici_id, tur, zaman FROM soru_bildirim;
+DROP TABLE soru_bildirim;
+ALTER TABLE soru_bildirim_yeni RENAME TO soru_bildirim;
+CREATE UNIQUE INDEX soru_bildirim_kisi ON soru_bildirim(soru_id, kullanici_id) WHERE kullanici_id IS NOT NULL;
+CREATE UNIQUE INDEX soru_bildirim_tahta ON soru_bildirim(soru_id, sube, substr(zaman, 1, 10)) WHERE kullanici_id IS NULL;
+CREATE INDEX soru_bildirim_soru ON soru_bildirim(soru_id);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
-    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21,
+    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22,
 ]
 
 
