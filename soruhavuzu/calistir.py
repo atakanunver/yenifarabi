@@ -8,6 +8,7 @@ uret     ders saati dışında çalışır. Başlangıçta ve (pencere hâlâ a�
          Her pakette ders saati yeniden kontrol edilir.
 siniflandir  kazanımsız onaylı soruları LLM ile kazanıma bağlar [--kuru] [--limit N] [--zorla]
 sik-karistir  durum IN (uretildi, onayli, askida) soruların şıklarını kanonik sıraya geçirir [--kuru]
+ogretmen-pdf  okulun /api/soru-istek kuyruğundaki öğretmen PDF'lerinden soru üretir (9-11; uret başında da çalışır)
 geri-bildirim  okul /api/soru-bildirim kayıtlarını havuza işler; eşik aşan soru 'askida' (uret başında da çalışır)
 sekil-tara  şekil/grafik/tablo atfı yapan onaylı/bekleyen soruları 'askida'ya alır [--uygula; yoksa kuru]
          (uret her turun başında uygular; geri al: sekil-geri-al <dosya>)
@@ -22,7 +23,7 @@ from pathlib import Path
 
 import psycopg2
 
-from soruhavuzu import denetci, etiketle, kazanimlar, kaynak, kaynaklar, okul_bildirim, sekil, sik, siniflandir, tekrar, uretici, vt, zaman
+from soruhavuzu import denetci, etiketle, kazanimlar, kaynak, kaynaklar, ogretmen_pdf, okul_bildirim, sekil, sik, siniflandir, tekrar, uretici, vt, zaman
 
 VERI = Path("/mnt/farabi-data/farabi")
 # Kaldığı yer işareti (2026-10-09): her kazanım sonunda yazılır, yeniden başlayınca okunur.
@@ -68,6 +69,7 @@ def uret(
     gb = okul_bildirim.calistir(conn)  # öğrencilerin "soru bildir" kayıtları (okul kapalıysa atlanır)
     if gb and gb["askiya"]:
         print(f"[uret] öğrenci bildirimiyle {gb['askiya']} soru askıya alındı", flush=True)
+    ogretmen_pdf.calistir(conn, ders_saati_kontrol=ders_saati_kontrol)  # öğretmen PDF'lerinden katkı (okul kapalıysa atlanır)
     r = sekil_tara(conn, uygula=True)  # aktarma betiklerinden sızan şekil atıflı soruları karantinaya al
     if r["bulunan"]:
         print(f"[uret] {len(r['bulunan'])} şekil atıflı soru askıya alındı ({r['dosya']})", flush=True)
@@ -288,6 +290,8 @@ def main() -> int:
     p_sk.add_argument("--uygula", action="store_true")
     p_sk.add_argument("--sinif", type=int, default=None)
     sub.add_parser("geri-bildirim")
+    p_op = sub.add_parser("ogretmen-pdf")
+    p_op.add_argument("--zorla", action="store_true", help="Ders saati kontrolünü atla")
     sub.add_parser("sekil-geri-al").add_argument("dosya")
     sub.add_parser("sik-karistir").add_argument("--kuru", action="store_true")
     sub.add_parser("tekrar-temizle").add_argument("--kuru", action="store_true")
@@ -337,6 +341,8 @@ def main() -> int:
         for b in r["bulunan"][:20]:
             print(f"  #{b['id']} [{b['eslesme']}] {b['soru']}")
         print(f"[sekil-tara] {len(r['bulunan'])} soru{' askıya alındı: ' + r['dosya'] if r['dosya'] else ' (kuru — yazılmadı)'}")
+    elif komut == "ogretmen-pdf":
+        print(f"[ogretmen-pdf] {ogretmen_pdf.calistir(conn, ders_saati_kontrol=not args.zorla)}")
     elif komut == "geri-bildirim":
         print(f"[geri-bildirim] {okul_bildirim.calistir(conn)}")
     elif komut == "sekil-geri-al":
