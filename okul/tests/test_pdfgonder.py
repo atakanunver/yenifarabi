@@ -133,3 +133,76 @@ def test_web_akis(istemci, conn, ornek):
     assert c.get(f"/odev-foto/{oid}/{ornek['ogr1']}").status_code == 200
     assert c.post(f"/ogretmen/odev/{oid}/sil", data={"csrf": csrf}, follow_redirects=False).status_code == 303
     assert c.get(f"/odev-foto/{oid}/{ornek['ogr1']}").status_code == 404
+
+
+# --- soru havuzuna katkı (V21) ---
+def _yeni_pdf(conn, ornek, sinif="9-A"):
+    k = conn.execute("SELECT * FROM kullanici WHERE id = ?", (ornek["ogretmen"],)).fetchone()
+    return k, sinifpdf.gonder(conn, k, sinif, "matematik", "Föy", "f.pdf", PDF)
+
+
+def test_soru_iste_kosullari(conn, ornek):
+    k, pid = _yeni_pdf(conn, ornek)
+    with pytest.raises(sinifpdf.PdfHatasi):  # KVKK onayı şart
+        sinifpdf.soru_iste(conn, k, pid, "", "", False)
+    sinifpdf.soru_iste(conn, k, pid, "3", "", True)
+    p = sinifpdf.pdf_getir(conn, pid)
+    assert (p["soru_durum"], p["soru_bas"], p["soru_bit"]) == ("bekliyor", 3, 3)
+    with pytest.raises(sinifpdf.PdfHatasi):  # zaten sırada
+        sinifpdf.soru_iste(conn, k, pid, "", "", True)
+    diger = conn.execute("SELECT * FROM kullanici WHERE id = ?", (ornek["yonetici"],)).fetchone()
+    assert diger  # yönetici başkasının PDF'ini isteyebilir; öğrenci hesabı istemez:
+    ogr = conn.execute("SELECT * FROM kullanici WHERE id = ?", (ornek["ogr1_k"],)).fetchone()
+    with pytest.raises(PermissionError):
+        sinifpdf.soru_iste(conn, ogr, pid, "", "", True)
+
+
+def test_soru_iste_12_sinif_kapali(conn, ornek):
+    conn.execute("INSERT INTO ogretmen_gorev (ogretmen_id, sinif, ders) VALUES (?, '12-A', 'matematik')", (ornek["ogretmen"],))
+    conn.commit()
+    k, pid = _yeni_pdf(conn, ornek, "12-A")
+    with pytest.raises(sinifpdf.PdfHatasi):
+        sinifpdf.soru_iste(conn, k, pid, "", "", True)
+    assert sinifpdf.pdf_getir(conn, pid)["soru_durum"] == "yok"
+
+
+def test_soru_api_akisi(istemci, conn, ornek, monkeypatch):
+    monkeypatch.setattr(AYAR, "soru_anahtar", "anahtar-x")
+    h = {"X-Soru-Anahtar": "anahtar-x"}
+    k, pid = _yeni_pdf(conn, ornek)
+    assert istemci.get("/api/soru-istek", headers=h).json() == {"istekler": []}
+    sinifpdf.soru_iste(conn, k, pid, "2", "4", True)
+    assert istemci.get("/api/soru-istek").status_code == 404  # anahtarsız
+    liste = istemci.get("/api/soru-istek", headers=h).json()["istekler"]
+    assert [(i["id"], i["soru_bas"], i["soru_bit"], i["sinif"]) for i in liste] == [(pid, 2, 4, "9-A")]
+    r = istemci.get(f"/api/soru-istek/{pid}/pdf", headers=h)
+    assert r.status_code == 200 and r.content.startswith(b"%PDF-")
+    assert istemci.post(f"/api/soru-istek/{pid}/sonuc", json={"durum": "isleniyor"}, headers=h).status_code == 200
+    assert istemci.get("/api/soru-istek", headers=h).json() == {"istekler": []}  # işleniyor → sıradan çıktı
+    assert istemci.post(f"/api/soru-istek/{pid}/sonuc", json={"durum": "bitti", "onayli": 7, "red": 2}, headers=h).status_code == 200
+    p = sinifpdf.pdf_getir(conn, pid)
+    assert (p["soru_durum"], p["soru_onayli"], p["soru_red"]) == ("bitti", 7, 2)
+    assert istemci.post(f"/api/soru-istek/{pid}/sonuc", json={"durum": "x"}, headers=h).status_code == 400
+    assert istemci.post("/api/soru-istek/999/sonuc", json={"durum": "bitti"}, headers=h).status_code == 404
+
+
+def test_takili_isleniyor_yeniden_siraya_girer(conn, ornek):
+    k, pid = _yeni_pdf(conn, ornek)
+    sinifpdf.soru_iste(conn, k, pid, "", "", True)
+    sinifpdf.soru_sonucu(conn, pid, "isleniyor")
+    assert sinifpdf.bekleyen_istekler(conn) == []
+    conn.execute("UPDATE sinif_pdf SET soru_zaman = '2000-01-01 00:00:00' WHERE id = ?", (pid,))
+    conn.commit()
+    assert [r["id"] for r in sinifpdf.bekleyen_istekler(conn)] == [pid]
+
+
+def test_web_pdf_yukle_soru_istegiyle(istemci, conn, ornek):
+    csrf = giris(istemci, "hoca", "hoca-sifre")
+    r = istemci.post("/ogretmen/pdf", data={"csrf": csrf, "secim": "9-A|matematik", "soru_uret": "1", "kvkk": "1"},
+                     files={"dosya": ("s.pdf", PDF, "application/pdf")}, follow_redirects=False)
+    assert r.status_code == 303
+    assert conn.execute("SELECT soru_durum FROM sinif_pdf").fetchone()[0] == "bekliyor"
+    r = istemci.post("/ogretmen/pdf", data={"csrf": csrf, "secim": "9-A|matematik", "soru_uret": "1"},  # KVKK yok
+                     files={"dosya": ("s.pdf", PDF + b"2", "application/pdf")})
+    assert r.status_code == 200 and "soru havuzu isteği alınamadı" in r.text
+    assert "sırada" in istemci.get("/ogretmen/pdf").text

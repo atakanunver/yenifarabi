@@ -105,8 +105,8 @@ def agy_cagir(istem: str, zaman_asimi_sn: int = 900) -> str:
     return r.stdout
 
 
-def paket_denetle(conn, boyut: int = 100, cagir=agy_cagir) -> int:
-    paket = vt.denetlenecekler(conn, boyut)
+def paket_denetle(conn, boyut: int = 100, cagir=agy_cagir, birimler: list[int] | None = None) -> int:
+    paket = vt.denetlenecekler(conn, boyut, birimler)
     if not paket:
         return 0
     for s in paket:

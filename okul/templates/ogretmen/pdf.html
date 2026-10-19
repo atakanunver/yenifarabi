@@ -5,6 +5,7 @@
 <h1>PDF gönder</h1>
 <p class="soluk">PDF'i seçtiğiniz sınıfın öğrencileri "Dosyalar" sayfasında görür. Yükledikten sonra aynı PDF'ten foto teslimli ödev verebilirsiniz.</p>
 {% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+{% if uyari is defined and uyari %}<div class="not" role="status">{{ uyari }}</div>{% endif %}
 {% if not secenekler %}
 <div class="kart bilgi"><p>Size henüz sınıf/ders atanmamış.</p></div>
 {% else %}
@@ -19,6 +20,16 @@
   <input id="baslik" name="baslik" type="text" maxlength="120" placeholder="Senaryo çalışma föyü">
   <label for="dosya">PDF <span class="soluk kucuk">(en fazla 10 MB)</span></label>
   <input id="dosya" name="dosya" type="file" required accept=".pdf,application/pdf">
+  <details class="kart">
+    <summary><b>Soru havuzuna katkı</b> <span class="soluk kucuk">(9-10-11. sınıf)</span></summary>
+    <p class="kucuk soluk">Farabi PDF'in metninden çoktan seçmeli sorular üretir, yapay zekâ denetiminden geçirir ve onaylananları soru havuzuna ekler (Maraton, Arena, ödev testleri). Sonuç bu sayfada görünür. Taranmış (metni olmayan) PDF'lerden soru çıkmaz.</p>
+    <label class="sik"><input type="checkbox" name="soru_uret" value="1"> Bu PDF'ten soru üret</label>
+    <div class="tuslar">
+      <div><label for="soru_bas">Başlangıç sayfası <span class="soluk kucuk">(boşsa tümü)</span></label><input id="soru_bas" name="soru_bas" type="number" min="1" max="9999" inputmode="numeric"></div>
+      <div><label for="soru_bit">Bitiş sayfası</label><input id="soru_bit" name="soru_bit" type="number" min="1" max="9999" inputmode="numeric"></div>
+    </div>
+    <label class="sik"><input type="checkbox" name="kvkk" value="1"> PDF'te öğrenci/veli adı, notu, telefonu gibi kişisel veri <b>yok</b>; içerik yapay zekâ servisine gönderilebilir.</label>
+  </details>
   <div class="tuslar"><button class="tus">Gönder ve ödev ver →</button></div>
 </form>
 {% endif %}
@@ -29,6 +40,19 @@
   {% for p in pdfler %}
     <li class="satir"><span><a href="/pdf/{{ p.id }}" target="_blank">📄 {{ p.baslik }}</a><br><span class="soluk kucuk">{{ p.sinif }} · {{ p.ders|baslik }} · {{ (p.boyut / 1024)|round|int }} KB · {{ p.zaman|tarih }}</span></span>
       <span class="sag"><a class="tus ikincil kucuk" href="/ogretmen/pdf/{{ p.id }}/odev">Ödev ver</a></span>
+      {% if p.soru_durum == 'bekliyor' %}<span class="etiket sari">Soru havuzu: sırada (akşam turunda işlenir)</span>
+      {% elif p.soru_durum == 'isleniyor' %}<span class="etiket mor">Soru havuzu: işleniyor</span>
+      {% elif p.soru_durum == 'bitti' %}<span class="etiket yesil">Soru havuzu: {{ p.soru_onayli }} soru onaylandı{% if p.soru_red %}, {{ p.soru_red }} reddedildi{% endif %}</span>
+      {% elif p.soru_durum == 'hata' %}<span class="etiket kirmizi">Soru havuzu: {{ p.soru_not or 'hata' }}</span>
+      {% elif p.sinif[:2] in ('9-', '10', '11') %}
+      <details><summary class="kucuk">Soru havuzuna katkı…</summary>
+        <form method="post" action="/ogretmen/pdf/{{ p.id }}/soru">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input name="soru_bas" type="number" min="1" max="9999" placeholder="başlangıç sayfası"> <input name="soru_bit" type="number" min="1" max="9999" placeholder="bitiş sayfası">
+          <label class="sik"><input type="checkbox" name="kvkk" value="1"> Kişisel veri içermiyor, yapay zekâ servisine gönderilebilir.</label>
+          <button class="tus kucuk">Soru üret</button>
+        </form></details>
+      {% endif %}
       <form method="post" action="/ogretmen/pdf/{{ p.id }}/sil" onsubmit="return confirm('PDF silinsin mi? Bağlı ödevler PDF\'siz kalır.')">
         <input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus tehlike kucuk">Sil</button></form></li>
   {% else %}

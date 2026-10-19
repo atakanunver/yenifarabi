@@ -108,12 +108,14 @@ DENETLENECEK_SQL = (
 )
 
 
-def denetlenecekler(conn, limit: int) -> list[dict]:
+def denetlenecekler(conn, limit: int, birimler: list[int] | None = None) -> list[dict]:
+    """birimler verilirse yalnızca o kaynak birimlerin soruları (öğretmen PDF'i gibi hedefli denetim)."""
+    sql, par = DENETLENECEK_SQL, [list(DONDURULMUS_SINIFLAR), limit]
+    if birimler is not None:
+        sql = sql.replace("WHERE s.durum = 'uretildi'", "WHERE s.durum = 'uretildi' AND s.birim_id = ANY(%s)", 1)
+        par = [list(birimler), list(DONDURULMUS_SINIFLAR), limit]
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute(
-            DENETLENECEK_SQL,
-            (list(DONDURULMUS_SINIFLAR), limit),
-        )
+        cur.execute(sql, par)
         return list(cur.fetchall())
 
 

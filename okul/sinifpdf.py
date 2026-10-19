@@ -1,6 +1,7 @@
 """Öğretmenin sınıfa PDF göndermesi ve PDF'ten foto teslimli ödev (mantık katmanı)."""
 
 import sqlite3
+from datetime import timedelta
 
 import dosyalar
 import odevler
@@ -39,6 +40,58 @@ def gonder(
     )
     conn.commit()
     return cur.lastrowid
+
+
+SORU_SEVIYELER = (9, 10, 11)  # 12. sınıf dondurulmuş (soruhavuzu.vt.DONDURULMUS_SINIFLAR ile aynı kural); seneye hepsi Maarif
+ZAMAN_ASIMI_SAAT = 6  # 'isleniyor' bu kadar süre takılı kalırsa yeniden sıraya girer
+
+
+def soru_iste(conn: sqlite3.Connection, k: sqlite3.Row, pdf_id: int, bas: str, bit: str, kvkk: bool) -> None:
+    """PDF'in soru havuzuna katkı için işlenmesini ister (yalnızca 9-10-11; PDF'in sahibi ya da yönetici)."""
+    p = pdf_getir(conn, pdf_id)
+    if p is None or (k["rol"] != "yonetici" and p["ogretmen_id"] != k["id"]):
+        raise PermissionError
+    if not kvkk:
+        raise PdfHatasi("PDF'te öğrenci/veli kişisel verisi olmadığını onaylayın.")
+    try:
+        seviye = int(p["sinif"].split("-", 1)[0])
+    except ValueError:
+        seviye = 0
+    if seviye not in SORU_SEVIYELER:
+        raise PdfHatasi("Soru havuzuna katkı yalnızca 9, 10 ve 11. sınıflar için açık.")
+    if p["soru_durum"] in ("bekliyor", "isleniyor"):
+        raise PdfHatasi("Bu PDF zaten sırada.")
+    b, e = sayfa_araligi(bas, bit)
+    conn.execute(
+        "UPDATE sinif_pdf SET soru_uret = 1, soru_durum = 'bekliyor', soru_bas = ?, soru_bit = ?,"
+        " soru_onayli = 0, soru_red = 0, soru_not = NULL, soru_zaman = ? WHERE id = ?",
+        (b, e, zaman.simdi_str(), pdf_id),
+    )
+    conn.commit()
+
+
+def bekleyen_istekler(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """soruhavuzu gece turu için: sırada bekleyenler + 6 saatten uzun 'isleniyor' kalanlar."""
+    sinir = (zaman.simdi() - timedelta(hours=ZAMAN_ASIMI_SAAT)).strftime(zaman.BICIM)
+    return conn.execute(
+        "SELECT id, sinif, ders, baslik, soru_bas, soru_bit FROM sinif_pdf WHERE soru_uret = 1 AND"
+        " (soru_durum = 'bekliyor' OR (soru_durum = 'isleniyor' AND soru_zaman < ?)) ORDER BY id",
+        (sinir,),
+    ).fetchall()
+
+
+def soru_sonucu(
+    conn: sqlite3.Connection, pdf_id: int, durum: str, onayli: int = 0, red: int = 0, not_: str = ""
+) -> bool:
+    if durum not in ("bekliyor", "isleniyor", "bitti", "hata"):
+        raise PdfHatasi("Geçersiz durum.")
+    cur = conn.execute(
+        "UPDATE sinif_pdf SET soru_durum = ?, soru_onayli = ?, soru_red = ?, soru_not = ?, soru_zaman = ?"
+        " WHERE id = ? AND soru_uret = 1",
+        (durum, int(onayli), int(red), (not_ or "")[:300], zaman.simdi_str(), pdf_id),
+    )
+    conn.commit()
+    return cur.rowcount == 1
 
 
 def pdf_getir(conn: sqlite3.Connection, pdf_id: int) -> sqlite3.Row | None:

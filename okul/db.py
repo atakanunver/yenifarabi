@@ -568,10 +568,23 @@ CREATE TABLE soru_bildirim (
 CREATE INDEX soru_bildirim_soru ON soru_bildirim(soru_id);
 """
 
+# Öğretmen PDF'inden soru havuzuna katkı (soruhavuzu gece turunda işler; durum okul API'siyle geri yazılır).
+SEMA_V21 = """
+ALTER TABLE sinif_pdf ADD COLUMN soru_uret INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE sinif_pdf ADD COLUMN soru_durum TEXT NOT NULL DEFAULT 'yok'
+    CHECK (soru_durum IN ('yok','bekliyor','isleniyor','bitti','hata'));
+ALTER TABLE sinif_pdf ADD COLUMN soru_bas INTEGER;
+ALTER TABLE sinif_pdf ADD COLUMN soru_bit INTEGER;
+ALTER TABLE sinif_pdf ADD COLUMN soru_onayli INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE sinif_pdf ADD COLUMN soru_red INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE sinif_pdf ADD COLUMN soru_not TEXT;
+ALTER TABLE sinif_pdf ADD COLUMN soru_zaman TEXT;
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
-    SEMA_V18, SEMA_V19, SEMA_V20,
+    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21,
 ]
 
 

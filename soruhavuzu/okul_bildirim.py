@@ -25,7 +25,7 @@ def cek(url: str = URL, anahtar_: str | None = None, zaman_asimi: int = 15) -> d
     if not a:
         return None
     istek = urllib.request.Request(url, headers={"X-Soru-Anahtar": a})
-    with urllib.request.urlopen(istek, timeout=zaman_asimi) as r:  # noqa: S310 — yerel servis
+    with urllib.request.urlopen(istek, timeout=zaman_asimi) as r:
         return json.loads(r.read().decode("utf-8"))
 
 
@@ -60,7 +60,7 @@ def calistir(conn, cekici=cek) -> dict | None:
     """Okul kapalı/anahtarsızsa None döner; gece turu bundan etkilenmez."""
     try:
         veri = cekici()
-    except Exception as e:  # noqa: BLE001 — okul geçici kapalıysa üretim turu aksamasın
+    except Exception as e:
         print(f"[geri-bildirim] okul okunamadı: {type(e).__name__}: {e}", flush=True)
         return None
     if veri is None:

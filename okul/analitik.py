@@ -61,6 +61,9 @@ OZELLIKLER = {
         "Öğretmen: hızlı etkinlik atama", ("ogretmen",), True,
         "Öğretmen ana sayfasından Hızlı Etkinlik'e bağlantı ver; zümrede 3 soruluk çıkış bileti örneğini göster.",
     ),
+    "ogretmen_pdf_soru": (
+        "Öğretmen: PDF'ten soru isteği", ("ogretmen",), False, "",
+    ),
     "soru_bildir": (
         "Soru bildirimi", ("ogrenci",), False, "",
     ),

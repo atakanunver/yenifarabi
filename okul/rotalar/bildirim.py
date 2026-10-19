@@ -4,12 +4,15 @@ import hmac
 import sqlite3
 
 import analitik
+import dosyalar
+import sinifpdf
 import soru_bildirim
 from ayarlar import AYAR
 from deps import db_conn, render, rol
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import JSONResponse, RedirectResponse
-from kaynaklar import KaynakHatasi, soru as havuz
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from kaynaklar import KaynakHatasi
+from kaynaklar import soru as havuz
 
 router = APIRouter()
 
@@ -60,14 +63,53 @@ def liste(request: Request, k=Depends(rol("yonetici")), conn: sqlite3.Connection
     )
 
 
-@router.get("/api/soru-bildirim")
-def api(request: Request, conn: sqlite3.Connection = Depends(db_conn)):
-    """soruhavuzu gece turu için: soru başına {soru_id, kisi, turler}. Tünelden (cf-*/x-forwarded-*) gelirse 404;
-    anahtar (X-Soru-Anahtar) yoksa/yanlışsa 404. Kişi bilgisi dönmez, yalnızca sayılar."""
+def _servis_anahtari(request: Request) -> None:
+    """soruhavuzu → okul uçları: tünelden (cf-*/x-forwarded-*) gelirse 404; anahtar (X-Soru-Anahtar) yoksa/yanlışsa 404."""
     basliklar = {b.lower() for b in request.headers.keys()}
     if any(b.startswith("cf-") or b.startswith("x-forwarded-") for b in basliklar):
         raise HTTPException(404)
     verilen = request.headers.get("x-soru-anahtar", "")
     if not AYAR.soru_anahtar or not hmac.compare_digest(verilen, AYAR.soru_anahtar):
         raise HTTPException(404)
+
+
+@router.get("/api/soru-istek")
+def api_istekler(request: Request, conn: sqlite3.Connection = Depends(db_conn)):
+    """Soru havuzuna katkı için sırada bekleyen öğretmen PDF'leri (kişi/öğretmen bilgisi dönmez)."""
+    _servis_anahtari(request)
+    return JSONResponse({"istekler": [dict(r) for r in sinifpdf.bekleyen_istekler(conn)]})
+
+
+@router.get("/api/soru-istek/{pdf_id}/pdf")
+def api_pdf(pdf_id: int, request: Request, conn: sqlite3.Connection = Depends(db_conn)):
+    _servis_anahtari(request)
+    p = sinifpdf.pdf_getir(conn, pdf_id)
+    if p is None or not p["soru_uret"]:
+        raise HTTPException(404)
+    yol = dosyalar.yol("pdf", p["depo_adi"])
+    if not yol.exists():
+        raise HTTPException(404)
+    return FileResponse(yol, media_type="application/pdf")
+
+
+@router.post("/api/soru-istek/{pdf_id}/sonuc")
+async def api_sonuc(pdf_id: int, request: Request, conn: sqlite3.Connection = Depends(db_conn)):
+    _servis_anahtari(request)
+    govde = await request.json()
+    try:
+        ok = sinifpdf.soru_sonucu(
+            conn, pdf_id, str(govde.get("durum", "")), int(govde.get("onayli", 0)), int(govde.get("red", 0)),
+            str(govde.get("not", "")),
+        )
+    except (sinifpdf.PdfHatasi, ValueError, TypeError) as e:
+        raise HTTPException(400, str(e)) from e
+    if not ok:
+        raise HTTPException(404)
+    return JSONResponse({"tamam": True})
+
+
+@router.get("/api/soru-bildirim")
+def api(request: Request, conn: sqlite3.Connection = Depends(db_conn)):
+    """soruhavuzu gece turu için: soru başına {soru_id, kisi, turler}. Kişi bilgisi dönmez, yalnızca sayılar."""
+    _servis_anahtari(request)
     return JSONResponse({"esik": soru_bildirim.ESIK, "sorular": soru_bildirim.ozet(conn)})
