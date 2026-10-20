@@ -604,10 +604,25 @@ CREATE UNIQUE INDEX soru_bildirim_tahta ON soru_bildirim(soru_id, sube, substr(z
 CREATE INDEX soru_bildirim_soru ON soru_bildirim(soru_id);
 """
 
+# Öğretmenin günlük 5 soru incelemesi: gün başına sabit set; sonuç dogru|hatali|pas (hatalı ayrıca soru_bildirim'e yazılır).
+SEMA_V23 = """
+CREATE TABLE soru_inceleme (
+    ogretmen_id INTEGER NOT NULL REFERENCES kullanici(id),
+    gun         TEXT NOT NULL,
+    sira        INTEGER NOT NULL,
+    soru_id     INTEGER NOT NULL,
+    sonuc       TEXT CHECK (sonuc IN ('dogru','hatali','pas')),
+    zaman       TEXT,
+    PRIMARY KEY (ogretmen_id, gun, sira),
+    UNIQUE (ogretmen_id, gun, soru_id)
+);
+CREATE INDEX soru_inceleme_soru ON soru_inceleme(soru_id);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
-    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22,
+    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23,
 ]
 
 

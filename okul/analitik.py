@@ -65,7 +65,10 @@ OZELLIKLER = {
         "Öğretmen: PDF'ten soru isteği", ("ogretmen",), False, "",
     ),
     "soru_bildir": (
-        "Soru bildirimi", ("ogrenci",), False, "",
+        "Soru bildirimi", ("ogrenci", "ogretmen", "yonetici"), False, "",
+    ),
+    "ogretmen_inceleme": (
+        "Öğretmen: günlük soru incelemesi", ("ogretmen",), False, "",
     ),
     "ogretmen_pdf_gonder": (
         "Öğretmen: sınıfa PDF gönderme", ("ogretmen",), True,

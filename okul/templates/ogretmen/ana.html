@@ -2,6 +2,13 @@
 {% block icerik %}
 {% include "_ana_ekran.html" %}
 {% include "_saat.html" %}
+{% if inceleme_kart is defined and inceleme_kart %}
+<section class="kart">
+  <h2>📝 Bugünün 5 sorusu</h2>
+  <p class="kucuk soluk">Kendi dersinden soruları incele; hatalı olanı işaretle, öğrencilere gösterilmesin.</p>
+  <p><a class="tus {{ 'ikincil' if inceleme_kart.yapilan >= inceleme_kart.toplam and inceleme_kart.toplam }}" href="/ogretmen/inceleme">{% if inceleme_kart.yapilan >= inceleme_kart.toplam and inceleme_kart.yapilan %}Tamamlandı · gözden geçir{% else %}İncele ({{ inceleme_kart.yapilan }}/{{ inceleme_kart.toplam }}){% endif %}</a></p>
+</section>
+{% endif %}
 <section class="kart">
   <h2>🏆 Yarışmalar bu hafta</h2>
   {% if liderlik_pano is defined and liderlik_pano %}

@@ -5,6 +5,7 @@ import sqlite3
 
 import analitik
 import dosyalar
+import inceleme
 import sinifpdf
 import soru_bildirim
 from ayarlar import AYAR
@@ -95,6 +96,7 @@ def liste(request: Request, k=Depends(rol("yonetici")), conn: sqlite3.Connection
         turler=soru_bildirim.TURLER,
         esik=soru_bildirim.ESIK,
         hata=hata,
+        inceleme_ozet=inceleme.bugun_ozeti(conn),
     )
 
 

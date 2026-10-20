@@ -5,6 +5,7 @@ import sqlite3
 
 import analitik
 import duyurular
+import inceleme
 import odevler
 import push
 import sinifpdf
@@ -137,6 +138,7 @@ def ana(
         odevler=odevler.ogretmen_odevleri(conn, k)[:10],
         duyurular=duyurular.gorunur_duyurular(conn, k, 5),
         liderlik_pano=_pano(conn, k),
+        inceleme_kart=inceleme.kart(conn, k),
     )
 
 

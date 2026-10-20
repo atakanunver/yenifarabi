@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block baslik %}Bugünün soruları · Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/ogretmen">← Ana sayfa</a></p>
+<h1>Bugünün 5 sorusu</h1>
+<p class="soluk">Kendi dersinden, öğrencilerin oyunlarda göreceği sorular. Soru doğruysa ✅, sorunluysa 🚩 ile sebebini seç; bildirdiğin soru öğrencilere gösterilmeyecek. Emin değilsen pas geç. ({{ yapilan }} / {{ sorular|length }} tamamlandı)</p>
+{% if mesaj %}<div class="not" role="status">{{ mesaj }}</div>{% endif %}
+{% if hata %}<div class="not" role="status">Soru havuzuna şu an ulaşılamıyor. Biraz sonra tekrar dene.</div>{% endif %}
+{% for s in sorular %}
+<section class="kart" id="s{{ s.sira }}">
+  <p class="kucuk soluk">{{ s.sira }}. soru{% if s.konu %} · {{ s.konu }}{% endif %}{% if s.kaynak %} · {{ s.kaynak }}{% endif %}</p>
+  <p>{{ s.soru }}</p>
+  <ul class="siklar-ozet">
+  {% for sk in s.secenekler %}
+    <li class="{{ 'dogru' if loop.index0 == s.dogru_index }}"><b>{{ 'ABCDEFGH'[loop.index0] }}</b> {{ sk }}{% if loop.index0 == s.dogru_index %} <span class="kucuk">(işaretli doğru cevap)</span>{% endif %}</li>
+  {% endfor %}
+  </ul>
+  {% if s.sonuc %}
+  <p><span class="etiket {{ 'yesil' if s.sonuc == 'dogru' else ('kirmizi' if s.sonuc == 'hatali' else 'sari') }}">{{ {'dogru': 'Doğru dedin', 'hatali': 'Hatalı bildirdin', 'pas': 'Pas geçtin'}[s.sonuc] }}</span></p>
+  {% else %}
+  <form method="post" action="/ogretmen/inceleme/{{ s.sira }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="tuslar">
+      <button class="tus kucuk" name="sonuc" value="dogru">✅ Doğru</button>
+      <button class="tus ikincil kucuk" name="sonuc" value="pas">⏭ Pas</button>
+    </div>
+    <details class="kucuk">
+      <summary>🚩 Soru hatalı</summary>
+      <div class="tuslar">
+        {% for kod, ad in turler.items() %}<button class="tus ikincil kucuk" name="tur" value="{{ kod }}">{{ ad }}</button>{% endfor %}
+      </div>
+    </details>
+  </form>
+  {% endif %}
+</section>
+{% else %}
+{% if not hata %}<section class="kart"><p>Bugün için uygun soru bulunamadı.</p></section>{% endif %}
+{% endfor %}
+{% endblock %}

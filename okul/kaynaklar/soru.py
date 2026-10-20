@@ -108,3 +108,24 @@ def getir(idler: list[int]) -> dict[int, dict]:
     with _baglan() as c, c.cursor() as cur:
         cur.execute("SELECT id, soru, ders, sinif, durum FROM soru WHERE id = ANY(%s)", (list(idler),))
         return {r[0]: {"soru": r[1], "ders": r[2], "sinif": r[3], "durum": r[4]} for r in cur.fetchall()}
+
+
+def inceleme_adaylari(sinif: int, ders: str, haric: list[int], yasak: list[int], n: int = 40) -> list[dict]:
+    """Öğretmen incelemesi için rastgele aday sorular (doğru şık dahil). haric/yasak id'leri dönmez."""
+    d = list(haric) + list(yasak) or [0]
+    with _baglan() as c, c.cursor() as cur:
+        cur.execute(
+            f"SELECT {_SUTUN} FROM soru WHERE sinif = %s AND ders = %s AND {_FILTRE}"
+            " AND id <> ALL(%s) ORDER BY random() LIMIT %s",
+            (sinif, ders, d, n),
+        )
+        return [_satir(r) for r in cur.fetchall()]
+
+
+def getir_tam(idler: list[int]) -> dict[int, dict]:
+    """Öğretmen incelemesi: durumdan bağımsız {id: tam soru (şıklar + doğru şık)}."""
+    if not idler:
+        return {}
+    with _baglan() as c, c.cursor() as cur:
+        cur.execute(f"SELECT {_SUTUN} FROM soru WHERE id = ANY(%s) AND secenekler IS NOT NULL", (list(idler),))
+        return {r[0]: _satir(r) for r in cur.fetchall()}
