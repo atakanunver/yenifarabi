@@ -138,6 +138,16 @@ _AGIRLIK_SQL = (
 )  # AGIRLIK sözlüğüyle aynı tutulmalı
 
 
+def iptal_idleri(conn: sqlite3.Connection) -> list[int]:
+    """Yönetici "sorun yok" dedi: iptal edilmiş ve etkin bildirimi kalmamış sorular (soruhavuzu askıdan geri açar)."""
+    return [
+        r[0]
+        for r in conn.execute(
+            "SELECT soru_id FROM soru_bildirim GROUP BY soru_id HAVING max(iptal) = 1 AND min(iptal) = 1"
+        )
+    ]
+
+
 def gizli_idler(conn: sqlite3.Connection) -> list[int]:
     """Ağırlıklı toplamı ESIK'e ulaşan sorular (okulda gösterilmez); yönetici iptali sayılmaz."""
     return [

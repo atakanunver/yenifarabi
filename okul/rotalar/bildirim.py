@@ -161,4 +161,6 @@ async def api_tahta(request: Request, conn: sqlite3.Connection = Depends(db_conn
 def api(request: Request, conn: sqlite3.Connection = Depends(db_conn)):
     """soruhavuzu gece turu için: soru başına {soru_id, kisi, turler}. Kişi bilgisi dönmez, yalnızca sayılar."""
     _servis_anahtari(request)
-    return JSONResponse({"esik": soru_bildirim.ESIK, "sorular": soru_bildirim.ozet(conn)})
+    return JSONResponse({
+        "esik": soru_bildirim.ESIK, "sorular": soru_bildirim.ozet(conn), "iptal": soru_bildirim.iptal_idleri(conn),
+    })

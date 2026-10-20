@@ -94,6 +94,7 @@ def test_api_anahtar_ve_tunel(istemci, conn, ornek, monkeypatch):
     assert r.status_code == 200
     o = r.json()["sorular"][0]
     assert (o["soru_id"], o["kisi"], o["agirlik"], o["turler"], o["roller"]) == (500, 1, 1, {"sekil": 1}, {"ogrenci": 1})
+    assert r.json()["iptal"] == []
     monkeypatch.setattr(AYAR, "soru_anahtar", "")  # anahtar tanımsızsa uç kapalı
     assert istemci.get("/api/soru-bildirim", headers={"X-Soru-Anahtar": ""}).status_code == 404
 
@@ -166,3 +167,12 @@ def test_goc_eski_satirlar_korunur(tmp_path):
     c.commit()
     c.executescript(db.GOCLER[21])
     assert c.execute("SELECT soru_id, tur, rol, iptal FROM soru_bildirim").fetchall() == [(5, "cevap", "ogrenci", 0)]
+
+
+def test_iptal_idleri_api(conn, ornek, monkeypatch):
+    _havuz_var(monkeypatch, 740, 741)
+    soru_bildirim.bildir(conn, ornek["ogretmen"], 740, "cevap", rol="ogretmen")
+    soru_bildirim.bildir(conn, ornek["ogretmen"], 741, "cevap", rol="ogretmen")
+    soru_bildirim.iptal_et(conn, 740)
+    assert soru_bildirim.iptal_idleri(conn) == [740]
+    assert [o["soru_id"] for o in soru_bildirim.ozet(conn)] == [741]
