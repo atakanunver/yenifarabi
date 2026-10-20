@@ -1,0 +1,9 @@
+{# Havuz sorusunu "hatalı" işaretler (öğretmen: tek bildirim soruyu gizler). Bağlam: soru_id, kaynak (odev|inceleme). Üst kapta data-csrf olmalı. #}
+<details class="kucuk soru-isaretle" data-isaretle-kap>
+  <summary>🚩 Soru hatalı</summary>
+  <div class="tuslar">
+    {% for kod, ad in (("cevap", "Cevap yanlış"), ("sekil", "Şekil / grafik yok"), ("alakasiz", "Alakasız"), ("sacma", "Saçma"), ("anlasilmiyor", "Anlaşılmıyor")) %}
+    <button type="button" class="tus ikincil kucuk" data-isaretle data-soru-id="{{ soru_id }}" data-tur="{{ kod }}" data-kaynak="{{ kaynak }}">{{ ad }}</button>
+    {% endfor %}
+  </div>
+</details>

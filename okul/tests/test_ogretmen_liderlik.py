@@ -240,3 +240,13 @@ def test_ana_sayfalarda_yarisma_baglantisi_hep_gorunur(istemci, conn, ornek, saa
     assert 'href="/ogretmen/liderlik"' in istemci.get("/ogretmen").text
     giris(istemci, "mudur", "mudur-sifre")
     assert 'href="/ogretmen/liderlik"' in istemci.get("/yonetici").text
+
+
+def test_odev_sonuc_havuz_sorusunda_isaretle_dugmesi(istemci, conn, ornek, saat):
+    od = _test_odevi(conn, ornek, [(ornek["ogr1"], [0, 1, 0])])
+    conn.execute("UPDATE odev_soru SET kaynak = 'havuz:55' WHERE odev_id = ? AND sira = 1", (od,))
+    conn.commit()
+    giris(istemci, "hoca", "hoca-sifre")
+    h = istemci.get(f"/ogretmen/odev/{od}").text
+    assert h.count("data-isaretle ") == 5 and 'data-soru-id="55"' in h  # yalnızca havuz kaynaklı soruda, 5 sebep
+    assert "/static/soru-isaretle.js" in h

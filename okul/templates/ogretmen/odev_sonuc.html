@@ -56,8 +56,10 @@
 </section>
 
 {% if sorular %}
-<details class="kart"><summary><b>Sorular ({{ sorular|length }})</b></summary>
-  {% for s in sorular %}<p>{{ loop.index }}. {{ s.metin }}<br><span class="soluk kucuk">Doğru: {{ 'ABCD'[s.dogru] }}) {{ s.siklar[s.dogru] }}{% if s.kazanim %} · {{ s.kazanim }}{% endif %}</span></p>{% endfor %}
+<details class="kart" data-csrf="{{ csrf }}"><summary><b>Sorular ({{ sorular|length }})</b></summary>
+  {% for s in sorular %}<div data-soru-satir="goster"><p>{{ loop.index }}. {{ s.metin }}<br><span class="soluk kucuk">Doğru: {{ 'ABCD'[s.dogru] }}) {{ s.siklar[s.dogru] }}{% if s.kazanim %} · {{ s.kazanim }}{% endif %}</span></p>
+  {% if s.kaynak.startswith('havuz:') and s.kaynak[6:].isdigit() %}{% set soru_id = s.kaynak[6:] %}{% set kaynak = "odev" %}{% include "ogretmen/_soru_isaretle.html" %}{% endif %}</div>{% endfor %}
+  <script src="/static/soru-isaretle.js?v=1" defer></script>
 </details>
 {% endif %}
 
