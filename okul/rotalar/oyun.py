@@ -117,6 +117,8 @@ def oyna(
         "konu": s["konu"],
         "secenekler": json.loads(s["secenekler"]),
         "kalan": maraton.kalan_sn(s),
+        "soru_id": s["soru_id"],
+        "pas_kalan": maraton.pas_kalan(conn, maraton_id),
     }
     return render(
         request, "ogrenci/maraton_soru.html", m=m, kilit=None, soru=soru,
@@ -163,6 +165,44 @@ async def cevap(
     if js:
         return JSONResponse({**sonuc, "sonraki": sonraki})
     return RedirectResponse(sonraki, status_code=303)
+
+
+@router.post("/maraton/{maraton_id}/gec")
+async def gec(
+    maraton_id: int,
+    request: Request,
+    k=Depends(rol("ogrenci", post=True)),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    """Soruyu puansız geçer: `tur` boşsa pas, doluysa 'soru hatalı' bildirimi + geçiş."""
+    m = _maraton(conn, k, maraton_id)
+    js = _js_mi(request)
+    sonraki = f"/ogrenci/maraton/{maraton_id}"
+    if maraton.kilit() or m["bitis"]:
+        return JSONResponse({"mesaj": "Maraton şu an oynanamaz.", "sonraki": sonraki}, status_code=409) if js \
+            else RedirectResponse(sonraki, status_code=303)
+    form = await request.form()
+    tur = str(form.get("tur", "")).strip()
+    try:
+        sira = int(str(form.get("sira", "")))
+        satir = conn.execute(
+            "SELECT soru_id FROM maraton_soru WHERE maraton_id = ? AND sira = ? AND cevap IS NULL", (maraton_id, sira)
+        ).fetchone()
+        if satir is None:
+            raise maraton.MaratonHatasi("Bu soru zaten cevaplanmış.")
+        if tur:
+            if soru_bildirim.bildir(conn, k["id"], satir["soru_id"], tur, kaynak="maraton"):
+                analitik.istekten(request, "soru_bildir", str(satir["soru_id"]))
+        sonuc = maraton.gec(conn, maraton_id, sira, hatali=bool(tur))
+    except (ValueError, maraton.MaratonHatasi, soru_bildirim.BildirimHatasi) as e:
+        if js:
+            return JSONResponse({"mesaj": str(e), "sonraki": sonraki}, status_code=400)
+        return RedirectResponse(sonraki, status_code=303)
+    if sonuc["bitti"]:
+        analitik.istekten(request, "test_bitir", str(maraton_id))
+        arena.maraton_xp(conn, k["id"], maraton_id)
+        sonraki += "/sonuc"
+    return JSONResponse({**sonuc, "sonraki": sonraki}) if js else RedirectResponse(sonraki, status_code=303)
 
 
 @router.get("/maraton/{maraton_id}/sonuc")

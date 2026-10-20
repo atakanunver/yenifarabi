@@ -609,3 +609,7 @@ tr.ben td { background: rgba(122, 63, 168, .10); }
 .sudoku-hucre.ysinir { border-right: 2px solid var(--mavi); }
 .sudoku-hucre.asinir { border-bottom: 2px solid var(--mavi); }
 .sudoku-hucre:focus { outline: 2px solid var(--fosfor); outline-offset: -2px; background: #fff8d6; }
+
+.soru-gec { margin-top: 1rem; }
+.soru-gec .tuslar { margin-top: .4rem; }
+.soru-gec details { margin-top: .6rem; }

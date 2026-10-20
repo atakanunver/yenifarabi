@@ -87,6 +87,32 @@
     gonder(e.submitter || null);
   });
 
+  // Pas geç / Soru hatalı: sayacı durdurur, sunucuya gönderir, sıradaki soruya geçer.
+  var gecForm = document.getElementById("gec-formu");
+  if (gecForm) {
+    gecForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (gonderildi) return;
+      gonderildi = true;
+      clearInterval(zamanlayici);
+      butonlar.forEach(function (b) { b.disabled = true; });
+      var veri = new FormData(gecForm);
+      if (e.submitter && e.submitter.name) veri.set(e.submitter.name, e.submitter.value);
+      fetch(gecForm.action, { method: "POST", body: veri, credentials: "same-origin", headers: { Accept: "application/json" } })
+        .then(function (r) {
+          return r.json().then(
+            function (j) { return { ok: r.ok, j: j }; },
+            function () { return { ok: false, j: {} }; }
+          );
+        })
+        .then(function (s) {
+          if (s.ok) { location.href = s.j.sonraki; return; }
+          uyar((s.j && s.j.mesaj) || "İşlem yapılamadı.", true);
+        })
+        .catch(function () { uyar("Bağlantı sorunu.", true); });
+    });
+  }
+
   ciz();
   zamanlayici = setInterval(ciz, 100);
 })();

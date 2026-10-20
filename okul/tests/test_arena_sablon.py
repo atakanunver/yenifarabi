@@ -50,7 +50,7 @@ def test_hub_xp_cubugu_erisilebilir_ve_dogru_yuzde():
 
 
 def test_soru_ekrani_cevap_vermeden_dogru_sikki_sizdirmaz():
-    soru = {"sira": 2, "soru": "S?", "secenekler": ["a", "b", "c", "d"], "konu": "K"}
+    soru = {"sira": 2, "soru": "S?", "secenekler": ["a", "b", "c", "d"], "konu": "K", "pas_kalan": 1}
     h = _render("ogrenci/arena_soru.html", tur={"id": 1, "soru_sayisi": 5}, soru=soru, kareler=["dogru", "bos", "bos", "bos", "bos"], geri=None)
     assert "doğru cevap" not in h.lower() and "disabled" not in h and h.count('name="sec"') == 4
 

@@ -28,7 +28,7 @@
       <li class="{{ 'dogru' if loop.index0 == s.dogru_index else ('yanlis' if loop.index0 == s.cevap) }}"><b>{{ 'ABCDEFGH'[loop.index0] }}</b> {{ sk }}</li>
     {% endfor %}
     </ul>
-    {% if s.cevap == -1 %}<p class="kucuk soluk">Süre doldu.</p>{% elif s.cevap == -2 %}<p class="kucuk soluk">Cevaplanmadı.</p>{% endif %}
+    {% if s.cevap == -1 %}<p class="kucuk soluk">Süre doldu.</p>{% elif s.cevap == -2 %}<p class="kucuk soluk">Cevaplanmadı.</p>{% elif s.cevap == -3 %}<p class="kucuk soluk">Pas geçildi.</p>{% elif s.cevap == -4 %}<p class="kucuk soluk">Hatalı soru olarak bildirildi, puana katılmadı.</p>{% endif %}
     {% if s.kaynak %}<p class="kucuk soluk">Kaynak: {{ s.kaynak }}</p>{% endif %}
     {% set soru = {"soru_id": s.soru_id, "bildirildi": s.soru_id in bildirilen} %}{% set geri_yol = "/ogrenci/maraton/" ~ m.id ~ "/sonuc" %}
     {% include "ogrenci/_soru_bildir.html" %}

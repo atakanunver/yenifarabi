@@ -228,7 +228,8 @@ def sorular(conn: sqlite3.Connection, tur_id: int) -> list[sqlite3.Row]:
 
 def kareler(conn: sqlite3.Connection, tur_id: int) -> list[str]:
     return [
-        "bos" if r["cevap"] is None else ("dogru" if r["cevap"] == r["dogru_index"] else "yanlis")
+        "bos" if r["cevap"] is None or r["cevap"] in (maraton.PAS, maraton.HATALI)
+        else ("dogru" if r["cevap"] == r["dogru_index"] else "yanlis")
         for r in sorular(conn, tur_id)
     ]
 
@@ -282,6 +283,48 @@ def cevapla(conn: sqlite3.Connection, tur_id: int, sira: int, secim: int) -> dic
     }
 
 
+ARENA_PAS_HAKKI = 1  # Günlük Görev başına
+
+
+def pas_kalan(conn: sqlite3.Connection, tur_id: int) -> int:
+    return max(0, ARENA_PAS_HAKKI - conn.execute(
+        "SELECT count(*) FROM bilgi_cevap WHERE tur_id = ? AND cevap = ?", (tur_id, maraton.PAS)
+    ).fetchone()[0])
+
+
+def gec(conn: sqlite3.Connection, tur_id: int, sira: int, hatali: bool = False) -> dict:
+    """Sıradaki soruyu puansız geçer (pas: hak sınırlı; hatalı: bildirimi çağıran yazar). XP yok; son soruda tur kapanır
+    ve bitiş bonusu yalnızca en az bir soru gerçekten cevaplandıysa verilir."""
+    tur = conn.execute("SELECT * FROM bilgi_tur WHERE id = ?", (tur_id,)).fetchone()
+    if tur is None or tur["durum"] != "acik":
+        raise ArenaHatasi("Bu görev kapalı.")
+    s = siradaki(conn, tur_id)
+    if s is None or s["sira"] != sira:
+        raise ArenaHatasi("Bu soru zaten cevaplanmış.")
+    if not hatali and pas_kalan(conn, tur_id) <= 0:
+        raise ArenaHatasi("Pas hakkın bitti.")
+    if conn.execute(
+        "UPDATE bilgi_cevap SET cevap = ?, cevap_zamani = ? WHERE tur_id = ? AND sira = ? AND cevap IS NULL",
+        (maraton.HATALI if hatali else maraton.PAS, zaman.simdi_str(), tur_id, sira),
+    ).rowcount != 1:
+        conn.rollback()
+        raise ArenaHatasi("Bu soru zaten cevaplanmış.")
+    bitti = siradaki(conn, tur_id) is None
+    if bitti:
+        kazanilan = 0
+        if conn.execute(
+            "SELECT 1 FROM bilgi_cevap WHERE tur_id = ? AND cevap >= 0 LIMIT 1", (tur_id,)
+        ).fetchone() and xp_ver(conn, tur["kullanici_id"], "arena_bonus", str(tur_id), XP_BONUS):
+            kazanilan = XP_BONUS
+        conn.execute(
+            "UPDATE bilgi_tur SET durum = 'tamam', bitis = ?, xp = xp + ? WHERE id = ? AND durum = 'acik'",
+            (zaman.simdi_str(), kazanilan, tur_id),
+        )
+        rozet_kontrol(conn, tur["kullanici_id"])
+    conn.commit()
+    return {"bitti": bitti}
+
+
 def seviye_atladi(conn: sqlite3.Connection, kid: int, tur: sqlite3.Row) -> int | None:
     """Bu turda seviye atlandıysa yeni seviye no (tur başındaki XP = toplam - tur XP'si)."""
     toplam = toplam_xp(conn, kid)
@@ -308,7 +351,7 @@ def _rozet_kosullari(conn: sqlite3.Connection, kid: int) -> set[str]:
     # Kazanım Ustası: kazanım eşleşmesi tahminidir; tek doğru cevap kalıcı edinim sayılmaz
     if conn.execute(
         "SELECT 1 FROM bilgi_cevap c JOIN bilgi_tur t ON t.id = c.tur_id"
-        " WHERE t.kullanici_id = ? AND c.kazanim_id IS NOT NULL AND c.cevap IS NOT NULL"
+        " WHERE t.kullanici_id = ? AND c.kazanim_id IS NOT NULL AND c.cevap >= 0"
         " GROUP BY c.kazanim_id HAVING count(DISTINCT t.gun) >= 3 AND count(*) >= 6"
         " AND 1.0 * SUM(c.cevap = c.dogru_index) / count(*) >= 0.8 LIMIT 1",
         (kid,),
@@ -438,7 +481,7 @@ def kazanim_ozeti(conn: sqlite3.Connection, tur_id: int) -> list[dict]:
         dict(r)
         for r in conn.execute(
             "SELECT kazanim_kod AS kod, kazanim_metin AS metin, SUM(cevap = dogru_index) AS dogru,"
-            " count(*) AS toplam FROM bilgi_cevap WHERE tur_id = ? AND kazanim_id IS NOT NULL"
+            " count(*) AS toplam FROM bilgi_cevap WHERE tur_id = ? AND kazanim_id IS NOT NULL AND cevap >= 0"
             " GROUP BY kazanim_id ORDER BY kazanim_kod",
             (tur_id,),
         )
@@ -452,7 +495,7 @@ def kazanim_calismalari(conn: sqlite3.Connection, kid: int, n: int = 8) -> list[
         for r in conn.execute(
             "SELECT c.kazanim_kod AS kod, c.kazanim_metin AS metin, SUM(c.cevap = c.dogru_index) AS dogru,"
             " count(*) AS toplam FROM bilgi_cevap c JOIN bilgi_tur t ON t.id = c.tur_id"
-            " WHERE t.kullanici_id = ? AND c.kazanim_id IS NOT NULL AND c.cevap IS NOT NULL"
+            " WHERE t.kullanici_id = ? AND c.kazanim_id IS NOT NULL AND c.cevap >= 0"
             " GROUP BY c.kazanim_id ORDER BY toplam DESC, kod LIMIT ?",
             (kid, n),
         )
@@ -466,7 +509,7 @@ def tekrar_onerileri(conn: sqlite3.Connection, kid: int, n: int = 3) -> list[dic
         for r in conn.execute(
             "SELECT c.kazanim_kod AS kod, c.kazanim_metin AS metin FROM bilgi_cevap c"
             " JOIN bilgi_tur t ON t.id = c.tur_id WHERE t.kullanici_id = ? AND c.kazanim_id IS NOT NULL"
-            " AND c.cevap IS NOT NULL GROUP BY c.kazanim_id"
+            " AND c.cevap >= 0 GROUP BY c.kazanim_id"
             " HAVING SUM(c.cevap <> c.dogru_index) >= 1 AND 1.0 * SUM(c.cevap = c.dogru_index) / count(*) < 0.8"
             " ORDER BY 1.0 * SUM(c.cevap = c.dogru_index) / count(*), kod LIMIT ?",
             (kid, n),

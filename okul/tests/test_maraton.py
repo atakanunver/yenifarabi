@@ -307,8 +307,8 @@ def test_ana_sayfa_karti(istemci, ornek):
 
 def test_sw_ve_css_surumu(istemci):
     sw = istemci.get("/sw.js").text
-    assert "okul-v32" in sw and "/static/maraton.js?v=1" in sw and "okul.css?v=26" in sw
-    assert "okul.css?v=26" in istemci.get("/giris").text
+    assert "okul-v33" in sw and "/static/maraton.js?v=2" in sw and "okul.css?v=27" in sw
+    assert "okul.css?v=27" in istemci.get("/giris").text
 
 
 def test_ayni_soru_iki_kez_puanlanmaz(conn, ornek, monkeypatch, saat):
@@ -337,3 +337,31 @@ def test_ders_saatinde_kilit_varsayilan_kapali(istemci, ornek, saat):
     mid = baslat(istemci, csrf)
     assert cevapla(istemci, csrf, mid, 1, 2).status_code != 423
     assert "Ders sırasında kapalı" not in istemci.get("/ogrenci/maraton").text
+
+
+def gec(c, csrf, mid, sira, tur=""):
+    return c.post(f"/ogrenci/maraton/{mid}/gec", data={"csrf": csrf, "sira": sira, "tur": tur}, headers=JSON, follow_redirects=False)
+
+
+def test_pas_hakki_ve_hatali_soru(istemci, ornek, saat, conn):
+    csrf = giris(istemci, "101", "ali-sifre")
+    mid = baslat(istemci, csrf)
+    istemci.get(f"/ogrenci/maraton/{mid}")
+    assert gec(istemci, csrf, mid, 1).status_code == 200  # pas
+    assert gec(istemci, csrf, mid, 2).status_code == 200  # pas
+    r = gec(istemci, csrf, mid, 3)  # pas hakkı (2) bitti
+    assert r.status_code == 400 and "Pas hakkın bitti" in r.json()["mesaj"]
+    assert gec(istemci, csrf, mid, 3, "sacma").status_code == 200  # hatalı soru: pas hakkından bağımsız
+    assert gec(istemci, csrf, mid, 3, "sacma").status_code == 400  # aynı soru tekrar geçilemez
+    satirlar = conn.execute("SELECT sira, cevap, puan FROM maraton_soru WHERE maraton_id = ? ORDER BY sira", (mid,)).fetchall()
+    assert [(s["cevap"], s["puan"]) for s in satirlar[:3]] == [(-3, 0), (-3, 0), (-4, 0)]
+    b = conn.execute("SELECT tur, rol, kaynak FROM soru_bildirim").fetchall()
+    assert [(x["tur"], x["rol"], x["kaynak"]) for x in b] == [("sacma", "ogrenci", "maraton")]
+    assert conn.execute("SELECT dogru, puan FROM maraton WHERE id = ?", (mid,)).fetchone()["dogru"] == 0
+    assert maraton.ilerleme(conn, mid)[:3] == ["yanlis", "yanlis", "bos"]
+    # oyun sürer: sıradaki soru normal cevaplanır
+    istemci.get(f"/ogrenci/maraton/{mid}")
+    assert cevapla(istemci, csrf, mid, 4, 2).json()["dogru"] is True
+    # başkası geçemez
+    csrf2 = giris(istemci, "201", "ayse-sifre")
+    assert gec(istemci, csrf2, mid, 5).status_code == 404

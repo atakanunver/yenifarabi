@@ -1,0 +1,20 @@
+{% set pas_kalan = soru.pas_kalan if soru.pas_kalan is defined else 0 %}
+{# Soru ekranında "Pas geç" + "Soru hatalı" (tek dokunuşla sebep seçimi). Bağlam: gec_url, soru{sira,pas_kalan}. #}
+<form method="post" action="{{ gec_url }}" id="gec-formu" class="soru-gec">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="sira" value="{{ soru.sira }}">
+  <div class="tuslar">
+    <button class="tus ikincil kucuk" name="tur" value=""{{ ' disabled' if pas_kalan <= 0 }}>⏭ Pas geç ({{ pas_kalan }})</button>
+  </div>
+  <details class="kucuk">
+    <summary>🚩 Soru hatalı</summary>
+    <div class="tuslar">
+      <button class="tus ikincil kucuk" name="tur" value="cevap">Cevap yanlış</button>
+      <button class="tus ikincil kucuk" name="tur" value="sekil">Şekil / grafik yok</button>
+      <button class="tus ikincil kucuk" name="tur" value="alakasiz">Alakasız</button>
+      <button class="tus ikincil kucuk" name="tur" value="sacma">Saçma</button>
+      <button class="tus ikincil kucuk" name="tur" value="anlasilmiyor">Anlaşılmıyor</button>
+    </div>
+    <p class="kucuk soluk">Seçince bildirim gönderilir ve soru puansız geçilir.</p>
+  </details>
+</form>

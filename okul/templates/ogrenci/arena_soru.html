@@ -24,6 +24,7 @@
     {% endfor %}
   </form>
 
+  {% if not geri %}{% set gec_url = "/ogrenci/arena/" ~ tur.id ~ "/gec" %}{% include "ogrenci/_soru_hatali.html" %}{% endif %}
   <div id="geri" role="status" aria-live="polite">
   {% if geri %}
     <div class="geri-bildirim {{ 'dogru' if geri.dogru else 'yanlis' }}">

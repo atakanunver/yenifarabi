@@ -9,9 +9,11 @@
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <input type="hidden" name="soru_id" value="{{ soru.soru_id }}">
     <input type="hidden" name="geri" value="{{ geri_yol if geri_yol is defined else request.url.path }}">
-    <button class="tus ikincil kucuk" name="tur" value="sekil">Şekil / grafik görünmüyor</button>
-    <button class="tus ikincil kucuk" name="tur" value="cevap">Cevap yanlış görünüyor</button>
-    <button class="tus ikincil kucuk" name="tur" value="anlasilmiyor">Soru anlaşılmıyor</button>
+    <button class="tus ikincil kucuk" name="tur" value="cevap">Cevap yanlış</button>
+    <button class="tus ikincil kucuk" name="tur" value="sekil">Şekil / grafik yok</button>
+    <button class="tus ikincil kucuk" name="tur" value="alakasiz">Alakasız</button>
+    <button class="tus ikincil kucuk" name="tur" value="sacma">Saçma</button>
+    <button class="tus ikincil kucuk" name="tur" value="anlasilmiyor">Anlaşılmıyor</button>
   </form>
 </details>
 {% endif %}

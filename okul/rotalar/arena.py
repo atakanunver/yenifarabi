@@ -126,6 +126,7 @@ def _soru_ekrani(request, conn, t, s, geri=None):
         "secenekler": json.loads(s["secenekler"]),
         "soru_id": s["soru_id"],
         "bildirildi": soru_bildirim.bildirdi_mi(conn, t["kullanici_id"], s["soru_id"]),
+        "pas_kalan": arena.pas_kalan(conn, t["id"]),
     }
     return render(
         request,
@@ -189,6 +190,38 @@ async def cevap(
     if _js_mi(request):
         return JSONResponse({**sonuc, "sonraki": sonraki})
     return RedirectResponse(sonraki, status_code=303)
+
+
+@router.post("/{tur_id}/gec")
+async def gec(
+    tur_id: int,
+    request: Request,
+    k=Depends(rol("ogrenci", post=True)),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    """Günlük Görev sorusunu puansız geçer: `tur` boşsa pas, doluysa 'soru hatalı' bildirimi + geçiş."""
+    _kendisi(conn, k)
+    t = _tur(conn, k, tur_id)
+    form = await request.form()
+    tur = str(form.get("tur", "")).strip()
+    try:
+        sira = int(str(form.get("sira", "")))
+    except ValueError as e:
+        raise HTTPException(400, "Geçersiz istek.") from e
+    _kilit_kontrol()
+    soru = arena.soru_getir(conn, tur_id, sira)
+    if soru is None or soru["cevap"] is not None or t["durum"] != "acik":
+        return RedirectResponse(f"/ogrenci/arena/{tur_id}", status_code=303)
+    try:
+        if tur and soru_bildirim.bildir(conn, k["id"], soru["soru_id"], tur, kaynak="arena"):
+            analitik.istekten(request, "soru_bildir", str(soru["soru_id"]))
+        sonuc = arena.gec(conn, tur_id, sira, hatali=bool(tur))
+    except (arena.ArenaHatasi, soru_bildirim.BildirimHatasi) as e:
+        raise HTTPException(400, str(e)) from e
+    if sonuc["bitti"]:
+        analitik.istekten(request, "arena_tamamla", str(tur_id))
+        return RedirectResponse(f"/ogrenci/arena/{tur_id}/sonuc", status_code=303)
+    return RedirectResponse(f"/ogrenci/arena/{tur_id}", status_code=303)
 
 
 @router.get("/{tur_id}/soru/{sira}")

@@ -310,3 +310,30 @@ def test_geri_alma_betigi(tmp_path, monkeypatch, capsys):
     c.close()
     db.sema_kur()  # ileri göç yeniden uygulanabilir
     assert sqlite3.connect(yol).execute("PRAGMA user_version").fetchone()[0] == len(db.GOCLER)
+
+
+def test_gunluk_gorev_pas_ve_hatali(conn, ornek, sahte):
+    k = ornek["ogr1_k"]
+    tur = arena.baslat(conn, k, "9-A")
+    assert arena.gec(conn, tur, 1)["bitti"] is False  # pas
+    with pytest.raises(arena.ArenaHatasi):  # pas hakkı 1
+        arena.gec(conn, tur, 2)
+    for sira in (2, 3, 4):
+        arena.gec(conn, tur, sira, hatali=True)
+    assert arena.kareler(conn, tur) == ["bos"] * 4 + ["bos"]
+    assert arena.gec(conn, tur, 5, hatali=True)["bitti"] is True
+    # hiç gerçek cevap yok: bitiş bonusu ve kazanım istatistiği yok
+    assert arena.toplam_xp(conn, k) == 0
+    assert arena.kazanim_ozeti(conn, tur) == []
+    assert arena.tur_getir(conn, tur, k)["durum"] == "tamam"
+
+
+def test_gunluk_gorev_cevapli_ve_gecili_karisik(conn, ornek, sahte):
+    k = ornek["ogr1_k"]
+    tur = arena.baslat(conn, k, "9-A")
+    arena.gec(conn, tur, 1, hatali=True)
+    for sira in range(2, 6):
+        arena.cevapla(conn, tur, sira, 1)
+    assert arena.toplam_xp(conn, k) == 4 * 10 + 10  # 4 doğru + bonus (en az bir gerçek cevap)
+    oz = arena.kazanim_ozeti(conn, tur)
+    assert oz[0]["toplam"] == 4 and oz[0]["dogru"] == 4  # hatalı soru istatistiğe girmez

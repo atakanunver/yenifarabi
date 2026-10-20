@@ -21,6 +21,9 @@ TEMEL_PUAN = 100
 HIZ_CARPANI = 3
 SURE_DOLDU = -1
 TERK = -2
+PAS = -3  # öğrenci pas geçti (0 puan)
+HATALI = -4  # soru hatalı bildirildi: puansız geçilir, istatistiğe katılmaz
+PAS_HAKKI = 2  # maraton başına
 EN_IYI = 3  # haftalık toplamda sayılan en iyi maraton sayısı
 
 # yalnızca bitirilmiş (yarıda bırakılmamış) maratonlar
@@ -199,6 +202,38 @@ def cevapla(conn: sqlite3.Connection, maraton_id: int, sira: int, secim: int | N
     }
 
 
+def pas_kalan(conn: sqlite3.Connection, maraton_id: int) -> int:
+    return max(0, PAS_HAKKI - conn.execute(
+        "SELECT count(*) FROM maraton_soru WHERE maraton_id = ? AND cevap = ?", (maraton_id, PAS)
+    ).fetchone()[0])
+
+
+def gec(conn: sqlite3.Connection, maraton_id: int, sira: int, hatali: bool = False) -> dict:
+    """Şu anki soruyu puansız geçer: pas (hak sınırlı) ya da hatalı soru (sınırsız; bildirimi çağıran yazar)."""
+    s = conn.execute(
+        "SELECT * FROM maraton_soru WHERE maraton_id = ? AND cevap IS NULL ORDER BY sira LIMIT 1",
+        (maraton_id,),
+    ).fetchone()
+    if s is None or s["sira"] != sira:
+        raise MaratonHatasi("Bu soru zaten cevaplanmış.")
+    if not hatali and pas_kalan(conn, maraton_id) <= 0:
+        raise MaratonHatasi("Pas hakkın bitti.")
+    if conn.execute(
+        "UPDATE maraton_soru SET cevap = ?, cevap_zamani = ?, puan = 0"
+        " WHERE maraton_id = ? AND sira = ? AND cevap IS NULL",
+        (HATALI if hatali else PAS, zaman.simdi_str(), maraton_id, sira),
+    ).rowcount != 1:
+        conn.rollback()
+        raise MaratonHatasi("Bu soru zaten cevaplanmış.")
+    kalan = conn.execute(
+        "SELECT count(*) FROM maraton_soru WHERE maraton_id = ? AND cevap IS NULL", (maraton_id,)
+    ).fetchone()[0]
+    if kalan == 0:
+        conn.execute("UPDATE maraton SET bitis = ? WHERE id = ?", (zaman.simdi_str(), maraton_id))
+    conn.commit()
+    return {"bitti": kalan == 0}
+
+
 def bitir(conn: sqlite3.Connection, maraton_id: int, terk: bool = False) -> None:
     """Kalan sorular 0 puanla kapatılır; terk=True ise liderlik/seriye sayılmaz."""
     conn.execute(
@@ -222,7 +257,7 @@ def ilerleme(conn: sqlite3.Connection, maraton_id: int) -> list[str]:
     """Kare durumları: 'dogru' | 'yanlis' | 'bos'."""
     out = []
     for r in sorular(conn, maraton_id):
-        if r["cevap"] is None:
+        if r["cevap"] is None or r["cevap"] == HATALI:
             out.append("bos")
         else:
             out.append("dogru" if r["cevap"] == r["dogru_index"] else "yanlis")

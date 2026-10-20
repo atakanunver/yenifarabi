@@ -28,8 +28,9 @@
     <button class="sik" name="sec" value="{{ loop.index0 }}"><b>{{ 'ABCDEFGH'[loop.index0] }}</b><span>{{ s }}</span></button>
     {% endfor %}
   </form>
+  {% set gec_url = "/ogrenci/maraton/" ~ m.id ~ "/gec" %}{% include "ogrenci/_soru_hatali.html" %}
   <p class="oyun-mesaj kucuk" id="mesaj" role="status" aria-live="polite" hidden></p>
-  <script src="/static/maraton.js?v=1" defer></script>
+  <script src="/static/maraton.js?v=2" defer></script>
   {% endif %}
 </div>
 {% endblock %}
