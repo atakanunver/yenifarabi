@@ -79,7 +79,7 @@ def test_plan_kazanimlari_ve_haftalik_kazanim(tmp_path, monkeypatch):
     assert kazanim.haftalik_kazanim("10-A", "") is None
 
 
-def test_ogretmen_ana_sayfa_kazanim(ornek, conn, tmp_path, monkeypatch):
+def test_ogretmen_ana_sayfa_kazanim(ornek, conn, tmp_path, monkeypatch, saat):
     import json
 
     from app import app
