@@ -38,6 +38,7 @@ DOSYA_ARAC_ID = "farabi_dosya"  # yalnızca İdare: tablodan yeni tablo, sohbeti
 SMS_ARAC_ID = "farabi_sms"  # yalnızca İdare: yönetime SMS hatırlatma / acil SMS, veli SMS'i
 HAFIZA_ARAC_ID = "farabi_hafiza"  # yalnızca İdare: ortak okul hafızası (hafiza: true modlara bağlanır)
 HAFIZA_API_URL = "http://127.0.0.1:8000/api/webui/hafiza"
+WIKI_API_URL = "http://127.0.0.1:8000/api/webui/wiki"
 SMS_API_URL = "http://127.0.0.1:8020/api/arac"
 GOREV_MODEL_ID = "farabi-gorev"  # yalnızca arka plan görevleri (başlık) için, düşünme kapalı
 ARAC_ID = "farabi_yonetim"  # yalnızca admin: tahta yönetimi aracı (Tool)
@@ -111,7 +112,10 @@ def model_govdesi(mod: dict, cekirdek: str, ek: str, grup_idleri: dict[str, str]
         # Okul Bilgisi aracı: native araç çağrısı; Open WebUI yerleşik araçları
         # (bellek, sohbetler, web...) kapalı — yonetim_model_govdesi ile aynı gerekçe.
         govde["meta"].update({"toolIds": araclar,
-                              "capabilities": {"builtin_tools": False},
+                              # file_context False: Open WebUI'nin kendi RAG'ı Excel'i pandas ile NaN
+                              # döküntüsüne çevirip modele veriyor (araçlar hiç çağrılmıyor); dosyaları
+                              # belgeyi_oku / tablo_bilgisi / wiki_kaydet okur. __files__ araca yine gelir.
+                              "capabilities": {"builtin_tools": False, "file_context": False},
                               "builtinTools": {k: False for k in BUILTIN_KATEGORILER}})
         govde["params"]["function_calling"] = "native"
     return govde
@@ -326,11 +330,11 @@ def belge_araci_kur(api: Api, webui_key: str, grup_idleri: dict[str, str]) -> No
                       "api_key": webui_key, "zaman_asimi_sn": 660.0})
 
 
-def dosya_araci_kur(api: Api, grup_idleri: dict[str, str]) -> None:
+def dosya_araci_kur(api: Api, webui_key: str, grup_idleri: dict[str, str]) -> None:
     _yalniz_idare_araci_kur(
         api, DOSYA_ARAC_ID, "Tablo ve Dosya Çıktısı", "farabi_dosya_araci.py",
-        "Excel/CSV/Word tablosundan sütun seçip çıkararak yeni tablo; sohbeti Word, Excel, PDF yapma. Yalnızca İdare.",
-        grup_idleri, {})
+        "Excel/CSV/Word/PDF tablosundan yeni tablo; sohbeti Word, Excel, PDF yapma; Atos wiki (kayıtlı tablolar). Yalnızca İdare.",
+        grup_idleri, {"wiki_url": WIKI_API_URL, "api_key": webui_key, "zaman_asimi_sn": 120.0})
 
 
 def hafiza_araci_kur(api: Api, webui_key: str, grup_idleri: dict[str, str]) -> None:
@@ -469,7 +473,7 @@ def main() -> int:
     okul = okulu_hazirla(api, env, grup_idleri)
     belge_araci_kur(api, webui_key, grup_idleri)
     hafiza_araci_kur(api, webui_key, grup_idleri)
-    dosya_araci_kur(api, grup_idleri)
+    dosya_araci_kur(api, webui_key, grup_idleri)
     sms_var = sms_araci_kur(api, grup_idleri)
     filtreyi_kur(api, webui_key, okul)
     araclar = ([OKUL_ARAC_ID] if okul else []) + [BELGE_ARAC_ID, DOSYA_ARAC_ID] + ([SMS_ARAC_ID] if sms_var else [])

@@ -33,6 +33,7 @@ import kazanim
 import proxy
 import uzak_model
 import ders_plani
+import atos_wiki
 import belge_arsiv
 import hafiza
 import ogrenci_durum
@@ -173,6 +174,7 @@ app.include_router(webui.router)
 app.include_router(belge_arsiv.router)  # Atos "Belge Kalıcı Kayıt" aracı
 app.include_router(ogrenci_durum.router)  # Atos: Öğrenci Bilgi Formu Detay (ana-baba ayrı/maddi/hastalık) tablo sorgusu
 app.include_router(hafiza.router)  # Atos okul hafızası (/api/webui/hafiza/*, webui anahtarı)
+app.include_router(atos_wiki.router)  # Atos wiki: kayıtlı tablolar (/api/webui/wiki/*, webui anahtarı)
 # GeoGebra çevrimdışı paketi (2026-09-25) — client/actions/geogebra.py'nin
 # yerel köprüsü dosyaları buradan çekip tahtada önbelleğe alır (paket ~120 MB,
 # git'e girmez, her tahtaya ayrı kopyalanmaz). Auth YOK, bilerek: içerik

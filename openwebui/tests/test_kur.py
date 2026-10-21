@@ -262,6 +262,7 @@ def test_model_okul_araciyla_native_ve_yerlesik_araclar_kapali():
     assert g["meta"]["capabilities"]["builtin_tools"] is False
     assert not any(g["meta"]["builtinTools"].values())
     assert g["meta"]["filterIds"] == ["farabi_kaynak"]
+    assert g["meta"]["capabilities"]["file_context"] is False  # RAG'ın Excel'i NaN'a çevirmesini engeller
 
 
 def test_okul_ayari_oku(tmp_path, monkeypatch):
@@ -355,11 +356,13 @@ def test_belge_araci_yalniz_idareye_acik():
 
 def test_dosya_araci_yalniz_idareye_acik():
     api = KayitApi(var=None)
-    kur.dosya_araci_kur(api, {"Öğretmenler": "g-ogr", "İdare": "g-idr"})
+    kur.dosya_araci_kur(api, "w", {"Öğretmenler": "g-ogr", "İdare": "g-idr"})
     erisim = next(c[2] for c in api.cagrilar if c[1].endswith("/access/update"))
     assert erisim == {"access_grants": [{"principal_type": "group", "principal_id": "g-idr",
                                          "permission": "read"}]}
     assert next(c[2] for c in api.cagrilar if c[1].endswith("/create"))["id"] == "farabi_dosya"
+    valf = next(c[2] for c in api.cagrilar if c[1].endswith("/valves/update"))
+    assert valf["api_key"] == "w" and valf["wiki_url"].endswith("/api/webui/wiki")
 
 
 def test_yonetici_epostalari_envden():
