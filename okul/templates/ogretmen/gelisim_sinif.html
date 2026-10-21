@@ -2,12 +2,12 @@
 {% from "_gelisim_makro.html" import kaynak_notu, trend, cubuk %}
 {% block baslik %}{{ r.sinif }} · Gelişim raporu{% endblock %}
 {% block icerik %}
-<p><a href="/ogretmen/sinif/{{ r.sinif }}">← {{ r.sinif }}</a></p>
+<p class="yazdirma-gizle"><a href="/ogretmen/sinif/{{ r.sinif }}">← {{ r.sinif }}</a> <button type="button" class="tus ikincil yazdirma-gizle" onclick="window.print()">🖨 Yazdır / PDF</button></p>
 <h1>{{ r.sinif }} gelişim raporu</h1>
 {{ kaynak_notu(r) }}
 <p class="kucuk soluk">Kaynaklar: platform içi test ödevleri ve Google Form kazanım testleri. {{ r.verili_ogrenci }} / {{ r.mevcut }} öğrencinin test verisi var. Verisi olan öğrenci sayısı {{ r.esik_n }}'ten az olan gruplar gösterilmez.</p>
 {% if tum_dersler %}
-<form method="get" class="filtre"><label for="ders">Ders</label>
+<form method="get" class="filtre yazdirma-gizle"><label for="ders">Ders</label>
   <select id="ders" name="ders" onchange="this.form.submit()"><option value="">Tümü</option>{% for d in tum_dersler %}<option value="{{ d }}"{{ ' selected' if d == ders|lower }}>{{ d|baslik }}</option>{% endfor %}</select>
   <noscript><button class="tus">Filtrele</button></noscript></form>
 {% endif %}

@@ -88,3 +88,10 @@ def test_kucuk_grup_ekranda_gizli(istemci, ornek, monkeypatch):
     giris(istemci, "hoca", "hoca-sifre")
     t = istemci.get("/ogretmen/gelisim/9-A").text
     assert "grup sonucu gizlendi" in t and "K1" not in t.split("Öğrenciler")[0]
+
+
+def test_gelisim_raporlarinda_yazdir_dugmesi(istemci, ornek):
+    giris(istemci, "hoca", "hoca-sifre")
+    for yol in ("/ogretmen/gelisim/9-A", f"/ogretmen/ogrenci/{ornek['ogr1']}/gelisim"):
+        t = istemci.get(yol).text
+        assert 'onclick="window.print()"' in t and "yazdirma-gizle" in t
