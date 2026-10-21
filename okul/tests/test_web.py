@@ -528,3 +528,20 @@ def test_odev_hatirlat_gunde_bir_kez_ve_yalniz_sahibi(istemci, ornek, conn, yeni
         assert r.status_code == 303
     assert gonderilen == [(oid, ornek["ogretmen"])]
     assert "Bugün hatırlatma gönderildi" in istemci.get(f"/ogretmen/odev/{oid}").text
+
+
+def test_ogretmen_sinif_devamsizlik_ozeti(istemci, ornek, conn, saat, monkeypatch):
+    from kaynaklar import yoklama
+
+    gunler = [yoklama.Devamsizlik(d, 1, "yok") for d in ("2026-10-12", "2026-10-09", "2026-10-08")]
+    monkeypatch.setattr(yoklama, "sinif_devamsizlik", lambda sinif, bas: {101: gunler, 999: gunler})
+    giris(istemci, "hoca", "hoca-sifre")
+    t = istemci.get("/ogretmen/sinif/9-A").text
+    assert "Ali Veli (1 ders)" in t and "Ali Veli (3 gün)" in t and "999" not in t
+    assert conn.execute("SELECT COUNT(*) FROM erisim_log WHERE eylem = 'devamsizlik:9-A'").fetchone()[0] == 1
+    monkeypatch.setattr(yoklama, "sinif_devamsizlik", lambda s, b: (_ for _ in ()).throw(KaynakHatasi("x")))
+    t = istemci.get("/ogretmen/sinif/9-A").text
+    assert "Devamsızlık" not in t and "Ali Veli" in t
+    istemci.cookies.clear()
+    giris(istemci, "101", "ali-sifre")
+    assert istemci.get("/ogretmen/sinif/9-A").status_code == 404

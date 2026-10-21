@@ -2,6 +2,7 @@
 
 import logging
 import sqlite3
+from datetime import timedelta
 
 import analitik
 import duyurular
@@ -15,7 +16,7 @@ import zaman
 from deps import db_conn, istemci_ip, render, rol
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
-from kaynaklar import KaynakHatasi, kazanim, program, zil
+from kaynaklar import KaynakHatasi, kazanim, program, yoklama, zil
 from metin import normalize_isim, sinif_seviyesi, tr_kucuk
 from rotalar import ogretmen_liderlik
 
@@ -157,7 +158,21 @@ def sinif(
         " FROM ogrenci o LEFT JOIN kullanici u ON u.id = o.kullanici_id WHERE o.sinif = ? ORDER BY o.okul_no",
         (sinif,),
     ).fetchall()
-    return render(request, "ogretmen/sinif.html", sinif=sinif, ogrenciler=ogrenciler)
+    bugun = zaman.simdi()
+    try:
+        devamsiz = yoklama.ozet(
+            yoklama.sinif_devamsizlik(sinif, (bugun - timedelta(days=13)).strftime("%Y-%m-%d")),
+            bugun.strftime("%Y-%m-%d"),
+        )
+        yetki.erisim_kaydet(conn, k, f"devamsizlik:{sinif}", None, istemci_ip(request))
+    except KaynakHatasi:
+        devamsiz = None
+    ad = {o["okul_no"]: o["ad_soyad"] for o in ogrenciler}
+    if devamsiz:  # panoda olup platformda olmayan numaralar gösterilmez
+        devamsiz = {t: [x for x in l if x[0] in ad] for t, l in devamsiz.items()}
+    return render(
+        request, "ogretmen/sinif.html", sinif=sinif, ogrenciler=ogrenciler, devamsiz=devamsiz, ad=ad
+    )
 
 
 @router.get("/odev/yeni")

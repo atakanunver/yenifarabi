@@ -95,38 +95,66 @@ def _yoklamalar(c: sqlite3.Connection, sinif: str | None, baslangic: str | None)
     return c.execute(sql + " ORDER BY tarih DESC, ders_no", params).fetchall()
 
 
+def _eslestir(
+    okul_no: int, ogrenciler: list[tuple[str, int, str]], yoklamalar: list
+) -> list[Devamsizlik]:
+    """Bir öğrencinin devamsızlıkları. ogrenciler: kendi sınıfının pano öğrencileri; yoklamalar: o sınıfın kayıtları."""
+    ad = next((a for _, no, a in ogrenciler if no == okul_no), None)
+    if ad is None:
+        return []
+    hedef = normalize_isim(ad)
+    ayni_isim_var = sum(1 for _, _, a in ogrenciler if normalize_isim(a) == hedef) > 1
+    sonuc = []
+    for tarih, _, ders_no, yok, izinli, yok_no_ham, izinli_no_ham in yoklamalar:
+        yok_nolar = _nolar(yok_no_ham)
+        izinli_nolar = _nolar(izinli_no_ham)
+        if yok_nolar is not None or izinli_nolar is not None:
+            if yok_nolar and okul_no in yok_nolar:
+                sonuc.append(Devamsizlik(tarih, ders_no, "yok"))
+            elif izinli_nolar and okul_no in izinli_nolar:
+                sonuc.append(Devamsizlik(tarih, ders_no, "izinli"))
+            continue
+        if ayni_isim_var:
+            continue
+        if hedef in {normalize_isim(x) for x in _isimler(yok)}:
+            sonuc.append(Devamsizlik(tarih, ders_no, "yok"))
+        elif hedef in {normalize_isim(x) for x in _isimler(izinli)}:
+            sonuc.append(Devamsizlik(tarih, ders_no, "izinli"))
+    return sonuc
+
+
 def devamsizlik(
     okul_no: int, sinif: str, baslangic: str | None = None
 ) -> list[Devamsizlik]:
     try:
         with _baglan() as c:
             ogrenciler = [o for o in _pano_ogrencileri(c) if o[0] == sinif]
-            ad = next((a for _, no, a in ogrenciler if no == okul_no), None)
-            if ad is None:
-                return []
-            hedef = normalize_isim(ad)
-            ayni_isim_var = sum(1 for _, _, a in ogrenciler if normalize_isim(a) == hedef) > 1
-            sonuc = []
-            for tarih, _, ders_no, yok, izinli, yok_no_ham, izinli_no_ham in _yoklamalar(
-                c, sinif, baslangic
-            ):
-                yok_nolar = _nolar(yok_no_ham)
-                izinli_nolar = _nolar(izinli_no_ham)
-                if yok_nolar is not None or izinli_nolar is not None:
-                    if yok_nolar and okul_no in yok_nolar:
-                        sonuc.append(Devamsizlik(tarih, ders_no, "yok"))
-                    elif izinli_nolar and okul_no in izinli_nolar:
-                        sonuc.append(Devamsizlik(tarih, ders_no, "izinli"))
-                    continue
-                if ayni_isim_var:
-                    continue
-                if hedef in {normalize_isim(x) for x in _isimler(yok)}:
-                    sonuc.append(Devamsizlik(tarih, ders_no, "yok"))
-                elif hedef in {normalize_isim(x) for x in _isimler(izinli)}:
-                    sonuc.append(Devamsizlik(tarih, ders_no, "izinli"))
-            return sonuc
+            return _eslestir(okul_no, ogrenciler, _yoklamalar(c, sinif, baslangic))
     except sqlite3.Error as e:
         raise KaynakHatasi(f"yoklama okunamadı: {e}") from e
+
+
+def sinif_devamsizlik(sinif: str, baslangic: str) -> dict[int, list[Devamsizlik]]:
+    """okul_no → devamsızlıklar (yalnızca pano'da eşleşen öğrenciler; kaydı olmayanın listesi boştur)."""
+    try:
+        with _baglan() as c:
+            ogrenciler = [o for o in _pano_ogrencileri(c) if o[0] == sinif]
+            yoklamalar = _yoklamalar(c, sinif, baslangic)
+            return {no: _eslestir(no, ogrenciler, yoklamalar) for _, no, _ in ogrenciler}
+    except sqlite3.Error as e:
+        raise KaynakHatasi(f"yoklama okunamadı: {e}") from e
+
+
+def ozet(kayitlar: dict[int, list[Devamsizlik]], bugun: str, esik_gun: int = 3) -> dict[str, list[tuple[int, int]]]:
+    """(okul_no, sayı) listeleri: 'bugun' = bugün 'yok' yazılan ders sayısı; 'tekrar' = 'yok' olunan farklı gün sayısı >= esik_gun."""
+    bugun_yok, tekrar = [], []
+    for no, liste in sorted(kayitlar.items()):
+        yok = [x for x in liste if x.tur == "yok"]
+        if sayi := sum(1 for x in yok if x.tarih == bugun):
+            bugun_yok.append((no, sayi))
+        if (gun := len({x.tarih for x in yok})) >= esik_gun:
+            tekrar.append((no, gun))
+    return {"bugun": bugun_yok, "tekrar": sorted(tekrar, key=lambda t: -t[1])}
 
 
 def sinif_yok_sayilari(baslangic: str) -> dict[str, int]:

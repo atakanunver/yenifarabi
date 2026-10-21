@@ -120,3 +120,18 @@ def test_pano_db_yoksa_kaynak_hatasi():
 def test_pano_db_salt_okunur_acilir(pano):
     with yoklama._baglan() as c, pytest.raises(sqlite3.OperationalError):
         c.execute("DELETE FROM ogrenciler")
+
+
+def test_sinif_devamsizlik_ve_ozet(pano):
+    k = yoklama.sinif_devamsizlik("9-A", "2026-10-01")
+    assert set(k) == {101, 102, 103, 104}
+    assert len(k[101]) == 3 and k[103] == [] and k[104] == []  # 103/104 aynı isim: gösterilmez
+    o = yoklama.ozet(k, "2026-10-07", esik_gun=2)
+    assert o["bugun"] == [(101, 1)]
+    assert o["tekrar"] == [(101, 2)]  # 05'te yok + 07'de yok (izinli sayılmaz)
+    assert yoklama.ozet(k, "2026-10-07")["tekrar"] == []
+
+
+def test_sinif_devamsizlik_kaynak_yoksa_hata():
+    with pytest.raises(KaynakHatasi):
+        yoklama.sinif_devamsizlik("9-A", "2026-10-01")
