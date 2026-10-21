@@ -51,6 +51,14 @@ def test_markdown_bloklari():
     assert bl == [("h", 1, "Rapor"), ("p", "Metin kalın."), ("t", ["A", "B"], [["1", "2"]]), ("p", "• madde")]
 
 
+def test_resmi_cizelge_ustbilgi_ve_altbilgi_atilir():
+    r = [["MİLLİ EĞİTİM BAKANLIĞI", "", "", "", ""], ["İL", "", "ÇANKIRI", "", ""], ["SN", "Adı-Soyadı", "Görevi", "", "Ders"]]
+    r += [["1", "Ayşe Çelik", "Öğretmen", "", "10"], ["2", "Mehmet Öz", "Müdür", "", "5"], ["", "İmza", "", "", ""]]
+    b, s = fd._baslik_ayir(r)
+    assert b == ["SN", "Adı-Soyadı", "Görevi", "Ders"]  # boş sütun atıldı
+    assert s == [["1", "Ayşe Çelik", "Öğretmen", "10"], ["2", "Mehmet Öz", "Müdür", "5"]]
+
+
 def test_csv_noktalivirgul_ve_cp1254():
     veri = "Ad;Sınıf\nÇağla;9-A\n".encode("cp1254")
     assert fd._tablo_csv(veri) == (["Ad", "Sınıf"], [["Çağla", "9-A"]])

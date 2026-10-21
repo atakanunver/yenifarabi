@@ -2,7 +2,7 @@
 title: Tablo ve Dosya Çıktısı
 author: Farabi (Şehit Murat Ustaoğlu Anadolu Lisesi)
 version: 0.1.0
-description: Sohbete eklenen Excel/CSV/Word tablosundan sütun seçerek, çıkararak, süzerek, sıralayarak ya da doğum gününe göre dizerek yeni tablo üretir; sohbet metnini ve tabloları Word, Excel ya da PDF dosyası yapar. Yalnızca İdare.
+description: Sohbete eklenen Excel (xls/xlsx)/CSV/Word tablosundan sütun seçerek, çıkararak, süzerek, sıralayarak ya da doğum gününe göre dizerek yeni tablo üretir; sohbet metnini ve tabloları Word, Excel ya da PDF dosyası yapar. Yalnızca İdare.
 """
 
 # Bu dosya Open WebUI'ye `openwebui/kur.py` ile Tool olarak yüklenir; Open WebUI
@@ -58,6 +58,24 @@ def _tablo_xlsx(veri: bytes, sayfa: str) -> tuple[list[str], list[list[str]]]:
     return _baslik_ayir(satirlar)
 
 
+def _tablo_xls(veri: bytes, sayfa: str) -> tuple[list[str], list[list[str]]]:
+    """Eski Excel (.xls, ör. EKD çizelgesi): xlrd 2.x yalnızca bu biçimi okur."""
+    import xlrd
+
+    kitap = xlrd.open_workbook(file_contents=veri)
+    ws = kitap.sheet_by_name(sayfa) if sayfa in kitap.sheet_names() else kitap.sheet_by_index(0)
+    satirlar = []
+    for i in range(ws.nrows):
+        satir = []
+        for h in ws.row(i):
+            if h.ctype == xlrd.XL_CELL_DATE:
+                satir.append(_hucre(xlrd.xldate_as_datetime(h.value, kitap.datemode)))
+            else:
+                satir.append(_hucre(h.value))
+        satirlar.append(satir)
+    return _baslik_ayir(satirlar)
+
+
 def _tablo_csv(veri: bytes) -> tuple[list[str], list[list[str]]]:
     try:
         metin = veri.decode("utf-8-sig")
@@ -78,13 +96,20 @@ def _tablo_docx(veri: bytes, sayfa: str) -> tuple[list[str], list[list[str]]]:
 
 
 def _baslik_ayir(satirlar: list[list[str]]) -> tuple[list[str], list[list[str]]]:
-    """İlk dolu satır başlıktır; tamamen boş satırlar atılır, satırlar başlık genişliğine tamamlanır."""
+    """Başlık: ilk 15 dolu satırın en dolusu (resmî çizelgelerde üstte başlık/il/tarih satırları olur);
+    öncesi atılır. Tamamen boş satır/sütun atılır; çok sütunlu tabloda tek hücreli alt bilgi satırları atılır."""
     satirlar = [r for r in satirlar if any(h.strip() for h in r)]
     if not satirlar:
         return [], []
-    baslik = [h.strip() or f"Sütun {i + 1}" for i, h in enumerate(satirlar[0])]
-    n = len(baslik)
-    return baslik, [(r + [""] * n)[:n] for r in satirlar[1:]]
+    dolu = [sum(1 for h in r if h.strip()) for r in satirlar[:15]]
+    ham = satirlar[dolu.index(max(dolu))]
+    n = len(ham)
+    govde = [(r + [""] * n)[:n] for r in satirlar[dolu.index(max(dolu)) + 1:]]
+    if n >= 5:
+        govde = [r for r in govde if sum(1 for h in r if h.strip()) > 1]
+    tut = [j for j in range(n) if ham[j].strip() or any(r[j].strip() for r in govde)]
+    baslik = [ham[j].strip() or f"Sütun {j + 1}" for j in tut]
+    return baslik, [[r[j] for j in tut] for r in govde]
 
 
 def _sutun_bul(baslik: list[str], ad: str) -> int:
@@ -372,13 +397,15 @@ class Tools:
         veri = self._oku(f.path)
         if uzanti in ("xlsx", "xlsm"):
             return _tablo_xlsx(veri, sayfa)
+        if uzanti == "xls":
+            return _tablo_xls(veri, sayfa)
         if uzanti in ("csv", "txt"):
             return _tablo_csv(veri)
         if uzanti == "docx":
             return _tablo_docx(veri, sayfa)
         if uzanti == "pdf":
             raise ValueError("PDF'ten tablo okunamıyor; tabloyu Excel/CSV/Word olarak ekletin")
-        raise ValueError(f"{uzanti or 'bu'} dosya türü desteklenmiyor (xlsx, csv, docx)")
+        raise ValueError(f"{uzanti or 'bu'} dosya türü desteklenmiyor (xls, xlsx, csv, docx)")
 
     async def _tek_tablo(self, dosya_adi, sayfa, files, user):
         dosyalar = await self._dosyalar(files, user, (dosya_adi or "").strip())
@@ -427,7 +454,7 @@ class Tools:
         __user__: dict | None = None,
     ) -> str:
         """
-        Sohbetteki Excel/CSV/Word tablosunun sütun adlarını, satır sayısını ve ilk 3 satırını verir. Tablodan yeni tablo/dosya üretmeden ÖNCE çağır; sütun adlarını uydurma.
+        Sohbetteki Excel (xls/xlsx)/CSV/Word tablosunun sütun adlarını, satır sayısını ve ilk 3 satırını verir. Tablodan yeni tablo/dosya üretmeden ÖNCE çağır; sütun adlarını uydurma.
         :param dosya_adi: Adında bu metin geçen dosya; boşsa sohbetteki ilk dosya.
         :param sayfa: Excel için sayfa adı, Word için kaçıncı tablo (1, 2…); boşsa ilk.
         """

@@ -162,7 +162,7 @@ class Tools:
         __user__: dict | None = None,
     ) -> str:
         """
-        Sohbetteki yazı/PDF/fotoğraf/docx/xlsx'i KAYDETMEDEN okur (taranmış sayfalar yerel OCR). "Yazıyı oku/özetle", "OCR yap", "cevap hazırla" için önce bunu çağır.
+        Sohbetteki yazı/PDF/fotoğraf/docx/xlsx'i KAYDETMEDEN okur (taranmış sayfalar yerel OCR). "Yazıyı oku/özetle", "OCR yap", "cevap hazırla" için önce bunu çağır. Excel/CSV/Word TABLOSUNU yeni tabloya, PDF'e ya da Excel'e çevirmek için bunu değil tablo_bilgisi/tablo_uret kullan.
         :param dosya_adi: Adında bu metin geçen dosya; boşsa sohbetteki dosyalar (en çok 3).
         """
         user = __user__ if isinstance(__user__, dict) else {}
