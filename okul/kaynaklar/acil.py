@@ -1,4 +1,4 @@
-"""Acil durum — tahtayoklama dashboard makine API'si (:8010, X-Acil-Anahtar). Alarm mantığı orada; burası yalnızca çağırır."""
+"""Acil durum — tahtayoklama dashboard makine API'si (:80, X-Acil-Anahtar). Alarm mantığı orada; burası yalnızca çağırır."""
 
 import httpx
 from ayarlar import AYAR

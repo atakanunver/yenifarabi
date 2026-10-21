@@ -26,8 +26,8 @@ class Ayarlar:
     sms_url: str = "http://127.0.0.1:8020/api/arac/kod-sms"
     sms_anahtar: str = ""
     kazanim_esik: float = 0.7
-    # Acil durum: dashboard (:8010) makine API'si; anahtar config/gizli.json "acil_makine_anahtar" (boşsa butonlar basılamaz)
-    acil_url: str = "http://127.0.0.1:8010"
+    # Acil durum: dashboard (:80) makine API'si; anahtar config/gizli.json "acil_makine_anahtar" (boşsa butonlar basılamaz)
+    acil_url: str = "http://127.0.0.1"
     acil_anahtar: str = ""
     # Web Push (VAPID): config/gizli.json; boşsa bildirim özelliği kapalı (push.py)
     vapid_ozel: str = ""
@@ -38,6 +38,8 @@ class Ayarlar:
     whatsapp_ogrenci: str = ""
     # soruhavuzu → okul /api/soru-bildirim paylaşılan anahtarı (config/gizli.json "soru_havuzu_anahtar"); boşsa uç kapalı
     soru_anahtar: str = ""
+    # EBYS botu (Müdür PC) → /api/duyuru-ekle paylaşılan anahtarı (config/gizli.json "duyuru_anahtar"); boşsa uç kapalı
+    duyuru_anahtar: str = ""
 
 
 def yukle() -> Ayarlar:
@@ -53,6 +55,7 @@ def yukle() -> Ayarlar:
         a.whatsapp_veli = g.get("whatsapp_veli", "")
         a.whatsapp_ogrenci = g.get("whatsapp_ogrenci", "")
         a.soru_anahtar = g.get("soru_havuzu_anahtar", "")
+        a.duyuru_anahtar = g.get("duyuru_anahtar", "")
     return a
 
 

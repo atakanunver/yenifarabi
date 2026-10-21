@@ -24,6 +24,7 @@ def gecici_ortam(tmp_path, monkeypatch):
     monkeypatch.setattr(AYAR, "whatsapp_veli", "")  # gerçek davet bağlantıları gizli.json'da; testlere sızmaz
     monkeypatch.setattr(AYAR, "whatsapp_ogrenci", "")
     monkeypatch.setattr(AYAR, "soru_anahtar", "")
+    monkeypatch.setattr(AYAR, "duyuru_anahtar", "")
     monkeypatch.setattr(AYAR, "kazanim_yolu", tmp_path / "kazanimlar.json")
     monkeypatch.setattr(AYAR, "sms_anahtar", "test-anahtar")
     monkeypatch.setattr(AYAR, "acil_anahtar", "")  # gerçek alarm/SMS asla tetiklenmez; acil testleri kendisi açar + kaynaklar.acil'i mock'lar

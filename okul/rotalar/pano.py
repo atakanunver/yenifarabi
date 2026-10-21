@@ -19,7 +19,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 router = APIRouter()
 
-# Tahtalarla AYNI kaynak: tahtayoklama/data (Farabi :8010 /yapilandirma da bunu dağıtır).
+# Tahtalarla AYNI kaynak: tahtayoklama/data (Farabi :80 /yapilandirma da bunu dağıtır).
 TAHTA_DATA = AYAR.zil_yolu.parent
 KISA_MODUL = AYAR.zil_yolu.parent.parent / "dashboard" / "ders_programi.py"
 
