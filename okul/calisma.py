@@ -105,7 +105,7 @@ def serbest_baslat(conn: sqlite3.Connection, kullanici_id: int, sinif: str, ders
     duzey = maraton.duzey(sinif)
     if kazanim_id is not None and kazanim_id not in {k["id"] for k in arena_soru.kazanimlar(duzey, ders, soru_bildirim.gizli_idler(conn))}:
         raise CalismaHatasi("Bu kazanımda yeterli soru yok.")
-    g = arena._gorulen(conn, kullanici_id)  # noqa: SLF001 — Arena+Maraton'da görülenler
+    g = arena._gorulen(conn, kullanici_id)  # Arena+Maraton'da görülenler
     for r in conn.execute("SELECT soru_id FROM calisma_soru WHERE kullanici_id = ?", (kullanici_id,)):
         g[r[0]] = g.get(r[0], 0) + 1
     sorular = arena_soru.sorular(duzey, ders, list(g), 1, g, soru_bildirim.gizli_idler(conn), kazanim_id=kazanim_id)

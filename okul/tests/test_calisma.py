@@ -119,7 +119,6 @@ def _istemci(conn, kadi, sifre):
 
 
 def test_web_dogru_sik_cevaptan_once_yok_ve_yetki(conn, ornek, sahte, saat):
-    k = ornek["ogr1_k"]
     c, csrf = _istemci(conn, "101", "ali-sifre")
     assert "Konu seçerek çalış" in c.get("/ogrenci/calisma").text
     r = c.post("/ogrenci/calisma/serbest/basla", data={"csrf": csrf, "ders": "matematik", "kazanim": "7"}, follow_redirects=False)
