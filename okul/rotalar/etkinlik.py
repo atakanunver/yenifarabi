@@ -5,11 +5,12 @@ import sqlite3
 import analitik
 import etkinlik
 import push
+import soru_bildirim
 import yetki
 from deps import db_conn, render, rol
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
-from kaynaklar import KaynakHatasi, kazanim
+from kaynaklar import KaynakHatasi, arena_soru, kazanim
 from metin import sinif_seviyesi, tr_kucuk
 
 router = APIRouter(prefix="/ogretmen/hizli")
@@ -30,22 +31,33 @@ def _havuz_dersleri(sinif: str) -> tuple[list[str], bool]:
         return [], True
 
 
+def _kazanimlar(conn: sqlite3.Connection, sinif: str, havuz_ders: str) -> list[dict]:
+    if not havuz_ders or sinif_seviyesi(sinif) >= 12:  # 12. sınıf donduruldu
+        return []
+    try:
+        return arena_soru.kazanimlar(sinif_seviyesi(sinif), havuz_ders, yasak=soru_bildirim.gizli_idler(conn))
+    except KaynakHatasi:
+        return []
+
+
 @router.get("")
 def form(
-    request: Request, sinif: str = "", ders: str = "", k=Depends(OGRETMEN), conn: sqlite3.Connection = Depends(db_conn)
+    request: Request, sinif: str = "", ders: str = "", havuz_ders: str = "",
+    k=Depends(OGRETMEN), conn: sqlite3.Connection = Depends(db_conn)
 ):
     gorevler = _gorevler(conn, k)
     if not gorevler:
         return render(request, "ogretmen/hizli.html", gorevler=[], sinif="", ders="", havuz_dersleri=[], havuz_hata=False,
-                      secili_havuz="", adetler=etkinlik.ADETLER, sureler=etkinlik.SURELER)
+                      secili_havuz="", kazanimlar=[], adetler=etkinlik.ADETLER, sureler=etkinlik.SURELER)
     if not sinif:
         sinif, ders = gorevler[0]
     if (sinif, ders) not in gorevler:
         raise HTTPException(404)
     havuz, hata = _havuz_dersleri(sinif)
-    secili = tr_kucuk(ders) if tr_kucuk(ders) in havuz else ""
+    secili = havuz_ders if havuz_ders in havuz else (tr_kucuk(ders) if tr_kucuk(ders) in havuz else "")
     return render(request, "ogretmen/hizli.html", gorevler=gorevler, sinif=sinif, ders=ders, havuz_dersleri=havuz,
-                  havuz_hata=hata, secili_havuz=secili, adetler=etkinlik.ADETLER, sureler=etkinlik.SURELER)
+                  havuz_hata=hata, secili_havuz=secili, kazanimlar=_kazanimlar(conn, sinif, secili),
+                  adetler=etkinlik.ADETLER, sureler=etkinlik.SURELER)
 
 
 @router.post("")
@@ -65,9 +77,20 @@ async def ata(request: Request, arka: BackgroundTasks, k=Depends(OGRETMEN_POST),
         adet = int(str(f.get("adet", "")))
     except ValueError:
         raise HTTPException(400, "Geçersiz soru sayısı.") from None
+    secilen = None
+    if str(f.get("kazanim", "")).strip():
+        try:
+            kid = int(str(f.get("kazanim")))
+        except ValueError:
+            raise HTTPException(400, "Geçersiz kazanım.") from None
+        secilen = next((x for x in _kazanimlar(conn, sinif, havuz_ders) if x["id"] == kid), None)
+        if secilen is None:
+            raise HTTPException(400, "Bu ders için seçilen kazanımda yeterli soru yok.")
     onceki_son = conn.execute("SELECT COALESCE(MAX(id), 0) FROM odev").fetchone()[0]
     try:
-        odev_id = etkinlik.hizli_ata(conn, k["id"], sinif, ders, havuz_ders, adet, str(f.get("sure", "")), str(f.get("not", "")))
+        odev_id = etkinlik.hizli_ata(
+            conn, k["id"], sinif, ders, havuz_ders, adet, str(f.get("sure", "")), str(f.get("not", "")), secilen
+        )
     except (etkinlik.EtkinlikHatasi, KaynakHatasi) as e:
         raise HTTPException(400, str(e)) from e
     analitik.istekten(request, "ogretmen_hizli_etkinlik", str(odev_id))

@@ -19,10 +19,18 @@
   <input type="hidden" name="ders" value="{{ ders }}">
   {% if havuz_hata %}<p class="not" role="status">Soru havuzuna şu an ulaşılamıyor; biraz sonra tekrar deneyin.</p>{% endif %}
   <label for="havuz_ders">Soru havuzu dersi</label>
-  <select id="havuz_ders" name="havuz_ders" required>
+  <select id="havuz_ders" name="havuz_ders" required onchange="location.href='/ogretmen/hizli?sinif='+encodeURIComponent(this.form.sinif.value)+'&amp;ders='+encodeURIComponent(this.form.ders.value)+'&amp;havuz_ders='+encodeURIComponent(this.value)">
     {% if not secili_havuz %}<option value="">Seçin</option>{% endif %}
     {% for h in havuz_dersleri %}<option value="{{ h }}"{{ ' selected' if h == secili_havuz }}>{{ h|baslik }}</option>{% endfor %}
   </select>
+  {% if kazanimlar %}
+  <label for="kazanim">Kazanım (isteğe bağlı)</label>
+  <select id="kazanim" name="kazanim">
+    <option value="">Karışık (rastgele)</option>
+    {% for z in kazanimlar %}<option value="{{ z.id }}">{{ z.kod }} · {{ z.metin|truncate(80) }} ({{ z.adet }} soru)</option>{% endfor %}
+  </select>
+  <p class="kucuk soluk">Kazanım eşleşmesi çoğunlukla otomatik atanmıştır (tahmini). Sorular seçtiğin kazanımdan gelir; yeterli soru yoksa etkinlik atanmaz.</p>
+  {% endif %}
   <fieldset class="kart"><legend>Soru sayısı</legend>
     {% for a in adetler %}<label class="anket-secenek"><input type="radio" name="adet" value="{{ a }}"{{ ' checked' if a == 5 }}> {{ a }} soru{{ ' (çıkış bileti)' if a == 3 }}</label>{% endfor %}
   </fieldset>

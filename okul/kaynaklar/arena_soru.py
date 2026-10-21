@@ -39,22 +39,25 @@ def sorular(
     n: int = 5,
     gorulme: dict[int, int] | None = None,
     yasak: list[int] | None = None,
+    kazanim_id: int | None = None,
 ) -> list[dict]:
-    """n rastgele soru; önce görülmemişler, yetmezse en az görülenlerle tamamlanır. yasak: bildirimle gizlenenler."""
+    """n rastgele soru; önce görülmemişler, yetmezse en az görülenlerle tamamlanır. yasak: bildirimle gizlenenler.
+    kazanim_id verilirse yalnızca o kazanıma bağlı sorular (yetmezse eksik döner)."""
     haric = list(haric_ids)
     yasak = list(yasak or []) or [0]
+    kz_sql, kz_par = (" AND s.kazanim_id = %s", (kazanim_id,)) if kazanim_id is not None else ("", ())
     with _baglan() as c, c.cursor() as cur:
         cur.execute(
-            f"SELECT {_SUTUN} FROM {_KAYNAK} WHERE s.sinif = %s AND s.ders = %s AND {_F}"
+            f"SELECT {_SUTUN} FROM {_KAYNAK} WHERE s.sinif = %s AND s.ders = %s AND {_F}{kz_sql}"
             " AND s.id <> ALL(%s) AND s.id <> ALL(%s) ORDER BY random() LIMIT %s",
-            (sinif, ders, haric, yasak, n),
+            (sinif, ders, *kz_par, haric, yasak, n),
         )
         sonuc = [_satir(r) for r in cur.fetchall()]
         if len(sonuc) < n and haric:
             cur.execute(
-                f"SELECT {_SUTUN} FROM {_KAYNAK} WHERE s.sinif = %s AND s.ders = %s AND {_F}"
+                f"SELECT {_SUTUN} FROM {_KAYNAK} WHERE s.sinif = %s AND s.ders = %s AND {_F}{kz_sql}"
                 " AND s.id = ANY(%s) AND s.id <> ALL(%s)",
-                (sinif, ders, haric, yasak),
+                (sinif, ders, *kz_par, haric, yasak),
             )
             eski = [_satir(r) for r in cur.fetchall()]
             random.shuffle(eski)
@@ -63,3 +66,15 @@ def sorular(
             sonuc += eski[: n - len(sonuc)]
     random.shuffle(sonuc)
     return sonuc
+
+
+def kazanimlar(sinif: int, ders: str, yasak: list[int] | None = None, en_az: int = 3) -> list[dict]:
+    """Etkinlik için seçilebilir kazanımlar: onaylı sorusu en_az'dan çok olanlar (eşleşme tahmini, bkz. modül notu)."""
+    with _baglan() as c, c.cursor() as cur:
+        cur.execute(
+            f"SELECT k.id, k.kod, k.metin, count(*) FROM {_KAYNAK} WHERE s.sinif = %s AND s.ders = %s AND {_F}"
+            " AND s.kazanim_id IS NOT NULL AND s.id <> ALL(%s) GROUP BY k.id, k.kod, k.metin"
+            " HAVING count(*) >= %s ORDER BY k.kod",
+            (sinif, ders, list(yasak or []) or [0], en_az),
+        )
+        return [{"id": r[0], "kod": r[1], "metin": r[2], "adet": r[3]} for r in cur.fetchall()]

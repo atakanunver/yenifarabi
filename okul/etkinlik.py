@@ -46,6 +46,7 @@ def hizli_ata(
     adet: int,
     sure: str,
     not_: str = "",
+    kazanim: dict | None = None,
 ) -> int:
     """Test ödevi oluşturur ve id'sini döner. Aynı öğretmen aynı etkinliği 60 sn içinde tekrar atarsa mevcut olan döner."""
     if adet not in ADETLER:
@@ -55,7 +56,7 @@ def hizli_ata(
     if not havuz_ders or not sinif or not ders:
         raise EtkinlikHatasi("Sınıf, ders ve soru havuzu dersi seçilmeli.")
     simdi = zaman.simdi()
-    baslik = f"{HIZLI_ETIKET}: {ders} {adet} soru"
+    baslik = f"{HIZLI_ETIKET}: {ders} {adet} soru" + (f" · {kazanim['kod']}" if kazanim else "")
     onceki = conn.execute(
         "SELECT id, olusturma FROM odev WHERE ogretmen_id = ? AND sinif = ? AND ders = ? AND baslik = ?"
         " ORDER BY id DESC LIMIT 1",
@@ -64,16 +65,19 @@ def hizli_ata(
     if onceki and (simdi - datetime.strptime(onceki["olusturma"], zaman.BICIM)).total_seconds() < TEKRAR_SN:
         return onceki["id"]
     seviye = int(sinif.split("-", 1)[0])
-    sorular = arena_soru.sorular(seviye, havuz_ders, _atanmis_idler(conn, sinif), adet, yasak=soru_bildirim.gizli_idler(conn))
+    ek = {"kazanim_id": kazanim["id"]} if kazanim else {}
+    sorular = arena_soru.sorular(seviye, havuz_ders, _atanmis_idler(conn, sinif), adet, yasak=soru_bildirim.gizli_idler(conn), **ek)
     if len(sorular) < adet:
-        raise EtkinlikHatasi("Bu ders için havuzda yeterli onaylı soru yok.")
+        raise EtkinlikHatasi(
+            "Bu kazanım için havuzda yeterli onaylı soru yok." if kazanim else "Bu ders için havuzda yeterli onaylı soru yok."
+        )
     teslim = (simdi + timedelta(days=SURELER[sure][1])).strftime("%Y-%m-%d")
     aciklama = (not_ or "").strip()[:500]
     return odevler.odev_olustur(
         conn, ogretmen_id, sinif, ders, "test", baslik, aciklama, teslim,
         [
             {"metin": s["soru"], "siklar": s["secenekler"], "dogru": s["dogru_index"],
-             "kazanim": s["konu"] or "", "kaynak": f"havuz:{s['id']}"}
+             "kazanim": (kazanim["kod"] if kazanim else s["konu"]) or "", "kaynak": f"havuz:{s['id']}"}
             for s in sorular
         ],
     )

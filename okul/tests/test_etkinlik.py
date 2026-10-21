@@ -10,14 +10,16 @@ from kaynaklar import KaynakHatasi, arena_soru, kazanim
 def istemci(monkeypatch):
     cagrilar = []
 
-    def sorular(sinif, ders, haric, n=5, gorulme=None, yasak=None):
-        cagrilar.append({"sinif": sinif, "ders": ders, "haric": list(haric), "n": n})
+    def sorular(sinif, ders, haric, n=5, gorulme=None, yasak=None, kazanim_id=None):
+        cagrilar.append({"sinif": sinif, "ders": ders, "haric": list(haric), "n": n, "kazanim_id": kazanim_id})
         taban = 100 * sinif + len(haric)
         return [{"id": taban + i, "konu": f"Konu{i}", "soru": f"S{taban + i}?", "secenekler": ["a", "b", "c", "d"],
                  "dogru_index": 2, "kazanim_id": None, "kazanim_kod": None, "kazanim_metin": None} for i in range(n)]
 
     monkeypatch.setattr(arena_soru, "sorular", sorular)
     monkeypatch.setattr(kazanim, "havuz_dersleri", lambda s: ["matematik", "fizik"])
+    monkeypatch.setattr(arena_soru, "kazanimlar", lambda s, d, yasak=None, en_az=3: [
+        {"id": 7, "kod": "MAT.9.1.2", "metin": "Gerçek sayı aralıkları", "adet": 12}])
     from app import app
 
     with TestClient(app) as c:
@@ -126,3 +128,26 @@ def test_analitik_olayi(istemci, ornek, conn):
     ata(istemci, csrf)
     analitik.bosalt()
     assert conn.execute("SELECT count(*) FROM olay WHERE tur = 'ogretmen_hizli_etkinlik'").fetchone()[0] == 1
+
+
+def test_kazanim_secimi(istemci, ornek, conn, saat):
+    csrf = giris(istemci, "hoca", "hoca-sifre")
+    assert "MAT.9.1.2" in istemci.get("/ogretmen/hizli").text
+    r = ata(istemci, csrf, kazanim="7")
+    assert r.status_code == 303
+    assert istemci.cagrilar[-1]["kazanim_id"] == 7
+    oid = int(r.headers["location"].rsplit("/", 1)[1])
+    assert "MAT.9.1.2" in conn.execute("SELECT baslik FROM odev WHERE id = ?", (oid,)).fetchone()[0]
+    assert {r[0] for r in conn.execute("SELECT kazanim FROM odev_soru WHERE odev_id = ?", (oid,))} == {"MAT.9.1.2"}
+
+
+def test_kazanimsiz_atama_eskisi_gibi(istemci, ornek, conn, saat):
+    csrf = giris(istemci, "hoca", "hoca-sifre")
+    assert ata(istemci, csrf, kazanim="").status_code == 303
+    assert istemci.cagrilar[-1]["kazanim_id"] is None
+
+
+@pytest.mark.parametrize("deger", ["99", "abc"])
+def test_gecersiz_kazanim_400(istemci, ornek, deger):
+    csrf = giris(istemci, "hoca", "hoca-sifre")
+    assert ata(istemci, csrf, kazanim=deger).status_code == 400
