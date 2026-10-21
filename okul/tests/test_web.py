@@ -506,3 +506,25 @@ def test_cikis(istemci, ornek):
 def test_pwa_dosyalari(istemci):
     assert istemci.get("/manifest.webmanifest").json()["name"] == "Şehit Murat Ustaoğlu Anadolu Lisesi - DijitalOkul"
     assert "caches" in istemci.get("/sw.js").text
+
+
+def test_odev_hatirlat_gunde_bir_kez_ve_yalniz_sahibi(istemci, ornek, conn, yeni_kullanici, saat, monkeypatch):
+    import push
+
+    gonderilen = []
+    monkeypatch.setattr(push, "odev_hatirlat_bildir", lambda *a: gonderilen.append(a))
+    oid = odevler.odev_olustur(
+        conn, ornek["ogretmen"], "9-A", "matematik", "klasik", "A", "", "2026-10-20", []
+    )
+    yeni_kullanici(conn, "ogretmen", "Diğer", "diger", sifre="diger-sifre")
+    csrf = giris(istemci, "diger", "diger-sifre")
+    assert istemci.post(f"/ogretmen/odev/{oid}/hatirlat", data={"csrf": csrf}).status_code == 404
+    istemci.cookies.clear()
+    csrf = giris(istemci, "hoca", "hoca-sifre")
+    sayfa = istemci.get(f"/ogretmen/odev/{oid}").text
+    assert f"/ogretmen/odev/{oid}/hatirlat" in sayfa
+    for _ in range(2):
+        r = istemci.post(f"/ogretmen/odev/{oid}/hatirlat", data={"csrf": csrf}, follow_redirects=False)
+        assert r.status_code == 303
+    assert gonderilen == [(oid, ornek["ogretmen"])]
+    assert "Bugün hatırlatma gönderildi" in istemci.get(f"/ogretmen/odev/{oid}").text

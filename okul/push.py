@@ -22,6 +22,7 @@ log = logging.getLogger("okul.push")
 SABLONLAR = {
     "duyuru": ("Dijital Okul", "Yeni bir duyuru var.", "/duyurular"),
     "odev": ("Dijital Okul", "Yeni bir ödevin var.", "/ogrenci/odevler"),
+    "odev_hatirlat": ("Dijital Okul", "Teslim edilmemiş bir ödevin var.", "/ogrenci/odevler"),
     "pdf": ("Dijital Okul", "Yeni bir dosya paylaşıldı.", "/ogrenci/dosyalar"),
     "sohbet": ("Dijital Okul", "Yeni bir sohbet mesajı var.", "/sohbet"),
     "acil": ("Dijital Okul", "Acil durum bildirimi var!", "/acil"),
@@ -224,6 +225,23 @@ def duyuru_bildir(hedef_tur: str, hedef: str | None, yazar_id: int) -> None:
 
 def odev_bildir(sinif: str, yazar_id: int) -> None:
     _arkaplan("odev", lambda c: odev_alicilari(c, sinif, yazar_id))
+
+
+def odev_hatirlat_alicilari(conn: sqlite3.Connection, odev_id: int, yazar_id: int) -> list[int]:
+    """Ödevin sınıfında henüz teslim etmemiş öğrenciler."""
+    return [
+        r[0]
+        for r in conn.execute(
+            _ABONELI + " AND u.id IN (SELECT g.kullanici_id FROM ogrenci g JOIN odev o ON o.sinif = g.sinif"
+            " WHERE o.id = ? AND g.kullanici_id IS NOT NULL"
+            " AND NOT EXISTS (SELECT 1 FROM odev_teslim t WHERE t.odev_id = o.id AND t.ogrenci_id = g.id))",
+            (yazar_id, odev_id),
+        )
+    ]
+
+
+def odev_hatirlat_bildir(odev_id: int, yazar_id: int) -> None:
+    _arkaplan("odev_hatirlat", lambda c: odev_hatirlat_alicilari(c, odev_id, yazar_id))
 
 
 def pdf_bildir(sinif: str, yazar_id: int) -> None:

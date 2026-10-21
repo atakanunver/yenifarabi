@@ -254,10 +254,28 @@ def odev_sonuc(
         sorular=odevler.sorular(conn, odev_id) if odev["tur"] == "test" else [],
         soru_ist=odevler.soru_istatistik(conn, odev),
         eki=sinifpdf.odev_eki(conn, odev_id),
+        hatirlatildi=conn.execute(
+            "SELECT 1 FROM odev_hatirlatma WHERE odev_id = ? AND gun = ?", (odev_id, zaman.simdi().strftime("%Y-%m-%d"))
+        ).fetchone() is not None,
         fotolar={
             r[0] for r in conn.execute("SELECT ogrenci_id FROM odev_foto WHERE odev_id = ?", (odev_id,))
         },
     )
+
+
+@router.post("/odev/{odev_id}/hatirlat")
+def odev_hatirlat(
+    odev_id: int, arka: BackgroundTasks, k=Depends(OGRETMEN_POST), conn: sqlite3.Connection = Depends(db_conn)
+):
+    _odev(conn, k, odev_id)
+    cur = conn.execute(
+        "INSERT OR IGNORE INTO odev_hatirlatma (odev_id, gun) VALUES (?, ?)",
+        (odev_id, zaman.simdi().strftime("%Y-%m-%d")),
+    )
+    conn.commit()
+    if cur.rowcount:
+        arka.add_task(push.odev_hatirlat_bildir, odev_id, k["id"])
+    return RedirectResponse(f"/ogretmen/odev/{odev_id}", status_code=303)
 
 
 @router.post("/odev/{odev_id}/sil")

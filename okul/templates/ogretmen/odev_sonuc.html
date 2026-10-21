@@ -6,6 +6,12 @@
 <p class="soluk">{{ odev.sinif }} · {{ odev.ders|baslik }} · {{ 'Test' if odev.tur == 'test' else 'Klasik ödev' }} · teslim {{ odev.teslim|tarih }}</p>
 {% if eki is defined and eki %}<div class="kart"><p style="margin:0">📄 <a href="/pdf/{{ eki.pdf_id }}" target="_blank">{{ eki.baslik }}</a>{% if eki.sayfa_bas %} · s. {{ eki.sayfa_bas }}{% if eki.sayfa_bit != eki.sayfa_bas %}-{{ eki.sayfa_bit }}{% endif %}{% endif %}</p></div>{% endif %}
 <div class="kart bilgi"><p style="margin:0"><b>{{ tablo.teslim_sayisi }}</b> / {{ tablo.ogrenciler|length }} öğrenci {{ 'çözdü' if odev.tur == 'test' else 'yaptı olarak işaretledi' }}.</p></div>
+{% if hatirlatildi is defined and tablo.teslim_sayisi < tablo.ogrenciler|length %}
+<form method="post" action="/ogretmen/odev/{{ odev.id }}/hatirlat">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% if hatirlatildi %}<p class="kucuk soluk">Bugün hatırlatma gönderildi.</p>{% else %}<button class="tus">Teslim etmeyenlere hatırlat</button> <span class="kucuk soluk">(günde 1 kez; bildirim açık olanlara gider)</span>{% endif %}
+</form>
+{% endif %}
 
 {% if soru_ist is defined and soru_ist and soru_ist[0].cevaplayan %}
 <section class="kart" aria-labelledby="soru-ist">

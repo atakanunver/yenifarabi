@@ -370,3 +370,16 @@ def test_acma_karti_diger_sayfalarda_ve_kapaliyken_yok(conn, yeni_kullanici, etk
         assert 'id="push-kart"' not in c.get("/ogrenci/odevler").text
         monkeypatch.setattr(AYAR, "vapid_ozel", "")
         assert 'id="push-kart"' not in c.get("/ogrenci").text
+
+
+def test_odev_hatirlat_alicilari_yalniz_teslim_etmeyenler(conn, yeni_kullanici):
+    import odevler
+
+    k = _kur(conn, yeni_kullanici)
+    oid = odevler.odev_olustur(conn, k["ogretmen"], "9-A", "matematik", "klasik", "A", "", "2026-10-20", [])
+    assert push.odev_hatirlat_alicilari(conn, oid, k["ogretmen"]) == [k["ogr9"]]
+    conn.execute(
+        "INSERT INTO odev_teslim (odev_id, ogrenci_id, durum, zaman) VALUES (?, 1, 'yapti', '2026-10-12 10:00:00')", (oid,)
+    )
+    conn.commit()
+    assert push.odev_hatirlat_alicilari(conn, oid, k["ogretmen"]) == []

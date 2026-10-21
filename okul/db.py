@@ -619,10 +619,19 @@ CREATE TABLE soru_inceleme (
 CREATE INDEX soru_inceleme_soru ON soru_inceleme(soru_id);
 """
 
+# Ödev hatırlatma push'unun günlük sınırı: ödev başına günde 1 gönderim.
+SEMA_V24 = """
+CREATE TABLE odev_hatirlatma (
+    odev_id  INTEGER NOT NULL REFERENCES odev(id) ON DELETE CASCADE,
+    gun      TEXT NOT NULL,
+    PRIMARY KEY (odev_id, gun)
+);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
-    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23,
+    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24,
 ]
 
 
