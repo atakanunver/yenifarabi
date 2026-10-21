@@ -1,7 +1,7 @@
-"""server/atos_wiki.py — Atos (Open WebUI) wiki: kayıtlı tablo/çalışma dosyaları (2026-10-21).
+"""server/atos_wiki.py — Atos (Open WebUI) wiki: kayıtlı dosyalar + Atos'un yazdığı not sayfaları (LLM wiki, 2026-10-21).
 
 İdare, sohbete eklediği Excel/Word/PDF tablolarını `wiki_kaydet` ile buraya alır; sonra aranır,
-okunur ve `wiki_tablo_uret` ile yeni tablo/PDF/Excel/Word türetilir (dönüştürme araç tarafında).
+okunur ve `tablo_uret(wiki_id)` ile yeni tablo/PDF/Excel/Word türetilir (dönüştürme araç tarafında).
 Her kayıt iki dosya: `<id>.json` (gerçek veri, TC dahil — kullanıcı kararı 2026-10-21) ve `<id>.md`
 (okunur sayfa; TC maskeli). `index.md` her yazımda yeniden üretilir. Veri yalnızca yerelde, yalnızca
 İdare'ye açık araçtan erişilir. İçerik loga YAZILMAZ, yalnızca id.
@@ -31,6 +31,11 @@ router = APIRouter(prefix="/api/webui/wiki", dependencies=[Depends(webui_anahtar
 
 DIZIN = Path("/mnt/farabi-data/farabi/atos_wiki")
 AZAMI_SATIR = 20000  # kayıt başına toplam satır
+AYRIK_ADLAR = {"index", "log"}  # index.md / log.md'nin üzerine yazılmasın
+AZAMI_NOT = 20000  # Atos'un yazdığı not sayfasının en çok karakteri
+AZAMI_SABIT = 500  # "sabit" (her mesajda hatırlatılan) sayfanın en çok karakteri
+SABIT_TOPLAM = 1000  # sabit sayfaların birlikte en çok karakteri (bağlama giren)
+_LINK_RE = re.compile(r"\[\[([^\]\n|]{1,80})(?:\|[^\]\n]*)?\]\]")
 AZAMI_PDF_BAYT = 40 * 1024 * 1024
 ISTANBUL = ZoneInfo("Europe/Istanbul")
 _TR = str.maketrans("ığüşöçİĞÜŞÖÇ", "igusocIGUSOC")
@@ -76,6 +81,12 @@ class KaydetIstek(BaseModel):
     ad: str = Field(..., min_length=1, max_length=80)
     kaynak: str = Field("", max_length=200)
     sayfalar: list[Sayfa] = Field(..., min_length=1, max_length=40)
+
+
+class YazIstek(BaseModel):
+    ad: str = Field(..., min_length=1, max_length=80)
+    icerik: str = Field(..., min_length=1, max_length=AZAMI_NOT)
+    sabit: bool = False
 
 
 class AraIstek(BaseModel):
@@ -136,11 +147,32 @@ def _kayitlar() -> list[dict]:
 
 
 def _indeks_yaz() -> None:
-    satir = ["# Atos Wiki", "", "| Sayfa | Kaynak | Tarih | Sayfa/satır |", "|---|---|---|---|"]
+    satir = ["# Atos Wiki", "", "| Sayfa | Tür | Kaynak | Tarih | Sayfa/satır |", "|---|---|---|---|---|"]
     for k in _kayitlar():
         toplam = sum(len(s["satirlar"]) for s in k["sayfalar"])
-        satir.append(f"| [{k['ad']}]({k['id']}.md) | {k['kaynak']} | {k['tarih']} | {len(k['sayfalar'])}/{toplam} |")
+        tur = "not (sabit)" if k.get("sabit") else k.get("tur", "dosya")
+        satir.append(f"| [{k['ad']}]({k['id']}.md) | {tur} | {k['kaynak']} | {k['tarih']} | {len(k['sayfalar'])}/{toplam} |")
     _yaz(DIZIN / "index.md", "\n".join(satir) + "\n")
+
+
+def _simdi() -> str:
+    return datetime.now(ISTANBUL).strftime("%Y-%m-%d %H:%M")
+
+
+def _log_yaz(olay: str, kid: str, ad: str) -> None:
+    """log.md: değiştirilemez günlük (yalnız sona eklenir)."""
+    yol = DIZIN / "log.md"
+    onceki = yol.read_text(encoding="utf-8") if yol.exists() else "# Atos Wiki günlüğü\n\n"
+    _yaz(yol, onceki + f"- {_simdi()} | {olay} | [[{ad}]] (`{kid}`)\n")
+
+
+def _baglantilar(metin: str) -> list[str]:
+    """Metindeki [[Sayfa Adı]] bağlantılarının kimlikleri (sıra korunur, tekrarsız)."""
+    return list(dict.fromkeys(_slug(m) for m in _LINK_RE.findall(metin)))
+
+
+def _gelenler(kid: str) -> list[str]:
+    return [k["id"] for k in _kayitlar() if k["id"] != kid and kid in _baglantilar(" ".join(s.get("metin", "") for s in k["sayfalar"]))]
 
 
 def _ozet(k: dict) -> dict:
@@ -149,6 +181,7 @@ def _ozet(k: dict) -> dict:
         "ad": k["ad"],
         "kaynak": k["kaynak"],
         "tarih": k["tarih"],
+        "tur": k.get("tur", "dosya"),
         "sayfalar": [
             {"ad": s["ad"], "sutunlar": s["baslik"], "satir": len(s["satirlar"]), "metin": len(s.get("metin", ""))}
             for s in k["sayfalar"]
@@ -175,6 +208,8 @@ def kaydet(istek: KaydetIstek):
     govde = json.dumps(sayfalar, ensure_ascii=False, sort_keys=True)
     ozet = hashlib.sha256(govde.encode()).hexdigest()
     kid = _slug(istek.ad)
+    if kid in AYRIK_ADLAR:
+        return {"durum": "hata", "mesaj": "Bu sayfa adı ayrılmış; başka bir ad seç."}
     DIZIN.mkdir(parents=True, exist_ok=True)
     yol = DIZIN / f"{kid}.json"
     onceki = None
@@ -183,6 +218,8 @@ def kaydet(istek: KaydetIstek):
             onceki = json.loads(yol.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             onceki = None
+    if onceki and onceki.get("tur") == "not":
+        return {"durum": "hata", "mesaj": "Bu ad Atos'un yazdığı bir not sayfasına ait; başka bir ad seç."}
     if onceki and onceki.get("hash") == ozet:
         return {"durum": "zaten_vardi", "id": kid, "satir": toplam}
     kayit = {
@@ -196,6 +233,7 @@ def kaydet(istek: KaydetIstek):
     _yaz(yol, json.dumps(kayit, ensure_ascii=False))
     _yaz(DIZIN / f"{kid}.md", _md(kayit))
     _indeks_yaz()
+    _log_yaz("güncellendi" if onceki else "dosyadan kaydedildi", kid, kayit["ad"])
     log.info("wiki kaydedildi: %s (%d sayfa, %d satır)", kid, len(sayfalar), toplam)
     return {"durum": "guncellendi" if onceki else "kaydedildi", "id": kid, "sayfa": len(sayfalar), "satir": toplam}
 
@@ -258,7 +296,68 @@ def getir(istek: GetirIstek):
             s["satirlar"] = [[maskele(v) for v in r] for r in s["satirlar"]]
             s["metin"] = maskele(s.get("metin", ""))
     kayit.pop("hash", None)
+    metin = " ".join(s.get("metin", "") for s in kayit["sayfalar"])
+    kayit["baglantilar"] = [{"id": b, "var": (DIZIN / f"{b}.json").exists()} for b in _baglantilar(metin)]
+    kayit["gelen"] = _gelenler(istek.id)
     return {"durum": "ok", "kayit": kayit}
+
+
+@router.post("/yaz")
+def yaz(istek: YazIstek):
+    """Atos'un yazdığı not sayfası (markdown, [[bağlantı]]); güncellemede eski sürüm .gecmis/ altına arşivlenir. Silme yok."""
+    icerik = istek.icerik.strip()
+    if istek.sabit and len(icerik) > AZAMI_SABIT:
+        return {"durum": "hata", "mesaj": f"Sabit sayfa en çok {AZAMI_SABIT} karakter olabilir (bu {len(icerik)})."}
+    kid = _slug(istek.ad)
+    if kid in AYRIK_ADLAR:
+        return {"durum": "hata", "mesaj": "Bu sayfa adı ayrılmış; başka bir ad seç."}
+    DIZIN.mkdir(parents=True, exist_ok=True)
+    yol = DIZIN / f"{kid}.json"
+    onceki = None
+    if yol.exists():
+        try:
+            onceki = json.loads(yol.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            onceki = None
+        if onceki and onceki.get("tur") != "not":
+            return {"durum": "hata", "mesaj": "Bu ad dosyadan kaydedilmiş bir sayfaya ait; başka bir ad seç."}
+    ozet = hashlib.sha256((icerik + str(istek.sabit)).encode()).hexdigest()
+    if onceki and onceki.get("hash") == ozet:
+        return {"durum": "zaten_vardi", "id": kid}
+    if onceki:
+        gecmis = DIZIN / ".gecmis" / kid
+        gecmis.mkdir(parents=True, exist_ok=True)
+        _yaz(gecmis / (datetime.now(ISTANBUL).strftime("%Y%m%d-%H%M%S") + ".json"), json.dumps(onceki, ensure_ascii=False))
+    kayit = {
+        "id": kid,
+        "ad": istek.ad.strip(),
+        "kaynak": "Atos notu",
+        "tarih": _simdi(),
+        "hash": ozet,
+        "tur": "not",
+        "sabit": istek.sabit,
+        "sayfalar": [{"ad": "Not", "baslik": [], "satirlar": [], "metin": icerik}],
+    }
+    _yaz(yol, json.dumps(kayit, ensure_ascii=False))
+    _yaz(DIZIN / f"{kid}.md", _md(kayit))
+    _indeks_yaz()
+    _log_yaz("güncellendi" if onceki else "yazıldı", kid, kayit["ad"])
+    eksik = [b for b in _baglantilar(icerik) if not (DIZIN / f"{b}.json").exists() and b != kid]
+    log.info("wiki notu yazıldı: %s (%d karakter)", kid, len(icerik))
+    return {"durum": "guncellendi" if onceki else "yazildi", "id": kid, "eksik_baglantilar": eksik}
+
+
+@router.post("/sabit")
+def sabit():
+    """Her mesajda modele hatırlatılan kısa sayfalar (toplam SABIT_TOPLAM karakter bütçesi)."""
+    sonuc, kalan = [], SABIT_TOPLAM
+    for k in sorted((k for k in _kayitlar() if k.get("sabit")), key=lambda k: k["tarih"]):
+        metin = maskele(" ".join(s.get("metin", "") for s in k["sayfalar"]).strip())
+        if len(metin) > kalan:
+            break
+        kalan -= len(metin)
+        sonuc.append({"ad": k["ad"], "tarih": k["tarih"], "metin": metin})
+    return {"durum": "ok", "sayfalar": sonuc}
 
 
 @router.post("/pdf-tablo")

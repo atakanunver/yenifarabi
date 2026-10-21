@@ -105,9 +105,8 @@ class Tools:
         __user__: dict | None = None,
     ) -> str:
         """
-        Sohbete eklenmiş belgeleri okulun kalıcı belge arşivine kaydeder ve kaynak aramasına (RAG) ekler; böylece belge sonraki tüm sohbetlerde kullanılabilir. Kullanıcı "kalıcı hafızaya kaydet", "RAG'a ekle", "arşive kaydet", "sisteme yükle" gibi bir istekte bulunduğunda çağır.
-        :param dosya_adi: Yalnızca adında bu metin geçen dosyaları kaydet; boş bırakılırsa sohbetteki tüm dosyalar kaydedilir.
-        :return: Her dosya için kayıt sonucu.
+        Sohbetteki belgeleri okulun kalıcı belge arşivine kaydeder ve kaynak aramasına ekler ("arşive kaydet", "sisteme yükle").
+        :param dosya_adi: Adında bu metin geçen dosyalar; boşsa hepsi.
         """
         user = __user__ if isinstance(__user__, dict) else {}
         try:

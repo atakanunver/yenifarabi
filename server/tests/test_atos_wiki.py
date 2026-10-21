@@ -127,3 +127,69 @@ def test_metin_ucu_belge_oku_sonucunu_aktarir(ist, monkeypatch):
     monkeypatch.setattr(belge_arsiv, "belge_oku", lambda i: {"durum": "ok", "metin": "m", "sayfa": 1, "ad": i.ad})
     y = c.post("/api/webui/wiki/metin", headers=B, json={"ad": "a.pdf", "icerik_b64": "AA=="}).json()
     assert y == {"durum": "ok", "metin": "m"}
+
+
+def _yaz(c, ad, icerik, sabit=False):
+    return c.post("/api/webui/wiki/yaz", headers=B, json={"ad": ad, "icerik": icerik, "sabit": sabit}).json()
+
+
+def test_yaz_not_sayfasi_md_indeks_log(ist):
+    c, d = ist
+    r = _yaz(c, "Nöbet Düzeni", "Nöbet pazartesi günleri güncellenir. Bkz. [[Okul Kuralları]]")
+    assert r == {"durum": "yazildi", "id": "nobet-duzeni", "eksik_baglantilar": ["okul-kurallari"]}
+    assert "[[Okul Kuralları]]" in (d / "nobet-duzeni.md").read_text(encoding="utf-8")
+    assert "not" in (d / "index.md").read_text(encoding="utf-8")
+    assert "yazıldı | [[Nöbet Düzeni]]" in (d / "log.md").read_text(encoding="utf-8")
+
+
+def test_yaz_guncelleme_eski_surumu_arsivler_ve_ayni_icerik_atlanir(ist):
+    c, d = ist
+    _yaz(c, "Not", "birinci")
+    assert _yaz(c, "Not", "birinci")["durum"] == "zaten_vardi"
+    assert _yaz(c, "Not", "ikinci")["durum"] == "guncellendi"
+    gecmis = list((d / ".gecmis" / "not").glob("*.json"))
+    assert len(gecmis) == 1 and "birinci" in gecmis[0].read_text(encoding="utf-8")
+    assert "ikinci" in (d / "not.md").read_text(encoding="utf-8") and "birinci" not in (d / "not.md").read_text(encoding="utf-8")
+    log = (d / "log.md").read_text(encoding="utf-8")
+    assert log.count("yazıldı") == 1 and log.count("güncellendi") == 1
+
+
+def test_yaz_dosya_sayfasinin_ustune_yazmaz_ve_ayrik_adlar(ist):
+    c, _ = ist
+    _kaydet(c)
+    assert _yaz(c, "EKD Çizelgesi", "x")["durum"] == "hata"
+    assert _yaz(c, "Index", "x")["durum"] == "hata" and _yaz(c, "Log", "x")["durum"] == "hata"
+    r = c.post("/api/webui/wiki/kaydet", headers=B, json={"ad": "Log", "kaynak": "x", "sayfalar": [SAYFA]}).json()
+    assert r["durum"] == "hata"
+    _yaz(c, "Bir Not", "x")
+    r = c.post("/api/webui/wiki/kaydet", headers=B, json={"ad": "Bir Not", "kaynak": "x", "sayfalar": [SAYFA]}).json()
+    assert r["durum"] == "hata"  # not sayfasını dosya kaydı ezmez
+
+
+def test_getir_baglantilar_ve_gelenler(ist):
+    c, _ = ist
+    _yaz(c, "Okul Kuralları", "Genel kurallar.")
+    _yaz(c, "Nöbet", "Bkz. [[Okul Kuralları]] ve [[Olmayan Sayfa]]")
+    n = c.post("/api/webui/wiki/getir", headers=B, json={"id": "nobet"}).json()["kayit"]
+    assert {"id": "okul-kurallari", "var": True} in n["baglantilar"] and {"id": "olmayan-sayfa", "var": False} in n["baglantilar"]
+    k = c.post("/api/webui/wiki/getir", headers=B, json={"id": "okul-kurallari"}).json()["kayit"]
+    assert k["gelen"] == ["nobet"]
+
+
+def test_sabit_sayfalar_ve_sinirlar(ist):
+    c, _ = ist
+    assert _yaz(c, "Uzun", "x" * 501, sabit=True)["durum"] == "hata"
+    _yaz(c, "Kural 1", "Telefonlar kilitli kutuda tutulur.", sabit=True)
+    _yaz(c, "Normal", "sabit değil")
+    y = c.post("/api/webui/wiki/sabit", headers=B).json()
+    assert [p["ad"] for p in y["sayfalar"]] == ["Kural 1"]
+    for i in range(5):
+        _yaz(c, f"Kural {i + 2}", "k" * 400, sabit=True)
+    assert sum(len(p["metin"]) for p in c.post("/api/webui/wiki/sabit", headers=B).json()["sayfalar"]) <= w.SABIT_TOPLAM
+
+
+def test_ara_not_sayfasini_bulur(ist):
+    c, _ = ist
+    _yaz(c, "Gezi", "Mayıs ayında Çanakkale gezisi yapılacak.")
+    y = c.post("/api/webui/wiki/ara", headers=B, json={"sorgu": "canakkale"}).json()["sonuclar"][0]
+    assert y["id"] == "gezi" and y["tur"] == "not"

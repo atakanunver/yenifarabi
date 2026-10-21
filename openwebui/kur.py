@@ -36,8 +36,6 @@ KAPALI_HESAPLAR = ("ogretmen@farabi.local", "idare@farabi.local", "tahta@farabi.
 BELGE_ARAC_ID = "farabi_belge"  # yalnızca İdare: evrakı mudur/'a yazıp RAG'e yükler
 DOSYA_ARAC_ID = "farabi_dosya"  # yalnızca İdare: tablodan yeni tablo, sohbeti Word/Excel/PDF yapma
 SMS_ARAC_ID = "farabi_sms"  # yalnızca İdare: yönetime SMS hatırlatma / acil SMS, veli SMS'i
-HAFIZA_ARAC_ID = "farabi_hafiza"  # yalnızca İdare: ortak okul hafızası (hafiza: true modlara bağlanır)
-HAFIZA_API_URL = "http://127.0.0.1:8000/api/webui/hafiza"
 WIKI_API_URL = "http://127.0.0.1:8000/api/webui/wiki"
 SMS_API_URL = "http://127.0.0.1:8020/api/arac"
 GOREV_MODEL_ID = "farabi-gorev"  # yalnızca arka plan görevleri (başlık) için, düşünme kapalı
@@ -98,7 +96,7 @@ def model_govdesi(mod: dict, cekirdek: str, ek: str, grup_idleri: dict[str, str]
             "filterIds": [FILTRE_ID],
             "farabi_kapsam": mod["kapsam"],
             "farabi_think": bool(mod["think"]),
-            "farabi_hafiza": bool(mod.get("hafiza")),
+            "farabi_hafiza": bool(mod.get("hafiza")),  # filtre: wiki sabit sayfalarını (admin) bağlama ekler
         },
         # think BURAYA KONMAZ: Open WebUI model parametrelerini sohbet
         # ayarlarının üzerine yazar; varsayılanı filtre (farabi_think) verir.
@@ -107,7 +105,7 @@ def model_govdesi(mod: dict, cekirdek: str, ek: str, grup_idleri: dict[str, str]
                            "permission": "read"} for g in mod["gruplar"]],
         "is_active": True,
     }
-    araclar = list(arac_idleri) + ([HAFIZA_ARAC_ID] if mod.get("hafiza") else [])
+    araclar = list(arac_idleri)
     if araclar:
         # Okul Bilgisi aracı: native araç çağrısı; Open WebUI yerleşik araçları
         # (bellek, sohbetler, web...) kapalı — yonetim_model_govdesi ile aynı gerekçe.
@@ -330,18 +328,12 @@ def belge_araci_kur(api: Api, webui_key: str, grup_idleri: dict[str, str]) -> No
                       "api_key": webui_key, "zaman_asimi_sn": 660.0})
 
 
-def dosya_araci_kur(api: Api, webui_key: str, grup_idleri: dict[str, str]) -> None:
+def dosya_araci_kur(api: Api, webui_key: str, grup_idleri: dict[str, str], sms_key: str = "") -> None:
     _yalniz_idare_araci_kur(
         api, DOSYA_ARAC_ID, "Tablo ve Dosya Çıktısı", "farabi_dosya_araci.py",
         "Excel/CSV/Word/PDF tablosundan yeni tablo; sohbeti Word, Excel, PDF yapma; Atos wiki (kayıtlı tablolar). Yalnızca İdare.",
-        grup_idleri, {"wiki_url": WIKI_API_URL, "api_key": webui_key, "zaman_asimi_sn": 120.0})
-
-
-def hafiza_araci_kur(api: Api, webui_key: str, grup_idleri: dict[str, str]) -> None:
-    _yalniz_idare_araci_kur(
-        api, HAFIZA_ARAC_ID, "Atos Hafıza", "farabi_hafiza_araci.py",
-        "Okulun ortak kalıcı hafızası: onaylı kayıt, arama, unutma. Yalnızca İdare.",
-        grup_idleri, {"api_url": HAFIZA_API_URL, "api_key": webui_key, "zaman_asimi_sn": 20.0})
+        grup_idleri, {"wiki_url": WIKI_API_URL, "api_key": webui_key, "sms_api_url": SMS_API_URL,
+                      "sms_api_key": sms_key, "zaman_asimi_sn": 120.0})
 
 
 def sms_anahtari_oku() -> str | None:
@@ -472,8 +464,7 @@ def main() -> int:
     hesaplari_kapat(api)
     okul = okulu_hazirla(api, env, grup_idleri)
     belge_araci_kur(api, webui_key, grup_idleri)
-    hafiza_araci_kur(api, webui_key, grup_idleri)
-    dosya_araci_kur(api, webui_key, grup_idleri)
+    dosya_araci_kur(api, webui_key, grup_idleri, sms_anahtari_oku() or "")
     sms_var = sms_araci_kur(api, grup_idleri)
     filtreyi_kur(api, webui_key, okul)
     araclar = ([OKUL_ARAC_ID] if okul else []) + [BELGE_ARAC_ID, DOSYA_ARAC_ID] + ([SMS_ARAC_ID] if sms_var else [])

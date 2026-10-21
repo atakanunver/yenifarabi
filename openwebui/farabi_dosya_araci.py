@@ -17,6 +17,7 @@ import io
 import re
 import uuid
 from datetime import date, datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import httpx
@@ -30,6 +31,44 @@ MIME = {
     "pdf": "application/pdf",
 }
 _TR = str.maketrans("ığüşöçİĞÜŞÖÇ", "igusocIGUSOC")
+
+
+# Öğrenci tablosunda kayıttan doldurulabilen sütunlar: normalize ad (eş anlamlılar) -> (başlık, kayıttan değer).
+# Burada olmayan her sütun (Beden, Ayakkabı No…) BOŞ bırakılır, uydurulmaz.
+def _yas(dogum: str, bugun: date) -> str:
+    try:
+        d = datetime.strptime(dogum, "%Y-%m-%d").date()
+    except ValueError:
+        return ""
+    return str(bugun.year - d.year - ((bugun.month, bugun.day) < (d.month, d.day)))
+
+
+def _tarih_gg(dogum: str) -> str:
+    p = (dogum or "").split("-")
+    return f"{p[2]}.{p[1]}.{p[0]}" if len(p) == 3 else ""
+
+
+def _veli(o: dict, rol: str, alan: str) -> str:
+    return next((v[alan] for v in o.get("veliler") or [] if rol in (v.get("rol") or "").lower()), "")
+
+
+_OGRENCI_ALANLARI = {
+    ("adsoyad", "ogrenciadsoyad", "ogrenciadi", "adisoyadi", "isim", "ad"): ("Ad Soyad", lambda o, b: o["ad_soyad"]),
+    ("okulno", "numara", "numarasi", "no", "ogrencino", "ogrencinumarasi"): ("Okul No", lambda o, b: str(o.get("okul_no") or "")),
+    ("sinif", "sinifi"): ("Sınıf", lambda o, b: o["sinif"]),
+    ("dogumtarihi", "dogumtarih"): ("Doğum Tarihi", lambda o, b: _tarih_gg(o.get("dogum_tarihi", ""))),
+    ("yas",): ("Yaş", lambda o, b: _yas(o.get("dogum_tarihi", ""), b)),
+    ("telefon", "ogrencitelefon", "ogrencitelefonu"): ("Öğrenci Telefon", lambda o, b: o.get("ogrenci_telefon", "")),
+    ("anneadi", "annead"): ("Anne Adı", lambda o, b: _veli(o, "anne", "ad_soyad")),
+    ("annetelefon", "annetelefonu"): ("Anne Telefon", lambda o, b: _veli(o, "anne", "telefon")),
+    ("babaadi", "babaad"): ("Baba Adı", lambda o, b: _veli(o, "baba", "ad_soyad")),
+    ("babatelefon", "babatelefonu"): ("Baba Telefon", lambda o, b: _veli(o, "baba", "telefon")),
+}
+
+
+def _ogrenci_alani(ad: str):
+    k = _norm(ad)
+    return next((v for anahtarlar, v in _OGRENCI_ALANLARI.items() if k in anahtarlar), None)
 
 
 def _norm(s: str) -> str:
@@ -178,9 +217,13 @@ def donustur(
     sirala: str = "",
     azalan: bool = False,
     dogum_gunune_gore: bool = False,
+    bos_sutunlar: str = "",
 ) -> tuple[list[str], list[list[str]]]:
-    """Seçilen sütunları tutar/çıkarır, süzer, sıralar; hata durumunda ValueError(Türkçe mesaj)."""
+    """Seçilen sütunları tutar/çıkarır, süzer, sıralar; boş sütun ekler; hata durumunda ValueError(Türkçe mesaj)."""
     satirlar = [list(r) for r in satirlar]
+    for yeni in _liste(bos_sutunlar):  # elle doldurulacak boş sütunlar (Beden, Ayakkabı No…); `sutunlar` ile yerleri belirlenebilir
+        baslik = [*baslik, yeni]
+        satirlar = [[*r, ""] for r in satirlar]
     if filtre_sutun:
         i = _sutun_bul(baslik, filtre_sutun)
         k = _norm(filtre_deger)
@@ -370,6 +413,8 @@ class Tools:
     class Valves(BaseModel):
         wiki_url: str = "http://127.0.0.1:8000/api/webui/wiki"  # farabi-api atos_wiki.py
         api_key: str = ""
+        sms_api_url: str = "http://127.0.0.1:8020/api/arac"  # öğrenci kaydı (salt okunur, ogrenci-iletisim)
+        sms_api_key: str = ""
         zaman_asimi_sn: float = 120.0
 
     def __init__(self):
@@ -504,9 +549,9 @@ class Tools:
         __user__: dict | None = None,
     ) -> str:
         """
-        Sohbetteki Excel (xls/xlsx)/CSV/Word tablosunun sütun adlarını, satır sayısını ve ilk 3 satırını verir. Tablodan yeni tablo/dosya üretmeden ÖNCE çağır; sütun adlarını uydurma.
-        :param dosya_adi: Adında bu metin geçen dosya; boşsa sohbetteki ilk dosya.
-        :param sayfa: Excel için sayfa adı, Word için kaçıncı tablo (1, 2…); boşsa ilk.
+        Sohbetteki Excel/CSV/Word/PDF tablosunun sütunlarını, satır sayısını ve ilk 3 satırını verir (TC maskeli). Dosya üretmeden önce çağır; sütun adı uydurma.
+        :param dosya_adi: Dosya adında geçen metin; boşsa ilk dosya.
+        :param sayfa: Excel sayfa adı / Word-PDF kaçıncı tablo; boşsa ilk.
         """
         user = __user__ if isinstance(__user__, dict) else {}
         try:
@@ -524,6 +569,7 @@ class Tools:
     async def tablo_uret(
         self,
         dosya_adi: str = "",
+        wiki_id: str = "",
         sutunlar: str = "",
         cikar: str = "",
         filtre_sutun: str = "",
@@ -531,6 +577,7 @@ class Tools:
         sirala: str = "",
         azalan: bool = False,
         dogum_gunune_gore: bool = False,
+        bos_sutunlar: str = "",
         bicim: str = "xlsx",
         baslik: str = "",
         sayfa: str = "",
@@ -538,31 +585,45 @@ class Tools:
         __user__: dict | None = None,
     ) -> str:
         """
-        Sohbetteki tablodan yeni bir tablo üretip Excel/Word/PDF dosyası yapar: "TC'siz tablo", "yalnız okul no ve ad", "9-A'dakiler", "doğum günü listesi" gibi. Önce tablo_bilgisi ile sütun adlarını gör.
-        :param dosya_adi: Kaynak dosya (adında geçen metin); boşsa ilk dosya.
-        :param sutunlar: Tutulacak sütunlar, virgülle ve istenen sırayla (boşsa hepsi). Örn. "Okul No, Ad Soyad".
-        :param cikar: Çıkarılacak sütunlar, virgülle. Örn. "TC Kimlik No" (TC'siz tablo).
-        :param filtre_sutun: Süzülecek sütun (örn. "Sınıf").
-        :param filtre_deger: Bu metni içeren satırlar kalır (örn. "9-A").
+        Tablodan yeni tablo üretip Excel/Word/PDF yapar (TC'siz, seçili sütunlar, süzme, sıralama, doğum günü listesi, boş sütun). Kaynak: sohbet dosyası ya da wiki sayfası (wiki_id). Önce tablo_bilgisi / wiki_oku ile sütunları gör.
+        :param dosya_adi: Kaynak sohbet dosyası (adında geçen metin); boşsa ilk.
+        :param wiki_id: Doluysa kaynak wiki sayfasıdır (wiki_ara verir).
+        :param sutunlar: Tutulacak sütunlar, virgüllü ve sıralı; boşsa hepsi.
+        :param cikar: Çıkarılacak sütunlar (örn. "TC").
+        :param filtre_sutun: Süzülecek sütun.
+        :param filtre_deger: Bu metni içeren satırlar kalır.
         :param sirala: Sıralanacak sütun.
-        :param azalan: true ise büyükten küçüğe.
-        :param dogum_gunune_gore: true ise doğum tarihi sütunu "Doğum Günü" (GG.AA) olur ve ay-gün sırasına dizilir.
-        :param bicim: xlsx, docx, pdf; virgülle birden fazla olabilir (örn. "xlsx,pdf").
-        :param baslik: Belge başlığı ve dosya adı.
-        :param sayfa: Excel sayfa adı / Word kaçıncı tablo; boşsa ilk.
+        :param azalan: true: büyükten küçüğe.
+        :param dogum_gunune_gore: true: "Doğum Günü" (GG.AA) listesi.
+        :param bos_sutunlar: Eklenecek boş sütunlar, virgüllü (örn. "Beden, Ayakkabı No"); yerleri sutunlar sırasıyla belirlenir.
+        :param bicim: xlsx, docx, pdf (virgülle birden fazla).
+        :param baslik: Belge başlığı / dosya adı.
+        :param sayfa: Excel sayfa adı, kaçıncı tablo ya da wiki sekmesi; boşsa ilk.
         """
         user = __user__ if isinstance(__user__, dict) else {}
         try:
-            f, baslik_l, satirlar = await self._tek_tablo(dosya_adi, sayfa, __files__, user)
+            if (wiki_id or "").strip():
+                y = await self._sunucu("getir", {"id": wiki_id.strip(), "maskele": False})
+                if y is None:
+                    return self._WIKI_HATA + " Dosya hazır dediğini SÖYLEME."
+                if y.get("durum") != "ok":
+                    return y.get("mesaj", "Wiki sayfası bulunamadı.") + " Dosya üretilmedi."
+                k = y["kayit"]
+                sec = [t for t in k["sayfalar"] if t["baslik"] and (not sayfa or _norm(sayfa) in _norm(t["ad"]))]
+                if not sec:
+                    return "Böyle bir sayfa/sekme yok: " + ", ".join(t["ad"] for t in k["sayfalar"]) + ". Dosya üretilmedi."
+                baslik_l, satirlar, varsayilan = sec[0]["baslik"], sec[0]["satirlar"], f"{k['ad']} {sec[0]['ad']}"
+            else:
+                f, baslik_l, satirlar = await self._tek_tablo(dosya_adi, sayfa, __files__, user)
+                varsayilan = f.filename.rsplit(".", 1)[0] + "_yeni"
             b2, s2 = donustur(
-                baslik_l, satirlar, sutunlar, cikar, filtre_sutun, filtre_deger, sirala, azalan, dogum_gunune_gore
+                baslik_l, satirlar, sutunlar, cikar, filtre_sutun, filtre_deger, sirala, azalan, dogum_gunune_gore, bos_sutunlar
             )
         except ValueError as e:
-            return f"Tablo üretilemedi: {e}. Mevcut sütunlar için tablo_bilgisi'ni çağır; dosya hazır dediğini SÖYLEME."
+            return f"Tablo üretilemedi: {e}. Sütunlar için tablo_bilgisi / wiki_oku'yu çağır; dosya hazır dediğini SÖYLEME."
         except Exception:  # noqa: BLE001
             return "Dosya okunamadı; tablo üretilmedi."
-        ad = (baslik or "").strip() or f.filename.rsplit(".", 1)[0] + "_yeni"
-        return await self._yeni_dosya(b2, s2, ad, bicim, user)
+        return await self._yeni_dosya(b2, s2, (baslik or "").strip() or varsayilan, bicim, user)
 
     async def _yeni_dosya(self, b2, s2, ad, bicim, user) -> str:
         if not s2:
@@ -578,10 +639,10 @@ class Tools:
         __user__: dict | None = None,
     ) -> str:
         """
-        Verilen metni (sohbet cevabı, liste, Markdown tablo) Word, Excel ya da PDF dosyası yapar: "bunu PDF yap", "tabloyu Excel'e aktar", "Word çıktısı ver". Excel'de her Markdown tablosu ayrı sayfa olur; tablosuz metin tek sütuna satır satır yazılır.
-        :param metin: Dosyaya konacak tam metin (Markdown: # başlık, | tablo |, - madde). Uydurma ekleme; kullanıcının istediği içeriği olduğu gibi ver.
-        :param baslik: Belge başlığı ve dosya adı.
-        :param bicim: xlsx, docx, pdf; virgülle birden fazla olabilir.
+        Verilen metni/Markdown tabloyu Word, Excel ya da PDF yapar ("bunu PDF yap"). Excel'de her tablo ayrı sayfa olur.
+        :param metin: Dosyaya konacak tam metin (Markdown); içerik uydurma.
+        :param baslik: Başlık / dosya adı.
+        :param bicim: xlsx, docx, pdf (virgülle birden fazla).
         """
         user = __user__ if isinstance(__user__, dict) else {}
         if not user.get("id"):
@@ -655,9 +716,9 @@ class Tools:
         __user__: dict | None = None,
     ) -> str:
         """
-        Sohbetteki Excel/CSV/Word/PDF tablolarını (tüm sayfaları) Atos wiki'ye kaydeder; sonraki sohbetlerde aranır, okunur, yeni tablo/PDF/Excel/Word türetilir. "Hafızana al", "wikiye kaydet", "bu tabloyu sakla" için çağır. Aynı ad yeniden kaydedilirse güncellenir.
-        :param ad: Wiki sayfası adı (örn. "EKD Ek Ders Çizelgesi 2026").
-        :param dosya_adi: Adında bu metin geçen dosya; boşsa sohbetteki ilk dosya.
+        Sohbetteki Excel/CSV/Word/PDF/görsel/txt dosyasını (tüm sayfaları) Atos wiki'ye kaydeder ("hafızana al", "wikiye kaydet"); aynı ad güncellenir.
+        :param ad: Wiki sayfası adı.
+        :param dosya_adi: Dosya adında geçen metin; boşsa ilk.
         """
         user = __user__ if isinstance(__user__, dict) else {}
         try:
@@ -681,13 +742,29 @@ class Tools:
         return (
             f"{f.filename} {etiket.get(y['durum'], 'işlendi')}: sayfa kimliği `{y['id']}` "
             f"({len(sayfalar)} sayfa, {sum(len(x['satirlar']) for x in sayfalar)} satır, {sum(len(x.get('metin', '')) for x in sayfalar)} karakter metin). "
-            "Sonra wiki_ara / wiki_oku / wiki_tablo_uret ile kullanılır."
+            "Sonra wiki_ara / wiki_oku / tablo_uret(wiki_id) ile kullanılır."
         )
+
+    async def wiki_yaz(self, ad: str, icerik: str, sabit: bool = False, __user__: dict | None = None) -> str:
+        """
+        Atos wiki'ye bilgi sayfası yazar/günceller ("hatırla", "not al", "kaydet", belge/konu özeti). Önce wiki_ara ile var mı bak; varsa wiki_oku ile oku ve TÜM sayfayı güncelleyerek yaz, yinelenen sayfa açma. Markdown yaz; ilgili sayfalara [[Sayfa Adı]] ile bağ ver. Eski sürüm saklanır. Yalnız kullanıcının söylediği ya da belgedeki bilgiyi yaz, tahmin ekleme.
+        :param ad: Sayfa adı.
+        :param icerik: Markdown gövde (en çok 20000 karakter).
+        :param sabit: True: her mesajda hatırlatılan kısa kural sayfası (en çok 500 karakter; çok az kullan).
+        """
+        y = await self._sunucu("yaz", {"ad": ad, "icerik": icerik, "sabit": bool(sabit)})
+        if y is None:
+            return self._WIKI_HATA + " Kaydettim deme."
+        if y.get("durum") == "hata":
+            return f"Yazılamadı: {y.get('mesaj', '')} Kaydettim deme."
+        etiket = {"yazildi": "wiki'ye yazıldı", "guncellendi": "wiki'de güncellendi (eski sürüm saklandı)", "zaten_vardi": "wiki'de aynı içerikle zaten vardı"}
+        eksik = f" Henüz olmayan bağlantılar: {', '.join(y['eksik_baglantilar'])} (gerekirse bu sayfaları da yaz)." if y.get("eksik_baglantilar") else ""
+        return f"`{y['id']}` {etiket.get(y['durum'], 'işlendi')}.{eksik}"
 
     async def wiki_ara(self, sorgu: str = "", __user__: dict | None = None) -> str:
         """
-        Atos wiki'deki kayıtlı tablolarda arar (kişi adı, ders, sütun, dosya adı); boş sorgu tüm sayfaları listeler. "Wikide ara", "kayıtlı çizelgede X'in dersi" için çağır; sonucu uydurma.
-        :param sorgu: Aranacak kelimeler; boşsa tüm wiki sayfaları.
+        Atos wiki'deki sayfalarda (dosyadan kaydedilen tablo/metinler ve yazılmış notlar) arar; boş sorgu tüm sayfaları listeler. Sonucu uydurma.
+        :param sorgu: Aranacak kelimeler.
         """
         y = await self._sunucu("ara", {"sorgu": sorgu or "", "limit": 5})
         if y is None or y.get("durum") != "ok":
@@ -701,16 +778,17 @@ class Tools:
                 (f"{s['ad']} ({s['satir']} satır: {', '.join(s['sutunlar'][:8])})" if s["sutunlar"] else f"{s['ad']} (metin)")
                 for s in k["sayfalar"]
             )
-            satirlar.append(f"- `{k['id']}` — {k['ad']} (kaynak {k['kaynak']}, {k['tarih']}): {sayfalar}")
+            tur = "not" if k.get("tur") == "not" else f"kaynak {k['kaynak']}"
+            satirlar.append(f"- `{k['id']}` — {k['ad']} ({tur}, {k['tarih']}): {sayfalar}")
             for e in k.get("eslesen_satirlar", []):
                 satirlar.append("    • " + e["sayfa"] + ": " + "; ".join(f"{h}={v}" for h, v in e["satir"].items() if v))
         return "Wiki sonuçları (TC maskeli; yalnızca bunları aktar):\n" + "\n".join(satirlar)
 
     async def wiki_oku(self, id: str, sayfa: str = "", __user__: dict | None = None) -> str:
         """
-        Atos wiki sayfasını açar: sütunlar ve ilk 25 satır (TC maskeli). Yeni tablo üretmeden önce sütun adlarını görmek için de kullan.
-        :param id: wiki_ara'nın verdiği sayfa kimliği.
-        :param sayfa: Sayfa (sekme) adı; boşsa tümü.
+        Wiki sayfasını açar (sütunlar, ilk 25 satır, metin, bağlantılar; TC maskeli).
+        :param id: wiki_ara'nın verdiği kimlik.
+        :param sayfa: Sekme adı; boşsa tümü.
         """
         y = await self._sunucu("getir", {"id": (id or "").strip(), "maskele": True})
         if y is None:
@@ -728,51 +806,69 @@ class Tools:
             if s["baslik"]:
                 govde = "\n".join("| " + " | ".join(r) + " |" for r in s["satirlar"][:25])
                 bolumler.append(f"## {s['ad']} — {len(s['satirlar'])} satır\nSütunlar: {', '.join(s['baslik'])}\n{govde}")
+        if k.get("baglantilar"):
+            bolumler.append("Bağlantılar: " + ", ".join(b["id"] + ("" if b["var"] else " (henüz yok)") for b in k["baglantilar"]))
+        if k.get("gelen"):
+            bolumler.append("Bu sayfaya bağlananlar: " + ", ".join(k["gelen"]))
         return "\n\n".join(bolumler)
 
-    async def wiki_tablo_uret(
+    # --- Okul verisinden öğrenci tablosu: satırlar modele okutulmaz, bilinmeyen sütun boş kalır ---
+
+    async def ogrenci_tablosu(
         self,
-        id: str,
-        sayfa: str = "",
-        sutunlar: str = "",
-        cikar: str = "",
-        filtre_sutun: str = "",
-        filtre_deger: str = "",
-        sirala: str = "",
-        azalan: bool = False,
-        dogum_gunune_gore: bool = False,
+        sutunlar: str,
+        sinif: str = "",
+        ad: str = "",
+        dogum_yili: str = "",
         bicim: str = "xlsx",
         baslik: str = "",
         __user__: dict | None = None,
     ) -> str:
         """
-        Atos wiki'de kayıtlı bir tablodan yeni tablo üretip Excel/Word/PDF dosyası yapar (TC'siz, yalnız belirli sütunlar, süzülmüş, doğum günü listesi…). Parametreler tablo_uret ile aynı; kaynak sohbet dosyası değil wiki sayfasıdır. Önce wiki_oku ile sütun adlarını gör.
-        :param id: Wiki sayfa kimliği (wiki_ara verir).
-        :param sayfa: Sayfa (sekme) adı; boşsa ilk.
-        :param sutunlar: Tutulacak sütunlar, virgülle ve istenen sırayla (boşsa hepsi).
-        :param cikar: Çıkarılacak sütunlar, virgülle (örn. "TC Kimlik No").
-        :param filtre_sutun: Süzülecek sütun.
-        :param filtre_deger: Bu metni içeren satırlar kalır.
-        :param sirala: Sıralanacak sütun.
-        :param azalan: true ise büyükten küçüğe.
-        :param dogum_gunune_gore: true ise "Doğum Günü" (GG.AA) listesi.
-        :param bicim: xlsx, docx, pdf; virgülle birden fazla olabilir.
-        :param baslik: Belge başlığı ve dosya adı.
+        Okul kayıtlarından öğrenci tablosu üretip Excel/Word/PDF yapar. Kayıttaki sütunlar dolar (Ad Soyad, Okul No, Sınıf, Doğum Tarihi, Yaş, Öğrenci/Anne/Baba Telefon, Anne/Baba Adı); kayıtta olmayanlar (Beden, Ayakkabı No…) BOŞ kalır. Öğrenci listesini kendin yazma.
+        :param sutunlar: İstenen sütunlar, virgüllü ve sıralı.
+        :param sinif: Sınıf ya da virgüllü sınıflar ("9-A, 9-B"); ad/doğum yılı yoksa zorunlu.
+        :param ad: İsteğe bağlı ad süzmesi.
+        :param dogum_yili: İsteğe bağlı 4 haneli yıl.
+        :param bicim: xlsx, docx, pdf.
+        :param baslik: Başlık / dosya adı.
         """
         user = __user__ if isinstance(__user__, dict) else {}
-        y = await self._sunucu("getir", {"id": (id or "").strip(), "maskele": False})
-        if y is None:
-            return self._WIKI_HATA + " Dosya hazır dediğini SÖYLEME."
-        if y.get("durum") != "ok":
-            return y.get("mesaj", "Wiki sayfası bulunamadı.") + " Dosya üretilmedi."
-        k = y["kayit"]
-        sec = [t for t in k["sayfalar"] if t["baslik"] and (not sayfa or _norm(sayfa) in _norm(t["ad"]))]
-        if not sec:
-            return "Böyle bir sayfa/sekme yok: " + ", ".join(t["ad"] for t in k["sayfalar"]) + ". Dosya üretilmedi."
+        if user.get("role") != "admin":
+            return "Öğrenci tablosu yalnızca yönetici hesabına açıktır. Dosya üretilmedi."
+        istenen = _liste(sutunlar)
+        if not istenen:
+            return "Sütun listesi boş; hangi sütunlar istendiğini belirt. Dosya üretilmedi."
+        siniflar = _liste(sinif) or [""]
+        if siniflar == [""] and not ad.strip() and not dogum_yili.strip():
+            return "Sınıf (örn. 9-A), ad ya da doğum yılı belirtilmeli. Dosya üretilmedi."
+        ogrenciler = []
         try:
-            b2, s2 = donustur(
-                sec[0]["baslik"], sec[0]["satirlar"], sutunlar, cikar, filtre_sutun, filtre_deger, sirala, azalan, dogum_gunune_gore
-            )
-        except ValueError as e:
-            return f"Tablo üretilemedi: {e}. Sütunlar için wiki_oku'yu çağır; dosya hazır dediğini SÖYLEME."
-        return await self._yeni_dosya(b2, s2, (baslik or "").strip() or f"{k['ad']} {sec[0]['ad']}", bicim, user)
+            async with httpx.AsyncClient(timeout=self.valves.zaman_asimi_sn, trust_env=False) as c:
+                for sn in siniflar:
+                    r = await c.get(
+                        self.valves.sms_api_url.rstrip("/") + "/ogrenci-iletisim",
+                        headers={"X-Sms-Arac-Key": self.valves.sms_api_key},
+                        params={"ad": ad, "sinif": sn, "dogum_yili": dogum_yili, "limit": 500},
+                    )
+                    if r.status_code != 200:
+                        return "Öğrenci kaydı servisine ulaşılamadı (ya da arama geçersiz). Dosya üretilmedi."
+                    ogrenciler += r.json().get("ogrenciler") or []
+        except (httpx.HTTPError, ValueError):
+            return "Öğrenci kaydı servisine ulaşılamadı. Dosya üretilmedi."
+        if not ogrenciler:
+            return "Kayıtlarda eşleşen öğrenci yok. Dosya üretilmedi; öğrenci uydurma."
+        bugun = datetime.now(ZoneInfo("Europe/Istanbul")).date()
+        alanlar = [_ogrenci_alani(x) for x in istenen]
+        basliklar = [(a[0] if a else x) for a, x in zip(alanlar, istenen, strict=True)]
+        satirlar = [[(a[1](o, bugun) if a else "") for a in alanlar] for o in ogrenciler]
+        dolu = [b for a, b in zip(alanlar, basliklar, strict=True) if a]
+        bos = [b for a, b in zip(alanlar, basliklar, strict=True) if not a]
+        ad_belge = (baslik or "").strip() or "Öğrenci Tablosu"
+        sonuc = await self._yeni_dosya(basliklar, satirlar, ad_belge, bicim, user)
+        if "AYNEN" not in sonuc:
+            return sonuc
+        return (
+            sonuc + f"\nKayıttan doldurulan: {', '.join(dolu) or '—'}. "
+            f"BOŞ bırakılan (kayıtta yok, elle doldurulacak): {', '.join(bos) or '—'}. Kullanıcıya bunu söyle."
+        )

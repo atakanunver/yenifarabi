@@ -160,7 +160,6 @@ def _main_calistir(monkeypatch, anahtar, capsys, ek=None):
     monkeypatch.setattr(kur, "hesaplari_kur", lambda *a: None)
     monkeypatch.setattr(kur, "hesaplari_kapat", lambda *a: None)
     monkeypatch.setattr(kur, "belge_araci_kur", lambda *a: None)
-    monkeypatch.setattr(kur, "hafiza_araci_kur", lambda *a: None)
     monkeypatch.setattr(kur, "dosya_araci_kur", lambda *a: None)
     monkeypatch.setattr(kur, "sms_araci_kur", lambda *a: False)
     monkeypatch.setattr(kur, "filtreyi_kur", lambda *a: None)
@@ -371,19 +370,11 @@ def test_yonetici_epostalari_envden():
     assert kur.yonetici_epostalari({}) == []
 
 
-def test_hafiza_araci_kur_yalniz_idare():
-    api = SahteApi(False)
-    kur.hafiza_araci_kur(api, "WK", {"Öğretmenler": "g-ogr", "İdare": "g-idr"})
-    posts = dict((y, g) for m, y, g in api.cagrilar if m == "POST")
-    assert posts["/api/v1/tools/create"]["id"] == "farabi_hafiza"
-    assert [a["principal_id"] for a in posts["/api/v1/tools/id/farabi_hafiza/access/update"]["access_grants"]] == ["g-idr"]
-    assert posts["/api/v1/tools/id/farabi_hafiza/valves/update"]["api_key"] == "WK"
-
-
-def test_hafiza_araci_yalniz_hafiza_modlarina_baglanir():
+def test_wiki_bayragi_yalniz_hafiza_modlarinda_ve_hafiza_araci_yok():
     gr = {"Öğretmenler": "g-ogr", "İdare": "g-idr"}
     mod = {"id": "m", "ad": "M", "aciklama": "a", "kapsam": "genel", "think": False, "gruplar": ["İdare"]}
     acik = kur.model_govdesi({**mod, "hafiza": True}, "c", "e", gr, arac_idleri=[kur.OKUL_ARAC_ID])
     kapali = kur.model_govdesi(mod, "c", "e", gr, arac_idleri=[kur.OKUL_ARAC_ID])
-    assert acik["meta"]["toolIds"] == ["farabi_okul", "farabi_hafiza"] and acik["meta"]["farabi_hafiza"] is True
+    assert acik["meta"]["toolIds"] == ["farabi_okul"] and acik["meta"]["farabi_hafiza"] is True
     assert kapali["meta"]["toolIds"] == ["farabi_okul"] and kapali["meta"]["farabi_hafiza"] is False
+    assert not hasattr(kur, "HAFIZA_ARAC_ID") and not hasattr(kur, "hafiza_araci_kur")

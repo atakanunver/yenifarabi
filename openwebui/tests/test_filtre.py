@@ -19,10 +19,15 @@ def _govde(icerik="mol nedir", sistem=None):
 ZAMAN = "Şu an (Türkiye saati): 5 Ekim 2026 Pazartesi, saat 08:20 — 1. ders saati."
 
 
+def _baglam(g):
+    """Son kullanıcı mesajının metni (dinamik <baglam> bloğu burada olur)."""
+    return [m for m in g["messages"] if m["role"] == "user"][-1]["content"]
+
+
 def _yalniz_zaman(g, orijinal):
-    """Arama sonucu eklenmediğinde gövdede yalnızca zaman satırı olmalı."""
-    assert g["messages"][0] == {"role": "system", "content": ZAMAN}
-    assert g["messages"][1:] == orijinal
+    """Arama sonucu eklenmediğinde gövdede yalnızca zaman satırı olmalı (son kullanıcı mesajının sonunda)."""
+    assert g["messages"][:-1] == orijinal[:-1]
+    assert g["messages"][-1] == {"role": "user", "content": orijinal[-1]["content"] + f"\n\n<baglam>\n{ZAMAN}\n</baglam>"}
     return True
 
 
@@ -43,23 +48,24 @@ def _calistir(f, govde, model=KIMYA, meta=None):
     return asyncio.run(f.inlet(govde, __model__=model, __metadata__=meta or {}))
 
 
-def test_ok_sonucu_sistem_mesajina_eklenir():
+def test_ok_sonucu_son_kullanici_mesajinin_sonuna_eklenir():
     g = _calistir(_filtre(), _govde())
-    assert g["messages"][0]["role"] == "system"
-    assert "[1] Kimya 10, s. 84" in g["messages"][0]["content"]
-    assert "Mol, madde miktarı birimidir." in g["messages"][0]["content"]
+    assert [m["role"] for m in g["messages"]] == ["user"]  # sistem mesajı eklenmez
+    assert _baglam(g).startswith("mol nedir\n\n<baglam>\n") and _baglam(g).endswith("\n</baglam>")
+    assert "[1] Kimya 10, s. 84" in _baglam(g)
+    assert "Mol, madde miktarı birimidir." in _baglam(g)
 
 
-def test_var_olan_sistem_mesajinin_sonuna_eklenir():
+def test_sistem_mesaji_degismez_baglam_kullanici_mesajinda():
     g = _calistir(_filtre(), _govde(sistem="Sen Farabi'sin."))
-    assert g["messages"][0]["content"].startswith("Sen Farabi'sin.")
-    assert "Kimya 10, s. 84" in g["messages"][0]["content"]
+    assert g["messages"][0] == {"role": "system", "content": "Sen Farabi'sin."}
+    assert "Kimya 10, s. 84" in _baglam(g)
     assert len([m for m in g["messages"] if m["role"] == "system"]) == 1
 
 
 def test_zayif_sonucta_genel_bilgi_notu():
     g = _calistir(_filtre({"durum": "zayif", "parcalar": []}), _govde())
-    assert "eşleşen parça gelmedi" in g["messages"][0]["content"]
+    assert "eşleşen parça gelmedi" in _baglam(g)
 
 
 def test_hata_sonucunda_mesajlar_degismez():
@@ -166,7 +172,7 @@ def test_bozuk_parcalar_hata_firlatmaz():
     assert _yalniz_zaman(g, _govde()["messages"])
     karisik = {"durum": "ok", "parcalar": ["bozuk", {"kaynak": "K1", "metin": "iyi"}]}
     g = _calistir(_filtre(karisik), _govde())
-    assert "[1] K1" in g["messages"][0]["content"]
+    assert "[1] K1" in _baglam(g)
 
 
 def test_zayif_notu_takip_mesajini_yanlis_yonlendirmez():
@@ -215,16 +221,14 @@ def test_ara_proxy_kullanmaz(monkeypatch):
 def test_zaman_satiri_kaynaktan_once_tek_sistem_mesaji():
     g = _calistir(_filtre(), _govde(sistem="Sen Farabi'sin."))
     sistem = [m for m in g["messages"] if m["role"] == "system"]
-    assert len(sistem) == 1
-    icerik = sistem[0]["content"]
-    assert icerik.startswith("Sen Farabi'sin.")
-    assert icerik.index(ZAMAN) < icerik.index("Kimya 10, s. 84")
+    assert len(sistem) == 1 and sistem[0]["content"] == "Sen Farabi'sin."
+    assert _baglam(g).index(ZAMAN) < _baglam(g).index("Kimya 10, s. 84")
 
 
 def test_kapsamsiz_modda_da_zaman_eklenir():
     c = []
     g = _calistir(_filtre(cagrilar=c), _govde(), model=ALMANCA)
-    assert c == [] and ZAMAN in g["messages"][0]["content"]
+    assert c == [] and ZAMAN in _baglam(g)
 
 
 def test_gorev_isteginde_zaman_eklenmez():
@@ -259,24 +263,23 @@ def test_zaman_hatasi_sohbeti_bozmaz():
         raise RuntimeError("x")
     f._zaman = patla
     g = _calistir(f, _govde())
-    assert "Kimya 10, s. 84" in g["messages"][0]["content"]
+    assert "Kimya 10, s. 84" in _baglam(g) and ZAMAN not in _baglam(g)
 
 
-# --- Atos hafızası (2026-10-16) ---
+# --- Atos wiki sabit sayfaları (hafızanın yerine, 2026-10-21) ---
 
 HAFIZA_MODEL = {"info": {"meta": {"farabi_kapsam": "genel", "farabi_think": False, "farabi_hafiza": True}}}
-HAFIZA = {"durum": "ok", "sabit": [{"baslik": "Eğitim yılı", "icerik": "1 Eylül–30 Haziran", "tarih": "2026-10-16"}],
-          "kayitlar": [{"baslik": "Nöbet", "icerik": "Pazartesi güncellenir", "tarih": "2026-10-15"}]}
+WIKI = {"durum": "ok", "sayfalar": [{"ad": "Telefon kuralı", "tarih": "2026-10-16", "metin": "Telefonlar kilitli kutuda tutulur."}]}
 
 
-def _hafizali(sonuc=HAFIZA, cagrilar=None):
+def _wikili(sonuc=WIKI, cagrilar=None):
     f = _filtre(sonuc=None)
 
-    def _h(soru):
+    def _w():
         if cagrilar is not None:
-            cagrilar.append(soru)
+            cagrilar.append("çağrı")
         return sonuc
-    f._hafiza = _h
+    f._wiki_sabit = _w
     return f
 
 
@@ -284,23 +287,64 @@ def _hal(f, model, rol):
     return asyncio.run(f.inlet(_govde("nöbet ne zaman"), __model__=model, __metadata__={}, __user__={"role": rol}))
 
 
-def test_hafiza_blogu_admin_ve_hafiza_modelinde_eklenir():
-    g = _hal(_hafizali(), HAFIZA_MODEL, "admin")
-    s = g["messages"][0]["content"]
-    assert "Okul hafızası" in s and "[Sabit, 2026-10-16] Eğitim yılı: 1 Eylül–30 Haziran" in s
-    assert "[İlgili, 2026-10-15] Nöbet: Pazartesi güncellenir" in s
+def test_wiki_sabit_blogu_admin_ve_wiki_modelinde_eklenir():
+    g = _hal(_wikili(), HAFIZA_MODEL, "admin")
+    s = _baglam(g)
+    assert "Okul wiki'sinin sabit sayfaları" in s and "[Telefon kuralı, 2026-10-16] Telefonlar kilitli kutuda tutulur." in s
 
 
-def test_hafiza_admin_olmayana_ya_da_hafizasiz_modele_gitmez():
+def test_wiki_admin_olmayana_ya_da_wikisiz_modele_gitmez():
     cagri = []
-    f = _hafizali(cagrilar=cagri)
-    assert "Okul hafızası" not in _hal(f, HAFIZA_MODEL, "user")["messages"][0]["content"]
-    assert "Okul hafızası" not in _hal(f, KIMYA, "admin")["messages"][0]["content"]
+    f = _wikili(cagrilar=cagri)
+    assert "Okul wiki'sinin" not in _baglam(_hal(f, HAFIZA_MODEL, "user"))
+    assert "Okul wiki'sinin" not in _baglam(_hal(f, KIMYA, "admin"))
     assert cagri == []  # sunucuya hiç gidilmedi
 
 
-def test_hafiza_hatasi_sohbeti_bozmaz():
-    for bozuk in (None, {"durum": "hata", "sabit": [], "kayitlar": []}, {"durum": "ok", "sabit": [], "kayitlar": []}):
-        g = _hal(_hafizali(bozuk), HAFIZA_MODEL, "admin")
-        assert "Okul hafızası" not in str(g["messages"][0])
+def test_wiki_hatasi_sohbeti_bozmaz():
+    for bozuk in (None, {"durum": "hata", "sayfalar": []}, {"durum": "ok", "sayfalar": []}, {"durum": "ok", "sayfalar": ["x", {"ad": "a"}]}):
+        g = _hal(_wikili(bozuk), HAFIZA_MODEL, "admin")
+        assert "Okul wiki'sinin" not in str(g["messages"])
         assert g["messages"][-1]["role"] == "user"
+
+
+# --- 2026-10-21: bağlam her kullanıcı mesajına bir kez ve aynı metinle bağlı kalır (Ollama önbelleği) ---
+
+def _tur(f, mesajlar, sohbet="c1"):
+    return asyncio.run(f.inlet({"messages": mesajlar}, __model__=KIMYA, __metadata__={"chat_id": sohbet}))
+
+
+def test_onceki_tur_blogu_sonraki_turda_ayni_metinle_geri_gelir():
+    ff.BAGLAM_ONBELLEK.clear()
+    g1 = _tur(_filtre(), [{"role": "user", "content": "mol nedir"}])
+    ilk = _baglam(g1)
+    f2 = _filtre()
+    f2._zaman = lambda: "Şu an (Türkiye saati): 5 Ekim 2026 Pazartesi, saat 08:21 — 1. ders saati."  # dakika değişti
+    g2 = _tur(f2, [{"role": "user", "content": "mol nedir"}, {"role": "assistant", "content": "Madde miktarı."},
+                   {"role": "user", "content": "peki avogadro sayısı"}])
+    assert g2["messages"][0]["content"] == ilk  # geçmiş, bayt bayt önceki turdaki gibi (önbellek öneki bozulmaz)
+    assert g2["messages"][1] == {"role": "assistant", "content": "Madde miktarı."}
+    assert "08:21" in g2["messages"][2]["content"] and "08:21" not in g2["messages"][0]["content"]
+
+
+def test_baglam_sohbetler_arasinda_karismaz():
+    ff.BAGLAM_ONBELLEK.clear()
+    _tur(_filtre(), [{"role": "user", "content": "mol nedir"}], sohbet="A")
+    g = _tur(_filtre(), [{"role": "user", "content": "mol nedir"}, {"role": "assistant", "content": "x"},
+                         {"role": "user", "content": "devam"}], sohbet="B")
+    assert g["messages"][0]["content"] == "mol nedir"  # B sohbetinin geçmişine A'nın bloğu eklenmez
+
+
+def test_liste_icerikli_son_mesaja_metin_parcasi_eklenir():
+    ff.BAGLAM_ONBELLEK.clear()
+    icerik = [{"type": "image_url", "image_url": {"url": "data:..."}}, {"type": "text", "text": "bu tablodaki mol sayısı"}]
+    g = _tur(_filtre(), [{"role": "user", "content": icerik}])
+    son = g["messages"][0]["content"]
+    assert son[-1]["type"] == "text" and son[-1]["text"].startswith("<baglam>") and len(son) == 3
+
+
+def test_baglam_onbellegi_sinirli():
+    ff.BAGLAM_ONBELLEK.clear()
+    for i in range(ff.BAGLAM_AZAMI_KAYIT + 5):
+        _tur(_filtre(), [{"role": "user", "content": f"soru {i}"}], sohbet=f"s{i}")
+    assert len(ff.BAGLAM_ONBELLEK) == ff.BAGLAM_AZAMI_KAYIT

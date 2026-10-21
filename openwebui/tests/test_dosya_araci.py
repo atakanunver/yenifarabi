@@ -201,7 +201,7 @@ def test_wiki_kaydet_oku_maskeli_ve_tablo_uret_gercek_veriyle(wiki):
     okunan = asyncio.run(t.wiki_oku("ekd-liste"))
     assert "123******01" in okunan and "12345678901" not in okunan
     assert "ekd-liste" in asyncio.run(t.wiki_ara("ayse"))
-    cevap = asyncio.run(t.wiki_tablo_uret("ekd-liste", sutunlar="ad soyad, tc", bicim="xlsx", __user__=arg["__user__"]))
+    cevap = asyncio.run(t.tablo_uret(wiki_id="ekd-liste", sutunlar="ad soyad, tc", bicim="xlsx", __user__=arg["__user__"]))
     assert "AYNEN" in cevap
     b, s = fd._tablo_xlsx(kaydedilen[0][2], "")
     assert b == ["Ad Soyad", "T.C. Kimlik No"] and s[0][1] == "12345678901"  # dosyada TC maskesiz (kullanıcı isteği)
@@ -210,10 +210,10 @@ def test_wiki_kaydet_oku_maskeli_ve_tablo_uret_gercek_veriyle(wiki):
 def test_wiki_tablo_uret_hatalar(wiki):
     depo, _, arg = wiki
     t = fd.Tools()
-    assert "Dosya üretilmedi" in asyncio.run(t.wiki_tablo_uret("yok", __user__=arg["__user__"]))
+    assert "Dosya üretilmedi" in asyncio.run(t.tablo_uret(wiki_id="yok", __user__=arg["__user__"]))
     asyncio.run(t.wiki_kaydet("Liste", **arg))
-    assert "SÖYLEME" in asyncio.run(t.wiki_tablo_uret("liste", cikar="yok", __user__=arg["__user__"]))
-    assert "Böyle bir sayfa" in asyncio.run(t.wiki_tablo_uret("liste", sayfa="zzz", __user__=arg["__user__"]))
+    assert "SÖYLEME" in asyncio.run(t.tablo_uret(wiki_id="liste", cikar="yok", __user__=arg["__user__"]))
+    assert "Böyle bir sayfa" in asyncio.run(t.tablo_uret(wiki_id="liste", sayfa="zzz", __user__=arg["__user__"]))
 
 
 def test_tablo_bilgisi_tc_maskeler(ortam):
@@ -257,3 +257,108 @@ def test_wiki_sayfalari_pdf_tablosuz_yalniz_metin(ortam, monkeypatch):
     monkeypatch.setattr(fd.Tools, "_sunucu", sunucu)
     s = asyncio.run(fd.Tools()._wiki_sayfalari("y.pdf", b"%PDF"))
     assert len(s) == 1 and s[0]["metin"].startswith("Resmî yazı metni") and "kısaltıldı" in s[0]["metin"]
+
+
+def test_bos_sutun_ekleme_ve_yerlestirme():
+    b, s = fd.donustur(BASLIK, SATIRLAR, sutunlar="ad soyad, sınıf, beden, ayakkabı no", cikar="", bos_sutunlar="Beden, Ayakkabı No")
+    assert b == ["Ad Soyad", "Sınıf", "Beden", "Ayakkabı No"] and s[0] == ["Ayşe Çelik", "9-A", "", ""]
+    b, s = fd.donustur(BASLIK, SATIRLAR, cikar="tc", bos_sutunlar="Beden")
+    assert b[-1] == "Beden" and all(r[-1] == "" for r in s)
+
+
+def test_ogrenci_alani_eslesmesi_ayakkabi_no_okul_no_degil():
+    assert fd._ogrenci_alani("Okul No")[0] == "Okul No" and fd._ogrenci_alani("numarası")[0] == "Okul No"
+    assert fd._ogrenci_alani("Ayakkabı No") is None and fd._ogrenci_alani("Beden") is None
+    assert fd._ogrenci_alani("Adı Soyadı")[0] == "Ad Soyad" and fd._ogrenci_alani("Doğum Tarihi")[0] == "Doğum Tarihi"
+
+
+def test_yas_hesabi():
+    from datetime import date
+
+    assert fd._yas("2010-03-15", date(2026, 10, 21)) == "16"
+    assert fd._yas("2010-12-20", date(2026, 10, 21)) == "15"  # doğum günü henüz gelmedi
+    assert fd._yas("", date(2026, 10, 21)) == ""
+
+
+def test_ogrenci_tablosu_bilinen_dolar_bilinmeyen_bos(ortam, monkeypatch):
+    pytest.importorskip("openpyxl")
+    _, kaydedilen, _ = ortam
+
+    class Yanit:
+        status_code = 200
+
+        def json(self):
+            return {"ogrenciler": [
+                {"ad_soyad": "Ayşe Çelik", "okul_no": 123, "sinif": "9-A", "dogum_tarihi": "2010-03-15", "veliler": []},
+                {"ad_soyad": "Mehmet Öz", "okul_no": 124, "sinif": "9-A", "dogum_tarihi": "", "veliler": []},
+            ]}
+
+    class Istemci:
+        def __init__(self, **k):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            pass
+
+        async def get(self, url, headers, params):
+            assert url.endswith("/ogrenci-iletisim") and params["sinif"] == "9-A"
+            return Yanit()
+
+    monkeypatch.setattr(fd.httpx, "AsyncClient", Istemci)
+    c = asyncio.run(fd.Tools().ogrenci_tablosu(
+        "Ad Soyad, Okul No, Ayakkabı No, Beden, Yaş, Doğum Tarihi", sinif="9-A", baslik="9-A Beden", __user__={"id": "u1", "role": "admin"}))
+    assert "AYNEN" in c and "BOŞ bırakılan (kayıtta yok, elle doldurulacak): Ayakkabı No, Beden" in c
+    b, s = fd._tablo_xlsx(kaydedilen[0][2], "")
+    assert b == ["Ad Soyad", "Okul No", "Ayakkabı No", "Beden", "Yaş", "Doğum Tarihi"]
+    assert s[0] == ["Ayşe Çelik", "123", "", "", "16", "15.03.2010"] and s[1][4:] == ["", ""]
+
+
+def test_ogrenci_tablosu_sinif_yoksa_reddeder_ve_servis_yoksa_bildirir(ortam, monkeypatch):
+    t = fd.Tools()
+    assert "belirtilmeli" in asyncio.run(t.ogrenci_tablosu("Ad Soyad", __user__={"id": "u1", "role": "admin"}))
+
+    class Patla:
+        def __init__(self, **k):
+            raise fd.httpx.ConnectError("x")
+
+    monkeypatch.setattr(fd.httpx, "AsyncClient", Patla)
+    assert "ulaşılamadı" in asyncio.run(t.ogrenci_tablosu("Ad Soyad", sinif="9-A", __user__={"id": "u1", "role": "admin"}))
+
+
+def test_ogrenci_tablosu_yalniz_yonetici(ortam):
+    assert "yalnızca yönetici" in asyncio.run(fd.Tools().ogrenci_tablosu("Ad Soyad", sinif="9-A", __user__={"id": "u1", "role": "user"}))
+
+
+def test_wiki_yaz_sonuc_mesajlari(monkeypatch):
+    yanit = {}
+
+    async def sunucu(self, yol, govde):
+        yanit["govde"] = (yol, govde)
+        return yanit.get("d")
+
+    monkeypatch.setattr(fd.Tools, "_sunucu", sunucu)
+    t = fd.Tools()
+    yanit["d"] = {"durum": "yazildi", "id": "nobet", "eksik_baglantilar": ["okul-kurallari"]}
+    s = asyncio.run(t.wiki_yaz("Nöbet", "Bkz. [[Okul Kuralları]]", sabit=True))
+    assert yanit["govde"] == ("yaz", {"ad": "Nöbet", "icerik": "Bkz. [[Okul Kuralları]]", "sabit": True})
+    assert "`nobet` wiki'ye yazıldı" in s and "okul-kurallari" in s
+    yanit["d"] = {"durum": "guncellendi", "id": "nobet", "eksik_baglantilar": []}
+    assert "eski sürüm saklandı" in asyncio.run(t.wiki_yaz("Nöbet", "x"))
+    yanit["d"] = {"durum": "hata", "mesaj": "Sabit sayfa çok uzun."}
+    assert "Kaydettim deme" in asyncio.run(t.wiki_yaz("N", "x", sabit=True))
+    yanit["d"] = None
+    assert "Kaydettim deme" in asyncio.run(t.wiki_yaz("N", "x"))
+
+
+def test_wiki_oku_baglantilari_gosterir(monkeypatch):
+    async def sunucu(self, yol, govde):
+        return {"durum": "ok", "kayit": {"ad": "Nöbet", "kaynak": "Atos notu", "tarih": "t", "tur": "not",
+                "sayfalar": [{"ad": "Not", "baslik": [], "satirlar": [], "metin": "Bkz. [[Kurallar]]"}],
+                "baglantilar": [{"id": "kurallar", "var": True}, {"id": "yok", "var": False}], "gelen": ["ana-sayfa"]}}
+
+    monkeypatch.setattr(fd.Tools, "_sunucu", sunucu)
+    s = asyncio.run(fd.Tools().wiki_oku("nobet"))
+    assert "Bkz. [[Kurallar]]" in s and "kurallar, yok (henüz yok)" in s and "ana-sayfa" in s

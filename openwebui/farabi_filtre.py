@@ -2,7 +2,7 @@
 title: Farabi Kaynak Arama
 author: Farabi (Şehit Murat Ustaoğlu Anadolu Lisesi)
 version: 0.2.0
-description: Farabi modlarında her mesaja Türkiye saatiyle tarih/saat/ders saati ekler; ders kitabı/mevzuat parçalarını farabi-api'den (/api/webui/ara) getirip sistem mesajına ekler; düşünme varsayılanını moddan ayarlar.
+description: Farabi modlarında her mesaja Türkiye saatiyle tarih/saat/ders saati ekler; ders kitabı/mevzuat parçalarını farabi-api'den (/api/webui/ara) getirip son kullanıcı mesajının sonuna <baglam> bloğu olarak ekler; düşünme varsayılanını moddan ayarlar.
 """
 
 # Tasarım: docs/superpowers/specs/2026-10-03-openwebui-farabi-modlar-design.md §3.4
@@ -10,8 +10,10 @@ description: Farabi modlarında her mesaja Türkiye saatiyle tarih/saat/ders saa
 # Open WebUI içinde elle düzenlenmez (kur.py her çalıştığında üzerine yazar).
 
 import asyncio
+import hashlib
 import json
 import urllib.request
+from collections import OrderedDict
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -111,28 +113,64 @@ def kaynak_blogu(sonuc: dict) -> str | None:
     return blok
 
 
-HAFIZA_GIRIS = ("Okul hafızası (yöneticilerin onayladığı kalıcı notlar). Eski olabilir; belge ya da araç "
-                "sonucuyla çelişirse onlar geçerlidir. Kullandığın notun tarihini belirt.")
+WIKI_GIRIS = ("Okul wiki'sinin sabit sayfaları (yönetimin kısa kuralları). Eski olabilir; belge ya da araç "
+              "sonucuyla çelişirse onlar geçerlidir. Başka bilgi için wiki_ara / wiki_oku kullan.")
 
 
-def hafiza_blogu(sonuc: dict | None) -> str | None:
-    """Sabit notlar + ilgili kayıtlar; boşsa None. Bütçe sunucuda (≤1.500 karakter) kırpılır."""
+def wiki_blogu(sonuc: dict | None) -> str | None:
+    """Sabit wiki sayfaları; boşsa None. Bütçe sunucuda (≤1.000 karakter) kırpılır."""
     if not isinstance(sonuc, dict) or sonuc.get("durum") != "ok":
         return None
-    satirlar = []
-    for ad, anahtar in (("Sabit", "sabit"), ("İlgili", "kayitlar")):
-        for k in sonuc.get(anahtar) or []:
-            if isinstance(k, dict) and isinstance(k.get("baslik"), str) and isinstance(k.get("icerik"), str):
-                satirlar.append(f"- [{ad}, {k.get('tarih', '?')}] {k['baslik']}: {k['icerik']}")
-    return HAFIZA_GIRIS + "\n" + "\n".join(satirlar) if satirlar else None
+    satirlar = [f"- [{k['ad']}, {k.get('tarih', '?')}] {k['metin']}" for k in sonuc.get("sayfalar") or []
+                if isinstance(k, dict) and isinstance(k.get("ad"), str) and isinstance(k.get("metin"), str)]
+    return WIKI_GIRIS + "\n" + "\n".join(satirlar) if satirlar else None
 
 
-def sistem_mesajina_ekle(body: dict, blok: str) -> None:
+# Dinamik bağlam (saat, wiki, kaynak) SİSTEM mesajına değil kullanıcı mesajının sonuna eklenir ve her
+# kullanıcı mesajına bir kez, aynı metinle bağlı kalır (2026-10-21). Neden: Ollama'daki hibrit model yalnızca
+# önceki istemin SON ~512 token'ında bir kontrol noktasına geri dönebilir; sistem mesajı her turda değişince
+# (dakikayla değişen saat) sabit ~7 bin token'lık sistem+araç öneki ve tüm geçmiş her yeni mesajda baştan
+# işleniyordu (ilk cevap 25–35 sn). Geçmişteki mesaj bloğuyla birlikte aynı kaldığında yalnızca yeni mesaj işlenir.
+BAGLAM_ONBELLEK: OrderedDict[str, str] = OrderedDict()
+BAGLAM_AZAMI_KAYIT = 1000
+
+
+def _mesaj_metni(m: dict) -> str:
+    c = m.get("content")
+    if isinstance(c, str):
+        return c
+    if isinstance(c, list):
+        return " ".join(str(p.get("text") or "") for p in c if isinstance(p, dict) and p.get("type") == "text")
+    return ""
+
+
+def _baglam_anahtari(sohbet: str, sira: int, m: dict) -> str:
+    return f"{sohbet}|{sira}|{hashlib.sha1(_mesaj_metni(m).encode('utf-8')).hexdigest()[:16]}"
+
+
+def _baglami_ilistir(m: dict, blok: str) -> None:
+    ek = f"\n\n<baglam>\n{blok}\n</baglam>"
+    if isinstance(m.get("content"), str):
+        m["content"] += ek
+    elif isinstance(m.get("content"), list):
+        m["content"].append({"type": "text", "text": ek.strip()})
+
+
+def baglam_uygula(body: dict, blok: str | None, sohbet: str = "") -> None:
+    """Son kullanıcı mesajına yeni bloğu ekler (ve saklar); önceki kullanıcı mesajlarına kendi eski bloklarını geri koyar."""
     mesajlar = body.setdefault("messages", [])
-    if mesajlar and mesajlar[0].get("role") == "system" and isinstance(mesajlar[0].get("content"), str):
-        mesajlar[0]["content"] = mesajlar[0]["content"].rstrip() + "\n\n" + blok
-    else:
-        mesajlar.insert(0, {"role": "system", "content": blok})
+    kullanicilar = [m for m in mesajlar if isinstance(m, dict) and m.get("role") == "user"]
+    for sira, m in enumerate(kullanicilar):
+        anahtar = _baglam_anahtari(sohbet, sira, m)
+        if sira == len(kullanicilar) - 1:
+            if blok:
+                BAGLAM_ONBELLEK[anahtar] = blok
+                BAGLAM_ONBELLEK.move_to_end(anahtar)
+                while len(BAGLAM_ONBELLEK) > BAGLAM_AZAMI_KAYIT:
+                    BAGLAM_ONBELLEK.popitem(last=False)
+                _baglami_ilistir(m, blok)
+        elif anahtar in BAGLAM_ONBELLEK:
+            _baglami_ilistir(m, BAGLAM_ONBELLEK[anahtar])
 
 
 class Filter:
@@ -143,8 +181,8 @@ class Filter:
         # Dashboard /api/okul (tarih + ders saati); yalnızca localhost + anahtar.
         okul_url: str = Field(default="http://127.0.0.1/api/okul")
         okul_key: str = Field(default="")
-        # Atos hafızası (farabi-api /api/webui/hafiza/getir); yalnızca meta.farabi_hafiza=true modeller + admin.
-        hafiza_url: str = Field(default="http://127.0.0.1:8000/api/webui/hafiza/getir")
+        # Atos wiki'sinin sabit sayfaları (farabi-api /api/webui/wiki/sabit); yalnızca meta.farabi_hafiza=true modeller + admin.
+        wiki_sabit_url: str = Field(default="http://127.0.0.1:8000/api/webui/wiki/sabit")
 
     def __init__(self):
         self.valves = self.Valves()
@@ -167,19 +205,19 @@ class Filter:
             print(f"[farabi_kaynak] arama başarısız: {type(e).__name__}: {e}")
             return None
 
-    def _hafiza(self, soru: str) -> dict | None:
-        """Okul hafızası (sabit notlar + ilgili kayıtlar). Bloklayan çağrı (to_thread); hata → None."""
+    def _wiki_sabit(self) -> dict | None:
+        """Wiki'nin sabit sayfaları. Bloklayan çağrı (to_thread); hata → None."""
         try:
             istek = urllib.request.Request(
-                self.valves.hafiza_url,
-                data=json.dumps({"soru": soru}).encode("utf-8"),
+                self.valves.wiki_sabit_url,
+                data=b"{}",
                 headers={"Content-Type": "application/json", "X-Farabi-WebUI-Key": self.valves.api_key},
             )
             acici = urllib.request.build_opener(urllib.request.ProxyHandler({}))
             with acici.open(istek, timeout=4.0) as r:
                 return json.load(r)
-        except Exception as e:  # noqa: BLE001 — hafıza sohbeti engellememeli
-            print(f"[farabi_kaynak] hafıza alınamadı: {type(e).__name__}")
+        except Exception as e:  # noqa: BLE001 — wiki sohbeti engellememeli
+            print(f"[farabi_kaynak] wiki sabit sayfaları alınamadı: {type(e).__name__}")
             return None
 
     def _zaman(self) -> str:
@@ -203,12 +241,13 @@ class Filter:
             return body  # başlık/etiket gibi arka plan görevleri — arama yok
 
         try:
-            return await self._inlet_govde(body, __model__, __user__)
+            return await self._inlet_govde(body, __model__, __user__, (__metadata__ or {}).get("chat_id") or "")
         except Exception as e:  # noqa: BLE001 — filtre hatası sohbeti engellememeli, gövde değişmeden gider
             print(f"[farabi_kaynak] inlet hatası: {type(e).__name__}: {e}")
             return body
 
-    async def _inlet_govde(self, body: dict, __model__: dict | None, __user__: dict | None = None) -> dict:
+    async def _inlet_govde(self, body: dict, __model__: dict | None, __user__: dict | None = None,
+                           sohbet: str = "") -> dict:
         meta = (((__model__ or {}).get("info") or {}).get("meta")) or {}
         # Open WebUI, filtrelerden ÖNCE params'ı body["options"]'a taşır ve Ollama'ya
         # giderken yalnızca options["think"]'i köke alır; üst düzey body["think"] atılır.
@@ -232,25 +271,25 @@ class Filter:
         async def _hic():
             return None
 
-        hafiza_acik = bool(meta.get("farabi_hafiza")) and (__user__ or {}).get("role") == "admin" and bool(soru)
+        wiki_acik = bool(meta.get("farabi_hafiza")) and (__user__ or {}).get("role") == "admin"
 
-        # Zaman, kaynak ve hafıza araması paralel — toplam gecikme üçünün en uzunu.
-        zaman, sonuc, hafiza = await asyncio.gather(
+        # Zaman, kaynak araması ve wiki sabit sayfaları paralel — toplam gecikme üçünün en uzunu.
+        zaman, sonuc, wiki = await asyncio.gather(
             _zaman_guvenli(),
             asyncio.to_thread(self._ara, kapsam, soru) if (kapsam and soru) else _hic(),
-            asyncio.to_thread(self._hafiza, soru) if hafiza_acik else _hic())
-        if zaman:
-            sistem_mesajina_ekle(body, zaman)
+            asyncio.to_thread(self._wiki_sabit) if wiki_acik else _hic())
+        bloklar = [zaman] if zaman else []
         try:
-            hblok = hafiza_blogu(hafiza)
-            if hblok:
-                sistem_mesajina_ekle(body, hblok)
+            wblok = wiki_blogu(wiki)
+            if wblok:
+                bloklar.append(wblok)
         except Exception as e:  # noqa: BLE001
-            print(f"[farabi_kaynak] hafıza bloğu eklenemedi: {type(e).__name__}")
+            print(f"[farabi_kaynak] wiki bloğu eklenemedi: {type(e).__name__}")
         try:
             blok = kaynak_blogu(sonuc) if sonuc else None
             if blok:
-                sistem_mesajina_ekle(body, blok)
+                bloklar.append(blok)
         except Exception as e:  # noqa: BLE001 — blok eklenemezse sohbet kaynaksız sürer
             print(f"[farabi_kaynak] blok eklenemedi: {type(e).__name__}: {e}")
+        baglam_uygula(body, "\n\n".join(bloklar) or None, sohbet)
         return body

@@ -195,14 +195,14 @@ OGR_IL = {
 
 def test_iletisim_yalniz_yonetici(monkeypatch):
     t, s = _arac(monkeypatch, Yanit(200, OGR_IL))
-    assert "yalnızca yönetici" in _c(t.ogrenci_iletisim(ad="Çağla", __user__=IDARE))
+    assert "yalnızca yönetici" in _c(t.ogrenci_bilgisi(iletisim=True, ad="Çağla", __user__=IDARE))
     assert s.cagrilar == []  # izinsiz hesapta sunucuya hiç gidilmez
 
 
 def test_iletisim_cikti_ve_sms_anahtari(monkeypatch):
     t, s = _arac(monkeypatch, Yanit(200, OGR_IL))
     t.valves.sms_api_key = "SMSK"
-    cikti = _c(t.ogrenci_iletisim(ad="Çağla", __user__=ADMIN))
+    cikti = _c(t.ogrenci_bilgisi(iletisim=True, ad="Çağla", __user__=ADMIN))
     assert "05550000002" in cikti and "Baba Hasan Yıldız: kayıtlı değil" in cikti and "04.03.2011" in cikti
     url, basliklar, params = s.cagrilar[0]
     assert url.endswith("/ogrenci-iletisim") and basliklar == {"X-Sms-Arac-Key": "SMSK"}
@@ -211,11 +211,11 @@ def test_iletisim_cikti_ve_sms_anahtari(monkeypatch):
 
 def test_iletisim_ulasilamadi_istisna_metni_sizmaz(monkeypatch):
     t, _ = _arac(monkeypatch, istisna=RuntimeError("SIR-AYRINTI"))
-    assert _c(t.ogrenci_iletisim(ad="x", __user__=ADMIN)) == fo.ULASILAMADI
+    assert _c(t.ogrenci_bilgisi(iletisim=True, ad="x", __user__=ADMIN)) == fo.ULASILAMADI
 
 
 def test_aile_listesi_icin_ozel_arac_yonlendirmesi():
-    assert "ogrenci_ozel_durum" in fo.Tools.ogrenci_iletisim.__doc__
+    assert "ogrenci_ozel_durum" in fo.Tools.ogrenci_bilgisi.__doc__
 
 
 def test_okulda_yoklama_alinmadi_mevcut_sayilmaz(monkeypatch):
@@ -241,14 +241,8 @@ def test_ogretmen_simdi_iki_ayse(monkeypatch):
     assert "ÇİÇEK AYŞE" in c and "ŞU AN 1. derste 11-A" in c and "KARAKOÇ AYŞE MERVE" in c and "şu an dersi yok" in c
 
 
-def test_pdf_yalniz_yonetici_ve_filtre_sart(monkeypatch):
-    t, s = _arac(monkeypatch, Yanit(200, OGR_IL))
-    assert "yalnızca yönetici" in _c(t.ogrenci_listesi_pdf(dogum_yili="2010", __user__=IDARE))
-    assert "belirtin" in _c(t.ogrenci_listesi_pdf(__user__=ADMIN))
-    assert s.cagrilar == []
-
-
-def test_pdf_uretimi_turkce_karakter():
-    pytest.importorskip("fpdf")
-    veri = fo.Tools()._pdf_uret("2010 Doğumlular", OGR_IL["ogrenciler"], True)
-    assert veri[:5] == b"%PDF-" and len(veri) > 1000
+def test_ogrenci_bilgisi_dogum_yili_iletisime_yonlendirir_yalniz_yonetici(monkeypatch):
+    t, sunucu = _arac(monkeypatch, Yanit(200, OGR_IL))
+    assert "yalnızca yönetici" in _c(t.ogrenci_bilgisi(dogum_yili="2011", __user__=IDARE))
+    assert sunucu.cagrilar == []
+    assert "04.03.2011" in _c(t.ogrenci_bilgisi(dogum_yili="2011", __user__=ADMIN))

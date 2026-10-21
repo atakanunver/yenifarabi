@@ -34,13 +34,6 @@ def test_ogrenci_taslagi_dogru_uca_gider():
     assert "GÖNDERİLMEDİ" in s and "11-B öğrencileri" in s and "21 alıcı" in s and "ÖNEMLİ" not in s
 
 
-def test_personel_taslagi_sinifsiz_gider():
-    t = _Sahte(_taslak_yaniti("Personel", 23))
-    s = asyncio.run(t.personel_sms_taslak("Toplantı var."))
-    assert t.cagrilar == [("POST", "/personel-taslak", {"metin": "Toplantı var."})]
-    assert "personeli" in s and "23 alıcı" in s
-
-
 def test_tum_okul_taslagi_alici_sayisi_onayini_hatirlatir():
     t = _Sahte(_taslak_yaniti("TÜM OKUL", 190))
     s = asyncio.run(t.veli_sms_taslak("TÜM", "Kermes var."))
@@ -66,4 +59,4 @@ def test_hata_ve_ulasilamadi_gonderilmedi_der():
         async def _istek(self, *a, **k):
             raise httpx.ConnectError("x")
 
-    assert "işlem YAPILMADI" in asyncio.run(Bozuk().personel_sms_gonder("ab12"))
+    assert "işlem YAPILMADI" in asyncio.run(Bozuk().veli_sms_gonder("ab12"))
