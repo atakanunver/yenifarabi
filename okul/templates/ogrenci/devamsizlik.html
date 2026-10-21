@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block baslik %}Devamsızlığım — Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/ogrenci">← Ana sayfa</a></p>
+<h1>Devamsızlığım</h1>
+<div class="not">Bu bilgiler sınıftaki akıllı tahtada alınan yoklamadan gelir. Resmî devamsızlık kaydı e-Okul'dadır. Yanlış bir kayıt görürsen öğretmenine söyle.</div>
+{% include "_devamsizlik_icerik.html" %}
+{% endblock %}

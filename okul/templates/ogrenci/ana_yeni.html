@@ -130,6 +130,7 @@
   {% if dersler is none %}{{ kaynak_yok("Ders programı") }}
   {% elif dersler %}<ul class="liste">{% for no, ders in dersler %}<li><span class="saat">{{ no }}</span>{{ ders|baslik }}</li>{% endfor %}</ul>
   {% else %}<p class="bos">Bugün ders yok.</p>{% endif %}
+  <p class="kucuk" style="margin:.5rem 0 0"><a href="/ogrenci/devamsizlik">Devamsızlığım</a></p>
 </section>
 <section class="kart">
   <h2>Yaklaşan sınavlar <a href="/ogrenci/sinavlar">Takvim</a></h2>

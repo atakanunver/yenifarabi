@@ -553,3 +553,24 @@ def test_duyuru_rozeti_ve_arsiv(istemci, ornek, conn, saat):
     assert "1 yeni" in istemci.get("/ogrenci").text
     assert "Gezi" in istemci.get("/duyurular").text
     assert "1 yeni" not in istemci.get("/ogrenci").text
+
+
+def test_ogrenci_kendi_devamsizligi(istemci, ornek, conn, saat, monkeypatch):
+    from kaynaklar import yoklama
+
+    cagrilar = []
+
+    def devamsizlik(okul_no, sinif, baslangic=None):
+        cagrilar.append((okul_no, sinif))
+        return [yoklama.Devamsizlik("2026-10-09", 2, "yok"), yoklama.Devamsizlik("2026-10-09", 3, "izinli")]
+
+    monkeypatch.setattr(yoklama, "devamsizlik", devamsizlik)
+    giris(istemci, "101", "ali-sifre")
+    t = istemci.get("/ogrenci/devamsizlik").text
+    assert cagrilar == [(101, "9-A")] and "2. ders" in t and "İzinli" in t
+    assert "/ogrenci/devamsizlik" in istemci.get("/ogrenci").text
+    monkeypatch.setattr(yoklama, "devamsizlik", lambda *a, **k: (_ for _ in ()).throw(KaynakHatasi("x")))
+    assert istemci.get("/ogrenci/devamsizlik").status_code == 200  # kaynak yoksa sayfa bozulmaz
+    istemci.cookies.clear()
+    giris(istemci, "hoca", "hoca-sifre")
+    assert istemci.get("/ogrenci/devamsizlik").status_code == 404

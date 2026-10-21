@@ -180,3 +180,17 @@ def ders_programi(
         program=ortak.haftalik_program(o["sinif"]),
         sinif=o["sinif"],
     )
+
+
+@router.get("/devamsizlik")
+def devamsizlik(
+    request: Request, k=Depends(OGRENCI), conn: sqlite3.Connection = Depends(db_conn)
+):
+    kayitlar = ortak.devamsizlik(_kendisi(conn, k))
+    return render(
+        request,
+        "ogrenci/devamsizlik.html",
+        gunler=ortak.devamsizlik_gunlere_gore(kayitlar) if kayitlar is not None else None,
+        yok=sum(1 for d in kayitlar or [] if d.tur == "yok"),
+        izinli=sum(1 for d in kayitlar or [] if d.tur == "izinli"),
+    )
