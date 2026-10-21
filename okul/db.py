@@ -636,10 +636,32 @@ CREATE TABLE odev_uyari (
 );
 """
 
+# Serbest çalışma + yanlışları tekrar: sunulan her soru anlık kopya olarak yazılır (doğru şık cevaptan önce istemciye gitmez).
+# cevap: NULL = açık, >=0 şık, -3 = pas. XP/rozet/haftalık hedefe BAĞLI DEĞİL (tekrar edilebilir, sömürülmesin).
+SEMA_V26 = """
+CREATE TABLE calisma_soru (
+    id           INTEGER PRIMARY KEY,
+    kullanici_id INTEGER NOT NULL REFERENCES kullanici(id),
+    kaynak       TEXT NOT NULL CHECK (kaynak IN ('tekrar','serbest')),
+    ders         TEXT,
+    kazanim_id   INTEGER,
+    soru_id      INTEGER NOT NULL,
+    kazanim_kod  TEXT,
+    soru         TEXT NOT NULL,
+    secenekler   TEXT NOT NULL,
+    dogru_index  INTEGER NOT NULL,
+    konu         TEXT,
+    gosterim     TEXT NOT NULL,
+    cevap        INTEGER,
+    cevap_zamani TEXT
+);
+CREATE INDEX calisma_soru_kullanici ON calisma_soru(kullanici_id, gosterim);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
-    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25,
+    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26,
 ]
 
 

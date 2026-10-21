@@ -1,0 +1,44 @@
+{# Çalış merkezi. Bağlam: tekrar(int), dersler[], ders, kazanimlar[{id,kod,metin,adet}], hata, acik|None. #}
+{% extends "base.html" %}
+{% block baslik %}Çalış · Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/ogrenci">← Ana sayfa</a></p>
+<h1>Çalış</h1>
+<p class="soluk">Puan ve XP yok; amaç öğrenmek. Yanlış yaptığın soruları tekrar edebilir ya da istediğin dersten çalışabilirsin.</p>
+{% if hata %}<p class="not" role="status">Soru havuzuna şu an ulaşılamıyor; biraz sonra tekrar dene.</p>{% endif %}
+{% if acik %}<div class="kart bilgi"><p style="margin:0">Yarım kalan bir sorun var. <a class="tus kucuk" href="/ogrenci/calisma/{{ acik.id }}">Devam et</a></p></div>{% endif %}
+
+<section class="kart" aria-labelledby="tekrar-b">
+  <h2 id="tekrar-b">Yanlışlarımı tekrar et</h2>
+  {% if tekrar %}
+  <p><b>{{ tekrar }}</b> soru seni bekliyor <span class="soluk kucuk">(son 30 günde yanlış yaptıkların; sonra doğru yaptıkların listeden düşer)</span></p>
+  <form method="post" action="/ogrenci/calisma/tekrar/basla"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus mor">Tekrara başla</button></form>
+  {% else %}<p class="bos">Şu an tekrar edilecek yanlış sorun yok.</p>{% endif %}
+</section>
+
+<section class="kart" aria-labelledby="serbest-b">
+  <h2 id="serbest-b">Konu seçerek çalış</h2>
+  {% if dersler %}
+  <form method="get" action="/ogrenci/calisma">
+    <label for="ders-sec">Ders</label>
+    <select id="ders-sec" name="ders" onchange="this.form.submit()"><option value="">Seç</option>
+      {% for d in dersler %}<option value="{{ d }}"{{ ' selected' if d == ders }}>{{ d|baslik }}</option>{% endfor %}
+    </select>
+    <noscript><button class="tus ikincil">Seç</button></noscript>
+  </form>
+  {% if ders %}
+  <form method="post" action="/ogrenci/calisma/serbest/basla">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="ders" value="{{ ders }}">
+    {% if kazanimlar %}
+    <label for="kz">Kazanım (isteğe bağlı)</label>
+    <select id="kz" name="kazanim"><option value="">Karışık</option>
+      {% for z in kazanimlar %}<option value="{{ z.id }}">{{ z.kod }} · {{ z.metin|truncate(70) }} ({{ z.adet }} soru)</option>{% endfor %}
+    </select>
+    <p class="kucuk soluk">Kazanım eşleşmesi çoğunlukla otomatik atanmıştır (tahmini).</p>
+    {% endif %}
+    <button class="tus mor">{{ ders|baslik }} çalış</button>
+  </form>
+  {% endif %}
+  {% elif not hata %}<p class="bos">Şu an çalışılabilecek ders yok.</p>{% endif %}
+</section>
+{% endblock %}

@@ -51,7 +51,7 @@ def etkinlik_sayisi(conn: sqlite3.Connection, ogrenci_id: int, kullanici_id: int
 
 
 def calisma_serisi(conn: sqlite3.Connection, ogrenci: sqlite3.Row) -> int:
-    """Gerçek etkinlik yapılan art arda gün sayısı (Günlük Görev, Maraton, test ödevi; etkinlik_sayisi ile aynı kurallar).
+    """Gerçek etkinlik yapılan art arda gün sayısı (Günlük Görev, Maraton, test ödevi, serbest çalışma/tekrar; etkinlik_sayisi ile aynı kurallar).
     Hafta sonu ve tatil seriyi bozmaz (sayılmaz); bugün henüz çalışılmadıysa dünle devam eder."""
     kid, oid = ogrenci["kullanici_id"], ogrenci["id"]
     gunler = {r[0] for r in conn.execute(
@@ -59,8 +59,9 @@ def calisma_serisi(conn: sqlite3.Connection, ogrenci: sqlite3.Row) -> int:
         " UNION SELECT substr(m.bitis, 1, 10) FROM maraton m WHERE m.kullanici_id = ? AND m.bitis IS NOT NULL"
         " AND NOT EXISTS (SELECT 1 FROM maraton_soru s WHERE s.maraton_id = m.id AND s.cevap = -2)"
         " UNION SELECT substr(t.zaman, 1, 10) FROM odev_teslim t JOIN odev o ON o.id = t.odev_id"
-        " WHERE t.ogrenci_id = ? AND t.durum = 'tamam' AND o.tur = 'test'",
-        (kid, kid, oid),
+        " WHERE t.ogrenci_id = ? AND t.durum = 'tamam' AND o.tur = 'test'"
+        " UNION SELECT substr(cevap_zamani, 1, 10) FROM calisma_soru WHERE kullanici_id = ? AND cevap >= 0",
+        (kid, kid, oid, kid),
     )}
     bugun = zaman.simdi().date()
     n = 0

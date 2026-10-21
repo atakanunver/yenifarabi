@@ -83,6 +83,14 @@ OZELLIKLER = {
         "Bekleyen anketi ana sayfada öne çıkar; son gün yaklaşırken duyuruyla hatırlat ve anketin anonim olduğunu belirt.",
     ),
     "arena_goruntule": ("Bilgi Arenası ekranı", ("ogrenci",), False, ""),
+    "calisma_tekrar": (
+        "Yanlışları tekrar", ("ogrenci",), False,
+        "Ana sayfadaki Çalış düğmesini öne çıkar; sınıfta yanlışları tekrar etmenin işe yaradığını anlat.",
+    ),
+    "calisma_serbest": (
+        "Serbest çalışma", ("ogrenci",), False,
+        "Çalış sayfasını ödev ve sınav öncesi hatırlat; kazanıma göre çalışabildiklerini göster.",
+    ),
     "arena_basla": (
         "Arena: Günlük Görev başlatma", ("ogrenci",), True,
         "Günlük Görev'i ana sayfada öne çıkar; sınıfta bir kez birlikte denet ve 5 dakikalık bir görev olduğunu vurgula.",

@@ -92,6 +92,7 @@
     </a>
     <div class="tuslar">
       <a class="tus ikincil" href="/ogrenci/maraton">Hızlı Mod · 10 soru</a>
+      <a class="tus ikincil" href="/ogrenci/calisma">Çalış</a>
       {% if arena_acik %}<a class="tus ikincil" href="/ogrenci/arena/liderlik">Liderlik</a>{% endif %}
     </div>
     {% if maraton is defined %}<p class="kucuk soluk">Hızlı Mod (Soru Maratonu): {% if maraton.sira %}Bu hafta okulda <b>{{ maraton.sira }}.</b> sıradasın{% else %}Bu hafta henüz oynamadın{% endif %}{% if maraton.kilit %} · ders sırasında kapalı, {{ maraton.kilit.bit }}'de açılır{% endif %}</p>{% endif %}

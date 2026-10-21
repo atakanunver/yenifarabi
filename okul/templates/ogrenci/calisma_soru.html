@@ -1,0 +1,42 @@
+{# Çalışma sorusu. Bağlam: c{id,kaynak,ders,kazanim_id,konu,kazanim_kod,soru,secenekler}, soru{soru_id,bildirildi}, geri{dogru,dogru_index,secilen}|None.
+   Doğru şık (geri.dogru_index) YALNIZCA cevap verildikten sonra gelir. #}
+{% extends "base.html" %}
+{% block baslik %}Çalış · Dijital Okul{% endblock %}
+{% block icerik %}
+<div class="arena">
+  <div class="arena-ust"><span class="etiket">{{ 'Tekrar' if c.kaynak == 'tekrar' else 'Serbest çalışma' }}</span><a class="kucuk" href="/ogrenci/calisma">Çıkış</a></div>
+  {% if c.kazanim_kod %}<p class="soru-no">{{ c.kazanim_kod }}</p>{% elif c.konu %}<p class="soru-no">{{ c.konu }}</p>{% endif %}
+  <h1 class="soru-metni" id="soru-metni" tabindex="-1">{{ c.soru }}</h1>
+  <form method="post" action="/ogrenci/calisma/{{ c.id }}/cevap" class="siklar" aria-labelledby="soru-metni">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% for s in c.secenekler %}
+    {% set i = loop.index0 %}
+    <button class="sik{{ ' kilitli' if geri }}{{ ' dogru' if geri and i == geri.dogru_index }}{{ ' yanlis' if geri and i == geri.secilen and not geri.dogru }}"
+            name="sec" value="{{ i }}" {{ 'disabled' if geri }}{% if geri and i == geri.secilen %} aria-current="true"{% endif %}>
+      <b aria-hidden="true">{{ 'ABCDEFGH'[i] }}</b><span>{{ s }}</span>
+      {% if geri and i == geri.dogru_index %}<span class="kucuk"> (doğru cevap)</span>{% elif geri and i == geri.secilen %}<span class="kucuk"> (senin cevabın)</span>{% endif %}
+    </button>
+    {% endfor %}
+  </form>
+  {% if not geri %}
+  <form method="post" action="/ogrenci/calisma/{{ c.id }}/gec" class="soru-gec">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="tuslar"><button class="tus ikincil kucuk">⏭ Bu soruyu geç</button></div>
+  </form>
+  {% else %}
+  <div role="status" aria-live="polite">
+    <div class="geri-bildirim {{ 'dogru' if geri.dogru else 'yanlis' }}">
+      <b>{{ 'Doğru!' if geri.dogru else 'Bu soruyu birlikte gözden geçirelim.' }}</b>
+      {% if not geri.dogru %}Doğru cevap: <b style="display:inline">{{ 'ABCDEFGH'[geri.dogru_index] }}</b>.{% endif %}
+    </div>
+    {% include "ogrenci/_soru_bildir.html" %}
+    {% set sonraki = '/ogrenci/calisma/tekrar/basla' if c.kaynak == 'tekrar' else '/ogrenci/calisma/serbest/basla' %}
+    <form method="post" action="{{ sonraki }}" class="tuslar">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      {% if c.kaynak == 'serbest' %}<input type="hidden" name="ders" value="{{ c.ders }}">{% if c.kazanim_id %}<input type="hidden" name="kazanim" value="{{ c.kazanim_id }}">{% endif %}{% endif %}
+      <button class="tus tam" autofocus>Sonraki soru</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

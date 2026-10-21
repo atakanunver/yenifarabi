@@ -45,6 +45,10 @@ def gordu_mu(conn: sqlite3.Connection, kullanici_id: int, soru_id: int) -> bool:
             (kullanici_id, soru_id),
         ).fetchone()
         is not None
+        or conn.execute(
+            "SELECT 1 FROM calisma_soru WHERE kullanici_id = ? AND soru_id = ? LIMIT 1", (kullanici_id, soru_id)
+        ).fetchone()
+        is not None
     )
 
 
