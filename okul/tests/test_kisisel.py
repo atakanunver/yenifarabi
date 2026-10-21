@@ -169,3 +169,37 @@ def test_baskasinin_hedefi_gorunmez(istemci, ornek, conn, saat):
     giris(istemci, "201", "ayse-sifre")
     t = istemci.get("/ogrenci/hedefim").text
     assert "henüz hedef koymadın" in t and "/ 9 etkinlik" not in t
+
+
+def _etkinlik_gunleri(conn, ornek, gunler):
+    for g in gunler:
+        conn.execute(
+            "INSERT INTO bilgi_tur (kullanici_id, gun, sinif, ders, basla, durum) VALUES (?, ?, '9-A', 'matematik', ?, 'tamam')",
+            (ornek["ogr1_k"], g, g + " 10:00:00"),
+        )
+    conn.commit()
+
+
+def test_calisma_serisi_hafta_sonu_bozmaz(conn, ornek, saat):
+    o = conn.execute("SELECT * FROM ogrenci WHERE id = ?", (ornek["ogr1"],)).fetchone()
+    assert kisisel.calisma_serisi(conn, o) == 0
+    # saat: 12 Ekim 2026 Pazartesi. Cuma 9, Perşembe 8 ve Pazartesi 12 çalışıldı; hafta sonu arada
+    _etkinlik_gunleri(conn, ornek, ["2026-10-08", "2026-10-09", "2026-10-12"])
+    assert kisisel.calisma_serisi(conn, o) == 3
+
+
+def test_calisma_serisi_bugun_bos_dunle_surer_bos_okul_gunu_keser(conn, ornek, saat):
+    o = conn.execute("SELECT * FROM ogrenci WHERE id = ?", (ornek["ogr1"],)).fetchone()
+    _etkinlik_gunleri(conn, ornek, ["2026-10-08", "2026-10-09"])  # bugün (Pzt 12) boş: Cuma ile süren seri
+    assert kisisel.calisma_serisi(conn, o) == 2
+    saat["an"] = saat["an"].replace(day=14)  # Çarşamba: Salı 13 boş okul günü → seri kesilir
+    assert kisisel.calisma_serisi(conn, o) == 0
+
+
+def test_ana_ekranda_calisma_serisi(conn, ornek, saat):
+    from app import app
+
+    _etkinlik_gunleri(conn, ornek, ["2026-10-08", "2026-10-09", "2026-10-12"])
+    c = TestClient(app)
+    assert c.post("/giris", data={"kullanici_adi": "101", "sifre": "ali-sifre"}, follow_redirects=False).status_code == 303
+    assert "3</b> gündür üst üste" in c.get("/ogrenci").text

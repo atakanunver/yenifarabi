@@ -69,6 +69,7 @@ def ana(
         kalan=sinavlar.kalan_gun,
         maraton=maraton.ana_ozet(conn, k["id"]),
         deneme_sayisi=denemeler.deneme_sayisi(conn, o["okul_no"]),
+        calisma_seri=kisisel.calisma_serisi(conn, o),
     )
 
 

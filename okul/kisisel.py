@@ -10,6 +10,7 @@ import sqlite3
 from datetime import datetime, timedelta
 
 import zaman
+from kaynaklar import zil
 
 MIN_HEDEF, MAX_HEDEF = 1, 14
 OLUSAN_HAFTA = 6  # geçmiş görünümünde gösterilen hafta sayısı
@@ -47,6 +48,31 @@ def etkinlik_sayisi(conn: sqlite3.Connection, ogrenci_id: int, kullanici_id: int
         (ogrenci_id, hb, son),
     ).fetchone()[0]
     return {"arena": arena, "maraton": mar, "test": test, "toplam": arena + mar + test}
+
+
+def calisma_serisi(conn: sqlite3.Connection, ogrenci: sqlite3.Row) -> int:
+    """Gerçek etkinlik yapılan art arda gün sayısı (Günlük Görev, Maraton, test ödevi; etkinlik_sayisi ile aynı kurallar).
+    Hafta sonu ve tatil seriyi bozmaz (sayılmaz); bugün henüz çalışılmadıysa dünle devam eder."""
+    kid, oid = ogrenci["kullanici_id"], ogrenci["id"]
+    gunler = {r[0] for r in conn.execute(
+        "SELECT gun FROM bilgi_tur WHERE kullanici_id = ? AND durum = 'tamam'"
+        " UNION SELECT substr(m.bitis, 1, 10) FROM maraton m WHERE m.kullanici_id = ? AND m.bitis IS NOT NULL"
+        " AND NOT EXISTS (SELECT 1 FROM maraton_soru s WHERE s.maraton_id = m.id AND s.cevap = -2)"
+        " UNION SELECT substr(t.zaman, 1, 10) FROM odev_teslim t JOIN odev o ON o.id = t.odev_id"
+        " WHERE t.ogrenci_id = ? AND t.durum = 'tamam' AND o.tur = 'test'",
+        (kid, kid, oid),
+    )}
+    bugun = zaman.simdi().date()
+    n = 0
+    for geri in range(400):
+        d = bugun - timedelta(days=geri)
+        if d.isoformat() in gunler:
+            n += 1
+        elif geri == 0 or zil.tatil_adi(d):
+            continue
+        else:
+            break
+    return n
 
 
 def hedef_getir(conn: sqlite3.Connection, kullanici_id: int, hb: str) -> int | None:
