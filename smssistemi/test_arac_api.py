@@ -109,6 +109,20 @@ def test_acil_hemen_yonetime(ortam):
     assert y["gonderim_id"] == "g1" and len(giden[0]) == 2
 
 
+def test_acil_ek_alici_yalniz_acilda(ortam, tmp_path):
+    giden, _ = ortam
+    ayar = json.loads((tmp_path / "arac.json").read_text())
+    ayar["acil_ek"] = [
+        {"ad": "Ek Kişi", "telefon": "05362080503"},
+        {"ad": "Yönetim Tekrarı", "telefon": "05559990011"},  # yönetimde zaten var → tek SMS
+    ]
+    (tmp_path / "arac.json").write_text(json.dumps(ayar))
+    y = aa.acil(aa.AcilIstek(metin="Okulda elektrik kesik."))
+    assert y["alicilar"] == ["Atakan Ünver", "Arzu Oral", "Ek Kişi"]
+    assert len(giden[0]) == 3
+    assert len(aa.yonetim_alicilari()) == 2  # hatırlatma/veli bildirimi ek kişiyi görmez
+
+
 def test_yonetim_tanimsizsa_503(ortam, tmp_path):
     (tmp_path / "arac.json").write_text(json.dumps({"anahtar": ANAHTAR}))
     assert _kod(_hat) == 503

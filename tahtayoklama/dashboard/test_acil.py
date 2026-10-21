@@ -2,12 +2,21 @@
 
 import asyncio
 import json
+import tempfile
+import threading
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import acil
 
 AYAR = {"sms_url": "http://sms", "sms_anahtar": "k"}
+_gecici = tempfile.TemporaryDirectory()
+acil.ZIL_LOG = Path(_gecici.name) / "acil_zil.jsonl"  # testler gerçek günlüğe yazmasın
+
+
+def tearDownModule():
+    _gecici.cleanup()
 
 
 class TestAcil(unittest.TestCase):
@@ -32,19 +41,27 @@ class TestAcil(unittest.TestCase):
         self.assertTrue(s["basarili"])
 
     def test_gercek_sms_personele_taslak_ve_gonder(self):
-        cevaplar = [{"taslak_id": "t1", "alici_sayisi": 22}, {}]
+        cevaplar = [{"alicilar": ["A", "B", "C"]}, {"taslak_id": "t1", "alici_sayisi": 22}, {}]
         with mock.patch.object(acil, "_post", side_effect=cevaplar) as p:
             s = acil._sms_gonder(AYAR, "tahliye", False)
         urller = [c.args[0] for c in p.call_args_list]
         self.assertEqual(
             urller,
             [
+                "http://sms/api/arac/acil",  # yönetim (+acil_ek) gerçek olayda da alır
                 "http://sms/api/arac/personel-taslak",
                 "http://sms/api/arac/personel-gonder",
             ],
         )
         self.assertNotIn(acil.TATBIKAT_ONEKI, p.call_args_list[0].args[1]["metin"])
         self.assertIn("22", s["detay"])
+
+    def test_gercek_sms_yonetim_hatasi_personeli_engellemez_ama_gorunur(self):
+        cevaplar = [OSError("sms kapalı"), {"taslak_id": "t1", "alici_sayisi": 22}, {}]
+        with mock.patch.object(acil, "_post", side_effect=cevaplar) as p, self.assertRaises(RuntimeError) as c:
+            acil._sms_gonder(AYAR, "kilit", False)
+        self.assertEqual(p.call_count, 3)  # personel yine gitti
+        self.assertIn("yönetim SMS hatası", str(c.exception))
 
     def test_ekran_sablonu_tatbikat_etiketi(self):
         sablon = acil.templates.get_template("acil_ekran.html")
@@ -132,7 +149,7 @@ class TestYonetim(unittest.TestCase):
         self.assertFalse(acil.TURLER["gecti"].get("siren"))
 
     def test_siren_sonra_anons_ve_eksik_anons(self):
-        a = {"anons_idleri": {"kilit": "3e5f4cf2"}, "siren_sn": 0}
+        a = {"anons_idleri": {"kilit": "3e5f4cf2"}, "siren_sn": 0, "tekrar": 1}
         with mock.patch.object(acil, "_zil_istek", return_value={"tamam": True}) as z:
             acil._zil_cal(a, "kilit")
         self.assertEqual([c.args[1] for c in z.call_args_list], ["/acil/siren-cal", "/anons/cal/3e5f4cf2?acil=1"])
@@ -140,6 +157,54 @@ class TestYonetim(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 acil._zil_cal(a, "deprem")  # anonsu henüz yok → siren yine çalar
         self.assertEqual([c.args[1] for c in z.call_args_list], ["/acil/siren-cal"])
+
+    def test_tekrar_siren_anons_dizisi_ve_varsayilan_20(self):
+        self.assertEqual(acil.ANONS_TEKRAR, 20)
+        a = {"anons_sn": {"kilit": 0}, "siren_sn": 0}
+        with mock.patch.object(acil, "_zil_istek", return_value={"tamam": True}) as z:
+            acil._zil_tekrarla(a, "kilit", "3e5f4cf2", 2, threading.Event())
+        self.assertEqual(
+            [c.args[1] for c in z.call_args_list],
+            ["/acil/siren-cal", "/anons/cal/3e5f4cf2?acil=1"] * 2,
+        )
+
+    def test_zil_turlari_gunluge_yazilir(self):
+        acil.ZIL_LOG.unlink(missing_ok=True)
+        a = {"anons_sn": {"kilit": 0}, "siren_sn": 0}
+        with mock.patch.object(acil, "_zil_istek", side_effect=[{"tamam": True}, OSError("zil yok")]):
+            acil._zil_tekrarla(a, "kilit", "x", 1, threading.Event())
+        satirlar = [json.loads(s) for s in acil.ZIL_LOG.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual([(s["tur_no"], s["adim"], s["basarili"]) for s in satirlar],
+                         [(2, "siren", True), (2, "anons", False)])
+        self.assertIn("zil yok", satirlar[1]["hata"])
+
+    def test_tekrar_durdurulunca_biter_ve_hatali_tur_devam_eder(self):
+        a = {"anons_sn": {"kilit": 0}, "siren_sn": 0}
+        dur = threading.Event()
+        dur.set()
+        with mock.patch.object(acil, "_zil_istek") as z:
+            acil._zil_tekrarla(a, "kilit", "x", 5, dur)
+        z.assert_not_called()
+        with mock.patch.object(acil, "_zil_istek", side_effect=[OSError("kesildi"), {}, {}]) as z:
+            acil._zil_tekrarla(a, "kilit", "x", 2, threading.Event())
+        self.assertEqual(z.call_count, 3)  # ilk tur siren'de düştü, ikinci tur tam
+
+    def test_zil_cal_ilk_turdan_sonra_arka_planda_tekrar_baslatir(self):
+        a = {"anons_idleri": {"kilit": "3e5f4cf2"}, "siren_sn": 0, "tekrar": 20}
+        with (
+            mock.patch.object(acil, "_zil_istek", return_value={"tamam": True}),
+            mock.patch.object(acil.threading, "Thread") as t,
+        ):
+            s = acil._zil_cal(a, "kilit")
+        self.assertEqual(t.call_args.kwargs["args"][3], 19)
+        t.return_value.start.assert_called_once()
+        self.assertIn("20 tur", s["detay"])
+        with (
+            mock.patch.object(acil, "_zil_istek", return_value={"tamam": True}),
+            mock.patch.object(acil.threading, "Thread") as t,
+        ):
+            acil._zil_cal({**a, "anons_idleri": {"gecti": "a8244370"}}, "gecti")  # sirensiz: tekrar yok
+        t.assert_not_called()
 
     def test_makine_anahtari(self):
         istek = mock.Mock(headers={"X-Acil-Anahtar": "yanlis"})

@@ -18,7 +18,9 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import shlex
+import threading
 import time
 import urllib.request
 from datetime import datetime
@@ -37,6 +39,7 @@ import tahta_api
 import tahta_kaydi
 import zil
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 templates.env.globals["menu_agaci"] = menu.menu_agaci
@@ -45,6 +48,7 @@ templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk  # taban.html kullan�
 DIZIN = Path(__file__).resolve().parent
 CONFIG = DIZIN / "config" / "acil.json"
 OLAY_DOSYASI = DIZIN / "veri" / "acil_olaylar.jsonl"
+ZIL_LOG = DIZIN / "veri" / "acil_zil.jsonl"  # tur tur zil günlüğü (panel olay listesini doldurmasın diye ayrı)
 ISTANBUL = ZoneInfo("Europe/Istanbul")
 
 TURLER = {
@@ -168,21 +172,93 @@ def _zil_istek(a: dict, yol: str, yontem: str = "POST", govde: dict | None = Non
         return json.loads(yanit.read() or b"{}")
 
 
+ANONS_TEKRAR = 20  # siren'li senaryoda anons sayısı (her anonstan önce siren); config "tekrar"
+_zil_dur = threading.Event()  # çalışan tekrar döngüsünü keser
+
+
+def _zil_kayit(**alanlar) -> None:
+    """Zil turu günlüğü; hatası acil akışı bozmaz. Zil makinesindeki ~/ses/logs/acil.jsonl ile zaman damgasından eşleşir."""
+    try:
+        ZIL_LOG.parent.mkdir(exist_ok=True)
+        zaman = datetime.now(ISTANBUL).isoformat(timespec="milliseconds")
+        with ZIL_LOG.open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"zaman": zaman, **alanlar}, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
+
+
+def _zil_adim(a: dict, tur: str, tur_no: int, adim: str, yol: str) -> dict:
+    """Tek zil isteği + günlük (süre, zilin yanıtı ya da hata)."""
+    t0 = time.monotonic()
+    try:
+        yanit = _zil_istek(a, yol)
+    except Exception as e:
+        _zil_kayit(tur=tur, tur_no=tur_no, adim=adim, basarili=False, hata=str(e)[:200],
+                   ms=round((time.monotonic() - t0) * 1000))
+        raise
+    _zil_kayit(tur=tur, tur_no=tur_no, adim=adim, basarili=True, yanit=yanit,
+               ms=round((time.monotonic() - t0) * 1000))
+    return yanit
+
+
+def _zil_tekrar_durdur() -> None:
+    _zil_kayit(adim="durdur_istegi")
+    _zil_dur.set()
+
+
+def _anons_sn(a: dict, tur: str) -> float:
+    """Anonsun yaklaşık süresi (zil süre bildirmez): config "anons_sn"[tur] ya da metin uzunluğundan."""
+    ayarli = a.get("anons_sn", {}).get(tur)
+    return float(ayarli) if ayarli is not None else len(TURLER[tur]["anons"]) / 11 + 2
+
+
+def _zil_tekrarla(a: dict, tur: str, anons_id: str, kalan: int, dur: threading.Event) -> None:
+    """İlk siren+anonstan sonra kalan kez: siren → anons. Zil tek çalar olduğu için
+    bir önceki anonsun bitmesi beklenir. Bir tur başarısız olsa sonrakiler denenir."""
+    bekle = _anons_sn(a, tur)
+    for i in range(kalan):
+        tur_no = i + 2
+        if dur.wait(bekle):
+            _zil_kayit(tur=tur, tur_no=tur_no, adim="tekrar_kesildi")
+            return
+        try:
+            _zil_adim(a, tur, tur_no, "siren", "/acil/siren-cal")
+            if dur.wait(a.get("siren_sn", 8)):
+                _zil_kayit(tur=tur, tur_no=tur_no, adim="tekrar_kesildi")
+                return
+            _zil_adim(a, tur, tur_no, "anons", f"/anons/cal/{anons_id}?acil=1")
+        except Exception:
+            log.exception("acil tekrar turu başarısız")
+        bekle = _anons_sn(a, tur)
+
+
 def _zil_cal(a: dict, tur: str) -> dict:
     """Siren'li senaryoda önce siren (siren_sn), sonra anons — zil tek çalar
-    kullandığı için anons sireni keser. Anons yoksa siren yine çalmış olur."""
+    kullandığı için anons sireni keser. Anons yoksa siren yine çalmış olur.
+    İlk tur burada (eşzamanlı); kalan tekrarlar arka plan iş parçacığında —
+    yanıt dakikalarca beklemez. Önceki tekrar döngüsünü (ve 'Tehlike geçti') keser."""
+    global _zil_dur
+    _zil_dur.set()
+    dur = _zil_dur = threading.Event()
     siren = TURLER[tur].get("siren")
     if siren:
-        _zil_istek(a, "/acil/siren-cal")
+        _zil_adim(a, tur, 1, "siren", "/acil/siren-cal")
         time.sleep(a.get("siren_sn", 8))
     anons_id = a.get("anons_idleri", {}).get(tur)
     if not anons_id:
         raise RuntimeError("Siren çaldı; bu senaryonun anonsu zilde henüz tanımlı değil." if siren
                            else "Anons zilde tanımlı değil.")
-    sonuc = _zil_istek(a, f"/anons/cal/{anons_id}?acil=1")  # ?acil=1: zil acil ses seviyesi (%90) + mikser hazırlığı
+    sonuc = _zil_adim(a, tur, 1, "anons", f"/anons/cal/{anons_id}?acil=1")  # ?acil=1: zil acil ses seviyesi (%90) + mikser hazırlığı
     if not sonuc.get("tamam"):
         raise RuntimeError(sonuc.get("hata", "zil hatası"))
-    return {"kanal": "Zil", "basarili": True, "detay": ("Siren + anons" if siren else "Anons") + " çalındı."}
+    tekrar = int(a.get("tekrar", ANONS_TEKRAR)) if siren else 1
+    if tekrar > 1:
+        threading.Thread(
+            target=_zil_tekrarla, args=(a, tur, anons_id, tekrar - 1, dur), daemon=True
+        ).start()
+    return {"kanal": "Zil", "basarili": True,
+            "detay": f"Siren + anons çalındı (toplam {tekrar} tur)." if tekrar > 1
+            else ("Siren + anons" if siren else "Anons") + " çalındı."}
 
 
 def _sms_gonder(a: dict, tur: str, tatbikat: bool, metin: str | None = None) -> dict:
@@ -201,6 +277,13 @@ def _sms_gonder(a: dict, tur: str, tatbikat: bool, metin: str | None = None) -> 
             "basarili": True,
             "detay": "Tatbikat: " + ", ".join(r.get("alicilar", [])),
         }
+    # Gerçek olayda yönetim (+acil_ek) de alır; hatası personel gönderimini engellemez.
+    yonetim_hata = None
+    try:
+        r = _post(f"{a['sms_url']}/api/arac/acil", {"metin": metin}, basliklar)
+        yonetim = len(r.get("alicilar", []))
+    except Exception as e:
+        yonetim_hata = str(e)[:100]
     taslak = _post(
         f"{a['sms_url']}/api/arac/personel-taslak", {"metin": metin}, basliklar
     )
@@ -211,10 +294,12 @@ def _sms_gonder(a: dict, tur: str, tatbikat: bool, metin: str | None = None) -> 
         {"taslak_id": taslak["taslak_id"]},
         basliklar,
     )
+    if yonetim_hata:
+        raise RuntimeError(f"Personel gitti ({taslak['alici_sayisi']} kişi); yönetim SMS hatası: {yonetim_hata}")
     return {
         "kanal": "SMS",
         "basarili": True,
-        "detay": f"Personel: {taslak['alici_sayisi']} kişi",
+        "detay": f"Personel: {taslak['alici_sayisi']} kişi + yönetim: {yonetim}",
     }
 
 
@@ -546,6 +631,7 @@ async def _yanlis_alarm(a: dict, kaynak: str | None, anons: bool = True) -> dict
     tatbikat = bool(son.get("tatbikat", True))
 
     def ses():
+        _zil_tekrar_durdur()
         _zil_istek(a, "/youtube-cal/durdur")  # siren/anonsu keser
         if anons and a.get("anons_idleri", {}).get("gecti"):
             _zil_istek(a, f"/anons/cal/{a['anons_idleri']['gecti']}?acil=1")
@@ -630,6 +716,8 @@ async def acil_zil(request: Request):
         yol = yollar[eylem]
     else:
         raise HTTPException(400, "Geçersiz eylem.")
+    if eylem == "durdur":
+        _zil_tekrar_durdur()
     try:
         sonuc = await asyncio.to_thread(_zil_istek, _ayarlar(), yol)
     except Exception as e:

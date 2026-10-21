@@ -115,9 +115,9 @@ def anahtar_dogrula(
         )
 
 
-def yonetim_alicilari() -> list[tuple[str, str]]:
+def yonetim_alicilari(anahtar: str = "yonetim") -> list[tuple[str, str]]:
     alicilar = []
-    for k in ayar().get("yonetim", []):
+    for k in ayar().get(anahtar, []):
         tel = gonderim.normalize_phone(str(k.get("telefon", "")))
         if k.get("ad") and gonderim.is_valid_phone(tel):
             alicilar.append((k["ad"], tel))
@@ -309,6 +309,9 @@ class AcilIstek(BaseModel):
 def acil(istek: AcilIstek):
     metin = _metin(istek.metin, VELI_AZAMI)
     alicilar = _yonetim_sarti()
+    var = {tel for _ad, tel in alicilar}
+    # "acil_ek": yalnız acil SMS'e eklenen kişiler (hatırlatma/veli bildirimi etkilenmez)
+    alicilar += [(ad, tel) for ad, tel in yonetim_alicilari("acil_ek") if tel not in var]
     gid = gonder([(ad, tel, metin) for ad, tel in alicilar])
     return {"gonderim_id": gid, "alicilar": [a for a, _ in alicilar], "metin": metin}
 
