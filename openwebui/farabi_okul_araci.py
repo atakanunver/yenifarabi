@@ -29,7 +29,7 @@ OGRENCI_RET = (
 
 class Tools:
     class Valves(BaseModel):
-        api_url: str = "http://127.0.0.1:8010/api/okul"
+        api_url: str = "http://127.0.0.1/api/okul"
         api_key: str = ""
         ogrenci_izinli: str = ""  # virgüllü e-posta listesi (kur.py yazar)
         sms_api_url: str = "http://127.0.0.1:8020/api/arac"  # öğrenci/veli telefon sorgusu (salt okunur)

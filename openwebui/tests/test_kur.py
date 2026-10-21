@@ -133,7 +133,7 @@ def test_araci_kur(var):
     assert govde["content"] == (kur.KOK / "farabi_yonetim_araci.py").read_text(encoding="utf-8")
     assert posts[1] == ("/api/v1/tools/id/farabi_yonetim/access/update", {"access_grants": []})
     assert posts[2] == ("/api/v1/tools/id/farabi_yonetim/valves/update",
-                        {"api_url": "http://127.0.0.1:8010/api/ajan", "api_key": "AJAN-ANAHTARI",
+                        {"api_url": "http://127.0.0.1/api/ajan", "api_key": "AJAN-ANAHTARI",
                          "zaman_asimi_sn": 60.0})
 
 
@@ -287,7 +287,7 @@ def test_okul_araci_kur(var, monkeypatch):
     erisim = dict(posts)["/api/v1/tools/id/farabi_okul/access/update"]["access_grants"]
     assert sorted(a["principal_id"] for a in erisim) == ["g-idr", "g-ogr"]
     assert dict(posts)["/api/v1/tools/id/farabi_okul/valves/update"] == {
-        "api_url": "http://127.0.0.1:8010/api/okul", "api_key": "OKUL",
+        "api_url": "http://127.0.0.1/api/okul", "api_key": "OKUL",
         "ogrenci_izinli": "idare@farabi.local,x@y", "zaman_asimi_sn": 15.0,
         "sms_api_url": "http://127.0.0.1:8020/api/arac", "sms_api_key": "SMSK"}
 
@@ -311,7 +311,7 @@ def test_filtre_okul_valfleri():
     api = SahteApi(True)
     kur.filtreyi_kur(api, "WEBUI", {"anahtar": "OKUL"})
     valf = next(g for m, y, g in api.cagrilar if y.endswith("/valves/update"))
-    assert valf["okul_key"] == "OKUL" and valf["okul_url"] == "http://127.0.0.1:8010/api/okul"
+    assert valf["okul_key"] == "OKUL" and valf["okul_url"] == "http://127.0.0.1/api/okul"
     assert valf["api_key"] == "WEBUI"
 
 

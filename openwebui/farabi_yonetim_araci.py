@@ -92,7 +92,7 @@ def _yonetici_mi(user) -> bool:
 
 class Tools:
     class Valves(BaseModel):
-        api_url: str = "http://127.0.0.1:8010/api/ajan"
+        api_url: str = "http://127.0.0.1/api/ajan"
         api_key: str = ""
         zaman_asimi_sn: float = 60.0
 

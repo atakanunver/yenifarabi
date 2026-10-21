@@ -111,7 +111,7 @@ def _reboot(sahte, tahtalar, onay=None, kullanici=ADMIN):
 
 def test_valves_varsayilanlari():
     v = fy.Tools().valves
-    assert v.api_url == "http://127.0.0.1:8010/api/ajan" and v.api_key == "" and v.zaman_asimi_sn == 60.0
+    assert v.api_url == "http://127.0.0.1/api/ajan" and v.api_key == "" and v.zaman_asimi_sn == 60.0
 
 
 def test_cerceve_requirements_yok():

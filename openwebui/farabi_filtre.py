@@ -141,7 +141,7 @@ class Filter:
         api_key: str = Field(default="")
         zaman_asimi_sn: float = Field(default=8.0)
         # Dashboard /api/okul (tarih + ders saati); yalnızca localhost + anahtar.
-        okul_url: str = Field(default="http://127.0.0.1:8010/api/okul")
+        okul_url: str = Field(default="http://127.0.0.1/api/okul")
         okul_key: str = Field(default="")
         # Atos hafızası (farabi-api /api/webui/hafiza/getir); yalnızca meta.farabi_hafiza=true modeller + admin.
         hafiza_url: str = Field(default="http://127.0.0.1:8000/api/webui/hafiza/getir")

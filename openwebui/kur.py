@@ -4,7 +4,7 @@
 Tasarım: docs/superpowers/specs/2026-10-03-openwebui-farabi-modlar-design.md §3.6, §6.
 Yalnızca Open WebUI'nin resmi HTTP API'si kullanılır (DB'ye doğrudan yazılmaz,
 token üretilmez). Kimlik bilgileri openwebui/.env'den (gitignore'lu):
-    OPENWEBUI_URL=http://127.0.0.1:80
+    OPENWEBUI_URL=http://127.0.0.1:8010
     OPENWEBUI_API_KEY=...        # yönetici API anahtarı
     (ortak Öğretmen/İdare/Tahta hesapları 2026-10-05'ten beri kapalı — KAPALI_HESAPLAR)
     YONETICI_EPOSTALAR=a@x,b@y  # İdare grubuna eklenecek yöneticiler (virgüllü)
@@ -44,7 +44,7 @@ ARAC_ID = "farabi_yonetim"  # yalnızca admin: tahta yönetimi aracı (Tool)
 YONETIM_MODEL_ID = "farabi-yonetim"
 # 2026-10-04: ders programı + (yalnızca İdare/Öğretmen) öğrenci bilgisi aracı, tüm modlarda.
 OKUL_ARAC_ID = "farabi_okul"
-OKUL_API_URL = "http://127.0.0.1:8010/api/okul"
+OKUL_API_URL = "http://127.0.0.1/api/okul"
 TAHTA_EPOSTA = "tahta@farabi.local"  # öğrenci verisine ASLA erişmez (kullanıcı kararı)
 # Open WebUI utils/tools.py get_builtin_tools: meta.builtinTools[kategori] (varsayılan True).
 BUILTIN_KATEGORILER = ("time", "memory", "chats", "notes", "knowledge", "channels", "web_search",
@@ -380,7 +380,7 @@ def araci_kur(api: Api, ajan_key: str) -> None:
     api("POST", f"/api/v1/tools/id/{ARAC_ID}/update" if var else "/api/v1/tools/create", govde)
     api("POST", f"/api/v1/tools/id/{ARAC_ID}/access/update", {"access_grants": []})  # yalnızca admin
     api("POST", f"/api/v1/tools/id/{ARAC_ID}/valves/update",
-        {"api_url": "http://127.0.0.1:8010/api/ajan", "api_key": ajan_key, "zaman_asimi_sn": 60.0})
+        {"api_url": "http://127.0.0.1/api/ajan", "api_key": ajan_key, "zaman_asimi_sn": 60.0})
     print(f"araç kuruldu: {ARAC_ID}")
 
 
@@ -459,7 +459,7 @@ def main() -> int:
     a = ap.parse_args()
     env = env_oku(KOK / ".env")
     webui_key = json.loads((KOK.parent / "server/config/api_keys.json").read_text(encoding="utf-8"))["webui_key"]
-    api = Api(env.get("OPENWEBUI_URL", "http://127.0.0.1:80"), env["OPENWEBUI_API_KEY"], a.kuru)
+    api = Api(env.get("OPENWEBUI_URL", "http://127.0.0.1:8010"), env["OPENWEBUI_API_KEY"], a.kuru)
     if api("GET", "/api/v1/configs/models", yazma=False) is None:  # /auths/ Open WebUI 0.12+ da insan oturumu ister
         raise SystemExit("API anahtarı geçersiz ya da API anahtarları kapalı.")
     kimlik_ayarlarini_kur(api)
