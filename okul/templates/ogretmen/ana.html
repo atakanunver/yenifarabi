@@ -91,7 +91,7 @@
     <li class="bos">Yayında duyuru yok.</li>
   {% endfor %}
   </ul>
-  <p class="kucuk" style="margin:.5rem 0 0;"><a href="/duyurular">Tüm duyurular</a></p>
+  <p class="kucuk" style="margin:.5rem 0 0;"><a href="/duyurular">Tüm duyurular</a>{% if duyuru_okunmamis|default(0) %} <span class="sayi-rozet">{{ duyuru_okunmamis }} yeni</span>{% endif %}</p>
 </details>
 
 <h1>Sınıflarım</h1>

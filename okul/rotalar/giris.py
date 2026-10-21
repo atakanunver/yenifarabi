@@ -232,7 +232,9 @@ def duyuru_listesi(
 ):
     liste = duyurular.gorunur_duyurular(conn, k)
     duyurular.okuma_kaydet(conn, k, liste)
-    return render(request, "duyurular.html", duyurular=liste)
+    return render(
+        request, "duyurular.html", duyurular=liste, arsiv=duyurular.gorunur_duyurular(conn, k, gecmis=True)
+    )
 
 
 @router.get("/kvkk")

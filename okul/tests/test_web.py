@@ -545,3 +545,11 @@ def test_ogretmen_sinif_devamsizlik_ozeti(istemci, ornek, conn, saat, monkeypatc
     istemci.cookies.clear()
     giris(istemci, "101", "ali-sifre")
     assert istemci.get("/ogretmen/sinif/9-A").status_code == 404
+
+
+def test_duyuru_rozeti_ve_arsiv(istemci, ornek, conn, saat):
+    duyurular.duyuru_ekle(conn, ornek["yonetici"], "Gezi", "Cuma", "sinif", "9-A")
+    giris(istemci, "101", "ali-sifre")
+    assert "1 yeni" in istemci.get("/ogrenci").text
+    assert "Gezi" in istemci.get("/duyurular").text
+    assert "1 yeni" not in istemci.get("/ogrenci").text

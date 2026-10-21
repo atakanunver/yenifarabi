@@ -1,6 +1,7 @@
 """Duyurular: ekleme yetkisi ve hedefe göre görünürlük."""
 
 import sqlite3
+from datetime import timedelta
 
 import yetki
 import zaman
@@ -48,15 +49,22 @@ def duyuru_ekle(
     return cur.lastrowid
 
 
+ARSIV_GUN = 90
+
+
 def gorunur_duyurular(
-    conn: sqlite3.Connection, k: sqlite3.Row, limit: int = 50
+    conn: sqlite3.Connection, k: sqlite3.Row, limit: int = 50, gecmis: bool = False
 ) -> list[sqlite3.Row]:
+    """gecmis=True: süresi son ARSIV_GUN günde dolmuş duyurular (arşiv); varsayılan: yayındakiler."""
     simdi = zaman.simdi_str()
-    temel = (
-        "SELECT d.*, u.ad_soyad AS yazar FROM duyuru d JOIN kullanici u ON u.id = d.yazar_id"
-        " WHERE d.yayin <= ? AND (d.bitis IS NULL OR d.bitis >= ?)"
-    )
-    params: list = [simdi, simdi]
+    temel = "SELECT d.*, u.ad_soyad AS yazar FROM duyuru d JOIN kullanici u ON u.id = d.yazar_id WHERE d.yayin <= ?"
+    params: list = [simdi]
+    if gecmis:
+        temel += " AND d.bitis < ? AND d.bitis >= ?"
+        params += [simdi, (zaman.simdi() - timedelta(days=ARSIV_GUN)).strftime(zaman.BICIM)]
+    else:
+        temel += " AND (d.bitis IS NULL OR d.bitis >= ?)"
+        params.append(simdi)
     siniflar = yetki.kullanici_siniflari(conn, k)
     if siniflar is not None:
         yer = ",".join("?" * len(siniflar)) or "NULL"
@@ -77,6 +85,11 @@ def sil(conn: sqlite3.Connection, k: sqlite3.Row, duyuru_id: int) -> bool:
     conn.execute("DELETE FROM duyuru WHERE id = ?", (duyuru_id,))  # duyuru_okuma CASCADE
     conn.commit()
     return True
+
+
+def okunmamis_sayisi(conn: sqlite3.Connection, k: sqlite3.Row) -> int:
+    okunan = {r[0] for r in conn.execute("SELECT duyuru_id FROM duyuru_okuma WHERE kullanici_id = ?", (k["id"],))}
+    return sum(1 for d in gorunur_duyurular(conn, k) if d["id"] not in okunan)
 
 
 def okuma_kaydet(conn: sqlite3.Connection, k: sqlite3.Row, liste: list[sqlite3.Row]) -> None:

@@ -10,6 +10,7 @@ import anket
 import auth
 import avatar
 import db
+import duyurular
 import push
 import acil
 import kutu
@@ -217,6 +218,20 @@ def _kutu_yeni(request: Request, k) -> int:
         return 0
 
 
+def _duyuru_okunmamis(request: Request, k) -> int:
+    """Rol ana sayfasındaki duyuru bağlantısı için okunmamış sayısı. Hata sayfayı bozmaz: 0 döner."""
+    if k is None or request.url.path not in ("/ogrenci", "/veli", "/ogretmen"):
+        return 0
+    try:
+        c = db.baglanti()
+        try:
+            return duyurular.okunmamis_sayisi(c, k)
+        finally:
+            c.close()
+    except Exception:  # noqa: BLE001 — sayaç isteğe bağlıdır
+        return 0
+
+
 def _acil_aktif(k):
     """Öğretmen/yönetici sayfalarındaki kırmızı şerit için aktif alarm (yoksa None). Hata sayfayı bozmaz: None döner."""
     if k is None or k["rol"] not in acil.ROLLER or k["sifre_degismeli"]:
@@ -235,6 +250,7 @@ def render(request: Request, sablon: str, status_code: int = 200, **ctx):
     ctx.setdefault("k", getattr(request.state, "kullanici", None))
     ctx.setdefault("anket_bekleyen", _anket_bekleyen(ctx["k"]))
     ctx.setdefault("sohbet_okunmamis", _sohbet_okunmamis(request, ctx["k"]))
+    ctx.setdefault("duyuru_okunmamis", _duyuru_okunmamis(request, ctx["k"]))
     ctx.setdefault("acil_aktif", _acil_aktif(ctx["k"]))
     ctx.setdefault("kutu_yeni", _kutu_yeni(request, ctx["k"]))
     ctx["csrf"] = getattr(request.state, "csrf", "")

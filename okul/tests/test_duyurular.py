@@ -71,3 +71,17 @@ def test_okuma_hedef_ve_silme(conn, ornek, saat):
     duyurular.okuma_kaydet(conn, k, duyurular.gorunur_duyurular(conn, k))
     assert duyurular.sil(conn, _k(conn, y), did)
     assert conn.execute("SELECT count(*) FROM duyuru_okuma").fetchone()[0] == 0
+
+
+def test_okunmamis_sayisi_ve_arsiv(conn, ornek, saat):
+    import zaman
+
+    ogr = _k(conn, ornek["ogr1_k"])
+    yonetici = ornek["yonetici"]
+    duyurular.duyuru_ekle(conn, yonetici, "Açık", "m", "okul")
+    duyurular.duyuru_ekle(conn, yonetici, "Eski", "m", "okul", None, (zaman.simdi() - timedelta(days=5)).strftime(zaman.BICIM))
+    duyurular.duyuru_ekle(conn, yonetici, "Çok eski", "m", "okul", None, (zaman.simdi() - timedelta(days=200)).strftime(zaman.BICIM))
+    assert duyurular.okunmamis_sayisi(conn, ogr) == 1  # süresi dolanlar sayılmaz
+    duyurular.okuma_kaydet(conn, ogr, duyurular.gorunur_duyurular(conn, ogr))
+    assert duyurular.okunmamis_sayisi(conn, ogr) == 0
+    assert [d["baslik"] for d in duyurular.gorunur_duyurular(conn, ogr, gecmis=True)] == ["Eski"]

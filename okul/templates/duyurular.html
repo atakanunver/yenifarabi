@@ -14,4 +14,15 @@
 {% else %}
 <div class="kart"><p class="bos">Şu an yayında bir duyuru yok.</p></div>
 {% endfor %}
+{% if arsiv is defined and arsiv %}
+<details class="kart"><summary><b>Geçmiş duyurular</b> <span class="soluk kucuk">(son 90 gün)</span></summary>
+  {% for d in arsiv %}
+  <article>
+    <h3>{{ d.baslik }}</h3>
+    <p style="white-space: pre-line">{{ d.metin }}</p>
+    <p class="soluk kucuk">{{ d.yazar }} · {{ d.yayin|tarih }}</p>
+  </article>
+  {% endfor %}
+</details>
+{% endif %}
 {% endblock %}
