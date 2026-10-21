@@ -161,6 +161,7 @@ def _main_calistir(monkeypatch, anahtar, capsys, ek=None):
     monkeypatch.setattr(kur, "hesaplari_kapat", lambda *a: None)
     monkeypatch.setattr(kur, "belge_araci_kur", lambda *a: None)
     monkeypatch.setattr(kur, "hafiza_araci_kur", lambda *a: None)
+    monkeypatch.setattr(kur, "dosya_araci_kur", lambda *a: None)
     monkeypatch.setattr(kur, "sms_araci_kur", lambda *a: False)
     monkeypatch.setattr(kur, "filtreyi_kur", lambda *a: None)
     monkeypatch.setattr(kur, "modelleri_kur", lambda *a: ["farabi"])
@@ -350,6 +351,15 @@ def test_belge_araci_yalniz_idareye_acik():
                                          "permission": "read"}]}
     valf = next(c[2] for c in api.cagrilar if c[1].endswith("/valves/update"))
     assert valf["api_key"] == "w" and valf["api_url"].endswith("/api/webui/belge-kaydet")
+
+
+def test_dosya_araci_yalniz_idareye_acik():
+    api = KayitApi(var=None)
+    kur.dosya_araci_kur(api, {"Öğretmenler": "g-ogr", "İdare": "g-idr"})
+    erisim = next(c[2] for c in api.cagrilar if c[1].endswith("/access/update"))
+    assert erisim == {"access_grants": [{"principal_type": "group", "principal_id": "g-idr",
+                                         "permission": "read"}]}
+    assert next(c[2] for c in api.cagrilar if c[1].endswith("/create"))["id"] == "farabi_dosya"
 
 
 def test_yonetici_epostalari_envden():

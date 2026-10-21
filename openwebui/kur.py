@@ -34,6 +34,7 @@ KAPALI_HESAPLAR = ("ogretmen@farabi.local", "idare@farabi.local", "tahta@farabi.
 # İdare grubuna eklenecek yönetici e-postaları .env'de (YONETICI_EPOSTALAR, virgüllü) —
 # kişisel veri, public repoya yazılmaz (2026-10-06).
 BELGE_ARAC_ID = "farabi_belge"  # yalnızca İdare: evrakı mudur/'a yazıp RAG'e yükler
+DOSYA_ARAC_ID = "farabi_dosya"  # yalnızca İdare: tablodan yeni tablo, sohbeti Word/Excel/PDF yapma
 SMS_ARAC_ID = "farabi_sms"  # yalnızca İdare: yönetime SMS hatırlatma / acil SMS, veli SMS'i
 HAFIZA_ARAC_ID = "farabi_hafiza"  # yalnızca İdare: ortak okul hafızası (hafiza: true modlara bağlanır)
 HAFIZA_API_URL = "http://127.0.0.1:8000/api/webui/hafiza"
@@ -325,6 +326,13 @@ def belge_araci_kur(api: Api, webui_key: str, grup_idleri: dict[str, str]) -> No
                       "api_key": webui_key, "zaman_asimi_sn": 660.0})
 
 
+def dosya_araci_kur(api: Api, grup_idleri: dict[str, str]) -> None:
+    _yalniz_idare_araci_kur(
+        api, DOSYA_ARAC_ID, "Tablo ve Dosya Çıktısı", "farabi_dosya_araci.py",
+        "Excel/CSV/Word tablosundan sütun seçip çıkararak yeni tablo; sohbeti Word, Excel, PDF yapma. Yalnızca İdare.",
+        grup_idleri, {})
+
+
 def hafiza_araci_kur(api: Api, webui_key: str, grup_idleri: dict[str, str]) -> None:
     _yalniz_idare_araci_kur(
         api, HAFIZA_ARAC_ID, "Atos Hafıza", "farabi_hafiza_araci.py",
@@ -461,9 +469,10 @@ def main() -> int:
     okul = okulu_hazirla(api, env, grup_idleri)
     belge_araci_kur(api, webui_key, grup_idleri)
     hafiza_araci_kur(api, webui_key, grup_idleri)
+    dosya_araci_kur(api, grup_idleri)
     sms_var = sms_araci_kur(api, grup_idleri)
     filtreyi_kur(api, webui_key, okul)
-    araclar = ([OKUL_ARAC_ID] if okul else []) + [BELGE_ARAC_ID] + ([SMS_ARAC_ID] if sms_var else [])
+    araclar = ([OKUL_ARAC_ID] if okul else []) + [BELGE_ARAC_ID, DOSYA_ARAC_ID] + ([SMS_ARAC_ID] if sms_var else [])
     mod_idleri = modelleri_kur(api, grup_idleri, araclar)
     ayarlari_kur(api, mod_idleri)
     onerileri_kur(api)
