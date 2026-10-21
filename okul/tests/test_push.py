@@ -383,3 +383,47 @@ def test_odev_hatirlat_alicilari_yalniz_teslim_etmeyenler(conn, yeni_kullanici):
     )
     conn.commit()
     assert push.odev_hatirlat_alicilari(conn, oid, k["ogretmen"]) == []
+
+
+def _yaklasan_kur(conn, k, teslim, olusturma):
+    import odevler
+
+    oid = odevler.odev_olustur(conn, k["ogretmen"], "9-A", "matematik", "klasik", "A", "", "2026-10-20", [])
+    conn.execute("UPDATE odev SET teslim = ?, olusturma = ? WHERE id = ?", (teslim, olusturma, oid))
+    conn.commit()
+    return oid
+
+
+def test_yaklasan_odev_uyarisi_bir_kez_ve_kosullu(conn, yeni_kullanici, etkin, monkeypatch):
+    from datetime import datetime
+
+    k = _kur(conn, yeni_kullanici)
+    gonderilen = []
+    monkeypatch.setattr(push, "_webpush_gonder", lambda ab, veri: gonderilen.append(json.loads(veri)))
+    simdi = datetime(2026, 10, 12, 10, 0, 0)
+    uzak = _yaklasan_kur(conn, k, "2026-10-20 23:59:00", "2026-10-10 09:00:00")  # 24 saatten uzak
+    yeni = _yaklasan_kur(conn, k, "2026-10-12 23:59:00", "2026-10-12 08:00:00")  # 2 saatlik: "yeni ödev" bildirimi yeter
+    yaklasan = _yaklasan_kur(conn, k, "2026-10-12 23:59:00", "2026-10-10 09:00:00")
+    assert push.yaklasan_odev_uyar(conn, datetime(2026, 10, 12, 22, 0, 0)) == 0  # gece uyarı yok
+    assert push.yaklasan_odev_uyar(conn, simdi) == 1
+    assert [g["govde"] for g in gonderilen] == ["Teslim tarihi yaklaşan bir ödevin var."] and len(gonderilen) == 1
+    assert push.yaklasan_odev_uyar(conn, simdi) == 0  # ikinci çalıştırmada tekrar yok
+    assert {r[0] for r in conn.execute("SELECT odev_id FROM odev_uyari")} == {yaklasan}
+
+
+def test_yaklasan_odev_teslim_edene_gitmez_ve_push_kapaliyken_isaretlenmez(conn, yeni_kullanici, monkeypatch):
+    from datetime import datetime
+
+    k = _kur(conn, yeni_kullanici)
+    oid = _yaklasan_kur(conn, k, "2026-10-12 23:59:00", "2026-10-10 09:00:00")
+    simdi = datetime(2026, 10, 12, 10, 0, 0)
+    assert push.yaklasan_odev_uyar(conn, simdi) == 0  # etkin fixture yok: push kapalı
+    assert conn.execute("SELECT count(*) FROM odev_uyari").fetchone()[0] == 0
+    monkeypatch.setattr(AYAR, "vapid_ozel", "ozel")
+    monkeypatch.setattr(AYAR, "vapid_acik", "acik-anahtar")
+    monkeypatch.setattr(AYAR, "vapid_konu", "mailto:idare@ornek.k12.tr")
+    conn.execute("INSERT INTO odev_teslim (odev_id, ogrenci_id, durum, zaman) VALUES (?, 1, 'yapti', '2026-10-12 09:00:00')", (oid,))
+    conn.commit()
+    gonderilen = []
+    monkeypatch.setattr(push, "_webpush_gonder", lambda ab, veri: gonderilen.append(veri))
+    assert push.yaklasan_odev_uyar(conn, simdi) == 1 and gonderilen == []  # tek öğrenci teslim etmiş: alıcı yok

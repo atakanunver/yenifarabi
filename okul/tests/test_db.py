@@ -20,6 +20,7 @@ def test_sema_kurulur_ve_tekrar_calistirilabilir(conn):
         "odev_soru",
         "odev_teslim",
         "odev_hatirlatma",
+        "odev_uyari",
         "oturum",
         "sms_kod",
         "giris_deneme",

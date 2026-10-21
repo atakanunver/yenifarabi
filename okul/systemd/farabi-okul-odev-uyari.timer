@@ -1,0 +1,9 @@
+[Unit]
+Description=Dijital Okul: ödev uyarısı — saat başı çalışır; 08-20 penceresini betik kendi (Türkiye) saatine göre uygular
+
+[Timer]
+OnCalendar=*-*-* *:15:00
+Persistent=false
+
+[Install]
+WantedBy=timers.target

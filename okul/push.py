@@ -9,6 +9,7 @@ import json
 import logging
 import sqlite3
 from collections.abc import Callable, Iterable
+from datetime import datetime, timedelta
 from urllib.parse import urlsplit
 
 import db
@@ -23,6 +24,7 @@ SABLONLAR = {
     "duyuru": ("Dijital Okul", "Yeni bir duyuru var.", "/duyurular"),
     "odev": ("Dijital Okul", "Yeni bir ödevin var.", "/ogrenci/odevler"),
     "odev_hatirlat": ("Dijital Okul", "Teslim edilmemiş bir ödevin var.", "/ogrenci/odevler"),
+    "odev_yaklasan": ("Dijital Okul", "Teslim tarihi yaklaşan bir ödevin var.", "/ogrenci/odevler"),
     "pdf": ("Dijital Okul", "Yeni bir dosya paylaşıldı.", "/ogrenci/dosyalar"),
     "sohbet": ("Dijital Okul", "Yeni bir sohbet mesajı var.", "/sohbet"),
     "acil": ("Dijital Okul", "Acil durum bildirimi var!", "/acil"),
@@ -238,6 +240,29 @@ def odev_hatirlat_alicilari(conn: sqlite3.Connection, odev_id: int, yazar_id: in
             (yazar_id, odev_id),
         )
     ]
+
+
+UYARI_ONCE = timedelta(hours=24)  # teslime bu kadar kala uyar
+UYARI_MIN_YAS = timedelta(hours=12)  # yeni verilen ödev için "yeni ödev" bildirimiyle üst üste uyarı gitmesin
+UYARI_SAATLERI = range(8, 20)  # gece uyarı yok
+
+
+def yaklasan_odev_uyar(conn: sqlite3.Connection, simdi: datetime) -> int:
+    """Teslimine 24 saatten az kalmış, teslim etmemiş öğrencilere ödev başına bir kez uyarı. Gönderilen ödev sayısı döner.
+    Push kapalıysa ya da saat dışındaysa hiçbir şey işaretlenmez."""
+    if not etkin_mi() or simdi.hour not in UYARI_SAATLERI:
+        return 0
+    simdi_s = simdi.strftime(zaman.BICIM)
+    odevler = conn.execute(
+        "SELECT id FROM odev WHERE teslim > ? AND teslim <= ? AND olusturma <= ?"
+        " AND id NOT IN (SELECT odev_id FROM odev_uyari)",
+        (simdi_s, (simdi + UYARI_ONCE).strftime(zaman.BICIM), (simdi - UYARI_MIN_YAS).strftime(zaman.BICIM)),
+    ).fetchall()
+    for o in odevler:
+        conn.execute("INSERT OR IGNORE INTO odev_uyari (odev_id, zaman) VALUES (?, ?)", (o["id"], simdi_s))
+        conn.commit()
+        gonder(conn, odev_hatirlat_alicilari(conn, o["id"], 0), "odev_yaklasan")
+    return len(odevler)
 
 
 def odev_hatirlat_bildir(odev_id: int, yazar_id: int) -> None:
