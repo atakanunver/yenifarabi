@@ -1,4 +1,4 @@
-"""Yoklama panosunun (`tahtayoklama/dashboard`, :8010) veritabanından SALT-OKUNUR
+"""Yoklama panosunun (`tahtayoklama/dashboard`, :80) veritabanından SALT-OKUNUR
 devamsızlık okuma — çapraz servis erişiminin TEK noktası.
 
 ⚠️ **Bilinçli mimari sapma (2026-09-23).** `CLAUDE.md`'deki "smssistemi ile

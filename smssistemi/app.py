@@ -76,7 +76,7 @@ templates = Jinja2Templates(directory="templates")
 
 _DURDUR_BAYRAKLARI: dict[str, threading.Event] = {}
 
-OLLAMA_URL = "http://192.168.23.252:11434/api/generate"
+OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 OLLAMA_MODEL = "qwen3.8:27b"
 
 

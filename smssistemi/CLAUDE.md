@@ -148,7 +148,7 @@ okul_no [INTEGER], veli_rol [TEXT: 'Anne'|'Baba'|'Teyze'|'Anneanne']) tabloları
   seçim önceliklidir.
 - `kisisellestir`: `{isim}` (alıcı adı) ve `{ogrenci_adi}` (veli için bağlı
   öğrencinin adı, öğrenci için kendi adı) yer tutucularını destekler.
-- Ollama entegrasyonu: Farabi'deki `qwen3.8:27b` (`192.168.23.252:11434`) modeline
+- Ollama entegrasyonu: Farabi'deki `qwen3.8:27b` (`127.0.0.1:11434`) modeline
   bağlanan `POST /api/mesaj-duzelt` endpoint'i ve mesaj kutusu yanındaki "✨ Düzelt (AI)"
   butonu — taslak metni resmi Türkçe okul SMS'ine çevirir, `{isim}` ve
   `{ogrenci_adi}` yer tutucularını olduğu gibi korur.
@@ -204,7 +204,7 @@ Farabi :8020 (FastAPI)  --HTTP proxy (8080)-->  Müdür PC WifiHttpProxy.exe  --
 **2026-09-20'de değişti** (bkz. `DECISIONS.md` aynı tarihli kayıt —
 ayrıntılı teşhis, denenen/reddedilen alternatifler orada): önceki
 mekanizma `netsh interface portproxy` idi (ham TCP seviyesinde
-`192.168.23.243:18080` → `192.168.8.1:80` yönlendirmesi) ama bu, HTTP
+`mudur.local:18080` → `192.168.8.1:80` yönlendirmesi) ama bu, HTTP
 mesaj çerçevelemesini korumadığı için kronik `BadStatusLine`/
 `ConnectionReset` hatalarına yol açıyordu — köprünün kendisi kırılgandı,
 uygulama kodundan düzeltilemezdi. Çözüm: Müdür PC'de gerçek bir HTTP

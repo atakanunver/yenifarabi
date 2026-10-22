@@ -3,7 +3,7 @@
    Aşağıdaki BEGIN/END arası BİREBİR KOPYA — elle değiştirilmez, kaynak
    orasıdır. Bilinçli fork (bkz. smssistemi/CLAUDE.md "Kasıtlı olarak
    bağımsız" + docs/superpowers/plans/2026-09-20-panel-tasarim-
-   standardizasyonu.md §1) — iki ayrı FastAPI app'i (dashboard :8010,
+   standardizasyonu.md §1) — iki ayrı FastAPI app'i (dashboard :80,
    smssistemi :8020), iki ayrı /static mount'u, ortak dosya servis
    edilemez.
 
