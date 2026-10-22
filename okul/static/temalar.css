@@ -85,6 +85,98 @@
   font-family: ui-rounded, "Nunito Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
 }
 
+/* --- Doku ve animasyonlar (maketlerden uyarlandı) ---
+   Doku/animasyon sabit konumlu body::before katmanında (pointer-events yok, z-index -1: içeriğin arkasında);
+   animasyonlar yalnızca opacity/transform (bileşik katman, ucuz) ve prefers-reduced-motion'a saygılı. */
+:root[data-tema="harita"] body::before, :root[data-tema="tahta"] body::before,
+:root[data-tema="blueprint"] body::before, :root[data-tema="gokyuzu"] body::before,
+:root[data-tema="harita"] body::after, :root[data-tema="tahta"] body::after, :root[data-tema="gokyuzu"] body::after {
+  content: ""; position: fixed; pointer-events: none;
+}
+
+/* Orman haritası: topografik halkalar, kartlara toprak çerçeve */
+:root[data-tema="harita"] body::before {
+  inset: 0; z-index: -1;
+  background:
+    repeating-radial-gradient(circle at 88% 8%, transparent 0 15px, rgba(111, 154, 82, .30) 15px 16.5px),
+    repeating-radial-gradient(circle at 6% 92%, transparent 0 18px, rgba(107, 74, 47, .16) 18px 19.5px);
+}
+:root[data-tema="harita"] .ust { border-bottom: 2px solid #1f3320; }
+:root[data-tema="harita"] .kart { border: 1.5px solid #6f9a52; }
+:root[data-tema="harita"] h1, :root[data-tema="harita"] h2 { letter-spacing: -.01em; }
+
+/* Tahta: ahşap çerçeve, tebeşir tozu vinyeti, kesik çizgili ayraçlar */
+:root[data-tema="tahta"] body::before {
+  inset: 0; z-index: -1;
+  background:
+    radial-gradient(ellipse at 30% 8%, rgba(42, 74, 66, .9), transparent 60%),
+    radial-gradient(ellipse at 50% 120%, rgba(0, 0, 0, .35), transparent 60%),
+    radial-gradient(1.5px 1.5px at 18% 22%, rgba(242, 240, 230, .35), transparent),
+    radial-gradient(1px 1px at 72% 38%, rgba(242, 240, 230, .3), transparent),
+    radial-gradient(1.5px 1.5px at 40% 74%, rgba(242, 240, 230, .25), transparent),
+    radial-gradient(1px 1px at 86% 82%, rgba(242, 240, 230, .3), transparent);
+}
+:root[data-tema="tahta"] body::after { inset: 0; z-index: 6; border: 6px solid #8a5a35; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .25); }
+:root[data-tema="tahta"] .kart { border: 2px solid rgba(242, 240, 230, .85); border-radius: 12px 4px 14px 6px; }
+:root[data-tema="tahta"] hr, :root[data-tema="tahta"] .kart > h2 { border-bottom: 2px dashed rgba(242, 240, 230, .3); padding-bottom: .25rem; }
+
+/* Neon: parlayan çerçeve ve başlıklar */
+:root[data-tema="neon"] .ust { box-shadow: 0 2px 18px -2px rgba(255, 0, 85, .45); border-bottom: 1px solid #ff0055; }
+:root[data-tema="neon"] .marka span, :root[data-tema="neon"] .sekmeler a.aktif { text-shadow: 0 0 8px currentColor; }
+:root[data-tema="neon"] h1 { text-shadow: 0 0 14px rgba(255, 0, 85, .65); }
+:root[data-tema="neon"] h2 { text-shadow: 0 0 8px rgba(0, 243, 255, .45); }
+:root[data-tema="neon"] .kart { border-color: #00f3ff55; box-shadow: 0 0 16px -6px rgba(0, 243, 255, .5); }
+:root[data-tema="neon"] .kart.uyari, :root[data-tema="neon"] .hata { box-shadow: 0 0 16px -6px rgba(255, 0, 85, .6); }
+:root[data-tema="neon"] .sekmeler { border-top: 1px solid #00f3ff66; }
+
+/* Blueprint: çizim kareleri, başlık bloğu çerçevesi */
+:root[data-tema="blueprint"] body::before {
+  inset: -20px 0 0 0; z-index: -1;
+  background-image: linear-gradient(rgba(187, 221, 255, .16) 1px, transparent 1px), linear-gradient(90deg, rgba(187, 221, 255, .16) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+:root[data-tema="blueprint"] .ust { border-bottom: 2px solid #bfe0ff; }
+:root[data-tema="blueprint"] .kart { border: 1px solid #bfe0ff; background: rgba(0, 0, 0, .22); box-shadow: none; }
+:root[data-tema="blueprint"] .kart > h2 { border-bottom: 1px dashed rgba(191, 224, 255, .5); padding-bottom: .2rem; }
+
+/* Gökyüzü: yıldızlar ve gece gradyanı */
+:root[data-tema="gokyuzu"] body {
+  background-image: linear-gradient(#0d1645, #1d1b5e 60%, #3a2a6e);
+  background-size: auto; background-attachment: scroll;
+}
+/* yıldızlar: 2-3 px, iki katman farklı hızda kırpışır */
+:root[data-tema="gokyuzu"] body::before {
+  inset: 0; z-index: -1;
+  background:
+    radial-gradient(2px 2px at 20% 30%, #fff, transparent), radial-gradient(3px 3px at 70% 12%, #fff, transparent),
+    radial-gradient(2px 2px at 85% 55%, #fff, transparent), radial-gradient(2px 2px at 40% 80%, #fff, transparent),
+    radial-gradient(3px 3px at 10% 62%, #ffd77a, transparent), radial-gradient(2px 2px at 58% 44%, #fff, transparent),
+    radial-gradient(2px 2px at 95% 90%, #fff, transparent);
+}
+:root[data-tema="gokyuzu"] body::after {
+  inset: 0; z-index: -1;
+  background:
+    radial-gradient(2px 2px at 32% 14%, #fff, transparent), radial-gradient(3px 3px at 92% 28%, #ffd77a, transparent),
+    radial-gradient(2px 2px at 5% 38%, #fff, transparent), radial-gradient(2px 2px at 62% 90%, #fff, transparent),
+    radial-gradient(3px 3px at 78% 70%, #fff, transparent), radial-gradient(2px 2px at 48% 6%, #fff, transparent);
+}
+:root[data-tema="gokyuzu"] .kart { background: rgba(13, 22, 69, .82); backdrop-filter: blur(2px); }
+:root[data-tema="gokyuzu"] .marka span { color: #ffd77a; }
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-tema="harita"] body::before { animation: tema-nefes 14s ease-in-out infinite alternate; }
+  :root[data-tema="tahta"] body::before { animation: tema-nefes 10s ease-in-out infinite alternate; }
+  :root[data-tema="blueprint"] body::before { animation: tema-kay 3s linear infinite; }
+  :root[data-tema="gokyuzu"] body::before { animation: tema-nefes 3.2s ease-in-out infinite alternate; }
+  :root[data-tema="gokyuzu"] body::after { animation: tema-nefes 4.6s ease-in-out -1.8s infinite alternate; }
+  :root[data-tema="neon"] h1 { animation: neon-nefes 3.6s ease-in-out infinite alternate; }
+  :root[data-tema="neon"] .ust { animation: neon-serit 5s ease-in-out infinite alternate; }
+  @keyframes tema-nefes { from { opacity: .45; } to { opacity: 1; } }
+  @keyframes tema-kay { to { transform: translateY(20px); } }
+  @keyframes neon-nefes { from { text-shadow: 0 0 8px rgba(255, 0, 85, .4); } to { text-shadow: 0 0 20px rgba(255, 0, 85, .9); } }
+  @keyframes neon-serit { from { box-shadow: 0 2px 10px -2px rgba(255, 0, 85, .3); } to { box-shadow: 0 2px 24px -2px rgba(255, 0, 85, .7); } }
+}
+
 /* Tema kartları (profil > Görünüm) */
 .tema-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: .6rem; margin: .5rem 0 1rem; }
 .tema-kart { display: flex; flex-direction: column; gap: .35rem; padding: .6rem; border: 2px solid var(--kenar); border-radius: 12px; background: var(--alan); cursor: pointer; font-weight: 600; }
