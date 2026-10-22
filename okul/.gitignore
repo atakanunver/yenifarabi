@@ -3,3 +3,5 @@ veri/
 config/gizli.json
 __pycache__/
 .pytest_cache/
+# Tema maketleri (tasarım zip'i; repo public, koda girmez)
+tema/
