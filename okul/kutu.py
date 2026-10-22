@@ -1,7 +1,7 @@
-"""Dilek/istek/şikayet kutusu: öğrenci ve öğretmen yöneticiye yazar.
+"""Dilek/istek/şikayet kutusu: öğrenci, öğretmen ve veli yöneticiye yazar.
 
 Gönderen yöneticiye ADLI görünür (formda uyarılır). Yönetici yalnızca durum işaretler (yeni/okundu/çözüldü), yazışma yok.
-Veli kapsam dışı. Metin yalnızca düz metin olarak gösterilir (şablonda otomatik kaçış).
+Veli telefon numarası paylaşmadan okula yazar (adı yöneticiye görünür). Metin yalnızca düz metin olarak gösterilir (şablonda otomatik kaçış).
 """
 
 import sqlite3
@@ -11,7 +11,7 @@ import sohbet
 import yetki
 import zaman
 
-ROLLER = ("ogrenci", "ogretmen")
+ROLLER = ("ogrenci", "ogretmen", "veli")
 TURLER = {"dilek": "Dilek", "istek": "İstek", "sikayet": "Şikayet"}
 DURUMLAR = {"yeni": "Yeni", "okundu": "Okundu", "cozuldu": "Çözüldü"}
 AZAMI_METIN = 1000

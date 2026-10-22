@@ -73,13 +73,13 @@ def test_giris_yapmamis_tema_secemez(istemci, ornek):
     assert 'data-tema="defter"' in istemci.get("/giris").text
 
 
-def test_veli_varsayilan_temada_ve_secemez(istemci, ornek, conn):
+def test_veli_orman_temasinda_ve_secemez(istemci, ornek, conn):
     token = auth.oturum_ac(conn, ornek["veli1"])
     istemci.cookies.clear()
     istemci.cookies.set(auth.COOKIE_ADI, token)
     csrf = auth.csrf_token(token)
     assert istemci.post("/profil/tema", data={"csrf": csrf, "tema": "neon"}).status_code == 404
-    assert 'data-tema="defter"' in istemci.get("/veli").text
+    assert 'data-tema="harita"' in istemci.get("/veli").text  # veli orman haritası temasında sabit
 
 
 def test_tema_listesi_tutarli():

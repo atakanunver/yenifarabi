@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block baslik %}{{ t.baslik }} — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>{{ t.baslik }}</h1>
+<p class="soluk">{{ 'Tüm okul' if t.hedef_tur == 'okul' else t.hedef }} · son yanıt {{ t.son_tarih[8:] }}.{{ t.son_tarih[5:7] }}.{{ t.son_tarih[:4] }} · gönderen {{ t.yazar }}</p>
+{% if t.aciklama %}<section class="kart"><p style="white-space:pre-line">{{ t.aciklama }}</p></section>{% endif %}
+<section class="kart">
+  <p><b>✔ Onaylayan: {{ s.evet }}</b> · <b>✘ Onaylamayan: {{ s.hayir }}</b> · <b>⏳ Yanıt vermeyen: {{ s.bekleyen }}</b></p>
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Sınıf</th><th>No</th><th>Öğrenci</th><th>Durum</th></tr></thead>
+    <tbody>
+    {% for o in s.satirlar %}
+      <tr><td>{{ o.sinif }}</td><td>{{ o.okul_no }}</td><td>{{ o.ad_soyad }}</td><td>{% if o.yanit == 'evet' %}✔ Onayladı{% elif o.yanit == 'hayir' %}✘ Onaylamadı{% else %}⏳ Bekliyor{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+<p><a href="/ogretmen/onay">← Onay istekleri</a></p>
+{% endblock %}

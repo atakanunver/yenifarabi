@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block baslik %}Onay bekleyen belgeler — Dijital Okul{% endblock %}
+{% block icerik %}
+{% if cocuklar|length > 1 %}
+<nav class="cocuklar" aria-label="Çocuk seçimi">
+  {% for c in cocuklar %}<a href="/veli/onaylar?ogr={{ c.id }}" class="{{ 'secili' if c.id == cocuk.id }}">{{ c.ad_soyad.split(' ')[0] }} · {{ c.sinif }}</a>{% endfor %}
+</nav>
+{% endif %}
+<h1>📋 Onay bekleyen belgeler</h1>
+<p class="veli-alt"><b>{{ cocuk.ad_soyad }}</b> için okulun sizden istediği onaylar.</p>
+{% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+{% for t in talepler %}
+<section class="kart veli-onay{{ ' bekliyor' if t.bekliyor }}">
+  <p class="veli-etiket">{% if t.yanit %}YANITLADINIZ{% elif t.acik %}ONAYINIZ BEKLENİYOR{% else %}SÜRESİ DOLDU{% endif %}</p>
+  <h2>{{ t.baslik }}</h2>
+  {% if t.aciklama %}<p style="white-space:pre-line">{{ t.aciklama }}</p>{% endif %}
+  <p class="veli-alt">Gönderen: {{ t.yazar }} · Son tarih: <b>{{ t.son_tarih[8:] }}.{{ t.son_tarih[5:7] }}.{{ t.son_tarih[:4] }}</b></p>
+  {% if t.yanit %}
+  <p class="veli-yanit {{ t.yanit }}">{{ '✔ Onayladınız' if t.yanit == 'evet' else '✘ Onaylamadınız' }}</p>
+  {% endif %}
+  {% if t.acik %}
+  <form method="post" action="/veli/onay/{{ t.id }}" class="onay-butonlar">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="ogr" value="{{ cocuk.id }}">
+    <button class="tus veli-tus evet" name="yanit" value="evet">✔ Onaylıyorum</button>
+    <button class="tus veli-tus hayir" name="yanit" value="hayir">✘ Onaylamıyorum</button>
+  </form>
+  {% if t.yanit %}<p class="veli-alt">Son tarihe kadar fikrinizi değiştirebilirsiniz.</p>{% endif %}
+  {% endif %}
+</section>
+{% else %}
+<section class="kart"><p class="veli-bos">Şu an onayınızı bekleyen bir belge yok.</p></section>
+{% endfor %}
+<p><a class="tus ikincil veli-tus" href="/veli?ogr={{ cocuk.id }}">← Ana sayfa</a></p>
+{% endblock %}

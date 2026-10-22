@@ -1,0 +1,45 @@
+/* Veli arayüzü: yaşlı velilerin de rahat kullanması için büyük yazı, büyük dokunma alanı, yüksek kontrast, sade dil.
+   <html class="veli"> yalnızca veli rolünde (base.html). Yalnızca tema değişkenleri kullanır; 13 temada da okunur. */
+html.veli { font-size: 118%; }
+.veli body, html.veli body { line-height: 1.6; }
+.veli .soluk, .veli .kucuk { color: var(--murekkep); opacity: .85; font-size: .95rem; }
+.veli a { text-underline-offset: .15em; }
+.veli .tus { min-height: 3.6rem; font-size: 1.1rem; border-radius: 14px; }
+.veli .tus.kucuk { min-height: 3.2rem; font-size: 1rem; }
+.veli input, .veli select, .veli textarea { font-size: 1.1rem; min-height: 3.2rem; }
+.veli .sekmeler a { font-size: .8rem; min-height: 4rem; padding-top: .55rem; }
+.veli .sekmeler svg { width: 28px; height: 28px; }
+.veli h1 { font-size: 1.6rem; }
+.veli h2 { font-size: 1.25rem; }
+.veli .ust { font-size: 1rem; }
+.veli .ust .bag { font-size: 1rem; padding: .5rem .9rem; }
+.veli-baslik { margin: 1.4rem 0 .4rem; }
+.veli-etiket { margin: 0 0 .2rem; font-size: .85rem; font-weight: 800; letter-spacing: .08em; color: var(--soluk); }
+.veli-buyuk { margin: 0; font-size: 1.6rem; font-weight: 800; line-height: 1.25; }
+.veli-alt { display: block; margin: .15rem 0 0; font-size: .95rem; color: var(--soluk); }
+.veli-uyari { margin: .7rem 0 0; padding: .7rem .9rem; border-radius: 12px; background: var(--kirmizi-acik); color: var(--hata-yazi); font-weight: 700; }
+.veli-simdi { border-left: 6px solid var(--yesil); }
+.veli-simdi.tur-tatil, .veli-simdi.tur-bitti, .veli-simdi.tur-once { border-left-color: var(--kenar); }
+.veli-liste { list-style: none; margin: 0; padding: 0; }
+.veli-satir { display: flex; align-items: center; gap: .8rem; padding: .9rem 0; min-height: 4rem; text-decoration: none; color: inherit; border-top: 1px solid var(--cizgi); }
+.veli-liste li:first-child .veli-satir { border-top: 0; }
+.veli-satir.acil b { color: var(--kirmizi); }
+.veli-rozet { flex: none; align-self: flex-start; margin-top: .2rem; padding: .2rem .55rem; border-radius: 8px; font-size: .75rem; font-weight: 800; letter-spacing: .05em; background: var(--mavi-acik); color: var(--mavi); }
+.veli-metin { flex: 1; min-width: 0; }
+.veli-metin b { display: block; font-size: 1.05rem; overflow-wrap: anywhere; }
+.veli-ok { flex: none; font-size: 1.8rem; color: var(--soluk); }
+.veli-bos { margin: .3rem 0; font-size: 1.1rem; font-weight: 600; }
+.veli-akis h3 { margin: .8rem 0 .2rem; font-size: 1.05rem; }
+.veli-ders { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .6rem; padding: .55rem 0; border-top: 1px solid var(--cizgi); }
+.veli-ders.gecti { opacity: .6; }
+.veli-ders.simdi { font-weight: 700; background: var(--yesil-acik); border-radius: 10px; padding-inline: .6rem; }
+.veli-eylemler { display: grid; gap: .7rem; }
+.veli-onay.bekliyor { border-left: 6px solid var(--fosfor); }
+.veli-onay h2 { margin: .2rem 0 .4rem; }
+.veli-yanit { margin: .6rem 0; padding: .6rem .9rem; border-radius: 12px; font-weight: 800; font-size: 1.1rem; }
+.veli-yanit.evet { background: var(--yesil-acik); color: var(--murekkep); }
+.veli-yanit.hayir { background: var(--kirmizi-acik); color: var(--hata-yazi); }
+.onay-butonlar { display: grid; gap: .7rem; margin: .8rem 0 .3rem; }
+.onay-butonlar .evet { background: var(--yesil); color: #fff; }
+.onay-butonlar .hayir { background: var(--kirmizi); color: #fff; }
+@media (min-width: 560px) { .onay-butonlar { grid-template-columns: 1fr 1fr; } }

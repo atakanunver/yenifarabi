@@ -35,8 +35,8 @@ def _gonder(c, tur="dilek", metin="Kantin geç açılıyor"):
     return c.post("/kutu/gonder", data={"csrf": _csrf(c), "tur": tur, "metin": metin}, follow_redirects=False)
 
 
-@pytest.mark.parametrize("rol", ["ogrenci", "ogretmen"])
-def test_ogrenci_ve_ogretmen_gonderir(conn, yeni_kullanici, rol):
+@pytest.mark.parametrize("rol", ["ogrenci", "ogretmen", "veli"])
+def test_ogrenci_ogretmen_ve_veli_gonderir(conn, yeni_kullanici, rol):
     k = _kisi(conn, yeni_kullanici, rol, "g" + rol)
     with _istemci() as c:
         _oturum(c, conn, k)
@@ -45,8 +45,8 @@ def test_ogrenci_ve_ogretmen_gonderir(conn, yeni_kullanici, rol):
     assert conn.execute("SELECT COUNT(*) FROM kutu_kayit WHERE kullanici_id = ?", (k,)).fetchone()[0] == 1
 
 
-@pytest.mark.parametrize("rol", ["veli", "yonetici"])
-def test_veli_ve_yonetici_gonderemez(conn, yeni_kullanici, rol):
+@pytest.mark.parametrize("rol", ["yonetici"])
+def test_yonetici_gonderemez(conn, yeni_kullanici, rol):
     k = _kisi(conn, yeni_kullanici, rol, "x" + rol)
     with _istemci() as c:
         _oturum(c, conn, k)

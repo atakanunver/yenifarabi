@@ -1,10 +1,12 @@
 {% from "_makrolar.html" import ikon, vesikalik %}<!doctype html>
-<html lang="tr" data-tema="{{ (k.tema if k and k.tema else 'defter') }}">
+{# Veli profil sayfası olmadığı için tema seçemez: orman haritası temasında sabit. Diğer roller: kendi seçimi, yoksa defter. #}
+{% set tema_kodu = k.tema if k and k.tema else ('harita' if k and k.rol == 'veli' else 'defter') %}
+<html lang="tr" data-tema="{{ tema_kodu }}"{% if k and k.rol == 'veli' %} class="veli"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="{{ TEMALAR[k.tema][1] if TEMALAR is defined and k and k.tema in TEMALAR else '#4b1f6f' }}">
+<meta name="theme-color" content="{{ TEMALAR[tema_kodu][1] if TEMALAR is defined and tema_kodu in TEMALAR else '#4b1f6f' }}">
 <meta name="application-name" content="DijitalOkul">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,6 +18,7 @@
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <link rel="stylesheet" href="/static/okul.css?v=30">
 <link rel="stylesheet" href="/static/temalar.css?v=3">
+{% if k and k.rol == 'veli' %}<link rel="stylesheet" href="/static/veli.css?v=1">{% endif %}
 </head>
 <body>
 <header class="ust">

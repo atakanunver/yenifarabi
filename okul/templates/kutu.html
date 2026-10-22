@@ -2,7 +2,8 @@
 {% block baslik %}Dilek / istek / şikayet — Dijital Okul{% endblock %}
 {% block icerik %}
 <h1>Dilek / istek / şikayet kutusu</h1>
-<p class="soluk">Yazdıkların okul yöneticisine gider. <b>Yönetici adını ve sınıfını görür.</b></p>
+{% if k.rol == 'veli' %}<p class="soluk">Yazdıklarınız okul yöneticisine gider. <b>Yönetici adınızı görür</b>; telefon numaranız paylaşılmaz. Acil bir durum için okulu arayın.</p>
+{% else %}<p class="soluk">Yazdıkların okul yöneticisine gider. <b>Yönetici adını ve sınıfını görür.</b></p>{% endif %}
 {% if request.query_params.get('gonderildi') %}<p class="kart" role="status">Kaydın yöneticiye iletildi. Teşekkürler.</p>{% endif %}
 {% if hata %}<p class="kart hata" role="alert">{{ hata }}</p>{% endif %}
 <form class="kart" method="post" action="/kutu/gonder">

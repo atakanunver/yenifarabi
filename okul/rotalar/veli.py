@@ -5,17 +5,21 @@ import sqlite3
 import denemeler
 import duyurular
 import odevler
+import onay
 import sinavlar
+import veli_bugun
 import yetki
 import zaman
 from ayarlar import AYAR
 from deps import db_conn, istemci_ip, render, rol
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import RedirectResponse
 
 from rotalar import ortak
 
 router = APIRouter(prefix="/veli")
 VELI = rol("veli")
+VELI_POST = rol("veli", post=True)
 
 
 def _cocuk(
@@ -49,13 +53,19 @@ def ana(
     if c is None:
         return render(request, "veli/ana.html", cocuklar=[], cocuk=None)
     ozet, form, erisildi = ortak.kazanim_ozeti(conn, c)
+    dv = ortak.devamsizlik(c, 30)
+    bugun = zaman.simdi().strftime("%Y-%m-%d")
     return render(
         request,
         "veli/ana.html",
         cocuklar=cocuklar,
         cocuk=c,
-        devamsizlik=ortak.devamsizlik(c, 30),
-        bugun=zaman.simdi().strftime("%Y-%m-%d"),
+        devamsizlik=dv,
+        bugun=bugun,
+        simdi=veli_bugun.simdi(c),
+        bugun_yok=veli_bugun.bugun_yok(dv, bugun),
+        akis=veli_bugun.akis(c),
+        veli_gorev=veli_bugun.gorevler(conn, k, c),
         son_testler=form[:3],
         kazanim_erisildi=erisildi,
         ders_ozeti=ortak.ders_ozeti(ozet),
@@ -68,6 +78,38 @@ def ana(
         kalan=sinavlar.kalan_gun,
         deneme_sayisi=denemeler.deneme_sayisi(conn, c["okul_no"]),
     )
+
+
+@router.get("/onaylar")
+def onaylar(
+    request: Request,
+    ogr: int | None = None,
+    hata: str = "",
+    k=Depends(VELI),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    cocuklar, c = _cocuk(request, conn, k, ogr, "veli_onaylar")
+    if c is None:
+        raise HTTPException(404)
+    mesaj = {"sure": "Bu belgenin yanıt süresi dolmuş.", "yanit": "Yanıt kaydedilemedi, lütfen tekrar deneyin."}.get(hata, "")  # URL'den gelen metin yansıtılmaz
+    return render(request, "veli/onaylar.html", cocuklar=cocuklar, cocuk=c, talepler=onay.cocuk_talepleri(conn, c), yanitlar=onay.YANITLAR, hata=mesaj)
+
+
+@router.post("/onay/{talep_id}")
+def onay_yanitla(
+    talep_id: int,
+    ogr: int = Form(...),
+    yanit: str = Form(""),
+    k=Depends(VELI_POST),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    try:
+        onay.yanitla(conn, k, ogr, talep_id, yanit)
+    except onay.OnayHatasi as e:
+        if e.kod == 404:
+            raise HTTPException(404) from None
+        return RedirectResponse(f"/veli/onaylar?ogr={ogr}&hata={'sure' if e.kod == 410 else 'yanit'}", status_code=303)
+    return RedirectResponse(f"/veli/onaylar?ogr={ogr}", status_code=303)
 
 
 @router.get("/devamsizlik")

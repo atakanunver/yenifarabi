@@ -694,10 +694,32 @@ CREATE TABLE ogretmen_not (
 CREATE INDEX ogretmen_not_kullanici ON ogretmen_not(kullanici_id, tamam, guncelleme);
 """
 
+# Veli onay/izin belgeleri: yönetici ya da öğretmen onay ister, veli çocuk başına Evet/Hayır yanıtlar. Veli yalnızca kendi yanıtını görür.
+SEMA_V29 = """
+CREATE TABLE onay_talep (
+    id         INTEGER PRIMARY KEY,
+    yazar_id   INTEGER NOT NULL REFERENCES kullanici(id),
+    baslik     TEXT NOT NULL,
+    aciklama   TEXT NOT NULL DEFAULT '',
+    hedef_tur  TEXT NOT NULL CHECK (hedef_tur IN ('okul','sinif')),
+    hedef      TEXT,
+    son_tarih  TEXT NOT NULL,
+    olusturma  TEXT NOT NULL
+);
+CREATE TABLE onay_yanit (
+    talep_id   INTEGER NOT NULL REFERENCES onay_talep(id) ON DELETE CASCADE,
+    ogrenci_id INTEGER NOT NULL REFERENCES ogrenci(id) ON DELETE CASCADE,
+    veli_id    INTEGER NOT NULL REFERENCES kullanici(id),
+    yanit      TEXT NOT NULL CHECK (yanit IN ('evet','hayir')),
+    zaman      TEXT NOT NULL,
+    PRIMARY KEY (talep_id, ogrenci_id)
+);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
-    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27, SEMA_V28,
+    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27, SEMA_V28, SEMA_V29,
 ]
 
 

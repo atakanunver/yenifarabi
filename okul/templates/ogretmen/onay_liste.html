@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block baslik %}Veli onay istekleri — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>📋 Veli onay istekleri</h1>
+<p class="kucuk soluk">Gezi izni, toplantı katılımı gibi konularda velilerden Evet/Hayır yanıtı isteyin. Veliler bildirim alır, yalnızca kendi çocuklarının belgesini görür. Siz hedef öğrencilerin yanıtını adlarıyla görürsünüz.</p>
+{% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+<form class="kart" method="post" action="/ogretmen/onay">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <h2>Yeni istek</h2>
+  <label for="baslik">Başlık</label>
+  <input id="baslik" name="baslik" type="text" required maxlength="120" value="{{ form.baslik|default('') }}" placeholder="Örn. 28 Ekim müze gezisi izin belgesi">
+  <label for="aciklama">Açıklama</label>
+  <textarea id="aciklama" name="aciklama" maxlength="2000" rows="4">{{ form.aciklama|default('') }}</textarea>
+  <label for="hedef_tur">Kimden</label>
+  <select id="hedef_tur" name="hedef_tur" onchange="document.getElementById('hedef-kap').hidden = this.value === 'okul'">
+    <option value="sinif"{% if form.hedef_tur|default('sinif') == 'sinif' %} selected{% endif %}>Bir sınıfın velilerinden</option>
+    {% if k.rol == 'yonetici' %}<option value="okul"{% if form.hedef_tur|default('') == 'okul' %} selected{% endif %}>Tüm okulun velilerinden</option>{% endif %}
+  </select>
+  <div id="hedef-kap"{% if form.hedef_tur|default('') == 'okul' %} hidden{% endif %}>
+    <label for="hedef">Sınıf</label>
+    <select id="hedef" name="hedef">{% for s in siniflar %}<option value="{{ s }}"{% if form.hedef|default('') == s %} selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+  </div>
+  <label for="son_tarih">Son yanıt tarihi</label>
+  <input id="son_tarih" name="son_tarih" type="date" required value="{{ form.son_tarih|default('') }}">
+  <div class="tuslar"><button class="tus tam">İsteği gönder</button></div>
+</form>
+<h2>Gönderdiğim istekler</h2>
+{% for t in talepler %}
+<section class="kart">
+  <a class="satir" href="/ogretmen/onay/{{ t.id }}"><span><b>{{ t.baslik }}</b><br><span class="soluk kucuk">{{ 'Tüm okul' if t.hedef_tur == 'okul' else t.hedef }} · son tarih {{ t.son_tarih[8:] }}.{{ t.son_tarih[5:7] }}.{{ t.son_tarih[:4] }}{% if k.rol == 'yonetici' %} · {{ t.yazar }}{% endif %}</span></span>
+    <span class="kucuk">✔ {{ t.evet }} · ✘ {{ t.hayir }} · ⏳ {{ t.bekleyen }}</span></a>
+</section>
+{% else %}
+<div class="kart"><p class="bos">Henüz istek göndermediniz.</p></div>
+{% endfor %}
+<p><a href="/{{ k.rol }}">← Ana sayfa</a></p>
+{% endblock %}

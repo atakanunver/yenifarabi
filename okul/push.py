@@ -31,6 +31,7 @@ SABLONLAR = {
     "acil_bitti": ("Dijital Okul", "Acil durum sona erdi.", "/acil"),
     "deneme": ("Dijital Okul", "Test bildirimi: bildirimler açık.", "/bildirimler"),
     "devamsizlik": ("Dijital Okul", "Öğrenciniz bugün bir derse girmedi.", "/veli/devamsizlik"),
+    "onay": ("Dijital Okul", "Onayınızı bekleyen bir belge var.", "/veli/onaylar"),
 }
 AZAMI_ABONELIK = 10  # kullanıcı başına cihaz
 AZAMI_HATA = 5  # ardışık geçici hatadan sonra abonelik silinir
@@ -291,3 +292,19 @@ def devamsizlik_alicilari(conn: sqlite3.Connection, okul_no_listesi: list[int]) 
 
 def devamsizlik_bildir(okul_no_listesi: list[int]) -> None:
     _arkaplan("devamsizlik", lambda c: devamsizlik_alicilari(c, okul_no_listesi))
+
+
+def onay_alicilari(conn: sqlite3.Connection, hedef_tur: str, hedef: str | None, yazar_id: int) -> list[int]:
+    """Onay isteğinin hedefindeki öğrencilerin velileri."""
+    kosul, par = ("", [yazar_id]) if hedef_tur == "okul" else (" AND o.sinif = ?", [yazar_id, hedef])
+    return [
+        r[0]
+        for r in conn.execute(
+            _ABONELI + " AND u.id IN (SELECT vo.veli_id FROM veli_ogrenci vo JOIN ogrenci o ON o.id = vo.ogrenci_id WHERE 1 = 1" + kosul + ")",
+            par,
+        )
+    ]
+
+
+def onay_bildir(hedef_tur: str, hedef: str | None, yazar_id: int) -> None:
+    _arkaplan("onay", lambda c: onay_alicilari(c, hedef_tur, hedef, yazar_id))

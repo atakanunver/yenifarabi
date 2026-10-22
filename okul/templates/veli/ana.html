@@ -15,6 +15,67 @@
   <p class="soluk" style="margin:.2rem 0 0">{{ cocuk.sinif }} · Okul no {{ cocuk.okul_no }}</p></div>
 </div>
 
+{# Büyük yazılı, sade düzen (yaşlı velilerin de rahat kullanması için): önce "şimdi", sonra "yapılması gerekenler", "bugün/yarın". #}
+{% if simdi is defined and simdi.baslik %}
+<section class="kart veli-simdi tur-{{ simdi.tur }}" aria-label="Şu an">
+  <p class="veli-etiket">ŞU AN</p>
+  <p class="veli-buyuk">{{ simdi.baslik }}</p>
+  {% if simdi.alt %}<p class="veli-alt">{{ simdi.alt }}</p>{% endif %}
+  {% if bugun_yok is defined and bugun_yok %}
+  <p class="veli-uyari">⚠ Bugün {{ bugun_yok|join(', ') }}. derste <b>yok</b> yazıldı.</p>
+  {% endif %}
+</section>
+{% elif bugun_yok is defined and bugun_yok %}
+<section class="kart uyari veli-simdi"><p class="veli-uyari">⚠ Bugün {{ bugun_yok|join(', ') }}. derste <b>yok</b> yazıldı.</p></section>
+{% endif %}
+
+{% if veli_gorev is defined %}
+<section class="kart veli-gorevler" aria-label="Yapılması gerekenler">
+  <h2>📌 Yapılması gerekenler</h2>
+  {% if veli_gorev.gorevler %}
+  <ul class="veli-liste">
+    {% for g in veli_gorev.gorevler %}
+    <li><a class="veli-satir{{ ' acil' if g.acil }}" href="{{ g.href }}">
+      <span class="veli-rozet">{{ g.etiket }}</span>
+      <span class="veli-metin"><b>{{ g.baslik }}</b><span class="veli-alt">{{ g.alt }}</span></span>
+      <span class="veli-ok" aria-hidden="true">›</span></a></li>
+    {% endfor %}
+  </ul>
+  {% if veli_gorev.fazla %}<p class="veli-alt">Ayrıca {{ veli_gorev.fazla }} madde daha var.</p>{% endif %}
+  {% else %}
+  <p class="veli-bos">✔ Şu an sizi bekleyen bir şey yok.</p>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if akis is defined and (akis.bugun or akis.yarin) %}
+<section class="kart veli-akis" aria-label="Bugün ve yarın">
+  <h2>📅 Ders programı</h2>
+  {% if akis.bugun %}
+  <h3>Bugün</h3>
+  <ul class="veli-liste">
+    {% for d in akis.bugun %}
+    <li class="veli-ders{{ ' simdi' if d.simdi }}{{ ' gecti' if d.gecti }}"><b>{{ d.no }}. ders</b> <span>{{ d.ders|baslik }}</span> <span class="veli-alt">{{ d.bas }}{% if d.bit %} - {{ d.bit }}{% endif %}</span>{% if d.simdi %} <span class="etiket yesil">şu an</span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if akis.yarin %}
+  <h3>{{ akis.yarin.etiket }}</h3>
+  <ul class="veli-liste">
+    {% for d in akis.yarin.dersler %}
+    <li class="veli-ders"><b>{{ d.no }}. ders</b> <span>{{ d.ders|baslik }}</span> <span class="veli-alt">{{ d.bas }}{% if d.bit %} - {{ d.bit }}{% endif %}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="kart veli-eylemler">
+  <a class="tus tam veli-tus" href="/kutu">✉ Okula mesaj yazın</a>
+  <a class="tus tam ikincil veli-tus" href="/veli/onaylar?ogr={{ cocuk.id }}">📋 Onay bekleyen belgeler</a>
+</section>
+
+<h2 class="veli-baslik">Ayrıntılar</h2>
 {% if deneme_sayisi %}
 <section class="kart bilgi">
   <h2>Deneme sonuçları yayında <a href="/veli/deneme?ogr={{ cocuk.id }}">Sonuçlar</a></h2>
