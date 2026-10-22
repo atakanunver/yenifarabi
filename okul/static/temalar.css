@@ -1,0 +1,95 @@
+/* Dijital Okul — kullanıcı temaları. okul.css :root değişkenlerini <html data-tema="..."> ile yeniden tanımlar.
+   "defter" (kareli defter) varsayılandır ve burada tanımsızdır. Dış yazı tipi YOK (gizlilik + çevrimdışı PWA).
+   Yeni tema: tema.py TEMALAR'a kod ekle + aşağıya bir blok yaz (koyuysa color-scheme: dark). */
+
+/* Orman haritası — açık, yosun yeşili/toprak */
+:root[data-tema="harita"] {
+  --sekme-bg: rgba(251, 251, 241, .96);
+  --kagit: #eef0dc; --cizgi: #d6dbbd; --murekkep: #263422; --soluk: #566548;
+  --mavi: #2f4b2a; --mavi-acik: #dde6c6; --kirmizi: #b8432f; --kirmizi-acik: #f6dcd3;
+  --yesil: #2e7d4f; --yesil-acik: #dcefdc; --fosfor: #e8a93b;
+  --mor: #a98467; --mor-koyu: #2f4b2a; --mor-orta: #6b4a2f; --mor-acik: #ece3d0; --mor-kenar: #cdbd9b;
+  --kart: #fbfbf1; --alan: #fbfbf1; --kenar: #b9c49a; --kenar2: #a9b58a;
+  --sari-bg: #f7e9b8; --sari-kenar: #e3cf86; --sari-yazi: #5c4a00; --sari-soluk: #7a6200;
+  --not-bg: #f8edc4; --halka: #f2dc8a; --hata-yazi: #8a2a1a; --sabit-yazi: #1d2a1a;
+  --golge: 0 1px 0 rgba(47, 75, 42, .08), 0 6px 18px -12px rgba(47, 75, 42, .4);
+  --yaricap: 10px;
+  font-family: Georgia, "Times New Roman", "Noto Serif", serif;
+}
+
+/* Tahta — koyu yeşil, tebeşir sarısı */
+:root[data-tema="tahta"] {
+  --sekme-bg: rgba(39, 74, 65, .96);
+  color-scheme: dark;
+  --bos-foto-yazi: var(--murekkep);
+  --kagit: #1f3a33; --cizgi: #2b4a41; --murekkep: #f2f0e6; --soluk: #b9c4b6;
+  --mavi: #8fd3e8; --mavi-acik: #2a4d52; --tus-bg: #f4d35e; --tus-yazi: #1f3a33;
+  --kirmizi: #c2334d; --kirmizi-acik: #4a2a30; --yesil: #2f8f5f; --yesil-acik: #21473a; --fosfor: #f4d35e;
+  --mor: #f2a1b5; --mor-koyu: #14271f; --mor-orta: #8a5a35; --mor-acik: #2b4a41; --mor-kenar: #5b7f74;
+  --kart: #274a41; --alan: #2b5248; --kenar: #5b7f74; --kenar2: #6a8f84;
+  --sari-bg: #4a4320; --sari-kenar: #8a7a30; --sari-yazi: #f4e58a; --sari-soluk: #d8c96a;
+  --not-bg: #3f3a1c; --halka: #6b5f20; --hata-yazi: #ffc2cc; --sabit-yazi: #f2f0e6;
+  --golge: 0 0 0 1px rgba(242, 240, 230, .08), 0 6px 18px -10px rgba(0, 0, 0, .6);
+  --yaricap: 12px;
+  font-family: "Comic Sans MS", "Chalkboard SE", "Segoe Print", ui-rounded, system-ui, sans-serif;
+}
+
+/* Neon — koyu mor, camgöbeği/pembe vurgu */
+:root[data-tema="neon"] {
+  --sekme-bg: rgba(17, 15, 28, .96);
+  color-scheme: dark;
+  --bos-foto-yazi: var(--murekkep);
+  --kagit: #07060c; --cizgi: #1a1730; --murekkep: #f2f0ff; --soluk: #a9a0c9;
+  --mavi: #00f3ff; --mavi-acik: #0f2d3a; --tus-bg: #00f3ff; --tus-yazi: #07060c;
+  --kirmizi: #d6005a; --kirmizi-acik: #3a0f22; --yesil: #14a463; --yesil-acik: #0f3a2a; --fosfor: #ffee00;
+  --mor: #a78bfa; --mor-koyu: #1a1033; --mor-orta: #7a3fd1; --mor-acik: #1f1740; --mor-kenar: #4a3a8a;
+  --kart: #110f1c; --alan: #17142a; --kenar: #3b3366; --kenar2: #4c4380;
+  --sari-bg: #3a3300; --sari-kenar: #6b5c00; --sari-yazi: #ffee00; --sari-soluk: #e6d84a;
+  --not-bg: #2c2700; --halka: #5c5200; --hata-yazi: #ffb3c9; --sabit-yazi: #f2f0ff;
+  --golge: 0 0 14px -4px rgba(0, 243, 255, .35);
+  --yaricap: 14px;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+}
+
+/* Blueprint — mavi çizim kâğıdı, mono yazı */
+:root[data-tema="blueprint"] {
+  --sekme-bg: rgba(13, 63, 110, .96);
+  color-scheme: dark;
+  --bos-foto-yazi: var(--murekkep);
+  --kagit: #0f4c81; --cizgi: #1d62a0; --murekkep: #e8f1fb; --soluk: #b4d0ec;
+  --mavi: #bfe0ff; --mavi-acik: #14578f; --tus-bg: #ffd166; --tus-yazi: #05244a;
+  --kirmizi: #c93d3d; --kirmizi-acik: #5b2433; --yesil: #2a9a63; --yesil-acik: #0f4a46; --fosfor: #ffd166;
+  --mor: #9bb8ff; --mor-koyu: #05244a; --mor-orta: #2f5fb3; --mor-acik: #14578f; --mor-kenar: #3d7ab5;
+  --kart: #0d3f6e; --alan: #0a3a66; --kenar: #3d7ab5; --kenar2: #4a88c4;
+  --sari-bg: #4a4220; --sari-kenar: #8a7a30; --sari-yazi: #ffe9a0; --sari-soluk: #e6d28a;
+  --not-bg: #3f3a1c; --halka: #6b5f20; --hata-yazi: #ffc2c2; --sabit-yazi: #e8f1fb;
+  --golge: 0 0 0 1px rgba(191, 224, 255, .15);
+  --yaricap: 4px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/* Gökyüzü — gece mavisi, altın/yıldız vurgusu */
+:root[data-tema="gokyuzu"] {
+  --sekme-bg: rgba(13, 22, 69, .96);
+  color-scheme: dark;
+  --bos-foto-yazi: var(--murekkep);
+  --kagit: #060b24; --cizgi: #121a45; --murekkep: #e8ecff; --soluk: #aab3e6;
+  --mavi: #7fb2ff; --mavi-acik: #17205a; --tus-bg: #ffd77a; --tus-yazi: #060b24;
+  --kirmizi: #c0384f; --kirmizi-acik: #3f1a2c; --yesil: #2a9a6c; --yesil-acik: #0f3a33; --fosfor: #ffd77a;
+  --mor: #a78bfa; --mor-koyu: #1d1b5e; --mor-orta: #5b4fc7; --mor-acik: #1a2160; --mor-kenar: #3a2a6e;
+  --kart: #0d1645; --alan: #111b55; --kenar: #3a4690; --kenar2: #4a56a0;
+  --sari-bg: #3a3000; --sari-kenar: #6b5a10; --sari-yazi: #ffd77a; --sari-soluk: #e6c76a;
+  --not-bg: #2e2705; --halka: #5c4f10; --hata-yazi: #ffc2cc; --sabit-yazi: #e8ecff;
+  --golge: 0 6px 20px -12px rgba(0, 0, 0, .8);
+  --yaricap: 16px;
+  font-family: ui-rounded, "Nunito Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+}
+
+/* Tema kartları (profil > Görünüm) */
+.tema-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: .6rem; margin: .5rem 0 1rem; }
+.tema-kart { display: flex; flex-direction: column; gap: .35rem; padding: .6rem; border: 2px solid var(--kenar); border-radius: 12px; background: var(--alan); cursor: pointer; font-weight: 600; }
+.tema-kart:has(input:checked) { border-color: var(--mavi); box-shadow: 0 0 0 3px var(--mavi-acik); }
+.tema-kart input { position: absolute; opacity: 0; pointer-events: none; }
+.tema-kart:has(input:focus-visible) { outline: 3px solid var(--fosfor); outline-offset: 2px; }
+.tema-seritler { display: flex; height: 1.6rem; border-radius: 8px; overflow: hidden; border: 1px solid rgba(128, 128, 128, .4); }
+.tema-seritler i { flex: 1; }

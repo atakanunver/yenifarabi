@@ -1,10 +1,10 @@
 {% from "_makrolar.html" import ikon, vesikalik %}<!doctype html>
-<html lang="tr">
+<html lang="tr" data-tema="{{ (k.tema if k and k.tema else 'defter') }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#4b1f6f">
+<meta name="theme-color" content="{{ TEMALAR[k.tema][1] if TEMALAR is defined and k and k.tema in TEMALAR else '#4b1f6f' }}">
 <meta name="application-name" content="DijitalOkul">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,7 +14,8 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/static/logo-64.png" type="image/png">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
-<link rel="stylesheet" href="/static/okul.css?v=27">
+<link rel="stylesheet" href="/static/okul.css?v=30">
+<link rel="stylesheet" href="/static/temalar.css?v=1">
 </head>
 <body>
 <header class="ust">

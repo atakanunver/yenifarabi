@@ -18,6 +18,7 @@ import sohbet
 from ayarlar import AYAR, KOK
 from fastapi import Depends, HTTPException, Request
 from fastapi.templating import Jinja2Templates
+import tema
 import zaman
 from kaynaklar import KaynakHatasi, zil
 from kaynaklar.program import GUN_ADLARI, GUNLER
@@ -59,6 +60,7 @@ TEMPLATES.env.filters["tarih"] = _tarih
 TEMPLATES.env.filters["gun_adi"] = lambda g: GUN_ADLARI.get(g, g)
 TEMPLATES.env.filters["baslik"] = lambda s: (s or "")[:1].upper() + (s or "")[1:]
 TEMPLATES.env.globals["ROL_ADLARI"] = ROL_ADLARI
+TEMPLATES.env.globals["TEMALAR"] = tema.TEMALAR
 # Yeni modül bağlantıları: yalnızca bu kodu çalıştıran süreçte tanımlı (şablonlarda `MODULLER is defined`).
 TEMPLATES.env.globals["push_etkin"] = push.etkin_mi  # VAPID ayarlıysa bildirim bağlantıları görünür
 TEMPLATES.env.globals["MODULLER"] = True

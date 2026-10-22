@@ -31,6 +31,22 @@
   {% endif %}
 </section>
 <section class="kart">
+  <h2>Görünüm</h2>
+  <form method="post" action="/profil/tema">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="tema-liste">
+      {% for kod, t in TEMALAR.items() if TEMALAR is defined %}
+      <label class="tema-kart">
+        <input type="radio" name="tema" value="{{ kod }}"{% if (k.tema or 'defter') == kod %} checked{% endif %}>
+        <span class="tema-seritler" aria-hidden="true">{% for r in t[2] %}<i style="background:{{ r }}"></i>{% endfor %}</span>
+        <span>{{ t[0] }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <div class="tuslar"><button class="tus">Temayı kaydet</button></div>
+  </form>
+</section>
+<section class="kart">
   <h2>Hesap</h2>
   <a class="tus ikincil" href="/sifre">Şifremi değiştir</a>
 </section>

@@ -68,8 +68,9 @@ def oturum_kullanici(conn: sqlite3.Connection, token: str | None) -> sqlite3.Row
     if not token:
         return None
     satir = conn.execute(
-        "SELECT k.*, o.son_gorulme AS oturum_son FROM oturum o"
+        "SELECT k.*, o.son_gorulme AS oturum_son, kt.tema AS tema FROM oturum o"
         " JOIN kullanici k ON k.id = o.kullanici_id"
+        " LEFT JOIN kullanici_tema kt ON kt.kullanici_id = k.id"
         " WHERE o.token_hash = ? AND k.aktif = 1",
         (_ozet(token),),
     ).fetchone()

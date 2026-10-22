@@ -6,6 +6,7 @@ import analitik
 import belgeler
 import dosyalar
 import sinavlar
+import tema
 import yetki
 import zaman
 from deps import db_conn, istemci_ip, mevcut_kullanici, render, rol
@@ -39,6 +40,19 @@ def _bugun() -> str:
 @router.get("/profil")
 def profil(request: Request, k=Depends(FOTOLU)):
     return render(request, "profil.html")
+
+
+@router.post("/profil/tema")
+def tema_sec(
+    request: Request,
+    tema_kodu: str = Form(..., alias="tema"),
+    k=Depends(rol("ogrenci", "ogretmen", "yonetici", post=True)),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    if not tema.gecerli(tema_kodu):
+        return render(request, "profil.html", 422, hata="Geçersiz tema.")
+    tema.kaydet(conn, k["id"], tema_kodu)
+    return RedirectResponse("/profil", status_code=303)
 
 
 @router.post("/profil/foto")
