@@ -68,16 +68,16 @@ POSTGRES_CONF = "/etc/postgresql/18/main/postgresql.conf"
 # (zil paneli Basic Auth'lu → 401 = ayakta).
 UZAK_SERVISLER = [
     {"anahtar": "bilgehan_embed", "ad": "RAG Embed & Rerank", "makine": "bilgehan",
-     "host": "192.168.23.223", "port": 8040, "yol": "/saglik", "beklenen": (200,)},
+     "host": "bilgehan.local", "port": 8040, "yol": "/saglik", "beklenen": (200,)},
     # farabi2-ses (Chatterbox, RTX 3060) — zil anonsları buraya gider (2026-10-08); :5002 değil.
     {"anahtar": "bilgehan_tts", "ad": "Chatterbox TTS (zil anonsları)", "makine": "bilgehan",
-     "host": "192.168.23.223", "port": 8060, "yol": "/saglik", "beklenen": (200,)},
+     "host": "bilgehan.local", "port": 8060, "yol": "/saglik", "beklenen": (200,)},
     {"anahtar": "tts", "ad": "TTS Sunucusu (EMA Lightning)", "makine": "debian",
-     "host": "192.168.23.251", "port": 5002, "yol": "/saglik", "beklenen": (200,)},
+     "host": "debian.local", "port": 5002, "yol": "/saglik", "beklenen": (200,)},
     {"anahtar": "zil", "ad": "Zil Paneli", "makine": "zil",
-     "host": "192.168.23.230", "port": 8090, "yol": "/", "beklenen": (200, 401)},
+     "host": "zil.local", "port": 8090, "yol": "/", "beklenen": (200, 401)},
     {"anahtar": "sms_kopru", "ad": "SMS Köprüsü (Müdür PC proxy → modem)", "makine": "mudur-pc",
-     "host": "192.168.23.243", "port": 8080, "yol": None, "beklenen": ()},
+     "host": "mudur.local", "port": 8080, "yol": None, "beklenen": ()},
 ]
 
 YAVAS_MS = 1000  # bundan yavaş HTTP yanıtı "yavaş" sayılır

@@ -29,7 +29,7 @@ import ssh_istemci  # noqa: E402
 
 ISTEMCI_KAYNAK = DASHBOARD_DIR.parent / "tahta_istemci.py"
 TOKEN_DOSYASI = DASHBOARD_DIR / "config" / "tahta_tokenlari.json"
-VARSAYILAN_SUNUCU = "http://192.168.23.252:8010"
+VARSAYILAN_SUNUCU = "http://192.168.23.20"
 
 BIRIM = """[Unit]
 Description=Tahta yoklama istemcisi (tahtayoklama/tahta_istemci.py)

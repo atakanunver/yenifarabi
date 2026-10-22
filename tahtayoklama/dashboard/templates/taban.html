@@ -14,7 +14,7 @@
 {# Menü ağacının tek kaynağı menu.py (2026-10-08): menü çubuğu, ikon şeridi ve
    mobil çekmece aynı ağaçtan üretilir — öğe burada elle yazılmaz. #}
 {% macro baglanti(o) -%}
-  {%- if o.href == 'atos' -%}http://{{ request.url.hostname }}/{%- else -%}{{ o.href }}{%- endif -%}
+  {%- if o.href == 'atos' -%}http://{{ request.url.hostname }}:8010/{%- else -%}{{ o.href }}{%- endif -%}
 {%- endmacro %}
 {% macro oge(o) %}
   {% if o.ayrac %}<li role="separator" class="menu-ayrac"></li>
@@ -105,7 +105,7 @@
 </dialog>
 <dialog class="pencere" id="hakkinda-penceresi" aria-labelledby="hakkinda-baslik">
   <h2 id="hakkinda-baslik">Farabi panel</h2>
-  <p>Yoklama, tahta ve servis yönetimi — farabi.local:8010.</p>
+  <p>Yoklama, tahta ve servis yönetimi — farabi.local.</p>
   <form method="dialog"><button class="dugme">Kapat</button></form>
 </dialog>
 <div id="toast" class="toast gizli"></div>

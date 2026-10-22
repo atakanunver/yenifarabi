@@ -24,7 +24,7 @@ def statik_surum() -> str:
     return _surum_onbellek["v"]
 
 
-ZIL_PANELI = "http://192.168.23.230:8090/"  # kimlik gömülmez; tarayıcı Basic Auth sorar
+ZIL_PANELI = "http://192.168.23.23:8090/"  # kimlik gömülmez; tarayıcı Basic Auth sorar
 
 SMUAL_URL = "https://smual.app"
 SMUAL_YONETIM_URL = SMUAL_URL + "/yonetici"  # şifresiz giriş (SSO) sonraki aşamada

@@ -75,7 +75,7 @@ const CAMERAS = [
 // Not: Chrome'da .local (mDNS) adları bazen cozulmuyor/gecikiyor (bilinen sorun,
 // 2026-10-15). Bu yuzden hostname yerine sabit IP kullaniliyor - dashboard hangi
 // adresten acilirsa acilsin kameralar hep IP uzerinden baglanir.
-const MEDIAMTX_WEBRTC = `http://192.168.23.252:8889`;
+const MEDIAMTX_WEBRTC = `http://${location.hostname}:8889`;
 const grid = document.getElementById("grid");
 document.getElementById("status").textContent = CAMERAS.length + " kamera";
 

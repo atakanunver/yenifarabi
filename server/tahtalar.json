@@ -25,7 +25,7 @@
   ],
   "9-A": {
     "hostname": "vestel9a",
-    "ip": "192.168.23.245",
+    "ip": "192.168.23.249",
     "mac": "00:09:df:83:55:d1",
     "_mac_notu": "2026-10-17: wiki'den; 9-A o gün ağda olmadığı için canlı doğrulanamadı (vestel9a.local çözülmedi).",
     "kullanici": "ogretmen",

@@ -13,7 +13,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-ADRES = "http://127.0.0.1:8010/api/ajan"
+ADRES = "http://127.0.0.1/api/ajan"
 ANAHTAR_YOLU = Path(__file__).resolve().parent.parent / "config" / "ajan.json"
 ZAMAN_ASIMI = 300  # sn; ulaşılamayan tahtada SSH beklemesi uzayabilir
 

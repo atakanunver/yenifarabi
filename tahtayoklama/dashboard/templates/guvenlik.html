@@ -112,7 +112,7 @@ const KAMERALAR = [
   { dvr: "d11_dvr",         ip: null,               ad: "Kamera 11" },
 ];
 // kameralar.html ile aynı: .local adı Chrome'da bazen çözülmüyor, sabit IP.
-const MEDIAMTX_WEBRTC = "http://192.168.23.252:8889";
+const MEDIAMTX_WEBRTC = "http://" + location.hostname + ":8889";
 const HAREKET_SN = 10;
 const $ = id => document.getElementById(id);
 const grid = $("grid");

@@ -43,7 +43,7 @@ templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk  # taban.html kullan�
 
 BETIK = "/usr/local/sbin/okul-sunucu"
 SSH_ANAHTARI = Path.home() / ".ssh" / "sunucu_izleme"
-CHATTERBOX_URL = "http://192.168.23.251:5002/saglik/detay"  # debian EMA Lightning TTS (aynı alanlar)
+CHATTERBOX_URL = "http://debian.local:5002/saglik/detay"  # debian EMA Lightning TTS (aynı alanlar)
 ONBELLEK_SN = 60
 DURUM_ZAMAN_ASIMI_SN = 25
 PROXY_ZAMAN_ASIMI_SN = 240  # Ollama restart'ı (model ön-yükleme dahil) sürebilir
@@ -67,7 +67,7 @@ MAKINELER = {
     "debian": {
         "ad": "Debian",
         "rol": "OMV NAS + EMA Lightning TTS",
-        "host": "192.168.23.251",
+        "host": "debian.local",
         "proxy_dugmesi": False,
     },
     # Hostname esas (IP DHCP ile değişir). "kontroller" = ek TCP port denetimi.

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Farabi'nin internet çıkışını Müdür PC'nin WifiHttpProxy'si (192.168.23.243:8080)
+# Farabi'nin internet çıkışını Müdür PC'nin WifiHttpProxy'si (192.168.23.252:8080)
 # ÜZERİNDEN mi, yoksa DOĞRUDAN mı yapacağını aç/kapat eder.
 #
 # 2026-10-04: Asıl iş artık /usr/local/sbin/okul-sunucu'da (kaynak:

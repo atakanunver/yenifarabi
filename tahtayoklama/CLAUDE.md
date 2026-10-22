@@ -456,7 +456,7 @@ talebiyle `--tahta fenlab` ile uygulandı, artık **8/8 tahta aynı ayarda**
       uygulandı ve doğrulandı (yalnızca `cinnamon_guc_tusu_yoksay` zaten
       vardı). Artık 7 aktif tahta + fenlab, 8/8 aynı OS-düzeyi ayarda.
     - Farabi client kuruldu (`server/farabi-kurulum.sh fenlab
-      http://192.168.23.252:8000 <yeni tahta_anahtari>`) — kurulum sırasında
+      http://192.168.23.20:8000 <yeni tahta_anahtari>`) — kurulum sırasında
       script'in [0/7] ön koşul kontrolü gerçek bir eksiği KAÇIRDIĞI ortaya
       çıktı: `python3 -c "import venv"` başarılı dönüyor ama Debian'da asıl
       gerekli olan `ensurepip` ayrı pakette (`python3.11-venv`) —
