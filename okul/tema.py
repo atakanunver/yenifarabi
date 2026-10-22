@@ -11,6 +11,13 @@ TEMALAR = {
     "neon": ("Neon", "#07060c", ("#07060c", "#00f3ff", "#ff0055")),
     "blueprint": ("Blueprint", "#0b3a66", ("#0f4c81", "#e8f1fb", "#ffd166")),
     "gokyuzu": ("Gökyüzü", "#1c2b5a", ("#1c2b5a", "#ffd479", "#7fb2ff")),
+    "radar": ("Radar", "#02100a", ("#041407", "#00ff55", "#d6ff3b")),
+    "terminal": ("Terminal", "#0a120b", ("#0f1a10", "#b6f2a0", "#f5d76e")),
+    "piksel": ("Piksel", "#0f380f", ("#9bbc0f", "#306230", "#0f380f")),
+    "laboratuvar": ("Laboratuvar", "#0a1118", ("#0d151c", "#00e5ff", "#b537f2")),
+    "kaset": ("Kaset", "#0f0f13", ("#141318", "#ff2a85", "#ffee00")),
+    "pusula": ("Pusula", "#1a4254", ("#f4edd7", "#b8860b", "#1a4254")),
+    "nakis": ("Nakış", "#5b4033", ("#f4ecdc", "#c9574a", "#d8a13e")),
 }
 
 
