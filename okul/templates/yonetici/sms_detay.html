@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block baslik %}SMS kaydı — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Gönderim kaydı</h1>
+{% if not d %}
+<div class="kart uyari"><p>{{ hata }}</p></div>
+{% else %}
+<section class="kart">
+  <p style="white-space:pre-wrap">{{ d.mesaj }}</p>
+  <p class="soluk kucuk">{{ d.satirlar|length }} alıcı · ✅ {{ d.satirlar|length - hatali }} · ❌ {{ hatali }} · <a href="/yonetici/sms/{{ d.gonderim_id }}">Yenile</a></p>
+  {% if hatali %}
+  <form method="post" action="/yonetici/sms/{{ d.gonderim_id }}/tekrar" class="tuslar">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="tus">🔁 Hatalıları yeniden dene ({{ hatali }})</button>
+  </form>
+  {% endif %}
+</section>
+<section class="kart">
+  <ul class="liste">
+    {% for s in d.satirlar %}<li>{{ s.isim }} <span class="soluk kucuk">{{ s.telefon }} · {{ s.zaman }}</span><span class="sag">{% if s.durum == 'gonderildi' %}✅{% else %}❌ <span class="kucuk">{{ s.hata_metni }}</span>{% endif %}</span></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+<p class="kucuk"><a href="/yonetici/sms">← SMS paneli</a></p>
+{% endblock %}

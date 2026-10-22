@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block baslik %}SMS önizleme — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Göndermeden önce kontrol edin</h1>
+<section class="kart{{ ' uyari' if t.sinif == 'TÜM OKUL' }}">
+  <p><b>{{ tur_ad }}{% if tur != 'personel' %} · {{ t.sinif }}{% endif %}{% if t.test %} · DENEME{% endif %}</b> — <b>{{ t.alici_sayisi }}</b> alıcı</p>
+  <p style="white-space:pre-wrap">{{ t.metin }}</p>
+  <p class="soluk kucuk">Taslak {{ t.gecerlilik_dk }} dakika geçerlidir.</p>
+</section>
+<form class="kart" method="post" action="/yonetici/sms/gonder">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="tur" value="{{ tur }}">
+  <input type="hidden" name="taslak_id" value="{{ t.taslak_id }}">
+  {% if t.sinif == 'TÜM OKUL' %}
+  <label for="alici_sayisi">Onay için alıcı sayısını yazın ({{ t.alici_sayisi }})</label>
+  <input id="alici_sayisi" name="alici_sayisi" inputmode="numeric" required>
+  {% endif %}
+  <div class="tuslar"><button class="tus tam">📤 Gönder</button><a class="tus ikincil" href="/yonetici/sms">Vazgeç</a></div>
+</form>
+{% endblock %}

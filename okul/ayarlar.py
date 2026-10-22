@@ -40,6 +40,8 @@ class Ayarlar:
     soru_anahtar: str = ""
     # EBYS botu (Müdür PC) → /api/duyuru-ekle paylaşılan anahtarı (config/gizli.json "duyuru_anahtar"); boşsa uç kapalı
     duyuru_anahtar: str = ""
+    # tahtayoklama dashboard → /api/devamsizlik-bildir paylaşılan anahtarı (config/gizli.json "devamsizlik_anahtar"); boşsa uç kapalı
+    devamsizlik_anahtar: str = ""
 
 
 def yukle() -> Ayarlar:
@@ -56,6 +58,7 @@ def yukle() -> Ayarlar:
         a.whatsapp_ogrenci = g.get("whatsapp_ogrenci", "")
         a.soru_anahtar = g.get("soru_havuzu_anahtar", "")
         a.duyuru_anahtar = g.get("duyuru_anahtar", "")
+        a.devamsizlik_anahtar = g.get("devamsizlik_anahtar", "")
     return a
 
 

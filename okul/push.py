@@ -30,6 +30,7 @@ SABLONLAR = {
     "acil": ("Dijital Okul", "Acil durum bildirimi var!", "/acil"),
     "acil_bitti": ("Dijital Okul", "Acil durum sona erdi.", "/acil"),
     "deneme": ("Dijital Okul", "Test bildirimi: bildirimler açık.", "/bildirimler"),
+    "devamsizlik": ("Dijital Okul", "Öğrenciniz bugün bir derse girmedi.", "/veli/devamsizlik"),
 }
 AZAMI_ABONELIK = 10  # kullanıcı başına cihaz
 AZAMI_HATA = 5  # ardışık geçici hatadan sonra abonelik silinir
@@ -271,3 +272,22 @@ def odev_hatirlat_bildir(odev_id: int, yazar_id: int) -> None:
 
 def pdf_bildir(sinif: str, yazar_id: int) -> None:
     _arkaplan("pdf", lambda c: odev_alicilari(c, sinif, yazar_id))
+
+
+def devamsizlik_alicilari(conn: sqlite3.Connection, okul_no_listesi: list[int]) -> list[int]:
+    """Verilen okul numaralarının velileri (öğrenciye gitmez — anlık bildirim veliye hitap eder)."""
+    if not okul_no_listesi:
+        return []
+    yer = ",".join("?" * len(okul_no_listesi))
+    return [
+        r[0]
+        for r in conn.execute(
+            _ABONELI + f" AND u.id IN (SELECT vo.veli_id FROM veli_ogrenci vo"
+            f" JOIN ogrenci o ON o.id = vo.ogrenci_id WHERE o.okul_no IN ({yer}))",
+            [0, *okul_no_listesi],
+        )
+    ]
+
+
+def devamsizlik_bildir(okul_no_listesi: list[int]) -> None:
+    _arkaplan("devamsizlik", lambda c: devamsizlik_alicilari(c, okul_no_listesi))

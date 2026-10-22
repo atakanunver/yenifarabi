@@ -7,11 +7,12 @@ import analitik
 import auth
 import duyurular
 import ice_aktar
+import yetki
 import zaman
-from deps import ROL_ADLARI, db_conn, render, rol
+from deps import ROL_ADLARI, db_conn, istemci_ip, render, rol
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import RedirectResponse, Response
-from kaynaklar import KaynakHatasi, yoklama
+from kaynaklar import KaynakHatasi, sms, yoklama
 from metin import ilk_sifre, tr_kucuk
 
 router = APIRouter(prefix="/yonetici")
@@ -362,3 +363,127 @@ def kullanim_analitigi(
         duzeyler=analitik.duzeyler(conn),
         az_veri=analitik.AZ_VERI,
     )
+# --- SMS paneli (smssistemi /api/arac üzerinden; 2026-10-21) -----------------
+
+SMS_TURLER = {
+    "veli": "Veliler",
+    "ogrenci": "Öğrenciler",
+    "personel": "Personel / öğretmenler",
+}
+
+
+def _sms_siniflar(conn: sqlite3.Connection) -> list[str]:
+    return ["TÜM OKUL"] + [
+        r[0] for r in conn.execute("SELECT DISTINCT sinif FROM ogrenci ORDER BY sinif")
+    ]
+
+
+def _sms_form(request, conn, hata="", durum=200, **form):
+    try:
+        kayitlar, liste_hata = sms.gonderimler(), ""
+    except KaynakHatasi as e:
+        kayitlar, liste_hata = [], str(e)
+    return render(
+        request,
+        "yonetici/sms.html",
+        status_code=durum,
+        turler=SMS_TURLER,
+        siniflar=_sms_siniflar(conn),
+        kayitlar=kayitlar,
+        hata=hata,
+        liste_hata=liste_hata,
+        form=form,
+    )
+
+
+@router.get("/sms")
+def sms_panel(
+    request: Request, k=Depends(YONETICI), conn: sqlite3.Connection = Depends(db_conn)
+):
+    return _sms_form(request, conn)
+
+
+@router.post("/sms/taslak")
+def sms_taslak(
+    request: Request,
+    tur: str = Form(...),
+    sinif: str = Form(""),
+    metin: str = Form(""),
+    test_telefon: str = Form(""),
+    k=Depends(YONETICI_POST),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    if tur not in SMS_TURLER:
+        raise HTTPException(404)
+    form = dict(tur=tur, sinif=sinif, metin=metin, test_telefon=test_telefon)
+    try:
+        t = sms.taslak(tur, sinif, metin, test_telefon.strip())
+    except KaynakHatasi as e:
+        return _sms_form(request, conn, hata=str(e), durum=422, **form)
+    return render(
+        request, "yonetici/sms_onizle.html", t=t, tur=tur, tur_ad=SMS_TURLER[tur]
+    )
+
+
+@router.post("/sms/gonder")
+def sms_gonder(
+    request: Request,
+    tur: str = Form(...),
+    taslak_id: str = Form(...),
+    alici_sayisi: str = Form(""),
+    k=Depends(YONETICI_POST),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    if tur not in SMS_TURLER:
+        raise HTTPException(404)
+    try:
+        sonuc = sms.taslak_gonder(
+            tur,
+            taslak_id,
+            int(alici_sayisi) if alici_sayisi.strip().isdigit() else None,
+        )
+    except KaynakHatasi as e:
+        return _sms_form(request, conn, hata=str(e), durum=422)
+    yetki.erisim_kaydet(
+        conn,
+        k,
+        f"sms_gonder:{sonuc['gonderim_id']}:{tur}:{sonuc['sinif']}:{sonuc['alici_sayisi']}",
+        None,
+        istemci_ip(request),
+    )
+    return RedirectResponse(f"/yonetici/sms/{sonuc['gonderim_id']}", status_code=303)
+
+
+@router.get("/sms/{gonderim_id}")
+def sms_detay(gonderim_id: str, request: Request, k=Depends(YONETICI)):
+    try:
+        d = sms.gonderim(gonderim_id)
+    except KaynakHatasi as e:
+        return render(
+            request, "yonetici/sms_detay.html", status_code=404, d=None, hata=str(e)
+        )
+    hatali = sum(1 for s in d["satirlar"] if s["durum"] == "hata")
+    return render(request, "yonetici/sms_detay.html", d=d, hata="", hatali=hatali)
+
+
+@router.post("/sms/{gonderim_id}/tekrar")
+def sms_tekrar(
+    gonderim_id: str,
+    request: Request,
+    k=Depends(YONETICI_POST),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    try:
+        sonuc = sms.tekrar(gonderim_id)
+    except KaynakHatasi as e:
+        return render(
+            request, "yonetici/sms_detay.html", status_code=422, d=None, hata=str(e)
+        )
+    yetki.erisim_kaydet(
+        conn,
+        k,
+        f"sms_tekrar:{sonuc['gonderim_id']}:{gonderim_id}:{sonuc['alici_sayisi']}",
+        None,
+        istemci_ip(request),
+    )
+    return RedirectResponse(f"/yonetici/sms/{sonuc['gonderim_id']}", status_code=303)
