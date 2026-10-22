@@ -52,12 +52,18 @@
     {% if havuz %}
     <section class="kart" data-csrf="{{ csrf }}">
       <h2>Havuzdan sorular <span class="soluk kucuk">{{ havuz|length }} onaylı soru</span></h2>
-      {% for h in havuz %}
+      {% for grup in havuz_gruplu %}
+      <h3 style="margin:1rem 0 .3rem">{{ grup.konu }}</h3>
+      {% for alt in grup.alt %}
+      <p class="kucuk soluk" style="margin:.4rem 0 .2rem">{{ alt.kazanim or 'Kazanım eşleşmesi yok' }}</p>
+      {% for h in alt.sorular %}
       <div data-soru-satir="kaldir">
       <label class="sik" style="align-items:flex-start"><input type="checkbox" name="havuz" value="{{ h.id }}">
-        <span>{{ h.soru }}<br><span class="soluk kucuk">{{ h.konu }} · Doğru: {{ 'ABCD'[h.dogru_index] }}) {{ h.secenekler[h.dogru_index] }}</span></span></label>
+        <span>{{ h.soru }}<br><span class="soluk kucuk">Doğru: {{ 'ABCD'[h.dogru_index] }}) {{ h.secenekler[h.dogru_index] }}</span></span></label>
       {% set soru_id = h.id %}{% set kaynak = "odev" %}{% include "ogretmen/_soru_isaretle.html" %}
       </div>
+      {% endfor %}
+      {% endfor %}
       {% endfor %}
       <script src="/static/soru-isaretle.js?v=1" defer></script>
     </section>

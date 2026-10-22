@@ -141,10 +141,10 @@ def test_alt_menu_oyun_odakli_ve_tek_aktif(istemci, ornek):
     import re
 
     giris(istemci, "101", "ali-sifre")
-    for yol, aktif in (("/ogrenci/arena/liderlik", "Liderlik"), ("/ogrenci/arena", "Oyun"), ("/ogrenci", "Ana sayfa"), ("/ogrenci/avatar", "Avatarım")):
+    for yol, aktif in (("/ogrenci/arena/liderlik", "Liderlik"), ("/ogrenci/arena", "Oyun"), ("/ogrenci", "Ana sayfa"), ("/duyurular", "Duyurular")):
         t = istemci.get(yol).text
         nav = t[t.index('<nav class="sekmeler"'):]
         nav = nav[:nav.index("</nav>")]
         assert [m for m in re.findall(r'<a href="[^"]+" class="aktif"[^>]*>.*?</svg>([^<]+)</a>', nav, re.S)] == [aktif], yol
-        for ad in ("Oyun", "Liderlik", "Ödevler", "Avatarım"):
+        for ad in ("Oyun", "Liderlik", "Ödevler", "Duyurular"):
             assert ad in nav

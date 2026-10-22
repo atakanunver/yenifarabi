@@ -91,7 +91,9 @@
     {% set bugunku = devamsizlik|selectattr('tarih', 'equalto', bugun)|selectattr('tur', 'equalto', 'yok')|list %}
     {% if bugunku %}<p><b>Bugün {{ bugunku|length }} ders saatinde yok yazıldı</b> ({{ bugunku|map(attribute='ders_no')|join(', ') }}. ders).</p>
     {% else %}<p>Bugün devamsızlık kaydı yok.</p>{% endif %}
-    <p class="soluk kucuk">Son 30 günde {{ devamsizlik|selectattr('tur', 'equalto', 'yok')|list|length }} ders saati yok, {{ devamsizlik|selectattr('tur', 'equalto', 'izinli')|list|length }} ders saati izinli.</p>
+    {% set yok_30 = devamsizlik|selectattr('tur', 'equalto', 'yok')|list|length %}
+    {% set izinli_30 = devamsizlik|selectattr('tur', 'equalto', 'izinli')|list|length %}
+    <p class="soluk kucuk">Son 30 günde <b>{{ yok_30|gun }} gün</b> devamsızlık ({{ yok_30 }} ders saati), <b>{{ izinli_30|gun }} gün</b> izinli ({{ izinli_30 }} ders saati).</p>
   {% endif %}
 </section>
 

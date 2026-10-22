@@ -22,6 +22,7 @@ import tema
 import zaman
 from kaynaklar import KaynakHatasi, zil
 from kaynaklar.program import GUN_ADLARI, GUNLER
+from metin import saat_gun
 
 ANA_SAYFA = {
     "ogrenci": "/ogrenci",
@@ -59,6 +60,7 @@ def _tarih(s: str | None, saatli: bool = True) -> str:
 TEMPLATES.env.filters["tarih"] = _tarih
 TEMPLATES.env.filters["gun_adi"] = lambda g: GUN_ADLARI.get(g, g)
 TEMPLATES.env.filters["baslik"] = lambda s: (s or "")[:1].upper() + (s or "")[1:]
+TEMPLATES.env.filters["gun"] = saat_gun
 TEMPLATES.env.globals["ROL_ADLARI"] = ROL_ADLARI
 TEMPLATES.env.globals["TEMALAR"] = tema.TEMALAR
 # Yeni modül bağlantıları: yalnızca bu kodu çalıştıran süreçte tanımlı (şablonlarda `MODULLER is defined`).

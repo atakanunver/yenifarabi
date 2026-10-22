@@ -21,6 +21,7 @@ from ayarlar import AYAR
 from deps import db_conn, render, rol
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
+from metin import sinif_seviyesi
 
 from rotalar import ortak
 
@@ -49,10 +50,16 @@ def ana(
     o = _kendisi(conn, k)
     ozet, _, erisildi = ortak.kazanim_ozeti(conn, o)
     arena_acik = arena.duzey_uygun(o["sinif"])
+    seviye_no = sinif_seviyesi(o["sinif"])
+    yks_bilgi = None
+    if 9 <= seviye_no <= 12:
+        yks_tarih = sinavlar.yks_tarihi(seviye_no).isoformat()
+        yks_bilgi = {"tarih": yks_tarih, "kalan": sinavlar.kalan_gun(yks_tarih)}
     return render(
         request,
         "ogrenci/ana_yeni.html",
         ogrenci=o,
+        yks=yks_bilgi,
         bugun=bugun.gorevler(conn, o, arena_gorevi=False),
         yaris=oduller.liderlik(conn, oduller.hafta_basi(), k["id"])["xp"] if arena_acik else None,
         hafta=kisisel.bu_hafta(conn, o),

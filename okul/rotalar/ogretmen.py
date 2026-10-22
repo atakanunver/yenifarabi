@@ -29,6 +29,24 @@ OGRETMEN = rol("ogretmen", "yonetici")
 OGRETMEN_POST = rol("ogretmen", "yonetici", post=True)
 
 
+def _havuz_gruplu(havuz: list[dict]) -> list[dict]:
+    """Soru seçim listesini konu, konu altında kazanım başlığıyla gruplar (dağınık tek liste yerine)."""
+    gruplar: dict[str, dict[str | None, list[dict]]] = {}
+    for h in havuz:
+        alt = gruplar.setdefault(h.get("konu") or "Diğer", {})
+        alt.setdefault(h.get("kazanim_metin"), []).append(h)
+    return [
+        {
+            "konu": konu,
+            "alt": [
+                {"kazanim": kaz, "sorular": sorular}
+                for kaz, sorular in sorted(alt.items(), key=lambda x: (x[0] is None, x[0] or ""))
+            ],
+        }
+        for konu, alt in gruplar.items()
+    ]
+
+
 def gorevler(conn: sqlite3.Connection, k: sqlite3.Row) -> list[tuple[str, str]]:
     if k["rol"] == "yonetici":
         return [
@@ -242,6 +260,7 @@ def odev_formu(
         havuz_ders=havuz_ders,
         havuz_dersleri=havuz_dersleri,
         havuz=havuz,
+        havuz_gruplu=_havuz_gruplu(havuz),
         havuz_hata=havuz_hata,
         soru_sayisi=5,
     )

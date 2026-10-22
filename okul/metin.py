@@ -34,6 +34,12 @@ def sinif_seviyesi(sinif: str) -> int:
     return int(sinif.split("-", 1)[0])
 
 
+def saat_gun(saat: int) -> str:
+    """Devamsızlık ders saatini güne çevirir (günde 8 ders): kalan saat varsa yarım gün sayılır."""
+    tam, kalan = divmod(int(saat), 8)
+    return f"{tam + (0.5 if kalan else 0):g}"
+
+
 def kisa_ad(ad_soyad: str) -> str:
     """Liderlik tablosu için "Ali Veli" -> "Ali V." (ad + soyadın baş harfi)."""
     parca = ad_soyad.split()

@@ -90,7 +90,7 @@
 {% set ogr = ('?ogr=' ~ cocuk.id) if cocuk else '' %}
 {% if k.rol == 'ogrenci' %}
   {% if OYUN_NAV is defined %}
-  {% set sekmeler = [('/ogrenci','Ana sayfa','ev'),('/ogrenci/arena','Oyun','oyun'),('/ogrenci/arena/liderlik','Liderlik','kupa'),('/ogrenci/odevler','Ödevler','odev'),('/ogrenci/avatar','Avatarım','kisi')] %}
+  {% set sekmeler = [('/ogrenci','Ana sayfa','ev'),('/ogrenci/arena','Oyun','oyun'),('/ogrenci/arena/liderlik','Liderlik','kupa'),('/ogrenci/odevler','Ödevler','odev'),('/duyurular','Duyurular','duyuru')] %}
   {% else %}
   {% set sekmeler = [('/ogrenci','Ana sayfa','ev'),('/ogrenci/odevler','Ödevler','odev'),('/ogrenci/kazanimlar','Kazanımlar','kazanim'),('/ogrenci/program','Program','program'),('/duyurular','Duyurular','duyuru')] %}
   {% endif %}

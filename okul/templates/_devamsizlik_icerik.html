@@ -3,7 +3,7 @@
 <div class="kart">{{ kaynak_yok("Yoklama bilgisi") }}</div>
 {% else %}
 <div class="kart">
-  <p style="margin:0"><b class="yuzde zayif">{{ yok }}</b> ders saati yok · <b>{{ izinli }}</b> ders saati izinli <span class="soluk kucuk">(tüm kayıtlar)</span></p>
+  <p style="margin:0"><b class="yuzde zayif">{{ yok|gun }}</b> gün devamsızlığı var <span class="soluk kucuk">({{ yok }} ders saati)</span> · <b>{{ izinli|gun }}</b> gün izinli <span class="soluk kucuk">({{ izinli }} ders saati, tüm kayıtlar)</span></p>
 </div>
 {% for tarih, kayitlar in gunler %}
 <section class="kart">

@@ -117,6 +117,8 @@ h2 { font-size: 1.05rem; margin: 0 0 .6rem; }
 .kart > h2 a { margin-left: auto; font-size: .85rem; font-weight: 500; }
 .kart.uyari { border-color: #f3c3ca; background: var(--kirmizi-acik); }
 .kart.bilgi { border-color: #c9d4f6; background: var(--mavi-acik); }
+.kart.sari { border-color: var(--sari-kenar); background: var(--sari-bg); color: var(--sari-yazi); }
+.kart.sari .soluk { color: var(--sari-soluk); }
 .bos { color: var(--soluk); font-style: italic; margin: .2rem 0; }
 .kaynak-yok { color: var(--soluk); font-size: .9rem; }
 .kaynak-yok::before { content: "⚠ "; }
@@ -210,7 +212,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--mavi); outline: 
 
 /* giriş sayfası */
 .giris { max-width: 420px; margin: 0 auto; padding-top: 2rem; }
-.okul-logo { display: block; width: 96px; height: 96px; border-radius: 50%; margin: 0 auto 1rem; box-shadow: var(--golge); }
+.okul-logo { display: block; width: 96px; height: 96px; border-radius: 50%; margin: 0 auto .6rem; box-shadow: var(--golge); }
+.okul-adi { text-align: center; font-weight: 700; font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; color: var(--soluk); margin: 0 0 1rem; }
 /* giriş ekranları: logo, başlık ve alt yazı ortalı; form alanları sola dayalı kalır */
 .giris > .baslik, .giris > h1, .giris > .soluk { text-align: center; }
 .giris .baslik { font-size: 2rem; font-weight: 800; letter-spacing: -.03em; line-height: 1.05; margin: 0 0 .3rem; }

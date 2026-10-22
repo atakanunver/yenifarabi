@@ -115,12 +115,66 @@ def _ejder() -> str:
     )
 
 
+def _farabi() -> str:
+    return (
+        '<path d="M20 100 C20 78 34 70 50 70 C66 70 80 78 80 100Z" fill="#2d4f66"/>'
+        '<path d="M38 70 L50 85 L62 70Z" fill="#d4af37"/>'
+        '<rect x="44" y="62" width="12" height="10" rx="4" fill="#e8b98c"/>'
+        '<circle cx="50" cy="46" r="21" fill="#e8b98c"/>'
+        '<path d="M26 35 C26 15 74 15 74 35 C74 41 68 41 68 35 C68 23 32 23 32 35 C32 41 26 41 26 35Z" '
+        'fill="#f5f0e6" stroke="#cbbfa0" stroke-width="1.5"/>'
+        '<circle cx="50" cy="18" r="5" fill="#f5f0e6" stroke="#cbbfa0" stroke-width="1.5"/>'
+        '<path d="M34 42 Q39 38 44 42" stroke="#d8d8d8" stroke-width="2" fill="none" stroke-linecap="round"/>'
+        '<path d="M56 42 Q61 38 66 42" stroke="#d8d8d8" stroke-width="2" fill="none" stroke-linecap="round"/>'
+        '<circle cx="42" cy="47" r="2.2" fill="#222"/><circle cx="58" cy="47" r="2.2" fill="#222"/>'
+        '<path d="M39 57 Q50 61 61 57" stroke="#e6e6e6" stroke-width="4" fill="none" stroke-linecap="round"/>'
+        '<path d="M30 48 C30 66 39 78 50 78 C61 78 70 66 70 48 C70 58 63 70 50 70 C37 70 30 58 30 48Z" fill="#eceff1"/>'
+    )
+
+
+def _suleyman() -> str:
+    return (
+        '<path d="M20 100 C20 78 34 70 50 70 C66 70 80 78 80 100Z" fill="#7a1f2b"/>'
+        '<path d="M26 74 Q50 66 74 74 L74 82 Q50 75 26 82Z" fill="#fff" opacity=".9"/>'
+        '<rect x="48" y="70" width="4" height="30" fill="#d4af37"/>'
+        '<rect x="44" y="60" width="12" height="12" rx="4" fill="#e8b98c"/>'
+        '<circle cx="50" cy="45" r="20" fill="#e8b98c"/>'
+        '<ellipse cx="50" cy="25" rx="19" ry="22" fill="#f5f0e6" stroke="#cbbfa0" stroke-width="1.5"/>'
+        '<circle cx="50" cy="24" r="3.2" fill="#d4af37"/>'
+        '<path d="M50 4 L54 23 L46 23Z" fill="#fff"/>'
+        '<path d="M33 41 Q38 37 43 41" stroke="#3b2418" stroke-width="2" fill="none" stroke-linecap="round"/>'
+        '<path d="M57 41 Q62 37 67 41" stroke="#3b2418" stroke-width="2" fill="none" stroke-linecap="round"/>'
+        '<circle cx="42" cy="46" r="2.2" fill="#222"/><circle cx="58" cy="46" r="2.2" fill="#222"/>'
+        '<path d="M37 55 Q50 50 63 55 Q50 59 37 55Z" fill="#3b2418"/>'
+    )
+
+
+def _hurrem() -> str:
+    return (
+        '<path d="M20 100 C20 78 34 70 50 70 C66 70 80 78 80 100Z" fill="#6b2d5c"/>'
+        '<path d="M32 72 Q50 80 68 72 L68 80 Q50 88 32 80Z" fill="#d4af37" opacity=".85"/>'
+        '<rect x="44" y="61" width="12" height="11" rx="4" fill="#f0cba3"/>'
+        '<path d="M26 36 C22 52 23 70 29 82 L37 78 C32 64 32 48 36 36Z" fill="#c2452a"/>'
+        '<path d="M74 36 C78 52 77 70 71 82 L63 78 C68 64 68 48 64 36Z" fill="#c2452a"/>'
+        '<circle cx="50" cy="46" r="21" fill="#f0cba3"/>'
+        '<path d="M29 40 C27 58 36 72 50 72 C64 72 73 58 71 40 C71 50 63 58 50 58 C37 58 29 50 29 40Z" fill="#a8341f"/>'
+        '<path d="M30 32 Q50 18 70 32" stroke="#d4af37" stroke-width="4" fill="none"/>'
+        '<circle cx="50" cy="24" r="3.5" fill="#c2452a"/>'
+        '<circle cx="42" cy="47" r="2.2" fill="#222"/><circle cx="58" cy="47" r="2.2" fill="#222"/>'
+        '<circle cx="37" cy="52" r="2.6" fill="#f08a8a" opacity=".7"/><circle cx="63" cy="52" r="2.6" fill="#f08a8a" opacity=".7"/>'
+        '<path d="M44 58 Q50 62 56 58" stroke="#8a3b2e" stroke-width="2" fill="none" stroke-linecap="round"/>'
+    )
+
+
 KARAKTERLER = {
     "kasif": ("Kaşif", 1, _kasif),
     "robi": ("Robi", 1, _robi),
     "bilge": ("Bilge Baykuş", 2, _bilge),
+    "farabi": ("Farabi", 3, _farabi),
     "tilki": ("Akıllı Tilki", 4, _tilki),
+    "hurrem": ("Hürrem Sultan", 5, _hurrem),
     "astro": ("Astro", 6, _astro),
+    "suleyman": ("Kanuni Sultan Süleyman", 7, _suleyman),
     "ejder": ("Ejder", 8, _ejder),
 }
 

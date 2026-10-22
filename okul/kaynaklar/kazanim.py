@@ -85,11 +85,13 @@ def havuz_dersleri(seviye: int) -> list[str]:
 
 
 def havuz_sorulari(seviye: int, ders: str, limit: int = 40, yasak: list[int] | None = None) -> list[dict]:
+    """Konu'ya göre gruplanabilsin diye konu sırasıyla döner (her konu içinde en az kullanılan önce)."""
     with _baglan() as c, c.cursor() as cur:
         cur.execute(
-            "SELECT id, konu, soru, secenekler, dogru_index FROM soru"
-            " WHERE durum = 'onayli' AND sinif = %s AND ders = %s AND id <> ALL(%s)"
-            " ORDER BY kullanim_sayisi, id DESC LIMIT %s",
+            "SELECT s.id, s.konu, s.soru, s.secenekler, s.dogru_index, k.kod, k.metin"
+            " FROM soru s LEFT JOIN kazanim k ON k.id = s.kazanim_id"
+            " WHERE s.durum = 'onayli' AND s.sinif = %s AND s.ders = %s AND s.id <> ALL(%s)"
+            " ORDER BY s.konu, s.kullanim_sayisi, s.id DESC LIMIT %s",
             (seviye, ders, list(yasak or []) or [0], limit),
         )
         return [_havuz_satiri(r) for r in cur.fetchall()]
@@ -108,13 +110,17 @@ def havuz_sorulari_getir(idler: list[int]) -> list[dict]:
 
 
 def _havuz_satiri(r) -> dict:
-    return {
+    d = {
         "id": r[0],
         "konu": r[1],
         "soru": r[2],
         "secenekler": list(r[3]),
         "dogru_index": r[4],
     }
+    if len(r) > 5:
+        d["kazanim_kod"] = r[5]
+        d["kazanim_metin"] = r[6]
+    return d
 
 
 def ozet(

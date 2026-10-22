@@ -188,3 +188,13 @@ def ogretmen_sinavlari(conn, k, baslangic: str) -> list[sqlite3.Row]:
 
 def kalan_gun(tarih: str) -> int:
     return (date.fromisoformat(tarih) - zaman.simdi().date()).days
+
+
+YKS_AY_GUN = (6, 20)  # YKS her yıl yaklaşık 19-20 Haziran'da yapılır
+
+
+def yks_tarihi(seviye: int) -> date:
+    """9-12. sınıf öğrencisinin YKS'ye gireceği (tahmini) tarih: 12. sınıfını bitirdiği haziran."""
+    bugun = zaman.simdi().date()
+    akademik_baslangic = bugun.year if bugun.month >= 9 else bugun.year - 1
+    return date(akademik_baslangic + 13 - seviye, *YKS_AY_GUN)
