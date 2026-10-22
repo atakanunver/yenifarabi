@@ -92,6 +92,7 @@ network.txt
 # kayıtlarından türetilen öğrenci adı/devamsızlık verisi içerir — data/roster
 # ile aynı KVKK hassasiyeti.
 tahtayoklama/dashboard/config/gizli.json
+tahtayoklama/dashboard/config/kulupler.json
 tahtayoklama/dashboard/veri/
 
 # tahtaayar/ kendi gizli.json'unu kullanabilir (bugün yok, yalnızca yol açık)

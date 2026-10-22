@@ -14,12 +14,12 @@ Döngü:
   Ayrı bir "giden kutusu" kopyası yok; kuyruk = kayitlar/ + durum dosyası.
 - 60 sn: POST /nabiz (+ donanım sağlığı: sıcaklık, bellek/takas, yük,
   OOM sayacı, dokunmatik USB kopması — `saglik_olc`, sürüm 3).
-- 10 dk (ve açılışta): GET /yapilandirma (ETag) → roster / zil.json /
+- 10 dk (ve açılışta): GET /yapilandirma (ETag) → roster / kulüp rosterları / zil.json /
   ders_programi.json / kazanimlar.json içerik farklıysa doğrulayıp atomik yazar.
 
 Yalnızca standart kütüphane (sistem python3, 3.11). Proxy KULLANILMAZ
 (okul ağı proxy'si LAN'daki sunucuya giden isteği bozmasın).
-Ayar: ~/tahtayoklama/istemci.json {"sunucu": "http://...:8010", "token": "..."}
+Ayar: ~/tahtayoklama/istemci.json {"sunucu": "http://...", "token": "..."}
 (0600, scripts/tahta_istemci_kur.py yazar). systemd --user birimi:
 tahta-istemci.service.
 """
@@ -36,7 +36,7 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-SURUM = "3"
+SURUM = "4"
 BASE_DIR = Path(__file__).resolve().parent
 AYAR_DOSYASI = BASE_DIR / "istemci.json"
 DATA_DIR = BASE_DIR / "data"
@@ -53,6 +53,7 @@ ZAMAN_ASIMI_SN = 8
 
 _KAYIT_ADI_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})_[A-Za-z0-9_-]+_ders\d+\.json$")
 _SINIF_RE = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
+KULUP_ONEKI = "KULUP-"  # kulüp roster'ları (sınıf temizliği bunlara dokunmaz)
 _SAAT_RE = re.compile(r"^\d{2}:\d{2}$")
 
 # Dokunmatik panel USB satıcı kimlikleri: IRTOUCH (eski tahtalar), OTD (yeni).
@@ -373,10 +374,24 @@ def yapilandirmayi_uygula(yap: dict) -> None:
         # admin.py SSH senkronuyla aynı kural: tahta TEK sınıf gösterir.
         # Silmek yerine yedeğe taşınır.
         for eski in ROSTER_DIR.glob("*.json"):
-            if eski.name != f"{sinif}.json":
+            if eski.name != f"{sinif}.json" and not eski.name.startswith(KULUP_ONEKI):
                 _yedekle(eski)
                 eski.unlink()
                 log(f"eski roster kaldirildi (yedekte): {eski.name}")
+    # Kulüp roster'ları (sürüm 4): "kulupler" anahtarı yoksa (eski sunucu) hiçbir
+    # şeye dokunulmaz; varsa yapılandırmada artık olmayan KULUP-* yedeğe taşınır.
+    kulupler = yap.get("kulupler")
+    if isinstance(kulupler, dict):
+        for kod, metin in kulupler.items():
+            if (isinstance(kod, str) and kod.startswith(KULUP_ONEKI) and _SINIF_RE.match(kod)
+                    and isinstance(metin, str) and roster_gecerli(metin, kod)
+                    and _farkliysa_yaz(ROSTER_DIR / f"{kod}.json", metin)):
+                log(f"kulup roster guncellendi: {kod}")
+        for eski in ROSTER_DIR.glob(f"{KULUP_ONEKI}*.json"):
+            if eski.stem not in kulupler:
+                _yedekle(eski)
+                eski.unlink()
+                log(f"eski kulup roster kaldirildi (yedekte): {eski.name}")
 
 
 def yapilandirma_cek(ayar: dict, durum: dict) -> None:

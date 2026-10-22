@@ -8,6 +8,7 @@ import asyncio
 import json
 from datetime import date
 
+import kulupler
 import ssh_istemci
 import zil
 
@@ -20,6 +21,7 @@ NABIZ_TAZE_SN = 300
 # yoklama.py'nin ürettiği durum alanları -> pano'nun sunduğu isimler
 _YOK = "yok"
 _IZINLI = "izinli"
+_TABLOLAR = {"yoklama_onbellek", "kulup_yoklama"}
 
 
 async def _tahtayi_tara(tahta: dict, tarih: str) -> tuple[dict, bool]:
@@ -76,13 +78,17 @@ def onbellege_yaz(conn, tarih: str, sinif_adi: str, ders_no: int, durum: str,
                   yok_isimleri: list[str], izinli_isimleri: list[str],
                   kaynak_tahta: str | None, kaydedilme_saati: str | None,
                   yok_nolari: list[int] | None = None,
-                  izinli_nolari: list[int] | None = None) -> None:
+                  izinli_nolari: list[int] | None = None,
+                  tablo: str = "yoklama_onbellek") -> None:
     """yoklama_onbellek'e TEK yazma yolu — hem SSH polling'i hem tahta
     istemcisinin itmesi (tahta_api.py) bunu kullanır (iki kopya senkron
-    kalmasın diye)."""
+    kalmasın diye). `tablo="kulup_yoklama"` kulüp kaydı içindir (aynı kolonlar
+    ve kurallar)."""
+    if tablo not in _TABLOLAR:
+        raise ValueError(tablo)
     conn.execute(
-        """
-        INSERT INTO yoklama_onbellek
+        f"""
+        INSERT INTO {tablo}
             (tarih, sinif, ders_no, durum, yok_isimleri, izinli_isimleri,
              yok_nolari, izinli_nolari, kaynak_tahta, kaydedilme_saati, guncelleme_zamani)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
@@ -107,10 +113,10 @@ def onbellege_yaz(conn, tarih: str, sinif_adi: str, ders_no: int, durum: str,
         -- 2026-10-06'da 9-A'dan çıkarılan bir öğrenci eski satırlarda
         -- "No 204"e dönüştü, bu yüzden >= yerine >.
         WHERE (excluded.durum = 'alindi' AND (
-                  yoklama_onbellek.durum <> 'alindi'
+                  {tablo}.durum <> 'alindi'
                   OR COALESCE(excluded.kaydedilme_saati, '')
-                     > COALESCE(yoklama_onbellek.kaydedilme_saati, '')))
-           OR (excluded.durum <> 'alindi' AND yoklama_onbellek.durum <> 'alindi')
+                     > COALESCE({tablo}.kaydedilme_saati, '')))
+           OR (excluded.durum <> 'alindi' AND {tablo}.durum <> 'alindi')
         """,
         (
             tarih, sinif_adi, ders_no, durum,
@@ -133,40 +139,60 @@ def _roster_by_no(conn, sinif_id: int) -> dict[str, str]:
     }
 
 
-def itilen_kaydi_yaz(conn, kayit: dict, kaynak_tahta: str) -> bool:
+def itilen_kaydi_yaz(conn, kayit: dict, kaynak_tahta: str) -> tuple[bool, list[int]]:
     """Tahta istemcisinin ittiği (önceden doğrulanmış) tek bir yoklama
-    kaydını önbelleğe 'alindi' olarak yazar. Sınıf aktif değilse False —
-    tahta↔sınıf eşlemesine BAKILMAZ (kayıt içeriğindeki `sinif` esas, bkz.
-    modül docstring'i; fenlab her sınıfı kaydedebilir)."""
+    kaydını önbelleğe 'alindi' olarak yazar. Sınıf aktif değilse (False, [])
+    döner — tahta↔sınıf eşlemesine BAKILMAZ (kayıt içeriğindeki `sinif` esas,
+    bkz. modül docstring'i; fenlab her sınıfı kaydedebilir). İkinci eleman:
+    BUGÜNÜN kaydında bu çağrıyla YENİ 'yok' yazılan okul numaraları (anlık
+    veli bildirimi için — tahta_api.py çağırır); düzeltmede zaten yok olan
+    öğrenci tekrar bildirilmez."""
     sinif = conn.execute(
         "SELECT id FROM siniflar WHERE ad = ? AND aktif = 1", (kayit["sinif"],)
     ).fetchone()
-    if sinif is None:
-        return False
+    # Sınıf değilse kulüp kodu olabilir (config/kulupler.json): ayrı tabloya
+    # yazılır, isimler kulüp üyelerinden çözülür, veli bildirimi YOK.
+    kulup = None if sinif is not None else kulupler.bul(kayit["sinif"])
+    if sinif is None and kulup is None:
+        return False, []
+    tablo = "yoklama_onbellek" if kulup is None else "kulup_yoklama"
+    bugun = zil.simdi_istanbul().date().isoformat()
     # GEÇMİŞ GÜNÜN 'alindi' satırına ASLA yazılmaz (2026-10-06). yoklama.py
     # yalnızca O ANKİ dersi kaydettirir; geçmiş tarihli farklı bir kayıt
     # meşru bir düzeltme olamaz, saati yanlış açılan tahtadan gelir (10-A:
     # CMOS pili bitik, açılışta son kapanış saatiyle başlıyor → "dün 5. ders"
     # sanıp gerçek kaydın üstüne yazardı). Geçmiş gün için yalnızca HİÇ
     # görülmemiş kayıt eklenir (tahta o gün kapalıyken alınmış yoklama).
-    if kayit["tarih"] < zil.simdi_istanbul().date().isoformat():
+    eski_yok: set[int] = set()
+    if kayit["tarih"] < bugun:
         mevcut = conn.execute(
-            "SELECT durum FROM yoklama_onbellek WHERE tarih = ? AND sinif = ? AND ders_no = ?",
+            f"SELECT durum FROM {tablo} WHERE tarih = ? AND sinif = ? AND ders_no = ?",
             (kayit["tarih"], kayit["sinif"], kayit["ders_no"]),
         ).fetchone()
         if mevcut is not None and mevcut["durum"] == "alindi":
-            return True
-    roster = _roster_by_no(conn, sinif["id"])
+            return True, []
+    elif kayit["tarih"] == bugun:
+        onceki = conn.execute(
+            f"SELECT yok_nolari FROM {tablo} WHERE tarih = ? AND sinif = ? AND ders_no = ?",
+            (kayit["tarih"], kayit["sinif"], kayit["ders_no"]),
+        ).fetchone()
+        if onceki is not None and onceki["yok_nolari"]:
+            eski_yok = set(json.loads(onceki["yok_nolari"]))
+    roster = _roster_by_no(conn, sinif["id"]) if kulup is None else kulupler.isimler(kulup)
+    yeni_yok_nolar = _yok_nolarini_coz(kayit, _YOK)
     onbellege_yaz(
         conn, kayit["tarih"], kayit["sinif"], kayit["ders_no"], "alindi",
         _yok_isimlerini_coz(kayit, roster, _YOK),
         _yok_isimlerini_coz(kayit, roster, _IZINLI),
         kaynak_tahta, kayit.get("kaydedilme_saati"),
-        _yok_nolarini_coz(kayit, _YOK),
+        yeni_yok_nolar,
         _yok_nolarini_coz(kayit, _IZINLI),
+        tablo,
     )
     conn.commit()
-    return True
+    bildirilecek = (sorted(set(yeni_yok_nolar) - eski_yok)
+                    if kayit["tarih"] == bugun and kulup is None else [])
+    return True, bildirilecek
 
 
 def _taze_nabizli_tahtalar(conn) -> set[str]:

@@ -34,6 +34,7 @@ import acil
 import guvenlik
 import kameralar
 import yakinda
+import kulup_yoklama
 import uzaktan_baslat
 import uzaktan_yonetim
 import veli_mesajlari
@@ -121,6 +122,7 @@ app.include_router(zamanlanmis_gorevler.router)
 app.include_router(veli_mesajlari.router)
 app.include_router(kameralar.router)
 app.include_router(acil.router)
+app.include_router(kulup_yoklama.router)
 app.include_router(guvenlik.router)
 app.include_router(yakinda.router)
 

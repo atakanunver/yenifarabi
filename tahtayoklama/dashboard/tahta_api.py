@@ -5,7 +5,8 @@ SSH ile çekme modelinin yerine (2026-10-06) "tahta iter / tahta çeker":
 - POST /kayit         — yoklama kaydı (yoklama.py'nin yazdığı JSON'un aynısı)
 - POST /nabiz         — 60 sn'de bir; taze nabızlı tahta SSH ile taranmaz
 - GET  /yapilandirma  — roster (atanmış sınıf) + zil.json + ders_programi.json
-                        + kazanimlar.json (2026-10-06), ETag/If-None-Match ile
+                        + kazanimlar.json (2026-10-06) + kulupler (2026-10-22),
+                        ETag/If-None-Match ile
 
 Kimlik: `Authorization: Bearer <token>` — tahta başına ayrı token. Sunucuda
 yalnızca SHA-256 özeti durur: config/tahta_tokenlari.json ({"9-A": "<hex>"},
@@ -14,6 +15,7 @@ gitignore'lu, scripts/tahta_istemci_kur.py yazar, her istekte okunur).
 açık, bu yüzden her girdi sıkı doğrulanır ve hiçbir uç komut çalıştırmaz.
 """
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -25,6 +27,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
 import db
+import devamsizlik_bildirim
+import kulupler
 import tahta_saglik
 import yoklayici
 import zil
@@ -129,10 +133,13 @@ async def kayit_al(request: Request):
     kayit = kayit_dogrula(await _govde(request))
     conn = db.baglanti()
     try:
-        if not yoklayici.itilen_kaydi_yaz(conn, kayit, tahta):
+        basarili, bildirilecek = yoklayici.itilen_kaydi_yaz(conn, kayit, tahta)
+        if not basarili:
             raise HTTPException(422, "Bilinmeyen ya da pasif sınıf.")
     finally:
         conn.close()
+    if bildirilecek:
+        await asyncio.to_thread(devamsizlik_bildirim.bildir, bildirilecek)
     return JSONResponse({"durum": "kaydedildi"})
 
 
@@ -208,6 +215,13 @@ def _kazanim_metni(sinif_ad: str | None) -> str | None:
         return None
 
 
+def _kulup_rosterlari(sinif_ad: str | None) -> dict[str, str]:
+    """Yalnızca "ders işlenecek sınıf"ı bu tahtanın sınıfı olan kulüpler
+    ({kod: roster_json}); sınıfsız tahtada boş."""
+    return {k["kod"]: kulupler.roster_json(k) for k in kulupler.yukle()
+            if sinif_ad is not None and k.get("sinif") == sinif_ad}
+
+
 def yapilandirma_olustur(tahta: str) -> dict:
     """Roster, admin.py'nin SSH senkronuyla BAYT BAYT aynı üretilir
     (`_roster_payload_olustur`) — iki yol aynı dosyayı yazsın. Sınıfı
@@ -237,6 +251,7 @@ def yapilandirma_olustur(tahta: str) -> dict:
         "zil": _dosya_metni(ZIL_DOSYASI),
         "ders_programi": _dosya_metni(DERS_PROGRAMI_DOSYASI),
         "kazanimlar": _kazanim_metni(sinif_ad),
+        "kulupler": _kulup_rosterlari(sinif_ad),
     }
 
 

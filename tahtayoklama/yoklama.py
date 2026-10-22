@@ -100,6 +100,7 @@ DERS_PROGRAMI_DOSYASI = BASE_DIR / "data" / "ders_programi.json"
 # Haftalık kazanım (yıllık planlardan, dashboard/scripts/kazanim_yukle.py
 # üretir, tahta_istemci.py çeker). Yoksa/bozuksa ikinci satır boş kalır.
 KAZANIM_DOSYASI = BASE_DIR / "data" / "kazanimlar.json"
+KULUP_ONEKI = "KULUP-"  # kulüp roster'ları (sunucu: dashboard/kulupler.py)
 _GUN_ANAHTARLARI = {1: "pazartesi", 2: "sali", 3: "carsamba", 4: "persembe", 5: "cuma"}
 
 # Tek örnek koruması için sabit yerel soket adı — bkz. _tekil_ornek_sunucusu_baslat.
@@ -142,10 +143,24 @@ KONTROL_ARALIGI_MS = 30_000
 
 
 def _roster_listesi() -> list[str]:
-    """data/roster/ altındaki sınıf dosyalarının adları (uzantısız)."""
+    """data/roster/ altındaki dosyaların adları (uzantısız): önce sınıflar,
+    sonra kulüpler (KULUP-*). Varsayılan seçim = ilk öğe = sınıf."""
     if not ROSTER_DIR.exists():
         return []
-    return sorted(p.stem for p in ROSTER_DIR.glob("*.json"))
+    adlar = sorted(p.stem for p in ROSTER_DIR.glob("*.json"))
+    return ([a for a in adlar if not a.startswith(KULUP_ONEKI)]
+            + [a for a in adlar if a.startswith(KULUP_ONEKI)])
+
+
+def _roster_etiketi(kod: str) -> str:
+    """Açılır listede görünen ad: sınıf kodu olduğu gibi, kulüp "Kulüp: <ad>"."""
+    if not kod.startswith(KULUP_ONEKI):
+        return kod
+    try:
+        ad = json.loads((ROSTER_DIR / f"{kod}.json").read_text(encoding="utf-8")).get("ad")
+    except (OSError, ValueError, AttributeError):
+        ad = None
+    return f"Kulüp: {ad or kod}"
 
 
 def _roster_yukle(sinif: str) -> list[dict]:
@@ -454,7 +469,8 @@ class YoklamaPenceresi(QWidget):
         self.sinif_secici = QComboBox()
         self.sinif_secici.setMinimumHeight(50)
         self.sinif_secici.setStyleSheet("font-size: 14pt;")
-        self.sinif_secici.addItems(_roster_listesi())
+        for kod in _roster_listesi():
+            self.sinif_secici.addItem(_roster_etiketi(kod), kod)
         self.sinif_secici.currentTextChanged.connect(self._sinif_degisti)
         ust.addWidget(self.sinif_secici)
 
@@ -528,7 +544,7 @@ class YoklamaPenceresi(QWidget):
         self._baslik_guncelle()
 
     def _bugun_kayit_var_mi(self) -> bool:
-        sinif = self.sinif_secici.currentText()
+        sinif = self._secili_kod()
         if not sinif or self._aktif_ders_no is None:
             return False
         tarih = datetime.now().strftime("%Y-%m-%d")
@@ -544,7 +560,7 @@ class YoklamaPenceresi(QWidget):
         kazanim = None
         if self._aktif_ders_no is not None:
             metin = f"YOKLAMA — {self._aktif_ders_no}. DERS"
-            sinif = self.sinif_secici.currentText()
+            sinif = self._secili_kod()
             simdi = datetime.now()
             ad = _ders_adi(self._ders_programi, sinif, simdi.isoweekday(), self._aktif_ders_no)
             if ad:
@@ -584,6 +600,10 @@ class YoklamaPenceresi(QWidget):
     # Sınıf/ders yükleme
     # ------------------------------------------------------------------
 
+    def _secili_kod(self) -> str:
+        """Seçili roster kodu (sınıf adı ya da KULUP-*); metin değil veri."""
+        return self.sinif_secici.currentData() or self.sinif_secici.currentText()
+
     def _sinif_degisti(self, *_args) -> None:
         simdi = datetime.now().time()
         self._aktif_ders_no = _simdiki_ders(self._zil, simdi)
@@ -593,7 +613,7 @@ class YoklamaPenceresi(QWidget):
     def _ders_grubunu_yukle(self) -> None:
         """Seçili sınıf + aktif ders için kartları kurar — o ders için
         daha önce kayıt varsa onu yükler, yoksa hepsini 'var' başlatır."""
-        sinif = self.sinif_secici.currentText()
+        sinif = self._secili_kod()
         for i in reversed(range(self.izgara.count())):
             self.izgara.itemAt(i).widget().setParent(None)
         self._kartlar = []
@@ -699,7 +719,7 @@ class YoklamaPenceresi(QWidget):
         öğretmen "YOKLAMAYI KAYDET"e bastığında) dosya yazılır/üzerine
         yazılır; otomatik/sessiz bir çağıran YOKTUR (bkz. modül docstring'i,
         2026-09-28)."""
-        sinif = self.sinif_secici.currentText()
+        sinif = self._secili_kod()
         if not sinif or not self._kartlar or self._aktif_ders_no is None:
             QMessageBox.warning(
                 self, "Kaydedilemedi",

@@ -486,3 +486,44 @@ class TestKazanimSatiri:
             assert pencere.kazanim_etiketi.text() == "Kazanım: A\nKazanım: B (+1)"
         finally:
             pencere.close()
+
+
+# ----------------------------------------------------------------------
+# Kulüp rosterları (KULUP-*): sınıflar önce, varsayılan sınıf, kayıt kodu
+# ----------------------------------------------------------------------
+
+
+class TestKulupSecici:
+    def _kulup_ekle(self):
+        (yoklama.ROSTER_DIR / "KULUP-BEYAZAY.json").write_text(json.dumps({
+            "sinif": "KULUP-BEYAZAY", "ad": "Beyazay Kulübü",
+            "ogrenciler": [{"no": 206, "ad_soyad": "Deniz Deneme (9-A)"}],
+        }, ensure_ascii=False), encoding="utf-8")
+        (yoklama.ROSTER_DIR / "10-A.json").write_text(
+            json.dumps({**ROSTER_ORNEGI, "sinif": "10-A"}), encoding="utf-8")
+
+    def test_siralama_ve_varsayilan_sinif(self, yoklama_ortami):
+        self._kulup_ekle()
+        assert yoklama._roster_listesi() == ["10-A", "9-A", "KULUP-BEYAZAY"]
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            c = pencere.sinif_secici
+            assert [c.itemText(i) for i in range(c.count())] == ["10-A", "9-A", "Kulüp: Beyazay Kulübü"]
+            assert c.currentData() == "10-A"  # varsayılan her açılışta sınıf
+        finally:
+            pencere.close()
+
+    def test_kulup_secilince_kayit_kodla_yazilir(self, yoklama_ortami):
+        self._kulup_ekle()
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            pencere.sinif_secici.setCurrentIndex(2)
+            assert [k.no for k in pencere._kartlar] == [206]
+            pencere.kaydet_dugmesi.click()
+            yol = yoklama._kayit_yolu("KULUP-BEYAZAY", 1, "2026-09-28")
+            assert json.loads(yol.read_text(encoding="utf-8"))["sinif"] == "KULUP-BEYAZAY"
+            assert pencere._bugun_kayit_var_mi()
+            pencere.sinif_secici.setCurrentIndex(0)
+            assert not pencere._bugun_kayit_var_mi()
+        finally:
+            pencere.close()

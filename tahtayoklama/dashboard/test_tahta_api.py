@@ -131,6 +131,16 @@ class TestTahtaApi(unittest.TestCase):
         self.assertEqual(s["kaynak_tahta"], "9-A")
         self.assertEqual(s["kaydedilme_saati"], "09:00:00")
 
+    def test_yeni_yok_veliye_bildirilir_tekrarda_bildirilmez(self):
+        """Anlık devamsızlık bildirimi: yalnızca YENİ 'yok' yazılan öğrenci için çağrılır."""
+        with patch("tahta_api.devamsizlik_bildirim.bildir") as sahte:
+            self._it(self._kayit(durumlar={"1": "yok", "2": "var"}))
+            sahte.assert_called_once_with([1])
+            sahte.reset_mock()
+            # aynı öğrenci yine 'yok': yeni bildirim YOK, yalnızca 2 numara yeni eklendi
+            self._it(self._kayit(kaydedilme_saati="09:10:00", durumlar={"1": "yok", "2": "yok"}))
+            sahte.assert_called_once_with([2])
+
     def test_eski_kayit_yeniyi_ezmez(self):
         self._it(self._kayit(kaydedilme_saati="09:10:00", durumlar={"1": "yok", "2": "var"}))
         self._it(self._kayit(kaydedilme_saati="09:05:00", durumlar={"1": "var", "2": "yok"}))

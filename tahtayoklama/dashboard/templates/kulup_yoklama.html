@@ -1,0 +1,37 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Kulüp yoklaması — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Kulüp yoklaması{% endblock %}
+{% block ust_sag %}
+<form method="get" action="/kulup-yoklama" class="yeni-form">
+  <label>Tarih: <input type="date" name="tarih" value="{{ tarih }}"></label>
+  <button type="submit" class="dugme dugme-kucuk">Göster</button>
+</form>
+{% endblock %}
+
+{% block icerik %}
+{% if not kayitlar %}
+<section class="kr-bos">
+  <svg class="ikon ikon-buyuk"><use href="#ik-kullanicilar"/></svg>
+  <p class="kr-bos-baslik">Bu tarihte kulüp yoklaması yok</p>
+  <p>Öğretmen tahtada açılır listeden kulübü seçip kaydedince burada görünür. Sınıf devamsızlığını etkilemez.</p>
+</section>
+{% else %}
+<div class="tablo-sarici">
+  <table class="admin-tablo">
+    <thead><tr><th>Kulüp</th><th>Ders</th><th>Yok</th><th>İzinli</th><th>Saat</th><th>Tahta</th></tr></thead>
+    <tbody>
+      {% for k in kayitlar %}
+      <tr>
+        <td>{{ k.kulup }}</td>
+        <td>{{ k.ders_no }}</td>
+        <td>{% if k.yok %}<span class="rozet rozet-kirmizi">{{ k.yok|length }}</span> {{ k.yok|join(', ') }}{% else %}—{% endif %}</td>
+        <td>{% if k.izinli %}<span class="rozet rozet-gri">{{ k.izinli|length }}</span> {{ k.izinli|join(', ') }}{% else %}—{% endif %}</td>
+        <td>{{ k.saat or '—' }}</td>
+        <td>{{ k.tahta or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -48,6 +48,7 @@ MENU: list[dict] = [
             {"ad": "Pano", "href": "/", "ikon": "ev"},
             {"ad": "Rapor", "href": "/admin/rapor", "ikon": "grafik"},
             {"ad": "Sınıflar", "href": "/admin/siniflar", "ikon": "kullanicilar"},
+            {"ad": "Kulüp yoklaması", "href": "/kulup-yoklama", "ikon": "kullanicilar"},
         ],
     },
     {

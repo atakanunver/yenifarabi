@@ -61,6 +61,24 @@ CREATE TABLE IF NOT EXISTS yoklama_onbellek (
     UNIQUE(tarih, sinif, ders_no)
 );
 
+-- Kulüp yoklaması (2026-10-22): yoklama_onbellek ile AYNI kolonlar, ayrı tablo —
+-- sınıf devamsızlığı/veli SMS'i/rapor etkilenmez. `sinif` = kulüp kodu (KULUP-*).
+CREATE TABLE IF NOT EXISTS kulup_yoklama (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    tarih         TEXT NOT NULL,
+    sinif         TEXT NOT NULL,
+    ders_no       INTEGER NOT NULL,
+    durum         TEXT NOT NULL,
+    yok_isimleri  TEXT,
+    izinli_isimleri TEXT,
+    yok_nolari    TEXT,
+    izinli_nolari TEXT,
+    kaynak_tahta  TEXT,
+    kaydedilme_saati TEXT,
+    guncelleme_zamani TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(tarih, sinif, ders_no)
+);
+
 CREATE TABLE IF NOT EXISTS oturumlar (
     token         TEXT PRIMARY KEY,
     olusturma_zamani TEXT NOT NULL DEFAULT (datetime('now')),

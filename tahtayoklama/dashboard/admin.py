@@ -96,7 +96,7 @@ async def _tahtaya_roster_gonder(tahta: dict, sinif_ad: str, payload: bytes) -> 
     komut = (
         f"cat > {uzak_yol}.tmp && mv {uzak_yol}.tmp {uzak_yol} && "
         f"find {dizin} -maxdepth 1 -name '*.json' "
-        f"! -name '{sinif_adi_dogrulanmis}.json' -delete"
+        f"! -name '{sinif_adi_dogrulanmis}.json' ! -name 'KULUP-*' -delete"
     )
     sonuc = await ssh_istemci.komut_calistir(
         tahta["ip"], tahta["ssh_kullanici"], komut, stdin_bytes=payload
