@@ -1,6 +1,6 @@
 """smssistemi/rehber_api.py — Atos "Okul Bilgisi" aracı için salt-okunur öğrenci/veli iletişim sorgusu (2026-10-16).
 
-GET /api/arac/ogrenci-iletisim?ad=&sinif=&dogum_yili=  (X-Sms-Arac-Key ile; arac_api.anahtar_dogrula)
+GET /api/arac/ogrenci-iletisim?ad=&sinif=&dogum_yili=&veli_ad=  (X-Sms-Arac-Key ile; arac_api.anahtar_dogrula)
 Öğrencinin okul no, sınıf, doğum tarihi, kendi telefonu ve bağlı velilerinin (anne/baba/...)
 telefonlarını döner. Yazma yok. Telefon ve doğum tarihi KVKK kapsamındadır: araç tarafı yalnızca
 Open WebUI yöneticisine (admin) açar; ad/telefon loga YAZILMAZ, yalnızca sonuç sayısı.
@@ -37,10 +37,10 @@ def _sinif_anahtari(ad: str | None) -> str:
 
 
 @router.get("/ogrenci-iletisim", dependencies=[Depends(anahtar_dogrula)])
-def ogrenci_iletisim(ad: str = "", sinif: str = "", dogum_yili: str = "", limit: int = AZAMI):
-    ad, sinif, dogum_yili = ad.strip(), sinif.strip(), dogum_yili.strip()
-    if not (ad or sinif or dogum_yili):
-        raise HTTPException(400, "ad, sinif ya da dogum_yili gerekli.")
+def ogrenci_iletisim(ad: str = "", sinif: str = "", dogum_yili: str = "", limit: int = AZAMI, veli_ad: str = ""):
+    ad, sinif, dogum_yili, veli_ad = ad.strip(), sinif.strip(), dogum_yili.strip(), veli_ad.strip()
+    if not (ad or sinif or dogum_yili or veli_ad):
+        raise HTTPException(400, "ad, sinif, dogum_yili ya da veli_ad gerekli.")
     if dogum_yili and not re.fullmatch(r"\d{4}", dogum_yili):
         raise HTTPException(400, "dogum_yili 4 haneli yıl olmalı (örn. 2010).")
     conn = db.baglanti()
@@ -60,11 +60,16 @@ def ogrenci_iletisim(ad: str = "", sinif: str = "", dogum_yili: str = "", limit:
                 {"rol": r["veli_rol"] or "Veli", "ad_soyad": r["ad_soyad"], "telefon": r["telefon"] or ""}
             )
     parcalar = _sade(ad).split()
+    veli_parcalar = _sade(veli_ad).split()
     sonuc = []
     for r in satirlar:
         if r["tur"] != "ogrenci":
             continue
         if parcalar and not all(p in _sade(r["ad_soyad"]) for p in parcalar):
+            continue
+        if veli_parcalar and not any(
+            all(p in _sade(v["ad_soyad"]) for p in veli_parcalar) for v in veliler.get(r["id"], [])
+        ):
             continue
         if sinif and _sinif_anahtari(r["sinif"]) != _sinif_anahtari(sinif):
             continue

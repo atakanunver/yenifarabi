@@ -131,18 +131,20 @@ class Tools:
         numara: str = "",
         iletisim: bool = False,
         dogum_yili: str = "",
+        veli_ad: str = "",
         __user__: dict | None = None,
     ) -> str:
         """
-        Öğrenci bilgisi: ad, okul no, sınıf ("Ayşe hangi sınıfta?", "11-A'da kimler var?", "123 numaralı kim?"). iletisim=True ise doğum tarihi ve öğrenci/veli telefonu da gelir (yalnızca yönetici; "Çağla'nın velisinin telefonu?", "2010 doğumlular?"). Aynı ada birden çok kişi çıkarsa hepsini göster; kayıtta olmayanı uydurma. Anne-baba ayrı/maddi/hastalık için ogrenci_ozel_durum.
+        Öğrenci bilgisi: ad, okul no, sınıf ("Ayşe hangi sınıfta?", "11-A'da kimler var?", "123 numaralı kim?"). iletisim=True ise doğum tarihi ve öğrenci/veli telefonu da gelir (yalnızca yönetici; "Çağla'nın velisinin telefonu?", "2010 doğumlular?"). veli_ad: veli adından öğrencisini bulur ("Selma Yıldız kimin velisi?", yalnızca yönetici). Aynı ada birden çok kişi çıkarsa hepsini göster; kayıtta olmayanı uydurma. Anne-baba ayrı/maddi/hastalık için ogrenci_ozel_durum.
         :param sinif: "11-A".
         :param ad: Ad ve/veya soyad.
         :param numara: Okul numarası.
         :param iletisim: True: telefon ve doğum tarihi de (yalnızca yönetici).
         :param dogum_yili: 4 haneli yıl (iletisim ile).
+        :param veli_ad: Velinin adı ve/veya soyadı; hangi öğrencinin velisi olduğunu bulur (yalnızca yönetici).
         """
-        if iletisim or str(dogum_yili).strip():
-            return await self._iletisim_metni(ad, sinif, dogum_yili, __user__)
+        if iletisim or str(dogum_yili).strip() or str(veli_ad).strip():
+            return await self._iletisim_metni(ad, sinif, dogum_yili, __user__, str(veli_ad))
         if not self._ogrenci_izni(__user__):
             return OGRENCI_RET
         if not (str(sinif).strip() or str(ad).strip() or str(numara).strip()):
@@ -289,24 +291,24 @@ class Tools:
         p = (d or "").split("-")
         return f"{p[2]}.{p[1]}.{p[0]}" if len(p) == 3 else (d or "—")
 
-    async def _iletisim(self, ad: str, sinif: str, dogum_yili: str, limit: int):
+    async def _iletisim(self, ad: str, sinif: str, dogum_yili: str, limit: int, veli_ad: str = ""):
         y = await self._sms_get(
             "/ogrenci-iletisim",
-            {"ad": ad, "sinif": sinif, "dogum_yili": dogum_yili, "limit": limit},
+            {"ad": ad, "sinif": sinif, "dogum_yili": dogum_yili, "limit": limit, "veli_ad": veli_ad},
         )
         if y is None:
             return None, ULASILAMADI
         v = self._json(y)
         if y.status_code == 400:
-            return None, "Arama için ad, sınıf ya da doğum yılı (4 haneli) verin."
+            return None, "Arama için ad, veli adı, sınıf ya da doğum yılı (4 haneli) verin."
         if y.status_code != 200 or not isinstance(v, dict):
             return None, ULASILAMADI
         return v, ""
 
-    async def _iletisim_metni(self, ad: str, sinif: str, dogum_yili: str, __user__: dict | None) -> str:
+    async def _iletisim_metni(self, ad: str, sinif: str, dogum_yili: str, __user__: dict | None, veli_ad: str = "") -> str:
         if not self._yonetici(__user__):
             return YONETICI_RET
-        v, hata = await self._iletisim(ad, sinif, dogum_yili, 60)
+        v, hata = await self._iletisim(ad, sinif, dogum_yili, 60, veli_ad)
         if v is None:
             return hata
         liste = v.get("ogrenciler") or []
