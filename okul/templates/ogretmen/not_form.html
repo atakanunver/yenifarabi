@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block baslik %}{{ 'Notu düzenle' if n else 'Yeni not' }} — Dijital Okul{% endblock %}
+{% block icerik %}
+<link rel="stylesheet" href="/static/kokpit.css?v=1">
+<h1>{{ 'Notu düzenle' if n else 'Yeni not' }}</h1>
+{% if hata is defined and hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+<form class="kart" method="post" action="{{ '/ogretmen/not/' ~ n.id if n else '/ogretmen/not/yeni' }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% if not n %}<input type="hidden" name="sinif" value="{{ sinif }}"><input type="hidden" name="ders" value="{{ ders }}">{% endif %}
+  {% if sinif or ders %}<p class="kucuk soluk">{{ sinif }}{% if ders %} · {{ ders|baslik }}{% endif %} dersi için not</p>{% endif %}
+  <div class="mik-ipucu"><span class="mik" aria-hidden="true">🎤</span><span><b>Konuşarak yazın:</b> klavyenizdeki mikrofon simgesine dokunup konuşun. Uygulama sesinizi kaydetmez, yalnızca yazdığınız metin kaydedilir.</span></div>
+  <label for="metin">Not</label>
+  <textarea id="metin" name="metin" rows="6" maxlength="2000" required autofocus>{{ metin if metin is defined else (n.metin if n else '') }}</textarea>
+  <label class="sik"><input type="checkbox" name="yapilacak" value="1"{% if (yapilacak is defined and yapilacak) or (n and n.yapilacak and yapilacak is not defined) %} checked{% endif %}> Yapılacak (Bugün listesine ekle)</label>
+  <div class="tuslar"><button class="tus tam">Kaydet</button></div>
+</form>
+<p><a href="/ogretmen/not">← Notlarım</a></p>
+{% endblock %}

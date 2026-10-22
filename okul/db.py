@@ -666,10 +666,38 @@ CREATE TABLE kullanici_tema (
 );
 """
 
+# Öğretmen kokpiti: ders defteri ("kazanım işlendi") ve kişisel not defteri. İkisi de yalnızca sahibine görünür (yönetici dahil kimse okumaz).
+SEMA_V28 = """
+CREATE TABLE ders_defteri (
+    kullanici_id INTEGER NOT NULL REFERENCES kullanici(id) ON DELETE CASCADE,
+    tarih        TEXT NOT NULL,
+    ders_no      INTEGER NOT NULL,
+    sinif        TEXT NOT NULL,
+    ders         TEXT NOT NULL,
+    kazanim      TEXT,
+    islendi      INTEGER NOT NULL DEFAULT 1,
+    notu         TEXT NOT NULL DEFAULT '',
+    zaman        TEXT NOT NULL,
+    PRIMARY KEY (kullanici_id, tarih, ders_no, sinif)
+);
+CREATE TABLE ogretmen_not (
+    id           INTEGER PRIMARY KEY,
+    kullanici_id INTEGER NOT NULL REFERENCES kullanici(id) ON DELETE CASCADE,
+    metin        TEXT NOT NULL,
+    sinif        TEXT,
+    ders         TEXT,
+    yapilacak    INTEGER NOT NULL DEFAULT 0,
+    tamam        INTEGER NOT NULL DEFAULT 0,
+    olusturma    TEXT NOT NULL,
+    guncelleme   TEXT NOT NULL
+);
+CREATE INDEX ogretmen_not_kullanici ON ogretmen_not(kullanici_id, tamam, guncelleme);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
-    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27,
+    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27, SEMA_V28,
 ]
 
 

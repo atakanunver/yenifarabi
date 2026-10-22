@@ -92,6 +92,12 @@ def okunmamis_sayisi(conn: sqlite3.Connection, k: sqlite3.Row) -> int:
     return sum(1 for d in gorunur_duyurular(conn, k) if d["id"] not in okunan)
 
 
+def okunmamis(conn: sqlite3.Connection, k: sqlite3.Row, limit: int = 3) -> list[sqlite3.Row]:
+    """Kullanıcının henüz okumadığı yayındaki duyurular (görünürlük gorunur_duyurular ile aynı), yeniden eskiye."""
+    okunan = {r[0] for r in conn.execute("SELECT duyuru_id FROM duyuru_okuma WHERE kullanici_id = ?", (k["id"],))}
+    return [d for d in gorunur_duyurular(conn, k) if d["id"] not in okunan][:limit]
+
+
 def okuma_kaydet(conn: sqlite3.Connection, k: sqlite3.Row, liste: list[sqlite3.Row]) -> None:
     """Kullanıcının /duyurular sayfasında gördüğü duyuruları bir kez 'okundu' işaretler."""
     if not liste:

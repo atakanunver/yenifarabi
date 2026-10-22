@@ -1,6 +1,88 @@
 {% extends "base.html" %}
 {% block icerik %}
 {% include "_ana_ekran.html" %}
+<link rel="stylesheet" href="/static/kokpit.css?v=1">
+{% if canli_ders is defined and canli_ders %}
+{% set c = canli_ders %}
+{% set devam = canli_durum == 'devam' %}
+<section class="kart ders-kart {{ 'devam' if devam else 'sirada' }}" id="ders-kart" data-sunucu="{{ sunucu_epoch }}" data-hedef="{{ c.hedef_epoch or '' }}" data-durum="{{ canli_durum }}" aria-label="Canlı ders kartı">
+  <div class="ders-kart-ust">
+    <span class="etiket {{ 'mor' if devam }}">{{ '🔴 ŞU AN' if devam else '⏳ SIRADA' }} · {{ c.no }}. DERS</span>
+    {% if c.saat %}<span class="soluk kucuk">{{ c.saat }}</span>{% endif %}
+  </div>
+  <div class="ders-kart-baslik">{{ c.sinif_no }}. sınıf · {{ c.sube }} şubesi</div>
+  <div class="ders-kart-alt">{{ c.ders|baslik }} · {{ c.derslik }}</div>
+  <div class="sayac-kap"><span class="soluk kucuk" id="ders-sayac-etiket">{{ 'Bitiş' if devam else 'Başlangıç' }}</span> <b class="sayac" id="ders-sayac">{{ c.bitis if devam else c.baslangic }}</b></div>
+  {% if c.kazanim %}
+  <div class="kazanim-blok{{ '' if devam else ' mavi' }}">
+    <div class="kazanim-blok-baslik">🎯 Bu Haftanın Kazanımı</div>
+    <div class="kazanim-blok-metin">{{ c.kazanim }}</div>
+  </div>
+  {% endif %}
+  <div class="hizli-eylem">
+    <a class="tus ikincil kucuk" href="/ogretmen/odev/yeni?sinif={{ c.sinif|urlencode }}&ders={{ c.ders|urlencode }}">📝 Ödev ver</a>
+    <a class="tus ikincil kucuk" href="/ogretmen/duyuru?sinif={{ c.sinif|urlencode }}">📢 Duyuru yaz</a>
+    {% if not_acik is defined and not_acik %}<a class="tus ikincil kucuk" href="/ogretmen/not/yeni?sinif={{ c.sinif|urlencode }}&ders={{ c.ders|urlencode }}">🎤 Not al</a>{% endif %}
+  </div>
+  {% if k.rol == 'ogretmen' %}
+    {% if c.islendi is defined and c.islendi %}<p class="islendi-not"><span class="etiket yesil">✓ Kazanım işlendi</span></p>
+    {% elif devam %}
+    <form method="post" action="/ogretmen/ders-defteri" class="defter-form">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="ders_no" value="{{ c.no }}">
+      <input type="hidden" name="sinif" value="{{ c.sinif }}"><input type="hidden" name="ders" value="{{ c.ders }}">
+      <button class="tus kucuk">✓ Kazanım işlendi</button>
+    </form>
+    {% endif %}
+  {% endif %}
+</section>
+<script src="/static/ders-kart.js?v=1" defer></script>
+{% endif %}
+
+{% if bugun_gorev is defined %}
+<section class="kart bugun-kart">
+  <h2>✅ Bugün neler yapayım?</h2>
+  {% if bugun_gorev.gorevler %}
+  <ul class="liste gorevler">
+    {% for g in bugun_gorev.gorevler %}
+    <li><a class="satir gorev {{ 'acil' if g.acil }}" href="{{ g.href }}"><span><b>{{ g.baslik }}</b><br><span class="soluk kucuk">{{ g.alt }}</span></span><span class="ok" aria-hidden="true">›</span></a></li>
+    {% endfor %}
+  </ul>
+  {% if bugun_gorev.fazla %}<p class="soluk kucuk">+{{ bugun_gorev.fazla }} görev daha</p>{% endif %}
+  {% else %}
+  <p class="bos">Bugün için bekleyen bir şey yok.</p>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if okunmamis_duyurular is defined and okunmamis_duyurular %}
+<section class="kart sari">
+  <h2>📢 Okunmamış duyurular <span class="etiket">{{ okunmamis_duyurular|length }}</span></h2>
+  {% for d in okunmamis_duyurular %}
+  <div class="duyuru-satir">
+    <b>{{ d.baslik }}</b> <span class="soluk kucuk">{{ d.yazar }} · {{ d.yayin|tarih }}</span>
+    <div class="kucuk" style="margin:.2rem 0 .4rem; line-height:1.4; white-space:pre-line;">{{ d.metin }}</div>
+    <form method="post" action="/ogretmen/duyuru/{{ d.id }}/okudum"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus ikincil kucuk">✓ Okudum</button></form>
+  </div>
+  {% endfor %}
+  <p class="kucuk" style="margin:.5rem 0 0;"><a href="/duyurular">Tüm duyurular →</a></p>
+</section>
+{% endif %}
+
+{% if not_acik is defined and not_acik %}
+<section class="kart">
+  <h2>🗒️ Hızlı not <a href="/ogretmen/not">Notlarım →</a></h2>
+  <form method="post" action="/ogretmen/not/yeni">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="donus" value="ana">
+    <textarea id="hizli-not" name="metin" rows="2" maxlength="2000" required aria-label="Not" placeholder="Yazın ya da klavyedeki 🎤 simgesine dokunup konuşun"></textarea>
+    <label class="sik"><input type="checkbox" name="yapilacak" value="1"> Yapılacak (Bugün listesine ekle)</label>
+    <div class="tuslar"><button class="tus">Kaydet</button></div>
+  </form>
+  {% for n in son_notlar %}
+  <p class="not-ozet kucuk"><span class="soluk">{{ n.guncelleme|tarih }}</span> · {{ n.metin[:90] }}{{ '…' if n.metin|length > 90 }}</p>
+  {% endfor %}
+</section>
+{% endif %}
+
 {% include "_saat.html" %}
 {% if inceleme_kart is defined and inceleme_kart %}
 <section class="kart">
@@ -20,44 +102,8 @@
   {% endif %}
   <p class="kucuk"><a href="/ogretmen/liderlik">Soru Maratonu, Bilgi Arenası liderliği, tüm sınıflar ve haftalık ödüller →</a></p>
 </section>
-{% if su_anki_ders %}
-<section class="kart bilgi">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.4rem;">
-    <span class="etiket mor">🎯 ŞU ANKİ DERS · {{ su_anki_ders.no }}. DERS</span>
-    {% if su_anki_ders.saat %}<span class="soluk kucuk">{{ su_anki_ders.saat }}</span>{% endif %}
-  </div>
-  <div style="font-size:1.2rem; font-weight:700; margin:.3rem 0 .2rem;">
-    {{ su_anki_ders.sinif }} · {{ su_anki_ders.ders|baslik }}
-  </div>
-  {% if su_anki_ders.kazanim %}
-    <div class="kazanim-blok">
-      <div class="kazanim-blok-baslik">🎯 Bu Haftanın Kazanımı</div>
-      <div class="kazanim-blok-metin">{{ su_anki_ders.kazanim }}</div>
-    </div>
-  {% else %}
-    <p class="soluk kucuk" style="margin:.3rem 0 0;">Bu ders için haftalık kazanım bulunamadı.</p>
-  {% endif %}
-</section>
-{% elif siradaki_ders %}
-<section class="kart bilgi">
-  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.4rem;">
-    <span class="etiket">⏳ SIRADAKİ DERS · {{ siradaki_ders.no }}. DERS</span>
-    {% if siradaki_ders.baslangic %}<span class="soluk kucuk">{{ siradaki_ders.baslangic }}'de başlıyor</span>{% endif %}
-  </div>
-  <div style="font-size:1.15rem; font-weight:700; margin:.3rem 0 .2rem;">
-    {{ siradaki_ders.sinif }} · {{ siradaki_ders.ders|baslik }}
-  </div>
-  {% if siradaki_ders.kazanim %}
-    <div class="kazanim-blok mavi">
-      <div class="kazanim-blok-baslik">🎯 Bu Haftanın Kazanımı</div>
-      <div class="kazanim-blok-metin">{{ siradaki_ders.kazanim }}</div>
-    </div>
-  {% endif %}
-</section>
-{% endif %}
-
 {% if bugunku_dersler %}
-<section class="kart">
+<section class="kart" id="bugun-dersler">
   <h2>📅 Bugünkü Derslerim ({{ gun_adi }})</h2>
   <ul class="liste">
   {% for d in bugunku_dersler %}
@@ -74,6 +120,16 @@
         <div class="soluk kucuk" style="margin-top:.25rem; padding-left:.2rem; line-height:1.35;">
           🎯 <b>Kazanım:</b> {{ d.kazanim }}
         </div>
+      {% endif %}
+      {% if k.rol == 'ogretmen' and d.islendi is defined %}
+        {% if d.islendi %}<span class="etiket yesil" style="margin-top:.3rem;">✓ Kazanım işlendi</span>
+        {% elif d.aktif or (d.bitis and d.bitis <= simdi_saat|default('23:59')) %}
+        <form method="post" action="/ogretmen/ders-defteri" class="defter-form">
+          <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="ders_no" value="{{ d.no }}">
+          <input type="hidden" name="sinif" value="{{ d.sinif }}"><input type="hidden" name="ders" value="{{ d.ders }}">
+          <button class="tus ikincil kucuk">✓ Kazanım işlendi</button>
+        </form>
+        {% endif %}
       {% endif %}
     </li>
   {% endfor %}

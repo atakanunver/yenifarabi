@@ -12,7 +12,7 @@
   <div id="hedef-kap">
     <label for="hedef">Sınıf ya da rol</label>
     <select id="hedef" name="hedef">
-      {% for s in siniflar %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+      {% for s in siniflar %}<option value="{{ s }}"{% if secili is defined and s == secili %} selected{% endif %}>{{ s }}</option>{% endfor %}
       {% if k.rol == 'yonetici' %}{% for r, ad in ROL_ADLARI.items() %}<option value="{{ r }}">Tüm {{ ad|lower }}ler</option>{% endfor %}{% endif %}
     </select>
   </div>

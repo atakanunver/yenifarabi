@@ -31,6 +31,7 @@ from rotalar import (
     giris,
     kisisel,
     kutu,
+    not_defteri,
     ogrenci,
     oduller,
     ogretmen,
@@ -58,7 +59,7 @@ app = FastAPI(
     title="Dijital Okul", docs_url=None, redoc_url=None, openapi_url=None, lifespan=omur
 )
 app.mount("/static", StaticFiles(directory=str(KOK / "static")), name="static")
-for r in (giris, pano, belge_sinav, pdfgonder, bildirim, calisma, duyuru_api, devamsizlik_api, ogrenci, arena, avatar, anket, gelisim, etkinlik, kisisel, oduller, oyun, veli, deneme, inceleme, ogretmen_liderlik, ogretmen, yonetici, push, sohbet, kutu, acil, sudoku):
+for r in (giris, pano, belge_sinav, pdfgonder, bildirim, calisma, duyuru_api, devamsizlik_api, ogrenci, arena, avatar, anket, gelisim, etkinlik, kisisel, oduller, oyun, veli, deneme, inceleme, ogretmen_liderlik, ogretmen, yonetici, push, sohbet, kutu, not_defteri, acil, sudoku):
     app.include_router(r.router)
 
 

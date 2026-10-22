@@ -1,0 +1,29 @@
+/* Öğretmen kokpiti (/ogretmen): canlı ders kartı, "Bugün neler yapayım?", hızlı eylemler, not defteri. Yalnızca tema değişkenleri. */
+.ders-kart { border-left: 5px solid var(--mavi); }
+.ders-kart.devam { border-left-color: var(--yesil); }
+.ders-kart-ust { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .4rem; }
+.ders-kart-baslik { font-size: 1.3rem; font-weight: 800; margin: .35rem 0 .1rem; }
+.ders-kart-alt { color: var(--soluk); margin-bottom: .4rem; }
+.sayac-kap { display: flex; align-items: baseline; gap: .5rem; margin: .2rem 0 .6rem; }
+.sayac { font-size: 2rem; font-variant-numeric: tabular-nums; letter-spacing: .02em; line-height: 1; }
+.ders-kart.sirada .sayac { color: var(--mavi); }
+.ders-kart.devam .sayac { color: var(--yesil); }
+.hizli-eylem { display: flex; flex-wrap: wrap; gap: .45rem; margin: .6rem 0 .3rem; }
+.hizli-eylem .tus { flex: 1 1 7rem; }
+.defter-form { margin: .4rem 0 0; }
+.islendi-not { margin: .5rem 0 0; }
+.bugun-kart .gorevler li { display: block; }
+.bugun-kart .satir.gorev { display: flex; justify-content: space-between; align-items: center; gap: .6rem; text-decoration: none; color: inherit; padding: .55rem 0; }
+.bugun-kart .satir.gorev.acil b { color: var(--kirmizi); }
+.bugun-kart .ok { font-size: 1.4rem; color: var(--soluk); flex: none; }
+.duyuru-satir { padding: .5rem 0; border-top: 1px solid var(--cizgi); }
+.duyuru-satir:first-of-type { border-top: 0; }
+.not-ozet { margin: .35rem 0 0; }
+.not-satir { display: flex; gap: .6rem; align-items: flex-start; padding: .6rem 0; border-top: 1px solid var(--cizgi); }
+.not-satir.tamam .not-metin { text-decoration: line-through; color: var(--soluk); }
+.not-metin { flex: 1; white-space: pre-line; word-break: break-word; }
+.not-eylem { display: flex; gap: .35rem; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+.mik-ipucu { display: flex; gap: .6rem; align-items: center; padding: .6rem .8rem; border-radius: 10px; background: var(--mavi-acik); margin: .4rem 0; font-size: .95rem; }
+.mik-ipucu .mik { font-size: 1.6rem; flex: none; }
+/* etiket.mor koyu temalarda okunmuyordu: kartın etiketi her temada okunur çifti kullanır */
+.ders-kart .etiket { background: var(--mavi-acik); color: var(--mavi); }

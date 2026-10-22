@@ -2,12 +2,16 @@
 
 import logging
 import sqlite3
-from datetime import timedelta
+import time
+from datetime import datetime, timedelta
 
 import analitik
+import ders_defteri
 import duyurular
 import inceleme
+import notdefteri
 import odevler
+import ogretmen_bugun
 import push
 import sinifpdf
 import soru_bildirim
@@ -127,9 +131,39 @@ def ana(
                         siradaki_ders = item
                         break
 
+    # 3. Canlı ders kartı (devam eden ya da sıradaki ders) + ders defteri + "Bugün neler yapayım?"
+    saat_str = an.strftime("%H:%M")
+    if bugunku_dersler and not su_anki_ders and not siradaki_ders:
+        siradaki_ders = next((d for d in bugunku_dersler if d["baslangic"] and d["baslangic"] > saat_str), None)
+    kayitlar = ders_defteri.gunun_kayitlari(conn, k["id"], bugun)
+    for d in bugunku_dersler:
+        kayit = kayitlar.get((d["no"], d["sinif"]))
+        d["islendi"] = bool(kayit and kayit["islendi"])
+    defter_bekleyen = [d for d in bugunku_dersler if d["bitis"] and d["bitis"] <= saat_str and not d["islendi"]]
+    canli = su_anki_ders or siradaki_ders
+    canli_durum = "devam" if su_anki_ders else "sirada"
+    if canli:
+        no_, _, sube = canli["sinif"].partition("-")
+        hedef_saat = canli["bitis"] if su_anki_ders else canli["baslangic"]
+        canli = {
+            **canli,
+            "sinif_no": no_, "sube": sube, "derslik": f"{canli['sinif']} sınıfı",
+            "hedef_epoch": int(datetime.combine(bugun, datetime.strptime(hedef_saat, "%H:%M").time()).replace(tzinfo=zaman.TZ).timestamp() * 1000)
+            if hedef_saat else None,
+        }
+    okul_gorevi = k["rol"] == "ogretmen"
+
     return render(
         request,
         "ogretmen/ana.html",
+        canli_ders=canli,
+        canli_durum=canli_durum,
+        simdi_saat=saat_str,
+        sunucu_epoch=int(time.time() * 1000),
+        bugun_gorev=ogretmen_bugun.gorevler(conn, k, defter_bekleyen),
+        okunmamis_duyurular=duyurular.okunmamis(conn, k, 3),
+        son_notlar=notdefteri.liste(conn, k["id"], 3) if okul_gorevi else [],
+        not_acik=okul_gorevi,
         gorevler=t_gorevler,
         gorevler_bilgi=gorevler_bilgi,
         bugunku_dersler=bugunku_dersler,
@@ -318,6 +352,7 @@ def duyuru_formu(
         request,
         "duyuru_yaz.html",
         siniflar=siniflar,
+        secili=request.query_params.get("sinif", ""),
         duyurular=duyurular.gorunur_duyurular(conn, k, 30),
     )
 
@@ -345,6 +380,48 @@ def duyuru_ekle(
     )
     arka.add_task(push.duyuru_bildir, hedef_tur, hedef_deger, k["id"])
     return RedirectResponse("/duyurular", status_code=303)
+
+
+@router.post("/duyuru/{duyuru_id}/okudum")
+def duyuru_okudum(
+    duyuru_id: int,
+    k=Depends(OGRETMEN_POST),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    d = next((x for x in duyurular.gorunur_duyurular(conn, k, 500) if x["id"] == duyuru_id), None)
+    if d is None:
+        raise HTTPException(404)
+    duyurular.okuma_kaydet(conn, k, [d])
+    return RedirectResponse("/ogretmen", status_code=303)
+
+
+@router.post("/ders-defteri")
+def ders_defteri_isaretle(
+    ders_no: int = Form(...),
+    sinif: str = Form(...),
+    ders: str = Form(...),
+    islendi: str = Form("1"),
+    notu: str = Form(""),
+    k=Depends(rol("ogretmen", post=True)),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    an = zaman.simdi()
+    gun = program.GUNLER[an.weekday()]
+    hedef = normalize_isim(ders)
+    if (sinif, hedef) not in {(s, normalize_isim(d)) for s, d in gorevler(conn, k) if d}:
+        raise HTTPException(404)
+    try:
+        bugunku = program.gun_dersleri(sinif, gun)
+    except KaynakHatasi:
+        bugunku = []
+    ders_adi = next((d for n, d in bugunku if n == ders_no and normalize_isim(d) == hedef), None)
+    if ders_adi is None:
+        raise HTTPException(404)
+    ders_defteri.isaretle(
+        conn, k["id"], an.date(), ders_no, sinif, ders_adi, kazanim.haftalik_kazanim(sinif, ders_adi, an.date()),
+        islendi == "1", notu,
+    )
+    return RedirectResponse("/ogretmen#bugun-dersler", status_code=303)
 
 
 @router.post("/duyuru/{duyuru_id}/sil")

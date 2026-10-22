@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block baslik %}Notlarım — Dijital Okul{% endblock %}
+{% block icerik %}
+<link rel="stylesheet" href="/static/kokpit.css?v=1">
+<h1>Notlarım</h1>
+<p class="kucuk soluk">Notlarınızı yalnızca siz görürsünüz (yönetici dahil kimse göremez). Öğrenci hakkında yazarken gerekmedikçe kişisel bilgi eklemeyin.</p>
+<p><a class="tus" href="/ogretmen/not/yeni">➕ Yeni not</a> <a class="tus ikincil" href="/ogretmen">← Ana sayfa</a></p>
+<section class="kart">
+  {% for n in notlar %}
+  <div class="not-satir{{ ' tamam' if n.tamam }}">
+    <div class="not-metin">{{ n.metin }}
+      <div class="soluk kucuk">{{ n.guncelleme|tarih }}{% if n.sinif %} · {{ n.sinif }}{% endif %}{% if n.ders %} · {{ n.ders|baslik }}{% endif %}{% if n.yapilacak and not n.tamam %} · <b>yapılacak</b>{% endif %}</div>
+    </div>
+    <div class="not-eylem">
+      <form method="post" action="/ogretmen/not/{{ n.id }}/tamam"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus ikincil kucuk">{{ 'Geri al' if n.tamam else '✓ Yapıldı' }}</button></form>
+      <a class="tus ikincil kucuk" href="/ogretmen/not/{{ n.id }}">Düzenle</a>
+      <form method="post" action="/ogretmen/not/{{ n.id }}/sil" onsubmit="return confirm('Not silinsin mi?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus tehlike kucuk">Sil</button></form>
+    </div>
+  </div>
+  {% else %}
+  <p class="bos">Henüz notunuz yok.</p>
+  {% endfor %}
+</section>
+{% endblock %}
