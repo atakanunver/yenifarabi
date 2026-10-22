@@ -123,6 +123,19 @@ def test_acil_ek_alici_yalniz_acilda(ortam, tmp_path):
     assert len(aa.yonetim_alicilari()) == 2  # hatırlatma/veli bildirimi ek kişiyi görmez
 
 
+def test_hareket_uyari_yalniz_hareket_alicisina(ortam, tmp_path):
+    giden, _ = ortam
+    ayar = json.loads((tmp_path / "arac.json").read_text())
+    ayar["hareket"] = [{"ad": "Atakan Ünver", "telefon": "05559990011"}]
+    (tmp_path / "arac.json").write_text(json.dumps(ayar))
+    y = aa.hareket_uyari(aa.AcilIstek(metin="Gece hareketi: Öğretmenler"))
+    assert y["alicilar"] == ["Atakan Ünver"] and len(giden[0]) == 1
+
+
+def test_hareket_alicisi_tanimsizsa_503(ortam):
+    assert _kod(aa.hareket_uyari, aa.AcilIstek(metin="x")) == 503
+
+
 def test_yonetim_tanimsizsa_503(ortam, tmp_path):
     (tmp_path / "arac.json").write_text(json.dumps({"anahtar": ANAHTAR}))
     assert _kod(_hat) == 503

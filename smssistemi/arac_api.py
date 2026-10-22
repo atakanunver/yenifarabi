@@ -316,6 +316,21 @@ def acil(istek: AcilIstek):
     return {"gonderim_id": gid, "alicilar": [a for a, _ in alicilar], "metin": metin}
 
 
+# --- Kamera gece hareketi uyarısı (yalnız "hareket" alıcıları) ----------
+
+
+@router.post("/hareket-uyari", dependencies=[Depends(anahtar_dogrula)])
+def hareket_uyari(istek: AcilIstek):
+    metin = _metin(istek.metin, VELI_AZAMI)
+    alicilar = yonetim_alicilari("hareket")
+    if not alicilar:
+        raise HTTPException(
+            status_code=503, detail="Hareket alıcısı tanımlı değil (config/arac.json)."
+        )
+    gid = gonder([(ad, tel, metin) for ad, tel in alicilar])
+    return {"gonderim_id": gid, "alicilar": [a for a, _ in alicilar], "metin": metin}
+
+
 # --- Veli SMS'i (taslak → onay → gönder) -------------------------------
 
 
