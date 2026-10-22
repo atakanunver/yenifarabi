@@ -422,8 +422,9 @@ def kimlik_ayarlarini_kur(api: Api) -> None:
     cfg = api("GET", "/api/v1/auths/admin/config", yazma=False)
     if not cfg:
         raise SystemExit("kimlik ayarları okunamadı (/api/v1/auths/admin/config); kayıt kapatılamadı.")
-    if cfg.get("ENABLE_SIGNUP") is False and cfg.get("DEFAULT_USER_ROLE") == "user":
-        print("kimlik: kayıt zaten kapalı, varsayılan rol user (yazılmadı)")  # 0.12+ POST insan oturumu ister
+    if cfg.get("ENABLE_SIGNUP") is False:  # 0.12+ POST insan oturumu ister; kayıt kapalıyken varsayılan rol kimseyi etkilemez
+        uyari = "" if cfg.get("DEFAULT_USER_ROLE") == "user" else f" (varsayılan rol {cfg.get('DEFAULT_USER_ROLE')}: istenirse yönetim panelinden user yapın)"
+        print(f"kimlik: kayıt zaten kapalı, yazılmadı{uyari}")
         return
     cfg.update({"ENABLE_SIGNUP": False, "DEFAULT_USER_ROLE": "user"})
     api("POST", "/api/v1/auths/admin/config", cfg)
