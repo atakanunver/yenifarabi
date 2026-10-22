@@ -208,7 +208,8 @@ class TestDurumSatirlari(_Temel):
         conn = db.baglanti()
         satirlar = app._durum_satirlari(conn, __import__("datetime").date(2026, 9, 28))
         conn.close()
-        self.assertEqual(json.loads(yanit.body), {"tarih": "2026-09-28", "satirlar": satirlar})
+        govde = json.loads(yanit.body)
+        self.assertEqual((govde["tarih"], govde["satirlar"]), ("2026-09-28", satirlar))
         self.assertIn("ders_kisa_adi", satirlar[0])
 
 

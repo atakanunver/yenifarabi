@@ -26,6 +26,15 @@ templates = Jinja2Templates(directory="templates")
 templates.env.globals["menu_agaci"] = menu.menu_agaci  # taban.html (2026-10-08)
 templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk
 
+
+def _saat_gun(saat: int) -> str:
+    """Devamsızlık ders saatini güne çevirir (günde 8 ders): kalan saat varsa yarım gün sayılır."""
+    tam, kalan = divmod(int(saat), 8)
+    return f"{tam + (0.5 if kalan else 0):g}"
+
+
+templates.env.filters["gun"] = _saat_gun
+
 _SINIF_AD_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 _DURUM_ETIKETI = {

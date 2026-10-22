@@ -32,8 +32,8 @@
       <tr>
         <td>{{ d.sinif }}</td>
         <td>{{ d.ad_soyad }}</td>
-        <td>{{ d.yok }}</td>
-        <td>{{ d.izinli }}</td>
+        <td>{{ d.yok|gun }} gün <span class="rapor-aciklama">({{ d.yok }} ders saati)</span></td>
+        <td>{{ d.izinli|gun }} gün <span class="rapor-aciklama">({{ d.izinli }} ders saati)</span></td>
       </tr>
       {% else %}
       <tr><td colspan="4">Bu aralıkta kayıt yok.</td></tr>

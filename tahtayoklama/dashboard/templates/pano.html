@@ -84,7 +84,7 @@
     <tbody>
       {% for sinif in siniflar %}
       <tr>
-        <th class="sinif-adi">{{ sinif.ad }}</th>
+        <th class="sinif-adi"><span class="tahta-nokta" id="nokta-{{ sinif.ad }}" role="img" aria-label="Tahta durumu bilinmiyor" title="Tahta durumu bilinmiyor"></span>{{ sinif.ad }}</th>
         {% for ders in ders_saatleri %}
         <td id="hucre-{{ sinif.ad }}-{{ ders.no }}" class="hucre durum-yukleniyor"
             data-sinif="{{ sinif.ad }}" data-ders-no="{{ ders.no }}"
@@ -123,6 +123,18 @@ const DURUM_BILGISI = {
   tahta_ulasilamaz: { pill: 'pill-ulasilamaz', ikon: '⭘', metin: 'Tahta ulaşılamaz' },
   tahta_atanmamis:  { pill: 'pill-atanmamis', ikon: null, metin: 'Tahta atanmadı' },
 };
+
+function noktalariGuncelle(harita) {
+  if (!harita) return;
+  for (const [sinif, acik] of Object.entries(harita)) {
+    const n = document.getElementById(`nokta-${sinif}`);
+    if (!n) continue;
+    const m = acik ? 'Tahta açık' : 'Tahta kapalı';
+    n.className = 'tahta-nokta ' + (acik ? 'tahta-acik' : 'tahta-kapali');
+    n.title = m;
+    n.setAttribute('aria-label', m);
+  }
+}
 
 function hucreDoldur(hucre, satir) {
   hucre.classList.remove('durum-yukleniyor');
@@ -276,6 +288,7 @@ async function tabloyuGuncelle(ilkVeri) {
     if (!yanit.ok) { toastGoster('Durum alınamadı.', true); return; }
     veri = await yanit.json();
   }
+  noktalariGuncelle(veri.tahta_acik);
   const bulunanlar = new Set();
   let tamSayac = 0;
   let yokSayac = 0;

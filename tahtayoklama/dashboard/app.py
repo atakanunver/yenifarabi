@@ -1,6 +1,6 @@
 """Yoklama Panosu — FastAPI giriş noktası.
 
-Çalıştırma: `uvicorn app:app --host 0.0.0.0 --port 8010` (dashboard/
+Çalıştırma: `uvicorn app:app --host 0.0.0.0 --port 80` (dashboard/
 dizininden, kendi venv'i içinde). Farabi'nin server/main.py'sinden
 BAĞIMSIZ — bkz. CLAUDE.md.
 """
@@ -28,13 +28,14 @@ import servis_yonetimi
 import zamanlanmis_gorevler
 import sistem_durumu
 import ssh_istemci
+import tahta_saglik
 import sunucular
 import tahta_api
 import acil
 import guvenlik
 import kameralar
-import yakinda
 import kulup_yoklama
+import yakinda
 import uzaktan_baslat
 import uzaktan_yonetim
 import veli_mesajlari
@@ -121,8 +122,8 @@ app.include_router(servis_yonetimi.router)
 app.include_router(zamanlanmis_gorevler.router)
 app.include_router(veli_mesajlari.router)
 app.include_router(kameralar.router)
-app.include_router(acil.router)
 app.include_router(kulup_yoklama.router)
+app.include_router(acil.router)
 app.include_router(guvenlik.router)
 app.include_router(yakinda.router)
 
@@ -225,6 +226,21 @@ def _durum_satirlari(conn, hedef_tarih: date) -> list[dict]:
     return sonuc
 
 
+def _tahta_acik_haritasi(conn) -> dict[str, bool]:
+    """sınıf adı -> sınıfa atanmış en az bir tahta son CEVRIMDISI_SN içinde nabız attı mı
+    (Sistem Durumu sayfasındaki "çevrimdışı" eşiğiyle aynı)."""
+    return {
+        r["ad"]: bool(r["acik"])
+        for r in conn.execute(
+            "SELECT s.ad AS ad, MAX(n.son_gorulme >= datetime('now', ?)) AS acik "
+            "FROM siniflar s JOIN tahtalar t ON t.sinif_id = s.id AND t.aktif = 1 "
+            "LEFT JOIN tahta_nabiz n ON n.tahta_ad = t.ad "
+            "WHERE s.aktif = 1 GROUP BY s.id",
+            (f"-{tahta_saglik.CEVRIMDISI_SN} seconds",),
+        )
+    }
+
+
 @app.get("/api/durum")
 async def api_durum(request: Request, tarih: str | None = None):
     conn = db.baglanti()
@@ -238,9 +254,10 @@ async def api_durum(request: Request, tarih: str | None = None):
             raise HTTPException(400, "Geçersiz tarih formatı, YYYY-MM-DD bekleniyor.")
         hedef_tarih = date.fromisoformat(hedef)
         sonuc = _durum_satirlari(conn, hedef_tarih)
+        tahta_acik = _tahta_acik_haritasi(conn)
     finally:
         conn.close()
-    return JSONResponse({"tarih": hedef, "satirlar": sonuc})
+    return JSONResponse({"tarih": hedef, "satirlar": sonuc, "tahta_acik": tahta_acik})
 
 
 @app.get("/api/sistem-durumu")
@@ -371,7 +388,8 @@ async def ana_sayfa(request: Request, tarih: str | None = None):
                 sinif_tahta[r["sinif_id"]] = r["id"]
 
         ders_saatleri = zil.ders_saatleri()
-        ilk_durum = {"tarih": hedef, "satirlar": _durum_satirlari(conn, date.fromisoformat(hedef))}
+        ilk_durum = {"tarih": hedef, "satirlar": _durum_satirlari(conn, date.fromisoformat(hedef)),
+                     "tahta_acik": _tahta_acik_haritasi(conn)}
     finally:
         conn.close()
 
