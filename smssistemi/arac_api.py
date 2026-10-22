@@ -685,3 +685,58 @@ def kod_sms(istek: KodSmsIstek):
     gecmis.append(an)
     _kod_sms_gecmis[tel] = gecmis
     return {"gonderim_id": gonder([("Dijital Okul", tel, metin)])}
+
+
+# --- Gönderim kayıtları (smual yönetici paneli; 2026-10-21) --------------
+
+
+@router.get("/gonderimler", dependencies=[Depends(anahtar_dogrula)])
+def gonderimler(limit: int = 50):
+    """Son toplu gönderimler (özet): zaman, toplam, başarılı, hatalı + ilk mesaj."""
+    conn = db.baglanti()
+    try:
+        ozetler = db.gonderim_ozetleri(conn, max(1, min(limit, 200)))
+        for o in ozetler:
+            s = conn.execute(
+                "SELECT mesaj FROM gonderimler WHERE gonderim_id = ? ORDER BY id LIMIT 1",
+                (o["gonderim_id"],),
+            ).fetchone()
+            o["mesaj"] = s["mesaj"] if s else ""
+    finally:
+        conn.close()
+    return {"gonderimler": ozetler}
+
+
+@router.get("/gonderim/{gonderim_id}", dependencies=[Depends(anahtar_dogrula)])
+def gonderim_detay(gonderim_id: str):
+    conn = db.baglanti()
+    try:
+        satirlar = db.gonderim_satirlari(conn, gonderim_id)
+        mesaj = conn.execute(
+            "SELECT mesaj FROM gonderimler WHERE gonderim_id = ? ORDER BY id LIMIT 1",
+            (gonderim_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+    if not satirlar:
+        raise HTTPException(status_code=404, detail="Böyle bir gönderim kaydı yok.")
+    return {
+        "gonderim_id": gonderim_id,
+        "mesaj": mesaj["mesaj"] if mesaj else "",
+        "satirlar": satirlar,
+    }
+
+
+@router.post("/gonderim/{gonderim_id}/tekrar", dependencies=[Depends(anahtar_dogrula)])
+def gonderim_tekrar(gonderim_id: str):
+    """Yalnızca hatalı satırları yeniden dener. Not: günlük toplu sınır (TOPLU_GUNLUK_AZAMI)
+    taslak sayacına bakar; bu yol zaten gönderilmiş alıcıların yeniden denemesi olduğu için
+    sayılmaz."""
+    conn = db.baglanti()
+    try:
+        basarisiz = db.gonderim_basarisizlari(conn, gonderim_id)
+    finally:
+        conn.close()
+    if not basarisiz:
+        raise HTTPException(status_code=404, detail="Yeniden denenecek hatalı satır yok.")
+    return {"gonderim_id": gonder(basarisiz), "alici_sayisi": len(basarisiz)}

@@ -40,6 +40,8 @@ modem_kilidi = threading.RLock()
 _SAYFA_BOYUTU = 50
 _AZAMI_SAYFA = 20
 
+SMS_ALT_BILGI = "\nhttps://smual.app/"
+
 MODEM_CONFIG_YOLU = Path(__file__).resolve().parent / "config" / "modem.json"
 
 
@@ -245,10 +247,11 @@ def _toplu_gonder_kilitli(
     try:
         with connection:
             client = Client(connection)
-            for i, (isim, telefon, mesaj) in enumerate(kisiler):
+            for i, (isim, telefon, mesaj_ham) in enumerate(kisiler):
                 if durdur_bayragi.is_set():
                     durduruldu = True
                     break
+                mesaj = mesaj_ham + SMS_ALT_BILGI
                 mode = TextModeEnum.SEVEN_BIT if is_ascii(mesaj) else TextModeEnum.UCS2
                 try:
                     client.sms.send_sms([telefon], mesaj, text_mode=mode)

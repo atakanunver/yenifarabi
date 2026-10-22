@@ -101,7 +101,7 @@ def test_gonderim_sirasinda_baglanti_koparsa_islenmemis_aliciler_hata_kaydedilir
     )
 
     assert len(kaydedilenler) == 3  # hiçbiri kayıpsız ya da çift kayıtlı değil
-    assert kaydedilenler[0] == ("Ali Veli", "05321112233", "merhaba 1", "gonderildi", None)
+    assert kaydedilenler[0] == ("Ali Veli", "05321112233", "merhaba 1" + sms_gonderici.SMS_ALT_BILGI, "gonderildi", None)
     assert kaydedilenler[1] == (
         "Can Demir", "05322223344", "merhaba 2", "hata",
         "BAĞLANTI HATASI (gönderim sırasında): bağlantı koptu",

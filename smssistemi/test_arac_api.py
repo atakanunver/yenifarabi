@@ -491,3 +491,20 @@ def test_gunluk_sinir_ertesi_gun_sifirlanir(ortam, monkeypatch):
     assert _kod(_gonder, _taslak()["taslak_id"]) == 429
     saat["an"] = SIMDI + timedelta(days=1)
     assert _gonder(_taslak()["taslak_id"])["alici_sayisi"] == 2
+
+
+def test_gonderim_kayitlari_liste_detay_tekrar(ortam):
+    giden, _ = ortam
+    conn = db.baglanti()
+    db.gonderim_kaydet(conn, "gA", "Ali", "5551112233", "Merhaba", "gonderildi", None)
+    db.gonderim_kaydet(conn, "gA", "Veli", "5554445566", "Merhaba", "hata", "modem")
+    conn.close()
+    liste = aa.gonderimler()["gonderimler"]
+    assert liste[0]["gonderim_id"] == "gA" and liste[0]["toplam"] == 2
+    assert liste[0]["basarili"] == 1 and liste[0]["hatali"] == 1 and liste[0]["mesaj"] == "Merhaba"
+    d = aa.gonderim_detay("gA")
+    assert [s["durum"] for s in d["satirlar"]] == ["gonderildi", "hata"]
+    assert _kod(aa.gonderim_detay, "yok") == 404
+    assert aa.gonderim_tekrar("gA")["alici_sayisi"] == 1
+    assert giden[0] == [("Veli", "5554445566", "Merhaba")]
+    assert _kod(aa.gonderim_tekrar, "yok") == 404
