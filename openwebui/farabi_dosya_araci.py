@@ -708,6 +708,27 @@ class Tools:
             return _tablo_docx(veri, sayfa)
         return _tablo_csv(veri)
 
+    async def _wiki_tek(self, f, ad: str) -> tuple[str, bool]:
+        """Tek dosyayı wiki'ye kaydeder; (mesaj, başarılı_mı)."""
+        try:
+            sayfalar = await self._wiki_sayfalari(f.filename, self._oku(f.path))
+        except ValueError as e:
+            return f"Kaydedilemedi: {e}. Kaydettim deme.", False
+        except Exception:  # noqa: BLE001 — dosya okuma/iç API hatası sohbeti bozmasın
+            return "Dosya okunamadı; wiki'ye kaydedilmedi. Kaydettim deme.", False
+        if not sayfalar:
+            return f"{f.filename}: kaydedilecek tablo ya da metin bulunamadı. Kaydettim deme.", False
+        y = await self._sunucu("kaydet", {"ad": ad, "kaynak": f.filename, "sayfalar": sayfalar})
+        if y is None:
+            return self._WIKI_HATA + " Kaydettim deme.", False
+        if y.get("durum") == "hata":
+            return f"Kaydedilemedi: {y.get('mesaj', '')} Kaydettim deme.", False
+        etiket = {"kaydedildi": "wiki'ye kaydedildi", "guncellendi": "wiki'de güncellendi", "zaten_vardi": "wiki'de aynı içerikle zaten vardı"}
+        return (
+            f"{f.filename} {etiket.get(y['durum'], 'işlendi')}: sayfa kimliği `{y['id']}` "
+            f"({len(sayfalar)} sayfa, {sum(len(x.get('satirlar', [])) for x in sayfalar)} satır, {sum(len(x.get('metin', '')) for x in sayfalar)} karakter metin)."
+        ), True
+
     async def wiki_kaydet(
         self,
         ad: str,
@@ -716,34 +737,27 @@ class Tools:
         __user__: dict | None = None,
     ) -> str:
         """
-        Sohbetteki Excel/CSV/Word/PDF/görsel/txt dosyasını (tüm sayfaları) Atos wiki'ye kaydeder ("hafızana al", "wikiye kaydet"); aynı ad güncellenir.
-        :param ad: Wiki sayfası adı.
-        :param dosya_adi: Dosya adında geçen metin; boşsa ilk.
+        Sohbetteki Excel/CSV/Word/PDF/görsel/txt dosyasını (tüm sayfaları) Atos wiki'ye kaydeder ("hafızana al", "wikiye kaydet"); aynı ad güncellenir (birden çok dosya: her biri ayrı sayfa).
+        :param ad: Wiki sayfası adı (tek dosyada).
+        :param dosya_adi: Dosya adında geçen metin; boşsa hepsi (her dosya ayrı sayfa).
         """
+        sonra = "Sonra wiki_ara / wiki_oku / tablo_uret(wiki_id) ile kullanılır."
         user = __user__ if isinstance(__user__, dict) else {}
         try:
             dosyalar = await self._dosyalar(__files__, user, (dosya_adi or "").strip())
-            if not dosyalar:
-                return "Bu sohbette kaydedilecek dosya bulunamadı; kullanıcıdan dosyayı eklemesini iste. Kaydettim deme."
-            f = dosyalar[0]
-            sayfalar = await self._wiki_sayfalari(f.filename, self._oku(f.path))
-        except ValueError as e:
-            return f"Kaydedilemedi: {e}. Kaydettim deme."
         except Exception:  # noqa: BLE001 — dosya okuma/iç API hatası sohbeti bozmasın
             return "Dosya okunamadı; wiki'ye kaydedilmedi. Kaydettim deme."
-        if not sayfalar:
-            return f"{f.filename}: kaydedilecek tablo ya da metin bulunamadı. Kaydettim deme."
-        y = await self._sunucu("kaydet", {"ad": ad, "kaynak": f.filename, "sayfalar": sayfalar})
-        if y is None:
-            return self._WIKI_HATA + " Kaydettim deme."
-        if y.get("durum") == "hata":
-            return f"Kaydedilemedi: {y.get('mesaj', '')} Kaydettim deme."
-        etiket = {"kaydedildi": "wiki'ye kaydedildi", "guncellendi": "wiki'de güncellendi", "zaten_vardi": "wiki'de aynı içerikle zaten vardı"}
-        return (
-            f"{f.filename} {etiket.get(y['durum'], 'işlendi')}: sayfa kimliği `{y['id']}` "
-            f"({len(sayfalar)} sayfa, {sum(len(x['satirlar']) for x in sayfalar)} satır, {sum(len(x.get('metin', '')) for x in sayfalar)} karakter metin). "
-            "Sonra wiki_ara / wiki_oku / tablo_uret(wiki_id) ile kullanılır."
-        )
+        if not dosyalar:
+            return "Bu sohbette kaydedilecek dosya bulunamadı; kullanıcıdan dosyayı eklemesini iste. Kaydettim deme."
+        if len(dosyalar) == 1:
+            m, tamam = await self._wiki_tek(dosyalar[0], ad)
+            return f"{m} {sonra}" if tamam else m
+        satirlar, hic = [], False
+        for f in dosyalar:
+            m, tamam = await self._wiki_tek(f, Path(f.filename).stem)
+            hic = hic or tamam
+            satirlar.append("- " + (m if tamam or m.startswith(f.filename) else f"{f.filename}: {m}"))
+        return "\n".join(satirlar) + ("\n" + sonra if hic else "")
 
     async def wiki_yaz(self, ad: str, icerik: str, sabit: bool = False, __user__: dict | None = None) -> str:
         """

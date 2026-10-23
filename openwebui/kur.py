@@ -39,8 +39,11 @@ SMS_ARAC_ID = "farabi_sms"  # yalnızca İdare: yönetime SMS hatırlatma / acil
 WIKI_API_URL = "http://127.0.0.1:8000/api/webui/wiki"
 SMS_API_URL = "http://127.0.0.1:8020/api/arac"
 GOREV_MODEL_ID = "farabi-gorev"  # yalnızca arka plan görevleri (başlık) için, düşünme kapalı
-ARAC_ID = "farabi_yonetim"  # yalnızca admin: tahta yönetimi aracı (Tool)
-YONETIM_MODEL_ID = "farabi-yonetim"
+# 2026-10-23 (kullanıcı kararı): tek model "Atos". Eski modlar ve tahta yönetimi aracı kaldırılır.
+KALDIRILAN_MODELLER = ("farabi-derin", "farabi-kimya", "farabi-fizik", "farabi-biyoloji", "farabi-matematik",
+                       "farabi-edebiyat", "farabi-ingilizce", "farabi-almanca", "farabi-felsefe", "farabi-din",
+                       "farabi-tarih", "farabi-cografya", "farabi-mudur-yrd", "farabi-yonetim")
+KALDIRILAN_ARACLAR = ("farabi_yonetim",)
 # 2026-10-04: ders programı + (yalnızca İdare/Öğretmen) öğrenci bilgisi aracı, tüm modlarda.
 OKUL_ARAC_ID = "farabi_okul"
 OKUL_API_URL = "http://127.0.0.1/api/okul"
@@ -108,7 +111,7 @@ def model_govdesi(mod: dict, cekirdek: str, ek: str, grup_idleri: dict[str, str]
     araclar = list(arac_idleri)
     if araclar:
         # Okul Bilgisi aracı: native araç çağrısı; Open WebUI yerleşik araçları
-        # (bellek, sohbetler, web...) kapalı — yonetim_model_govdesi ile aynı gerekçe.
+        # (bellek, sohbetler, web...) kapalı.
         govde["meta"].update({"toolIds": araclar,
                               # file_context False: Open WebUI'nin kendi RAG'ı Excel'i pandas ile NaN
                               # döküntüsüne çevirip modele veriyor (araçlar hiç çağrılmıyor); dosyaları
@@ -141,22 +144,6 @@ def gorev_model_govdesi(grup_idleri: dict[str, str]) -> dict:
             "access_grants": [{"principal_type": "group", "principal_id": grup_idleri[g],
                                "permission": "read"} for g in GRUPLAR],
             "is_active": True}
-
-
-def yonetim_model_govdesi() -> dict:
-    """Yalnızca admin modeli (access_grants boş: yalnızca sahip/admin görür; hidden DEĞİL, admin seçicide görmeli) — Farabi Yönetim
-    aracını kullanır. Çekirdek (öğretmen) prompt'u eklenmez, filtre yok. Open WebUI yerleşik araçları
-    kapalı: meta.capabilities.builtin_tools False (middleware.py use_builtin_tools kapısı) ve ayrıca
-    meta.builtinTools[kategori] False (utils/tools.py get_builtin_tools). params["think"] False,
-    routers/ollama.py'de payload köküne taşınır (gorev_model_govdesi ile aynı gerekçe)."""
-    return {"id": YONETIM_MODEL_ID, "base_model_id": TABAN_MODEL, "name": "Atos Yönetim",
-            "meta": {"description": "Yalnızca yönetici: tahta durumu, uzaktan eylem, yeniden başlatma, yoklama sorgusu.",
-                     "toolIds": [ARAC_ID],
-                     "capabilities": {"builtin_tools": False},
-                     "builtinTools": {k: False for k in BUILTIN_KATEGORILER}},
-            "params": {"system": (KOK / "promptlar" / "yonetim.md").read_text(encoding="utf-8"),
-                       "function_calling": "native", "think": False},
-            "access_grants": [], "is_active": True}
 
 
 class Api:
@@ -357,44 +344,16 @@ def sms_araci_kur(api: Api, grup_idleri: dict[str, str]) -> bool:
     return True
 
 
-def ajan_anahtari_oku() -> str | None:
-    """Dashboard'un /api/ajan anahtarı (gitignore'lu); dosya yoksa None."""
-    yol = KOK.parent / "tahtayoklama/dashboard/config/ajan.json"
-    try:
-        anahtar = json.loads(yol.read_text(encoding="utf-8"))["anahtar"]
-    except (OSError, ValueError, KeyError, TypeError):  # yok / bozuk JSON / anahtar yok
-        return None
-    return anahtar if isinstance(anahtar, str) and anahtar.strip() else None
-
-
-def araci_kur(api: Api, ajan_key: str) -> None:
-    icerik = (KOK / "farabi_yonetim_araci.py").read_text(encoding="utf-8")
-    govde = {"id": ARAC_ID, "name": "Atos Yönetim", "content": icerik,
-             "meta": {"description": "Yalnızca yönetici: tahta durumu, uzaktan eylem, yeniden başlatma (onaylı)."},
-             "access_grants": []}
-    var = api("GET", f"/api/v1/tools/id/{ARAC_ID}")
-    api("POST", f"/api/v1/tools/id/{ARAC_ID}/update" if var else "/api/v1/tools/create", govde)
-    api("POST", f"/api/v1/tools/id/{ARAC_ID}/access/update", {"access_grants": []})  # yalnızca admin
-    api("POST", f"/api/v1/tools/id/{ARAC_ID}/valves/update",
-        {"api_url": "http://127.0.0.1/api/ajan", "api_key": ajan_key, "zaman_asimi_sn": 60.0})
-    print(f"araç kuruldu: {ARAC_ID}")
-
-
-def model_yaz(api: Api, govde: dict) -> bool:
-    var = api("GET", "/api/v1/models/model?" + urllib.parse.urlencode({"id": govde["id"]}))
-    api("POST", "/api/v1/models/model/update" if var else "/api/v1/models/create", govde)
-    return bool(var)
-
-
-def yonetimi_kur(api: Api) -> None:
-    ajan_key = ajan_anahtari_oku()
-    if ajan_key is None:
-        print("uyarı: ajan.json yok ya da geçersiz (anahtar boş/eksik), Farabi Yönetim atlandı "
-              "(önce tahtayoklama/dashboard/scripts/ajan_anahtari_olustur.py)")
-        return
-    araci_kur(api, ajan_key)
-    guncellendi = model_yaz(api, yonetim_model_govdesi())
-    print(f"model {'güncellendi' if guncellendi else 'oluşturuldu'}: Atos Yönetim")
+def eskileri_kaldir(api: Api) -> None:
+    """KALDIRILAN_MODELLER/ARACLAR varsa siler (tekrar çalıştırılabilir; yoksa dokunmaz)."""
+    for mid in KALDIRILAN_MODELLER:
+        if api("GET", "/api/v1/models/model?" + urllib.parse.urlencode({"id": mid}), yazma=False):
+            api("POST", "/api/v1/models/model/delete", {"id": mid})
+            print(f"model silindi: {mid}")
+    for aid in KALDIRILAN_ARACLAR:
+        if api("GET", f"/api/v1/tools/id/{aid}", yazma=False):
+            api("DELETE", f"/api/v1/tools/id/{aid}/delete")
+            print(f"araç silindi: {aid}")
 
 
 def modelleri_kur(api: Api, grup_idleri: dict[str, str], arac_idleri=()) -> list[str]:
@@ -436,7 +395,7 @@ def ayarlari_kur(api: Api, mod_idleri: list[str]) -> None:
     cfg.update({"DEFAULT_MODELS": "farabi", "MODEL_ORDER_LIST": mod_idleri})
     api("POST", "/api/v1/configs/models", cfg)
     gorev = api("GET", "/api/v1/tasks/config") or {}
-    gorev.update({"TASK_MODEL": GOREV_MODEL_ID, "ENABLE_TAGS_GENERATION": False,
+    gorev.update({"TASK_MODEL": GOREV_MODEL_ID, "TASK_MODEL_EXTERNAL": GOREV_MODEL_ID, "ENABLE_TAGS_GENERATION": False,
                   "ENABLE_FOLLOW_UP_GENERATION": False})
     api("POST", "/api/v1/tasks/config/update", gorev)
     print("ayarlar: varsayılan model farabi, etiket/takip üretimi kapalı, görev modeli farabi-gorev")
@@ -472,7 +431,7 @@ def main() -> int:
     mod_idleri = modelleri_kur(api, grup_idleri, araclar)
     ayarlari_kur(api, mod_idleri)
     onerileri_kur(api)
-    yonetimi_kur(api)  # en sonda: ajan.json/araç hatası yukarıdaki adımları engellemesin
+    eskileri_kaldir(api)
     print("tamam")
     return 0
 

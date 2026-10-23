@@ -53,6 +53,7 @@ def _satir(ad: str, y: dict | None) -> str:
 
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 FONT_KALIN = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+OKU_TOPLAM_KARAKTER = 15000  # belgeyi_oku toplam çıktısı; Ollama bağlamı taşmasın
 OKUL_BASLIK = ("T.C.", "ŞEHİT MURAT USTAOĞLU ANADOLU LİSESİ MÜDÜRLÜĞÜ")
 
 
@@ -161,8 +162,8 @@ class Tools:
         __user__: dict | None = None,
     ) -> str:
         """
-        Sohbetteki yazı/PDF/fotoğraf/docx/xlsx'i KAYDETMEDEN okur (taranmış sayfalar yerel OCR). "Yazıyı oku/özetle", "OCR yap", "cevap hazırla" için önce bunu çağır. Excel/CSV/Word TABLOSUNU yeni tabloya, PDF'e ya da Excel'e çevirmek için bunu değil tablo_bilgisi/tablo_uret kullan.
-        :param dosya_adi: Adında bu metin geçen dosya; boşsa sohbetteki dosyalar (en çok 3).
+        Sohbetteki yazı/PDF/fotoğraf/docx/xlsx'i KAYDETMEDEN okur (taranmış sayfalar yerel OCR). "Yazıyı oku/özetle", "OCR yap", "cevap hazırla" için önce bunu çağır. Excel/CSV/Word TABLOSUNU yeni tabloya, PDF'e ya da Excel'e çevirmek için bunu değil tablo_bilgisi/tablo_uret kullan. Wiki'ye/hafızaya kaydetmek için bunu DEĞİL wiki_kaydet kullan.
+        :param dosya_adi: Adında bu metin geçen dosya; boşsa sohbetteki dosyalar (toplam metin sınırı içinde sırayla).
         """
         user = __user__ if isinstance(__user__, dict) else {}
         try:
@@ -174,9 +175,12 @@ class Tools:
                 "Bu sohbette okunacak dosya bulunamadı. Kullanıcıdan belgeyi sohbete ekleyip "
                 "tekrar istemesini iste. Belge içeriğini uydurma."
             )
-        satirlar = []
+        satirlar, okunan, kalan = [], 0, OKU_TOPLAM_KARAKTER
         async with httpx.AsyncClient(timeout=self.valves.zaman_asimi_sn, trust_env=False) as c:
-            for f in dosyalar[:3]:
+            for f in dosyalar:
+                if kalan <= 0:
+                    break
+                okunan += 1
                 try:
                     veri = self._oku(f.path)
                     r = await c.post(
@@ -194,13 +198,23 @@ class Tools:
                 if y["durum"] == "bos":
                     satirlar.append(f"### {f.filename}\nBelgede okunabilir metin bulunamadı (boş ya da çok bulanık).")
                     continue
-                ek = " (metin kısaltıldı)" if y.get("kisaltildi") else ""
+                metin = y["metin"]
+                kisalt = bool(y.get("kisaltildi")) or len(metin) > kalan
+                metin, kalan = metin[:kalan], kalan - min(len(metin), kalan)
+                ek = " (metin kısaltıldı)" if kisalt else ""
                 satirlar.append(
-                    f"### {f.filename} — {y['sayfa']} sayfa, {y['ocr_sayfa']} sayfa OCR ile okundu{ek}\n{y['metin']}"
+                    f"### {f.filename} — {y['sayfa']} sayfa, {y['ocr_sayfa']} sayfa OCR ile okundu{ek}\n{metin}"
                 )
+        atlanan = [f.filename for f in dosyalar[okunan:]]
+        uyari = (
+            f"\n\nNOT: {len(dosyalar)} dosyadan {okunan} tanesi okundu; okunmayanlar: {', '.join(atlanan)}. "
+            "Gerekirse dosya_adi ile tek tek çağır."
+            if atlanan
+            else ""
+        )
         return (
             "Belge metni (OCR hatası olabilir; okunamayan/şüpheli yerleri [okunamadı] diye işaretle, tahmin ederek "
-            "doldurma; sayı, tarih, tutar ve isimleri aynen aktar):\n\n" + "\n\n".join(satirlar)
+            "doldurma; sayı, tarih, tutar ve isimleri aynen aktar):\n\n" + "\n\n".join(satirlar) + uyari
         )
 
 

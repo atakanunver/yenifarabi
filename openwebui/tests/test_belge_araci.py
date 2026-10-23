@@ -248,3 +248,17 @@ def test_ozel_durum_liste_ve_bos_sonuc(monkeypatch):
 def test_ozel_durum_servis_yoksa(monkeypatch):
     _durum_istemci(monkeypatch, None, kod=500)
     assert "ulaşılamadı" in asyncio.run(fb.Tools().ogrenci_ozel_durum(__user__=ADMIN_U))
+
+
+def test_belgeyi_oku_toplam_butce_asilmaz_ve_kalan_dosyaya_istek_atilmaz(ortam, monkeypatch):
+    ekle, _ = ortam
+    monkeypatch.setattr(fb.httpx, "AsyncClient", _OkuIstemci)
+    monkeypatch.setattr(_OkuIstemci, "cevap", {"durum": "ok", "sayfa": 1, "ocr_sayfa": 0, "kisaltildi": False,
+                                               "metin": "a" * 9000})
+    _OkuIstemci.cagrilar.clear()
+    files = [ekle(f"f{i}", f"d{i}.pdf", b"%PDF-1") for i in range(5)]
+    cikti = asyncio.run(fb.Tools().belgeyi_oku("", __files__=files, __user__=IDARE))
+    assert cikti.count("a" * 50) * 50 <= fb.OKU_TOPLAM_KARAKTER and len(cikti) < fb.OKU_TOPLAM_KARAKTER + 1000
+    assert "(metin kısaltıldı)" in cikti
+    assert [c[2] for c in _OkuIstemci.cagrilar] == ["d0.pdf", "d1.pdf"]
+    assert "NOT: 5 dosyadan 2 tanesi okundu; okunmayanlar: d2.pdf, d3.pdf, d4.pdf." in cikti

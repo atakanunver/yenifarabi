@@ -77,7 +77,21 @@ def test_task_model_gorev_modeli():
         return {}
     kur.ayarlari_kur(api, ["farabi"])
     govde = next(c[2] for c in cagrilar if c[1] == "/api/v1/tasks/config/update")
-    assert govde["TASK_MODEL"] == "farabi-gorev"
+    assert govde["TASK_MODEL"] == "farabi-gorev" and govde["TASK_MODEL_EXTERNAL"] == "farabi-gorev"
+
+
+@pytest.mark.parametrize("var", [True, False])
+def test_eskileri_kaldir(var):
+    api = SahteApi(var)
+    kur.eskileri_kaldir(api)
+    posts = [c for c in api.cagrilar if c[0] != "GET"]
+    if not var:
+        assert posts == []
+        return
+    assert ("POST", "/api/v1/models/model/delete", {"id": "farabi-kimya"}) in posts
+    assert ("DELETE", "/api/v1/tools/id/farabi_yonetim/delete", None) in posts
+    assert len(posts) == len(kur.KALDIRILAN_MODELLER) + len(kur.KALDIRILAN_ARACLAR)
+    assert "farabi" not in kur.KALDIRILAN_MODELLER and kur.GOREV_MODEL_ID not in kur.KALDIRILAN_MODELLER
 
 
 def test_mevcut_ogretmenler_env_den():
@@ -101,52 +115,7 @@ class SahteApi:
         return {}
 
 
-def test_yonetim_modeli():
-    g = kur.yonetim_model_govdesi()
-    assert g["id"] == "farabi-yonetim" and g["base_model_id"] == "qwen3.8:27b"
-    assert g["access_grants"] == [] and g["is_active"] is True
-    assert g["meta"]["toolIds"] == ["farabi_yonetim"] and "filterIds" not in g["meta"]
-    assert g["params"]["function_calling"] == "native" and g["params"]["think"] is False
-    assert g["params"]["system"] == (kur.KOK / "promptlar" / "yonetim.md").read_text(encoding="utf-8")
-    assert "UYDURMA" in g["params"]["system"]
-    assert g["meta"]["capabilities"]["builtin_tools"] is False
-    assert g["meta"]["builtinTools"] and not any(g["meta"]["builtinTools"].values())
-    assert not g["meta"].get("hidden")  # admin model seçicide görebilmeli
-
-
-def test_yonetim_modeli_modlar_json_ve_siralamada_degil():
-    import json
-    modlar = json.loads((kur.KOK / "modlar.json").read_text(encoding="utf-8"))
-    assert "farabi-yonetim" not in [m["id"] for m in modlar]
-
-
-@pytest.mark.parametrize("var", [True, False])
-def test_araci_kur(var):
-    api = SahteApi(var)
-    kur.araci_kur(api, "AJAN-ANAHTARI")
-    posts = [(y, g) for m, y, g in api.cagrilar if m == "POST"]
-    assert api.cagrilar[0] == ("GET", "/api/v1/tools/id/farabi_yonetim", None)
-    yol, govde = posts[0]
-    assert yol == ("/api/v1/tools/id/farabi_yonetim/update" if var else "/api/v1/tools/create")
-    assert govde["id"] == "farabi_yonetim" and govde["name"] == "Atos Yönetim"
-    assert govde["access_grants"] == [] and "description" in govde["meta"]
-    assert govde["content"] == (kur.KOK / "farabi_yonetim_araci.py").read_text(encoding="utf-8")
-    assert posts[1] == ("/api/v1/tools/id/farabi_yonetim/access/update", {"access_grants": []})
-    assert posts[2] == ("/api/v1/tools/id/farabi_yonetim/valves/update",
-                        {"api_url": "http://127.0.0.1/api/ajan", "api_key": "AJAN-ANAHTARI",
-                         "zaman_asimi_sn": 60.0})
-
-
-def test_ajan_anahtari_oku(tmp_path, monkeypatch):
-    monkeypatch.setattr(kur, "KOK", tmp_path / "openwebui")
-    assert kur.ajan_anahtari_oku() is None
-    p = tmp_path / "tahtayoklama/dashboard/config"
-    p.mkdir(parents=True)
-    (p / "ajan.json").write_text('{"anahtar": "abc"}', encoding="utf-8")
-    assert kur.ajan_anahtari_oku() == "abc"
-
-
-def _main_calistir(monkeypatch, anahtar, capsys, ek=None):
+def _main_calistir(monkeypatch, capsys, ek=None):
     cagrilar = []
 
     class A(SahteApi):
@@ -165,7 +134,6 @@ def _main_calistir(monkeypatch, anahtar, capsys, ek=None):
     monkeypatch.setattr(kur, "filtreyi_kur", lambda *a: None)
     monkeypatch.setattr(kur, "modelleri_kur", lambda *a: ["farabi"])
     monkeypatch.setattr(kur, "ayarlari_kur", lambda *a: None)
-    monkeypatch.setattr(kur, "ajan_anahtari_oku", lambda: anahtar)
     monkeypatch.setattr(kur, "kimlik_ayarlarini_kur", lambda api: None)
     if ek:
         ek()
@@ -174,20 +142,6 @@ def _main_calistir(monkeypatch, anahtar, capsys, ek=None):
     monkeypatch.setattr(kur.sys, "argv", ["kur.py"])
     assert kur.main() == 0
     return cagrilar, capsys.readouterr().out
-
-
-def test_main_ajan_json_yoksa_atlar(monkeypatch, capsys):
-    cagrilar, cikti = _main_calistir(monkeypatch, None, capsys)
-    assert not [c for c in cagrilar if "farabi_yonetim" in c[1] or c[1].startswith("/api/v1/models")]
-    assert "ajan.json yok" in cikti and "atlandı" in cikti
-
-
-def test_main_ajan_json_varsa_kurar(monkeypatch, capsys):
-    cagrilar, _ = _main_calistir(monkeypatch, "anahtar", capsys)
-    yollar = [c[1] for c in cagrilar]
-    assert "/api/v1/tools/create" in yollar and "/api/v1/models/create" in yollar
-    model = next(c[2] for c in cagrilar if c[1] == "/api/v1/models/create")
-    assert model["id"] == "farabi-yonetim"
 
 
 # --- Kimlik ayarları (C1) ve sıralama ---
@@ -226,25 +180,9 @@ def test_main_kimlik_hesaplardan_once(monkeypatch, capsys):
         monkeypatch.setattr(kur, "kimlik_ayarlarini_kur", lambda api: sira.append("kimlik"))
         monkeypatch.setattr(kur, "hesaplari_kur", lambda *a: sira.append("hesap"))
         monkeypatch.setattr(kur, "ayarlari_kur", lambda *a: sira.append("ayar"))
-        monkeypatch.setattr(kur, "yonetimi_kur", lambda *a: sira.append("yonetim"))
-    _main_calistir(monkeypatch, "anahtar", capsys, ek)
-    assert sira == ["kimlik", "hesap", "ayar", "yonetim"]
-
-
-@pytest.mark.parametrize("icerik", ["{bozuk", "{}", '{"anahtar": ""}', "[]", '{"anahtar": 5}'])
-def test_ajan_anahtari_bozuksa_none(tmp_path, monkeypatch, icerik):
-    monkeypatch.setattr(kur, "KOK", tmp_path / "openwebui")
-    p = tmp_path / "tahtayoklama/dashboard/config"
-    p.mkdir(parents=True)
-    (p / "ajan.json").write_text(icerik, encoding="utf-8")
-    assert kur.ajan_anahtari_oku() is None
-
-
-def test_yonetimi_kur_bozuk_ajan_json_cokmez(monkeypatch, capsys):
-    monkeypatch.setattr(kur, "ajan_anahtari_oku", lambda: None)
-    api = SahteApi()
-    kur.yonetimi_kur(api)
-    assert api.cagrilar == [] and "atlandı" in capsys.readouterr().out
+        monkeypatch.setattr(kur, "eskileri_kaldir", lambda *a: sira.append("eski"))
+    _main_calistir(monkeypatch, capsys, ek)
+    assert sira == ["kimlik", "hesap", "ayar", "eski"]
 
 
 # --- 2026-10-04: Okul Bilgisi aracı ---

@@ -362,3 +362,55 @@ def test_wiki_oku_baglantilari_gosterir(monkeypatch):
     monkeypatch.setattr(fd.Tools, "_sunucu", sunucu)
     s = asyncio.run(fd.Tools().wiki_oku("nobet"))
     assert "Bkz. [[Kurallar]]" in s and "kurallar, yok (henüz yok)" in s and "ana-sayfa" in s
+
+
+# --- wiki_kaydet: birden çok dosya, her biri ayrı sayfa ---
+
+def _dosyalar_ekle(ortam, adlar):
+    kayit, _, tmp = ortam
+    files = []
+    for i, ad in enumerate(adlar):
+        yol = tmp / f"c{i}_{ad}"
+        yol.write_text("Ad;Not\nAyşe;x\n" if ad.endswith(".csv") else "metin " + ad, encoding="utf-8")
+        kayit[f"c{i}"] = Dosya(ad, yol)
+        files.append({"id": f"c{i}", "type": "file"})
+    return files
+
+
+def test_wiki_kaydet_cok_dosya_her_biri_ayri_sayfa(ortam, wiki, monkeypatch):
+    depo, _, arg = wiki
+    arg["__files__"] = _dosyalar_ekle(ortam, ["a.csv", "b raporu.txt", "c.csv"])
+    c = asyncio.run(fd.Tools().wiki_kaydet("Toplu", **arg))
+    assert sorted(depo) == ["a", "b-raporu", "c"]
+    assert depo["b-raporu"]["kaynak"] == "b raporu.txt"
+    assert c.count("Sonra wiki_ara") == 1 and c.count("\n- ") == 2 and c.startswith("- ")
+
+
+def test_wiki_kaydet_dosya_adi_cok_eslesirse_hepsi(ortam, wiki):
+    depo, _, arg = wiki
+    arg["__files__"] = _dosyalar_ekle(ortam, ["liste1.csv", "liste2.csv", "diger.csv"])
+    asyncio.run(fd.Tools().wiki_kaydet("Toplu", dosya_adi="liste", **arg))
+    assert sorted(depo) == ["liste1", "liste2"]
+
+
+def test_wiki_kaydet_tek_dosya_eski_davranis(ortam, wiki):
+    depo, _, arg = wiki
+    arg["__files__"] = _dosyalar_ekle(ortam, ["a.csv"])
+    c = asyncio.run(fd.Tools().wiki_kaydet("Benim Ad", **arg))
+    assert list(depo) == ["benim-ad"] and c.startswith("a.csv wiki'ye kaydedildi") and c.endswith("ile kullanılır.")
+
+
+def test_wiki_kaydet_bir_dosya_hata_verirse_digerleri_kaydedilir(ortam, wiki, monkeypatch):
+    depo, _, arg = wiki
+    arg["__files__"] = _dosyalar_ekle(ortam, ["a.csv", "bozuk.csv", "c.csv"])
+    eski = fd.Tools._oku
+
+    def oku(yol):
+        if "bozuk" in str(yol):
+            raise OSError("okunamadı")
+        return eski(yol)
+
+    monkeypatch.setattr(fd.Tools, "_oku", staticmethod(oku))
+    c = asyncio.run(fd.Tools().wiki_kaydet("Toplu", **arg))
+    assert sorted(depo) == ["a", "c"]
+    assert "bozuk.csv" in c and "Kaydettim deme" in c
