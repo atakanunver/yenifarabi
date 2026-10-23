@@ -414,3 +414,24 @@ def test_wiki_kaydet_bir_dosya_hata_verirse_digerleri_kaydedilir(ortam, wiki, mo
     c = asyncio.run(fd.Tools().wiki_kaydet("Toplu", **arg))
     assert sorted(depo) == ["a", "c"]
     assert "bozuk.csv" in c and "Kaydettim deme" in c
+
+
+# --- 2026-10-23: wiki çıktısı bağlamı taşırmasın (4 çağrı × ~14k karakter Ollama'da kullanıcı mesajını düşürdü) ---
+
+def test_wiki_ara_ve_oku_ciktisi_sinirli(monkeypatch):
+    satir = {"sayfa": "Tablo", "satir": {f"s{i}": "x" * 80 for i in range(10)}}
+    sayfa = {"ad": "Tablo", "baslik": [f"s{i}" for i in range(10)], "metin": "m" * 5000,
+             "satirlar": [["y" * 80] * 10 for _ in range(40)]}
+
+    async def sunucu(self, yol, govde):
+        if yol == "ara":
+            return {"durum": "ok", "sonuclar": [{"id": f"k{j}", "ad": "A", "kaynak": "a.docx", "tarih": "t",
+                    "sayfalar": [{"ad": "Tablo", "satir": 40, "sutunlar": sayfa["baslik"]}],
+                    "eslesen_satirlar": [satir] * 5} for j in range(5)]}
+        return {"durum": "ok", "kayit": {"ad": "A", "kaynak": "a.docx", "tarih": "t", "sayfalar": [sayfa] * 4}}
+
+    monkeypatch.setattr(fd.Tools, "_sunucu", sunucu)
+    ara = asyncio.run(fd.Tools().wiki_ara("x"))
+    oku = asyncio.run(fd.Tools().wiki_oku("k0"))
+    assert len(ara) <= fd.WIKI_ARA_AZAMI + 200 and "kısaltıldı" in ara and "`k0`" in ara
+    assert len(oku) <= fd.WIKI_OKU_AZAMI + 200 and "kısaltıldı" in oku

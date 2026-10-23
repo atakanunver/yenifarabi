@@ -25,6 +25,10 @@ from pydantic import BaseModel
 
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 FONT_KALIN = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+# 2026-10-23: tablo metni ~0,6 token/karakter; 4 wiki çağrısı × 14k karakter 32k bağlamı taşırıp
+# Ollama'da kullanıcı mesajını düşürdü ("no user query found in messages").
+WIKI_ARA_AZAMI = 3000
+WIKI_OKU_AZAMI = 6000
 MIME = {
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -74,6 +78,10 @@ def _ogrenci_alani(ad: str):
 def _norm(s: str) -> str:
     """Sütun adı karşılaştırması: Türkçe harf, büyük/küçük harf ve noktalama farkını yok sayar."""
     return re.sub(r"[^a-z0-9]", "", str(s).translate(_TR).lower())
+
+
+def _kirp(metin: str, sinir: int, ipucu: str) -> str:
+    return metin if len(metin) <= sinir else metin[:sinir] + f"\n[… çıktı kısaltıldı; {ipucu}]"
 
 
 _TC_RE = re.compile(r"(?<!\d)(\d{3})\d{6}(\d{2})(?!\d)")
@@ -795,8 +803,9 @@ class Tools:
             tur = "not" if k.get("tur") == "not" else f"kaynak {k['kaynak']}"
             satirlar.append(f"- `{k['id']}` — {k['ad']} ({tur}, {k['tarih']}): {sayfalar}")
             for e in k.get("eslesen_satirlar", []):
-                satirlar.append("    • " + e["sayfa"] + ": " + "; ".join(f"{h}={v}" for h, v in e["satir"].items() if v))
-        return "Wiki sonuçları (TC maskeli; yalnızca bunları aktar):\n" + "\n".join(satirlar)
+                satirlar.append(("    • " + e["sayfa"] + ": " + "; ".join(f"{h}={v}" for h, v in e["satir"].items() if v))[:300])
+        return _kirp("Wiki sonuçları (TC maskeli; yalnızca bunları aktar):\n" + "\n".join(satirlar),
+                     WIKI_ARA_AZAMI, "doğru sayfayı wiki_oku ile aç")
 
     async def wiki_oku(self, id: str, sayfa: str = "", __user__: dict | None = None) -> str:
         """
@@ -824,7 +833,7 @@ class Tools:
             bolumler.append("Bağlantılar: " + ", ".join(b["id"] + ("" if b["var"] else " (henüz yok)") for b in k["baglantilar"]))
         if k.get("gelen"):
             bolumler.append("Bu sayfaya bağlananlar: " + ", ".join(k["gelen"]))
-        return "\n\n".join(bolumler)
+        return _kirp("\n\n".join(bolumler), WIKI_OKU_AZAMI, "gerekirse sayfa= ile tek sekmeyi aç")
 
     # --- Okul verisinden öğrenci tablosu: satırlar modele okutulmaz, bilinmeyen sütun boş kalır ---
 
