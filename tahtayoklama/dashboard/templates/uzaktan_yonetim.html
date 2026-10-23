@@ -138,6 +138,10 @@
     <button type="submit"><svg class="ikon"><use href="#ik-resim"/></svg> Duvar Kağıdı Değiştir</button>
   </form>
 </div>
+
+<h2>Canlı ekranlar</h2>
+<p class="canli-bilgi" id="canli-bilgi">Açık tahtaların ekranı 15 saniyede bir yenilenir; büyütmek için görüntüye tıkla.</p>
+<div class="canli-ekranlar" id="canli-ekranlar"></div>
 {% endblock %}
 
 {% block script %}
@@ -232,6 +236,7 @@ async function tahtaDurumlariniGetir(yenile = false) {
         }
       }
     }
+    canliEkranlariKur(veri.tahtalar.filter(t => t.ulasilabilir).map(t => t.ad));
     const sonGuncelleme = document.getElementById('son-guncelleme-uzaktan');
     if (sonGuncelleme) {
       sonGuncelleme.textContent = 'Son tarama: ' + new Date().toLocaleTimeString('tr-TR');
@@ -245,6 +250,76 @@ async function tahtaDurumlariniGetir(yenile = false) {
     }
   }
 }
+
+// ---- Canlı ekranlar: açık tahtalar sırayla, tur başına en çok 15 sn'de bir (2026-10-23).
+// Sıralı çekim: tahtaları/SSH'ı aynı anda yormaz. Sekme arka plandayken çekmez.
+// Duvar kağıdı vb. eylemden sonra sayfa yeniden yüklenir → ilk tur hemen yeni görüntüyü alır.
+const CANLI_ARALIK_MS = 15000, CANLI_ZAMAN_ASIMI_MS = 8000;
+const canliKap = document.getElementById('canli-ekranlar');
+let canliTahtalar = [];
+
+function canliEkranlariKur(adlar) {
+  const eski = new Set(canliTahtalar);
+  canliTahtalar = adlar;
+  canliKap.querySelectorAll('.canli-kart').forEach(k => {
+    if (!adlar.includes(k.dataset.tahta)) k.remove();
+  });
+  for (const ad of adlar) {
+    if (eski.has(ad) && canliKap.querySelector(`[data-tahta="${ad}"]`)) continue;
+    const kart = document.createElement('div');
+    kart.className = 'canli-kart';
+    kart.dataset.tahta = ad;
+    kart.innerHTML = `<div class="canli-kart-ust"><span class="mini-durum-nokta nokta-yesil"></span><strong></strong><span class="canli-kart-zaman">bekleniyor…</span></div>`
+      + `<a href="/admin/uzaktan/ekran-goruntusu/${encodeURIComponent(ad)}?ham=1" target="_blank" rel="noopener noreferrer"><div class="canli-kart-bos">Görüntü alınıyor…</div></a>`;
+    kart.querySelector('strong').textContent = ad;
+    canliKap.appendChild(kart);
+  }
+  if (!adlar.length) canliKap.innerHTML = '<p class="canli-bilgi">Şu an açık tahta yok.</p>';
+  else canliKap.querySelectorAll(':scope > p').forEach(p => p.remove());
+}
+
+async function canliGoruntuAl(ad) {
+  const kart = canliKap.querySelector(`[data-tahta="${ad}"]`);
+  if (!kart) return;
+  const zaman = kart.querySelector('.canli-kart-zaman');
+  const kontrol = new AbortController();
+  const sayac = setTimeout(() => kontrol.abort(), CANLI_ZAMAN_ASIMI_MS);
+  try {
+    const r = await fetch(`/admin/uzaktan/ekran-goruntusu/${encodeURIComponent(ad)}?ham=1&t=${Date.now()}`,
+                          { signal: kontrol.signal, cache: 'no-store' });
+    if (!r.ok || !(r.headers.get('content-type') || '').startsWith('image/')) throw new Error('görüntü yok');
+    const url = URL.createObjectURL(await r.blob());
+    let img = kart.querySelector('img');
+    if (!img) {
+      img = document.createElement('img');
+      img.alt = `${ad} ekran görüntüsü`;
+      kart.querySelector('a').replaceChildren(img);
+    } else {
+      URL.revokeObjectURL(img.src);
+    }
+    img.src = url;
+    kart.classList.remove('hata');
+    zaman.textContent = new Date().toLocaleTimeString('tr-TR');
+  } catch (e) {
+    kart.classList.add('hata');
+    zaman.textContent = 'alınamadı';
+  } finally {
+    clearTimeout(sayac);
+  }
+}
+
+async function canliDongu() {
+  while (true) {
+    const basla = Date.now();
+    if (!document.hidden) {
+      for (const ad of [...canliTahtalar]) await canliGoruntuAl(ad);
+    }
+    await new Promise(r => setTimeout(r, Math.max(1000, CANLI_ARALIK_MS - (Date.now() - basla))));
+  }
+}
+
+{% if not yukleniyor %}canliEkranlariKur({{ tahtalar | selectattr('ulasilabilir') | map(attribute='ad') | list | tojson }});{% endif %}
+canliDongu();
 
 {% if yukleniyor %}
 tahtaDurumlariniGetir(false);

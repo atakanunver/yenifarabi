@@ -1297,6 +1297,24 @@ main p { color: var(--renk-metin-soluk); font-size: 0.88rem; line-height: 1.5; }
   padding-left: 0.5rem;
 }
 
+/* ---------- Uzaktan Yönetim: canlı ekranlar (2026-10-23) ----------
+   Açık tahtaların ekran görüntüsü, 3 sütun; minmax(0,1fr) ile asla taşmaz. */
+.canli-ekranlar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; margin-bottom: 1.5rem; }
+.canli-kart {
+  background: var(--renk-yuzey); border: 1px solid var(--renk-kenar); border-radius: var(--yaricap);
+  box-shadow: var(--renk-golge-kart); overflow: hidden; min-width: 0;
+}
+.canli-kart-ust { display: flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.6rem; font-size: 0.82rem; }
+.canli-kart-ust strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.canli-kart-zaman { color: var(--renk-metin-soluk); font-size: 0.78rem; white-space: nowrap; }
+.canli-kart a { display: block; }
+.canli-kart img, .canli-kart-bos {
+  display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: var(--renk-yuzey-2);
+}
+.canli-kart-bos { display: grid; place-items: center; color: var(--renk-metin-soluk); font-size: 0.82rem; text-align: center; padding: 0.5rem; }
+.canli-kart.hata .canli-kart-zaman { color: var(--renk-kirmizi); }
+.canli-bilgi { color: var(--renk-metin-soluk); font-size: 0.82rem; margin: -0.3rem 0 0.6rem; }
+
 @media (max-width: 600px) {
   .rag-satir { grid-template-columns: 7.5rem 1fr 4.5rem; gap: 0.5rem; }
   .iki-sutun { grid-template-columns: 1fr; }
