@@ -26,7 +26,9 @@ def statik_surum() -> str:
     return _surum_onbellek["v"]
 
 
-ZIL_PANELI = "http://192.168.23.23:8090/"  # kimlik gömülmez; tarayıcı Basic Auth sorar
+ZIL_PANELI = "http://zil.local:8090/"  # kimlik gömülmez; tarayıcı Basic Auth sorar
+BILGEHAN_PANELI = "http://bilgehan.local:9100/"  # okul-panel, Basic Auth
+KIOSK_PANELI = "http://kiosk.local:9100/"
 
 SMUAL_URL = "https://smual.app"
 SMUAL_YONETIM_URL = SMUAL_URL + "/yonetici"  # şifresiz giriş (SSO) sonraki aşamada
@@ -52,6 +54,8 @@ MENU: list[dict] = [
     # 2026-10-23: tahta↔sınıf ataması Sınıflar ve tahtalar sayfasına katıldı; burada yalnız uzaktan yönetim.
     {"ad": "Tahtalar", "kisayol": "t", "ikon": "tahta", "href": "/admin/uzaktan"},
     {"ad": "Zil paneli", "kisayol": "z", "ikon": "zil", "href": ZIL_PANELI, "yeni_sekme": True},
+    {"ad": "Bilgehan Paneli", "kisayol": "b", "ikon": "sunucu", "href": BILGEHAN_PANELI, "yeni_sekme": True},
+    {"ad": "Kiosk Paneli", "kisayol": "j", "ikon": "sunucu", "href": KIOSK_PANELI, "yeni_sekme": True},
     {
         "ad": "İletişim",
         "kisayol": "i",
