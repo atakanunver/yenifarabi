@@ -10,8 +10,8 @@ import psycopg2.extras
 from soruhavuzu import sik
 
 SEMA = Path(__file__).with_name("sema.sql")
-# 12. sınıf ikinci emre kadar dondurulmuş (2026-10-10): üretim, denetim ve sınıflandırma dokunmaz.
-DONDURULMUS_SINIFLAR = (12,)
+# 12. sınıf dondurması kaldırıldı (2026-10-22): 12. sınıf soruları denetime ve üretime açıldı.
+DONDURULMUS_SINIFLAR = ()
 
 
 def baglan(dbname: str = "soru_havuzu"):
@@ -146,10 +146,24 @@ def kazanim_isaretle(conn, kid: int, durum: str) -> None:
     conn.commit()
 
 
-def siradaki_kazanim(conn, bugun, haftalar: dict, denenen: set, hedef_toplam: int = 14) -> dict | None:
+def siradaki_kazanim(
+    conn,
+    bugun,
+    haftalar: dict,
+    denenen: set,
+    hedef_toplam: int = 14,
+    siniflar: tuple | list | None = None,
+    azami_hafta: int | None = None,
+) -> dict | None:
     gecmis = [h for h, pzt in haftalar.items() if pzt <= bugun]
     simdiki = max(gecmis) if gecmis else min(haftalar, default=0)
+    sinif_filtresi = "AND (t.sinif = ANY(%s)) " if siniflar else ""
+    hafta_filtresi = f"AND (t.hafta <= {int(azami_hafta)}) " if azami_hafta is not None else ""
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        params = [hedef_toplam, list(denenen) or [0], list(DONDURULMUS_SINIFLAR)]
+        if siniflar:
+            params.append(list(siniflar))
+        params.extend([simdiki, max(simdiki + 3, azami_hafta or 0)])
         cur.execute(
             "WITH tek AS (SELECT DISTINCT ON (sinif, ders, metin) * FROM kazanim WHERE durum='aktif' "
             "  ORDER BY sinif, ders, metin, hafta, id), "
@@ -157,9 +171,9 @@ def siradaki_kazanim(conn, bugun, haftalar: dict, denenen: set, hedef_toplam: in
             "  WHERE durum IN ('uretildi','onayli') AND kazanim_id IS NOT NULL GROUP BY kazanim_id) "
             "SELECT t.id, t.sinif, t.ders, t.hafta, t.kod, t.metin, COALESCE(s.n,0) AS n FROM tek t "
             "LEFT JOIN sayim s ON s.kazanim_id = t.id "
-            "WHERE COALESCE(s.n,0) < %s AND NOT (t.id = ANY(%s)) AND NOT (t.sinif = ANY(%s)) "
+            f"WHERE COALESCE(s.n,0) < %s AND NOT (t.id = ANY(%s)) AND NOT (t.sinif = ANY(%s)) {sinif_filtresi}{hafta_filtresi}"
             "ORDER BY (t.hafta BETWEEN %s AND %s) DESC, COALESCE(s.n,0), t.hafta, t.id LIMIT 1",
-            (hedef_toplam, list(denenen) or [0], list(DONDURULMUS_SINIFLAR), simdiki, simdiki + 3),
+            params,
         )
         satir = cur.fetchone()
     return dict(satir) if satir else None

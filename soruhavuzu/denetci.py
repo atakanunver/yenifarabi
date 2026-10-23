@@ -40,18 +40,18 @@ def istem(paket: list[dict]) -> str:
             f"  Doğru: {'ABCD'[s['dogru_index']]} / kısa cevap: {s['kisa_cevap']}"
         )
     return (
-        "Sen bir MEB lise soru denetçisisin. Aşağıdaki her soruyu ilgili KAYNAK metne göre denetle. "
-        "Geçerli sayılması için: işaretli şık ve kısa cevap doğru, tek doğru şık var, soru açık ve "
-        "tek başına anlaşılır, kaynak metinle uyumlu, sınıf düzeyine uygun. Ayrıca soru belirtilen "
-        "dersin kendi bilgisini/becerisini ölçmeli: ders kitabındaki bir örnek, hikâye ya da problem "
-        "bağlamından çıkarılmış ders dışı bilgi soruları (ör. matematik kitabında bir günün tarihi, "
-        "bir kişinin adı, bir yerin özelliği) ve saçma, anlamsız ya da cevabı sorudan belli olan "
-        "sorular GEÇERSİZDİR — metinde geçse bile reddet. Soru \"şekildeki\", \"grafiğe göre\", "
-        "\"tabloya göre\", \"haritada gösterilen\" gibi öğrencinin göremeyeceği bir şekil/grafik/tablo/görsele "
-        "atıf yapıyorsa (bilgi soru metninde tam verilmedikçe) GEÇERSİZ (neden: şekil atfı). "
-        "Kazanımı belirtilmiş soru o kazanımı "
-        "ölçmüyorsa GEÇERSİZ (neden: kazanım dışı). Dosya oluşturma, araç "
-        "kullanma; yalnızca her id için bir karar içeren JSON döndür: "
+        "Sen bir MEB lise soru denetçisisin. Aşağıdaki her soruyu MEB Bağlam Temelli Soru Yazım Kılavuzu, "
+        "Türkiye Yüzyılı Maarif Modeli ilkelerine ve ilgili KAYNAK metne göre denetle. "
+        "Geçerli sayılması için:\n"
+        "1. BAĞLAM ODAKLI VE BAĞLAMSIZ ÇÖZÜLEMEZ: Soru gerçek bir hayat durumu, deney, olay, veri seti veya problem senaryosu içermeli. "
+        "Bağlam kapatıldığında yalnızca ezber bilgi veya formülle çözülebilecek kuru sorular GEÇERSİZ (neden: bağlam yetersiz/ezber).\n"
+        "2. DOĞRULUK VE NETLİK: İşaretli şık ve kısa cevap doğru, tek doğru şık var, soru açık ve "
+        "tek başına anlaşılır, kaynak metinle uyumlu, sınıf düzeyine uygun.\n"
+        "3. GÜÇLÜ ÇELDİRİCİ: Çeldiriciler kavram yanılgılarına ve mantıklı alternatiflere dayanmalı.\n"
+        "4. DERSİN KENDİ BİLGİSİ: Belirtilen dersin kendi bilgisini/becerisini ölçmeli; bağlamdan kopuk alakasız magazinel/ders dışı ayrıntılar GEÇERSİZ.\n"
+        "5. GÖRSEL ATIFI OLMAMALI: 'şekildeki', 'grafiğe göre', 'tabloya göre', 'haritada gösterilen' gibi öğrencinin göremeyeceği görsellere atıf varsa GEÇERSİZ (neden: şekil atfı).\n"
+        "6. KAZANIM UYUMU: Kazanımı belirtilmiş soru o kazanımı ölçmüyorsa GEÇERSİZ (neden: kazanım dışı).\n"
+        "Dosya oluşturma, araç kullanma; yalnızca her id için bir karar içeren JSON döndür: "
         '{"kararlar": [{"id": 1, "gecerli": true, "neden": "kısa gerekçe"}]}\n'
         + "\n".join(bloklar)
     )

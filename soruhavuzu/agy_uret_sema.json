@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "required": ["sorular"],
+  "properties": {
+    "sorular": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["konu", "soru", "kisa_cevap", "secenekler", "dogru_index", "zorluk"],
+        "properties": {
+          "konu": {"type": "string"},
+          "soru": {"type": "string"},
+          "kisa_cevap": {"type": "string"},
+          "secenekler": {
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 4,
+            "maxItems": 4
+          },
+          "dogru_index": {"type": "integer", "minimum": 0, "maximum": 3},
+          "zorluk": {"type": "integer", "minimum": 1, "maximum": 4},
+          "sayfa": {"type": "integer"}
+        }
+      }
+    }
+  }
+}

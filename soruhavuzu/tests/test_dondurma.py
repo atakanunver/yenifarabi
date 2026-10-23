@@ -7,22 +7,25 @@ from soruhavuzu.tests.conftest import ORNEK_SORU
 HAFTALAR = {1: date(2026, 9, 14)}
 
 
-def test_dondurma_siradaki_kazanim_12yi_atlar(conn):
+def test_dondurma_siradaki_kazanim_12yi_atlar(conn, monkeypatch):
+    monkeypatch.setattr(vt, "DONDURULMUS_SINIFLAR", (12,))
     vt.kazanim_upsert(conn, {"sinif": 12, "ders": "fizik", "hafta": 1, "kod": None, "metin": "on iki"})
     assert vt.siradaki_kazanim(conn, date(2026, 10, 13), HAFTALAR, set()) is None
     vt.kazanim_upsert(conn, {"sinif": 10, "ders": "fizik", "hafta": 1, "kod": None, "metin": "on"})
     assert vt.siradaki_kazanim(conn, date(2026, 10, 13), HAFTALAR, set())["sinif"] == 10
 
 
-def test_dondurma_denetlenecekler_12yi_atlar(conn):
+def test_dondurma_denetlenecekler_12yi_atlar(conn, monkeypatch):
+    monkeypatch.setattr(vt, "DONDURULMUS_SINIFLAR", (12,))
     for sinif in (12, 10):
         bid = vt.birim_ekle(conn, "kitap", f"k:{sinif}", "matematik", sinif, "E", "m")
         vt.soru_ekle(conn, bid, {**ORNEK_SORU, "sinif": sinif, "soru": f"s{sinif}"})
     assert [s["sinif"] for s in vt.denetlenecekler(conn, 10)] == [10]
 
 
-def test_tekrar_temizle_birebir_kopyayi_isaretler_dondurma_12ye_dokunmaz(conn):
+def test_tekrar_temizle_birebir_kopyayi_isaretler_dondurma_12ye_dokunmaz(conn, monkeypatch):
     from soruhavuzu import tekrar
+    monkeypatch.setattr(vt, "DONDURULMUS_SINIFLAR", (12,))
 
     for sinif in (10, 12):
         bid = vt.birim_ekle(conn, "kitap", f"k:{sinif}", "matematik", sinif, "E", "m")

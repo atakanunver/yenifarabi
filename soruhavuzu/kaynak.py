@@ -26,7 +26,16 @@ def kitap_idleri(farabi_conn, sinif: int, ders: str) -> list[int]:
         return [kid for kid, ad in cur.fetchall() if dersler.ders_anahtari(ad) == ders]
 
 
-def bul(farabi_conn, gomucu, sinif: int, ders: str, kazanim_metin: str, k: int = 3) -> dict | None:
+def bul(
+    farabi_conn,
+    gomucu,
+    sinif: int,
+    ders: str,
+    kazanim_metin: str,
+    k: int = 3,
+    haric_chunklar: set[int] | None = None,
+    offset: int = 0,
+) -> dict | None:
     idler = kitap_idleri(farabi_conn, sinif, ders)
     if not idler:
         return None
@@ -34,12 +43,20 @@ def bul(farabi_conn, gomucu, sinif: int, ders: str, kazanim_metin: str, k: int =
     vektor = "[" + ",".join(f"{x:.6f}" for x in v) + "]"
     izinli = _okuma_izinli()
     kisitli = [kid for kid in idler if kid in izinli]
+    haric = list(haric_chunklar or [])
+    haric_filtre = " AND NOT (id = ANY(%s))" if haric else ""
+    sorgu = (
+        "SELECT id, sayfa_no, metin, embedding <=> %s::vector AS mesafe FROM chunk_egitim "
+        f"WHERE ((kitap_id = ANY(%s) AND NOT (kitap_id = ANY(%s))) OR id = ANY(%s)){haric_filtre} "
+        "ORDER BY mesafe LIMIT %s OFFSET %s"
+    )
+    param = (
+        [vektor, idler, kisitli, [i for kid in kisitli for i in izinli[kid]], haric, k, offset]
+        if haric
+        else [vektor, idler, kisitli, [i for kid in kisitli for i in izinli[kid]], k, offset]
+    )
     with farabi_conn.cursor() as cur:
-        cur.execute(
-            "SELECT id, sayfa_no, metin, embedding <=> %s::vector AS mesafe FROM chunk_egitim "
-            "WHERE (kitap_id = ANY(%s) AND NOT (kitap_id = ANY(%s))) OR id = ANY(%s) ORDER BY mesafe LIMIT %s",
-            (vektor, idler, kisitli, [i for kid in kisitli for i in izinli[kid]], k),
-        )
+        cur.execute(sorgu, param)
         parcalar = cur.fetchall()
     if not parcalar or 1 - float(parcalar[0][3]) < ESIK:
         return None

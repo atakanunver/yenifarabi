@@ -56,16 +56,21 @@ DENETIM_AZAMI_DK = 45
 def uret(
     conn,
     ders_saati_kontrol: bool = True,
-    sinif: int | None = None,
+    sinif: int | list[int] | tuple[int, ...] | None = None,
     farabi_conn=None,
     bulucu=None,
     ureten=None,
     bugun=None,
     denetim: bool = True,
+    motor: str = "hibrit",
+    model: str = uretici.AGY_MODEL,
+    hedef_toplam: int = 25,
+    azami_hafta: int | None = 11,
 ) -> None:
     """2026-10-08: kazanım öncelikli — her soru bir kazanımla (spec soru-havuzu-kazanim-eslesmesi)."""
     bulucu = bulucu or kaynak.bul
-    ureten = ureten or uretici.uret_kazanim
+    if ureten is None:
+        ureten = lambda k, kay: uretici.uret_kazanim(k, kay, motor=motor, agy_model=model)
     gb = okul_bildirim.calistir(conn)  # öğrencilerin "soru bildir" kayıtları (okul kapalıysa atlanır)
     if gb and gb["askiya"]:
         print(f"[uret] öğrenci bildirimiyle {gb['askiya']} soru askıya alındı", flush=True)
@@ -84,12 +89,21 @@ def uret(
     except OSError:
         pass  # ilk çalıştırma ya da dosya yok: veritabanından devam edilir
     denenen: dict[int, int] = {}
+    siniflar = tuple(sinif) if isinstance(sinif, (list, tuple, set)) else ((sinif,) if sinif is not None else None)
     if ders_saati_kontrol and denetim:
         denetle(conn, DENETIM_AZAMI_PAKET, DENETIM_AZAMI_DK, ders_saati_kontrol=True)
     while not ders_saati_kontrol or zaman.uretim_serbest():
         gun = bugun or zaman.bugun_istanbul()
-        k = vt.siradaki_kazanim(conn, gun, haftalar, {i for i, n in denenen.items() if n >= 2})
-        if k is not None and sinif is not None and k["sinif"] != sinif:
+        k = vt.siradaki_kazanim(
+            conn,
+            gun,
+            haftalar,
+            {i for i, n in denenen.items() if n >= 2},
+            hedef_toplam=hedef_toplam,
+            siniflar=siniflar,
+            azami_hafta=azami_hafta,
+        )
+        if k is not None and siniflar is not None and k["sinif"] not in siniflar:
             denenen[k["id"]] = 2
             continue
         if k is None:
@@ -105,7 +119,40 @@ def uret(
         denenen[k["id"]] = denenen.get(k["id"], 0) + 1
         t0 = time.perf_counter()
         try:
-            kay = bulucu(farabi_conn, gomucu, k["sinif"], k["ders"], k["metin"])
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT anahtar FROM kaynak_birim WHERE anahtar LIKE %s",
+                    (f"kazanim:{k['id']}:%",),
+                )
+                onceki_anahtarlar = cur.fetchall()
+            kullanilmis = set()
+            for (anh,) in onceki_anahtarlar:
+                parcalar = anh.split(":", 2)
+                if len(parcalar) == 3 and parcalar[2]:
+                    for cid in parcalar[2].split(","):
+                        if cid.isdigit():
+                            kullanilmis.add(int(cid))
+
+            offset = 0 if denenen[k["id"]] == 1 else 3
+            try:
+                kay = bulucu(
+                    farabi_conn,
+                    gomucu,
+                    k["sinif"],
+                    k["ders"],
+                    k["metin"],
+                    haric_chunklar=kullanilmis if len(kullanilmis) < 30 else None,
+                    offset=offset,
+                )
+            except TypeError:
+                kay = bulucu(farabi_conn, gomucu, k["sinif"], k["ders"], k["metin"])
+
+            if kay is None and kullanilmis:
+                try:
+                    kay = bulucu(farabi_conn, gomucu, k["sinif"], k["ders"], k["metin"], offset=0)
+                except TypeError:
+                    kay = bulucu(farabi_conn, gomucu, k["sinif"], k["ders"], k["metin"])
+
             if kay is None:
                 vt.kazanim_isaretle(conn, k["id"], "kaynak_yok")
                 print(f"[uret] kaynak yok: {k['sinif']} {k['ders']} — {k['metin'][:60]}", flush=True)
@@ -278,9 +325,27 @@ def main() -> int:
     sub.add_parser("kazanim-yukle").add_argument("--kuru", action="store_true")
     sub.add_parser("etiketle").add_argument("--kuru", action="store_true")
     p_uret = sub.add_parser("uret")
-    p_uret.add_argument("--sinif", type=int, default=None, help="Yalnızca belirtilen sınıf")
+    p_uret.add_argument("--sinif", type=int, nargs="*", default=None, help="Yalnızca belirtilen sınıf(lar)")
     p_uret.add_argument("--zorla", action="store_true", help="Ders saati kontrolünü atla")
     p_uret.add_argument("--denetimsiz", action="store_true", help="AGY denetimini atla (yalnızca üretim)")
+    p_uret.add_argument(
+        "--motor",
+        choices=["hibrit", "ollama", "agy"],
+        default="hibrit",
+        help="Soru üretim motoru: hibrit (varsayılan: ollama dene, boş/hata ise agy flash), ollama (yerel), agy (Antigravity CLI)",
+    )
+    p_uret.add_argument(
+        "--model",
+        default=uretici.AGY_MODEL,
+        help="AGY için kullanılacak model (varsayılan: gemini-3.8-flash-low)",
+    )
+    p_uret.add_argument("--hedef", type=int, default=25, help="Kazanım başına hedef soru sayısı (varsayılan: 25)")
+    p_uret.add_argument(
+        "--azami-hafta",
+        type=int,
+        default=11,
+        help="Kapsanacak azami hafta (varsayılan: 11 - Kasım sonu)",
+    )
     sub.add_parser("denetle")
     p_sin = sub.add_parser("siniflandir")
     p_sin.add_argument("--kuru", action="store_true")
@@ -325,7 +390,16 @@ def main() -> int:
             flush=True,
         )
     elif komut == "uret":
-        uret(conn, ders_saati_kontrol=not args.zorla, sinif=args.sinif, denetim=not args.denetimsiz)
+        uret(
+            conn,
+            ders_saati_kontrol=not args.zorla,
+            sinif=args.sinif,
+            denetim=not args.denetimsiz,
+            motor=args.motor,
+            model=args.model,
+            hedef_toplam=args.hedef,
+            azami_hafta=args.azami_hafta,
+        )
     elif komut == "denetle":
         denetle(conn)
     elif komut == "siniflandir":
