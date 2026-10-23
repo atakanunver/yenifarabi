@@ -209,6 +209,14 @@ gösterse bile hafta sonu görünürlüğünün işlevsel bir önemi yok.
 > `ilk_yukleme.py`, `pdf_disari_aktar.py`, `smssistemi/scripts/roster_ice_aktar.py` eski
 > dizine bakan tek seferlik betiklerdir; yeniden çalıştırılmaz.
 
+### 4.0a Kulüp listeleri (`/admin/kulupler`, 2026-10-23)
+Kaynak `dashboard/config/kulupler.json` (gitignore'lu, 0600, öğrenci verisi); ilk dolum
+`scripts/kulup_ice_aktar.py`, sonrası panelden (`kulupler.guncelle/ekle`, atomik yazım).
+Kulüp `kod`u (`KULUP-<ad>`) değişmez — `kulup_yoklama` kayıtları ve tahtadaki roster dosya
+adı ona bağlı. Kulüp, `sinif` alanındaki sınıfın tahtasına tahta istemcisinin
+`/yapilandirma`'sıyla ≤10 dk'da gider (SSH senkronu yok); sınıfı değişince eski tahtadaki
+dosyayı istemci kaldırır. Test: `test_kulup_duzenle.py`.
+
 ### 4.0 Kazanımlar (`/kazanim`, 2026-10-08; 2026-10-11'de `/kazanim-rapor` → `/kazanim`, eski adres 308 ile yönlenir)
 `dashboard/kazanim_rapor.py` + `templates/kazanim_rapor.html`: kazanimtest'in ürettiği
 `/mnt/farabi-data/farabi/kazanim_testleri/rapor/<sinif>.json` dosyalarını **salt-okunur**

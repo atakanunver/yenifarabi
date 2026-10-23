@@ -1,0 +1,58 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}{{ kulup.ad }} — Kulüp listesi{% endblock %}
+{% block baslik %}{{ kulup.ad }}{% endblock %}
+
+{% block icerik %}
+{% if request.query_params.get('kaydedildi') %}
+<ul class="senkron-sonuc"><li class="basarili">Kaydedildi. Tahtaya en geç 10 dakikada ulaşır.</li></ul>
+{% endif %}
+<form method="post" action="/admin/kulupler/{{ kulup.kod }}">
+  <div class="yeni-form">
+    <label>Kulüp adı <input type="text" name="ad" value="{{ kulup.ad }}" required maxlength="80"></label>
+    <label>Danışman <input type="text" name="danisman" value="{{ kulup.danisman or '' }}" maxlength="80"></label>
+    <label>Tahta (ders işlenecek sınıf)
+      <select name="sinif">
+        <option value="">— hiçbir tahtada görünmez —</option>
+        {% for s in siniflar %}<option value="{{ s }}" {{ 'selected' if s == kulup.sinif }}>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <span class="rapor-aciklama">Kod: {{ kulup.kod }}</span>
+  </div>
+  <div class="tablo-sarici">
+    <table class="admin-tablo" id="ogrenci-tablo">
+      <thead><tr><th>No</th><th>Ad Soyad</th><th>Sınıfı</th><th></th></tr></thead>
+      <tbody>
+        {% for u in kulup.uyeler %}
+        <tr>
+          <td><input type="text" name="no" value="{{ u.no }}" required inputmode="numeric"></td>
+          <td><input type="text" name="ad_soyad" value="{{ u.ad_soyad }}" required maxlength="80"></td>
+          <td><input type="text" name="uye_sinif" value="{{ u.sinif or '' }}" maxlength="10"></td>
+          <td><button type="button" class="sil-satir">Sil</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p><button type="button" id="satir-ekle"><svg class="ikon"><use href="#ik-arti"/></svg> Öğrenci ekle</button></p>
+  <p><button type="submit">Listeyi kaydet</button> <a href="/admin/kulupler" class="btn-ikincil">Kulüplere dön</a></p>
+</form>
+{% endblock %}
+
+{% block script %}
+<template id="satir-sablonu">
+  <tr>
+    <td><input type="text" name="no" required inputmode="numeric"></td>
+    <td><input type="text" name="ad_soyad" required maxlength="80"></td>
+    <td><input type="text" name="uye_sinif" maxlength="10"></td>
+    <td><button type="button" class="sil-satir">Sil</button></td>
+  </tr>
+</template>
+<script>
+document.getElementById('satir-ekle').addEventListener('click', () => {
+  document.querySelector('#ogrenci-tablo tbody').appendChild(document.getElementById('satir-sablonu').content.cloneNode(true));
+});
+document.querySelector('#ogrenci-tablo').addEventListener('click', (e) => {
+  if (e.target.classList.contains('sil-satir')) e.target.closest('tr').remove();
+});
+</script>
+{% endblock %}

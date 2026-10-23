@@ -18,6 +18,7 @@ from fastapi.templating import Jinja2Templates
 import menu
 import auth
 import db
+import kulupler
 import ssh_istemci
 import zil
 
@@ -297,6 +298,83 @@ async def sinif_ogrencilerini_kaydet(request: Request, sinif_id: int):
     finally:
         conn.close()
     return RedirectResponse(f"/admin/siniflar/{sinif_id}/ogrenciler", status_code=303)
+
+
+# ----------------------------------------------------------------------
+# Kulüp listeleri (2026-10-23) — config/kulupler.json; tahtalara istemci
+# /yapilandirma ile ≤10 dk'da ulaşır (SSH senkronu yok).
+# ----------------------------------------------------------------------
+
+def _aktif_sinif_adlari(conn) -> list[str]:
+    return [r["ad"] for r in conn.execute("SELECT ad FROM siniflar WHERE aktif = 1 ORDER BY ad")]
+
+
+@router.get("/kulupler", response_class=HTMLResponse)
+async def kulup_listesi(request: Request):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        siniflar = _aktif_sinif_adlari(conn)
+    finally:
+        conn.close()
+    return templates.TemplateResponse(
+        request, "admin_kulupler.html", {"kulupler": kulupler.yukle(), "siniflar": siniflar})
+
+
+@router.post("/kulupler")
+async def kulup_ekle(request: Request):
+    form = await request.form()
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        sinif = form.get("sinif", "")
+        if sinif and sinif not in _aktif_sinif_adlari(conn):
+            raise HTTPException(400, "Geçersiz sınıf.")
+    finally:
+        conn.close()
+    try:
+        kod = kulupler.ekle(form.get("ad", ""), sinif)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return RedirectResponse(f"/admin/kulupler/{kod}", status_code=303)
+
+
+@router.get("/kulupler/{kod}", response_class=HTMLResponse)
+async def kulup_uyeleri(request: Request, kod: str):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        siniflar = _aktif_sinif_adlari(conn)
+    finally:
+        conn.close()
+    kulup = kulupler.bul(kod)
+    if kulup is None:
+        raise HTTPException(404, "Kulüp bulunamadı.")
+    return templates.TemplateResponse(
+        request, "admin_kulup_uyeler.html", {"kulup": kulup, "siniflar": siniflar})
+
+
+@router.post("/kulupler/{kod}")
+async def kulup_uyelerini_kaydet(request: Request, kod: str):
+    form = await request.form()
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        siniflar = _aktif_sinif_adlari(conn)
+    finally:
+        conn.close()
+    sinif = form.get("sinif", "")
+    if sinif and sinif not in siniflar:
+        raise HTTPException(400, "Geçersiz sınıf.")
+    try:
+        uyeler = kulupler.uyeleri_ayristir(
+            form.getlist("no"), form.getlist("ad_soyad"), form.getlist("uye_sinif"))
+        kulupler.guncelle(kod, form.get("ad", ""), form.get("danisman", ""), sinif, uyeler)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except KeyError:
+        raise HTTPException(404, "Kulüp bulunamadı.")
+    return RedirectResponse(f"/admin/kulupler/{kod}?kaydedildi=1", status_code=303)
 
 
 # ----------------------------------------------------------------------

@@ -7,7 +7,7 @@ from app import app
 
 DAHILI = {"/", "/admin/tahtalar", "/admin/siniflar", "/admin/rapor", "/kazanim",
           "/admin/uzaktan", "/servisler", "/sistem-durumu", "/sunucular", "/veli-mesajlari",
-          "/acil", "/kulup-yoklama", "/kameralar", "/kameralar-ip", "/zamanlanmis-gorevler"}
+          "/acil", "/kulup-yoklama", "/admin/kulupler", "/kameralar", "/kameralar-ip", "/zamanlanmis-gorevler"}
 
 
 def _ogeler(ust):
