@@ -75,7 +75,8 @@ CREATE TABLE IF NOT EXISTS kisisel_taslaklari (
     olusturma TEXT NOT NULL,        -- TR yerel saat
     durum TEXT NOT NULL DEFAULT 'taslak',    -- taslak|gonderildi
     gonderim_id TEXT,
-    test_telefon TEXT
+    test_telefon TEXT,
+    kime TEXT NOT NULL DEFAULT 'hepsi'       -- hepsi|veli|ogrenci
 );
 """
 
@@ -89,6 +90,9 @@ def sema_kur() -> None:
             conn.execute("ALTER TABLE veli_taslaklari ADD COLUMN tur TEXT NOT NULL DEFAULT 'veli'")
         if "test_telefon" not in mevcut:
             conn.execute("ALTER TABLE veli_taslaklari ADD COLUMN test_telefon TEXT")
+        kisisel = [r["name"] for r in conn.execute("PRAGMA table_info(kisisel_taslaklari)").fetchall()]
+        if "kime" not in kisisel:  # eski DB: kime kolonu 2026-10-23'te eklendi
+            conn.execute("ALTER TABLE kisisel_taslaklari ADD COLUMN kime TEXT NOT NULL DEFAULT 'hepsi'")
         conn.commit()
     finally:
         conn.close()
@@ -542,11 +546,15 @@ def personel_gonder(istek: VeliGonderIstek):
 # --- Kişiye özel SMS (okul_no ile öğrenci + velileri; {ad} doldurulur) ---
 
 
+KISISEL_KIME = ("hepsi", "veli", "ogrenci")
+
+
 def _kisisel_alicilar(
-    conn, ogeler: list[dict], test_telefon: str | None = None
+    conn, ogeler: list[dict], test_telefon: str | None = None, kime: str = "hepsi"
 ) -> tuple[list[tuple[int, str, str, str]], list[int], list[int]]:
     """(alıcılar, bulunamayan, alicisiz) döndürür. alıcı = (okul_no, ad, telefon, metin).
     Eşleşme YALNIZCA okul_no ile (sınıf kullanılmaz). Telefonlar öğe içinde tekil.
+    kime: hepsi = öğrenci + velileri, veli = yalnızca velileri, ogrenci = yalnızca öğrenci.
     test_telefon varsa yalnızca İLK bulunan öğe, yalnızca o numaraya."""
     test_alici = _test_alicisi(test_telefon)[0] if test_telefon else None
     liste, bulunamayan, alicisiz = [], [], []
@@ -568,8 +576,9 @@ def _kisisel_alicilar(
             ) from None
         if test_alici is not None:
             return [(no, test_alici[0], test_alici[1], metin)], bulunamayan, alicisiz
-        adaylar = [(ogr["ad_soyad"], ogr["telefon"] or "")]
-        adaylar += [(v["ad_soyad"], v["telefon"]) for v in db.veliler_ogrenci_ile(conn, ogr["id"])]
+        adaylar = [(ogr["ad_soyad"], ogr["telefon"] or "")] if kime != "veli" else []
+        if kime != "ogrenci":
+            adaylar += [(v["ad_soyad"], v["telefon"]) for v in db.veliler_ogrenci_ile(conn, ogr["id"])]
         goruldu, oge_alicilari = set(), []
         for ad, tel in adaylar:
             tel = gonderim.normalize_phone(tel)
@@ -590,17 +599,20 @@ class KisiselOge(BaseModel):
 class KisiselTaslakIstek(BaseModel):
     ogeler: list[KisiselOge]
     test_telefon: str | None = None
+    kime: str = "hepsi"  # hepsi|veli|ogrenci
 
 
 @router.post("/kisisel-taslak", dependencies=[Depends(anahtar_dogrula)])
 def kisisel_taslak(istek: KisiselTaslakIstek):
     ogeler = [o.model_dump() for o in istek.ogeler]
+    if istek.kime not in KISISEL_KIME:
+        raise HTTPException(status_code=422, detail=f"kime şunlardan biri olmalı: {', '.join(KISISEL_KIME)}.")
     test_tel = None
     if istek.test_telefon:
         test_tel = _test_alicisi(istek.test_telefon)[0][1]
     conn = db.baglanti()
     try:
-        liste, bulunamayan, alicisiz = _kisisel_alicilar(conn, ogeler, test_tel)
+        liste, bulunamayan, alicisiz = _kisisel_alicilar(conn, ogeler, test_tel, istek.kime)
         if not liste:
             raise HTTPException(
                 status_code=404,
@@ -609,13 +621,14 @@ def kisisel_taslak(istek: KisiselTaslakIstek):
         tid = secrets.token_hex(4)
         conn.execute(
             "INSERT INTO kisisel_taslaklari "
-            "(id, ogeler, alici_sayisi, olusturma, test_telefon) VALUES (?, ?, ?, ?, ?)",
+            "(id, ogeler, alici_sayisi, olusturma, test_telefon, kime) VALUES (?, ?, ?, ?, ?, ?)",
             (
                 tid,
                 json.dumps(ogeler, ensure_ascii=False),
                 len(liste),
                 simdi().strftime(ZAMAN_BICIMI),
                 test_tel,
+                istek.kime,
             ),
         )
         conn.commit()
@@ -653,7 +666,7 @@ def kisisel_gonder(istek: KisiselGonderIstek):
             raise HTTPException(
                 status_code=410, detail="Taslağın süresi doldu; yeni taslak oluştur."
             )
-        liste, _, _ = _kisisel_alicilar(conn, json.loads(t["ogeler"]), t["test_telefon"])
+        liste, _, _ = _kisisel_alicilar(conn, json.loads(t["ogeler"]), t["test_telefon"], t["kime"])
         if not liste:
             raise HTTPException(status_code=404, detail="Alıcı kalmadı.")
         gid = gonder([(ad, tel, metin) for _, ad, tel, metin in liste])

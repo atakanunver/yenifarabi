@@ -366,6 +366,23 @@ def test_kisisel_sure_ve_capraz_kullanim(ortam):
     assert _kod(_kg, k) == 410 and giden == [] and o is None
 
 
+def test_kisisel_kime_yalniz_veli_ya_da_ogrenci(ortam):
+    giden, _ = ortam
+    _k_ogrenci(501, "Bes Ogr", "05554440001", veliler=["05554440002", "05554440003"])
+    v = aa.kisisel_taslak(aa.KisiselTaslakIstek(
+        ogeler=[aa.KisiselOge(okul_no=501, metin_sablon="m")], kime="veli"))
+    assert v["alici_sayisi"] == 2
+    _kg(v["taslak_id"])
+    assert {tel for _, tel, _ in giden[0]} == {"05554440002", "05554440003"}
+    o = aa.kisisel_taslak(aa.KisiselTaslakIstek(
+        ogeler=[aa.KisiselOge(okul_no=501, metin_sablon="m")], kime="ogrenci"))
+    assert o["alici_sayisi"] == 1
+    with pytest.raises(HTTPException) as e:
+        aa.kisisel_taslak(aa.KisiselTaslakIstek(
+            ogeler=[aa.KisiselOge(okul_no=501, metin_sablon="m")], kime="sinif"))
+    assert e.value.status_code == 422
+
+
 def test_eski_db_kisisel_tablo_olusur(ortam):
     conn = db.baglanti()
     conn.execute("DROP TABLE kisisel_taslaklari")

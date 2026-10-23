@@ -133,7 +133,7 @@ class Tools:
 
     async def veli_sms_taslak(self, sinif: str, metin: str) -> str:
         """
-        Bir sınıfın (ya da tüm okulun) velilerine gidecek SMS için TASLAK hazırlar, göndermez. "9-A velilerine SMS at" denince ÖNCE bunu çağır, taslağı göster, açık onay iste.
+        Bir sınıfın (ya da tüm okulun) TÜM velilerine gidecek SMS için TASLAK hazırlar, göndermez. "9-A velilerine SMS at" denince ÖNCE bunu çağır, taslağı göster, açık onay iste. Belirli öğrenci(ler)in velisine ise bunu DEĞİL kisisel_sms_taslak kullan.
         :param sinif: "9-A" ("10a" de olur) ya da tüm okul için "TÜM".
         :param metin: Mesaj, en çok 300 karakter.
         """
@@ -149,7 +149,7 @@ class Tools:
 
     async def ogrenci_sms_taslak(self, sinif: str, metin: str) -> str:
         """
-        Bir sınıfın (ya da tüm okulun) ÖĞRENCİLERİNE gidecek SMS için TASLAK hazırlar, göndermez. "11b öğrencilerine SMS" denince ÖNCE bunu çağır, taslağı göster, açık onay iste.
+        Bir sınıfın (ya da tüm okulun) TÜM ÖĞRENCİLERİNE gidecek SMS için TASLAK hazırlar, göndermez. "11b öğrencilerine SMS" denince ÖNCE bunu çağır, taslağı göster, açık onay iste. Belirli öğrenci(ler)e ise bunu DEĞİL kisisel_sms_taslak kullan.
         :param sinif: "11-B" ("11b" de olur) ya da "TÜM".
         :param metin: Mesaj, en çok 300 karakter.
         """
@@ -162,3 +162,47 @@ class Tools:
         :param alici_sayisi: Yalnızca TÜM OKUL taslağında: kullanıcının kendi yazdığı alıcı sayısı. Diğerlerinde verme.
         """
         return await self._taslak_gonder("/ogrenci-gonder", taslak_id, alici_sayisi, "öğrencilerine")
+
+    async def kisisel_sms_taslak(self, okul_nolar: str, metin: str, kime: str = "veli") -> str:
+        """
+        BELİRLİ öğrenci(ler)e ya da velilerine kişiye özel SMS TASLAĞI hazırlar, göndermez ("Ayşe'nin velisine devamsızlık SMS'i", "şu 3 öğrencinin velisine ayrı ayrı"). Sınıfın geri kalanına GİTMEZ. Okul numarasını önce ogrenci_bilgisi ile bul; taslağı göster, açık onay iste.
+        :param okul_nolar: Virgülle okul numaraları, ör. "123, 456".
+        :param metin: Mesaj, en çok 300 karakter. {ad} yazılırsa her alıcıda öğrencinin adı-soyadıyla doldurulur; kişiye göre değişen bilgi (gün sayısı vb.) için ayrı ayrı çağır.
+        :param kime: "veli" (varsayılan), "ogrenci" ya da ikisi için "hepsi".
+        """
+        try:
+            nolar = [int(n) for n in str(okul_nolar).replace(";", ",").split(",") if n.strip()]
+        except ValueError:
+            return "okul_nolar yalnızca virgülle ayrılmış okul numaraları olmalı (ör. \"123, 456\")."
+        if not nolar:
+            return "En az bir okul numarası ver; önce ogrenci_bilgisi ile bul."
+        govde = {"ogeler": [{"okul_no": n, "metin_sablon": metin} for n in nolar], "kime": kime}
+        try:
+            kod, y = await self._istek("POST", "/kisisel-taslak", govde)
+        except httpx.HTTPError:
+            return ULASILAMADI
+        if kod != 200:
+            return self._hata(kod, y)
+        eksik = ""
+        if y.get("bulunamayan"):
+            eksik += f" Kayıtta bulunamayan okul no: {y['bulunamayan']}."
+        if y.get("alicisiz"):
+            eksik += f" Telefonu olmayan: {y['alicisiz']}."
+        return (
+            f"TASLAK hazır (henüz GÖNDERİLMEDİ). Taslak no: {y['taslak_id']} — {y['oge_sayisi']} öğrenci, "
+            f'{y["alici_sayisi"]} alıcı ({kime}). Örnek mesaj: "{y["ornek_metin"]}".{eksik} Kullanıcıya bunu göster ve '
+            f"gönderilsin mi diye sor; {y['gecerlilik_dk']} dk içinde açık onay verirse kisisel_sms_gonder çağır."
+        )
+
+    async def kisisel_sms_gonder(self, taslak_id: str) -> str:
+        """
+        kisisel_sms_taslak ile hazırlanan taslağı gönderir. YALNIZCA kullanıcı taslağı gördükten sonra açıkça onay verdiyse çağır.
+        :param taslak_id: kisisel_sms_taslak'ın döndürdüğü taslak numarası.
+        """
+        try:
+            kod, y = await self._istek("POST", "/kisisel-gonder", {"taslak_id": taslak_id})
+        except httpx.HTTPError:
+            return ULASILAMADI
+        if kod != 200:
+            return self._hata(kod, y)
+        return f"SMS gönderime alındı ({y['oge_sayisi']} öğrenci, {y['alici_sayisi']} alıcı)."

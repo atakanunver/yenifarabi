@@ -60,3 +60,30 @@ def test_hata_ve_ulasilamadi_gonderilmedi_der():
             raise httpx.ConnectError("x")
 
     assert "işlem YAPILMADI" in asyncio.run(Bozuk().veli_sms_gonder("ab12"))
+
+
+# --- kişiye özel (okul_no ile) ---
+
+
+def test_kisisel_taslak_okul_no_ile_ve_veli_varsayilan():
+    t = _Sahte((200, {"taslak_id": "k1", "oge_sayisi": 2, "alici_sayisi": 3, "bulunamayan": [999],
+                      "alicisiz": [], "ornek_metin": "Sayın veli", "gecerlilik_dk": 30}))
+    s = asyncio.run(t.kisisel_sms_taslak("101, 102;999", "Sayın veli"))
+    assert t.cagrilar == [("POST", "/kisisel-taslak", {"ogeler": [
+        {"okul_no": 101, "metin_sablon": "Sayın veli"}, {"okul_no": 102, "metin_sablon": "Sayın veli"},
+        {"okul_no": 999, "metin_sablon": "Sayın veli"}], "kime": "veli"})]
+    assert "GÖNDERİLMEDİ" in s and "k1" in s and "3 alıcı" in s and "999" in s
+
+
+def test_kisisel_taslak_gecersiz_no_istek_atmaz():
+    t = _Sahte((200, {}))
+    assert "okul numaraları" in asyncio.run(t.kisisel_sms_taslak("Ayşe", "m"))
+    assert "En az bir" in asyncio.run(t.kisisel_sms_taslak(" ", "m"))
+    assert t.cagrilar == []
+
+
+def test_kisisel_gonder():
+    t = _Sahte((200, {"gonderim_id": "g", "oge_sayisi": 1, "alici_sayisi": 2}))
+    s = asyncio.run(t.kisisel_sms_gonder("k1"))
+    assert t.cagrilar == [("POST", "/kisisel-gonder", {"taslak_id": "k1"})]
+    assert "2 alıcı" in s
