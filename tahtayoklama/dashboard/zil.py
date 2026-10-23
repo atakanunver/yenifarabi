@@ -113,3 +113,21 @@ def ilk_ders_saati() -> dtime | None:
 def son_ders_bitis_saati() -> dtime | None:
     dersler = ders_saatleri()
     return _saat_ayristir(dersler[-1]["bitis"]) if dersler else None
+
+
+def ust_bilgi() -> str:
+    """Panel başlık şeridi için kısa ders bilgisi (2026-10-23). Okul saati dışında ya da
+    zil.json okunamazsa boş — başlık şeridi bunun yüzünden asla bozulmaz."""
+    try:
+        simdi = simdi_istanbul()
+        if not okul_gunu_mu(simdi.date()):
+            return ""
+        no = simdiki_ders(simdi.time())
+        if no:
+            return f"{no}. ders · bitiş {ders_baslangic_bitis(no)[1]:%H:%M}"
+        for ders in ders_saatleri():
+            if _saat_ayristir(ders["baslangic"]) > simdi.time():
+                return f"Teneffüs · {ders['no']}. ders {ders['baslangic']}"
+    except (OSError, ValueError, KeyError, TypeError):
+        return ""
+    return ""

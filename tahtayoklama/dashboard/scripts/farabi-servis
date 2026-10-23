@@ -6,7 +6,7 @@ set -euo pipefail
 SYSTEMCTL="${FARABI_SERVIS_SYSTEMCTL:-/usr/bin/systemctl}"
 SYSTEMD_RUN="${FARABI_SERVIS_SYSTEMD_RUN:-/usr/bin/systemd-run}"
 SERVISLER="farabi-api farabi-smssistemi farabi-yoklama-dashboard ollama open-webui sinif-arena"
-ZAMANLAYICILAR="kazanim-test kazanim-test-sonuc kazanim-test-aylik soru-havuzu-uret farabi-idari-yukle"
+ZAMANLAYICILAR="soru-havuzu-uret farabi-idari-yukle"
 
 reddet() { echo "farabi-servis: izin yok: $*" >&2; exit 2; }
 [[ $# -eq 2 ]] || reddet "kullanım: farabi-servis <eylem> <birim>"

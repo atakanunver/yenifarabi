@@ -45,18 +45,21 @@ class TestMenu(unittest.TestCase):
 
     def test_yeni_menu_yapisi(self):
         adlar = [u["ad"] for u in menu.MENU]
-        self.assertEqual(adlar, ["Ana Menü", "Acil Durum", "Yoklama", "Tahtalar", "Eğitim", "İletişim", "Kameralar", "Sistem",
-                          "Zil Paneli", "Atos Yapay Zeka", "Temalar", "Ayarlar"])
+        # 2026-10-23: sol kenar menü sırası; Acil en üstte sabit, Atos/Temalar/Ayarlar dipte
+        self.assertEqual(adlar, ["Acil durum", "Ana pano", "Yoklama", "Tahtalar", "Zil paneli", "İletişim", "Eğitim",
+                                 "Güvenlik", "Sistem", "Atos yapay zekâ", "Temalar", "Ayarlar"])
+        self.assertEqual([u["ad"] for u in menu.MENU if u.get("acil")], ["Acil durum"])
+        self.assertEqual([u["ad"] for u in menu.MENU if u.get("alt")], ["Atos yapay zekâ", "Temalar", "Ayarlar"])
         for kalkan in ("EBYS", "Pano", "Kiosk", "Google Form", "Anons-Zil", "Uygulamalar"):
             self.assertNotIn(kalkan, adlar)
         hrefler = set(_ust_hrefler(menu.MENU))
         for yer_tutucu in ("/b/ebys", "/b/pano", "/b/kiosk", "/b/form", "/b/anons", "/b/oyunlar"):
             self.assertNotIn(yer_tutucu, hrefler)
         eylemler = {o.get("eylem") for u in menu.MENU if u["ad"] == "Ayarlar" for o in _ogeler(u)}
-        self.assertLessEqual({"serit", "yazdir", "kisayollar", "cikis"}, eylemler)
+        self.assertLessEqual({"yazdir", "kisayollar", "cikis"}, eylemler)
         temalar = {o.get("eylem") for u in menu.MENU if u["ad"] == "Temalar" for o in _ogeler(u)}
-        self.assertEqual(temalar, {"tema:klasik", "tema:yumusak", "tema:koyu"})
-        atos = [u for u in menu.MENU if u["ad"] == "Atos Yapay Zeka"]
+        self.assertEqual(temalar, {"tema:argon", "tema:argon-koyu", "tema:koyu"})
+        atos = [u for u in menu.MENU if u["ad"] == "Atos yapay zekâ"]
         self.assertEqual([u.get("href") for u in atos], ["atos"])
 
     def test_kisayollar_benzersiz(self):
@@ -67,13 +70,16 @@ class TestMenu(unittest.TestCase):
         agac = menu.menu_agaci("/servisler")
         aktifler = [o["ad"] for u in agac["menu"] for o in _ogeler(u) if o.get("aktif")]
         self.assertEqual(aktifler, ["Servis yönetimi"])
-        self.assertEqual([o["ad"] for u in menu.menu_agaci("/")["menu"] for o in _ogeler(u) if o.get("aktif")], ["Pano"])
-        self.assertEqual([s["ad"] for s in agac["serit"] if s.get("aktif")], ["Servis yönetimi"])
-        self.assertFalse(any(o.get("aktif") for u in menu.MENU for o in [u, *_ogeler(u)]))  # kaynak bozulmaz
+        self.assertEqual([u["ad"] for u in agac["menu"] if u.get("acik")], ["Sistem"])  # etkin grup açık gelir
+        self.assertEqual(agac["konum"], ["Sistem", "Servis yönetimi"])
+        ana = menu.menu_agaci("/")
+        self.assertEqual([u["ad"] for u in ana["menu"] if u.get("aktif")], ["Ana pano"])
+        self.assertEqual(ana["konum"], ["Ana pano"])
+        self.assertFalse(any(o.get("aktif") or o.get("acik") for u in menu.MENU for o in [u, *_ogeler(u)]))  # kaynak bozulmaz
 
     def test_ana_sayfa_yalniz_tam_eslesme(self):
         agac = menu.menu_agaci("/admin/rapor")
-        self.assertFalse([s for s in agac["serit"] if s["href"] == "/" and s.get("aktif")])
+        self.assertFalse([u for u in agac["menu"] if u.get("href") == "/" and u.get("aktif")])
 
     def test_taban_tum_sablon_ortamlarinda_menu_var(self):
         import importlib
@@ -100,6 +106,29 @@ class TestMenu(unittest.TestCase):
         self.assertTrue(s1)
         self.assertNotEqual(s1, s2)
 
+    def test_ders_bilgisi_zil_yoksa_bos(self):
+        # Başlık şeridi zil.json bozuk/eksikken de render edilmeli (2026-10-23)
+        from unittest import mock
+
+        import zil
+        with mock.patch.object(zil, "ders_saatleri", side_effect=OSError), \
+                mock.patch.object(zil, "okul_gunu_mu", return_value=True):
+            self.assertEqual(zil.ust_bilgi(), "")
+
+    def test_taban_kenar_menu_render(self):
+        # Üst menü çubuğu yok, kenar menü + kırıntı yolu var (2026-10-23). DB'siz: şablonu doğrudan render et.
+        from starlette.requests import Request
+
+        import app as uygulama
+        istek = Request({"type": "http", "method": "GET", "path": "/admin/rapor", "headers": [],
+                         "query_string": b"", "server": ("farabi.local", 80), "scheme": "http", "root_path": ""})
+        html = uygulama.templates.env.from_string(
+            '{% extends "taban.html" %}{% block baslik %}Rapor{% endblock %}').render(request=istek)
+        self.assertIn('class="kenar"', html)
+        self.assertNotIn('role="menubar"', html)
+        self.assertIn("Yoklama › Rapor", html)
+        self.assertIn('aria-current="page"', html)
+        self.assertIn('href="/acil"', html)
 
 if __name__ == "__main__":
     unittest.main()

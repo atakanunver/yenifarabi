@@ -2,12 +2,17 @@
 // Sayfa boyanmadan önceki uygulama (FOUC önleme) taban.html <head>'indeki satır içi betikte.
 (function () {
   var ANAHTAR = "farabi_yoklama_tema";
-  var TEMALAR = ["klasik", "yumusak", "koyu"];
+  var TEMALAR = ["argon", "argon-koyu", "koyu"];
+  // 2026-10-23: klasik/yumuşak kaldırıldı; eski kayıtlar Argon açığa eşlenir.
+  var ESKI = { klasik: "argon", yumusak: "argon" };
 
   function aktifTemaGetir() {
     var kayitli = null;
     try { kayitli = localStorage.getItem(ANAHTAR); } catch (e) { /* kapalı depolama */ }
-    return TEMALAR.indexOf(kayitli) !== -1 ? kayitli : "koyu";  // varsayılan koyu (2026-10-08, kullanıcı)
+    if (ESKI[kayitli]) kayitli = ESKI[kayitli];
+    if (TEMALAR.indexOf(kayitli) !== -1) return kayitli;
+    // Kayıt yoksa sistem tercihi (2026-10-23; önceki varsayılan Taş Tahta idi).
+    return window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "argon-koyu" : "argon";
   }
 
   function temaUygula(tema) {

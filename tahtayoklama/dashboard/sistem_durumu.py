@@ -54,11 +54,15 @@ SERVISLER = [
     ("farabi-yoklama-dashboard", "Yoklama Panosu", "/giris"),
     ("farabi-api", "Farabi RAG API", "/ready"),
     ("farabi-smssistemi", "SMS Sistemi", "/giris"),
+    ("farabi-okul", "Dijital Okul (smual.app)", "/giris"),
     ("sinif-arena", "Sınıf Arenası", "/"),
     ("ollama", "Ollama", "/api/version"),
     ("open-webui", "Open WebUI", "/health"),
     ("postgresql@18-main", "PostgreSQL", None),  # HTTP yok — SQL ile yoklanır
     ("chrony", "Zaman Senkronu (chrony)", None),
+    # smual.app'in dış yolu (2026-10-23): HTTP sağlık yok, yalnız systemd durumu
+    ("cloudflared", "Cloudflare tüneli (smual.app)", None),
+    ("cf-edge-relay", "Tünel aktarıcısı (Müdür PC proxy)", None),
 ]
 VARSAYILAN_PORTLAR = {"ollama": 11434}
 POSTGRES_CONF = "/etc/postgresql/18/main/postgresql.conf"

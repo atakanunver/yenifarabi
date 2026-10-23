@@ -48,12 +48,7 @@ BIRIMLER: dict[str, dict] = {
                    "aciklama": "Atos sohbetleri bağlantıyı kaybeder."},
     "sinif-arena": {"ad": "Sınıf arenası", "tur": "servis", "eylemler": _S, "ders_uyarisi": True,
                     "aciklama": "Süren yarışma oturumları sıfırlanabilir."},
-    "kazanim-test": {"ad": "Kazanım testi (hafta içi 16:30)", "tur": "zamanlayici", "eylemler": _Z,
-                     "ders_uyarisi": False, "aciklama": "Haftalık kazanım testi formunu üretir."},
-    "kazanim-test-sonuc": {"ad": "Kazanım testi sonuçları (her gün 00:00)", "tur": "zamanlayici",
-                           "eylemler": _Z, "ders_uyarisi": False, "aciklama": "Form cevaplarını çeker."},
-    "kazanim-test-aylik": {"ad": "Aylık kazanım raporu (ayın 1'i)", "tur": "zamanlayici", "eylemler": _Z,
-                           "ders_uyarisi": False, "aciklama": "Önceki ayın raporlarını üretir."},
+    # kazanim-test* zamanlayıcıları 2026-10-14'te silindi (listeden 2026-10-23'te çıktı).
     "soru-havuzu-uret": {"ad": "Soru havuzu üretimi (gece)", "tur": "zamanlayici", "eylemler": _Z,
                          "ders_uyarisi": False,
                          "aciklama": "Yerel Ollama ile soru üretir; ders saatinde kendiliğinden durur."},

@@ -50,7 +50,7 @@ tahtayoklama/
 
 ```bash
 cd tahtayoklama/dashboard
-venv/bin/uvicorn app:app --reload --port 8010          # geliştirmede elle (lifespan polling'i de başlatır)
+venv/bin/uvicorn app:app --reload --port 8099          # geliştirmede elle; DİKKAT: lifespan polling'i de başlatır (canlıyla çift polling)
 venv/bin/python -m unittest discover -p 'test_*.py'    # tüm testler — pytest DEĞİL, venv'de pytest yok
 venv/bin/python -m unittest test_uzaktan_ekran -v      # tek dosya (modül adı, .py YOK; dashboard/ dizininden)
 venv/bin/python -m unittest test_uzaktan_ekran.TestUzaktanEkran.test_route_gecersiz_tahta   # tek test
@@ -149,7 +149,7 @@ dosyası `dashboard/scripts/kazanim_yukle.py` ile yıllık planlardan üretilir
 
 Farabi'nin `server/`'daki FastAPI'sinden (`farabi-api.service`, GPU-bağımlı)
 **tamamen bağımsız**: kendi venv'i, kendi SQLite DB'si (`veri/yoklama_pano.db`),
-kendi portu (8010), kendi systemd birimi (`farabi-yoklama-dashboard.service`,
+kendi portu (**80**; drop-in `port80.conf` ana birimdeki 8010'u ezer — 8010 artık Open WebUI/Atos), kendi systemd birimi (`farabi-yoklama-dashboard.service`,
 `After=`/`Wants=` YOK — tam ayrık). `server/tahtalar.json`'a **geri yazma
 YAPILMAZ** — pano kendi tahta/sınıf kaydını tutar.
 
@@ -589,10 +589,12 @@ Rol: **Senior Product Designer & Frontend Architect.** Geçerli olduğu yer
 PyQt6 arayüzü (`client/ui.py`) bu bölümün kapsamı DIŞINDA — Qt widget'ına
 web tasarım kuralı uygulanmaz.
 
-**Görsel kimlik zaten kurulu, dondurulmuş sayılır.** Tasarım sistemi
-`static/pano.css` başındaki Türkçe adlı CSS değişkenleri (`--renk-*`,
-`--yaricap*`, `--yazi-tipi`) ve üç tema: `klasik` (varsayılan), `yumusak`,
-`koyu` — `data-tema` ile. frontend-design becerisi "sıfırdan ayırt edici
+**Görsel kimlik kurulu, dondurulmuş sayılır** (son değişiklik 2026-10-23, Atakan
+onayıyla: Creative Tim Argon Dashboard (MIT) esinli görünüm; CSS/Bootstrap içeri
+ALINMADI). Tasarım sistemi `static/pano.css` başındaki Türkçe adlı CSS değişkenleri
+(`--renk-*`, `--yaricap*`, `--yazi-tipi`) ve üç tema: `argon` (Argon açık, `:root`),
+`argon-koyu`, `koyu` ("Taş Tahta") — `data-tema` ile. Kayıt yoksa sistem tercihi
+(açık→`argon`, koyu→`argon-koyu`); eski `klasik`/`yumusak` kayıtları `argon`'a eşlenir. frontend-design becerisi "sıfırdan ayırt edici
 kimlik kur" modunda çalıştırılmaz; disiplini (kısıtlılık, erişilebilirlik,
 klavye odağı, arayüz metni) mevcut token sistemi İÇİNDE uygulanır.
 - Ham hex renk yazılmaz, var olan değişken kullanılır.
@@ -620,17 +622,21 @@ tasarlanır — boş tablo bırakılmaz.
 `pano.css` sonunda `prefers-reduced-motion` bloğu var (2026-10-08); yeni animasyon ekleyince
 onun kapsadığını kontrol et.
 
-**Menü (2026-10-11):** Ana Pano, Yoklama, Kazanımlar, Tahtalar, Servisler, Uygulamalar, SMS sistemi, Google Form, Anons-Zil, Atos, Görünüm, EBYS, Pano, Kiosk (Düzen/Yardım/Çıkış kalktı). Henüz yapılmamış bölümler `/b/<ad>` yer tutucusu (`yakinda.py`); içerik gelince oradan çıkarılır.
+**Menü (2026-10-23):** sırası `menu.py` `MENU`'dadır (Acil durum en üstte kırmızı düğme; Ana pano, Yoklama, Tahtalar, Zil paneli, İletişim, Eğitim, Güvenlik, Sistem; dipte `alt: True` olanlar: Atos, Temalar, Ayarlar). Henüz yapılmamış bölümler `/b/<ad>` yer tutucusu (`yakinda.py`); menüye sayfası yapılınca girer.
 
-**Kabuk: menü çubuğu + ikon şeridi (2026-10-08).** Gezinmenin TEK kaynağı
-`dashboard/menu.py` (`MENU`, `SERIT`, `menu_agaci(yol)`); `taban.html` menü
-çubuğunu (WAI-ARIA menubar, `static/menu.js`), soldaki 6'lık ikon şeridini ve
-720 px altındaki ☰ çekmeceyi bu ağaçtan üretir — sayfa eklerken öğeyi menu.py'ye
+**Kabuk: sol kenar menü + başlık şeridi (2026-10-23; üst menü çubuğu ve ikon şeridi
+kalktı).** Gezinmenin TEK kaynağı `dashboard/menu.py` (`MENU`, `menu_agaci(yol)` →
+`menu`, `konum` kırıntı yolu, `ders` = `zil.ust_bilgi()`); `taban.html` tek bir
+`<nav class="kenar">` üretir: geniş (`--kenar-genislik`), `html.kenar-dar` (72 px,
+yalnız ikon, `localStorage farabi_kenar_dar`) ve <720 px soldan çekmece
+(`.kenar-acik`). Etkin sayfanın grubu açık gelir. Davranış `static/menu.js`
+(disclosure düğmeleri, ↑↓/F10/`?`). Başlık şeridinde menü YOK: kırıntı yolu, `h1`,
+`ust_sag` bloğu, gün/saat/ders, tema döngü düğmesi. Sayfa eklerken öğeyi menu.py'ye
 ekle, şablona elle yazma. Her `Jinja2Templates` örneğine
 `templates.env.globals["menu_agaci"]` eklenmeli (`test_menu` denetler). CSS/JS
 bağlantıları `?v=<static mtime>` taşır (eski önbellek + yeni şablon = bozuk düzen).
 Genel buton `.dugme` / `-ikincil` / `-tehlike` / `-kucuk` / `.dugme-ikon`;
-`[hidden]` her zaman gizler. Varsayılan tema **koyu** (kullanıcı kararı).
+`[hidden]` her zaman gizler. Varsayılan tema sistem tercihine göre Argon açık/koyu (2026-10-23).
 ⚠️ Şablonlar canlıya ANINDA yansır, Python kodu restart ister: dashboard
 değişikliğini master'a alır almaz `farabi-yoklama-dashboard`'u yeniden başlat
 (2026-10-08'de aradaki ~8 sn'de sayfalar 500 verdi).

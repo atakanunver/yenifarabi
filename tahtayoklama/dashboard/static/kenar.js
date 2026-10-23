@@ -1,4 +1,4 @@
-// İkon şeridindeki mini sistem durumu rozeti (2026-10-08'den beri yalnız bu; menü/çekmece
+// Kenar menü dibindeki mini sistem durumu rozeti + veli mesajı sayacı (menü davranışı
 // menu.js'te, tema tema.js'te).
 // ---- Veli mesajları okunmamış sayacı (menü rozeti): hata → sessizce gizli, 30 sn'de bir ----
 (function () {
@@ -9,6 +9,12 @@
       var r = a.querySelector('.menu-sayac');
       if (!n) { if (r) r.remove(); return; }
       if (!r) { r = document.createElement('span'); r.className = 'menu-sayac'; a.appendChild(r); }
+      r.textContent = n > 99 ? '99+' : String(n);
+      r.setAttribute('aria-label', n + ' okunmamış mesaj');
+    });
+    // Kenar menüde grup kapalıyken de görünsün: İletişim başlığındaki sayaç (2026-10-23)
+    document.querySelectorAll('.kenar-grup-sayac[data-sayac="veli"]').forEach(function (r) {
+      r.hidden = !n;
       r.textContent = n > 99 ? '99+' : String(n);
       r.setAttribute('aria-label', n + ' okunmamış mesaj');
     });

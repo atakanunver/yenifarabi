@@ -77,7 +77,8 @@ class TestFarabiServis(unittest.TestCase):
 
     def test_servise_zamanlayici_eylemi_reddedilir(self):
         self.assertEqual(self._kos("zamanlayici-ac", "farabi-api").returncode, 2)
-        self.assertEqual(self._kos("yeniden-baslat", "kazanim-test").returncode, 2)
+        self.assertEqual(self._kos("yeniden-baslat", "soru-havuzu-uret").returncode, 2)
+        self.assertEqual(self._kos("zamanlayici-ac", "kazanim-test").returncode, 2)  # silindi, listede yok
 
     def test_betik_listesi_python_listesiyle_ayni(self):
         import servis_yonetimi
