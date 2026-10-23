@@ -118,17 +118,26 @@ async def _tahtaya_roster_gonder(tahta: dict, sinif_ad: str, payload: bytes) -> 
     }
 
 
-@router.get("/tahtalar", response_class=HTMLResponse)
-async def tahtalar_listesi(request: Request):
-    conn = db.baglanti()
-    try:
-        _oturum_sarti(request, conn)
-        tahtalar, siniflar = _tahtalar_ve_siniflar(conn)
-    finally:
-        conn.close()
+def _siniflar_sayfasi(request: Request, conn, **ek) -> HTMLResponse:
+    """Sınıflar ve tahtalar tek sayfada (2026-10-23; eski /admin/tahtalar buraya katıldı)."""
+    tahtalar, _ = _tahtalar_ve_siniflar(conn)
+    siniflar = [dict(r) for r in conn.execute(
+        "SELECT s.id, s.ad, s.aktif, COUNT(o.id) AS ogrenci_sayisi "
+        "FROM siniflar s LEFT JOIN ogrenciler o ON o.sinif_id = s.id AND o.aktif = 1 "
+        "GROUP BY s.id ORDER BY s.ad"
+    )]
+    for s in siniflar:
+        s["tahtalar"] = [t["ad"] for t in tahtalar if t["sinif_id"] == s["id"] and t["aktif"]]
     return templates.TemplateResponse(
-        request, "admin_tahtalar.html", {"tahtalar": tahtalar, "siniflar": siniflar}
+        request, "admin_siniflar.html",
+        {"siniflar": siniflar, "aktif_siniflar": [s for s in siniflar if s["aktif"]], "tahtalar": tahtalar, **ek},
     )
+
+
+@router.get("/tahtalar")
+async def tahtalar_listesi(request: Request):
+    """Eski adres — birleşik sayfanın tahtalar bölümüne yönlenir."""
+    return RedirectResponse("/admin/siniflar#tahtalar", status_code=303)
 
 
 @router.post("/tahtalar/{tahta_id}")
@@ -164,14 +173,9 @@ async def tahta_guncelle(request: Request, tahta_id: int):
             sinif, payload = _roster_payload_olustur(conn, sinif_id)
             sonuc = await _tahtaya_roster_gonder(dict(tahta), sinif["ad"], payload)
 
-        tahtalar, siniflar = _tahtalar_ve_siniflar(conn)
+        return _siniflar_sayfasi(request, conn, sonuc=sonuc, sonuc_tahta_id=tahta_id)
     finally:
         conn.close()
-
-    return templates.TemplateResponse(
-        request, "admin_tahtalar.html",
-        {"tahtalar": tahtalar, "siniflar": siniflar, "sonuc": sonuc, "sonuc_tahta_id": tahta_id},
-    )
 
 
 @router.post("/tahtalar")
@@ -199,7 +203,7 @@ async def tahta_ekle(request: Request):
         conn.commit()
     finally:
         conn.close()
-    return RedirectResponse("/admin/tahtalar", status_code=303)
+    return RedirectResponse("/admin/siniflar#tahtalar", status_code=303)
 
 
 # ----------------------------------------------------------------------
@@ -211,14 +215,9 @@ async def siniflar_listesi(request: Request):
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
-        siniflar = [dict(r) for r in conn.execute(
-            "SELECT s.id, s.ad, s.aktif, COUNT(o.id) AS ogrenci_sayisi "
-            "FROM siniflar s LEFT JOIN ogrenciler o ON o.sinif_id = s.id AND o.aktif = 1 "
-            "GROUP BY s.id ORDER BY s.ad"
-        )]
+        return _siniflar_sayfasi(request, conn)
     finally:
         conn.close()
-    return templates.TemplateResponse(request, "admin_siniflar.html", {"siniflar": siniflar})
 
 
 @router.post("/siniflar")

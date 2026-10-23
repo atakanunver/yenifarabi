@@ -1,22 +1,22 @@
 {% extends "taban.html" %}
-{% block baslik_etiketi %}Sınıflar — Yoklama ve Yönetim Paneli{% endblock %}
-{% block baslik %}Sınıflar{% endblock %}
+{% block baslik_etiketi %}Sınıflar ve tahtalar — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Sınıflar ve tahtalar{% endblock %}
 
 {% block icerik %}
+<h2>Sınıflar</h2>
 <div class="tablo-sarici">
   <table class="admin-tablo">
     <thead>
-      <tr>
-        <th>Sınıf</th>
-        <th>Öğrenci Sayısı</th>
-        <th style="text-align: right;">İşlemler</th>
-      </tr>
+      <tr><th>Sınıf</th><th>Öğrenci</th><th>Bağlı tahta</th><th style="text-align: right;">İşlemler</th></tr>
     </thead>
     <tbody>
       {% for s in siniflar %}
-      <tr>
+      <tr class="{{ 'pasif' if not s.aktif else '' }}">
         <td><strong>{{ s.ad }}</strong></td>
         <td><span class="etiket">{{ s.ogrenci_sayisi }} öğrenci</span></td>
+        <td>
+          {% for t in s.tahtalar %}<span class="etiket">{{ t }}</span> {% else %}<span class="sinif-etiket">— atanmadı —</span>{% endfor %}
+        </td>
         <td style="text-align: right;">
           <a href="/admin/siniflar/{{ s.id }}/ogrenciler" class="btn-ikincil">
             Öğrencileri Düzenle <svg class="ikon ikon-kucuk"><use href="#ik-ok-sag"/></svg>
@@ -27,10 +27,67 @@
     </tbody>
   </table>
 </div>
-
-<h2>Yeni sınıf ekle</h2>
 <form method="post" action="/admin/siniflar" class="yeni-form">
-  <input type="text" name="ad" placeholder="ad (ör. 10-B)" required pattern="[A-Za-z0-9_-]+">
-  <button type="submit"><svg class="ikon"><use href="#ik-arti"/></svg> Ekle</button>
+  <input type="text" name="ad" placeholder="yeni sınıf (ör. 10-B)" required pattern="[A-Za-z0-9_-]+">
+  <button type="submit"><svg class="ikon"><use href="#ik-arti"/></svg> Sınıf ekle</button>
 </form>
+
+<h2 id="tahtalar">Tahtalar</h2>
+<p class="rapor-aciklama">Fiziksel tahtayı <strong>IP adresinden</strong> tanıyın (oda tabelası yanılabilir, IP yanılmaz),
+   listesini seçip "Yükle"ye basın — liste o anda SSH ile o tahtaya yazılır. Tahtada <em>Yoklama</em> açıksa yeni
+   liste, uygulama kapatılıp açılınca görünür. Kulüp listeleri ayrı: <a href="/admin/kulupler">Kulüp listeleri</a>.</p>
+<div class="tablo-sarici">
+  <table class="admin-tablo">
+    <thead>
+      <tr><th>Tahta</th><th>IP</th><th>MAC</th><th>Yüklü liste</th><th>Liste yükle</th></tr>
+    </thead>
+    <tbody>
+      {% for t in tahtalar %}
+      <tr class="{{ 'pasif' if not t.aktif else '' }}">
+        <td><strong>{{ t.ad }}</strong></td>
+        <td class="mono">{{ t.ip }}</td>
+        <td class="mono">{{ t.mac or '—' }}</td>
+        <td>
+          {% if t.sinif_adi %}<span class="etiket">{{ t.sinif_adi }}</span>{% else %}<span class="sinif-etiket">— atanmadı —</span>{% endif %}
+        </td>
+        <td>
+          <form method="post" action="/admin/tahtalar/{{ t.id }}" class="satir-form">
+            <select name="sinif_id">
+              <option value="">— liste seçme —</option>
+              {% for s in aktif_siniflar %}
+              <option value="{{ s.id }}" {{ 'selected' if s.id == t.sinif_id else '' }}>{{ s.ad }}</option>
+              {% endfor %}
+            </select>
+            <label class="aktif-kutu"><input type="checkbox" name="aktif" {{ 'checked' if t.aktif else '' }}> aktif</label>
+            <button type="submit">Yükle</button>
+          </form>
+          {% if sonuc and sonuc_tahta_id == t.id %}
+          <div class="senkron-sonuc-tek {{ 'basarili' if sonuc.basarili else 'hatali' }}" id="sonuc-alani">
+            {{ 'Yüklendi.' if sonuc.basarili else 'BAŞARISIZ — ' + sonuc.detay }}
+          </div>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<details class="yeni-tahta">
+  <summary>Yeni tahta ekle</summary>
+  <form method="post" action="/admin/tahtalar" class="yeni-form">
+    <input type="text" name="ad" placeholder="ad (ör. lab1)" required pattern="[A-Za-z0-9_-]+">
+    <input type="text" name="ip" placeholder="IP" required>
+    <input type="text" name="ssh_kullanici" placeholder="ssh kullanıcı" value="ogretmen">
+    <input type="text" name="python_yolu" placeholder="python yolu" value="/home/ogretmen/tahtayoklama/venv/bin/python">
+    <button type="submit"><svg class="ikon"><use href="#ik-arti"/></svg> Ekle</button>
+  </form>
+</details>
+{% endblock %}
+
+{% block script %}
+<script>
+var sonucAlani = document.getElementById('sonuc-alani');
+if (sonucAlani) sonucAlani.scrollIntoView({ block: 'center' });
+</script>
 {% endblock %}

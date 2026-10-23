@@ -437,7 +437,10 @@ talebiyle `--tahta fenlab` ile uygulandı, artık **8/8 tahta aynı ayarda**
 
 ## 7. Tahta↔sınıf ataması — kalıcı gerçekler ve açık uçlar
 
-- **`/admin/tahtalar`'daki atama SADECE dashboard'un kendi SQLite'ını
+- **2026-10-23: `/admin/tahtalar` ayrı sayfa değil** — atama tablosu `/admin/siniflar`
+  ("Sınıflar ve tahtalar", `admin._siniflar_sayfasi`) içinde; eski adres oraya yönlenir,
+  POST uçları (`/admin/tahtalar/{id}`, `/admin/tahtalar`) aynı.
+- **Tahta atamasındaki "Yükle" dışında atama SADECE dashboard'un kendi SQLite'ını
   değiştirir, tahtaya HİÇBİR ŞEY göndermez** — tahtaya gerçekten dosya
   yazan TEK yol, atama+senkronun tek adımda birleştiği "Yükle" butonu
   (`admin.py::_tahtaya_roster_gonder`, her yüklemede eski roster
