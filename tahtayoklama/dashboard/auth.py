@@ -66,13 +66,14 @@ def oturum_gecerli_mi(conn, token: str | None) -> bool:
     ).fetchone()
     if satir is None:
         return False
-    imlec = conn.execute(
+    conn.execute(
         "UPDATE oturumlar SET son_gorulme = datetime('now') "
         "WHERE token = ? AND son_gorulme <= datetime('now', '-5 minutes')",
         (token,),
     )
-    if imlec.rowcount:
-        conn.commit()
+    # Koşulsuz commit: 0 satırlık UPDATE de işlemi açar; açık kalırsa aynı bağlantıyla
+    # SSH bekleyen istek (/api/yenile) tüm yazmaları kilitler (2026-10-23).
+    conn.commit()
     return True
 
 
