@@ -47,8 +47,9 @@
     toast._z = setTimeout(function () { t.classList.add('gizli'); }, 3000);
   }
   window.farabiToast = toast;
-  var TEMA_SIRA = ['argon', 'argon-koyu', 'koyu'];
-  var TEMA_AD = { 'argon': 'Argon açık', 'argon-koyu': 'Argon koyu', 'koyu': 'Taş Tahta' };
+  var TEMA_SIRA = ['argon', 'argon-koyu', 'material', 'material-koyu', 'black', 'koyu'];
+  var TEMA_AD = { 'argon': 'Argon açık', 'argon-koyu': 'Argon koyu', 'material': 'Material açık',
+                  'material-koyu': 'Material koyu', 'black': 'Black', 'koyu': 'Taş Tahta' };
   var EYLEMLER = {
     'yazdir': function () { window.print(); },
     'yenile': function () { location.reload(); },

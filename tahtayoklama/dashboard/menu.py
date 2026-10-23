@@ -119,6 +119,9 @@ MENU: list[dict] = [
         "ogeler": [
             {"ad": "Argon açık", "eylem": "tema:argon", "ikon": "gunes"},
             {"ad": "Argon koyu", "eylem": "tema:argon-koyu", "ikon": "ay"},
+            {"ad": "Material açık", "eylem": "tema:material", "ikon": "gunes"},
+            {"ad": "Material koyu", "eylem": "tema:material-koyu", "ikon": "ay"},
+            {"ad": "Black", "eylem": "tema:black", "ikon": "ay"},
             {"ad": "Taş Tahta", "eylem": "tema:koyu", "ikon": "tahta"},
         ],
     },

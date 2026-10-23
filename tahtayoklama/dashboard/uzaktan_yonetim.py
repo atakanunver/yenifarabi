@@ -30,6 +30,7 @@ import auth
 import db
 import ssh_istemci
 import tahta_kaydi
+import tahta_yeniden_baslat
 import uzaktan_baslat
 import zil
 
@@ -428,6 +429,28 @@ async def _duvar_kagidi_tek(t: dict, icerik: bytes, uzanti: str) -> dict:
     }
 
 
+# Panelden yeniden başlatma (2026-10-23): sudo gerektiren iş tahta_yeniden_baslat'ta kalır
+# (admin hesabı, yalnız `systemctl reboot` sudoers kuralı, 120 sn bekleme); burada yalnız
+# ders saati kapısı ve Türkçe sonuç metni. EYLEMLER'e (makine API'si) GİRMEZ.
+_YENIDEN_BASLAT_DETAY = {
+    "tamam": "Yeniden başlatılıyor (~1-2 dk).",
+    "bekleme": "Az önce yeniden başlatıldı; 2 dakika bekle.",
+    "izin_yok": "Bu tahtada yeniden başlatma yetkisi yok (admin/sudoers).",
+    "ulasilamadi": "Tahtaya ulaşılamadı.",
+    "zaman_asimi": "Zaman aşımı.",
+    "hata": "Yeniden başlatılamadı.",
+}
+
+
+async def _yeniden_baslat_tek(t: dict, form) -> dict:
+    if tahta_yeniden_baslat.ders_saatinde_mi():
+        return {"tahta": t["ad"], "basarili": False, "denetim_kodu": "ders_saati",
+                "detay": "Ders saatinde tahtalar yeniden başlatılamaz."}
+    sonuc = await tahta_yeniden_baslat.yeniden_baslat_tek(t)
+    return {"tahta": t["ad"], "basarili": sonuc["basarili"],
+            "detay": _YENIDEN_BASLAT_DETAY.get(sonuc["sebep"], "Yeniden başlatılamadı.")}
+
+
 # Makine API'si (ajan_api.py) için ad → eylem haritası. Duvar kağıdı YOK.
 # Eylemler (t, form) alır; form yerine .get() destekleyen düz dict verilebilir
 # (yalnızca web_ac "url" okur).
@@ -533,6 +556,11 @@ async def ekran_karart_route(request: Request):
 @router.post("/uzaktan/ekran-kaldir", response_class=HTMLResponse)
 async def ekran_kaldir_route(request: Request):
     return await _eylem_calistir_ve_render(request, _ekran_kaldir_tek, "ekran_kaldir")
+
+
+@router.post("/uzaktan/yeniden-baslat", response_class=HTMLResponse)
+async def yeniden_baslat_route(request: Request):
+    return await _eylem_calistir_ve_render(request, _yeniden_baslat_tek, "yeniden_baslat")
 
 
 @router.post("/uzaktan/duvar-kagidi", response_class=HTMLResponse)

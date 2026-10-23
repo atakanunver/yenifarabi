@@ -2,7 +2,7 @@
 // Sayfa boyanmadan önceki uygulama (FOUC önleme) taban.html <head>'indeki satır içi betikte.
 (function () {
   var ANAHTAR = "farabi_yoklama_tema";
-  var TEMALAR = ["argon", "argon-koyu", "koyu"];
+  var TEMALAR = ["argon", "argon-koyu", "koyu", "black", "material", "material-koyu"];
   // 2026-10-23: klasik/yumuşak kaldırıldı; eski kayıtlar Argon açığa eşlenir.
   var ESKI = { klasik: "argon", yumusak: "argon" };
 

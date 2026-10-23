@@ -58,7 +58,7 @@ class TestMenu(unittest.TestCase):
         eylemler = {o.get("eylem") for u in menu.MENU if u["ad"] == "Ayarlar" for o in _ogeler(u)}
         self.assertLessEqual({"yazdir", "kisayollar", "cikis"}, eylemler)
         temalar = {o.get("eylem") for u in menu.MENU if u["ad"] == "Temalar" for o in _ogeler(u)}
-        self.assertEqual(temalar, {"tema:argon", "tema:argon-koyu", "tema:koyu"})
+        self.assertEqual(temalar, {"tema:argon", "tema:argon-koyu", "tema:koyu", "tema:black", "tema:material", "tema:material-koyu"})
         atos = [u for u in menu.MENU if u["ad"] == "Atos yapay zekâ"]
         self.assertEqual([u.get("href") for u in atos], ["atos"])
 

@@ -249,6 +249,13 @@ kur-kaldır, "kapat butonunu karartmaya çevir".
   şifresi/oturum çerezi yeterli kabul edildi (bkz. §8, güvenlik riski).
 - Hiçbir işlem sudo/root gerektirmez — Farabi'nin SSH anahtarı
   (`~/.ssh/id_ed25519_tahta`) zaten `ogretmen` hesabına doğrudan yetkili.
+  **Tek istisna (2026-10-23): "Yeniden Başlat"** (`/admin/uzaktan/yeniden-baslat`,
+  `uzaktan_yonetim._yeniden_baslat_tek`) — sudo işi `tahta_yeniden_baslat.py`'de kalır
+  (admin hesabı + yalnız `systemctl reboot` sudoers, 120 sn bekleme); ders saatinde
+  (`ders_saatinde_mi`) reddedilir, tarayıcıda onay sorulur. Makine API'si `EYLEMLER`'ine girmez.
+- **Canlı ekranlar (2026-10-23):** sayfa altında açık tahtaların ekranı 3 sütunda, 15 sn'de
+  bir sırayla (`ekran-goruntusu?ham=1`, 8 sn zaman aşımı, sekme gizliyken durur). Karta sağ
+  tık = tek tahtaya toplu eylem menüsü (aynı POST uçları).
 - X-ortamı (DISPLAY/XAUTHORITY/uid) keşfi tek yerde: `ssh_istemci.x_ortamini_kesfet()`
   — `uzaktan_baslat.py` ve `uzaktan_yonetim.py` ikisi de bunu kullanır
   (önceden iki kopyaydı, birleştirildi — bkz. `tahtaayar/CLAUDE.md`'deki
@@ -592,13 +599,18 @@ web tasarım kuralı uygulanmaz.
 **Görsel kimlik kurulu, dondurulmuş sayılır** (son değişiklik 2026-10-23, Atakan
 onayıyla: Creative Tim Argon Dashboard (MIT) esinli görünüm; CSS/Bootstrap içeri
 ALINMADI). Tasarım sistemi `static/pano.css` başındaki Türkçe adlı CSS değişkenleri
-(`--renk-*`, `--yaricap*`, `--yazi-tipi`) ve üç tema: `argon` (Argon açık, `:root`),
-`argon-koyu`, `koyu` ("Taş Tahta") — `data-tema` ile. Kayıt yoksa sistem tercihi
+(`--renk-*`, `--yaricap*`, `--yazi-tipi`) ve altı tema: `argon` (Argon açık, `:root`),
+`argon-koyu`, `koyu` ("Taş Tahta"), `black`, `material`, `material-koyu` (Creative Tim
+Black/Material Dashboard esinli, 2026-10-23) — `data-tema` ile. Kenar menü renkleri
+`--renk-kenar-zemin/-metin/-soluk/-hover/-aktif-zemin/-aktif-metin/-cizgi`: `:root`'ta
+var() ile yüzey renklerinden türer, yalnız koyu kenar menülü temalar (Material) ezer. Kayıt yoksa sistem tercihi
 (açık→`argon`, koyu→`argon-koyu`); eski `klasik`/`yumusak` kayıtları `argon`'a eşlenir. frontend-design becerisi "sıfırdan ayırt edici
 kimlik kur" modunda çalıştırılmaz; disiplini (kısıtlılık, erişilebilirlik,
 klavye odağı, arayüz metni) mevcut token sistemi İÇİNDE uygulanır.
 - Ham hex renk yazılmaz, var olan değişken kullanılır.
-- Yeni bir değişken gerekiyorsa ÜÇ tema bloğunda da tanımlanır.
+- Yeni bir değişken gerekiyorsa TÜM tema bloklarında tanımlanır (ya da `:root`'ta var() ile türetilir).
+- Grafikler kütüphanesiz: satır içi SVG (`/sistem-durumu` trendleri) ya da HTML/CSS çubuk
+  (`/admin/rapor`, `admin._rapor_grafikleri`); Chart.js vb. eklenmez.
 - Arayüz metni Türkçe, cümle düzeninde (ALL-CAPS etiket yok).
 
 **Hiyerarşi ve taranabilirlik.** Sayfa başı sırası: Başlık > birincil

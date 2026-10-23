@@ -120,7 +120,7 @@
   </form>
   <form class="uz-eylem-form uz-eylem-url" method="post" action="/admin/uzaktan/web-ac">
     <input type="text" name="url" placeholder="https://… web sayfası adresi">
-    <button type="submit"><svg class="ikon"><use href="#ik-disa"/></svg> Sayfa Aç</button>
+    <button type="submit"><svg class="ikon"><use href="#ik-dis"/></svg> Sayfa Aç</button>
   </form>
   <form class="uz-eylem-form" method="post" action="/admin/uzaktan/chrome-kapat">
     <button type="submit"><svg class="ikon"><use href="#ik-kapat"/></svg> Chrome Kapat</button>
@@ -137,11 +137,28 @@
     </label>
     <button type="submit"><svg class="ikon"><use href="#ik-resim"/></svg> Duvar Kağıdı Değiştir</button>
   </form>
+  <form class="uz-eylem-form" method="post" action="/admin/uzaktan/yeniden-baslat"
+        data-onay="Seçili tahtalar YENİDEN BAŞLATILACAK (açık uygulamalar kapanır). Emin misin?">
+    <button type="submit" class="uz-tehlike"><svg class="ikon"><use href="#ik-yenile"/></svg> Yeniden Başlat</button>
+  </form>
 </div>
 
 <h2>Canlı ekranlar</h2>
-<p class="canli-bilgi" id="canli-bilgi">Açık tahtaların ekranı 15 saniyede bir yenilenir; büyütmek için görüntüye tıkla.</p>
+<p class="canli-bilgi" id="canli-bilgi">Açık tahtaların ekranı 15 saniyede bir yenilenir; büyütmek için görüntüye tıkla, eylemler için sağ tıkla.</p>
 <div class="canli-ekranlar" id="canli-ekranlar"></div>
+<div class="sag-menu" id="sag-menu" role="menu" hidden>
+  <div class="sag-menu-baslik" id="sag-menu-baslik"></div>
+  <button type="button" role="menuitem" data-yol="yoklama-ac"><svg class="ikon"><use href="#ik-onay"/></svg> Yoklama aç</button>
+  <button type="button" role="menuitem" data-yol="yoklama-kapat"><svg class="ikon"><use href="#ik-kapat"/></svg> Yoklama kapat</button>
+  <button type="button" role="menuitem" data-yol="web-ac"><svg class="ikon"><use href="#ik-dis"/></svg> Web sayfası aç…</button>
+  <button type="button" role="menuitem" data-yol="chrome-kapat"><svg class="ikon"><use href="#ik-kapat"/></svg> Chrome'u kapat</button>
+  <button type="button" role="menuitem" data-yol="ekran-karart"><svg class="ikon"><use href="#ik-ay"/></svg> Ekranı karart</button>
+  <button type="button" role="menuitem" data-yol="ekran-kaldir"><svg class="ikon"><use href="#ik-gunes"/></svg> Karartmayı kaldır</button>
+  <button type="button" role="menuitem" data-yol="duvar-kagidi"><svg class="ikon"><use href="#ik-resim"/></svg> Duvar kağıdı değiştir…</button>
+  <button type="button" role="menuitem" data-yol="buyut"><svg class="ikon"><use href="#ik-buyut"/></svg> Ekranı yeni sekmede aç</button>
+  <div class="sag-menu-ayrac"></div>
+  <button type="button" role="menuitem" data-yol="yeniden-baslat" class="sag-menu-tehlike"><svg class="ikon"><use href="#ik-yenile"/></svg> Yeniden başlat</button>
+</div>
 {% endblock %}
 
 {% block script %}
@@ -152,6 +169,10 @@ document.querySelectorAll('.uz-eylem-form').forEach(function (form) {
     if (secilenler.length === 0) {
       olay.preventDefault();
       alert('Lütfen en az bir tahta seç.');
+      return;
+    }
+    if (form.dataset.onay && !confirm(form.dataset.onay)) {
+      olay.preventDefault();
       return;
     }
     secilenler.forEach(function (kutu) {
@@ -318,7 +339,72 @@ async function canliDongu() {
   }
 }
 
-{% if not yukleniyor %}canliEkranlariKur({{ tahtalar | selectattr('ulasilabilir') | map(attribute='ad') | list | tojson }});{% endif %}
+{% if not yukleniyor %}// ---- Canlı ekran sağ tık menüsü (2026-10-23): seçili tek tahtaya toplu eylemlerin aynısı.
+// Eylem, toplu eylem formlarıyla aynı uca POST edilir → sonuç listesi sayfada görünür.
+const sagMenu = document.getElementById('sag-menu');
+let sagMenuTahta = null;
+
+function sagMenuKapat() { sagMenu.hidden = true; sagMenuTahta = null; }
+
+function tahtayaGonder(yol, ad, ek) {
+  const f = document.createElement('form');
+  f.method = 'post';
+  f.action = '/admin/uzaktan/' + yol;
+  const gizli = (n, v) => { const i = document.createElement('input'); i.type = 'hidden'; i.name = n; i.value = v; f.appendChild(i); };
+  gizli('tahta', ad);
+  if (ek) ek(f, gizli);
+  document.body.appendChild(f);
+  f.submit();
+}
+
+canliKap.addEventListener('contextmenu', e => {
+  const kart = e.target.closest('.canli-kart');
+  if (!kart) return;
+  e.preventDefault();
+  sagMenuTahta = kart.dataset.tahta;
+  document.getElementById('sag-menu-baslik').textContent = sagMenuTahta;
+  sagMenu.hidden = false;
+  const r = sagMenu.getBoundingClientRect();
+  sagMenu.style.left = Math.min(e.clientX, innerWidth - r.width - 8) + 'px';
+  sagMenu.style.top = Math.min(e.clientY, innerHeight - r.height - 8) + 'px';
+  sagMenu.querySelector('button').focus();
+});
+
+sagMenu.addEventListener('click', e => {
+  const b = e.target.closest('button[data-yol]');
+  if (!b || !sagMenuTahta) return;
+  const ad = sagMenuTahta, yol = b.dataset.yol;
+  sagMenuKapat();
+  if (yol === 'buyut') {
+    window.open(`/admin/uzaktan/ekran-goruntusu/${encodeURIComponent(ad)}?ham=1`, '_blank', 'noopener');
+  } else if (yol === 'web-ac') {
+    const url = prompt(`${ad}: açılacak web sayfası adresi`, 'https://');
+    if (url && url !== 'https://') tahtayaGonder(yol, ad, (f, gizli) => gizli('url', url));
+  } else if (yol === 'duvar-kagidi') {
+    const dosya = document.createElement('input');
+    dosya.type = 'file'; dosya.name = 'dosya'; dosya.accept = 'image/*';
+    dosya.addEventListener('change', () => {
+      if (dosya.files.length) tahtayaGonder(yol, ad, f => { f.enctype = 'multipart/form-data'; f.appendChild(dosya); });
+    });
+    dosya.click();
+  } else if (yol === 'yeniden-baslat') {
+    if (confirm(`${ad} YENİDEN BAŞLATILACAK (açık uygulamalar kapanır). Emin misin?`)) tahtayaGonder(yol, ad);
+  } else {
+    tahtayaGonder(yol, ad);
+  }
+});
+
+document.addEventListener('click', e => { if (!sagMenu.hidden && !sagMenu.contains(e.target)) sagMenuKapat(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !sagMenu.hidden) sagMenuKapat(); });
+window.addEventListener('scroll', () => { if (!sagMenu.hidden) sagMenuKapat(); }, { passive: true });
+sagMenu.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  e.preventDefault();
+  const d = [...sagMenu.querySelectorAll('button')], i = d.indexOf(document.activeElement);
+  d[(i + (e.key === 'ArrowDown' ? 1 : -1) + d.length) % d.length].focus();
+});
+
+canliEkranlariKur({{ tahtalar | selectattr('ulasilabilir') | map(attribute='ad') | list | tojson }});{% endif %}
 canliDongu();
 
 {% if yukleniyor %}

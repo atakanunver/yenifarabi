@@ -374,14 +374,17 @@ function trendGrafik(baslik, noktalar, bicim, sabitMaks) {
 }
 function trendCiz(trend, veri) {
   const yuzde = v => '%' + Math.round(v);
+  const derece = v => Math.round(v) + ' °C';
   const grafikler = [
     trendGrafik('CPU kullanımı', trend.map(n => [n.t, n.cpu]), yuzde, 100),
+    trendGrafik('CPU sıcaklığı', trend.map(n => [n.t, n.cpu_c]), derece, 100),
     trendGrafik('RAM', trend.map(n => [n.t, n.ram]), yuzde, 100),
   ];
   for (const g of veri.gpu) {
     const k = String(g.index);
     grafikler.push(trendGrafik(`GPU ${k} kullanımı`, trend.map(n => [n.t, n.gpu ? n.gpu[k] : null]), yuzde, 100));
     grafikler.push(trendGrafik(`GPU ${k} VRAM`, trend.map(n => [n.t, n.vram ? n.vram[k] : null]), yuzde, 100));
+    grafikler.push(trendGrafik(`GPU ${k} sıcaklığı`, trend.map(n => [n.t, n.gpu_c ? n.gpu_c[k] : null]), derece, 100));
   }
   grafikler.push(trendGrafik('Ollama API yanıtı', trend.map(n => [n.t, n.ollama_ms]), ms));
   grafikler.push(trendGrafik('RAG API (/ready) yanıtı', trend.map(n => [n.t, n.api_ms]), ms));

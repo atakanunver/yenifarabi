@@ -19,6 +19,42 @@
 
 {% set csv_kuyruk = '?baslangic=' + baslangic + '&bitis=' + bitis + (('&sinif_id=' + sinif_id|string) if sinif_id else '') %}
 
+{% if grafik.gunluk %}
+<h2>Grafikler</h2>
+<div class="rapor-grafikler">
+  <section class="grafik-kart">
+    <h3>Günlük devamsız öğrenci</h3>
+    <p class="rapor-aciklama">Gün içinde en az bir derste yok/izinli görünen öğrenci sayısı.
+      <span class="grafik-lejant"><i class="lejant-yok"></i>Yok <i class="lejant-izinli"></i>İzinli</span></p>
+    <div class="grafik-cubuklar" role="img" aria-label="Günlük devamsız öğrenci sayısı, {{ baslangic }} – {{ bitis }}">
+      {% for g in grafik.gunluk %}
+      {% set m = grafik.gunluk_maks or 1 %}
+      <div class="grafik-cubuk" title="{{ g.tarih }}: {{ g.yok }} yok, {{ g.izinli }} izinli">
+        <span class="cubuk-izinli" style="height: {{ (100 * g.izinli / m)|round(1) }}%"></span>
+        <span class="cubuk-yok" style="height: {{ (100 * g.yok / m)|round(1) }}%"></span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="grafik-eksen"><span>{{ grafik.gunluk[0].tarih }}</span><span>en yüksek {{ grafik.gunluk_maks }}</span><span>{{ grafik.gunluk[-1].tarih }}</span></div>
+  </section>
+  <section class="grafik-kart">
+    <h3>Sınıf bazında yoklama alınma oranı</h3>
+    <p class="rapor-aciklama">Alındı ÷ (alındı + alınmadı + tahta ulaşılamaz) ders saati.</p>
+    <div class="grafik-yatay">
+      {% for s in grafik.siniflar %}
+      <div class="yatay-satir" title="{{ s.sinif }}: {{ s.alindi }} / {{ s.toplam }} ders">
+        <span class="yatay-ad">{{ s.sinif }}</span>
+        <span class="yatay-iz"><span class="yatay-dolu {{ 'oran-iyi' if s.oran >= 90 else ('oran-orta' if s.oran >= 70 else 'oran-dusuk') }}" style="width: {{ s.oran }}%"></span></span>
+        <span class="yatay-deger">%{{ s.oran }}</span>
+      </div>
+      {% else %}
+      <p class="rapor-aciklama">Bu aralıkta değerlendirilecek ders yok.</p>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endif %}
+
 <h2>Öğrenci bazlı devamsızlık özeti</h2>
 <p class="rapor-aciklama">
   {{ baslangic }} – {{ bitis }} arası, "yoklama alındı" durumundaki derslerde kaç kez yok/izinli görünmüş.

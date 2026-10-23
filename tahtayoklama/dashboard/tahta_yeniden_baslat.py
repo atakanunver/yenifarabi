@@ -4,8 +4,9 @@ Reboot, tahtadaki `admin` hesabında YALNIZCA `/usr/bin/systemctl reboot`
 komutuna izin veren sudoers kuralıyla çalışır; komut o kuralla birebir aynı
 olmalı (ek argüman yok).
 
-Yalnızca ajan_api.py (makine API'si) kullanır. Ham stderr/stdout/IP asla
-dönmez.
+Kullananlar: ajan_api.py (makine API'si) ve 2026-10-23'ten beri panelin
+/admin/uzaktan/yeniden-baslat'ı (uzaktan_yonetim._yeniden_baslat_tek). Ham
+stderr/stdout/IP asla dönmez.
 """
 
 import time

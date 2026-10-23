@@ -785,7 +785,9 @@ async def _topla() -> dict:
     _trend.append({
         "t": round(simdi),
         "cpu": veri["cpu_kullanim_yuzde"],
+        "cpu_c": veri["cpu"].get("sicaklik_c"),
         "ram": veri["bellek"]["yuzde"],
+        "gpu_c": {str(g["index"]): g["sicaklik_c"] for g in gpu},
         "gpu": {str(g["index"]): g["kullanim_yuzde"] for g in gpu},
         "vram": {str(g["index"]): round(100 * g["bellek_kullanim_mb"] / g["bellek_toplam_mb"])
                  for g in gpu if g["bellek_toplam_mb"]},

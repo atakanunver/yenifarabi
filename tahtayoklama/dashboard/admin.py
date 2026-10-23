@@ -402,6 +402,31 @@ def _devamsizlik_sayaci(satirlar: list[dict]) -> list[dict]:
     return liste
 
 
+_ORAN_PAYDASI = {"alindi", "alinmadi", "tahta_ulasilamaz"}  # henuz_baslamadi/tahta_atanmamis girmez
+
+
+def _rapor_grafikleri(satirlar: list[dict]) -> dict:
+    """Rapor grafikleri (2026-10-23): günlük tekil devamsız/izinli öğrenci sayısı ve sınıf
+    bazında yoklama alınma oranı (alındı / alındı+alınmadı+ulaşılamaz)."""
+    gunler: dict[str, dict[str, set]] = {}
+    siniflar: dict[str, list[int]] = {}
+    for s in satirlar:
+        gun = gunler.setdefault(s["tarih"], {"yok": set(), "izinli": set()})
+        gun["yok"].update((s["sinif"], ad) for ad in s["yok_isimleri"])
+        gun["izinli"].update((s["sinif"], ad) for ad in s["izinli_isimleri"])
+        if s["durum"] in _ORAN_PAYDASI:
+            sayac = siniflar.setdefault(s["sinif"], [0, 0])
+            sayac[0] += s["durum"] == "alindi"
+            sayac[1] += 1
+    gunluk = [{"tarih": t, "yok": len(g["yok"]), "izinli": len(g["izinli"])} for t, g in sorted(gunler.items())]
+    return {
+        "gunluk": gunluk,
+        "gunluk_maks": max((g["yok"] + g["izinli"] for g in gunluk), default=0),
+        "siniflar": [{"sinif": ad, "alindi": a, "toplam": t, "oran": round(100 * a / t)}
+                     for ad, (a, t) in sorted(siniflar.items())],
+    }
+
+
 def _sayfala(satirlar: list, sayfa: str | None, boyut: int) -> tuple[list, int, int]:
     """(dilim, geçerli_sayfa, toplam_sayfa). Geçersiz/eksik/aralık dışı sayfa
     değeri en yakın geçerli sayfaya kıstırılır; boş listede (…, 1, 1)."""
@@ -440,6 +465,7 @@ async def rapor(
 
         detay = _rapor_verisi(conn, b, s, sinif_ad)
         devamsizlik = _devamsizlik_sayaci(detay)
+        grafik = _rapor_grafikleri(detay)
         detay_sayfasi, sayfa_int, toplam_sayfa = _sayfala(detay, sayfa, _RAPOR_SAYFA_BOYUTU)
     finally:
         conn.close()
@@ -448,7 +474,7 @@ async def rapor(
         request, "admin_rapor.html",
         {
             "baslangic": b, "bitis": s, "siniflar": siniflar, "sinif_id": sinif_id_int,
-            "detay": detay_sayfasi, "devamsizlik": devamsizlik,
+            "detay": detay_sayfasi, "devamsizlik": devamsizlik, "grafik": grafik,
             "sayfa": sayfa_int, "toplam_sayfa": toplam_sayfa, "toplam_kayit": len(detay),
         },
     )
