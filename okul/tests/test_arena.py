@@ -234,12 +234,12 @@ def _maraton(conn, kid, dogru, bitis, duzey=9, terk=False):
 
 def test_maraton_xp_idempotent_ve_tavan(conn, ornek):
     k = ornek["ogr1_k"]
-    a, b, c = (_maraton(conn, k, 7, f"2026-10-12 1{i}:00:00") for i in range(3))
+    a, *orta, c = (_maraton(conn, k, 7, f"2026-10-12 1{i}:00:00") for i in range(6))
     assert arena.maraton_xp(conn, k, a) == 70
     assert arena.maraton_xp(conn, k, a) == 0  # tekrar
-    assert arena.maraton_xp(conn, k, b) == 70
-    assert arena.maraton_xp(conn, k, c) == 0  # günde en çok 2 tur
-    assert arena.toplam_xp(conn, k) == 140
+    assert all(arena.maraton_xp(conn, k, m) == 70 for m in orta)
+    assert arena.maraton_xp(conn, k, c) == 0  # günde en çok 5 tur
+    assert arena.toplam_xp(conn, k) == 350
     gun2 = _maraton(conn, k, 3, "2026-10-13 09:00:00")
     assert arena.maraton_xp(conn, k, gun2) == 30
 

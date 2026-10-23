@@ -23,7 +23,7 @@ MIN_DUZEY, MAX_DUZEY = 9, 11  # 12. sınıf donduruldu
 XP_DOGRU = 10
 XP_BONUS = 10  # görevi tamamlama
 MARATON_XP_DOGRU = 10
-MARATON_GUNLUK_TUR = 2
+MARATON_GUNLUK_TUR = 5
 # seviye n (1'den başlar) XP eşiği = ESIKLER[n-1]
 ESIKLER = [0, 50, 120, 220, 350, 520, 740, 1000, 1300, 1650]
 
@@ -387,7 +387,7 @@ def rozetler(conn: sqlite3.Connection, kid: int) -> list[dict]:
 
 
 def maraton_xp(conn: sqlite3.Connection, kid: int, maraton_id: int) -> int:
-    """Tamamlanmış (terk edilmemiş) Maraton turu için XP: doğru x 10, günde en çok 2 tur.
+    """Tamamlanmış (terk edilmemiş) Maraton turu için XP: doğru x 10, günde en çok 5 tur.
     Idempotenttir: aynı tur için ikinci çağrı 0 döner. Geçmiş turlar geriye dönük işlenmez
     (yalnızca çağrıldığında). Düzey dışı (12. sınıf) XP almaz. Commit eder."""
     m = conn.execute(
