@@ -222,6 +222,8 @@ async def siniflar_listesi(request: Request):
 
 @router.post("/siniflar")
 async def sinif_ekle(request: Request):
+    # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/siniflar)
+    raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
     form = await request.form()
     ad = (form.get("ad") or "").strip()
     if not _SINIF_AD_RE.match(ad):
@@ -263,6 +265,8 @@ async def sinif_ogrencileri(request: Request, sinif_id: int):
 
 @router.post("/siniflar/{sinif_id}/ogrenciler")
 async def sinif_ogrencilerini_kaydet(request: Request, sinif_id: int):
+    # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/siniflar/{sinif_id}/ogrenciler)
+    raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
     form = await request.form()
     no_listesi = form.getlist("no")
     ad_listesi = form.getlist("ad_soyad")

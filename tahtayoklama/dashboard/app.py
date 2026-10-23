@@ -18,6 +18,7 @@ from starlette.middleware.gzip import GZipMiddleware
 
 import menu
 import admin
+import okul_ana_panel
 import ajan_api
 import okul_bilgisi
 import auth
@@ -112,6 +113,7 @@ app = FastAPI(lifespan=lifespan)
 app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=6)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(admin.router)
+app.include_router(okul_ana_panel.router)
 app.include_router(uzaktan_yonetim.router)
 app.include_router(ajan_api.router)
 app.include_router(okul_bilgisi.router)
