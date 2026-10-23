@@ -144,7 +144,7 @@
 </div>
 
 <h2>Canlı ekranlar</h2>
-<p class="canli-bilgi" id="canli-bilgi">Açık tahtaların ekranı 15 saniyede bir yenilenir; büyütmek için görüntüye tıkla, eylemler için sağ tıkla.</p>
+<p class="canli-bilgi" id="canli-bilgi">Açık tahtaların ekranı 30 saniyede bir yenilenir; büyütmek için görüntüye tıkla, eylemler için sağ tıkla.</p>
 <div class="canli-ekranlar" id="canli-ekranlar"></div>
 <div class="sag-menu" id="sag-menu" role="menu" hidden>
   <div class="sag-menu-baslik" id="sag-menu-baslik"></div>
@@ -272,10 +272,10 @@ async function tahtaDurumlariniGetir(yenile = false) {
   }
 }
 
-// ---- Canlı ekranlar: açık tahtalar sırayla, tur başına en çok 15 sn'de bir (2026-10-23).
+// ---- Canlı ekranlar: açık tahtalar sırayla, tur başına en çok 30 sn'de bir (2026-10-23).
 // Sıralı çekim: tahtaları/SSH'ı aynı anda yormaz. Sekme arka plandayken çekmez.
 // Duvar kağıdı vb. eylemden sonra sayfa yeniden yüklenir → ilk tur hemen yeni görüntüyü alır.
-const CANLI_ARALIK_MS = 15000, CANLI_ZAMAN_ASIMI_MS = 8000;
+const CANLI_ARALIK_MS = 30000, CANLI_ZAMAN_ASIMI_MS = 8000;
 const canliKap = document.getElementById('canli-ekranlar');
 let canliTahtalar = [];
 

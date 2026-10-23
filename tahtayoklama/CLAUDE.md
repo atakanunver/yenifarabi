@@ -253,7 +253,7 @@ kur-kaldır, "kapat butonunu karartmaya çevir".
   `uzaktan_yonetim._yeniden_baslat_tek`) — sudo işi `tahta_yeniden_baslat.py`'de kalır
   (admin hesabı + yalnız `systemctl reboot` sudoers, 120 sn bekleme); ders saatinde
   (`ders_saatinde_mi`) reddedilir, tarayıcıda onay sorulur. Makine API'si `EYLEMLER`'ine girmez.
-- **Canlı ekranlar (2026-10-23):** sayfa altında açık tahtaların ekranı 3 sütunda, 15 sn'de
+- **Canlı ekranlar (2026-10-23):** sayfa altında açık tahtaların ekranı 3 sütunda, 30 sn'de
   bir sırayla (`ekran-goruntusu?ham=1`, 8 sn zaman aşımı, sekme gizliyken durur). Karta sağ
   tık = tek tahtaya toplu eylem menüsü (aynı POST uçları).
 - X-ortamı (DISPLAY/XAUTHORITY/uid) keşfi tek yerde: `ssh_istemci.x_ortamini_kesfet()`
