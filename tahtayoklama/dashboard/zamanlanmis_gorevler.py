@@ -31,8 +31,8 @@ templates.env.globals["menu_agaci"] = menu.menu_agaci  # taban.html
 templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk  # taban.html kullanır
 
 BETIK = "/usr/local/sbin/farabi-zamanlayici"
-YONETILEN = ("kazanim-test", "kazanim-test-sonuc", "kazanim-test-aylik", "soru-havuzu-uret",
-             "farabi-idari-yukle", "farabi-tahta-karart-haftaici", "farabi-tahta-karart-haftasonu")
+# kazanim-test* zamanlayıcıları 2026-10-14'te silindi (listeden 2026-10-23'te çıktı).
+YONETILEN = ("soru-havuzu-uret", "farabi-idari-yukle", "farabi-tahta-karart-haftaici", "farabi-tahta-karart-haftasonu")
 GOREV_ONEKI = "farabi-gorev-"
 ID_DESENI = re.compile(r"^[a-z0-9][a-z0-9-]{0,29}$")
 EYLEM_ETIKETLERI = {"ekran_karart": "Ekranı karart", "ekran_kaldir": "Karartmayı kaldır",

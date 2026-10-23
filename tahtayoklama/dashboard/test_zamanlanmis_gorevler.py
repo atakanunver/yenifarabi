@@ -69,8 +69,8 @@ class TestSinif(unittest.TestCase):
         for ad in ("apt-daily", "logrotate", "farabi-gorev-", "farabi-gorev-A", "farabi-gorev-x;y", "../x"):
             self.assertEqual(zg.sinif(ad), "sistem", ad)
 
-    def test_yonetilen_yedi_birim(self):
-        self.assertEqual(len(zg.YONETILEN), 7)
+    def test_yonetilen_dort_birim(self):
+        self.assertEqual(len(zg.YONETILEN), 4)  # kazanim-test* 2026-10-14'te silindi
 
 
 class TestUclar(unittest.TestCase):
@@ -146,8 +146,8 @@ class TestUclar(unittest.TestCase):
     def test_ac_kapat_calistir_argumanlari(self):
         for eylem in ("ac", "kapat", "calistir"):
             self.sahte.reset_mock()
-            self._eylem({"eylem": eylem, "birim": "kazanim-test"})
-            self.sahte.assert_awaited_once_with(["sudo", "-n", BETIK, eylem, "kazanim-test"])
+            self._eylem({"eylem": eylem, "birim": "farabi-idari-yukle"})
+            self.sahte.assert_awaited_once_with(["sudo", "-n", BETIK, eylem, "farabi-idari-yukle"])
 
     def test_takvim_gun_kutularindan_ifade(self):
         self._eylem({"eylem": "takvim", "birim": "farabi-tahta-karart-haftaici",
@@ -156,16 +156,16 @@ class TestUclar(unittest.TestCase):
                                              "Mon..Fri *-*-* 21:30:00 Europe/Istanbul"])
 
     def test_takvim_gelismis_ifade_oncelikli(self):
-        self._eylem({"eylem": "takvim", "birim": "kazanim-test", "ifade": "Sat *-*-* 10:00:00", "gunler": ["Mon"],
+        self._eylem({"eylem": "takvim", "birim": "farabi-idari-yukle", "ifade": "Sat *-*-* 10:00:00", "gunler": ["Mon"],
                      "saat": "09:00"})
         self.assertEqual(self.sahte.await_args.args[0][-1], "Sat *-*-* 10:00:00")
 
     def test_takvim_gecersiz_saat_400(self):
-        self._reddedilir({"eylem": "takvim", "birim": "kazanim-test", "gunler": ["Mon"], "saat": "99:99"}, 400)
+        self._reddedilir({"eylem": "takvim", "birim": "farabi-idari-yukle", "gunler": ["Mon"], "saat": "99:99"}, 400)
 
     def test_betik_ifadeyi_reddederse_hata_gosterilir(self):
         self.sahte.return_value = (2, "", "farabi-zamanlayici: takvim ifadesi geçersiz")
-        yanit = self._eylem({"eylem": "takvim", "birim": "kazanim-test", "ifade": "bozuk"})
+        yanit = self._eylem({"eylem": "takvim", "birim": "farabi-idari-yukle", "ifade": "bozuk"})
         govde = json.loads(yanit.body)
         self.assertFalse(govde["ok"])
         self.assertIn("geçersiz", govde["mesaj"])
@@ -259,8 +259,9 @@ class TestListe(unittest.TestCase):
         p = sonuc["farabi-gorev-deneme"]
         self.assertEqual((p["sinif"], p["eylem"], p["tahtalar"]), ("panel", "ekran_karart", "9-A,9-B"))
         self.assertIn("sil", p["izinli"])
-        self.assertEqual(len(sonuc), 7 + 1 + 2)  # YONETILEN + panel + 2 sistem
-        self.assertIn("kazanim-test", sonuc)  # dosyada olmasa da yönetilen listede
+        self.assertEqual(len(sonuc), 4 + 1 + 2)  # YONETILEN + panel + 2 sistem
+        self.assertIn("farabi-idari-yukle", sonuc)  # dosyada olmasa da yönetilen listede
+        self.assertNotIn("kazanim-test", sonuc)  # 2026-10-14'te silindi
 
 
 class TestTahtaTarafi(unittest.TestCase):

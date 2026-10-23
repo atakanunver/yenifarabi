@@ -9,7 +9,7 @@ SYSTEMCTL="${FARABI_ZAMANLAYICI_SYSTEMCTL:-/usr/bin/systemctl}"
 ANALYZE="${FARABI_ZAMANLAYICI_ANALYZE:-/usr/bin/systemd-analyze}"
 DIZIN="${FARABI_ZAMANLAYICI_DIZIN:-/etc/systemd/system}"
 DASHBOARD="${FARABI_ZAMANLAYICI_DASHBOARD:-/home/ata/farabi/tahtayoklama/dashboard}"
-YONETILEN="kazanim-test kazanim-test-sonuc kazanim-test-aylik soru-havuzu-uret farabi-idari-yukle farabi-tahta-karart-haftaici farabi-tahta-karart-haftasonu"
+YONETILEN="soru-havuzu-uret farabi-idari-yukle farabi-tahta-karart-haftaici farabi-tahta-karart-haftasonu"
 EYLEMLER="ekran_karart ekran_kaldir yoklama_kapat chrome_kapat"
 GOREV_ONEKI="farabi-gorev-"
 
