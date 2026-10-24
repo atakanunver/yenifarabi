@@ -121,7 +121,7 @@
   <svg class="ikon ikon-buyuk" aria-hidden="true"><use href="#ik-kullanicilar"/></svg>
   <h2 class="kr-bos-baslik">Panoda gösterilecek aktif sınıf yok</h2>
   <p>Sınıfları ekleyip tahtalara atadığınızda yoklama durumu burada görünür.</p>
-  <a class="dugme" href="/admin/siniflar">Sınıflar ve tahtalar</a>
+  <a class="dugme dugme-ikincil" href="/admin/siniflar">Sınıflar ve tahtalar</a>
 </section>
 {% endif %}
 {% endblock %}
@@ -273,7 +273,7 @@ function sorunOgesi(o) {
   li.appendChild(git);
   const hucre = document.getElementById(`hucre-${o.sinif}-${o.dersNo}`);
   if (o.tur === 'yoklama' && hucre && hucre.dataset.tahtaId) {
-    const b = el('button', 'dugme dugme-kucuk sorun-eylem', 'Tahtada aç');
+    const b = el('button', 'dugme dugme-ikincil dugme-kucuk sorun-eylem', 'Tahtada aç');
     b.type = 'button';
     b.setAttribute('aria-label', `${o.sinif} tahtasında yoklama ekranını aç`);
     b.addEventListener('click', () => uzaktanBaslat(hucre));
@@ -301,8 +301,9 @@ function uyariSeriti(satirlar, bugunMu) {
         aciklama: `${s.ders_no}. ders${s.ders_kisa_adi ? ' · ' + s.ders_kisa_adi : ''} · yoklama alınmadı` });
     } else if (s.durum === 'tahta_ulasilamaz') {
       const o = ulasilamaz.get(s.sinif);
+      // yoklayici kaydı olmayan her derse bu durumu yazar; kesintinin başladığı ders bilinmez
       if (!o || s.ders_no < o.dersNo) ulasilamaz.set(s.sinif, { tur: 'tahta', sinif: s.sinif, dersNo: s.ders_no,
-        aciklama: `tahta ulaşılamıyor (${s.ders_no}. dersten beri)` });
+        aciklama: 'tahta ulaşılamıyor' });
     } else if (s.durum === 'tahta_atanmamis') atanmamis.add(s.sinif);
   }
 
@@ -315,9 +316,13 @@ function uyariSeriti(satirlar, bugunMu) {
     tr.classList.toggle('satir-sorunlu', sorunlu.has(sinif));
     tr.classList.toggle('satir-tahta-sorunlu', ulasilamaz.has(sinif));
   });
-  trler.sort((a, b) => (b.classList.contains('satir-sorunlu') - a.classList.contains('satir-sorunlu'))
-                       || (a.dataset.sira - b.dataset.sira))
-       .forEach(tr => govde.appendChild(tr));
+  const sirali = [...trler].sort((a, b) => (b.classList.contains('satir-sorunlu') - a.classList.contains('satir-sorunlu'))
+                                          || (a.dataset.sira - b.dataset.sira));
+  if (sirali.some((tr, i) => tr !== trler[i])) {
+    const odak = govde.contains(document.activeElement) ? document.activeElement : null;  // taşıma odağı düşürür
+    sirali.forEach(tr => govde.appendChild(tr));
+    if (odak) odak.focus({ preventScroll: true });
+  }
 
   const kutu = document.getElementById('uyari-seridi');
   const sorunlar = [...ulasilamaz.values(), ...alinmadi];
