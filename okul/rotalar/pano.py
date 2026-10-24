@@ -16,6 +16,7 @@ import oduller
 import zaman
 from ayarlar import AYAR
 from fastapi import APIRouter, HTTPException, Request
+from kaynaklar import dogum
 
 router = APIRouter()
 
@@ -87,6 +88,15 @@ def _maraton_birincisi(conn) -> dict | None:
     }
 
 
+def _dogum_ogesi() -> dict | None:
+    """Bugün (pazartesi: hafta sonu dahil) doğum günü olanlar için kutlama; kimse yoksa None."""
+    kisiler = dogum.bugunun_dogumlari(zaman.simdi().date())
+    if not kisiler:
+        return None
+    adlar = ", ".join(f"{k['ad']} ({k['sinif']})" if k["sinif"] else k["ad"] for k in kisiler)
+    return {"baslik": "DOĞUM GÜNÜ", "metin": f"{adlar} — doğum gününüz kutlu olsun!"}
+
+
 @router.get("/api/pano", include_in_schema=False)
 async def pano(request: Request):
     if not _lan_mi(request):
@@ -116,6 +126,12 @@ async def pano(request: Request):
     if birinci:
         duyuru.insert(0, birinci)
     duyuru[0:0] = odul_ogeleri
+    try:
+        dogum_ogesi = _dogum_ogesi()
+    except Exception:  # noqa: BLE001 — kutlama kaynağı pano ucunu düşürmesin
+        dogum_ogesi = None
+    if dogum_ogesi:
+        duyuru.insert(0, dogum_ogesi)
     return {
         "duyurular": duyuru,
         "program": program,

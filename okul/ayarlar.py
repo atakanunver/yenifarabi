@@ -15,6 +15,7 @@ class Ayarlar:
     pano_db_yolu: Path = field(
         default=FARABI / "tahtayoklama" / "dashboard" / "veri" / "yoklama_pano.db"
     )
+    sms_db_yolu: Path = FARABI / "smssistemi" / "veri" / "smssistemi.db"  # doğum günü kutlaması (salt-okunur)
     program_yolu: Path = FARABI / "mudur" / "ders_programi.json"
     zil_yolu: Path = FARABI / "tahtayoklama" / "data" / "zil.json"
     takvim_yolu: Path = KOK / "config" / "takvim.json"
