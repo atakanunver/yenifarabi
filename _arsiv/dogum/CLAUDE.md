@@ -1,3 +1,5 @@
+> 📦 **2026-10-24: ARŞİVLENDİ (Atakan).** `dogum/` → `_arsiv/dogum/`. Hâlâ uykuda; işlevini smssistemi Doğum Günleri modülü ve kiosk pano kutlaması aldı. Canlandırma/silme yalnızca açıkça istenirse.
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.

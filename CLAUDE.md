@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Farabi
 Sınıf akıllı tahtalarında sesli ders asistanı + aynı sunucuda okul operasyon
 servisleri (yoklama panosu, SMS). Monorepo; her alt projenin kendi `CLAUDE.md`'si
-var (client, server, tahtayoklama, smssistemi, tahtaayar, benchmark, mudur, dogum,
+var (client, server, tahtayoklama, smssistemi, tahtaayar, benchmark, mudur,
 soruhavuzu, kazanimtest, okul; `openwebui/`, `webui-tema/` için CLAUDE.md yok). Bu dosya: ortak kurallar + servisler arası resim.
 
 - Kararlar/neden: `DECISIONS.md` (`grep "## <tarih>"`). Mimari (2026-09-13'te
@@ -24,7 +24,7 @@ soruhavuzu, kazanimtest, okul; `openwebui/`, `webui-tema/` için CLAUDE.md yok).
 ## Mevcut durum (kalıcı)
 - `farabi-idari-yukle.timer` KALICI KAPALI (2026-10-10), açıkça istenmeden açma.
   `kazanim-test*` üç zamanlayıcı SİLİNDİ (2026-10-14); kazanım testi KALICI İPTAL (2026-10-24),
-  açıkça istenmeden yeniden açma/önerme (birim dosyaları `kazanimtest/systemd/` altında duruyor). İSTİSNA: `soru-havuzu-uret.timer` Atakan tarafından bilerek yeniden AÇILDI
+  açıkça istenmeden yeniden açma/önerme (birim dosyaları `_arsiv/kazanimtest-systemd/` altında). İSTİSNA: `soru-havuzu-uret.timer` Atakan tarafından bilerek yeniden AÇILDI
   (2026-10-14 itibarıyla açık; her gün 00:00 TR başlar, 06:00'da durur). Kapatma, açıkça istenmeden yapılmaz.
 - 9-11 çalışmaları Maarif modeline göre (2026-10-10).
 - Ollama'da TEK model `qwen3.8:27b` (iki RTX 3060); başka model kurulmaz. Çağıran
@@ -72,7 +72,7 @@ Servisler arası bağ = HTTP + HMAC/paylaşılan anahtar. Tek DB istisnası: sms
 - Tahta SSH: `server/tahta-ssh.sh [--admin] <derslik> "<komut>"`. Server logu
   yalnızca `journalctl -u farabi-api.service`.
 - Lint: `.venv-tools/bin/ruff check <dokunduğun dosya>`; F821/F811/F632 sıfır kalmalı,
-  toplam sayı artmamalı. Büyük `--fix`/`format` yapma. `mudur/`, `dogum/` kapsam dışı.
+  toplam sayı artmamalı. Büyük `--fix`/`format` yapma. `mudur/` kapsam dışı; `dogum/` `_arsiv/dogum/`'a taşındı (2026-10-24).
 
 ## Temel Kurallar
 1. Client ince; ağır iş sunucuda. 2. Farabi asla dersi bozmaz (servis çökerse tahta çalışır).
