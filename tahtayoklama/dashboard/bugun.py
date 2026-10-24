@@ -15,6 +15,7 @@ from fastapi.templating import Jinja2Templates
 import auth
 import db
 import menu
+import program_esitligi
 import tahta_saglik
 import veli_mesajlari
 import zil
@@ -91,5 +92,5 @@ async def bugun_sayfa(request: Request):
     return templates.TemplateResponse(
         request,
         "bugun.html",
-        {"tarih": tarih, "yoklama": yoklama, "tahta": tahta, "veli": veli_mesajlari.sayac_getir()},
+        {"tarih": tarih, "yoklama": yoklama, "tahta": tahta, "veli": veli_mesajlari.sayac_getir(), "program": program_esitligi.program_farki()},
     )

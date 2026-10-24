@@ -65,6 +65,23 @@
 <p class="ipucu">Tüm tahtalar çevrimiçi ve sorunsuz.</p>
 {% endif %}
 
+{% if program.hata %}
+<p class="ipucu"><span class="rozet rozet-amber">Ders programı kopyaları karşılaştırılamadı</span> ({{ program.hata }})</p>
+{% elif program.toplam %}
+<h2>Ders programı kopyaları eşit değil</h2>
+<p><span class="rozet rozet-amber">{{ program.toplam }} hücre farklı</span>
+  <span class="ipucu">Farabi tahtaları ve dijital okul <code>mudur/ders_programi.json</code>'u, pano ise <code>tahtayoklama/data/ders_programi.json</code>'u kullanır. <code>mudur/ders_programi_yukle.py</code> ve <code>tahtayoklama/dashboard/scripts/ders_programi_yukle.py</code> aynı sonucu vermeli.</span></p>
+<table class="tablo">
+  <thead><tr><th>Sınıf</th><th>Gün</th><th>Ders saati</th><th>Farabi / okul</th><th>Pano</th></tr></thead>
+  <tbody>
+    {% for f in program.fark %}
+    <tr><td>{{ f.sinif }}</td><td>{{ f.gun }}</td><td>{{ f.saat }}</td><td>{{ f.mudur or "yok" }}</td><td>{{ f.pano or "yok" }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if program.toplam > program.fark|length %}<p class="ipucu">İlk {{ program.fark|length }} fark gösteriliyor.</p>{% endif %}
+{% endif %}
+
 <h2>Kısayollar</h2>
 <p>
   <a class="dugme dugme-ikincil" href="/kameralar">Kameralar</a>
