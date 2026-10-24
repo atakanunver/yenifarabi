@@ -1,1 +1,0 @@
-2026-10-24 | Sudoku ipucu düğmesi: oyun başına 3, her biri skora +15 sn; önce yanlış doldurulan kutuyu açar (şema V34, düello + bot) | Atakan isteği (öğrenci ipucu bulamadı; '40 ipucu' etiketi hazır rakam sayısıydı). Ceza yazıldığı için yarışta haksız avantaj olmaz; ipucu düello ve bot skoruna, kişisel gelişim hesabına dahil
