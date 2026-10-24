@@ -34,20 +34,6 @@
 <p class="ipucu">Bu ay için yoklama kaydı yok.</p>
 {% endif %}
 
-<h2>Kazanım testleri</h2>
-{% if kazanim.siniflar %}
-<table class="tablo">
-  <thead><tr><th>Sınıf</th><th>Test sayısı</th><th>Ortalama katılım (öğrenci)</th><th>Ortalama doğru oranı</th></tr></thead>
-  <tbody>
-    {% for s in kazanim.siniflar %}
-    <tr><td>{{ s.ad }}</td><td>{{ s.test }}</td><td>{{ s.katilim }}</td><td>%{{ s.oran }}</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p class="ipucu">Bu ay kazanım testi yapılmadı. Kazanım test zamanlayıcıları kapalıdır; eski sonuçlar <a href="/kazanim">Kazanım raporu</a>'nda.</p>
-{% endif %}
-
 <h2>Dijital okul etkinliği</h2>
 {% if etkinlik and etkinlik.roller %}
 <table class="tablo">

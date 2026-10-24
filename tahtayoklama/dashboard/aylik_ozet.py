@@ -1,7 +1,7 @@
-"""Aylık yönetici özeti (`/aylik-ozet`, 2026-10-24): yoklama + kazanım testi + dijital okul etkinliği.
+"""Aylık yönetici özeti (`/aylik-ozet`, 2026-10-24): yoklama + dijital okul etkinliği.
 
 Yalnızca toplu sayılar; öğrenci adı/okul no hiçbir yerde gösterilmez (isimli döküm `/admin/rapor`).
-Kaynaklar salt-okunur: panonun `yoklama_onbellek`'i, `kazanim_rapor` dosyaları ve dijital okulun
+Kaynaklar salt-okunur: panonun `yoklama_onbellek`'i ve dijital okulun
 `olay` tablosu (okul.db, `mode=ro`). Bir kaynak yoksa/bozuksa o bölüm empty-state gösterir.
 """
 
@@ -19,7 +19,6 @@ from fastapi.templating import Jinja2Templates
 
 import auth
 import db
-import kazanim_rapor
 import menu
 import zil
 
@@ -94,28 +93,6 @@ def yoklama_ozeti(conn, ilk: date, son: date) -> dict:
     }
 
 
-def kazanim_ozeti(ilk: date, son: date) -> dict:
-    """Ayın kazanım testleri (sınıf başına test sayısı, ortalama katılım ve doğru oranı)."""
-    siniflar = []
-    for ad in kazanim_rapor.sinif_adlari():
-        rapor, _hata = kazanim_rapor._rapor_oku(ad)
-        if rapor is None:
-            continue
-        testler = [
-            t for t in kazanim_rapor._sozluk_listesi(rapor.get("testler"))
-            if ilk.isoformat() <= kazanim_rapor._metin(t.get("tarih"))[:10] <= son.isoformat()
-        ]
-        if not testler:
-            continue
-        siniflar.append({
-            "ad": ad,
-            "test": len(testler),
-            "katilim": round(sum(kazanim_rapor._tam(t.get("katilim")) for t in testler) / len(testler)),
-            "oran": round(100 * sum(kazanim_rapor._sayi(t.get("ortalama_oran")) for t in testler) / len(testler)),
-        })
-    return {"siniflar": siniflar, "test": sum(s["test"] for s in siniflar)}
-
-
 def etkinlik_ozeti(ilk: date, son: date, yol: Path = OKUL_DB) -> dict | None:
     """Dijital okulda ayda en az bir gün aktif olan kullanıcı sayısı (role göre) / kayıtlı; kaynak yoksa None."""
     if not yol.exists():
@@ -165,7 +142,6 @@ async def aylik_ozet_sayfa(request: Request, ay: str | None = None):
             "sonraki": _ay_kaydir(ay, 1) if ay < bu_ay else None,
             "devam_ediyor": ay == bu_ay,
             "yoklama": yoklama,
-            "kazanim": kazanim_ozeti(ilk, son),
             "etkinlik": etkinlik_ozeti(ilk, son),
         },
     )

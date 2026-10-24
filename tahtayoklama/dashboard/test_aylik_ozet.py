@@ -4,10 +4,8 @@ import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
-from unittest import mock
 
 import aylik_ozet
-import kazanim_rapor
 
 
 def _yoklama_db(satirlar):
@@ -51,21 +49,6 @@ class TestYoklamaOzeti(unittest.TestCase):
     def test_kayit_yok(self):
         o = aylik_ozet.yoklama_ozeti(_yoklama_db([]), date(2026, 9, 1), date(2026, 9, 30))
         self.assertEqual((o["siniflar"], o["oran"], o["gun"]), ([], 0, 0))
-
-
-class TestKazanimOzeti(unittest.TestCase):
-    def test_yalniz_ayin_testleri(self):
-        with tempfile.TemporaryDirectory() as d:
-            (Path(d) / "9-A.json").write_text(json.dumps({"testler": [
-                {"tarih": "2026-09-15", "katilim": 20, "ortalama_oran": 0.6},
-                {"tarih": "2026-09-22", "katilim": 10, "ortalama_oran": 0.8},
-                {"tarih": "2026-10-06", "katilim": 99, "ortalama_oran": 1.0},
-            ]}), encoding="utf-8")
-            with mock.patch.object(kazanim_rapor, "RAPOR_DIZINI", Path(d)):
-                o = aylik_ozet.kazanim_ozeti(date(2026, 9, 1), date(2026, 9, 30))
-                bos = aylik_ozet.kazanim_ozeti(date(2026, 8, 1), date(2026, 8, 31))
-        self.assertEqual(o["siniflar"], [{"ad": "9-A", "test": 2, "katilim": 15, "oran": 70}])
-        self.assertEqual(bos, {"siniflar": [], "test": 0})
 
 
 class TestEtkinlikOzeti(unittest.TestCase):
