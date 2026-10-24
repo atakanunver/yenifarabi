@@ -5,7 +5,7 @@ import unittest
 import menu
 from app import app
 
-DAHILI = {"/", "/admin/siniflar", "/admin/rapor", "/kazanim",
+DAHILI = {"/", "/admin/siniflar", "/admin/rapor",
           "/admin/uzaktan", "/servisler", "/sistem-durumu", "/sunucular", "/veli-mesajlari",
           "/acil", "/kulup-yoklama", "/admin/kulupler", "/kameralar", "/kameralar-ip", "/zamanlanmis-gorevler"}
 

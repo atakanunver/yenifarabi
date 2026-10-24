@@ -77,7 +77,6 @@ MENU: list[dict] = [
         "kisayol": "e",
         "ikon": "hedef",
         "ogeler": [
-            {"ad": "Kazanım raporu", "href": "/kazanim", "ikon": "hedef"},
             {"ad": "smual.app", "href": SMUAL_URL, "ikon": "yildiz", "yeni_sekme": True},
             {"ad": "smual.app yönetim", "href": SMUAL_YONETIM_URL, "ikon": "kaydirici", "yeni_sekme": True},
         ],

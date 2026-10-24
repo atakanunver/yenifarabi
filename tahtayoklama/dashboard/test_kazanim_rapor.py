@@ -149,7 +149,7 @@ class KazanimRaporTest(unittest.TestCase):
 
     def test_alanlari_eksik_rapor_500_vermez(self):
         self._rapor_yaz(veri={"testler": [{"sorular": "x"}], "ogrenciler": [{"okul_no": None}], "kazanimlar": [1, None]})
-        self.assertIn("Kazanım raporu", self._html())
+        self.assertIn("<title>Kazanımlar", self._html())
 
     def test_yol_enjeksiyonu(self):
         (Path(self._tmp.name) / "x.json").write_text(json.dumps(RAPOR), encoding="utf-8")
