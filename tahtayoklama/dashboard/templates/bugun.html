@@ -1,0 +1,73 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Bugün — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Bugün{% endblock %}
+
+{% block icerik %}
+<div class="kpi-satir">
+  <div class="kpi">
+    <span class="kpi-etiket">Bugün en az bir derste yok</span>
+    <strong>{{ yoklama.toplam_yok }}</strong>
+    <a href="/admin/rapor">İsimli döküm</a>
+  </div>
+  <div class="kpi">
+    <span class="kpi-etiket">Yoklaması alınmayan ders</span>
+    <strong>{{ yoklama.alinmayan_ders }}</strong>
+    {% if yoklama.alinmayan_ders %}<span class="rozet rozet-amber">Takip et</span>{% endif %}
+  </div>
+  <div class="kpi">
+    <span class="kpi-etiket">Tahtası ulaşılamayan ders</span>
+    <strong>{{ yoklama.ulasilamayan_ders }}</strong>
+    {% if yoklama.ulasilamayan_ders %}<span class="rozet rozet-kirmizi">Kontrol et</span>{% endif %}
+  </div>
+  <div class="kpi">
+    <span class="kpi-etiket">Sorunlu tahta</span>
+    <strong>{{ tahta.sorunlu|length }} / {{ tahta.toplam }}</strong>
+    {% if not tahta.sorunlu %}<span class="rozet rozet-yesil">Hepsi iyi</span>{% endif %}
+  </div>
+  {% if veli %}
+  <div class="kpi">
+    <span class="kpi-etiket">Okunmamış veli mesajı</span>
+    <strong>{{ veli.okunmamis }}</strong>
+    <a href="/veli-mesajlari">Mesajlar</a>
+  </div>
+  {% endif %}
+</div>
+
+<h2>Sınıflara göre yoklama</h2>
+{% if yoklama.siniflar %}
+<table class="tablo">
+  <thead><tr><th>Sınıf</th><th>Alınan ders</th><th>Alınmayan</th><th>Ulaşılamayan</th><th>Yok olan öğrenci</th></tr></thead>
+  <tbody>
+    {% for s in yoklama.siniflar %}
+    <tr>
+      <td>{{ s.ad }}</td>
+      <td>{{ s.alindi }}</td>
+      <td>{% if s.alinmadi %}<span class="rozet rozet-amber">{{ s.alinmadi }}</span>{% else %}0{% endif %}</td>
+      <td>{% if s.ulasilamaz %}<span class="rozet rozet-kirmizi">{{ s.ulasilamaz }}</span>{% else %}0{% endif %}</td>
+      <td>{{ s.yok }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="ipucu">Bugün için yoklama kaydı yok. Ders saatleri başlayınca burada görünür.</p>
+{% endif %}
+
+<h2>Tahtalar</h2>
+{% if tahta.sorunlu %}
+<ul>
+  {% for t in tahta.sorunlu %}
+  <li>{{ t.ad }} <span class="rozet {{ 'rozet-kirmizi' if t.seviye != 'uyari' else 'rozet-amber' }}">{{ t.durum }}</span></li>
+  {% endfor %}
+</ul>
+<p><a href="/sistem-durumu">Sistem durumu</a> · <a href="/admin/uzaktan">Uzaktan yönetim</a></p>
+{% else %}
+<p class="ipucu">Tüm tahtalar çevrimiçi ve sorunsuz.</p>
+{% endif %}
+
+<h2>Kısayollar</h2>
+<p>
+  <a class="dugme dugme-ikincil" href="/kameralar">Kameralar</a>
+  <a class="dugme dugme-ikincil" href="/yoklama-sms-git" target="_blank" rel="noopener">Yoklama SMS</a>
+</p>
+{% endblock %}

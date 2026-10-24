@@ -33,6 +33,8 @@ import tahta_saglik
 import sunucular
 import tahta_api
 import acil
+import aylik_ozet
+import bugun
 import guvenlik
 import kameralar
 import kulup_yoklama
@@ -126,6 +128,8 @@ app.include_router(veli_mesajlari.router)
 app.include_router(kameralar.router)
 app.include_router(kulup_yoklama.router)
 app.include_router(acil.router)
+app.include_router(bugun.router)
+app.include_router(aylik_ozet.router)
 app.include_router(guvenlik.router)
 app.include_router(yakinda.router)
 

@@ -1,0 +1,65 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Aylık özet — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Aylık özet · {{ ay_adi }}{% endblock %}
+
+{% block icerik %}
+<p>
+  <a class="dugme dugme-ikincil dugme-kucuk" href="/aylik-ozet?ay={{ onceki }}">← Önceki ay</a>
+  {% if sonraki %}<a class="dugme dugme-ikincil dugme-kucuk" href="/aylik-ozet?ay={{ sonraki }}">Sonraki ay →</a>{% endif %}
+  {% if devam_ediyor %}<span class="rozet rozet-amber">Ay devam ediyor, sayılar kesin değil</span>{% endif %}
+</p>
+<p class="ipucu">Yalnızca toplu sayılar gösterilir; öğrenci adı yok. İsimli döküm için <a href="/admin/rapor">Rapor</a>.</p>
+
+<h2>Yoklama</h2>
+{% if yoklama.siniflar %}
+<div class="kpi-satir">
+  <div class="kpi"><span class="kpi-etiket">Yoklama alınan gün</span><strong>{{ yoklama.gun }}</strong></div>
+  <div class="kpi"><span class="kpi-etiket">Derslerin yoklaması alınma oranı</span><strong>%{{ yoklama.oran }}</strong></div>
+  <div class="kpi"><span class="kpi-etiket">En az bir derste yok olan öğrenci</span><strong>{{ yoklama.yok_ogrenci }}</strong></div>
+  <div class="kpi"><span class="kpi-etiket">Toplam ders devamsızlığı</span><strong>{{ yoklama.yok_ders }}</strong></div>
+</div>
+<table class="tablo">
+  <thead><tr><th>Sınıf</th><th>Ders</th><th>Yoklaması alınan</th><th>Alınma oranı</th><th>Yok olan öğrenci</th><th>Ders devamsızlığı</th></tr></thead>
+  <tbody>
+    {% for s in yoklama.siniflar %}
+    <tr>
+      <td>{{ s.ad }}</td><td>{{ s.ders }}</td><td>{{ s.alindi }}</td>
+      <td>{% if s.oran < 50 %}<span class="rozet rozet-kirmizi">%{{ s.oran }}</span>{% elif s.oran < 80 %}<span class="rozet rozet-amber">%{{ s.oran }}</span>{% else %}%{{ s.oran }}{% endif %}</td>
+      <td>{{ s.yok_ogrenci }}</td><td>{{ s.yok_ders }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="ipucu">Bu ay için yoklama kaydı yok.</p>
+{% endif %}
+
+<h2>Kazanım testleri</h2>
+{% if kazanim.siniflar %}
+<table class="tablo">
+  <thead><tr><th>Sınıf</th><th>Test sayısı</th><th>Ortalama katılım (öğrenci)</th><th>Ortalama doğru oranı</th></tr></thead>
+  <tbody>
+    {% for s in kazanim.siniflar %}
+    <tr><td>{{ s.ad }}</td><td>{{ s.test }}</td><td>{{ s.katilim }}</td><td>%{{ s.oran }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="ipucu">Bu ay kazanım testi yapılmadı. Kazanım test zamanlayıcıları kapalıdır; eski sonuçlar <a href="/kazanim">Kazanım raporu</a>'nda.</p>
+{% endif %}
+
+<h2>Dijital okul etkinliği</h2>
+{% if etkinlik and etkinlik.roller %}
+<table class="tablo">
+  <thead><tr><th>Kullanıcı</th><th>Ayda en az bir gün giren</th><th>Kayıtlı</th><th>Oran</th></tr></thead>
+  <tbody>
+    {% for r in etkinlik.roller %}
+    <tr><td>{{ r.ad }}</td><td>{{ r.aktif }}</td><td>{{ r.kayitli }}</td><td>%{{ r.oran }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if etkinlik.veri_baslangici %}<p class="ipucu">Kullanım verisi {{ etkinlik.veri_baslangici }} tarihinden başlıyor; öncesi için sayı yok.</p>{% endif %}
+{% else %}
+<p class="ipucu">Dijital okul kullanım verisine şu an ulaşılamıyor.</p>
+{% endif %}
+{% endblock %}
