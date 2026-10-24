@@ -299,8 +299,9 @@ function uyariSeriti(satirlar, bugunMu) {
     if (s.durum === 'alinmadi') {
       alinmadi.push({ tur: 'yoklama', sinif: s.sinif, dersNo: s.ders_no,
         aciklama: `${s.ders_no}. ders${s.ders_kisa_adi ? ' · ' + s.ders_kisa_adi : ''} · yoklama alınmadı` });
-    } else if (s.durum === 'tahta_ulasilamaz' && !ulasilamaz.has(s.sinif)) {
-      ulasilamaz.set(s.sinif, { tur: 'tahta', sinif: s.sinif, dersNo: s.ders_no,
+    } else if (s.durum === 'tahta_ulasilamaz') {
+      const o = ulasilamaz.get(s.sinif);
+      if (!o || s.ders_no < o.dersNo) ulasilamaz.set(s.sinif, { tur: 'tahta', sinif: s.sinif, dersNo: s.ders_no,
         aciklama: `tahta ulaşılamıyor (${s.ders_no}. dersten beri)` });
     } else if (s.durum === 'tahta_atanmamis') atanmamis.add(s.sinif);
   }
@@ -340,14 +341,24 @@ function uyariSeriti(satirlar, bugunMu) {
   liste.hidden = !sorunlar.length;
 }
 
-function ilerlemeyiGuncelle(alinan, bekleyen) {
+// yoklayici tahtaya ulaşamayınca başlamamış dersleri de tahta_ulasilamaz yazar; bugün için saate bak
+function dersBasladiMi(dersNo, bugunMu) {
+  if (!bugunMu) return true;
+  const th = document.querySelector(`.th-ders[data-ders-no="${dersNo}"]`);
+  const simdi = new Date();
+  const saat = String(simdi.getHours()).padStart(2, '0') + ':' + String(simdi.getMinutes()).padStart(2, '0');
+  return !!(th && th.dataset.baslangic && th.dataset.baslangic <= saat);
+}
+
+function ilerlemeyiGuncelle(alinan, bekleyen, bilinmeyen) {
   const kap = document.getElementById('pano-ilerleme');
-  const toplam = alinan + bekleyen;
+  const toplam = alinan + bekleyen + bilinmeyen;
   kap.hidden = toplam === 0;
   if (!toplam) return;
   const yuzde = Math.round(100 * alinan / toplam);
-  kap.dataset.durum = bekleyen ? 'eksik' : 'tamam';
-  metniYaz('ilerleme-metin', `Başlamış derslerde yoklama: %${yuzde} (${alinan}/${toplam})`);
+  kap.dataset.durum = bekleyen || bilinmeyen ? 'eksik' : 'tamam';
+  metniYaz('ilerleme-metin', `Başlamış derslerde yoklama: %${yuzde} (${alinan}/${toplam})` +
+    (bilinmeyen ? ` · ${bilinmeyen} ders tahtaya ulaşılamadığı için bilinmiyor` : ''));
   document.getElementById('ilerleme-dolu').style.width = yuzde + '%';
   document.getElementById('ilerleme-cubuk').setAttribute('aria-valuenow', yuzde);
 }
@@ -382,7 +393,8 @@ async function tabloyuGuncelle(ilkVeri) {
   }
   noktalariGuncelle(veri.tahta_acik);
   const bulunanlar = new Set();
-  let tam = 0, yokSayac = 0, bekleyen = 0;
+  let tam = 0, yokSayac = 0, bekleyen = 0, bilinmeyen = 0;
+  const bugunMu = tarih === TARIH_SECICI.max;
   for (const satir of veri.satirlar) {
     const hucre = document.getElementById(`hucre-${satir.sinif}-${satir.ders_no}`);
     if (!hucre) continue;
@@ -392,17 +404,18 @@ async function tabloyuGuncelle(ilkVeri) {
       if (listeOku(satir.yok_isimleri).length || listeOku(satir.izinli_isimleri).length) yokSayac++;
       else tam++;
     } else if (satir.durum === 'alinmadi') bekleyen++;
+    else if (satir.durum === 'tahta_ulasilamaz' && dersBasladiMi(satir.ders_no, bugunMu)) bilinmeyen++;
   }
   document.querySelectorAll('.hucre.durum-yukleniyor').forEach(h => {
     if (!bulunanlar.has(h.id)) { h.classList.remove('durum-yukleniyor'); h.replaceChildren(); }
   });
 
-  uyariSeriti(veri.satirlar, tarih === TARIH_SECICI.max);
+  uyariSeriti(veri.satirlar, bugunMu);
   document.getElementById('ozet-tam-ders').textContent = tam;
   document.getElementById('ozet-yok-ders').textContent = yokSayac;
   document.getElementById('ozet-bekleyen-ders').textContent = bekleyen;
   document.getElementById('ozet-bekleyen-kart').classList.toggle('ozet-dikkat', bekleyen > 0);
-  ilerlemeyiGuncelle(tam + yokSayac, bekleyen);
+  ilerlemeyiGuncelle(tam + yokSayac, bekleyen, bilinmeyen);
 
   SON_BASARILI = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
   SON_GUNCELLEME.textContent = 'Son güncelleme: ' + new Date().toLocaleTimeString('tr-TR');
