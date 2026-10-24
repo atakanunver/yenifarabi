@@ -112,7 +112,7 @@ def test_ders_saati_kapaliysa_hemen_doner(conn, monkeypatch, capsys):
     sayac = []
     s = siniflandir.calistir(conn, SahteGomucu(), cagir=_cagir({"kararlar": []}, sayac))
     assert sayac == [] and s["islenen"] == 0
-    assert "ders saati — durduruldu" in capsys.readouterr().out
+    assert "üretim penceresi kapandı — durduruldu" in capsys.readouterr().out
 
 
 def test_kazanimsiz_ders_ve_islenmis_atlanir(conn):

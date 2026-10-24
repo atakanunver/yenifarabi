@@ -9,12 +9,12 @@ testleri ve YKS çıkmış sorularından **yerel Ollama** (qwen3.8:27b) ile soru
 
 - Çalıştırma (kökten, server venv'i — psycopg2/pymupdf/httpx orada):
   `server/venv/bin/python -m soruhavuzu.calistir <kur|katalog|uret|denetle|durum>`
-- `uret` ders saati dışında çalışır (`zaman.uretim_serbest`), pencere
-  kapanınca "ders saati penceresi — durduruldu" deyip çıkar; GPU'yu derste
+- `uret` yalnızca gece 00:00–06:00 (TR) arasında çalışır (`zaman.uretim_serbest`, hafta sonu dahil),
+  pencere kapanınca "üretim penceresi kapandı — durduruldu" deyip çıkar; GPU'yu gündüz
   Ollama'nın diğer kullanıcılarına bırakır.
 - Zamanlayıcı: `systemd/soru-havuzu-uret.{service,timer}` →
-  `/etc/systemd/system/` (hafta içi 14:15 UTC = 17:15 TR, hafta sonu 05:00
-  UTC). Birim dosyası değişirse oraya da kopyalanmalı.
+  `/etc/systemd/system/` (her gün 21:00 UTC = 00:00 TR başlar, 06:00'da
+  kendiliğinden durur). Birim dosyası değişirse oraya da kopyalanmalı.
 - DB şifresi `~/.pgpass`'tan; şema `sema.sql`.
 - Test: `server/venv/bin/python -m pytest soruhavuzu/tests -q`.
 - Bilinen: uzun üretimde Ollama arada 500 / zaman aşımı veriyor
@@ -24,10 +24,9 @@ testleri ve YKS çıkmış sorularından **yerel Ollama** (qwen3.8:27b) ile soru
 - `uret` artık yalnızca "hepsi bitince" denetlemez: başlangıçta (üretimden önce) ve
   pencere hâlâ açıksa döngü bitince SINIRLI denetim yapar — `calistir.DENETIM_AZAMI_PAKET=8`
   (paket=100 soru) ve `DENETIM_AZAMI_DK=45`, hangisi önce dolarsa. Her paketten önce
-  `zaman.uretim_serbest()` bakılır, ders saati başlayınca hemen durur. (Hafta içi pencere
-  07:30'da kapandığı için sadece döngü sonu denetimi fiilen çalışmazdı; bu yüzden başta da var.)
-- Tüm birimler bitince eskisi gibi kalan her şey denetlenir (ders saati kontrolüyle).
-  Elle `denetle` sınırsız ve ders saati kontrolsüz.
+  `zaman.uretim_serbest()` bakılır, pencere (06:00) kapanınca hemen durur. (Pencere kısa olduğu için döngü sonu denetimine zaman kalmayabilir; bu yüzden başta da var.)
+- Tüm birimler bitince eskisi gibi kalan her şey denetlenir (pencere kontrolüyle).
+  Elle `denetle` sınırsız ve pencere kontrolsüz.
 - Sıra (`vt.DENETLENECEK_SQL`): onaylı sayısı en az (sınıf, ders) önce, eşitlikte yüksek sınıf.
 - `durum` sınıf başına onaylı / denetim bekleyen satırı da basar.
 
@@ -37,4 +36,4 @@ testleri ve YKS çıkmış sorularından **yerel Ollama** (qwen3.8:27b) ile soru
 
 ## LLM ile kazanım sınıflandırma (2026-10-10)
 - `python -m soruhavuzu.calistir siniflandir [--kuru] [--limit N] [--zorla]`: kazanımsız onaylı soruları aynı sınıf+ders kazanımlarından gömmeyle en yakın 5 adaya indirip Ollama'ya sorar (parti 8); `kazanim_kaynak='llm'`, `kazanim_siniflandirma_at` ile kaldığı yerden devam eder (bozuk yanıt 3 denemede çözülmezse parti işaretlenir). Şema değişti: `kur` bir kez çalıştırılmalı.
-- `uret` bütün kazanımlar bitince (denetimden önce) bunu ders saati kontrolüyle çağırır.
+- `uret` bütün kazanımlar bitince (denetimden önce) bunu pencere kontrolüyle çağırır.

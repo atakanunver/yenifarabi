@@ -25,7 +25,7 @@ soruhavuzu, kazanimtest, okul; `openwebui/`, `webui-tema/` için CLAUDE.md yok).
 - `farabi-idari-yukle.timer` KALICI KAPALI (2026-10-10), açıkça istenmeden açma.
   `kazanim-test*` üç zamanlayıcı SİLİNDİ (2026-10-14, artık kullanılmıyor; birim
   dosyaları `kazanimtest/systemd/` altında duruyor). İSTİSNA: `soru-havuzu-uret.timer` Atakan tarafından bilerek yeniden AÇILDI
-  (2026-10-14 itibarıyla açık; hafta içi 17:15 TR). Kapatma, açıkça istenmeden yapılmaz.
+  (2026-10-14 itibarıyla açık; her gün 00:00 TR başlar, 06:00'da durur). Kapatma, açıkça istenmeden yapılmaz.
 - 9-11 çalışmaları Maarif modeline göre (2026-10-10).
 - Ollama'da TEK model `qwen3.8:27b` (iki RTX 3060); başka model kurulmaz. Çağıran
   kod düşünmeyi kapatır (`think:false`). `CUDA_DEVICE_ORDER=PCI_BUS_ID` şart.

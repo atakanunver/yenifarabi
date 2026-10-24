@@ -1,5 +1,5 @@
 [Unit]
-Description=Soru havuzu gece üretimi (yerel Ollama qwen3.8:27b + AGY denetimi) — ders saatinde kendiliğinden durur
+Description=Soru havuzu gece üretimi (yerel Ollama qwen3.8:27b + AGY denetimi) — 06:00'da (gece penceresi kapanınca) kendiliğinden durur
 After=ollama.service postgresql.service network-online.target
 
 [Service]

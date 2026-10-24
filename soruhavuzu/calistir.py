@@ -2,10 +2,10 @@
 
 kur      şemayı kurar
 katalog  kaynak birimlerini ekler (GPU kullanmaz)
-uret     ders saati dışında çalışır. Başlangıçta ve (pencere hâlâ açıksa) üretim
+uret     yalnızca gece 00:00–06:00 (TR) arasında çalışır. Başlangıçta ve (pencere hâlâ açıksa) üretim
          döngüsü bitince SINIRLI artımlı AGY denetimi yapar (en az onaylı soru olan
          (sınıf, ders) önce); bütün birimler bitince kalan her şeyi denetler.
-         Her pakette ders saati yeniden kontrol edilir.
+         Her pakette pencere yeniden kontrol edilir.
 siniflandir  kazanımsız onaylı soruları LLM ile kazanıma bağlar [--kuru] [--limit N] [--zorla]
 sik-karistir  durum IN (uretildi, onayli, askida) soruların şıklarını kanonik sıraya geçirir [--kuru]
 ogretmen-pdf  okulun /api/soru-istek kuyruğundaki öğretmen PDF'lerinden soru üretir (9-11; uret başında da çalışır)
@@ -217,7 +217,7 @@ def uret(
                 farabi_conn.rollback()  # aborted işlem sonraki kazanımları bozmasın
             print(f"[uret] HATA kazanım {k['id']}: {type(e).__name__}: {e}", flush=True)
             _isaretle(k, "hata")
-    print("[uret] ders saati penceresi — durduruldu", flush=True)
+    print("[uret] üretim penceresi (00:00–06:00) kapandı — durduruldu", flush=True)
     if ders_saati_kontrol and denetim:
         denetle(conn, DENETIM_AZAMI_PAKET, DENETIM_AZAMI_DK, ders_saati_kontrol=True)
 
@@ -231,14 +231,14 @@ def denetle(
     simdi=time.monotonic,
 ) -> None:
     """azami_paket/azami_dk verilirse sınırlı çalışır; ders_saati_kontrol=True ise her
-    paketten önce zaman.uretim_serbest() bakılır ve ders saati başlayınca hemen durulur."""
+    paketten önce zaman.uretim_serbest() bakılır ve pencere (06:00) kapanınca hemen durulur."""
     paket_fn = paket_fn or denetci.paket_denetle
     ardisik_bos = 0
     paket_sayisi = 0
     t0 = simdi()
     while True:
         if ders_saati_kontrol and not zaman.uretim_serbest():
-            print("[denetle] ders saati — durduruldu", flush=True)
+            print("[denetle] üretim penceresi kapandı — durduruldu", flush=True)
             return
         if azami_paket is not None and paket_sayisi >= azami_paket:
             print(f"[denetle] paket sınırı ({azami_paket}) doldu", flush=True)

@@ -108,7 +108,7 @@ def calistir(
     ornek = 0
     for bas in range(0, toplam, PARTI):
         if ders_saati_kontrol and not zaman.uretim_serbest():
-            print("[siniflandir] ders saati — durduruldu", flush=True)
+            print("[siniflandir] üretim penceresi kapandı — durduruldu", flush=True)
             break
         parca = sorular[bas : bas + PARTI]
         metinler, dogrular = [], []

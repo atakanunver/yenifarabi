@@ -89,7 +89,7 @@ def isle(conn, istek: dict, pdf: bytes, ureten=None, eleyici=None, denetle=None,
     bidler, uretilen = [], 0
     for b in birimler:
         if ders_saati_kontrol and not zaman.uretim_serbest():
-            return {"durum": "bekliyor", "onayli": 0, "red": 0, "not": "ders saati — sonra devam"}
+            return {"durum": "bekliyor", "onayli": 0, "red": 0, "not": "üretim penceresi kapalı — gece 00:00'da devam"}
         bid = vt.birim_ekle(conn, b["tur"], b["anahtar"], b["ders"], b["sinif"], b["etiket"], b["metin"])
         bid = bid or vt.birim_bul(conn, b["anahtar"])
         bidler.append(bid)
@@ -131,7 +131,7 @@ def calistir(conn, ders_saati_kontrol: bool = True, **enj) -> list[dict]:
     sonuc = []
     for ist in istekler:
         if ders_saati_kontrol and not zaman.uretim_serbest():
-            print("[ogretmen-pdf] ders saati — durduruldu", flush=True)
+            print("[ogretmen-pdf] üretim penceresi kapandı — durduruldu", flush=True)
             break
         al, bildir = enj.get("pdf_al", pdf_al), enj.get("sonuc_bildir", sonuc_bildir)
         bildir(ist["id"], "isleniyor")

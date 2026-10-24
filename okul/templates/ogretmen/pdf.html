@@ -40,7 +40,7 @@
   {% for p in pdfler %}
     <li class="satir"><span><a href="/pdf/{{ p.id }}" target="_blank">📄 {{ p.baslik }}</a><br><span class="soluk kucuk">{{ p.sinif }} · {{ p.ders|baslik }} · {{ (p.boyut / 1024)|round|int }} KB · {{ p.zaman|tarih }}</span></span>
       <span class="sag"><a class="tus ikincil kucuk" href="/ogretmen/pdf/{{ p.id }}/odev">Ödev ver</a></span>
-      {% if p.soru_durum == 'bekliyor' %}<span class="etiket sari">Soru havuzu: sırada (akşam turunda işlenir)</span>
+      {% if p.soru_durum == 'bekliyor' %}<span class="etiket sari">Soru havuzu: sırada (gece 00:00–06:00 turunda işlenir)</span>
       {% elif p.soru_durum == 'isleniyor' %}<span class="etiket mor">Soru havuzu: işleniyor</span>
       {% elif p.soru_durum == 'bitti' %}<span class="etiket yesil">Soru havuzu: {{ p.soru_onayli }} soru onaylandı{% if p.soru_red %}, {{ p.soru_red }} reddedildi{% endif %}</span>
       {% elif p.soru_durum == 'hata' %}<span class="etiket kirmizi">Soru havuzu: {{ p.soru_not or 'hata' }}</span>
