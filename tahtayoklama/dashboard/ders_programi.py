@@ -1,9 +1,8 @@
 """tahtayoklama/data/ders_programi.json okuma + ders adı/kısaltma yardımcıları.
 
-data/ders_programi.json, mudur/ders_programi.json'dan alınmış KASITLI
-BAĞIMSIZ bir kopya (bkz. CLAUDE.md, zil.json'la aynı desen) — ders programı
-değiştiğinde bu dosya elle güncellenmeli, iki proje arasında canlı bir bağ
-yok.
+data/ders_programi.json okul_ana yayınıyla üretilir (`okul_ana_yayin.yayin_json`; Okul verisi
+panelindeki her kayıttan sonra yenilenir) — elle düzenlenmez. Okul portalı ve Farabi tahtaları
+(`server/config_dagit.sh`) da bu dosyayı okur.
 """
 
 import json

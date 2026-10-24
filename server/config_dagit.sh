@@ -10,7 +10,8 @@
 # Kaynaklar (tek doğru kaynak bu sunucu):
 #   ../tahtayoklama/data/zil.json          → client/config/zil.json
 #                                            + ~/tahtayoklama/data/zil.json
-#   ../mudur/ders_programi.json            → client/config/ders_programi.json
+#   ../tahtayoklama/data/ders_programi.json → client/config/ders_programi.json
+#                                            (okul_ana yayını; mudur/ders_programi.json ESKİ, kullanılmıyor)
 #   config/api_keys_tahta_ortak.json       → client/config/api_keys.json içine
 #                                            BİRLEŞTİRİLİR (yalnız ortak alanlar;
 #                                            derslik/tahta_anahtari tahtaya özel,
@@ -27,7 +28,7 @@ set -uo pipefail
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ZIL="$BASE_DIR/../tahtayoklama/data/zil.json"
-DERS_PROGRAMI="$BASE_DIR/../mudur/ders_programi.json"
+DERS_PROGRAMI="$BASE_DIR/../tahtayoklama/data/ders_programi.json"
 ORTAK="$BASE_DIR/config/api_keys_tahta_ortak.json"
 VARSAYILAN_TAHTALAR=(9-A 9-B 10-A 11-A 11-B 12-A 12-B fenlab)
 

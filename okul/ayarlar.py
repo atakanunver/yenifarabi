@@ -16,7 +16,7 @@ class Ayarlar:
         default=FARABI / "tahtayoklama" / "dashboard" / "veri" / "yoklama_pano.db"
     )
     sms_db_yolu: Path = FARABI / "smssistemi" / "veri" / "smssistemi.db"  # doğum günü kutlaması (salt-okunur)
-    program_yolu: Path = FARABI / "mudur" / "ders_programi.json"
+    program_yolu: Path = FARABI / "tahtayoklama" / "data" / "ders_programi.json"  # okul_ana yayını (tek kopya)
     zil_yolu: Path = FARABI / "tahtayoklama" / "data" / "zil.json"
     takvim_yolu: Path = KOK / "config" / "takvim.json"
     kanallar_yolu: Path = KOK / "config" / "kanallar.json"  # okulun dijital kanalları (alt şerit); dosya yoksa şerit gizli

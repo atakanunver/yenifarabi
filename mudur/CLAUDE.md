@@ -17,6 +17,9 @@ yazma.
 | `SINIF/` (Excel + PDF) | öğrenci listeleri, doğum tarihleri, telefonlar — **kişisel veri** | `smssistemi/scripts/sinif_bilgi_ice_aktar.py` |
 | `IPLER.html`, `vestel akıllı tahtalar.jpg` | tahta envanteri notları | — (kanonik kayıt `server/tahtalar.json`) |
 
+> 📦 **2026-10-24:** `ders_programi.json`/`.md` ve bu betik ESKİ — ders programının tek kaynağı `okul_ana` (okul portalı ve tahtalar
+> `tahtayoklama/data/ders_programi.json`'u okur). PDF'ten yeniden üretmek gerekirse betik çalışır ama çıktısı artık kullanılmaz.
+
 ## `ders_programi_yukle.py`
 
 Dönem başında / program değişince elle çalıştırılır (cron yok). PDF'i

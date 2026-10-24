@@ -96,7 +96,7 @@ Hepsi bu dizinden, `~/.ssh/id_ed25519_tahta` ile; hedef listesi
 |---|---|
 | `tahta-ssh.sh [--admin] <derslik> ["komut"]` | `ogretmen` (ya da `etapadmin`+sudo) olarak SSH |
 | `farabi-kurulum.sh <derslik> <sunucu_url> <tahta_anahtari>` | client'ı GitHub'dan sparse-checkout ile kurar, `farabiguncelle.sh` (20:00 cron) + heartbeat cron'u yazar |
-| `config_dagit.sh [--kuru] [tahta...]` | gitignore'lu ayarları dağıtır + hash ile doğrular: `../tahtayoklama/data/zil.json`, `../mudur/ders_programi.json`, `config/api_keys_tahta_ortak.json` (ortak alanlar birleştirilir) |
+| `config_dagit.sh [--kuru] [tahta...]` | gitignore'lu ayarları dağıtır + hash ile doğrular: `../tahtayoklama/data/zil.json`, `../tahtayoklama/data/ders_programi.json` (okul_ana yayını), `config/api_keys_tahta_ortak.json` (ortak alanlar birleştirilir) |
 | `geogebra_dagit.sh` | GeoGebra çevrimdışı paketini tahtaların `client/icerik/geogebra/`'sine kopyalar |
 | `geogebra_uygulama_kur.sh` | GeoGebra Klasik'i bağımsız masaüstü uygulaması olarak kurar (Farabi aracından ayrı) |
 | `proxy_kontrol.sh` | sunucunun internet çıkışını Müdür PC WifiHttpProxy üzerinden/doğrudan yapar (ayrı systemd drop-in) |

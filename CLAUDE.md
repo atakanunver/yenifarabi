@@ -37,9 +37,10 @@ soruhavuzu, kazanimtest, okul; `openwebui/`, `webui-tema/` için CLAUDE.md yok).
 - Asıl kimlik avahi hostname (`vestel9b` → `vestel9b.local`; sınıfı o belirler); IP ve MAC değişebilir
   (12-A kablosuz olunca MAC de değişti). Önce `getent hosts <hostname>.local`. IP/MAC değişirse:
   `server/tahtalar.json`, dashboard SQLite `tahtalar`, `docs/runbook.md` tablosu.
-- Ders programı/zil birden çok kopya, otomatik senkron yok: kaynak
-  `mudur/ders_programi.json` ve `tahtayoklama/data/zil.json`; dağıtım
-  `server/config_dagit.sh` (`--kuru` önce).
+- Ders programı/zil TEK kaynak: `okul_ana` (PostgreSQL, panel `/admin/okul-verisi`); yayın
+  `tahtayoklama/data/{ders_programi,zil}.json` üretir. Okul portalı ve `server/config_dagit.sh`
+  (tahtalara dağıtım, `--kuru` önce) bu dosyaları okur. `mudur/ders_programi.json` ESKİ (2026-10-24'ten beri
+  kullanılmıyor).
 - 10-A CMOS pili bitik (2026-10 itibarıyla): açılışta yanlış tarih (pano geçmişi ezmez).
 
 ## Servisler (ayrı systemd birimi + ayrı venv; BİRLEŞTİRME)

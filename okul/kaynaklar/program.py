@@ -1,4 +1,4 @@
-"""mudur/ders_programi.json — salt-okunur, dosya değişince yeniden okunur."""
+"""tahtayoklama/data/ders_programi.json (okul_ana yayını) — salt-okunur, dosya değişince yeniden okunur."""
 
 import json
 from datetime import date
