@@ -560,7 +560,12 @@ main {
   box-shadow: var(--renk-golge);
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
-.uyari-seridi[data-durum="tamam"] { border-left-color: var(--renk-yesil); background: var(--renk-yesil-zemin); }
+/* Normal durum sessiz: çerçeve/zemin/gölge yok, yalnız yeşil ikon + soluk tek satır */
+.uyari-seridi[data-durum="tamam"] {
+  border-color: transparent; background: transparent; box-shadow: none;
+  padding: 0.3rem 0.9rem; margin-bottom: 0.6rem;
+}
+.uyari-seridi[data-durum="tamam"] .uyari-metin { font-size: 0.85rem; }
 .uyari-seridi[data-durum="uyari"] { border-left-color: var(--renk-amber); background: var(--renk-amber-zemin); }
 .uyari-ikon { display: grid; place-items: center; color: var(--renk-gri); }
 .uyari-seridi[data-durum="tamam"] .uyari-ikon { color: var(--renk-yesil); }
@@ -587,6 +592,44 @@ main {
 .uyari-baglanti { font-size: 0.85rem; color: var(--renk-birincil); text-decoration: none; margin-left: auto; }
 .uyari-baglanti:hover { text-decoration: underline; }
 .hucre-vurgu { outline: 3px solid var(--renk-birincil); outline-offset: -3px; }
+/* .uyari-not başka sayfada kutu olarak yeniden tanımlı; şeritte düz soluk metin kalsın */
+.uyari-icerik .uyari-not { background: none; padding: 0; color: var(--renk-metin-soluk); }
+
+/* Acil durum düğmesi + aktif alarm şeridi (tema değişkeni --renk-acil, altı temada tanımlı) */
+.pano-acil-dugme {
+  display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.9rem;
+  border-radius: var(--yaricap); background: var(--renk-acil); color: #fff;
+  font-weight: 800; text-decoration: none; transition: filter 0.15s;
+}
+.acil-serit {
+  display: block; margin-bottom: 0.75rem; padding: 0.75rem 1rem;
+  border-radius: var(--yaricap-buyuk); background: var(--renk-acil); color: #fff;
+  font-weight: 800; font-size: 1.1rem; text-decoration: none; box-shadow: var(--renk-golge);
+  transition: filter 0.15s;
+}
+.acil-serit[hidden] { display: none; }
+.pano-acil-dugme:hover, .acil-serit:hover { filter: brightness(1.08); }
+.pano-acil-dugme:focus-visible, .acil-serit:focus-visible { outline: 2px solid var(--renk-birincil); outline-offset: 2px; }
+
+/* Sorunlu sınıf satırı: sınıf hücresinde renkli sol çizgi (yoklama amber, tahta kırmızı) */
+tbody tr.satir-sorunlu th.sinif-adi {
+  box-shadow: inset 4px 0 0 var(--renk-amber);
+  background: linear-gradient(var(--renk-amber-zemin), var(--renk-amber-zemin)), var(--renk-yuzey-2);
+}
+tbody tr.satir-tahta-sorunlu th.sinif-adi {
+  box-shadow: inset 4px 0 0 var(--renk-kirmizi);
+  background: linear-gradient(var(--renk-kirmizi-zemin), var(--renk-kirmizi-zemin)), var(--renk-yuzey-2);
+}
+/* Yoklama tamamlanma çubuğu: alınan / (alınan + bekleyen), yalnız başlamış dersler */
+.pano-ilerleme { margin: -0.75rem 0 1.25rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.pano-ilerleme[hidden] { display: none; }
+.pano-ilerleme-ust { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; font-size: 0.82rem; }
+.pano-ilerleme-baslik { font-weight: 600; color: var(--renk-metin-soluk); }
+.pano-ilerleme-metin { font-weight: 700; color: var(--renk-metin); font-variant-numeric: tabular-nums; }
+.pano-ilerleme-cubuk { height: 6px; border-radius: 999px; background: var(--renk-gri-zemin); overflow: hidden; }
+.pano-ilerleme-dolu { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--renk-amber); transition: width 0.15s ease, background-color 0.15s ease; }
+.pano-ilerleme[data-durum="tamam"] .pano-ilerleme-dolu { background: var(--renk-yesil); }
+.pano-ozet-kart.ozet-dikkat { border-color: var(--renk-amber); box-shadow: inset 4px 0 0 var(--renk-amber), var(--renk-golge-kart); }
 
 .pano-ozet {
   display: grid;

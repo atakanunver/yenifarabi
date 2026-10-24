@@ -3,7 +3,7 @@
 {% block baslik %}Yoklama Panosu{% endblock %}
 
 {% block ust_sag %}
-<a href="/acil" style="background:#b00020;color:#fff;font-weight:800;padding:6px 14px;border-radius:8px;text-decoration:none">🚨 ACİL DURUM</a>
+<a href="/acil" class="pano-acil-dugme">🚨 ACİL DURUM</a>
 <label>Tarih:
   <input type="date" id="tarih-secici" value="{{ tarih }}" max="{{ bugun }}">
 </label>
@@ -14,7 +14,7 @@
 {% endblock %}
 
 {% block icerik %}
-<a id="acil-serit" href="/acil" hidden style="display:block;background:#b00020;color:#fff;font-weight:800;font-size:18px;padding:12px 16px;border-radius:10px;margin-bottom:12px;text-decoration:none"></a>
+<a id="acil-serit" class="acil-serit" href="/acil" hidden></a>
 <script>
 (async function acilDurum() {
   try {
@@ -57,12 +57,22 @@
       <span class="pano-ozet-sayi" id="ozet-yok-ders">—</span>
     </div>
   </div>
-  <div class="pano-ozet-kart">
+  <div class="pano-ozet-kart" id="ozet-bekleyen-kart">
     <div class="pano-ozet-ikon ozet-ikon-alinmadi"><svg class="ikon"><use href="#ik-kaydirici"/></svg></div>
     <div class="pano-ozet-bilgi">
       <span class="pano-ozet-baslik">Bekleyen Yoklama</span>
       <span class="pano-ozet-sayi" id="ozet-bekleyen-ders">—</span>
     </div>
+  </div>
+</div>
+
+<div class="pano-ilerleme" id="pano-ilerleme" hidden>
+  <div class="pano-ilerleme-ust">
+    <span class="pano-ilerleme-baslik">Yoklama tamamlanma</span>
+    <span class="pano-ilerleme-metin" id="ilerleme-metin"></span>
+  </div>
+  <div class="pano-ilerleme-cubuk" id="ilerleme-cubuk" role="progressbar" aria-label="Yoklama tamamlanma" aria-valuemin="0" aria-valuemax="100">
+    <span class="pano-ilerleme-dolu" id="ilerleme-dolu"></span>
   </div>
 </div>
 
@@ -83,7 +93,7 @@
     </thead>
     <tbody>
       {% for sinif in siniflar %}
-      <tr>
+      <tr id="satir-{{ sinif.ad }}" data-sira="{{ loop.index0 }}">
         <th class="sinif-adi"><span class="tahta-nokta" id="nokta-{{ sinif.ad }}" role="img" aria-label="Tahta durumu bilinmiyor" title="Tahta durumu bilinmiyor"></span>{{ sinif.ad }}</th>
         {% for ders in ders_saatleri %}
         <td id="hucre-{{ sinif.ad }}-{{ ders.no }}" class="hucre durum-yukleniyor"
@@ -257,6 +267,19 @@ function uyariSeriti(satirlar, bugunMu) {
   }
   const kap = document.getElementById('uyari-icerik');
   const sorunlu = alinmadi.length > 0 || ulasilamaz.size > 0;
+  const sorunluSiniflar = new Set([...alinmadi.map(o => o.sinif), ...ulasilamaz.keys()]);
+  const govde = document.querySelector('#pano-tablo tbody');
+  const satirlarTr = [...govde.rows];
+  satirlarTr.forEach(tr => {
+    const sinif = tr.id.slice('satir-'.length);
+    tr.classList.toggle('satir-sorunlu', sorunluSiniflar.has(sinif));
+    tr.classList.toggle('satir-tahta-sorunlu', ulasilamaz.has(sinif));
+  });
+  // Sorunlu sınıflar üstte; kendi aralarında ve geri kalanlar özgün sırada
+  satirlarTr
+    .sort((a, b) => (b.classList.contains('satir-sorunlu') - a.classList.contains('satir-sorunlu'))
+                    || (a.dataset.sira - b.dataset.sira))
+    .forEach(tr => govde.appendChild(tr));
   document.getElementById('uyari-seridi').dataset.durum = sorunlu ? 'uyari' : 'tamam';
   kap.replaceChildren();
   if (alinmadi.length) kap.appendChild(uyariGrubu('yoklama', 'Yoklama alınmadı', alinmadi, hucreyiVurgula));
@@ -277,7 +300,19 @@ function uyariSeriti(satirlar, bugunMu) {
   }
 }
 
-const ILK_DURUM = {% if ilk_durum is defined %}{{ ilk_durum | tojson }}{% else %}null{% endif %};
+function ilerlemeyiGuncelle(alinan, bekleyen) {
+  const kap = document.getElementById('pano-ilerleme');
+  const toplam = alinan + bekleyen;
+  kap.hidden = toplam === 0;
+  if (!toplam) return;
+  const yuzde = Math.round(100 * alinan / toplam);
+  kap.dataset.durum = bekleyen ? 'eksik' : 'tamam';
+  document.getElementById('ilerleme-metin').textContent = `%${yuzde} · ${alinan}/${toplam} ders`;
+  document.getElementById('ilerleme-dolu').style.width = yuzde + '%';
+  document.getElementById('ilerleme-cubuk').setAttribute('aria-valuenow', yuzde);
+}
+
+const ILK_DURUM ={% if ilk_durum is defined %}{{ ilk_durum | tojson }}{% else %}null{% endif %};
 
 async function tabloyuGuncelle(ilkVeri) {
   if (!ilkVeri && document.hidden) return;
@@ -325,6 +360,8 @@ async function tabloyuGuncelle(ilkVeri) {
   if (elYok) elYok.textContent = yokSayac;
   const elBekleyen = document.getElementById('ozet-bekleyen-ders');
   if (elBekleyen) elBekleyen.textContent = bekleyenSayac;
+  document.getElementById('ozet-bekleyen-kart').classList.toggle('ozet-dikkat', bekleyenSayac > 0);
+  ilerlemeyiGuncelle(tamSayac + yokSayac, bekleyenSayac);
 
   document.querySelectorAll('.hucre').forEach(h => {
     if (!bulunanlar.has(h.id) && h.classList.contains('durum-yukleniyor')) {
