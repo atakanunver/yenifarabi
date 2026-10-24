@@ -28,3 +28,22 @@ def test_hedefe_ulasan_ve_kaynak_yok_atlanir(conn):
         vt.soru_ekle(conn, bid, {**ORNEK_SORU, "sinif": 10, "soru": f"s{i}"}, kazanim_id=a, kazanim_kaynak="uretim")
     vt.kazanim_isaretle(conn, b, "kaynak_yok")
     assert vt.siradaki_kazanim(conn, date(2026, 10, 8), HAFTALAR, set()) is None
+
+
+def test_concurrency_kilidi_ayni_kazanimi_atlatir(conn):
+    """Bir transaction içinde seçilen kazanım advisory lock ile kilitlenir; ikinci bağlantı diğerini seçer."""
+    k1 = _k(conn, 4, "kazanım 1")
+    k2 = _k(conn, 4, "kazanım 2")
+    conn2 = vt.baglan("soru_havuzu_test")
+    try:
+        # conn transaction içinde k1'i kilitler
+        s1 = vt.siradaki_kazanim(conn, date(2026, 10, 8), HAFTALAR, set())
+        assert s1["id"] in (k1, k2)
+
+        # conn2 sorguladığında s1 kilitli olduğu için diğer kazanımı almalıdır
+        s2 = vt.siradaki_kazanim(conn2, date(2026, 10, 8), HAFTALAR, set())
+        assert s2 is not None
+        assert s2["id"] != s1["id"]
+    finally:
+        conn.commit()
+        conn2.close()

@@ -24,7 +24,7 @@ def sema_kur(conn) -> None:
     conn.commit()
 
 
-def birim_ekle(conn, tur, anahtar, ders, sinif, etiket, metin) -> int | None:
+def birim_ekle(conn, tur, anahtar, ders, sinif, etiket, metin, oto_commit: bool = True) -> int | None:
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO kaynak_birim (tur, anahtar, ders, sinif, etiket, metin) "
@@ -32,7 +32,8 @@ def birim_ekle(conn, tur, anahtar, ders, sinif, etiket, metin) -> int | None:
             (tur, anahtar, ders, sinif, etiket, metin),
         )
         satir = cur.fetchone()
-    conn.commit()
+    if oto_commit:
+        conn.commit()
     return satir[0] if satir else None
 
 
@@ -157,22 +158,31 @@ def siradaki_kazanim(
 ) -> dict | None:
     gecmis = [h for h, pzt in haftalar.items() if pzt <= bugun]
     simdiki = max(gecmis) if gecmis else min(haftalar, default=0)
-    sinif_filtresi = "AND (t.sinif = ANY(%s)) " if siniflar else ""
-    hafta_filtresi = f"AND (t.hafta <= {int(azami_hafta)}) " if azami_hafta is not None else ""
+    sinif_filtresi = "AND (k.sinif = ANY(%s)) " if siniflar else ""
+    hafta_filtresi = f"AND (k.hafta <= {int(azami_hafta)}) " if azami_hafta is not None else ""
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         params = [hedef_toplam, list(denenen) or [0], list(DONDURULMUS_SINIFLAR)]
         if siniflar:
             params.append(list(siniflar))
         params.extend([simdiki, max(simdiki + 3, azami_hafta or 0)])
         cur.execute(
-            "WITH tek AS (SELECT DISTINCT ON (sinif, ders, metin) * FROM kazanim WHERE durum='aktif' "
-            "  ORDER BY sinif, ders, metin, hafta, id), "
-            "sayim AS (SELECT kazanim_id, count(*) AS n FROM soru "
-            "  WHERE durum IN ('uretildi','onayli') AND kazanim_id IS NOT NULL GROUP BY kazanim_id) "
-            "SELECT t.id, t.sinif, t.ders, t.hafta, t.kod, t.metin, COALESCE(s.n,0) AS n FROM tek t "
-            "LEFT JOIN sayim s ON s.kazanim_id = t.id "
-            f"WHERE COALESCE(s.n,0) < %s AND NOT (t.id = ANY(%s)) AND NOT (t.sinif = ANY(%s)) {sinif_filtresi}{hafta_filtresi}"
-            "ORDER BY (t.hafta BETWEEN %s AND %s) DESC, COALESCE(s.n,0), t.hafta, t.id LIMIT 1",
+            "WITH tek AS ("
+            "  SELECT DISTINCT ON (sinif, ders, metin) id "
+            "  FROM kazanim WHERE durum='aktif' "
+            "  ORDER BY sinif, ders, metin, hafta, id"
+            "), "
+            "sayim AS ("
+            "  SELECT kazanim_id, count(*) AS n FROM soru "
+            "  WHERE durum IN ('uretildi','onayli') AND kazanim_id IS NOT NULL GROUP BY kazanim_id"
+            ") "
+            "SELECT k.id, k.sinif, k.ders, k.hafta, k.kod, k.metin, COALESCE(s.n,0) AS n "
+            "FROM kazanim k "
+            "JOIN tek t ON t.id = k.id "
+            "LEFT JOIN sayim s ON s.kazanim_id = k.id "
+            f"WHERE COALESCE(s.n,0) < %s AND NOT (k.id = ANY(%s)) AND NOT (k.sinif = ANY(%s)) "
+            f"{sinif_filtresi}{hafta_filtresi}"
+            "ORDER BY (k.hafta BETWEEN %s AND %s) DESC, COALESCE(s.n,0), k.hafta, k.id "
+            "FOR UPDATE OF k SKIP LOCKED LIMIT 1",
             params,
         )
         satir = cur.fetchone()

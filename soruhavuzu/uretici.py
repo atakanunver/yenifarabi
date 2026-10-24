@@ -27,11 +27,11 @@ DERSLER = {
 }
 SEKIL = re.compile(r"şekil|grafik|tablo|görsel|resim(de|deki)", re.IGNORECASE)
 
-SISTEM = (
+SISTEM_MAARIF = (
     "Sen MEB lise öğretmenisin ve MEB 'Bağlam Temelli Çoktan Seçmeli Soru Yazım Kılavuzu' ile "
     "Türkiye Yüzyılı Maarif Modeli ilkelerine tam uygun sorular hazırlıyorsun.\n"
     "YALNIZCA verilen kaynak metne dayan; metinde olmayan bilgiyi soru veya cevap yapma.\n\n"
-    "MAARİF MODELİ VE BAĞLAM TEMELLİ SORU KRİTERLERİ:\n"
+    "MAARİF MODELİ VE BAĞLAM TEMELLİ SORU KRİTERLERİ (9, 10, 11. Sınıflar):\n"
     "1. BAĞLAM ODAKLI VE GERÇEK HAYAT KURGUSU: Soru; bir günlük yaşam durumu, deneysel bir veri seti, "
     "bilimsel/tarihsel bir olay, problem senaryosu veya gerçekçi bir durum üzerine kurulmalıdır. Bağlamı soru metninin başında açıkça ver.\n"
     "2. BAĞLAMSIZ ÇÖZÜLEMEZ ('BAĞLAMSIZLIK TESTİ'): Öğrenci soruyu yalnızca ezberlediği formülle veya tanımı "
@@ -46,6 +46,20 @@ SISTEM = (
     "7. BİÇİM: 4 şıktan yalnızca biri doğru olsun. Kısa cevap 1-6 kelime. Zorluk 1 (temel kavrama) ile 4 (üst düzey akıl yürütme) arası dağılsın.\n"
     'Yalnızca JSON döndür: {"sorular": [...]}.'
 )
+
+SISTEM_YKS_12 = (
+    "Sen MEB lise öğretmenisin ve 12. Sınıf YKS (TYT/AYT) sınavına hazırlanan öğrenciler için çoktan seçmeli sorular hazırlıyorsun.\n"
+    "12. Sınıf Maarif Modeli kapsamında olmayıp klasik MEB YKS müfredatına tabidir.\n"
+    "YALNIZCA verilen 12. sınıf ders kitabı metnine dayan; metinde olmayan bilgiyi soru veya cevap yapma.\n\n"
+    "12. SINIF YKS SORU KRİTERLERİ:\n"
+    "1. KAZANIM VE YKS UYUMU: Soru doğrudan 12. sınıf kazanımını ve YKS soru standartlarını ölçmelidir.\n"
+    "2. KAVRAMSAL VE ANALİTİK ÖLÇME: Sorular kavramsal bilgiyi, problem çözmeyi ve analitik düşünmeyi ölçsün.\n"
+    "3. BAĞIMSIZ VE GÖRSEL ATIFSIZ: 'şekildeki', 'grafiğe göre', 'tabloya göre', 'metne göre' gibi atıflar YASAKTIR. Bilgiyi doğrudan soru metninde ver.\n"
+    "4. BİÇİM: 4 şıktan yalnızca biri doğru olsun, çeldiriciler mantıklı ve güçlü olsun. Kısa cevap 1-6 kelime. Zorluk 1 ile 4 arası dağılsın.\n"
+    'Yalnızca JSON döndür: {"sorular": [...]}.'
+)
+
+SISTEM = SISTEM_MAARIF
 
 
 def istem(birim: dict) -> list[dict]:
@@ -165,38 +179,66 @@ def uret(
 
 def istem_kazanim(kazanim: dict, kaynak: dict) -> list[dict]:
     kaynak_metin = re.sub(r"\.{4,}", " ", kaynak["metin"])
+    sinif = kazanim.get("sinif")
+    if sinif == 12:
+        sistem = SISTEM_YKS_12
+        gorev = (
+            "Görev: Bu kazanımı ölçen 5 çoktan seçmeli YKS (TYT/AYT) tarzı soru üret (zorluk 1-4 dağıt). "
+            "Her soru bu kazanımı ölçmeli; 12. sınıf ders kitabı metnine sadık kalarak kavramsal ve analitik düşünmeyi ölçen, "
+            "çeldiricileri güçlü sorular hazırla. Harici görsel atıfı ('şekildeki/grafiğe göre') yapma; bilgiyi soru metninde açıkça ver. "
+            "Kaynak metinde geçse de kazanımla ilgisiz bilgiyi sorma. 'konu' alanına kazanımın kısa adını yaz.\n"
+        )
+    else:
+        sistem = SISTEM_MAARIF
+        gorev = (
+            "Görev: Bu kazanımı ölçen 5 çoktan seçmeli soru üret (zorluk 1-4 dağıt). "
+            "Her soru bu kazanımı ölçmeli; MEB Bağlam Temelli Soru Yazım Kılavuzu ilkelerine tam uy:\n"
+            "- Her soru için gerçek hayat, deney, veri seti, olay veya problem senaryosu kurgula.\n"
+            "- Sorular BAĞLAMSIZ ÇÖZÜLEMEZ olsun (Bağlamsızlık Testi: metin/senaryo kapatıldığında ezberle çözülememeli, veriyi analiz ettirmeli).\n"
+            "- Gereksiz laf kalabalığından arındırılmış, ölçülen beceriye odaklı net veriler kullan.\n"
+            "- Çeldiricileri öğrencilerin sıkça yaptığı mantık hataları ve kavram yanılgılarına göre hazırla.\n"
+            "- 'şekildeki/grafikteki/tabloya göre' gibi harici görsele atıf yapma, gereken tüm veriyi soru metninde açıkça ver.\n"
+            "Kaynak metinde geçse de kazanımla ilgisiz bilgiyi sorma. 'konu' alanına kazanımın kısa adını yaz.\n"
+        )
     kullanici = (
         f"Ders: {kazanim['ders']}\nSınıf: {kazanim['sinif']}\nKaynak: {kaynak['etiket']}\n"
         f"KAZANIM: {kazanim['metin']}\n"
-        "Görev: Bu kazanımı ölçen 5 çoktan seçmeli soru üret (zorluk 1-4 dağıt). "
-        "Her soru bu kazanımı ölçmeli; MEB Bağlam Temelli Soru Yazım Kılavuzu ilkelerine tam uy:\n"
-        "- Her soru için gerçek hayat, deney, veri seti, olay veya problem senaryosu kurgula.\n"
-        "- Sorular BAĞLAMSIZ ÇÖZÜLEMEZ olsun (Bağlamsızlık Testi: metin/senaryo kapatıldığında ezberle çözülememeli, veriyi analiz ettirmeli).\n"
-        "- Gereksiz laf kalabalığından arındırılmış, ölçülen beceriye odaklı net veriler kullan.\n"
-        "- Çeldiricileri öğrencilerin sıkça yaptığı mantık hataları ve kavram yanılgılarına göre hazırla.\n"
-        "- 'şekildeki/grafikteki/tabloya göre' gibi harici görsele atıf yapma, gereken tüm veriyi soru metninde açıkça ver.\n"
-        "Kaynak metinde geçse de kazanımla ilgisiz bilgiyi sorma. 'konu' alanına kazanımın kısa adını yaz.\n"
+        f"{gorev}"
         'Biçim: {"sorular": [{"konu": "...", "soru": "...", "kisa_cevap": "...", '
         '"secenekler": ["A", "B", "C", "D"], "dogru_index": 0, "zorluk": 1, "sayfa": 0}]}\n\n'
         f"KAYNAK METİN:\n{kaynak_metin}"
     )
-    return [{"role": "system", "content": SISTEM}, {"role": "user", "content": kullanici}]
+    return [{"role": "system", "content": sistem}, {"role": "user", "content": kullanici}]
 
 
 def istem_kazanim_agy(kazanim: dict, kaynak: dict) -> str:
     kaynak_metin = re.sub(r"\.{4,}", " ", kaynak.get("metin", ""))
+    sinif = kazanim.get("sinif")
+    if sinif == 12:
+        sistem = SISTEM_YKS_12
+        gorev = (
+            "Görev: Bu kazanımı ölçen 5 çoktan seçmeli YKS (TYT/AYT) tarzı soru üret (zorluk 1-4 dağıt). "
+            "Her soru bu kazanımı ölçmeli; 12. sınıf ders kitabı metnine sadık kalarak kavramsal ve analitik düşünmeyi ölçen, "
+            "çeldiricileri güçlü sorular hazırla. Harici görsel atıfı ('şekildeki/grafiğe göre') yapma; bilgiyi soru metninde açıkça ver. "
+            "Kaynak metinde geçse de kazanımla ilgisiz bilgiyi sorma. 'konu' alanına kazanımın kısa adını yaz.\n\n"
+        )
+    else:
+        sistem = SISTEM_MAARIF
+        gorev = (
+            "Görev: Bu kazanımı ölçen 5 çoktan seçmeli soru üret (zorluk 1-4 dağıt). "
+            "Her soru bu kazanımı ölçmeli; MEB Bağlam Temelli Soru Yazım Kılavuzu ilkelerine tam uy:\n"
+            "- Her soru için gerçek hayat, deney, veri seti, olay veya problem senaryosu kurgula.\n"
+            "- Sorular BAĞLAMSIZ ÇÖZÜLEMEZ olsun (Bağlamsızlık Testi: metin/senaryo kapatıldığında ezberle çözülememeli, veriyi analiz ettirmeli).\n"
+            "- Gereksiz laf kalabalığından arındırılmış, ölçülen beceriye odaklı net veriler kullan.\n"
+            "- Çeldiricileri öğrencilerin sıkça yaptığı mantık hataları ve kavram yanılgılarına göre hazırla.\n"
+            "- 'şekildeki/grafikteki/tabloya göre' gibi harici görsele atıf yapma, gereken tüm veriyi soru metninde açıkça ver.\n"
+            "Kaynak metinde geçse de kazanımla ilgisiz bilgiyi sorma. 'konu' alanına kazanımın kısa adını yaz.\n\n"
+        )
     return (
-        f"{SISTEM}\n\n"
+        f"{sistem}\n\n"
         f"Ders: {kazanim['ders']}\nSınıf: {kazanim['sinif']}\nKaynak: {kaynak['etiket']}\n"
         f"KAZANIM: {kazanim['metin']}\n"
-        "Görev: Bu kazanımı ölçen 5 çoktan seçmeli soru üret (zorluk 1-4 dağıt). "
-        "Her soru bu kazanımı ölçmeli; MEB Bağlam Temelli Soru Yazım Kılavuzu ilkelerine tam uy:\n"
-        "- Her soru için gerçek hayat, deney, veri seti, olay veya problem senaryosu kurgula.\n"
-        "- Sorular BAĞLAMSIZ ÇÖZÜLEMEZ olsun (Bağlamsızlık Testi: metin/senaryo kapatıldığında ezberle çözülememeli, veriyi analiz ettirmeli).\n"
-        "- Gereksiz laf kalabalığından arındırılmış, ölçülen beceriye odaklı net veriler kullan.\n"
-        "- Çeldiricileri öğrencilerin sıkça yaptığı mantık hataları ve kavram yanılgılarına göre hazırla.\n"
-        "- 'şekildeki/grafikteki/tabloya göre' gibi harici görsele atıf yapma, gereken tüm veriyi soru metninde açıkça ver.\n"
-        "Kaynak metinde geçse de kazanımla ilgisiz bilgiyi sorma. 'konu' alanına kazanımın kısa adını yaz.\n\n"
+        f"{gorev}"
         f"KAYNAK METİN:\n{kaynak_metin[:30000]}"
     )
 

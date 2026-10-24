@@ -115,6 +115,11 @@ def uret(
                 print(f"[uret] siniflandir HATA: {type(e).__name__}: {e}", flush=True)
             if denetim:
                 denetle(conn, ders_saati_kontrol=ders_saati_kontrol)
+            if ders_saati_kontrol and zaman.uretim_serbest():
+                print("[uret] nöbet modu: 120 sn bekleniyor, ardından hedefi dolmamış kazanımlar tekrar kontrol edilecek...", flush=True)
+                time.sleep(120)
+                denenen.clear()
+                continue
             return
         denenen[k["id"]] = denenen.get(k["id"], 0) + 1
         t0 = time.perf_counter()
@@ -143,15 +148,38 @@ def uret(
                     k["metin"],
                     haric_chunklar=kullanilmis if len(kullanilmis) < 30 else None,
                     offset=offset,
+                    hafta=k.get("hafta"),
                 )
             except TypeError:
-                kay = bulucu(farabi_conn, gomucu, k["sinif"], k["ders"], k["metin"])
+                try:
+                    kay = bulucu(
+                        farabi_conn,
+                        gomucu,
+                        k["sinif"],
+                        k["ders"],
+                        k["metin"],
+                        haric_chunklar=kullanilmis if len(kullanilmis) < 30 else None,
+                        offset=offset,
+                    )
+                except TypeError:
+                    kay = bulucu(farabi_conn, gomucu, k["sinif"], k["ders"], k["metin"])
 
             if kay is None and kullanilmis:
                 try:
-                    kay = bulucu(farabi_conn, gomucu, k["sinif"], k["ders"], k["metin"], offset=0)
+                    kay = bulucu(
+                        farabi_conn,
+                        gomucu,
+                        k["sinif"],
+                        k["ders"],
+                        k["metin"],
+                        offset=0,
+                        hafta=k.get("hafta"),
+                    )
                 except TypeError:
-                    kay = bulucu(farabi_conn, gomucu, k["sinif"], k["ders"], k["metin"])
+                    try:
+                        kay = bulucu(farabi_conn, gomucu, k["sinif"], k["ders"], k["metin"], offset=0)
+                    except TypeError:
+                        kay = bulucu(farabi_conn, gomucu, k["sinif"], k["ders"], k["metin"])
 
             if kay is None:
                 vt.kazanim_isaretle(conn, k["id"], "kaynak_yok")
@@ -166,6 +194,7 @@ def uret(
                 k["sinif"],
                 kay["etiket"],
                 kay["metin"],
+                oto_commit=False,
             )
             if bid is None:  # aynı anahtar daha önce eklenmiş
                 bid = vt.birim_bul(conn, f"kazanim:{k['id']}:{','.join(map(str, kay['chunk_idler']))}")
@@ -174,6 +203,8 @@ def uret(
                 if not eleyici.kopya_mi(s["ders"], s["sinif"], s["soru"]):
                     vt.soru_ekle(conn, bid, s, kazanim_id=k["id"], kazanim_kaynak="uretim")
                     eklenen += 1
+            if eklenen == 0:
+                conn.commit()
             print(
                 f"[uret] {k['sinif']} {k['ders']} h{k['hafta']}: {eklenen} soru, "
                 f"{time.perf_counter() - t0:.0f} sn — {k['metin'][:50]}",

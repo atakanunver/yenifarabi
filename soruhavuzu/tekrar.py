@@ -1,5 +1,6 @@
 """soruhavuzu/tekrar.py — aynı ders+sınıfta neredeyse aynı soruları eler (bilgehan bge-m3)."""
 
+import fcntl
 import sys
 from pathlib import Path
 
@@ -9,6 +10,7 @@ ESIK = 0.92
 
 
 ONBELLEK_YOLU = Path("/mnt/farabi-data/farabi/soru_havuzu/eleyici_vektorler.npz")
+KILIT_YOLU = Path("/mnt/farabi-data/farabi/soru_havuzu/eleyici_vektorler.lock")
 
 
 class Eleyici:
@@ -29,49 +31,55 @@ class Eleyici:
         mevcut_idler = {s[0] for s in satirlar}
         onbellek_dict: dict[int, tuple[str, int, np.ndarray]] = {}
 
-        if ONBELLEK_YOLU.exists():
+        KILIT_YOLU.parent.mkdir(parents=True, exist_ok=True)
+        with open(KILIT_YOLU, "w") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
             try:
-                npz = np.load(ONBELLEK_YOLU, allow_pickle=True)
-                c_ids = npz["ids"]
-                c_ders = npz["ders"]
-                c_sinif = npz["sinif"]
-                c_veks = npz["vektorler"]
-                for sid, d, sn, v in zip(c_ids, c_ders, c_sinif, c_veks):
-                    sid = int(sid)
-                    if sid in mevcut_idler:
-                        onbellek_dict[sid] = (str(d), int(sn), v)
-                        self._ekle(str(d), int(sn), v)
-            except Exception as e:
-                print(f"[tekrar] önbellek okunamadı ({e}), sıfırdan yüklenecek", flush=True)
-                self.vektorler.clear()
-                onbellek_dict.clear()
+                if ONBELLEK_YOLU.exists():
+                    try:
+                        npz = np.load(ONBELLEK_YOLU, allow_pickle=True)
+                        c_ids = npz["ids"]
+                        c_ders = npz["ders"]
+                        c_sinif = npz["sinif"]
+                        c_veks = npz["vektorler"]
+                        for sid, d, sn, v in zip(c_ids, c_ders, c_sinif, c_veks):
+                            sid = int(sid)
+                            if sid in mevcut_idler:
+                                onbellek_dict[sid] = (str(d), int(sn), v)
+                                self._ekle(str(d), int(sn), v)
+                    except Exception as e:
+                        print(f"[tekrar] önbellek okunamadı ({e}), sıfırdan yüklenecek", flush=True)
+                        self.vektorler.clear()
+                        onbellek_dict.clear()
 
-        yeni_satirlar = [s for s in satirlar if s[0] not in onbellek_dict]
-        if yeni_satirlar:
-            print(f"[tekrar] {len(onbellek_dict)} soru önbellekten yüklendi, {len(yeni_satirlar)} yeni soru gömülüyor...", flush=True)
-            for i in range(0, len(yeni_satirlar), 64):
-                parca = yeni_satirlar[i : i + 64]
-                vler = self.gomucu.encode([s[3] for s in parca], normalize_embeddings=True)
-                for (sid, ders, sinif, _), v in zip(parca, vler):
-                    arr = np.asarray(v, dtype=np.float32)
-                    self._ekle(ders, sinif, arr)
-                    onbellek_dict[sid] = (ders, sinif, arr)
+                yeni_satirlar = [s for s in satirlar if s[0] not in onbellek_dict]
+                if yeni_satirlar:
+                    print(f"[tekrar] {len(onbellek_dict)} soru önbellekten yüklendi, {len(yeni_satirlar)} yeni soru gömülüyor...", flush=True)
+                    for i in range(0, len(yeni_satirlar), 64):
+                        parca = yeni_satirlar[i : i + 64]
+                        vler = self.gomucu.encode([s[3] for s in parca], normalize_embeddings=True)
+                        for (sid, ders, sinif, _), v in zip(parca, vler):
+                            arr = np.asarray(v, dtype=np.float32)
+                            self._ekle(ders, sinif, arr)
+                            onbellek_dict[sid] = (ders, sinif, arr)
 
-            # Güncellenmiş önbelleği diske yaz
-            try:
-                ONBELLEK_YOLU.parent.mkdir(parents=True, exist_ok=True)
-                siralı_idler = sorted(onbellek_dict.keys())
-                np.savez_compressed(
-                    ONBELLEK_YOLU,
-                    ids=np.array(siralı_idler, dtype=np.int64),
-                    ders=np.array([onbellek_dict[k][0] for k in siralı_idler]),
-                    sinif=np.array([onbellek_dict[k][1] for k in siralı_idler], dtype=np.int32),
-                    vektorler=np.stack([onbellek_dict[k][2] for k in siralı_idler]),
-                )
-            except Exception as e:
-                print(f"[tekrar] önbellek yazılamadı: {e}", flush=True)
-        else:
-            print(f"[tekrar] {len(onbellek_dict)} sorunun tamamı önbellekten yüklendi (0 yeni)", flush=True)
+                    # Güncellenmiş önbelleği diske yaz
+                    try:
+                        ONBELLEK_YOLU.parent.mkdir(parents=True, exist_ok=True)
+                        siralı_idler = sorted(onbellek_dict.keys())
+                        np.savez_compressed(
+                            ONBELLEK_YOLU,
+                            ids=np.array(siralı_idler, dtype=np.int64),
+                            ders=np.array([onbellek_dict[k][0] for k in siralı_idler]),
+                            sinif=np.array([onbellek_dict[k][1] for k in siralı_idler], dtype=np.int32),
+                            vektorler=np.stack([onbellek_dict[k][2] for k in siralı_idler]),
+                        )
+                    except Exception as e:
+                        print(f"[tekrar] önbellek yazılamadı: {e}", flush=True)
+                else:
+                    print(f"[tekrar] {len(onbellek_dict)} sorunun tamamı önbellekten yüklendi (0 yeni)", flush=True)
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
     def kopya_mi(self, ders: str, sinif: int, soru: str) -> bool:
         v = np.asarray(self.gomucu.encode([soru], normalize_embeddings=True)[0])

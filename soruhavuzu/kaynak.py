@@ -35,6 +35,7 @@ def bul(
     k: int = 3,
     haric_chunklar: set[int] | None = None,
     offset: int = 0,
+    hafta: int | None = None,
 ) -> dict | None:
     idler = kitap_idleri(farabi_conn, sinif, ders)
     if not idler:
@@ -45,19 +46,49 @@ def bul(
     kisitli = [kid for kid in idler if kid in izinli]
     haric = list(haric_chunklar or [])
     haric_filtre = " AND NOT (id = ANY(%s))" if haric else ""
-    sorgu = (
-        "SELECT id, sayfa_no, metin, embedding <=> %s::vector AS mesafe FROM chunk_egitim "
-        f"WHERE ((kitap_id = ANY(%s) AND NOT (kitap_id = ANY(%s))) OR id = ANY(%s)){haric_filtre} "
-        "ORDER BY mesafe LIMIT %s OFFSET %s"
-    )
-    param = (
-        [vektor, idler, kisitli, [i for kid in kisitli for i in izinli[kid]], haric, k, offset]
-        if haric
-        else [vektor, idler, kisitli, [i for kid in kisitli for i in izinli[kid]], k, offset]
-    )
-    with farabi_conn.cursor() as cur:
-        cur.execute(sorgu, param)
-        parcalar = cur.fetchall()
+
+    parcalar = []
+    # Ünite/Sayfa Körlüğünü Önleme: Hafta biliniyorsa önce ilgili sayfa penceresinde ara
+    if hafta and 1 <= hafta <= 36:
+        with farabi_conn.cursor() as cur:
+            cur.execute("SELECT min(sayfa_no), max(sayfa_no) FROM chunk_egitim WHERE kitap_id = ANY(%s)", (idler,))
+            min_sf, max_sf = cur.fetchone()
+        if min_sf is not None and max_sf is not None and max_sf - min_sf > 30:
+            merkez = int(min_sf + (hafta / 36.0) * (max_sf - min_sf))
+            yari_cap = max(35, int((max_sf - min_sf) * 0.22))
+            sf_bas = max(min_sf, merkez - yari_cap)
+            sf_son = min(max_sf, merkez + yari_cap)
+            sorgu_pencere = (
+                "SELECT id, sayfa_no, metin, embedding <=> %s::vector AS mesafe FROM chunk_egitim "
+                f"WHERE ((kitap_id = ANY(%s) AND NOT (kitap_id = ANY(%s))) OR id = ANY(%s)){haric_filtre} "
+                "AND sayfa_no BETWEEN %s AND %s "
+                "ORDER BY mesafe LIMIT %s OFFSET %s"
+            )
+            param_pencere = (
+                [vektor, idler, kisitli, [i for kid in kisitli for i in izinli[kid]], haric, sf_bas, sf_son, k, offset]
+                if haric
+                else [vektor, idler, kisitli, [i for kid in kisitli for i in izinli[kid]], sf_bas, sf_son, k, offset]
+            )
+            with farabi_conn.cursor() as cur:
+                cur.execute(sorgu_pencere, param_pencere)
+                parcalar = cur.fetchall()
+
+    # Pencere içinde yeterli skorlu parça bulunamadıysa tüm kitabı tara (fallback)
+    if not parcalar or 1 - float(parcalar[0][3]) < ESIK:
+        sorgu = (
+            "SELECT id, sayfa_no, metin, embedding <=> %s::vector AS mesafe FROM chunk_egitim "
+            f"WHERE ((kitap_id = ANY(%s) AND NOT (kitap_id = ANY(%s))) OR id = ANY(%s)){haric_filtre} "
+            "ORDER BY mesafe LIMIT %s OFFSET %s"
+        )
+        param = (
+            [vektor, idler, kisitli, [i for kid in kisitli for i in izinli[kid]], haric, k, offset]
+            if haric
+            else [vektor, idler, kisitli, [i for kid in kisitli for i in izinli[kid]], k, offset]
+        )
+        with farabi_conn.cursor() as cur:
+            cur.execute(sorgu, param)
+            parcalar = cur.fetchall()
+
     if not parcalar or 1 - float(parcalar[0][3]) < ESIK:
         return None
     sayfalar = sorted({p[1] for p in parcalar})

@@ -40,11 +40,11 @@ def istem(paket: list[dict]) -> str:
             f"  Doğru: {'ABCD'[s['dogru_index']]} / kısa cevap: {s['kisa_cevap']}"
         )
     return (
-        "Sen bir MEB lise soru denetçisisin. Aşağıdaki her soruyu MEB Bağlam Temelli Soru Yazım Kılavuzu, "
-        "Türkiye Yüzyılı Maarif Modeli ilkelerine ve ilgili KAYNAK metne göre denetle. "
+        "Sen bir MEB lise soru denetçisisin. Aşağıdaki her soruyu müfredatına ve ilgili KAYNAK metne göre denetle.\n"
         "Geçerli sayılması için:\n"
-        "1. BAĞLAM ODAKLI VE BAĞLAMSIZ ÇÖZÜLEMEZ: Soru gerçek bir hayat durumu, deney, olay, veri seti veya problem senaryosu içermeli. "
-        "Bağlam kapatıldığında yalnızca ezber bilgi veya formülle çözülebilecek kuru sorular GEÇERSİZ (neden: bağlam yetersiz/ezber).\n"
+        "1. MÜFREDAT VE BAĞLAM KURALLARI: 9, 10 ve 11. SINIF SORULARI Türkiye Yüzyılı Maarif Modeli kapsamındadır; gerçek bir hayat durumu, "
+        "deney, olay veya problem senaryosu içermelidir (kuru ezber/tanım ise GEÇERSİZ: neden: bağlam yetersiz/ezber). "
+        "12. SINIF SORULARI İSE YKS MÜFREDATINA TABİDİR; 12. sınıf sorularında bağlam zorunluluğu yoktur, YKS formatına uygun kavramsal/analitik soru olması yeterlidir (12. sınıfı 'bağlam yetersiz' diye REDDETME).\n"
         "2. DOĞRULUK VE NETLİK: İşaretli şık ve kısa cevap doğru, tek doğru şık var, soru açık ve "
         "tek başına anlaşılır, kaynak metinle uyumlu, sınıf düzeyine uygun.\n"
         "3. GÜÇLÜ ÇELDİRİCİ: Çeldiriciler kavram yanılgılarına ve mantıklı alternatiflere dayanmalı.\n"
