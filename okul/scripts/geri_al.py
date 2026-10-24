@@ -20,6 +20,9 @@ from pathlib import Path
 
 # user_version N'den N-1'e inmek için çalışan betik. Yeni göç eklenince buraya da eklenir.
 GERI = {
+    30: """
+DROP TABLE IF EXISTS sudoku_bot;
+""",
     29: """
 DROP TABLE IF EXISTS onay_yanit;
 DROP TABLE IF EXISTS onay_talep;

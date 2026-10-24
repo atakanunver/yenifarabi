@@ -26,6 +26,33 @@
   {% else %}<p class="bos">Sınıfında düello yapabileceğin başka öğrenci yok.</p>{% endif %}
 </section>
 
+<section class="kart">
+  <h2>Botla antrenman 🤖</h2>
+  <p class="kucuk soluk">Rakip yoksa botla oyna. Skor aynı: süre + {{ 10 }} sn × hata. Bot süresi senin geçmişine göre ayarlanır, bitirene kadar gizli. Günün <b>ilk</b> bot galibiyeti sınıf puanı yazar (×zorluk çarpanı); diğerleri antrenmandır.{% if bot.puanli_bugun %} <b>Bugünkü bot puanını aldın.</b>{% endif %}</p>
+  {% if bot.acik %}
+  <p><a class="tus" href="/ogrenci/sudoku/bot/{{ bot.acik.id }}">Süren bot oyununa devam et</a></p>
+  {% elif bot.kalan %}
+  <form method="post" action="/ogrenci/sudoku/bot" class="sudoku-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Zorluk
+      <select name="zorluk" required>
+        {% for kod, ad in zorluklar.items() %}<option value="{{ kod }}">{{ ad }} ({{ ipuclari[kod] }} ipucu)</option>{% endfor %}
+      </select>
+    </label>
+    <button class="tus tam">Botla oyna</button>
+  </form>
+  <p class="kucuk soluk">Bugün {{ bot.kalan }} bot oyunu hakkın kaldı (günde en çok {{ bot_en_cok }}).</p>
+  {% else %}<p class="bos">Bugünkü bot oyun hakkın bitti; yarın yeniden dene.</p>{% endif %}
+  {% if bot.biten %}
+  <ul class="liste">
+  {% for x in bot.biten %}
+    <li><a class="satir" href="/ogrenci/sudoku/bot/{{ x.id }}/sonuc"><span>Bot · {{ x.zorluk_ad }}</span>
+      <span class="sag">{% if x.sonuc == 'galibiyet' %}✓ kazandın{% elif x.sonuc == 'beraberlik' %}berabere{% else %}kaybettin{% endif %} · {{ x.benim_skor }} / {{ x.bot_skor }}</span></a></li>
+  {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
 {% if d.gelen %}
 <section class="kart">
   <h2>Sana gelen meydan okumalar</h2>

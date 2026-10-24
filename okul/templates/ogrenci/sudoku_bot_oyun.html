@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block baslik %}Sudoku · Botla antrenman · Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Sudoku <span class="fosfor">{{ b.zorluk_ad }}</span></h1>
+<p class="soluk kucuk">Rakip: Bot 🤖 · skorun botunkinden düşükse kazanırsın</p>
+{% if uyari %}<div class="not" role="alert">{{ uyari }}</div>{% endif %}
+<p class="sudoku-durum"><span>⏱ <b id="sudoku-sure" data-gecen="{{ gecen }}">{{ gecen // 60 }}:{{ '%02d' % (gecen % 60) }}</b></span> <span>Hata: <b id="sudoku-hata">{{ hata }}</b> (+{{ ceza }} sn)</span></p>
+<form id="sudoku-form" method="post" action="/ogrenci/sudoku/bot/{{ b.id }}/gonder" data-id="{{ b.id }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="sudoku-izgara" id="sudoku-izgara">
+  {% for ch in bulmaca %}<input class="sudoku-hucre{{ ' sabit' if ch != '0' }}{{ ' ysinir' if loop.index0 % 3 == 2 and loop.index0 % 9 != 8 }}{{ ' asinir' if (loop.index0 // 9) % 3 == 2 and loop.index0 < 72 }}" name="h" maxlength="1" inputmode="numeric" pattern="[1-9]" autocomplete="off" aria-label="Satır {{ loop.index0 // 9 + 1 }}, sütun {{ loop.index0 % 9 + 1 }}" value="{{ ch if ch != '0' }}"{{ ' readonly' if ch != '0' }}>{% endfor %}
+  </div>
+  <p id="sudoku-mesaj" class="not" role="status" hidden></p>
+  <button class="tus tam" id="sudoku-gonder">Kontrol et ve bitir</button>
+</form>
+<p class="kucuk soluk">Yanlış gönderim hata sayılır. Süre sunucuda ölçülür; sayfayı kapatsan da akmaya devam eder. Botun süresi bitirene kadar gizli.</p>
+<script src="/static/sudoku.js?v=1" defer></script>
+{% endblock %}

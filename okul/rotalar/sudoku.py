@@ -6,6 +6,7 @@ import sqlite3
 import analitik
 import oduller
 import sudoku
+import sudoku_bot
 import yetki
 from deps import db_conn, render, rol
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -45,7 +46,8 @@ def ana(request: Request, k=Depends(OGRENCI), conn: sqlite3.Connection = Depends
     return render(
         request, "ogrenci/sudoku.html", ogrenci=o, d=sudoku.duellolarim(conn, k["id"]),
         arkadaslar=sudoku.sinif_arkadaslari(conn, o["sinif"], k["id"]), zorluklar=sudoku.ZORLUK_AD,
-        ipuclari=sudoku.ZORLUK, hata=hata[:200],
+        ipuclari=sudoku.ZORLUK, hata=hata[:200], bot=sudoku_bot.ozet(conn, k["id"]),
+        bot_en_cok=sudoku_bot.GUNLUK_BASLAT_EN_COK,
     )
 
 
@@ -57,6 +59,68 @@ def liderlik(request: Request, k=Depends(OGRENCI), conn: sqlite3.Connection = De
         request, "ogrenci/sudoku_liderlik.html", sinif=o["sinif"], ben=k["id"], hafta_basi=hb,
         liste=sudoku.liderlik(conn, o["sinif"], hb), siniflar=sudoku.sinif_ozetleri(conn, hb),
         puan=sudoku.PUAN, carpan=sudoku.CARPAN,
+    )
+
+
+@router.post("/bot")
+async def bot_baslat(request: Request, k=Depends(rol("ogrenci", post=True)), conn: sqlite3.Connection = Depends(db_conn)):
+    _kendisi(conn, k)
+    form = await request.form()
+    try:
+        oyun_id = sudoku_bot.baslat(conn, k["id"], str(form.get("zorluk", "")))
+    except sudoku.SudokuHatasi as e:
+        return RedirectResponse(f"/ogrenci/sudoku?hata={e}", status_code=303)
+    return RedirectResponse(f"/ogrenci/sudoku/bot/{oyun_id}", status_code=303)
+
+
+def _bot(conn: sqlite3.Connection, k: sqlite3.Row, oyun_id: int) -> sqlite3.Row:
+    o = sudoku_bot.getir(conn, oyun_id, k["id"])
+    if o is None:
+        raise HTTPException(404)
+    return o
+
+
+@router.get("/bot/{oyun_id}")
+def bot_oyna(oyun_id: int, request: Request, k=Depends(OGRENCI), conn: sqlite3.Connection = Depends(db_conn), uyari: str = ""):
+    o = _bot(conn, k, oyun_id)
+    if o["bitis"]:
+        return RedirectResponse(f"/ogrenci/sudoku/bot/{oyun_id}/sonuc", status_code=303)
+    return render(
+        request, "ogrenci/sudoku_bot_oyun.html", b={"id": o["id"], "zorluk_ad": sudoku.ZORLUK_AD[o["zorluk"]]},
+        bulmaca=o["bulmaca"], gecen=sudoku.gecen_sn(o), hata=o["hata"], ceza=sudoku.HATA_CEZA, uyari=uyari[:200],
+    )
+
+
+@router.post("/bot/{oyun_id}/gonder")
+async def bot_gonder(oyun_id: int, request: Request, k=Depends(rol("ogrenci", post=True)), conn: sqlite3.Connection = Depends(db_conn)):
+    _bot(conn, k, oyun_id)
+    js = _js_mi(request)
+    form = await request.form()
+    tahta = str(form.get("tahta", "")) or "".join((str(v).strip() or "0")[:1] for v in form.getlist("h"))
+    try:
+        s = sudoku_bot.gonder(conn, oyun_id, k["id"], tahta)
+    except sudoku.SudokuHatasi as e:
+        if js:
+            return JSONResponse({"mesaj": str(e), "sonraki": f"/ogrenci/sudoku/bot/{oyun_id}"}, status_code=409)
+        return RedirectResponse(f"/ogrenci/sudoku/bot/{oyun_id}?uyari={e}", status_code=303)
+    sonraki = f"/ogrenci/sudoku/bot/{oyun_id}/sonuc" if s["dogru"] else f"/ogrenci/sudoku/bot/{oyun_id}"
+    if s["dogru"]:
+        analitik.istekten(request, "sudoku_bitir", f"bot{oyun_id}")
+    if js:
+        # bot skoru yalnız bitince (doğru çözümle) döner; hatalı gönderimde sızmaz
+        return JSONResponse({**{a: v for a, v in s.items() if a not in ("bot_skor", "sonuc")}, "sonraki": sonraki})
+    return RedirectResponse(sonraki, status_code=303)
+
+
+@router.get("/bot/{oyun_id}/sonuc")
+def bot_sonuc(oyun_id: int, request: Request, k=Depends(OGRENCI), conn: sqlite3.Connection = Depends(db_conn)):
+    o = _bot(conn, k, oyun_id)
+    if not o["bitis"]:
+        return RedirectResponse(f"/ogrenci/sudoku/bot/{oyun_id}", status_code=303)
+    return render(
+        request, "ogrenci/sudoku_bot_sonuc.html", b={"id": o["id"], "zorluk_ad": sudoku.ZORLUK_AD[o["zorluk"]]},
+        sonuc=o["sonuc"], benim=o, benim_skor=sudoku_bot.skor(o), bot_skor=sudoku_bot.bot_skoru(o),
+        kazanc=sudoku_bot.kazanc(conn, o), ceza=sudoku.HATA_CEZA,
     )
 
 

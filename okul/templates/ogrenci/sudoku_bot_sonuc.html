@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block baslik %}Sudoku · Bot sonucu · Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Sudoku <span class="fosfor">sonucu</span></h1>
+<section class="kart">
+  <p><b>{{ b.zorluk_ad }}</b> · rakip: Bot 🤖</p>
+  <p><b>{{ {'galibiyet': 'Botu yendin! 🎉', 'beraberlik': 'Berabere.', 'maglubiyet': 'Bot bu sefer önde.'}[sonuc] }}</b>
+    {% if kazanc %}· +{{ kazanc }} puan (günün ilk bot galibiyeti){% elif sonuc == 'galibiyet' %}· bugünkü bot puanını zaten aldın, bu oyun antrenman{% endif %}</p>
+  <p>Sen: <b>{{ benim_skor }}</b> ({{ benim.sure_sn }} sn + {{ benim.hata }} hata × {{ ceza }}) · Bot: <b>{{ bot_skor }}</b> ({{ benim.bot_sure_sn }} sn + {{ benim.bot_hata }} hata × {{ ceza }})</p>
+</section>
+<form method="post" action="/ogrenci/sudoku/bot" class="sudoku-form">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="zorluk" value="{{ benim.zorluk }}">
+  <button class="tus tam">Aynı zorlukta tekrar oyna</button>
+</form>
+<a class="tus tam ikincil" href="/ogrenci/sudoku">Sudoku ana sayfa</a>
+<a class="tus tam ikincil" href="/ogrenci/sudoku/liderlik">Sınıf tablosu</a>
+{% endblock %}

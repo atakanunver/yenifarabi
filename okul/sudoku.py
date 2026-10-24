@@ -336,6 +336,9 @@ def _puanlar(conn: sqlite3.Connection, hb: str | None) -> dict[int, dict]:
             v["puan"] += PUAN[sonuc_] * CARPAN[d["zorluk"]]
             v["galibiyet"] += int(sonuc_ == "galibiyet")
             v["oynanan"] += 1
+    import sudoku_bot  # döngüsel içe aktarmayı önler (sudoku_bot sudoku'yu içe aktarır)
+
+    sudoku_bot.puanlar_ekle(conn, cikti, hb, son)
     return cikti
 
 

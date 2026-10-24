@@ -716,10 +716,29 @@ CREATE TABLE onay_yanit (
 );
 """
 
+# Sudoku: botla tek oyunculu antrenman (sudoku_bot.py). Bot süresi/hatası başlangıçta sunucuda belirlenir ve saklanır.
+SEMA_V30 = """
+CREATE TABLE sudoku_bot (
+    id           INTEGER PRIMARY KEY,
+    kullanici_id INTEGER NOT NULL REFERENCES kullanici(id),
+    zorluk       TEXT NOT NULL CHECK (zorluk IN ('basit','orta','zor')),
+    bulmaca      TEXT NOT NULL,
+    cozum        TEXT NOT NULL,
+    baslama      TEXT NOT NULL,
+    bitis        TEXT,
+    hata         INTEGER NOT NULL DEFAULT 0,
+    sure_sn      INTEGER,
+    bot_sure_sn  INTEGER NOT NULL,
+    bot_hata     INTEGER NOT NULL,
+    sonuc        TEXT CHECK (sonuc IN ('galibiyet','beraberlik','maglubiyet'))
+);
+CREATE INDEX sudoku_bot_kullanici ON sudoku_bot(kullanici_id, baslama);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
-    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27, SEMA_V28, SEMA_V29,
+    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27, SEMA_V28, SEMA_V29, SEMA_V30,
 ]
 
 
