@@ -1,6 +1,7 @@
 """Sudoku botla antrenman: bot süresi, tek açık oyun, günlük sınır, skor/sonuç, günde 1 puan, yetki (404), sızıntı, geri alma."""
 
 import random
+import re
 import sqlite3
 from datetime import timedelta
 
@@ -198,3 +199,64 @@ def test_geri_al_30(tmp_path):
     assert c.execute("SELECT name FROM sqlite_master WHERE name = 'sudoku_bot'").fetchone()
     c.executescript(geri_al.GERI[30])
     assert not c.execute("SELECT name FROM sqlite_master WHERE name = 'sudoku_bot'").fetchone()
+
+
+def test_kaydet_yalniz_bos_hucreler_ve_sabit_ipuclari_degismez(conn, ornek):
+    kid = ornek["ogr1_k"]
+    oid = sudoku_bot.baslat(conn, kid, "basit")
+    bulmaca = conn.execute("SELECT bulmaca FROM sudoku_bot WHERE id = ?", (oid,)).fetchone()[0]
+    bos = [i for i, c in enumerate(bulmaca) if c == "0"][:2]
+    sabit = bulmaca.index(next(c for c in bulmaca if c != "0"))
+    tahta = ["9"] * 81  # sabit hücrelere de 9 yazmayı dene
+    sudoku_bot.kaydet(conn, oid, kid, "".join(tahta))
+    kayitli = conn.execute("SELECT tahta FROM sudoku_bot WHERE id = ?", (oid,)).fetchone()[0]
+    assert kayitli[sabit] == "0" and all(kayitli[i] == "9" for i in bos)  # sabit hücre kaydedilmez, boşlar kaydedilir
+
+
+def test_kaydet_dogrulama_sahiplik_ve_bitince_kapanir(conn, ornek):
+    kid, baskasi = ornek["ogr1_k"], ornek["ogr2_k"]
+    oid = sudoku_bot.baslat(conn, kid, "basit")
+    for kotu in ("", "1" * 80, "1" * 82, "a" * 81, "١" * 81):
+        with pytest.raises(sudoku.SudokuHatasi):
+            sudoku_bot.kaydet(conn, oid, kid, kotu)
+    with pytest.raises(sudoku.SudokuHatasi):
+        sudoku_bot.kaydet(conn, oid, baskasi, "0" * 81)  # başkasının oyunu
+    sudoku_bot.gonder(conn, oid, kid, cozum(conn, oid))
+    with pytest.raises(sudoku.SudokuHatasi):
+        sudoku_bot.kaydet(conn, oid, kid, "0" * 81)  # bitmiş oyuna kayıt yok
+
+
+def test_rota_kaydet_ve_sayfa_kayitli_rakamlarla_gelir(istemci, conn, yeni_kullanici, ornek, saat):
+    csrf = giris(istemci, "101", "ali-sifre")
+    istemci.post("/ogrenci/sudoku/bot", data={"csrf": csrf, "zorluk": "basit"}, follow_redirects=False)
+    oid = conn.execute("SELECT id FROM sudoku_bot").fetchone()[0]
+    bulmaca, z = conn.execute("SELECT bulmaca, cozum FROM sudoku_bot WHERE id = ?", (oid,)).fetchone()
+    bos = [i for i, c in enumerate(bulmaca) if c == "0"]
+    tahta = ["0"] * 81
+    tahta[bos[0]], tahta[bos[1]] = "4", "7"
+    r = istemci.post(f"/ogrenci/sudoku/bot/{oid}/kaydet", data={"csrf": csrf, "tahta": "".join(tahta)}, headers={"Accept": "application/json"})
+    assert r.status_code == 200 and r.json() == {"ok": True}
+    # çıkıp giriş: sayfa kayıtlı rakamlarla gelir, çözüm sayfada yok
+    giris(istemci, "101", "ali-sifre")
+    sayfa = istemci.get(f"/ogrenci/sudoku/bot/{oid}")
+    assert sayfa.status_code == 200 and z not in sayfa.text and f'data-kaydet="/ogrenci/sudoku/bot/{oid}/kaydet"' in sayfa.text
+    degerler = re.findall(r'name="h"[^>]*value="(\d?)"', sayfa.text)
+    assert len(degerler) == 81 and degerler[bos[0]] == "4" and degerler[bos[1]] == "7" and degerler[bos[2]] == ""
+    # geçersiz tahta 400; başkası 404; csrf yok reddedilir
+    csrf = giris(istemci, "101", "ali-sifre")
+    assert istemci.post(f"/ogrenci/sudoku/bot/{oid}/kaydet", data={"csrf": csrf, "tahta": "x"}).status_code == 400
+    assert istemci.post(f"/ogrenci/sudoku/bot/{oid}/kaydet", data={"tahta": "0" * 81}, follow_redirects=False).status_code in (400, 403)
+    baska = _ogrenci(conn, yeni_kullanici, "Efe Demir", 103)
+    csrf_b = giris(istemci, "103", "s103")
+    assert baska and istemci.post(f"/ogrenci/sudoku/bot/{oid}/kaydet", data={"csrf": csrf_b, "tahta": "0" * 81}).status_code == 404
+
+
+def test_geri_al_31(tmp_path):
+    from scripts import geri_al
+
+    assert 31 in geri_al.GERI and len(db.GOCLER) >= 31
+    c = sqlite3.connect(tmp_path / "t.db")
+    c.executescript("\n".join(db.GOCLER))
+    assert "tahta" in [r[1] for r in c.execute("PRAGMA table_info(sudoku_bot)")]
+    c.executescript(geri_al.GERI[31])
+    assert "tahta" not in [r[1] for r in c.execute("PRAGMA table_info(sudoku_bot)")]

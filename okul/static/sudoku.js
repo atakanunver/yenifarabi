@@ -12,6 +12,40 @@
   var baslangic = performance.now() - (parseInt(sureEl.dataset.gecen, 10) || 0) * 1000;
   var gonderiyor = false;
 
+  // Doldurulan rakamlar kaybolmasın: (1) bot oyununda sunucuya otomatik kaydedilir (data-kaydet; sayfa sunucudan dolu gelir,
+  // başka cihazdan da devam edilir), (2) her oyunda bu tarayıcıda da saklanır (düello için). Depolama kapalıysa sessizce atlanır.
+  var anahtar = "sudoku:" + form.getAttribute("action");
+  var kaydetUrl = form.dataset.kaydet;
+  var kaydetZamani = null;
+  var bitti = false;
+  function dizi() {
+    return hucreler.map(function (h) { return h.readOnly ? "0" : (h.value || "0"); }).join("");
+  }
+  function sunucuyaKaydet() {
+    if (!kaydetUrl || !window.fetch || bitti) return;
+    var veri = new FormData();
+    veri.append("csrf", form.elements.csrf.value);
+    veri.append("tahta", dizi());
+    fetch(kaydetUrl, { method: "POST", body: veri, headers: { Accept: "application/json" }, credentials: "same-origin", keepalive: true })
+      .catch(function () { /* sonraki yazışta yeniden denenir */ });
+  }
+  function yaz() {
+    try { localStorage.setItem(anahtar, dizi()); } catch (e) { /* depolama yok */ }
+    if (kaydetUrl) { clearTimeout(kaydetZamani); kaydetZamani = setTimeout(sunucuyaKaydet, 700); }
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden" && kaydetUrl) { clearTimeout(kaydetZamani); sunucuyaKaydet(); }
+  });
+  function sil() {
+    try { localStorage.removeItem(anahtar); } catch (e) { /* depolama yok */ }
+  }
+  try {
+    var kayit = localStorage.getItem(anahtar) || "";
+    if (kayit.length === 81) {
+      hucreler.forEach(function (h, i) { if (!h.readOnly && !h.value && /^[1-9]$/.test(kayit.charAt(i))) h.value = kayit.charAt(i); });
+    }
+  } catch (e) { /* depolama yok */ }
+
   setInterval(function () {
     var s = Math.floor((performance.now() - baslangic) / 1000);
     sureEl.textContent = Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2);
@@ -31,6 +65,7 @@
     h.addEventListener("input", function () {
       var m = h.value.replace(/[^1-9]/g, "");
       h.value = m.slice(-1);
+      yaz();
       if (h.value) git(i + 1);
     });
     h.addEventListener("focus", function () { h.select(); });
@@ -61,7 +96,7 @@
     fetch(form.action, { method: "POST", body: veri, headers: { Accept: "application/json" }, credentials: "same-origin" })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (x) {
-        if (x.ok && x.j.dogru) { location.href = x.j.sonraki; return; }
+        if (x.ok && x.j.dogru) { bitti = true; clearTimeout(kaydetZamani); sil(); location.href = x.j.sonraki; return; }
         if (x.ok) {
           hataEl.textContent = x.j.hata;
           uyar("Tahtada hata var (+10 sn ceza). Kontrol edip tekrar dene.");

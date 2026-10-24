@@ -20,6 +20,9 @@ from pathlib import Path
 
 # user_version N'den N-1'e inmek için çalışan betik. Yeni göç eklenince buraya da eklenir.
 GERI = {
+    31: """
+ALTER TABLE sudoku_bot DROP COLUMN tahta;
+""",
     30: """
 DROP TABLE IF EXISTS sudoku_bot;
 """,

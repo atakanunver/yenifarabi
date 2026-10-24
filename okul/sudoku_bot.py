@@ -83,6 +83,22 @@ def getir(conn: sqlite3.Connection, oyun_id: int, kid: int) -> sqlite3.Row | Non
     return conn.execute("SELECT * FROM sudoku_bot WHERE id = ? AND kullanici_id = ?", (oyun_id, kid)).fetchone()
 
 
+def kaydet(conn: sqlite3.Connection, oyun_id: int, kid: int, tahta: str) -> None:
+    """Doldurulan rakamları saklar (açık oyunda; sabit hücreler sayılmaz, çözüm bilgisi gerekmez)."""
+    o = getir(conn, oyun_id, kid)
+    if o is None:
+        raise SudokuHatasi("Oyun bulunamadı.")
+    if o["bitis"]:
+        raise SudokuHatasi("Bu oyun bitti.")
+    tahta = (tahta or "").strip()
+    if len(tahta) != 81 or not tahta.isascii() or not tahta.isdigit():
+        raise SudokuHatasi("Geçersiz tahta.")
+    # yalnız oyuncunun boş hücrelere yazdıkları kalır; sabit ipuçları bulmacadan gelir
+    temiz = "".join("0" if b != "0" else t for b, t in zip(o["bulmaca"], tahta, strict=True))
+    conn.execute("UPDATE sudoku_bot SET tahta = ? WHERE id = ? AND bitis IS NULL", (temiz, oyun_id))
+    conn.commit()
+
+
 def skor(o: sqlite3.Row) -> int | None:
     return o["sure_sn"] + HATA_CEZA * o["hata"] if o["bitis"] else None
 

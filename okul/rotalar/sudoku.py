@@ -87,8 +87,20 @@ def bot_oyna(oyun_id: int, request: Request, k=Depends(OGRENCI), conn: sqlite3.C
         return RedirectResponse(f"/ogrenci/sudoku/bot/{oyun_id}/sonuc", status_code=303)
     return render(
         request, "ogrenci/sudoku_bot_oyun.html", b={"id": o["id"], "zorluk_ad": sudoku.ZORLUK_AD[o["zorluk"]]},
-        bulmaca=o["bulmaca"], gecen=sudoku.gecen_sn(o), hata=o["hata"], ceza=sudoku.HATA_CEZA, uyari=uyari[:200],
+        bulmaca=o["bulmaca"], tahta=o["tahta"] or "", gecen=sudoku.gecen_sn(o), hata=o["hata"], ceza=sudoku.HATA_CEZA, uyari=uyari[:200],
     )
+
+
+@router.post("/bot/{oyun_id}/kaydet")
+async def bot_kaydet(oyun_id: int, request: Request, k=Depends(rol("ogrenci", post=True)), conn: sqlite3.Connection = Depends(db_conn)):
+    """Otomatik kayıt (JS, yazdıkça): çıkıp girince rakamlar geri gelir."""
+    _bot(conn, k, oyun_id)
+    form = await request.form()
+    try:
+        sudoku_bot.kaydet(conn, oyun_id, k["id"], str(form.get("tahta", "")))
+    except sudoku.SudokuHatasi as e:
+        return JSONResponse({"mesaj": str(e)}, status_code=400)
+    return JSONResponse({"ok": True})
 
 
 @router.post("/bot/{oyun_id}/gonder")
