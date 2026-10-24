@@ -53,6 +53,15 @@ def talimat_config():
     return f._build_config()
 
 
+def _talimat_config_uret():
+    f = main.FarabiLive.__new__(main.FarabiLive)
+    f._current_lesson = None
+    f._ders_kipi = main.KIP_OGRETMENLI
+    f._ders_kipi_taban = main.KIP_OGRETMENLI
+    f.ui = _SahteUI(talimat_modu=True)
+    return f._build_config()
+
+
 def _sistem_metni(cfg) -> str:
     si = cfg.system_instruction
     return si if isinstance(si, str) else "".join(p.text for p in si.parts)
@@ -179,7 +188,7 @@ class TestTalimatModu:
     """
 
     def test_ui_talimat_modu_ders_kipini_gecersiz_kilar(self, talimat_config):
-        assert talimat_config.system_instruction == main._TALIMAT_PERSONASI
+        assert talimat_config.system_instruction == main._talimat_personasi()
 
     def test_normal_ders_personasi_karismaz(self, talimat_config):
         # core/prompt.txt, ders çerçevesi, dil kuralı vb. HİÇ girmemeli.
@@ -189,16 +198,36 @@ class TestTalimatModu:
 
     def test_yalnizca_talimat_araclari_bildirilir(self, talimat_config):
         adlar = {d.name for d in talimat_config.tools[0].function_declarations}
-        beklenen = {d["name"] for d in kayit.bildirimler(main.KIP_TALIMAT)}
+        haric = main.SADE_HARIC_ARACLAR if main.tahta.sade_mod() else ()
+        beklenen = {d["name"] for d in kayit.bildirimler(main.KIP_TALIMAT, haric=haric)}
         assert adlar == beklenen
         assert {"web_ac", "uygulama_ac", "dosya_ac", "pencere_kapat",
                 "talimat_modundan_cik", "pdf_sayfa", "yks_sorulari",
                 "kitap_sorusu"} <= adlar
-        # Normal ders araçları bu modda görünmemeli.
-        assert "ders_icerigi" not in adlar and "web_search" not in adlar
+        # Normal ders araçları bu modda görünmemeli (web_search/youtube_video/eba/yoklama_al sade modda talimatta da açık).
+        assert "ders_icerigi" not in adlar and "ders_hafizasi" not in adlar
 
     def test_talimat_modu_yoksa_normal_persona_kullanilir(self, config):
         assert config.system_instruction != main._TALIMAT_PERSONASI
+        assert config.system_instruction != main._TALIMAT_PERSONASI_SADE
+
+    def test_sade_modda_cikis_araci_ve_cikis_satiri_yok(self, monkeypatch):
+        """2026-10-24: sade modda 'normal derse dön' yok — araç listede, persona'da çıkış satırı yok."""
+        monkeypatch.setattr(main.tahta, "sade_mod", lambda: True)
+        cfg = _talimat_config_uret()
+        adlar = {d.name for d in cfg.tools[0].function_declarations}
+        assert "talimat_modundan_cik" not in adlar and "shutdown_farabi" not in adlar
+        assert {"icerigi_kapat", "youtube_video", "web_search", "eba", "yoklama_al", "ekrandaki_soruyu_oku"} <= adlar
+        assert "talimat_modundan_cik" not in cfg.system_instruction and "normal derse dön" not in cfg.system_instruction
+        assert "icerigi_kapat" in cfg.system_instruction  # yeni araçlar persona'da anlatılıyor
+        assert main._TALIMAT_PERSONASI_SADE != main._TALIMAT_PERSONASI
+
+    def test_sade_olmayan_talimat_eski_davranis(self, monkeypatch):
+        monkeypatch.setattr(main.tahta, "sade_mod", lambda: False)
+        cfg = _talimat_config_uret()
+        adlar = {d.name for d in cfg.tools[0].function_declarations}
+        assert "talimat_modundan_cik" in adlar
+        assert cfg.system_instruction == main._TALIMAT_PERSONASI and "talimat_modundan_cik" in cfg.system_instruction
 
     def test_kapatma_araclari_normal_derste_gorunmez(self, config):
         """

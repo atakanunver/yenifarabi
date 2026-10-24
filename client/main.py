@@ -157,19 +157,33 @@ class _DersBitti(Exception):
 # yok, tek iş sesli komutu doğru araca yönlendirmek.
 _TALIMAT_PERSONASI = (
     "Sen Farabi'sin. Şu anda ÖĞRETMEN TALİMAT MODUNDASIN.\n\n"
-    "Bu modda DERS ANLATMAZSIN, SORU SORMAZSIN, YOKLAMA ALMAZSIN, sohbet "
-    "etmezsin, konuyu açıklamazsın. Tek işin: öğretmenin söylediği TEK "
-    "CÜMLELİK sesli komutu dinleyip en uygun aracı çağırmak.\n\n"
+    "Bu modda DERS ANLATMAZSIN, SORU SORMAZSIN, YOKLAMA ALMAZSIN (yalnızca "
+    "yoklama uygulamasını AÇARSIN), sohbet etmezsin, konuyu açıklamazsın. "
+    "Tek işin: öğretmenin söylediği TEK CÜMLELİK sesli komutu dinleyip en "
+    "uygun aracı çağırmak.\n\n"
     "AÇMA örnekleri: 'internet aç', 'google aç', 'eba.gov.tr aç', 'youtube "
     "aç', '9.21.mp3 dosyasını çal', 'pardus kalem uygulamasını aç', 'çizim "
     "uygulamasını aç', 'ev dizinini aç', 'fizik kitabının 45. sayfasını "
     "aç'.\n"
+    "VİDEO: 'youtube'da türev konu anlatımı aç' → youtube_video (action=play, "
+    "query=konu); 'eba video aç' → eba. Video açılınca mikrofon kendiliğinden "
+    "kapanır (video sesi komut sanılmasın); öğretmen DEVAM ET'e basınca açılır.\n"
+    "EKRAN: 'ekranı oku', 'ekrandaki soruyu oku/çöz' → ekrandaki_soruyu_oku "
+    "(ne yapılacağı 'talimat' parametresiyle); 'ekran görüntüsü al' → "
+    "ekran_goruntusu_al.\n"
+    "YKS: 'YKS türev sorusu aç' → yks_sorulari (konu=türev); 'sıradaki soru' → "
+    "yks_sorulari (sonraki=true, konu YOK). Soruyu okuduktan sonra BEKLE.\n"
+    "ARAŞTIRMA: 'internette ara/araştır X' → web_search; sonucu EN FAZLA iki "
+    "kısa cümleyle özetle.\n"
+    "YOKLAMA: 'yoklamayı aç' → yoklama_al (yoklama uygulamasını açar).\n"
     "KAPAMA örnekleri: 'youtube'u kapat', 'çizim uygulamasını kapat', "
     "'tarayıcıyı kapat' → pencere_kapat aracını çağır (hedefe pencere "
     "başlığından bir kelime/kelime öbeği ver, ör. 'youtube', 'çizim', "
-    "'chrome'). AÇMA aracıyla (web_ac/uygulama_ac) 'kapat' kelimesini "
-    "ASLA parametre olarak gönderme — o araçların kapatma diye bir işi "
-    "yok, öyle bir çağrı anlamsız bir sonuç üretir.\n"
+    "'chrome'). 'soruyu kapat', 'sayfayı kapat', 'kitabı kapat', 'içeriği "
+    "kapat' (Farabi'nin kendi ekranındaki YKS sorusu/kitap sayfası) → "
+    "icerigi_kapat aracını çağır. AÇMA aracıyla (web_ac/uygulama_ac) 'kapat' "
+    "kelimesini ASLA parametre olarak gönderme — o araçların kapatma diye bir "
+    "işi yok, öyle bir çağrı anlamsız bir sonuç üretir.\n"
     "ÇIKMA: 'öğretmen talimat modundan çık', 'normal derse dön' → "
     "talimat_modundan_cik aracını çağır.\n\n"
     "DERS KİTAPLARI BU TAHTADA YEREL DOSYA DEĞİLDİR — sunucuda tutulur. "
@@ -181,7 +195,7 @@ _TALIMAT_PERSONASI = (
     "bulunmaz.\n\n"
     "KURALLAR:\n"
     "- Bir araç çağırdıktan sonra aracın DÖNDÜRDÜĞÜ sonuca göre EN FAZLA "
-    "tek kısa cümleyle bildir — başarılıysa \"Açılıyor.\"/\"Kapatıldı.\", "
+    "tek kısa cümleyle bildir (web_search özeti hariç: en fazla iki) — başarılıysa \"Açılıyor.\"/\"Kapatıldı.\", "
     "araç bir hata/bulunamadı dönerse bunu DÜRÜSTÇE söyle (\"'X' bulunamadı.\" "
     "gibi). Aracın döndürmediği bir başarıyı ASLA anons etme.\n"
     "- Komutu anlamadıysan, hangi aracın uygun olduğundan emin değilsen, YA "
@@ -193,6 +207,19 @@ _TALIMAT_PERSONASI = (
     "sorma, yorum yapma, sohbet etme, konuya giriş yapma.\n"
     "- Her zaman Türkçe konuş.\n"
 )
+
+# Sade mod (core/tahta.sade_mod): "normal derse dön" yok; çıkış satırı ve çıkış/ders-bitirme araçları listeden çıkar.
+_TALIMAT_CIKMA_SATIRI = (
+    "ÇIKMA: 'öğretmen talimat modundan çık', 'normal derse dön' → "
+    "talimat_modundan_cik aracını çağır.\n\n"
+)
+_TALIMAT_PERSONASI_SADE = _TALIMAT_PERSONASI.replace(_TALIMAT_CIKMA_SATIRI, "")
+SADE_HARIC_ARACLAR = ("talimat_modundan_cik", "shutdown_farabi")
+
+
+def _talimat_personasi() -> str:
+    return _TALIMAT_PERSONASI_SADE if tahta.sade_mod() else _TALIMAT_PERSONASI
+
 
 # Bu kadar dakika hiç konuşma/öğretmen girdisi olmazsa ders kaydı kapatılıp
 # çıkılır. Canlı ses oturumu açık kaldığı sürece ücretli; unutulmuş bir tahta
@@ -1150,10 +1177,10 @@ class FarabiLive:
         transkripsiyon) `_build_config()`'teki ile BİREBİR aynı tutulur —
         bunlar gerçek arızalarla ayarlanmış, kipe bağlı değil.
         """
-        araclar = kayit.bildirimler(KIP_TALIMAT)
+        araclar = kayit.bildirimler(KIP_TALIMAT, haric=SADE_HARIC_ARACLAR if tahta.sade_mod() else ())
         return types.LiveConnectConfig(
             response_modalities=["AUDIO"],
-            system_instruction=_TALIMAT_PERSONASI,
+            system_instruction=_talimat_personasi(),
             tools=[{"function_declarations": araclar}],
             output_audio_transcription={},
             input_audio_transcription={},
@@ -1304,6 +1331,11 @@ class FarabiLive:
             elif name == "pencere_kapat":
                 r = await self._isci(name, lambda: pencere_kapat(parameters=args, player=self.ui))
                 result = r or "Done."
+
+            elif name == "icerigi_kapat":
+                # Farabi'nin KENDİ içerik paneli (kitap sayfası / YKS sorusu); dış pencereler pencere_kapat'ın işi.
+                self.ui.kapat_icerik()
+                result = "İçerik paneli kapatıldı."
 
             elif name == "ekran_goruntusu_al":
                 r = await self._isci(name, lambda: ekran_goruntusu_al(parameters=args, player=self.ui, speak=self.speak))

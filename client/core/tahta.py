@@ -50,6 +50,20 @@ def derslik() -> str:
     return f"{sinif}-{sube}" if sube else sinif
 
 
+def sade_mod() -> bool:
+    """Sade mod (2026-10-24): tahtada yalnızca öğretmen talimat modu; ders kipleri, mod/ders dili düğmeleri ve
+    'normal derse dön' kapalı. Varsayılan AÇIK; `config/api_keys.json` içinde `"sade_mod": false` ders modlarını
+    geri açar (Farabi yeniden başlatılınca). Okunamıyorsa sade (güvenli varsayılan)."""
+    try:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            ham = json.load(f).get("sade_mod", True)
+    except (OSError, ValueError, AttributeError):  # dosya yok/bozuk/dict değil
+        return True
+    if isinstance(ham, str):
+        return ham.strip().lower() not in ("false", "0", "hayir", "hayır", "kapali", "kapalı")
+    return ham is not False and ham != 0
+
+
 def sinif_duzeyi() -> str:
     """
     Derslikten sınıf düzeyini çıkar: '10-A' -> '10'.

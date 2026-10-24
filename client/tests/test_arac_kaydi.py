@@ -83,4 +83,37 @@ def test_yoklama_al_kayitli_ve_normal_derste_acik():
     assert "yoklama_al" in kayit.adlar()
     assert kayit.kipte_acik("yoklama_al", "ogretmenli")
     assert kayit.kipte_acik("yoklama_al", "ogretmensiz")
-    assert not kayit.kipte_acik("yoklama_al", "talimat")
+    assert kayit.kipte_acik("yoklama_al", "talimat")  # 2026-10-24 sade mod: "yoklamayı aç" talimat modunda da açık
+
+
+SADE_HARIC = ("talimat_modundan_cik", "shutdown_farabi")
+SADE_TALIMAT_ARACLARI = {
+    "web_ac", "uygulama_ac", "dosya_ac", "pencere_kapat", "pdf_sayfa", "kitap_sorusu", "yks_sorulari", "geogebra",
+    "ekran_goruntusu_al", "ekrandaki_soruyu_oku", "icerigi_kapat", "youtube_video", "web_search", "eba", "yoklama_al",
+}
+
+
+def test_sade_modda_talimat_arac_kumesi():
+    """2026-10-24 sade mod: talimat kipinde TAM bu 15 araç (çıkış/ders bitirme araçları listeden çıkar)."""
+    adlar = {d["name"] for d in kayit.bildirimler("talimat", haric=SADE_HARIC)}
+    assert adlar == SADE_TALIMAT_ARACLARI
+
+
+def test_haric_yalniz_listeden_cikarir_normal_kip_ve_sade_olmayan_talimat_etkilenmez():
+    tum = {d["name"] for d in kayit.bildirimler("talimat")}
+    assert "talimat_modundan_cik" in tum  # sade olmayan talimat: çıkış aracı duruyor
+    assert tum - {d["name"] for d in kayit.bildirimler("talimat", haric=SADE_HARIC)} == {"talimat_modundan_cik"}
+    assert "shutdown_farabi" in {d["name"] for d in kayit.bildirimler("ogretmenli")}  # ders kipleri değişmedi
+    assert {d["name"] for d in kayit.bildirimler("ogretmenli")} == {d["name"] for d in kayit.bildirimler("ogretmenli", haric=())}
+
+
+def test_icerigi_kapat_yalniz_talimat_kipinde_ve_aciklamasi_dis_pencere_demiyor():
+    assert kayit.kipte_acik("icerigi_kapat", "talimat")
+    assert not kayit.kipte_acik("icerigi_kapat", "ogretmenli") and not kayit.kipte_acik("icerigi_kapat", "ogretmensiz")
+    arac = kayit.bul("icerigi_kapat")
+    assert arac.parametreler["required"] == [] and "pencere_kapat" in arac.aciklama  # dış pencere için pencere_kapat'a yönlendirir
+
+
+@pytest.mark.parametrize("ad", ["youtube_video", "web_search", "eba", "yoklama_al"])
+def test_sade_mod_ek_araclari_hem_derste_hem_talimatta_acik(ad):
+    assert kayit.kipte_acik(ad, "talimat") and kayit.kipte_acik(ad, "ogretmenli") and kayit.kipte_acik(ad, "ogretmensiz")

@@ -27,6 +27,15 @@ HTTP call to the Brain server (`server/`, `farabi.local`). The board has no
 book/YKS/content store of its own; only small disposable caches under
 `icerik/onbellek/`.
 
+> **2026-10-24 — SADE MOD (default).** On the boards Farabi now runs ONLY in `talimat` mode: the 🎓/👨‍🏫 mode buttons, the language
+> buttons and the "back to normal lesson" path are hidden/removed (`core/tahta.sade_mod()`, config `"sade_mod": false` in
+> `config/api_keys.json` restores the lesson modes after a restart; default = on). Lesson code (engine, timetable, kazanım frame,
+> `ders_icerigi`, `ders_hafizasi`) is dormant, NOT deleted. Talimat tools in sade mode (15): `web_ac`, `uygulama_ac`, `dosya_ac`,
+> `pencere_kapat`, `pdf_sayfa`, `kitap_sorusu`, `yks_sorulari`, `geogebra`, `ekran_goruntusu_al`, `ekrandaki_soruyu_oku`,
+> `icerigi_kapat` (closes Farabi's own content panel: textbook page / YKS question), `youtube_video`, `web_search`, `eba`,
+> `yoklama_al`; `talimat_modundan_cik` and `shutdown_farabi` are excluded (`main.SADE_HARIC_ARACLAR`). Video tools still mute the mic
+> (video audio would be heard as commands) until DEVAM ET / F4. The text below describes the full (non-sade) design.
+
 **Three kips (lesson modes):**
 - `ogretmenli` (default) — a human teacher is present with ~20 students;
   Farabi carries content and questioning, classroom order stays with the

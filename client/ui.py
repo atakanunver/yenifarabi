@@ -78,6 +78,11 @@ _EKRAN_GIZLI_KELIMELER = ("yoklama", "e-okul", "eokul", "mebbis", "tahtayoklama"
 _TR_KUCUK_HARF = str.maketrans({"İ": "i", "I": "ı"})
 
 
+def _sade_mod() -> bool:
+    """core/tahta.sade_mod; tahta modülü yüklenemezse (nadir) sade kabul edilir."""
+    return tahta.sade_mod() if tahta else True
+
+
 def _ekran_baslik_gizli_mi(baslik: str) -> bool:
     b = (baslik or "").translate(_TR_KUCUK_HARF).lower()
     return any(k in b for k in _EKRAN_GIZLI_KELIMELER)
@@ -1090,6 +1095,7 @@ class MainWindow(QMainWindow):
     _state_sig   = pyqtSignal(str)
     _content_sig = pyqtSignal(str, str)   # (title, text) — thread-safe content display
     _image_content_sig = pyqtSignal(str, str)  # (title, image_path) — thread-safe image display
+    _content_kapat_sig = pyqtSignal()  # içerik panelini (kitap sayfası/YKS sorusu) kapat — thread-safe (icerigi_kapat aracı)
     _mute_sig    = pyqtSignal(bool)       # thread-safe mute toggle (asyncio loop thread → Qt thread)
     _talimat_cikis_sig = pyqtSignal()     # talimat modundan sesle çıkış — düğme görünümü (asyncio loop thread → Qt thread)
     _ders_bitti_sig = pyqtSignal()        # ders bitti (zil/shutdown_farabi/boşta) — düğmeleri geri aç (asyncio loop thread → Qt thread)
@@ -1219,6 +1225,7 @@ class MainWindow(QMainWindow):
         self._state_sig.connect(self._apply_state)
         self._content_sig.connect(self._show_content)
         self._image_content_sig.connect(self._show_image)
+        self._content_kapat_sig.connect(self._icerigi_kapat)
         self._mute_sig.connect(self._set_muted)
         self._kalibre_bitti_sig.connect(self._mikrofon_kalibre_bitti)
         self._screenshot_sig.connect(self._ekran_goruntusu_yakala)
@@ -1858,6 +1865,13 @@ class MainWindow(QMainWindow):
         izgara.addWidget(self._ogretmen_btn, 3, 1)
         self._talimat_modu_dugmesini_boya()
 
+        # Sade mod (core/tahta.sade_mod, 2026-10-24): yalnızca talimat modu — mod ve ders dili düğmeleri gizlenir,
+        # başlatma düğmesi sadeleşir. Kod yerinde kalır; api_keys.json'da "sade_mod": false ile geri açılır.
+        if _sade_mod():
+            self._ogrenci_btn.hide()
+            self._ogretmen_btn.hide()
+            self._baslat_btn.setText("▶▶  FARABİ'Yİ BAŞLAT  (çift tıkla)")
+
         # ── Ders dili ─────────────────────────────────────────────────────
         # DERSİ BAŞLAT'tan ÖNCE seçilir — bkz. self.ders_dili tanımındaki not
         # (system_instruction bağlantı kurulduktan sonra değiştirilemez).
@@ -1875,10 +1889,15 @@ class MainWindow(QMainWindow):
         izgara.addWidget(self._dil_btns["en"], 5, 0)
         izgara.addWidget(self._dil_btns["de"], 5, 1)
         self._dil_dugmelerini_boya()
+        if _sade_mod():  # talimat modunda ders dili anlamsız (kısa komutlar, her zaman Türkçe)
+            for b in self._dil_btns.values():
+                b.hide()
 
         return izgara
 
     def _talimat_modu_degistir(self, acik: bool) -> None:
+        if _sade_mod():  # sade modda mod değişmez: her zaman talimat
+            return
         self.talimat_modu = acik
         self._talimat_modu_dugmesini_boya()
         self._log.append_log(
@@ -2345,6 +2364,10 @@ class MainWindow(QMainWindow):
 
     def _cizim_temizle(self):
         self._image_display.temizle()
+
+    def _icerigi_kapat(self) -> None:
+        """Slot — Qt ana thread'inde: içerik panelini (kitap sayfası / YKS sorusu) kapatır."""
+        self._content_panel.hide()
 
     def _show_image(self, title: str, image_path: str):
         """Slot — runs on Qt main thread. `pdf_sayfa` aracının render ettiği
@@ -2882,6 +2905,10 @@ class FarabiUI:
     def show_content(self, title: str, text: str):
         """Thread-safe: display content in the panel below the HUD."""
         self._win._content_sig.emit(title[:48], text[:4000])
+
+    def kapat_icerik(self):
+        """Thread-safe: içerik panelini (kitap sayfası/YKS sorusu) kapat — `icerigi_kapat` aracı."""
+        self._win._content_kapat_sig.emit()
 
     def show_image(self, title: str, image_path: str):
         """Thread-safe: display a rendered PDF page (pdf_sayfa) in the same

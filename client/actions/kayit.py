@@ -394,6 +394,7 @@ ARACLAR: list[Arac] = [
             },
             "required": ["query"],
         },
+        kip=KIP_HEPSI + (KIP_TALIMAT,),
         izin="ag.arama",
         maliyet="yuksek",
         zaman_asimi=20.0,
@@ -416,6 +417,7 @@ ARACLAR: list[Arac] = [
             },
             "required": [],
         },
+        kip=KIP_HEPSI + (KIP_TALIMAT,),
         izin="ag.video",
         maliyet="yuksek",
         zaman_asimi=30.0,
@@ -441,6 +443,7 @@ ARACLAR: list[Arac] = [
             },
             "required": [],
         },
+        kip=KIP_HEPSI + (KIP_TALIMAT,),
         izin="ag.video",
         maliyet="yuksek",
         zaman_asimi=30.0,
@@ -644,6 +647,7 @@ ARACLAR: list[Arac] = [
             "later and not more than once per lesson."
         ),
         parametreler={"type": "OBJECT", "properties": {}},
+        kip=KIP_HEPSI + (KIP_TALIMAT,),
         izin="uygulama.baslat",
         maliyet="yerel",
         zaman_asimi=5.0,
@@ -665,12 +669,27 @@ ARACLAR: list[Arac] = [
         calisma="satirici",
         cikti="onay",
     ),
+    Arac(
+        ad="icerigi_kapat",
+        aciklama=(
+            "Closes (hides) the content panel on the board's OWN screen that shows a "
+            "textbook page (pdf_sayfa) or a YKS question (yks_sorulari). Call for "
+            "'soruyu kapat', 'sayfayı kapat', 'kitabı kapat', 'içeriği kapat'. It does NOT "
+            "close external windows (browser, YouTube, apps) — use pencere_kapat for those."
+        ),
+        parametreler={"type": "OBJECT", "properties": {}, "required": []},
+        izin="arayuz.icerik",
+        maliyet="yerel",
+        zaman_asimi=5.0,
+        kip=(KIP_TALIMAT,),
+        cikti="onay",
+    ),
 ]
 
 _HARITA = {a.ad: a for a in ARACLAR}
 
 
-def bildirimler(kip: str | None = None) -> list[dict]:
+def bildirimler(kip: str | None = None, haric: tuple = ()) -> list[dict]:
     """
     Gemini'ye giden araç bildirimleri — kayıttan üretilir.
 
@@ -678,11 +697,12 @@ def bildirimler(kip: str | None = None) -> list[dict]:
     bilgilendirme amaçlı çağrılarda) TÜM araçlar döner, filtre uygulanmaz.
     `kip` verilirse yalnızca `kip in a.kip` olan araçlar döner — oturuma
     fiilen giden liste bu şekilde hesaplanır (bkz. main.py._build_config).
+    `haric`: listeden ayrıca çıkarılacak araç adları (sade mod: talimat_modundan_cik, shutdown_farabi).
     """
     return [
         {"name": a.ad, "description": a.aciklama, "parameters": a.parametreler}
         for a in ARACLAR
-        if kip is None or kip in a.kip
+        if (kip is None or kip in a.kip) and a.ad not in haric
     ]
 
 
