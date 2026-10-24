@@ -16,7 +16,7 @@ the current state and the rules that came out of them.
 **Farabi** — a Turkish-language AI teaching assistant for classroom smart
 boards, named after Fârâbî (*Muallim-i Sânî*, "The Second Teacher").
 
-A **thin** PyQt6 client on Pardus/Vestel boards (Intel i3-2330M). Voice is a
+A **thin** PyQt6 client on Pardus/Vestel boards (mixed hardware: Intel i3-2330M on 10-A, i7-2630QM on 9-A/11-A/11-B/12-A, AMD A10 on 12-B). Voice is a
 Gemini Live session held **on the board** — permanently the only voice path.
 (A local Pipecat voice node was tried 2026-09-25 on branch
 `yerel-ses-pipecat`; it was **permanently cancelled 2026-09-28** because the
@@ -176,10 +176,12 @@ suspect `thinking_config`/config fields before billing — DECISIONS.md
   rejected by the Live endpoint (session never opens) even though the SDK
   has the fields. Classroom noise is handled by the prompt's "KALABALIK VE
   GÜRÜLTÜ" rule.
-- **Open, not root-caused:** stutter while Farabi speaks on 9-A (echo
-  without AEC vs CPU/audio underrun on the i3). Next step is measuring
-  `pidstat`/`pw-top` during a real stutter — don't write a cause without
-  that. Details: DECISIONS.md 2026-08-30.
+- **Closed, not root-caused (2026-10-24):** stutter while Farabi speaks on 9-A
+  (echo without AEC vs CPU/audio underrun) no longer occurs per the user; logs
+  show mid-speech interrupts only on 9-A and none since 2026-09-15. 9-A is an
+  i7-2630QM, so the old "i3 CPU underrun" guess was wrong. If it returns, measure
+  `pidstat`/`pw-top` during a real stutter — don't write a cause without that.
+  Details: DECISIONS.md 2026-08-30 and 2026-10-24.
 
 ## Architecture
 
