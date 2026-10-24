@@ -174,7 +174,6 @@ def eslesmeyenler(platform: dict[int, str], baslangic: str) -> list[dict]:
     try:
         with _baglan() as c:
             ogrenciler = _pano_ogrencileri(c)
-            yoklamalar = _yoklamalar(c, None, baslangic)
     except sqlite3.Error as e:
         raise KaynakHatasi(f"yoklama okunamadı: {e}") from e
 
@@ -216,20 +215,6 @@ def eslesmeyenler(platform: dict[int, str], baslangic: str) -> list[dict]:
                     )
                 )
 
-    goruldu = set()
-    for _, sinif, _, yok, izinli, _, _ in yoklamalar:
-        for isim in _isimler(yok) + _isimler(izinli):
-            n = normalize_isim(isim)
-            if n not in sinif_isimleri[sinif] and (sinif, n) not in goruldu:
-                goruldu.add((sinif, n))
-                sonuc.append(
-                    _kayit(
-                        "yoklamada_var_listede_yok",
-                        sinif,
-                        isim,
-                        "yoklamadaki isim sınıf listesinde yok",
-                    )
-                )
     return sonuc
 
 

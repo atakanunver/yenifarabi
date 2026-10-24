@@ -106,7 +106,7 @@ def test_eslesmeyenler(pano):
     platform = {101: "9-A", 102: "9-A", 103: "9-A", 104: "9-A", 201: "9-A"}
     sonuc = yoklama.eslesmeyenler(platform, "2026-10-01")
     turler = {(s["tur"], s["sinif"], s["isim"]) for s in sonuc}
-    assert ("yoklamada_var_listede_yok", "9-A", "Bilinmeyen Kişi") in turler
+    assert not any(t[0] == "yoklamada_var_listede_yok" for t in turler)
     assert ("ayni_isim", "9-A", "Ece Su") in turler
     assert ("platformda_yok", "9-B", "Panoda Tek") in turler
     assert ("sinif_farkli", "9-B", "Ayşe Kaya") in turler
