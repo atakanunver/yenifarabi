@@ -1,5 +1,6 @@
 """Yönetici sayfaları: özet, Excel aktarımı, kullanıcılar, görevler, eşleşmeyen yoklama, erişim kaydı."""
 
+import re
 import sqlite3
 from datetime import timedelta
 
@@ -13,7 +14,7 @@ from deps import ROL_ADLARI, db_conn, istemci_ip, render, rol
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import RedirectResponse, Response
 from kaynaklar import KaynakHatasi, sms, yoklama
-from metin import ilk_sifre, tr_kucuk
+from metin import ilk_sifre, normalize_telefon, tr_kucuk
 
 router = APIRouter(prefix="/yonetici")
 YONETICI = rol("yonetici")
@@ -159,6 +160,100 @@ def kullanicilar(
         q=q,
         degismemis=degismemis,
     )
+
+
+@router.get("/kullanici/ekle")
+def kullanici_ekle_form(request: Request, k=Depends(YONETICI)):
+    return render(request, "yonetici/kullanici_ekle.html", hata="", d={})
+
+
+@router.post("/kullanici/ekle")
+def kullanici_ekle(
+    request: Request,
+    rol_: str = Form(...),
+    ad_soyad: str = Form(...),
+    kullanici_adi: str = Form(""),
+    okul_no: str = Form(""),
+    sinif: str = Form(""),
+    telefon: str = Form(""),
+    k=Depends(YONETICI_POST),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    d = {"rol_": rol_, "ad_soyad": ad_soyad, "kullanici_adi": kullanici_adi,
+         "okul_no": okul_no, "sinif": sinif, "telefon": telefon}
+
+    def hata(m):
+        return render(request, "yonetici/kullanici_ekle.html", status_code=400, hata=m, d=d)
+
+    ad = " ".join(ad_soyad.split())
+    if rol_ not in ("ogrenci", "ogretmen", "yonetici"):
+        return hata("Rol seçin.")
+    if not ad:
+        return hata("Ad soyad boş olamaz.")
+    try:
+        if rol_ == "ogrenci":
+            if not okul_no.strip().isdigit():
+                return hata("Okul numarası rakam olmalı.")
+            sn = ice_aktar._sinif(sinif)
+            if sn is None:
+                return hata("Sınıf geçersiz (örn. 9-A).")
+            if conn.execute(
+                "SELECT 1 FROM ogrenci WHERE okul_no = ?", (int(okul_no),)
+            ).fetchone():
+                return hata("Bu okul numarası zaten kayıtlı.")
+            ice_aktar.ogrenci_uygula(
+                conn, [{"okul_no": int(okul_no), "ad_soyad": ad, "sinif": sn, "veliler": []}]
+            )
+            kadi = str(int(okul_no))
+        else:
+            kadi = kullanici_adi.strip().lower()
+            if not re.fullmatch(r"[a-z0-9._-]{3,30}", kadi):
+                return hata("Kullanıcı adı 3-30 karakter, yalnızca a-z 0-9 . _ - olmalı.")
+            if conn.execute(
+                "SELECT 1 FROM kullanici WHERE kullanici_adi = ?", (kadi,)
+            ).fetchone():
+                return hata("Bu kullanıcı adı zaten kullanılıyor.")
+            tel = normalize_telefon(telefon) if telefon.strip() else None
+            if telefon.strip() and not tel:
+                return hata("Telefon geçersiz.")
+            conn.execute(
+                "INSERT INTO kullanici (rol, ad_soyad, kullanici_adi, telefon, sifre_hash, sifre_degismeli, olusturma)"
+                " VALUES (?, ?, ?, ?, ?, 1, ?)",
+                (rol_, ad, kadi, tel, auth.sifre_hashle(ilk_sifre(ad)), zaman.simdi_str()),
+            )
+            conn.commit()
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        return hata("Kayıt oluşturulamadı (çakışan bilgi).")
+    u = conn.execute("SELECT * FROM kullanici WHERE kullanici_adi = ?", (kadi,)).fetchone()
+    return render(request, "yonetici/sifre_sifirlandi.html", u=u, sifre=ilk_sifre(ad), yeni=True)
+
+
+@router.post("/kullanici/{kid}/sil")
+def kullanici_sil(
+    kid: int, k=Depends(YONETICI_POST), conn: sqlite3.Connection = Depends(db_conn)
+):
+    """Yalnızca hiç kaydı olmayan hesabı siler; bağlı kayıt (FK) varsa dokunmaz."""
+    if kid == k["id"]:
+        raise HTTPException(400, "Kendi hesabınızı silemezsiniz.")
+    u = conn.execute("SELECT * FROM kullanici WHERE id = ?", (kid,)).fetchone()
+    if u is None:
+        raise HTTPException(404)
+    try:
+        conn.execute("DELETE FROM oturum WHERE kullanici_id = ?", (kid,))
+        conn.execute("DELETE FROM ogretmen_gorev WHERE ogretmen_id = ?", (kid,))
+        conn.execute("DELETE FROM veli_ogrenci WHERE veli_id = ?", (kid,))
+        conn.execute("DELETE FROM veli_ogrenci WHERE ogrenci_id IN (SELECT id FROM ogrenci WHERE kullanici_id = ?)", (kid,))
+        conn.execute("DELETE FROM ogrenci WHERE kullanici_id = ?", (kid,))
+        conn.execute("DELETE FROM kullanici WHERE id = ?", (kid,))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        raise HTTPException(
+            409, "Bu hesabın kayıtları var (XP, oyun, mesaj vb.); silinemez. 'Pasifleştir' kullanın."
+        ) from None
+    return RedirectResponse("/yonetici/kullanicilar", status_code=303)
+
 
 
 @router.post("/kullanici/{kid}/sifirla")

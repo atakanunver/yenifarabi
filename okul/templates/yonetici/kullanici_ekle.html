@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block baslik %}Kullanıcı ekle — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Kullanıcı ekle</h1>
+{% if hata %}<p class="kart" role="alert" style="border-color:#c0392b">{{ hata }}</p>{% endif %}
+<form class="kart" method="post" action="/yonetici/kullanici/ekle">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="rol_">Rol</label>
+  <select id="rol_" name="rol_" required>
+    {% for r in ('ogrenci', 'ogretmen', 'yonetici') %}<option value="{{ r }}" {{ 'selected' if d.get('rol_') == r }}>{{ ROL_ADLARI[r] }}</option>{% endfor %}
+  </select>
+  <label for="ad_soyad">Ad soyad</label>
+  <input id="ad_soyad" name="ad_soyad" required value="{{ d.get('ad_soyad', '') }}">
+  <div id="ogr-alan">
+    <label for="okul_no">Okul numarası (öğrenci kullanıcı adı olur)</label>
+    <input id="okul_no" name="okul_no" inputmode="numeric" value="{{ d.get('okul_no', '') }}">
+    <label for="sinif">Sınıf (örn. 9-A)</label>
+    <input id="sinif" name="sinif" value="{{ d.get('sinif', '') }}">
+  </div>
+  <div id="per-alan">
+    <label for="kullanici_adi">Kullanıcı adı (a-z 0-9 . _ -)</label>
+    <input id="kullanici_adi" name="kullanici_adi" value="{{ d.get('kullanici_adi', '') }}">
+    <label for="telefon">Telefon (isteğe bağlı)</label>
+    <input id="telefon" name="telefon" inputmode="tel" value="{{ d.get('telefon', '') }}">
+  </div>
+  <p class="soluk kucuk">İlk şifre adın ilk kelimesi + 123 olur; girişte değiştirilmesi istenir. Veliler öğrenci aktarımıyla eklenir.</p>
+  <div class="tuslar"><button class="tus">Ekle</button> <a class="tus ikincil" href="/yonetici/kullanicilar">Vazgeç</a></div>
+</form>
+<script>
+(function () {
+  var r = document.getElementById('rol_');
+  function g() {
+    var o = r.value === 'ogrenci';
+    document.getElementById('ogr-alan').hidden = !o;
+    document.getElementById('per-alan').hidden = o;
+  }
+  r.addEventListener('change', g); g();
+})();
+</script>
+{% endblock %}

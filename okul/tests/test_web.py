@@ -574,3 +574,43 @@ def test_ogrenci_kendi_devamsizligi(istemci, ornek, conn, saat, monkeypatch):
     istemci.cookies.clear()
     giris(istemci, "hoca", "hoca-sifre")
     assert istemci.get("/ogrenci/devamsizlik").status_code == 404
+
+
+def test_yonetici_kullanici_ekler_ve_siler(istemci, ornek, conn):
+    csrf = giris(istemci, "mudur", "mudur-sifre")
+    assert istemci.get("/yonetici/kullanici/ekle").status_code == 200
+    # öğretmen
+    r = istemci.post(
+        "/yonetici/kullanici/ekle",
+        data={"csrf": csrf, "rol_": "ogretmen", "ad_soyad": "Zeynep Kaya", "kullanici_adi": "zkaya"},
+    )
+    assert r.status_code == 200 and "zeynep123" in r.text
+    # aynı kullanıcı adı
+    r = istemci.post(
+        "/yonetici/kullanici/ekle",
+        data={"csrf": csrf, "rol_": "yonetici", "ad_soyad": "Başka Biri", "kullanici_adi": "zkaya"},
+    )
+    assert r.status_code == 400
+    # öğrenci
+    r = istemci.post(
+        "/yonetici/kullanici/ekle",
+        data={"csrf": csrf, "rol_": "ogrenci", "ad_soyad": "Can Er", "okul_no": "777", "sinif": "9-A"},
+    )
+    assert r.status_code == 200 and "can123" in r.text
+    assert conn.execute("SELECT 1 FROM ogrenci WHERE okul_no = 777").fetchone()
+    # geçersiz sınıf
+    r = istemci.post(
+        "/yonetici/kullanici/ekle",
+        data={"csrf": csrf, "rol_": "ogrenci", "ad_soyad": "X Y", "okul_no": "778", "sinif": "zz"},
+    )
+    assert r.status_code == 400
+    # kaydı olmayan hesap silinir
+    kid = conn.execute("SELECT id FROM kullanici WHERE kullanici_adi = 'zkaya'").fetchone()[0]
+    assert istemci.post(f"/yonetici/kullanici/{kid}/sil", data={"csrf": csrf}).status_code == 200
+    assert not conn.execute("SELECT 1 FROM kullanici WHERE id = ?", (kid,)).fetchone()
+    okid = conn.execute("SELECT id FROM kullanici WHERE kullanici_adi = '777'").fetchone()[0]
+    assert istemci.post(f"/yonetici/kullanici/{okid}/sil", data={"csrf": csrf}).status_code == 200
+    assert not conn.execute("SELECT 1 FROM ogrenci WHERE okul_no = 777").fetchone()
+    # kendini silemez
+    mid = conn.execute("SELECT id FROM kullanici WHERE kullanici_adi = 'mudur'").fetchone()[0]
+    assert istemci.post(f"/yonetici/kullanici/{mid}/sil", data={"csrf": csrf}).status_code == 400

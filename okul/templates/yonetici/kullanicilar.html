@@ -2,6 +2,7 @@
 {% block baslik %}Kullanıcılar — Dijital Okul{% endblock %}
 {% block icerik %}
 <h1>Kullanıcılar</h1>
+<a class="tus" href="/yonetici/kullanici/ekle" style="margin-bottom:.8rem">+ Kullanıcı ekle</a>
 <form class="kart" method="get" action="/yonetici/kullanicilar">
   <label for="q">Ara (ad, kullanıcı adı, telefon)</label>
   <input id="q" name="q" type="search" value="{{ q }}">
@@ -19,6 +20,7 @@
         <span class="soluk kucuk">{{ ROL_ADLARI[u.rol] }}{% if u.sinif %} · {{ u.sinif }}{% endif %} · {{ u.kullanici_adi or u.telefon or '' }}</span></span>
       <span class="sag" style="display:flex;gap:.3rem;flex-wrap:wrap;justify-content:flex-end">
         {% if u.rol != 'veli' %}<form method="post" action="/yonetici/kullanici/{{ u.id }}/sifirla" onsubmit="return confirm('Şifre ilk şifreye sıfırlansın mı?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus ikincil kucuk">Şifre sıfırla</button></form>{% endif %}
+        {% if u.id != k.id %}<form method="post" action="/yonetici/kullanici/{{ u.id }}/sil" onsubmit="return confirm('{{ u.ad_soyad|e }} kalıcı silinsin mi? Yalnızca kaydı olmayan hesap silinebilir.')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus tehlike kucuk">Sil</button></form>{% endif %}
         {% if u.id != k.id %}<form method="post" action="/yonetici/kullanici/{{ u.id }}/durum"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus {{ 'tehlike' if u.aktif else 'ikincil' }} kucuk">{{ 'Pasifleştir' if u.aktif else 'Etkinleştir' }}</button></form>{% endif %}
       </span>
     </li>
