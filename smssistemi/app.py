@@ -421,6 +421,8 @@ async def rehber_kisi_ekle(
     tur: str = Form(...),
     ogrenci_kisi_id: str | None = Form(None),
 ):
+    # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/rehber/kisi/ekle)
+    raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
@@ -442,6 +444,8 @@ async def rehber_kisi_duzenle(
     tur: str = Form(...),
     ogrenci_kisi_id: str | None = Form(None),
 ):
+    # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/rehber/kisi/{kisi_id}/duzenle)
+    raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
@@ -464,6 +468,8 @@ async def rehber_kisi_duzenle(
 
 @app.post("/rehber/kisi/{kisi_id}/sil")
 async def rehber_kisi_sil(request: Request, kisi_id: int, sinif_id: int = Form(...), tur: str = Form(...)):
+    # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/rehber/kisi/{kisi_id}/sil)
+    raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
@@ -475,6 +481,8 @@ async def rehber_kisi_sil(request: Request, kisi_id: int, sinif_id: int = Form(.
 
 @app.post("/rehber/sinif/ekle")
 async def rehber_sinif_ekle(request: Request, ad: str = Form(...)):
+    # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/rehber/sinif/ekle)
+    raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
@@ -486,6 +494,8 @@ async def rehber_sinif_ekle(request: Request, ad: str = Form(...)):
 
 @app.post("/rehber/sinif/{sinif_id}/sil")
 async def rehber_sinif_sil(request: Request, sinif_id: int):
+    # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/rehber/sinif/{sinif_id}/sil)
+    raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
@@ -503,6 +513,8 @@ async def rehber_yukle(
     tur: str = Form(...),
     dosya: UploadFile = File(...),
 ):
+    # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/rehber/yukle)
+    raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
     ad_kucuk = (dosya.filename or "").lower()
     if not ad_kucuk.endswith((".csv", ".xlsx", ".xlsm")):
         return RedirectResponse("/rehber?mesaj=desteklenmeyen_format", status_code=303)
@@ -952,6 +964,8 @@ async def dogum_ice_aktar_sayfa(request: Request):
 
 @app.post("/dogum-gunleri/ice-aktar")
 async def dogum_ice_aktar_uygula(request: Request):
+    # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/dogum-gunleri/ice-aktar)
+    raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
@@ -975,6 +989,8 @@ async def dogum_kisi_tarih_kaydet(
     kisi_id: int,
     dogum_tarihi: str | None = Form(None),
 ):
+    # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/dogum-gunleri/kisi/{kisi_id}/tarih)
+    raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
