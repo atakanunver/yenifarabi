@@ -1,3 +1,5 @@
+> 🛑 **2026-10-24: KALICI İPTAL (Atakan).** Kazanım testi bir daha açılmayacak; yeniden açma/önerme, açıkça istenmeden yapılmaz. Kod, DB tabloları ve raporlar silinmeden duruyor; pano `/kazanim` ve dijital okul gelişim mevcut veriyi göstermeye devam eder.
+
 > ⚠️ **2026-10-14:** `kazanim-test`, `kazanim-test-sonuc`, `kazanim-test-aylik` zamanlayıcıları /etc/systemd/system'den SİLİNDİ (artık kullanılmıyor). Kod, DB tabloları ve raporlar yerinde; pano `/kazanim` ve dijital okul gelişim mevcut veriyi göstermeye devam eder. Yeniden kurmak için `systemd/` altındaki birimleri `/etc`'ye kopyala.
 
 # kazanimtest
