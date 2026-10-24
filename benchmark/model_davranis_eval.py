@@ -135,7 +135,7 @@ def puanla(sen, icerik, cagrilar):
 def ollama_cagir(mesajlar, araclar, model, zaman_asimi):
     govde = {"model": model, "messages": mesajlar, "tools": araclar, "stream": False,
              "think": False, "keep_alive": -1,
-             "options": {"temperature": 0, "seed": 1, "num_ctx": 16384}}
+             "options": {"temperature": 0, "seed": 1, "num_ctx": 32768}}
     r = urllib.request.Request(OLLAMA, json.dumps(govde).encode(), {"Content-Type": "application/json"})
     with urllib.request.urlopen(r, timeout=zaman_asimi) as f:
         return json.loads(f.read())["message"]
