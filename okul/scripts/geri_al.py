@@ -20,6 +20,26 @@ from pathlib import Path
 
 # user_version N'den N-1'e inmek için çalışan betik. Yeni göç eklenince buraya da eklenir.
 GERI = {
+    33: """
+DELETE FROM bilgi_xp WHERE kaynak = 'gayret';
+CREATE TABLE bilgi_xp_eski (
+    id            INTEGER PRIMARY KEY,
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    kaynak        TEXT NOT NULL CHECK (kaynak IN ('arena_dogru', 'arena_bonus', 'maraton_tur')),
+    ref           TEXT NOT NULL,
+    miktar        INTEGER NOT NULL CHECK (miktar > 0),
+    gun           TEXT NOT NULL,
+    zaman         TEXT NOT NULL,
+    UNIQUE (kullanici_id, kaynak, ref)
+);
+INSERT INTO bilgi_xp_eski SELECT id, kullanici_id, kaynak, ref, miktar, gun, zaman FROM bilgi_xp;
+DROP TABLE bilgi_xp;
+ALTER TABLE bilgi_xp_eski RENAME TO bilgi_xp;
+CREATE INDEX bilgi_xp_kullanici ON bilgi_xp(kullanici_id);
+""",
+    32: """
+ALTER TABLE sudoku_oyun DROP COLUMN tahta;
+""",
     31: """
 ALTER TABLE sudoku_bot DROP COLUMN tahta;
 """,

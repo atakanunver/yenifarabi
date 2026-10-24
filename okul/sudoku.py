@@ -218,6 +218,26 @@ def baslat(conn: sqlite3.Connection, duello_id: int, kid: int) -> sqlite3.Row:
     return oyun(conn, duello_id, kid)
 
 
+def kaydet(conn: sqlite3.Connection, duello_id: int, kid: int, tahta: str) -> None:
+    """Doldurulan rakamları saklar (süren düelloda, bitirmemiş oyuncu için; sabit ipuçları kaydedilmez)."""
+    d = getir(conn, duello_id, kid)
+    if d is None or d["durum"] != "surer":
+        raise SudokuHatasi("Düello oynanamaz durumda.")
+    o = oyun(conn, duello_id, kid)
+    if o is None:
+        raise SudokuHatasi("Önce bulmacayı aç.")
+    if o["bitis"]:
+        raise SudokuHatasi("Bu düelloyu zaten bitirdin.")
+    tahta = (tahta or "").strip()
+    if len(tahta) != 81 or not tahta.isascii() or not tahta.isdigit():
+        raise SudokuHatasi("Geçersiz tahta.")
+    temiz = "".join("0" if b != "0" else t for b, t in zip(d["bulmaca"], tahta, strict=True))
+    conn.execute(
+        "UPDATE sudoku_oyun SET tahta = ? WHERE duello_id = ? AND kullanici_id = ? AND bitis IS NULL", (temiz, duello_id, kid)
+    )
+    conn.commit()
+
+
 def gecen_sn(o: sqlite3.Row) -> int:
     """Oyuncunun bulmacayı açtığından bu yana (bitmişse bitişe kadar) geçen süre — sunucu saati."""
     son = _dt(o["bitis"]) if o["bitis"] else _simdi()

@@ -54,7 +54,32 @@
   function uyar(metin) {
     mesaj.textContent = metin;
     mesaj.hidden = false;
+    if (mesaj.scrollIntoView) mesaj.scrollIntoView({ block: "center", behavior: "smooth" });
   }
+
+  // Aynı satır/sütun/3x3 kutuda tekrar eden rakamlar (dolu hücreler arasında) kırmızı gösterilir. Tek çözümlü bulmacada
+  // dolu ve çakışmasız tahta zaten doğru çözümdür; bu yüzden yanlış tahta sunucuya gitmeden fark edilir (ceza yazılmaz).
+  function cakisanlar() {
+    var kotu = {};
+    for (var i = 0; i < 81; i++) {
+      var d = hucreler[i].value;
+      if (!d) continue;
+      for (var j = i + 1; j < 81; j++) {
+        if (hucreler[j].value !== d) continue;
+        var ayniSatir = Math.floor(i / 9) === Math.floor(j / 9);
+        var ayniSutun = i % 9 === j % 9;
+        var ayniKutu = Math.floor(i / 27) === Math.floor(j / 27) && Math.floor((i % 9) / 3) === Math.floor((j % 9) / 3);
+        if (ayniSatir || ayniSutun || ayniKutu) { kotu[i] = true; kotu[j] = true; }
+      }
+    }
+    return kotu;
+  }
+  function vurgula() {
+    var kotu = cakisanlar();
+    hucreler.forEach(function (h, i) { h.classList.toggle("cakisma", !!kotu[i]); });
+    return Object.keys(kotu).map(Number);
+  }
+  vurgula();
 
   function git(i) {
     if (i >= 0 && i < 81) hucreler[i].focus();
@@ -65,6 +90,7 @@
     h.addEventListener("input", function () {
       var m = h.value.replace(/[^1-9]/g, "");
       h.value = m.slice(-1);
+      vurgula();
       yaz();
       if (h.value) git(i + 1);
     });
@@ -83,6 +109,13 @@
     if (tahta.indexOf("0") !== -1) {
       e.preventDefault();
       uyar("Önce tüm kutuları doldur.");
+      return;
+    }
+    var kotu = vurgula();
+    if (kotu.length) {
+      e.preventDefault();
+      uyar("Tahtada hata var: kırmızı kutularda aynı rakam bir satır, sütun veya 3×3 kutuda tekrar ediyor. Düzeltip tekrar dene. (Ceza yazılmadı.)");
+      hucreler[kotu[0]].focus();
       return;
     }
     if (!window.fetch) return; // JS'siz akışa düş

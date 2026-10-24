@@ -56,8 +56,8 @@ def test_bot_hedefi_gecmis_yoksa_taban_civari_ve_deterministik(conn, ornek):
     kid = ornek["ogr1_k"]
     s1 = sudoku_bot.bot_hedefi(conn, kid, "orta", random.Random(7))
     assert s1 == sudoku_bot.bot_hedefi(conn, kid, "orta", random.Random(7))
-    t = sudoku_bot.TABAN_SN["orta"]
-    assert t * 0.85 - 1 <= s1[0] <= t * 1.15 + 1 and s1[1] in (0, 1, 2)
+    t, (alt, ust) = sudoku_bot.TABAN_SN["orta"], sudoku_bot.BOT_YAVASLIK
+    assert t * alt - 1 <= s1[0] <= t * ust + 1 and s1[1] in (0, 1, 2)
 
 
 def test_bot_hedefi_gecmise_uyar_ve_sinirlanir(conn, ornek, saat):
@@ -66,7 +66,7 @@ def test_bot_hedefi_gecmise_uyar_ve_sinirlanir(conn, ornek, saat):
         bitir(conn, kid, "basit", 200, saat, bot_sure=9999)
         saat["an"] += timedelta(hours=4)  # terk eşiğini aş, bir sonraki oyun açılabilsin
     sure, _ = sudoku_bot.bot_hedefi(conn, kid, "basit", random.Random(1))
-    assert 200 * 0.85 - 1 <= sure <= 200 * 1.15 + 1
+    assert 200 * sudoku_bot.BOT_YAVASLIK[0] - 1 <= sure <= 200 * sudoku_bot.BOT_YAVASLIK[1] + 1  # bot öğrenciden biraz YAVAŞ
     # çok hızlı geçmiş en az süreye kelepçelenir
     conn.execute("UPDATE sudoku_bot SET sure_sn = 5")
     conn.commit()
@@ -131,8 +131,8 @@ def test_gunde_yalniz_ilk_galibiyet_puan_yazar(conn, ornek, saat):
     assert s1["sonuc"] == "galibiyet"
     o2, s2 = bitir(conn, kid, "basit", 30, saat, bot_sure=500)
     assert s2["sonuc"] == "galibiyet"
-    assert sudoku_bot.kazanc(conn, conn.execute("SELECT * FROM sudoku_bot WHERE id = ?", (o1,)).fetchone()) == 3 * 2  # orta ×2
-    assert sudoku_bot.kazanc(conn, conn.execute("SELECT * FROM sudoku_bot WHERE id = ?", (o2,)).fetchone()) == 0
+    assert sudoku_bot.kazanc(conn, conn.execute("SELECT * FROM sudoku_bot WHERE id = ?", (o1,)).fetchone())["toplam"] == 3 * 2  # orta ×2
+    assert sudoku_bot.kazanc(conn, conn.execute("SELECT * FROM sudoku_bot WHERE id = ?", (o2,)).fetchone())["toplam"] == 0
     v = sudoku._puanlar(conn, hb)[kid]
     assert v["puan"] == 6 and v["galibiyet"] == 1 and v["oynanan"] == 1
     # ertesi gün yeni galibiyet yine puan yazar; liderlikte görünür
@@ -150,7 +150,7 @@ def test_maglubiyet_ve_beraberlik_puan_yazmaz_ve_hafta_siniri(conn, ornek, saat)
     saat["an"] += timedelta(days=8)  # sonraki haftaya geç
     bitir(conn, kid, "basit", 30, saat, bot_sure=500)  # kazanır
     assert sudoku._puanlar(conn, "2026-10-12").get(kid) is None  # eski hafta etkilenmez
-    assert sudoku._puanlar(conn, "2026-10-19")[kid]["puan"] == 3
+    assert sudoku._puanlar(conn, "2026-10-19")[kid]["puan"] == 3 + 10  # günün ilk galibiyeti + %75 gelişim (üst sınır 10 × basit)
 
 
 def test_rota_akisi_ve_sizinti(istemci, conn, ornek, saat):
@@ -260,3 +260,75 @@ def test_geri_al_31(tmp_path):
     assert "tahta" in [r[1] for r in c.execute("PRAGMA table_info(sudoku_bot)")]
     c.executescript(geri_al.GERI[31])
     assert "tahta" not in [r[1] for r in c.execute("PRAGMA table_info(sudoku_bot)")]
+
+
+def test_kisisel_gelisim_puani_iyilestikce_artar_esik_ve_gunluk_sinir(conn, ornek, saat):
+    kid = ornek["ogr1_k"]
+    hb = "2026-10-12"
+
+    def oyun(saniye, zorluk="basit"):
+        oid, s = bitir(conn, kid, zorluk, saniye, saat, bot_sure=99999)
+        return sudoku_bot.kazanc(conn, conn.execute("SELECT * FROM sudoku_bot WHERE id = ?", (oid,)).fetchone()), s
+
+    k1, _ = oyun(100)  # ilk oyun: karşılaştıracak geçmiş yok
+    assert k1["gelisim"] == 0
+    k2, _ = oyun(80)  # %20 iyileşme -> ceil(20/5)=4 x basit(1)
+    assert k2["gelisim"] == 4 and k2["onceki_en_iyi"] == 100
+    k3, _ = oyun(79)  # önceki en iyi 80'e göre %1,25: eşik altı -> gelişim yok
+    assert k3["gelisim"] == 0
+    k4, _ = oyun(40)  # 80'e göre %50 -> 10; günün 2. gelişim puanı
+    assert k4["gelisim"] == 10
+    k5, _ = oyun(30)  # 40'a göre %25 (3. aday): günlük sınır (2) doldu -> bugün yazılmaz
+    assert k5["gelisim"] == 0
+    assert sudoku._puanlar(conn, hb)[kid]["puan"] == 4 + 10 + 3  # iki gelişim + günün ilk galibiyeti
+    # ertesi gün: en iyi skor önceki günlerden taşınır (30); 20 -> %33,3 -> ceil(6.67)=7
+    saat["an"] += timedelta(days=1)
+    k6, _ = oyun(20)
+    assert k6["gelisim"] == 7 and k6["onceki_en_iyi"] == 30
+
+
+def test_gelisim_zorluk_carpani_ve_hata_cezasi(conn, ornek, saat):
+    kid = ornek["ogr1_k"]
+    bitir(conn, kid, "zor", 200, saat, bot_sure=99999)
+    oid, _ = bitir(conn, kid, "zor", 100, saat, bot_sure=99999)  # %50 -> 10 x zor(3) = 30
+    assert sudoku_bot.kazanc(conn, conn.execute("SELECT * FROM sudoku_bot WHERE id = ?", (oid,)).fetchone())["gelisim"] == 30
+
+
+def test_bot_yaklasik_yuzde_90_oyuncuyu_kazandirir(ornek):
+    rnd = random.Random(11)
+    kazandi = 0
+    for _ in range(4000):
+        bot = int(300 * rnd.uniform(*sudoku_bot.BOT_YAVASLIK)) + 10 * rnd.choices([0, 1, 2], weights=sudoku_bot.HATA_AGIRLIK["orta"])[0]
+        ben = max(60, rnd.gauss(300, 0.3 * 300)) + 10 * rnd.choices([0, 1, 2], weights=(0.7, 0.25, 0.05))[0]
+        kazandi += ben < bot
+    assert 0.85 <= kazandi / 4000 <= 0.97
+
+
+def test_etiket_hazir_rakam_ipucu_diye_yazmaz(istemci, conn, ornek):
+    giris(istemci, "101", "ali-sifre")
+    sayfa = istemci.get("/ogrenci/sudoku").text
+    assert "hazır rakam)" in sayfa and "ipucu)" not in sayfa  # başlangıçta dolu gelen rakamlar; ipucu düğmesi yok
+
+
+def test_jssiz_yanlis_tahta_sessiz_kalmaz_uyarili_yonlenir(istemci, conn, ornek, saat):
+    csrf = giris(istemci, "101", "ali-sifre")
+    istemci.post("/ogrenci/sudoku/bot", data={"csrf": csrf, "zorluk": "basit"}, follow_redirects=False)
+    oid = conn.execute("SELECT id FROM sudoku_bot").fetchone()[0]
+    z = cozum(conn, oid)
+    yanlis = ("1" if z[0] != "1" else "2") + z[1:]
+    r = istemci.post(f"/ogrenci/sudoku/bot/{oid}/gonder", data={"csrf": csrf, "tahta": yanlis}, follow_redirects=False)
+    assert r.status_code == 303 and "uyari=" in r.headers["location"]
+    sayfa = istemci.get(r.headers["location"])
+    assert "Tahtada hata var" in sayfa.text and z not in sayfa.text
+    # JS akışında yanıttaki yol sade kalır (uyarı parametresi sızmaz)
+    j = istemci.post(f"/ogrenci/sudoku/bot/{oid}/gonder", data={"csrf": csrf, "tahta": yanlis}, headers={"Accept": "application/json"}).json()
+    assert j["sonraki"] == f"/ogrenci/sudoku/bot/{oid}" and j["dogru"] is False
+
+
+def test_oyun_sayfalarinda_cakisma_vurgusu_ve_yeni_js_surumu(istemci, conn, ornek):
+    csrf = giris(istemci, "101", "ali-sifre")
+    istemci.post("/ogrenci/sudoku/bot", data={"csrf": csrf, "zorluk": "basit"}, follow_redirects=False)
+    oid = conn.execute("SELECT id FROM sudoku_bot").fetchone()[0]
+    sayfa = istemci.get(f"/ogrenci/sudoku/bot/{oid}").text
+    assert ".sudoku-hucre.cakisma" in sayfa and "/static/sudoku.js?v=4" in sayfa
+    assert 'role="status"' in sayfa and 'id="sudoku-mesaj"' in sayfa

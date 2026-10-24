@@ -740,10 +740,33 @@ SEMA_V31 = """
 ALTER TABLE sudoku_bot ADD COLUMN tahta TEXT;
 """
 
+# Sudoku düello: doldurulan rakamlar sunucuda otomatik saklanır (çıkıp girince / başka cihazdan devam).
+SEMA_V32 = """
+ALTER TABLE sudoku_oyun ADD COLUMN tahta TEXT;
+"""
+
+# Gayret (süreç) XP'si: bilgi_xp.kaynak'a 'gayret' eklenir (CHECK değişmediği için tablo yeniden kurulur; veri korunur).
+SEMA_V33 = """
+CREATE TABLE bilgi_xp_yeni (
+    id            INTEGER PRIMARY KEY,
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    kaynak        TEXT NOT NULL CHECK (kaynak IN ('arena_dogru', 'arena_bonus', 'maraton_tur', 'gayret')),
+    ref           TEXT NOT NULL,
+    miktar        INTEGER NOT NULL CHECK (miktar > 0),
+    gun           TEXT NOT NULL,
+    zaman         TEXT NOT NULL,
+    UNIQUE (kullanici_id, kaynak, ref)
+);
+INSERT INTO bilgi_xp_yeni SELECT id, kullanici_id, kaynak, ref, miktar, gun, zaman FROM bilgi_xp;
+DROP TABLE bilgi_xp;
+ALTER TABLE bilgi_xp_yeni RENAME TO bilgi_xp;
+CREATE INDEX bilgi_xp_kullanici ON bilgi_xp(kullanici_id);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
-    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27, SEMA_V28, SEMA_V29, SEMA_V30, SEMA_V31,
+    SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27, SEMA_V28, SEMA_V29, SEMA_V30, SEMA_V31, SEMA_V32, SEMA_V33,
 ]
 
 

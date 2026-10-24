@@ -17,7 +17,7 @@
     </label>
     <label>Zorluk
       <select name="zorluk" required>
-        {% for kod, ad in zorluklar.items() %}<option value="{{ kod }}">{{ ad }} ({{ ipuclari[kod] }} ipucu)</option>{% endfor %}
+        {% for kod, ad in zorluklar.items() %}<option value="{{ kod }}">{{ ad }} ({{ ipuclari[kod] }} hazır rakam)</option>{% endfor %}
       </select>
     </label>
     <button class="tus tam">Meydan oku</button>
@@ -28,7 +28,7 @@
 
 <section class="kart">
   <h2>Botla antrenman 🤖</h2>
-  <p class="kucuk soluk">Rakip yoksa botla oyna. Skor aynı: süre + {{ 10 }} sn × hata. Bot süresi senin geçmişine göre ayarlanır, bitirene kadar gizli. Günün <b>ilk</b> bot galibiyeti sınıf puanı yazar (×zorluk çarpanı); diğerleri antrenmandır.{% if bot.puanli_bugun %} <b>Bugünkü bot puanını aldın.</b>{% endif %}</p>
+  <p class="kucuk soluk">Rakip yoksa botla oyna. Skor aynı: süre + {{ 10 }} sn × hata. Bot süresi senin geçmişine göre ayarlanır, bitirene kadar gizli. Günün <b>ilk</b> bot galibiyeti sınıf puanı yazar (×zorluk çarpanı). Ayrıca <b>kendi en iyi skorunu geliştirdikçe</b> (en az %3) ne kadar çok geliştirirsen o kadar çok puan alırsın; günde en çok {{ 2 }} gelişim puanı.{% if bot.puanli_bugun %} <b>Bugünkü bot galibiyeti puanını aldın.</b>{% endif %}</p>
   {% if bot.acik %}
   <p><a class="tus" href="/ogrenci/sudoku/bot/{{ bot.acik.id }}">Süren bot oyununa devam et</a></p>
   {% elif bot.kalan %}
@@ -36,7 +36,7 @@
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <label>Zorluk
       <select name="zorluk" required>
-        {% for kod, ad in zorluklar.items() %}<option value="{{ kod }}">{{ ad }} ({{ ipuclari[kod] }} ipucu)</option>{% endfor %}
+        {% for kod, ad in zorluklar.items() %}<option value="{{ kod }}">{{ ad }} ({{ ipuclari[kod] }} hazır rakam)</option>{% endfor %}
       </select>
     </label>
     <button class="tus tam">Botla oyna</button>

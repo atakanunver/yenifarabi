@@ -11,6 +11,7 @@ import sqlite3
 from datetime import timedelta
 
 import arena
+import gayret
 import maraton
 import soru_bildirim
 import zaman
@@ -133,8 +134,9 @@ def cevapla(conn: sqlite3.Connection, kullanici_id: int, calisma_id: int, secim:
     ).rowcount != 1:
         conn.rollback()
         raise CalismaHatasi("Bu soru zaten cevaplanmış.")
+    gayret_xp = gayret.ver(conn, kullanici_id, f"c{calisma_id}", gayret.gecen(c["gosterim"], zaman.simdi_str()))
     conn.commit()
-    return {"dogru": secim == c["dogru_index"], "dogru_index": c["dogru_index"]}
+    return {"dogru": secim == c["dogru_index"], "dogru_index": c["dogru_index"], "gayret_xp": gayret_xp}
 
 
 def gec(conn: sqlite3.Connection, kullanici_id: int, calisma_id: int) -> None:

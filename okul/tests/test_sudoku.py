@@ -263,3 +263,60 @@ def test_geri_al_18(tmp_path):
     conn.executescript(db.GOCLER[17])
     conn.executescript(geri_al.GERI[18])
     assert not conn.execute("SELECT name FROM sqlite_master WHERE name LIKE 'sudoku%'").fetchall()
+
+
+# --- düello: otomatik kayıt (şema V32) ---
+
+def test_kaydet_yalniz_bos_hucreler_katilimci_ve_acik_oyun(conn, uc, saat):
+    did = duello(conn, uc["a"], uc["b"])
+    with pytest.raises(sudoku.SudokuHatasi):
+        sudoku.kaydet(conn, did, uc["a"], "0" * 81)  # önce bulmacayı aç
+    sudoku.baslat(conn, did, uc["a"])
+    bulmaca = conn.execute("SELECT bulmaca FROM sudoku_duello WHERE id = ?", (did,)).fetchone()[0]
+    sabit = next(i for i, c in enumerate(bulmaca) if c != "0")
+    bos = next(i for i, c in enumerate(bulmaca) if c == "0")
+    sudoku.kaydet(conn, did, uc["a"], "9" * 81)
+    kayitli = sudoku.oyun(conn, did, uc["a"])["tahta"]
+    assert kayitli[sabit] == "0" and kayitli[bos] == "9"
+    for kotu in ("", "1" * 80, "x" * 81):
+        with pytest.raises(sudoku.SudokuHatasi):
+            sudoku.kaydet(conn, did, uc["a"], kotu)
+    with pytest.raises(sudoku.SudokuHatasi):
+        sudoku.kaydet(conn, did, uc["c"], "0" * 81)  # katılımcı değil
+    oyna(conn, did, uc["a"])
+    with pytest.raises(sudoku.SudokuHatasi):
+        sudoku.kaydet(conn, did, uc["a"], "0" * 81)  # bitirince kayıt yok
+
+
+def test_rota_kaydet_ve_sayfa_kayitli_rakamlarla_gelir(istemci, conn, uc, saat):
+    import re
+
+    did = duello(conn, uc["a"], uc["b"])
+    csrf = giris(istemci, "101", "ali-sifre")
+    istemci.get(f"/ogrenci/sudoku/{did}")  # bulmacayı açar
+    bulmaca = conn.execute("SELECT bulmaca FROM sudoku_duello WHERE id = ?", (did,)).fetchone()[0]
+    bos = [i for i, c in enumerate(bulmaca) if c == "0"]
+    tahta = ["0"] * 81
+    tahta[bos[0]], tahta[bos[1]] = "4", "7"
+    r = istemci.post(f"/ogrenci/sudoku/{did}/kaydet", data={"csrf": csrf, "tahta": "".join(tahta)}, headers={"Accept": "application/json"})
+    assert r.status_code == 200 and r.json() == {"ok": True}
+    csrf = giris(istemci, "101", "ali-sifre")  # çıkıp giriş
+    sayfa = istemci.get(f"/ogrenci/sudoku/{did}")
+    z = cozulmus(conn, did)
+    assert sayfa.status_code == 200 and z not in sayfa.text and f'data-kaydet="/ogrenci/sudoku/{did}/kaydet"' in sayfa.text
+    degerler = re.findall(r'name="h"[^>]*value="(\d?)"', sayfa.text)
+    assert len(degerler) == 81 and degerler[bos[0]] == "4" and degerler[bos[1]] == "7" and degerler[bos[2]] == ""
+    assert istemci.post(f"/ogrenci/sudoku/{did}/kaydet", data={"csrf": csrf, "tahta": "x"}).status_code == 400
+    csrf_c = giris(istemci, "103", "s103")  # katılımcı olmayan: 404
+    assert istemci.post(f"/ogrenci/sudoku/{did}/kaydet", data={"csrf": csrf_c, "tahta": "0" * 81}).status_code == 404
+
+
+def test_geri_al_32(tmp_path):
+    from scripts import geri_al
+
+    assert 32 in geri_al.GERI and len(db.GOCLER) >= 32
+    c = sqlite3.connect(tmp_path / "t.db")
+    c.executescript("\n".join(db.GOCLER))
+    assert "tahta" in [r[1] for r in c.execute("PRAGMA table_info(sudoku_oyun)")]
+    c.executescript(geri_al.GERI[32])
+    assert "tahta" not in [r[1] for r in c.execute("PRAGMA table_info(sudoku_oyun)")]

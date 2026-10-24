@@ -9,6 +9,7 @@ import sqlite3
 import analitik
 import arena
 import calisma
+import gayret
 import maraton
 import soru_bildirim
 import yetki
@@ -102,6 +103,7 @@ def _soru_ekrani(request, conn, k, c):
            "soru_id": c["soru_id"], "bildirildi": soru_bildirim.bildirdi_mi(conn, k["id"], c["soru_id"])},
         soru={"soru_id": c["soru_id"], "bildirildi": soru_bildirim.bildirdi_mi(conn, k["id"], c["soru_id"])},
         geri=geri,
+        gayret_xp=gayret.yazilan(conn, k["id"], f"c{c['id']}") if geri else 0,
     )
 
 

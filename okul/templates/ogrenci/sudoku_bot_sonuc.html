@@ -5,7 +5,10 @@
 <section class="kart">
   <p><b>{{ b.zorluk_ad }}</b> · rakip: Bot 🤖</p>
   <p><b>{{ {'galibiyet': 'Botu yendin! 🎉', 'beraberlik': 'Berabere.', 'maglubiyet': 'Bot bu sefer önde.'}[sonuc] }}</b>
-    {% if kazanc %}· +{{ kazanc }} puan (günün ilk bot galibiyeti){% elif sonuc == 'galibiyet' %}· bugünkü bot puanını zaten aldın, bu oyun antrenman{% endif %}</p>
+    {% if kazanc.toplam %}· toplam <b>+{{ kazanc.toplam }} puan</b>{% endif %}</p>
+  {% if kazanc.galibiyet %}<p>+{{ kazanc.galibiyet }} günün ilk bot galibiyeti</p>
+  {% elif sonuc == 'galibiyet' %}<p class="soluk kucuk">Bugünkü bot galibiyeti puanını zaten aldın, bu oyun antrenman.</p>{% endif %}
+  {% if kazanc.gelisim %}<p>+{{ kazanc.gelisim }} kendi rekorunu geliştirdin 🚀 (önceki en iyi skorun {{ kazanc.onceki_en_iyi }} → şimdi {{ benim_skor }})</p>{% endif %}
   <p>Sen: <b>{{ benim_skor }}</b> ({{ benim.sure_sn }} sn + {{ benim.hata }} hata × {{ ceza }}) · Bot: <b>{{ bot_skor }}</b> ({{ benim.bot_sure_sn }} sn + {{ benim.bot_hata }} hata × {{ ceza }})</p>
 </section>
 <form method="post" action="/ogrenci/sudoku/bot" class="sudoku-form">

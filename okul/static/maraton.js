@@ -74,7 +74,7 @@
         var kare = kareler[parseInt(form.elements.sira.value, 10) - 1];
         if (kare) kare.className = j.dogru ? "dolu" : "eksik";
         if (puanEl) puanEl.textContent = j.toplam;
-        uyar(j.sure_doldu ? "Süre doldu" : (j.dogru ? "Doğru! +" + j.puan : "Yanlış"), false);
+        uyar(j.sure_doldu ? "Süre doldu" : (j.dogru ? "Doğru! +" + j.puan : "Yanlış") + (j.gayret_xp ? " · +" + j.gayret_xp + " gayret XP" : ""), false);
         setTimeout(function () { location.href = j.sonraki; }, 1200);
       })
       .catch(function () {

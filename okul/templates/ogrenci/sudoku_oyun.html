@@ -5,14 +5,15 @@
 <p class="soluk kucuk">Rakip: {{ rakip }} · son tarih {{ d.son_tarih|tarih }}</p>
 {% if uyari %}<div class="not" role="alert">{{ uyari }}</div>{% endif %}
 <p class="sudoku-durum"><span>⏱ <b id="sudoku-sure" data-gecen="{{ gecen }}">{{ gecen // 60 }}:{{ '%02d' % (gecen % 60) }}</b></span> <span>Hata: <b id="sudoku-hata">{{ hata }}</b> (+{{ ceza }} sn)</span></p>
-<form id="sudoku-form" method="post" action="/ogrenci/sudoku/{{ d.id }}/gonder" data-id="{{ d.id }}">
+<form id="sudoku-form" method="post" action="/ogrenci/sudoku/{{ d.id }}/gonder" data-id="{{ d.id }}" data-kaydet="/ogrenci/sudoku/{{ d.id }}/kaydet">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   <div class="sudoku-izgara" id="sudoku-izgara">
-  {% for ch in bulmaca %}<input class="sudoku-hucre{{ ' sabit' if ch != '0' }}{{ ' ysinir' if loop.index0 % 3 == 2 and loop.index0 % 9 != 8 }}{{ ' asinir' if (loop.index0 // 9) % 3 == 2 and loop.index0 < 72 }}" name="h" maxlength="1" inputmode="numeric" pattern="[1-9]" autocomplete="off" aria-label="Satır {{ loop.index0 // 9 + 1 }}, sütun {{ loop.index0 % 9 + 1 }}" value="{{ ch if ch != '0' }}"{{ ' readonly' if ch != '0' }}>{% endfor %}
+  {% for ch in bulmaca %}<input class="sudoku-hucre{{ ' sabit' if ch != '0' }}{{ ' ysinir' if loop.index0 % 3 == 2 and loop.index0 % 9 != 8 }}{{ ' asinir' if (loop.index0 // 9) % 3 == 2 and loop.index0 < 72 }}" name="h" maxlength="1" inputmode="numeric" pattern="[1-9]" autocomplete="off" aria-label="Satır {{ loop.index0 // 9 + 1 }}, sütun {{ loop.index0 % 9 + 1 }}" value="{{ ch if ch != '0' else (tahta[loop.index0] if tahta|length == 81 and tahta[loop.index0] in '123456789' else '') }}"{{ ' readonly' if ch != '0' }}>{% endfor %}
   </div>
   <p id="sudoku-mesaj" class="not" role="status" hidden></p>
   <button class="tus tam" id="sudoku-gonder">Kontrol et ve bitir</button>
 </form>
 <p class="kucuk soluk">Yanlış gönderim hata sayılır. Süre sunucuda ölçülür; sayfayı kapatsan da akmaya devam eder.</p>
-<script src="/static/sudoku.js?v=3" defer></script>
+<style>.sudoku-hucre.cakisma { background: color-mix(in srgb, var(--hata-yazi) 20%, transparent); outline: 2px solid var(--hata-yazi); outline-offset: -2px; }</style>
+<script src="/static/sudoku.js?v=4" defer></script>
 {% endblock %}

@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from metin import kisa_ad
 
 router = APIRouter(prefix="/ogrenci/sudoku")
+_YANLIS_UYARI = "Tahtada hata var (+10 sn ceza). Aynı rakamın bir satır, sütun veya 3×3 kutuda tekrar etmediğinden emin ol."
 OGRENCI = rol("ogrenci")
 
 
@@ -115,12 +116,13 @@ async def bot_gonder(oyun_id: int, request: Request, k=Depends(rol("ogrenci", po
         if js:
             return JSONResponse({"mesaj": str(e), "sonraki": f"/ogrenci/sudoku/bot/{oyun_id}"}, status_code=409)
         return RedirectResponse(f"/ogrenci/sudoku/bot/{oyun_id}?uyari={e}", status_code=303)
-    sonraki = f"/ogrenci/sudoku/bot/{oyun_id}/sonuc" if s["dogru"] else f"/ogrenci/sudoku/bot/{oyun_id}"
+    sade = f"/ogrenci/sudoku/bot/{oyun_id}/sonuc" if s["dogru"] else f"/ogrenci/sudoku/bot/{oyun_id}"
+    sonraki = sade if s["dogru"] else f"{sade}?uyari={_YANLIS_UYARI}"  # JS'siz akışta yanlış tahta sessiz kalmasın
     if s["dogru"]:
         analitik.istekten(request, "sudoku_bitir", f"bot{oyun_id}")
     if js:
         # bot skoru yalnız bitince (doğru çözümle) döner; hatalı gönderimde sızmaz
-        return JSONResponse({**{a: v for a, v in s.items() if a not in ("bot_skor", "sonuc")}, "sonraki": sonraki})
+        return JSONResponse({**{a: v for a, v in s.items() if a not in ("bot_skor", "sonuc")}, "sonraki": sade})
     return RedirectResponse(sonraki, status_code=303)
 
 
@@ -195,9 +197,21 @@ def oyna(duello_id: int, request: Request, k=Depends(OGRENCI), conn: sqlite3.Con
     rakip_id = d["rakip_kid"] if d["kuran_kid"] == k["id"] else d["kuran_kid"]
     return render(
         request, "ogrenci/sudoku_oyun.html", d={"id": d["id"], "zorluk_ad": sudoku.ZORLUK_AD[d["zorluk"]], "son_tarih": d["son_tarih"]},
-        bulmaca=d["bulmaca"], gecen=sudoku.gecen_sn(ben), hata=ben["hata"], ceza=sudoku.HATA_CEZA,
+        bulmaca=d["bulmaca"], tahta=ben["tahta"] or "", gecen=sudoku.gecen_sn(ben), hata=ben["hata"], ceza=sudoku.HATA_CEZA,
         rakip=_ad(conn, rakip_id), uyari=uyari[:200],
     )
+
+
+@router.post("/{duello_id}/kaydet")
+async def kaydet(duello_id: int, request: Request, k=Depends(rol("ogrenci", post=True)), conn: sqlite3.Connection = Depends(db_conn)):
+    """Otomatik kayıt (JS, yazdıkça): çıkıp girince rakamlar geri gelir."""
+    _duello(conn, k, duello_id)
+    form = await request.form()
+    try:
+        sudoku.kaydet(conn, duello_id, k["id"], str(form.get("tahta", "")))
+    except sudoku.SudokuHatasi as e:
+        return JSONResponse({"mesaj": str(e)}, status_code=400)
+    return JSONResponse({"ok": True})
 
 
 @router.post("/{duello_id}/gonder")
@@ -213,11 +227,12 @@ async def gonder(duello_id: int, request: Request, k=Depends(rol("ogrenci", post
         if js:
             return JSONResponse({"mesaj": str(e), "sonraki": f"/ogrenci/sudoku/{duello_id}"}, status_code=409)
         return RedirectResponse(f"/ogrenci/sudoku/{duello_id}?uyari={e}", status_code=303)
-    sonraki = f"/ogrenci/sudoku/{duello_id}/sonuc" if s["dogru"] else f"/ogrenci/sudoku/{duello_id}"
+    sade = f"/ogrenci/sudoku/{duello_id}/sonuc" if s["dogru"] else f"/ogrenci/sudoku/{duello_id}"
+    sonraki = sade if s["dogru"] else f"{sade}?uyari={_YANLIS_UYARI}"  # JS'siz akışta yanlış tahta sessiz kalmasın
     if s["dogru"]:
         analitik.istekten(request, "sudoku_bitir", str(duello_id))
     if js:
-        return JSONResponse({**s, "sonraki": sonraki})
+        return JSONResponse({**s, "sonraki": sade})
     return RedirectResponse(sonraki, status_code=303)
 
 

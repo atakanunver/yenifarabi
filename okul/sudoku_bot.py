@@ -2,11 +2,13 @@
 
 Öğrenci bir bulmacayı çözer; bot "oynamaz", süresi ve hatası oyun BAŞLARKEN sunucuda belirlenip saklanır
 (sayfa yenilense de değişmez, istemciye bitene kadar gitmez). Skor düelloyla aynı: süre + HATA_CEZA × hata,
-düşük olan kazanır; sonuç bitirir bitirmez çıkar. Bot süresi öğrencinin son 5 çözümünün medyanına göre ayarlanır
-(geçmiş yoksa zorluğa göre sabit). Puan: günde yalnızca İLK bot galibiyeti sınıf puanına sayılır (3 × zorluk çarpanı);
+düşük olan kazanır; sonuç bitirir bitirmez çıkar. Bot süresi öğrencinin son 5 çözümünün medyanının %10-40 ÜSTÜNE
+ayarlanır (öğrenci ≈%90 kazansın: başarı hissi; geçmiş yoksa zorluğa göre sabit, yavaşça). Kişisel gelişim puanı:
+öğrenci kendi önceki en iyi skorunu (süre + 10×hata, aynı zorluk) iyileştirdikçe puan alır (bot sonucundan bağımsız). Puan: günde yalnızca İLK bot galibiyeti sınıf puanına sayılır (3 × zorluk çarpanı);
 diğer oyunlar antrenmandır. Çözüm istemciye hiçbir yanıtta gitmez.
 """
 
+import math
 import random
 import secrets
 import sqlite3
@@ -20,9 +22,14 @@ from sudoku import HATA_CEZA, SudokuHatasi
 GUNLUK_BASLAT_EN_COK = 5
 GUNLUK_PUANLI = 1  # günde en çok bu kadar bot galibiyeti puana sayılır
 TERK_SAAT = 3  # bitmemiş oyun bu süreden sonra terk sayılır (yenisi başlatılabilir)
-TABAN_SN = {"basit": 300, "orta": 480, "zor": 780}
-EN_AZ_SN = {"basit": 120, "orta": 240, "zor": 420}
-EN_COK_SN = {"basit": 900, "orta": 1500, "zor": 2400}
+BOT_YAVASLIK = (1.30, 1.60)  # öğrencinin medyanına göre çarpan aralığı (>1: bot biraz geç çözer)
+TABAN_SN = {"basit": 420, "orta": 660, "zor": 1080}
+EN_AZ_SN = {"basit": 180, "orta": 360, "zor": 600}
+EN_COK_SN = {"basit": 1200, "orta": 2000, "zor": 3000}
+GELISIM_ESIK = 0.03  # önceki en iyi skora göre en az %3 iyileşme sayılır (gürültü puan getirmesin)
+GELISIM_BASAMAK = 5  # her %5 iyileşme = 1 × zorluk çarpanı
+GELISIM_EN_COK = 10  # oyun başına çarpanın en çok bu katı (≈%50 iyileşme)
+GELISIM_GUNLUK = 2  # günde en çok bu kadar oyun gelişim puanı yazar
 HATA_AGIRLIK = {"basit": (0.85, 0.13, 0.02), "orta": (0.70, 0.25, 0.05), "zor": (0.55, 0.35, 0.10)}  # 0/1/2 hata
 
 
@@ -41,10 +48,10 @@ def _gecmis_sureler(conn: sqlite3.Connection, kid: int, zorluk: str) -> list[int
 
 
 def bot_hedefi(conn: sqlite3.Connection, kid: int, zorluk: str, rnd: random.Random) -> tuple[int, int]:
-    """(bot süresi sn, bot hatası): öğrencinin geçmiş medyanı (yoksa taban) ±%15, zorluğa göre sınırlı."""
+    """(bot süresi sn, bot hatası): öğrencinin geçmiş medyanı (yoksa taban) × BOT_YAVASLIK, zorluğa göre sınırlı."""
     gecmis = _gecmis_sureler(conn, kid, zorluk)
     hedef = statistics.median(gecmis) if gecmis else TABAN_SN[zorluk]
-    sure = int(hedef * rnd.uniform(0.85, 1.15))
+    sure = int(hedef * rnd.uniform(*BOT_YAVASLIK))
     sure = max(EN_AZ_SN[zorluk], min(EN_COK_SN[zorluk], sure))
     hata = rnd.choices([0, 1, 2], weights=HATA_AGIRLIK[zorluk])[0]
     return sure, hata
@@ -147,11 +154,39 @@ def _puanli_idler(conn: sqlite3.Connection) -> dict[int, tuple[int, str, str, st
     return cikti
 
 
-def kazanc(conn: sqlite3.Connection, o: sqlite3.Row) -> int:
-    """Bu oyunun sınıf puanına yazdığı puan (günün ilk galibiyeti değilse ya da kazanılmadıysa 0)."""
-    if o["sonuc"] != "galibiyet" or o["id"] not in _puanli_idler(conn):
-        return 0
-    return sudoku.PUAN["galibiyet"] * sudoku.CARPAN[o["zorluk"]]
+def _gelisim_bonuslari(conn: sqlite3.Connection) -> dict[int, tuple[int, str, int, int]]:
+    """{oyun_id: (kid, gun, bonus_puan, önceki_en_iyi_skor)} — kişisel gelişim puanı (türetilir, saklanmaz).
+    Kişi+zorluk başına önceki en iyi skor; yeni skor en az %GELISIM_ESIK düşükse bonus = çarpan × min(EN_COK, ⌈iyileşme%/BASAMAK⌉).
+    Günde en çok GELISIM_GUNLUK oyun bonus yazar (en iyi skor yine de güncellenir)."""
+    en_iyi: dict[tuple[int, str], int] = {}
+    gunluk: dict[tuple[int, str], int] = {}
+    cikti = {}
+    for r in conn.execute(
+        "SELECT id, kullanici_id AS kid, zorluk, bitis, sure_sn, hata FROM sudoku_bot WHERE bitis IS NOT NULL ORDER BY id"
+    ):
+        s = r["sure_sn"] + HATA_CEZA * r["hata"]
+        anahtar = (r["kid"], r["zorluk"])
+        onceki = en_iyi.get(anahtar)
+        if onceki is not None and s < onceki * (1 - GELISIM_ESIK):
+            gun = (r["kid"], r["bitis"][:10])
+            if gunluk.get(gun, 0) < GELISIM_GUNLUK:
+                gunluk[gun] = gunluk.get(gun, 0) + 1
+                iyilesme = (onceki - s) / onceki * 100
+                bonus = sudoku.CARPAN[r["zorluk"]] * min(GELISIM_EN_COK, math.ceil(iyilesme / GELISIM_BASAMAK))
+                cikti[r["id"]] = (r["kid"], r["bitis"][:10], bonus, onceki)
+        en_iyi[anahtar] = s if onceki is None else min(onceki, s)
+    return cikti
+
+
+def kazanc(conn: sqlite3.Connection, o: sqlite3.Row) -> dict:
+    """Bu oyunun sınıf puanına yazdığı puan: {'galibiyet': n, 'gelisim': n, 'onceki_en_iyi': skor|None, 'toplam': n}."""
+    galibiyet = (
+        sudoku.PUAN["galibiyet"] * sudoku.CARPAN[o["zorluk"]]
+        if o["sonuc"] == "galibiyet" and o["id"] in _puanli_idler(conn) else 0
+    )
+    g = _gelisim_bonuslari(conn).get(o["id"])
+    gelisim, onceki = (g[2], g[3]) if g else (0, None)
+    return {"galibiyet": galibiyet, "gelisim": gelisim, "onceki_en_iyi": onceki, "toplam": galibiyet + gelisim}
 
 
 def puanlar_ekle(conn: sqlite3.Connection, cikti: dict[int, dict], hb: str | None, son: str | None) -> None:
@@ -163,6 +198,10 @@ def puanlar_ekle(conn: sqlite3.Connection, cikti: dict[int, dict], hb: str | Non
         v["puan"] += sudoku.PUAN["galibiyet"] * sudoku.CARPAN[zorluk]
         v["galibiyet"] += 1
         v["oynanan"] += 1
+    for kid, gun, bonus, _onceki in _gelisim_bonuslari(conn).values():
+        if hb is not None and not (hb <= gun < son):
+            continue
+        cikti.setdefault(kid, {"puan": 0, "galibiyet": 0, "oynanan": 0})["puan"] += bonus
 
 
 def ozet(conn: sqlite3.Connection, kid: int) -> dict:
@@ -188,7 +227,9 @@ def ozet(conn: sqlite3.Connection, kid: int) -> dict:
         "SELECT COUNT(*) FROM sudoku_bot WHERE kullanici_id = ? AND substr(baslama, 1, 10) = ?", (kid, gun)
     ).fetchone()[0]
     puanli_bugun = any(v[0] == kid and v[1] == gun for v in _puanli_idler(conn).values())
+    gelisim_bugun = sum(1 for v in _gelisim_bonuslari(conn).values() if v[0] == kid and v[1] == gun)
     return {
         "acik": dict(acik) if acik else None, "biten": biten, "puanli_bugun": puanli_bugun,
+        "gelisim_kalan": max(0, GELISIM_GUNLUK - gelisim_bugun),
         "kalan": max(0, GUNLUK_BASLAT_EN_COK - bugun_baslayan),
     }

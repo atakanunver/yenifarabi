@@ -8,6 +8,7 @@ import json
 import sqlite3
 from datetime import datetime, timedelta
 
+import gayret
 import soru_bildirim
 import zaman
 from kaynaklar import KaynakHatasi, zil
@@ -190,9 +191,14 @@ def cevapla(conn: sqlite3.Connection, maraton_id: int, sira: int, secim: int | N
     ).fetchone()[0]
     if kalan == 0:
         conn.execute("UPDATE maraton SET bitis = ? WHERE id = ?", (zaman.simdi_str(), maraton_id))
+    gayret_xp = 0
+    if not sure_doldu:  # gerçekten cevap verildi: soruya ayrılan süre kadar gayret XP'si (doğru/yanlış fark etmez)
+        kid = conn.execute("SELECT kullanici_id FROM maraton WHERE id = ?", (maraton_id,)).fetchone()[0]
+        gayret_xp = gayret.ver(conn, kid, f"m{maraton_id}:{sira}", gayret.gecen(s["gosterim"], zaman.simdi_str()))
     conn.commit()
     toplam = conn.execute("SELECT puan FROM maraton WHERE id = ?", (maraton_id,)).fetchone()[0]
     return {
+        "gayret_xp": gayret_xp,
         "dogru": dogru,
         "dogru_index": s["dogru_index"],
         "puan": puan,

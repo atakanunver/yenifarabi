@@ -27,6 +27,7 @@
   <div role="status" aria-live="polite">
     <div class="geri-bildirim {{ 'dogru' if geri.dogru else 'yanlis' }}">
       <b>{{ 'Doğru!' if geri.dogru else 'Bu soruyu birlikte gözden geçirelim.' }}</b>
+      {% if gayret_xp %}<span class="fosfor"> · +{{ gayret_xp }} gayret XP (soruya zaman ayırdığın için)</span>{% endif %}
       {% if not geri.dogru %}Doğru cevap: <b style="display:inline">{{ 'ABCDEFGH'[geri.dogru_index] }}</b>.{% endif %}
     </div>
     {% include "ogrenci/_soru_bildir.html" %}

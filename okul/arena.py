@@ -11,6 +11,7 @@ import sqlite3
 import zlib
 from datetime import timedelta
 
+import gayret
 import maraton
 import soru_bildirim
 import zaman
@@ -254,6 +255,16 @@ def cevapla(conn: sqlite3.Connection, tur_id: int, sira: int, secim: int) -> dic
     dogru = secim == s["dogru_index"]
     eski_seviye = seviye(conn, tur["kullanici_id"])["no"]
     kazanilan = 0
+    # gayret XP'si: bu soruya ayrılan süre (önceki cevaptan / görevin başlangıcından bu cevaba); doğru/yanlış fark etmez
+    onceki = conn.execute(
+        "SELECT cevap_zamani FROM bilgi_cevap WHERE tur_id = ? AND sira < ? AND cevap_zamani IS NOT NULL"
+        " ORDER BY sira DESC LIMIT 1", (tur_id, sira),
+    ).fetchone()
+    gayret_xp = gayret.ver(
+        conn, tur["kullanici_id"], f"a{tur_id}:{sira}",
+        gayret.gecen(onceki[0] if onceki else tur["basla"], zaman.simdi_str()),
+    )
+    kazanilan += gayret_xp
     if dogru:
         conn.execute("UPDATE bilgi_tur SET dogru = dogru + 1 WHERE id = ?", (tur_id,))
         if xp_ver(conn, tur["kullanici_id"], "arena_dogru", f"{tur_id}:{sira}", XP_DOGRU):
@@ -278,6 +289,7 @@ def cevapla(conn: sqlite3.Connection, tur_id: int, sira: int, secim: int) -> dic
         "dogru_index": s["dogru_index"],
         "bitti": bitti,
         "xp": kazanilan,
+        "gayret_xp": gayret_xp,
         "yeni_rozetler": [{"ad": _ROZET_AD[k]} for k in yeni_rozet],
         "seviye_atladi": yeni["no"] if yeni["no"] > eski_seviye else None,
     }

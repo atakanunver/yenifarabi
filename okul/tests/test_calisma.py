@@ -75,7 +75,7 @@ def test_tekrar_akisi_xp_ve_hedefe_baglanmaz(conn, ornek, saat):
     cid = calisma.tekrar_baslat(conn, k)
     assert calisma.tekrar_baslat(conn, k) == cid  # yenilemek soru değiştirmez
     sonuc = calisma.cevapla(conn, k, cid, 1)
-    assert sonuc == {"dogru": True, "dogru_index": 1}
+    assert sonuc == {"dogru": True, "dogru_index": 1, "gayret_xp": 0}  # anında cevap: gayret XP yok
     with pytest.raises(calisma.CalismaHatasi):
         calisma.cevapla(conn, k, cid, 0)  # çift gönderim
     assert calisma.yanlislar(conn, k) == []
