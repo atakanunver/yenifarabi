@@ -4,12 +4,13 @@ import sqlite3
 import time
 from datetime import datetime, timedelta
 
+import pytest
+from fastapi.testclient import TestClient
+
 import auth
 import db
 import oduller
-import pytest
 import sudoku
-from fastapi.testclient import TestClient
 
 
 def _ogrenci(conn, yeni_kullanici, ad, no, sinif="9-A"):
@@ -320,3 +321,56 @@ def test_geri_al_32(tmp_path):
     assert "tahta" in [r[1] for r in c.execute("PRAGMA table_info(sudoku_oyun)")]
     c.executescript(geri_al.GERI[32])
     assert "tahta" not in [r[1] for r in c.execute("PRAGMA table_info(sudoku_oyun)")]
+
+
+# --- düello: ipucu (şema V34) ---
+
+def test_duello_ipucu_cezasi_skorda_ve_sinir(conn, uc, saat):
+    did = duello(conn, uc["a"], uc["b"])
+    sudoku.baslat(conn, did, uc["a"])
+    z = cozulmus(conn, did)
+    r = sudoku.ipucu_al(conn, did, uc["a"], "0" * 81)
+    assert r["rakam"] == z[r["index"]] and r["ipucu"] == 1 and r["kalan"] == 2
+    assert sudoku.oyun(conn, did, uc["a"])["tahta"][r["index"]] == r["rakam"]
+    for _ in range(2):
+        sudoku.ipucu_al(conn, did, uc["a"], "0" * 81)
+    with pytest.raises(sudoku.SudokuHatasi, match="en çok"):
+        sudoku.ipucu_al(conn, did, uc["a"], "0" * 81)
+    saat["an"] += timedelta(seconds=100)
+    s = sudoku.gonder(conn, did, uc["a"], z)
+    assert s["ipucu"] == 3 and s["skor"] == 100 + 3 * sudoku.IPUCU_CEZA  # 145
+    assert sudoku.skor(sudoku.oyun(conn, did, uc["a"])) == 145
+    with pytest.raises(sudoku.SudokuHatasi):
+        sudoku.ipucu_al(conn, did, uc["a"], "0" * 81)  # bitirince ipucu yok
+
+
+def test_duello_ipucu_katilimci_degilse_ve_acilmamissa_reddedilir(conn, uc, saat):
+    did = duello(conn, uc["a"], uc["b"])
+    with pytest.raises(sudoku.SudokuHatasi):
+        sudoku.ipucu_al(conn, did, uc["a"], "0" * 81)  # önce bulmacayı aç
+    sudoku.baslat(conn, did, uc["a"])
+    with pytest.raises(sudoku.SudokuHatasi):
+        sudoku.ipucu_al(conn, did, uc["c"], "0" * 81)  # katılımcı değil
+
+
+def test_duello_ipucu_rotasi(istemci, conn, uc, saat):
+    did = duello(conn, uc["a"], uc["b"])
+    csrf = giris(istemci, "101", "ali-sifre")
+    sayfa = istemci.get(f"/ogrenci/sudoku/{did}").text
+    assert 'id="sudoku-ipucu-dugme"' in sayfa and f'data-ipucu="/ogrenci/sudoku/{did}/ipucu"' in sayfa
+    z = cozulmus(conn, did)
+    r = istemci.post(f"/ogrenci/sudoku/{did}/ipucu", data={"csrf": csrf, "tahta": "0" * 81}, headers={"Accept": "application/json"})
+    assert r.status_code == 200 and r.json()["rakam"] == z[r.json()["index"]]
+    csrf_c = giris(istemci, "103", "s103")
+    assert istemci.post(f"/ogrenci/sudoku/{did}/ipucu", data={"csrf": csrf_c, "tahta": "0" * 81}).status_code == 404
+
+
+def test_geri_al_34(tmp_path):
+    from scripts import geri_al
+
+    assert 34 in geri_al.GERI and len(db.GOCLER) >= 34
+    c = sqlite3.connect(tmp_path / "t.db")
+    c.executescript("\n".join(db.GOCLER))
+    assert "ipucu" in [r[1] for r in c.execute("PRAGMA table_info(sudoku_oyun)")] and "ipucu" in [r[1] for r in c.execute("PRAGMA table_info(sudoku_bot)")]
+    c.executescript(geri_al.GERI[34])
+    assert "ipucu" not in [r[1] for r in c.execute("PRAGMA table_info(sudoku_oyun)")] and "ipucu" not in [r[1] for r in c.execute("PRAGMA table_info(sudoku_bot)")]

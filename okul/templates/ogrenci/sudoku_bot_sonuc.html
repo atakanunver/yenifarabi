@@ -9,7 +9,7 @@
   {% if kazanc.galibiyet %}<p>+{{ kazanc.galibiyet }} günün ilk bot galibiyeti</p>
   {% elif sonuc == 'galibiyet' %}<p class="soluk kucuk">Bugünkü bot galibiyeti puanını zaten aldın, bu oyun antrenman.</p>{% endif %}
   {% if kazanc.gelisim %}<p>+{{ kazanc.gelisim }} kendi rekorunu geliştirdin 🚀 (önceki en iyi skorun {{ kazanc.onceki_en_iyi }} → şimdi {{ benim_skor }})</p>{% endif %}
-  <p>Sen: <b>{{ benim_skor }}</b> ({{ benim.sure_sn }} sn + {{ benim.hata }} hata × {{ ceza }}) · Bot: <b>{{ bot_skor }}</b> ({{ benim.bot_sure_sn }} sn + {{ benim.bot_hata }} hata × {{ ceza }})</p>
+  <p>Sen: <b>{{ benim_skor }}</b> ({{ benim.sure_sn }} sn + {{ benim.hata }} hata × {{ ceza }}{% if benim.ipucu %} + {{ benim.ipucu }} ipucu × {{ ipucu_ceza }}{% endif %}) · Bot: <b>{{ bot_skor }}</b> ({{ benim.bot_sure_sn }} sn + {{ benim.bot_hata }} hata × {{ ceza }})</p>
 </section>
 <form method="post" action="/ogrenci/sudoku/bot" class="sudoku-form">
   <input type="hidden" name="csrf" value="{{ csrf }}">

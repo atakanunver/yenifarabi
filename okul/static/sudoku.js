@@ -104,6 +104,39 @@
     });
   });
 
+  // İpucu düğmesi: sunucu bir kutunun doğru rakamını açar (skora ceza yazar). JS yoksa düğme gizli kalır.
+  var ipucuDugme = document.getElementById("sudoku-ipucu-dugme");
+  var ipucuUrl = form.dataset.ipucu;
+  var ipucuSayac = document.getElementById("sudoku-ipucu");
+  var ipucuKalan = parseInt(form.dataset.ipucuKalan, 10);
+  if (ipucuDugme && ipucuUrl && window.fetch) {
+    ipucuDugme.hidden = false;
+    ipucuDugme.addEventListener("click", function () {
+      if (gonderiyor || bitti || ipucuKalan <= 0) return;
+      ipucuDugme.disabled = true;
+      var veri = new FormData();
+      veri.append("csrf", form.elements.csrf.value);
+      veri.append("tahta", dizi());
+      fetch(ipucuUrl, { method: "POST", body: veri, headers: { Accept: "application/json" }, credentials: "same-origin" })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (x) {
+          if (!x.ok) { uyar(x.j.mesaj || "İpucu alınamadı."); return; }
+          var h = hucreler[x.j.index];
+          h.value = String(x.j.rakam);
+          h.classList.add("ipucu-hucre");
+          setTimeout(function () { h.classList.remove("ipucu-hucre"); }, 4000);
+          ipucuKalan = x.j.kalan;
+          if (ipucuSayac) ipucuSayac.textContent = x.j.ipucu;
+          vurgula();
+          yaz();
+          uyar("İpucu: " + (Math.floor(x.j.index / 9) + 1) + ". satır, " + ((x.j.index % 9) + 1) + ". sütundaki kutu açıldı (skoruna +" +
+               (form.dataset.ipucuCeza || "15") + " sn eklendi). Kalan hak: " + x.j.kalan + ".");
+        })
+        .catch(function () { uyar("Bağlantı hatası. Tekrar dene."); })
+        .then(function () { ipucuDugme.disabled = ipucuKalan <= 0; });
+    });
+  }
+
   form.addEventListener("submit", function (e) {
     var tahta = hucreler.map(function (h) { return h.value || "0"; }).join("");
     if (tahta.indexOf("0") !== -1) {

@@ -19,6 +19,8 @@ CARPAN = {"basit": 1, "orta": 2, "zor": 3}
 ZORLUK_AD = {"basit": "Basit", "orta": "Orta", "zor": "Zor"}
 SURE_SAAT = 24
 HATA_CEZA = 10  # sn
+IPUCU_CEZA = 15  # sn (her ipucu skora eklenir)
+IPUCU_EN_COK = 3  # oyun başına
 BEKLEYEN_EN_COK = 3
 GUNLUK_EN_COK = 5
 CIFT_GUNLUK_PUANLI = 2
@@ -238,6 +240,56 @@ def kaydet(conn: sqlite3.Connection, duello_id: int, kid: int, tahta: str) -> No
     conn.commit()
 
 
+def temiz_tahta(bulmaca: str, tahta: str) -> str:
+    """Yalnız oyuncunun boş hücrelere yazdıkları kalır; sabit ipuçları bulmacadan gelir."""
+    return "".join("0" if b != "0" else t for b, t in zip(bulmaca, tahta, strict=True))
+
+
+def ipucu_sec(bulmaca: str, cozum: str, tahta: str, rnd: random.Random | None = None) -> int | None:
+    """Açılacak hücre: oyuncunun YANLIŞ doldurduğu (öncelikli: takıldığı yer), yoksa boş bıraktığı hücrelerden biri.
+    Sabit ipuçları seçilmez; açılacak hücre yoksa None."""
+    yanlis = [i for i in range(81) if bulmaca[i] == "0" and tahta[i] not in ("0", cozum[i])]
+    bos = [i for i in range(81) if bulmaca[i] == "0" and tahta[i] == "0"]
+    havuz = yanlis or bos
+    return (rnd or random).choice(havuz) if havuz else None
+
+
+def _tahta_dogrula(tahta: str) -> str:
+    tahta = (tahta or "").strip()
+    if len(tahta) != 81 or not tahta.isascii() or not tahta.isdigit():
+        raise SudokuHatasi("Geçersiz tahta.")
+    return tahta
+
+
+def ipucu_al(conn: sqlite3.Connection, duello_id: int, kid: int, tahta: str, rnd: random.Random | None = None) -> dict:
+    """Bir hücrenin doğru rakamını açar ve kaydeder; skora IPUCU_CEZA sn eklenir. {'index', 'rakam', 'ipucu', 'kalan'}."""
+    d = getir(conn, duello_id, kid)
+    if d is None or d["durum"] != "surer":
+        raise SudokuHatasi("Düello oynanamaz durumda.")
+    o = oyun(conn, duello_id, kid)
+    if o is None:
+        raise SudokuHatasi("Önce bulmacayı aç.")
+    if o["bitis"]:
+        raise SudokuHatasi("Bu düelloyu zaten bitirdin.")
+    if o["ipucu"] >= IPUCU_EN_COK:
+        raise SudokuHatasi(f"Bir oyunda en çok {IPUCU_EN_COK} ipucu alabilirsin.")
+    tahta = _tahta_dogrula(tahta)
+    i = ipucu_sec(d["bulmaca"], d["cozum"], tahta, rnd)
+    if i is None:
+        raise SudokuHatasi("Tahtadaki tüm rakamlar doğru görünüyor; ipucuna gerek yok.")
+    rakam = d["cozum"][i]
+    yeni = temiz_tahta(d["bulmaca"], tahta)
+    yeni = yeni[:i] + rakam + yeni[i + 1:]
+    if conn.execute(
+        "UPDATE sudoku_oyun SET tahta = ?, ipucu = ipucu + 1 WHERE duello_id = ? AND kullanici_id = ? AND bitis IS NULL AND ipucu < ?",
+        (yeni, duello_id, kid, IPUCU_EN_COK),
+    ).rowcount != 1:
+        conn.rollback()
+        raise SudokuHatasi("İpucu hakkın bitti.")
+    conn.commit()
+    return {"index": i, "rakam": rakam, "ipucu": o["ipucu"] + 1, "kalan": IPUCU_EN_COK - o["ipucu"] - 1}
+
+
 def gecen_sn(o: sqlite3.Row) -> int:
     """Oyuncunun bulmacayı açtığından bu yana (bitmişse bitişe kadar) geçen süre — sunucu saati."""
     son = _dt(o["bitis"]) if o["bitis"] else _simdi()
@@ -277,15 +329,16 @@ def gonder(conn: sqlite3.Connection, duello_id: int, kid: int, tahta: str) -> di
     if bitenler >= 2:
         conn.execute("UPDATE sudoku_duello SET durum = 'bitti' WHERE id = ?", (duello_id,))
     conn.commit()
-    hata = oyun(conn, duello_id, kid)["hata"]
-    return {"dogru": True, "hata": hata, "sure_sn": sure, "skor": sure + HATA_CEZA * hata}
+    son = oyun(conn, duello_id, kid)
+    return {"dogru": True, "hata": son["hata"], "ipucu": son["ipucu"], "sure_sn": sure,
+            "skor": sure + HATA_CEZA * son["hata"] + IPUCU_CEZA * son["ipucu"]}
 
 
 def skor(o: sqlite3.Row | None) -> int | None:
-    """Süre + 10×hata; bitirmeyen için None."""
+    """Süre + 10×hata + 15×ipucu; bitirmeyen için None."""
     if o is None or not o["bitis"]:
         return None
-    return o["sure_sn"] + HATA_CEZA * o["hata"]
+    return o["sure_sn"] + HATA_CEZA * o["hata"] + IPUCU_CEZA * o["ipucu"]
 
 
 def kapat_sureleri(conn: sqlite3.Connection) -> None:

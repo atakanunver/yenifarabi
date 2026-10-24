@@ -89,6 +89,7 @@ def bot_oyna(oyun_id: int, request: Request, k=Depends(OGRENCI), conn: sqlite3.C
     return render(
         request, "ogrenci/sudoku_bot_oyun.html", b={"id": o["id"], "zorluk_ad": sudoku.ZORLUK_AD[o["zorluk"]]},
         bulmaca=o["bulmaca"], tahta=o["tahta"] or "", gecen=sudoku.gecen_sn(o), hata=o["hata"], ceza=sudoku.HATA_CEZA, uyari=uyari[:200],
+        ipucu=o["ipucu"], ipucu_en_cok=sudoku.IPUCU_EN_COK, ipucu_ceza=sudoku.IPUCU_CEZA,
     )
 
 
@@ -102,6 +103,17 @@ async def bot_kaydet(oyun_id: int, request: Request, k=Depends(rol("ogrenci", po
     except sudoku.SudokuHatasi as e:
         return JSONResponse({"mesaj": str(e)}, status_code=400)
     return JSONResponse({"ok": True})
+
+
+@router.post("/bot/{oyun_id}/ipucu")
+async def bot_ipucu(oyun_id: int, request: Request, k=Depends(rol("ogrenci", post=True)), conn: sqlite3.Connection = Depends(db_conn)):
+    """İpucu düğmesi (JS): bir kutunun doğru rakamını açar, skora ceza yazar."""
+    _bot(conn, k, oyun_id)
+    form = await request.form()
+    try:
+        return JSONResponse({"ok": True, **sudoku_bot.ipucu_al(conn, oyun_id, k["id"], str(form.get("tahta", "")))})
+    except sudoku.SudokuHatasi as e:
+        return JSONResponse({"mesaj": str(e)}, status_code=409)
 
 
 @router.post("/bot/{oyun_id}/gonder")
@@ -134,7 +146,7 @@ def bot_sonuc(oyun_id: int, request: Request, k=Depends(OGRENCI), conn: sqlite3.
     return render(
         request, "ogrenci/sudoku_bot_sonuc.html", b={"id": o["id"], "zorluk_ad": sudoku.ZORLUK_AD[o["zorluk"]]},
         sonuc=o["sonuc"], benim=o, benim_skor=sudoku_bot.skor(o), bot_skor=sudoku_bot.bot_skoru(o),
-        kazanc=sudoku_bot.kazanc(conn, o), ceza=sudoku.HATA_CEZA,
+        kazanc=sudoku_bot.kazanc(conn, o), ceza=sudoku.HATA_CEZA, ipucu_ceza=sudoku.IPUCU_CEZA,
     )
 
 
@@ -198,6 +210,7 @@ def oyna(duello_id: int, request: Request, k=Depends(OGRENCI), conn: sqlite3.Con
     return render(
         request, "ogrenci/sudoku_oyun.html", d={"id": d["id"], "zorluk_ad": sudoku.ZORLUK_AD[d["zorluk"]], "son_tarih": d["son_tarih"]},
         bulmaca=d["bulmaca"], tahta=ben["tahta"] or "", gecen=sudoku.gecen_sn(ben), hata=ben["hata"], ceza=sudoku.HATA_CEZA,
+        ipucu=ben["ipucu"], ipucu_en_cok=sudoku.IPUCU_EN_COK, ipucu_ceza=sudoku.IPUCU_CEZA,
         rakip=_ad(conn, rakip_id), uyari=uyari[:200],
     )
 
@@ -212,6 +225,17 @@ async def kaydet(duello_id: int, request: Request, k=Depends(rol("ogrenci", post
     except sudoku.SudokuHatasi as e:
         return JSONResponse({"mesaj": str(e)}, status_code=400)
     return JSONResponse({"ok": True})
+
+
+@router.post("/{duello_id}/ipucu")
+async def ipucu(duello_id: int, request: Request, k=Depends(rol("ogrenci", post=True)), conn: sqlite3.Connection = Depends(db_conn)):
+    """İpucu düğmesi (JS): bir kutunun doğru rakamını açar, skora ceza yazar."""
+    _duello(conn, k, duello_id)
+    form = await request.form()
+    try:
+        return JSONResponse({"ok": True, **sudoku.ipucu_al(conn, duello_id, k["id"], str(form.get("tahta", "")))})
+    except sudoku.SudokuHatasi as e:
+        return JSONResponse({"mesaj": str(e)}, status_code=409)
 
 
 @router.post("/{duello_id}/gonder")
@@ -248,5 +272,5 @@ def sonuc(duello_id: int, request: Request, k=Depends(OGRENCI), conn: sqlite3.Co
         "son_tarih": d["son_tarih"]}, rakip=_ad(conn, rakip_id), sonuc=(s["kuran"] if ben_kuran else s["rakip"]) if s else None,
         benim_skor=sudoku.skor(benim), onun_skor=sudoku.skor(onun), benim=benim, onun=onun,
         kazanc=(sudoku.PUAN[(s["kuran"] if ben_kuran else s["rakip"])] * sudoku.CARPAN[d["zorluk"]]) if s else 0,
-        ben_kuran=ben_kuran, ceza=sudoku.HATA_CEZA,
+        ben_kuran=ben_kuran, ceza=sudoku.HATA_CEZA, ipucu_ceza=sudoku.IPUCU_CEZA,
     )

@@ -2,7 +2,7 @@
 {% block baslik %}Sudoku Düellosu · Dijital Okul{% endblock %}
 {% block icerik %}
 <h1>Sudoku <span class="fosfor">Düellosu</span></h1>
-<p class="soluk">Sınıf arkadaşına meydan oku: ikiniz de aynı bulmacayı çözersiniz, kabulden sonra {{ 24 }} saat içinde istediğin zaman. Skor = süre + {{ 10 }} sn × hata; düşük olan kazanır.</p>
+<p class="soluk">Sınıf arkadaşına meydan oku: ikiniz de aynı bulmacayı çözersiniz, kabulden sonra {{ 24 }} saat içinde istediğin zaman. Skor = süre + {{ 10 }} sn × hata + {{ 15 }} sn × ipucu; düşük olan kazanır. Takılırsan oyun içindeki 💡 İpucu düğmesi bir kutunun doğru rakamını açar (oyun başına en çok {{ 3 }}).</p>
 {% if hata %}<div class="not" role="alert">{{ hata }}</div>{% endif %}
 
 <section class="kart">

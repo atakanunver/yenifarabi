@@ -4,16 +4,17 @@
 <h1>Sudoku <span class="fosfor">{{ b.zorluk_ad }}</span></h1>
 <p class="soluk kucuk">Rakip: Bot 🤖 · skorun botunkinden düşükse kazanırsın</p>
 {% if uyari %}<div class="not" role="alert">{{ uyari }}</div>{% endif %}
-<p class="sudoku-durum"><span>⏱ <b id="sudoku-sure" data-gecen="{{ gecen }}">{{ gecen // 60 }}:{{ '%02d' % (gecen % 60) }}</b></span> <span>Hata: <b id="sudoku-hata">{{ hata }}</b> (+{{ ceza }} sn)</span></p>
-<form id="sudoku-form" method="post" action="/ogrenci/sudoku/bot/{{ b.id }}/gonder" data-id="{{ b.id }}" data-kaydet="/ogrenci/sudoku/bot/{{ b.id }}/kaydet">
+<p class="sudoku-durum"><span>⏱ <b id="sudoku-sure" data-gecen="{{ gecen }}">{{ gecen // 60 }}:{{ '%02d' % (gecen % 60) }}</b></span> <span>Hata: <b id="sudoku-hata">{{ hata }}</b> (+{{ ceza }} sn)</span> <span>İpucu: <b id="sudoku-ipucu">{{ ipucu }}</b>/{{ ipucu_en_cok }} (+{{ ipucu_ceza }} sn)</span></p>
+<form id="sudoku-form" method="post" action="/ogrenci/sudoku/bot/{{ b.id }}/gonder" data-id="{{ b.id }}" data-kaydet="/ogrenci/sudoku/bot/{{ b.id }}/kaydet" data-ipucu="/ogrenci/sudoku/bot/{{ b.id }}/ipucu" data-ipucu-kalan="{{ ipucu_en_cok - ipucu }}" data-ipucu-ceza="{{ ipucu_ceza }}">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   <div class="sudoku-izgara" id="sudoku-izgara">
   {% for ch in bulmaca %}<input class="sudoku-hucre{{ ' sabit' if ch != '0' }}{{ ' ysinir' if loop.index0 % 3 == 2 and loop.index0 % 9 != 8 }}{{ ' asinir' if (loop.index0 // 9) % 3 == 2 and loop.index0 < 72 }}" name="h" maxlength="1" inputmode="numeric" pattern="[1-9]" autocomplete="off" aria-label="Satır {{ loop.index0 // 9 + 1 }}, sütun {{ loop.index0 % 9 + 1 }}" value="{{ ch if ch != '0' else (tahta[loop.index0] if tahta|length == 81 and tahta[loop.index0] in '123456789' else '') }}"{{ ' readonly' if ch != '0' }}>{% endfor %}
   </div>
   <p id="sudoku-mesaj" class="not" role="status" hidden></p>
   <button class="tus tam" id="sudoku-gonder">Kontrol et ve bitir</button>
+  <button type="button" class="tus tam ikincil" id="sudoku-ipucu-dugme" hidden{{ ' disabled' if ipucu >= ipucu_en_cok }}>💡 İpucu al (+{{ ipucu_ceza }} sn)</button>
 </form>
-<p class="kucuk soluk">Yanlış gönderim hata sayılır. Süre sunucuda ölçülür; sayfayı kapatsan da akmaya devam eder. Botun süresi bitirene kadar gizli.</p>
-<style>.sudoku-hucre.cakisma { background: color-mix(in srgb, var(--hata-yazi) 20%, transparent); outline: 2px solid var(--hata-yazi); outline-offset: -2px; }</style>
-<script src="/static/sudoku.js?v=4" defer></script>
+<p class="kucuk soluk">Takıldıysan İpucu düğmesi bir kutunun doğru rakamını açar (skoruna ceza eklenir, oyun başına en çok 3). Yanlış gönderim hata sayılır. Süre sunucuda ölçülür; sayfayı kapatsan da akmaya devam eder. Botun süresi bitirene kadar gizli.</p>
+<style>.sudoku-hucre.cakisma { background: color-mix(in srgb, var(--hata-yazi) 20%, transparent); outline: 2px solid var(--hata-yazi); outline-offset: -2px; } .sudoku-hucre.ipucu-hucre { background: var(--yesil-acik); outline: 2px solid var(--yesil); outline-offset: -2px; }</style>
+<script src="/static/sudoku.js?v=5" defer></script>
 {% endblock %}

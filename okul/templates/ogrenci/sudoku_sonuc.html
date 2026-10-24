@@ -9,7 +9,7 @@
   {% elif d.durum == 'doldu' %}<p>Düellonun süresi doldu; puan verilmedi.</p>
   {% elif d.durum == 'surer' %}
     <p>{{ 'Sen bitirdin, ' ~ rakip ~ ' henüz bitirmedi.' if benim and benim.bitis else 'Düello sürüyor.' }} Son tarih: {{ d.son_tarih|tarih }}</p>
-    {% if benim_skor is not none %}<p>Senin skorun: <b>{{ benim_skor }}</b> ({{ benim.sure_sn }} sn + {{ benim.hata }} hata × {{ ceza }})</p>{% endif %}
+    {% if benim_skor is not none %}<p>Senin skorun: <b>{{ benim_skor }}</b> ({{ benim.sure_sn }} sn + {{ benim.hata }} hata × {{ ceza }}{% if benim.ipucu %} + {{ benim.ipucu }} ipucu × {{ ipucu_ceza }}{% endif %})</p>{% endif %}
   {% else %}
     <p><b>{{ {'galibiyet': 'Kazandın! 🎉', 'beraberlik': 'Berabere.', 'maglubiyet': 'Bu sefer olmadı.'}[sonuc] }}</b> · +{{ kazanc }} puan</p>
     <p>Sen: <b>{{ benim_skor if benim_skor is not none else 'bitiremedin' }}</b> · {{ rakip }}: <b>{{ onun_skor if onun_skor is not none else 'bitiremedi' }}</b></p>

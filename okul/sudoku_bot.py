@@ -17,7 +17,7 @@ from datetime import timedelta
 
 import sudoku
 import zaman
-from sudoku import HATA_CEZA, SudokuHatasi
+from sudoku import HATA_CEZA, IPUCU_CEZA, IPUCU_EN_COK, SudokuHatasi
 
 GUNLUK_BASLAT_EN_COK = 5
 GUNLUK_PUANLI = 1  # günde en çok bu kadar bot galibiyeti puana sayılır
@@ -97,17 +97,39 @@ def kaydet(conn: sqlite3.Connection, oyun_id: int, kid: int, tahta: str) -> None
         raise SudokuHatasi("Oyun bulunamadı.")
     if o["bitis"]:
         raise SudokuHatasi("Bu oyun bitti.")
-    tahta = (tahta or "").strip()
-    if len(tahta) != 81 or not tahta.isascii() or not tahta.isdigit():
-        raise SudokuHatasi("Geçersiz tahta.")
-    # yalnız oyuncunun boş hücrelere yazdıkları kalır; sabit ipuçları bulmacadan gelir
-    temiz = "".join("0" if b != "0" else t for b, t in zip(o["bulmaca"], tahta, strict=True))
+    temiz = sudoku.temiz_tahta(o["bulmaca"], sudoku._tahta_dogrula(tahta))
     conn.execute("UPDATE sudoku_bot SET tahta = ? WHERE id = ? AND bitis IS NULL", (temiz, oyun_id))
     conn.commit()
 
 
+def ipucu_al(conn: sqlite3.Connection, oyun_id: int, kid: int, tahta: str, rnd: random.Random | None = None) -> dict:
+    """Bir hücrenin doğru rakamını açar ve kaydeder; skora IPUCU_CEZA sn eklenir. {'index', 'rakam', 'ipucu', 'kalan'}."""
+    o = getir(conn, oyun_id, kid)
+    if o is None:
+        raise SudokuHatasi("Oyun bulunamadı.")
+    if o["bitis"]:
+        raise SudokuHatasi("Bu oyun bitti.")
+    if o["ipucu"] >= IPUCU_EN_COK:
+        raise SudokuHatasi(f"Bir oyunda en çok {IPUCU_EN_COK} ipucu alabilirsin.")
+    tahta = sudoku._tahta_dogrula(tahta)
+    i = sudoku.ipucu_sec(o["bulmaca"], o["cozum"], tahta, rnd)
+    if i is None:
+        raise SudokuHatasi("Tahtadaki tüm rakamlar doğru görünüyor; ipucuna gerek yok.")
+    rakam = o["cozum"][i]
+    yeni = sudoku.temiz_tahta(o["bulmaca"], tahta)
+    yeni = yeni[:i] + rakam + yeni[i + 1:]
+    if conn.execute(
+        "UPDATE sudoku_bot SET tahta = ?, ipucu = ipucu + 1 WHERE id = ? AND bitis IS NULL AND ipucu < ?",
+        (yeni, oyun_id, IPUCU_EN_COK),
+    ).rowcount != 1:
+        conn.rollback()
+        raise SudokuHatasi("İpucu hakkın bitti.")
+    conn.commit()
+    return {"index": i, "rakam": rakam, "ipucu": o["ipucu"] + 1, "kalan": IPUCU_EN_COK - o["ipucu"] - 1}
+
+
 def skor(o: sqlite3.Row) -> int | None:
-    return o["sure_sn"] + HATA_CEZA * o["hata"] if o["bitis"] else None
+    return o["sure_sn"] + HATA_CEZA * o["hata"] + IPUCU_CEZA * o["ipucu"] if o["bitis"] else None
 
 
 def bot_skoru(o: sqlite3.Row) -> int:
@@ -130,14 +152,14 @@ def gonder(conn: sqlite3.Connection, oyun_id: int, kid: int, tahta: str) -> dict
         return {"dogru": False, "hata": getir(conn, oyun_id, kid)["hata"]}
     simdi = zaman.simdi_str()
     sure = max(0, int((sudoku._dt(simdi) - sudoku._dt(o["baslama"])).total_seconds()))
-    benim = sure + HATA_CEZA * o["hata"]
+    benim = sure + HATA_CEZA * o["hata"] + IPUCU_CEZA * o["ipucu"]
     bot = bot_skoru(o)
     sonuc = "galibiyet" if benim < bot else "maglubiyet" if benim > bot else "beraberlik"
     conn.execute(
         "UPDATE sudoku_bot SET bitis = ?, sure_sn = ?, sonuc = ? WHERE id = ? AND bitis IS NULL", (simdi, sure, sonuc, oyun_id)
     )
     conn.commit()
-    return {"dogru": True, "hata": o["hata"], "sure_sn": sure, "skor": benim, "bot_skor": bot, "sonuc": sonuc}
+    return {"dogru": True, "hata": o["hata"], "ipucu": o["ipucu"], "sure_sn": sure, "skor": benim, "bot_skor": bot, "sonuc": sonuc}
 
 
 def _puanli_idler(conn: sqlite3.Connection) -> dict[int, tuple[int, str, str, str]]:
@@ -162,9 +184,9 @@ def _gelisim_bonuslari(conn: sqlite3.Connection) -> dict[int, tuple[int, str, in
     gunluk: dict[tuple[int, str], int] = {}
     cikti = {}
     for r in conn.execute(
-        "SELECT id, kullanici_id AS kid, zorluk, bitis, sure_sn, hata FROM sudoku_bot WHERE bitis IS NOT NULL ORDER BY id"
+        "SELECT id, kullanici_id AS kid, zorluk, bitis, sure_sn, hata, ipucu FROM sudoku_bot WHERE bitis IS NOT NULL ORDER BY id"
     ):
-        s = r["sure_sn"] + HATA_CEZA * r["hata"]
+        s = r["sure_sn"] + HATA_CEZA * r["hata"] + IPUCU_CEZA * r["ipucu"]
         anahtar = (r["kid"], r["zorluk"])
         onceki = en_iyi.get(anahtar)
         if onceki is not None and s < onceki * (1 - GELISIM_ESIK):
@@ -216,7 +238,7 @@ def ozet(conn: sqlite3.Connection, kid: int) -> dict:
     biten = [
         {**dict(r), "zorluk_ad": sudoku.ZORLUK_AD[r["zorluk"]], "benim_skor": skor(r), "bot_skor": bot_skoru(r)}
         for r in conn.execute(
-            "SELECT id, zorluk, sure_sn, hata, bot_sure_sn, bot_hata, sonuc, bitis, bulmaca FROM sudoku_bot"
+            "SELECT id, zorluk, sure_sn, hata, ipucu, bot_sure_sn, bot_hata, sonuc, bitis, bulmaca FROM sudoku_bot"
             " WHERE kullanici_id = ? AND bitis IS NOT NULL ORDER BY id DESC LIMIT 5",
             (kid,),
         )

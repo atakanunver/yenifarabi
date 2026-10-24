@@ -330,5 +330,108 @@ def test_oyun_sayfalarinda_cakisma_vurgusu_ve_yeni_js_surumu(istemci, conn, orne
     istemci.post("/ogrenci/sudoku/bot", data={"csrf": csrf, "zorluk": "basit"}, follow_redirects=False)
     oid = conn.execute("SELECT id FROM sudoku_bot").fetchone()[0]
     sayfa = istemci.get(f"/ogrenci/sudoku/bot/{oid}").text
-    assert ".sudoku-hucre.cakisma" in sayfa and "/static/sudoku.js?v=4" in sayfa
+    assert ".sudoku-hucre.cakisma" in sayfa and "/static/sudoku.js?v=5" in sayfa
     assert 'role="status"' in sayfa and 'id="sudoku-mesaj"' in sayfa
+
+
+# --- ipucu düğmesi (şema V34) ---
+
+def _bos(conn, oid):
+    bulmaca, z = conn.execute("SELECT bulmaca, cozum FROM sudoku_bot WHERE id = ?", (oid,)).fetchone()
+    return bulmaca, z, [i for i, c in enumerate(bulmaca) if c == "0"]
+
+
+def test_ipucu_sec_yanlis_oncelikli_sabit_secilmez_dogruysa_none():
+    rnd = random.Random(3)
+    bulmaca = "0" * 81
+    z = "".join(str((i % 9) + 1) for i in range(81))
+    bos_tahta = "0" * 81
+    assert sudoku.ipucu_sec(bulmaca, z, bos_tahta, rnd) is not None
+    yanlis = list(z)
+    yanlis[5] = "9" if z[5] != "9" else "8"
+    yanlis[40] = "0"  # bir de boş hücre var
+    assert sudoku.ipucu_sec(bulmaca, z, "".join(yanlis), rnd) == 5  # yanlış doldurulan öncelikli
+    assert sudoku.ipucu_sec(bulmaca, z, z, rnd) is None  # hepsi doğru: ipucu yok
+    sabit_hepsi = "".join("5" if i == 0 else "0" for i in range(81))
+    assert 0 not in {sudoku.ipucu_sec(sabit_hepsi, z, "0" * 81, random.Random(s)) for s in range(30)}  # sabit hücre seçilmez
+
+
+def test_ipucu_al_dogru_rakami_acar_kaydeder_ceza_yazar(conn, ornek, saat):
+    kid = ornek["ogr1_k"]
+    oid = sudoku_bot.baslat(conn, kid, "basit")
+    bulmaca, z, _ = _bos(conn, oid)
+    sudoku_bot.kaydet(conn, oid, kid, "0" * 81)
+    r = sudoku_bot.ipucu_al(conn, oid, kid, "0" * 81, random.Random(1))
+    assert r["rakam"] == z[r["index"]] and bulmaca[r["index"]] == "0" and r["ipucu"] == 1 and r["kalan"] == 2
+    kayitli = conn.execute("SELECT tahta, ipucu FROM sudoku_bot WHERE id = ?", (oid,)).fetchone()
+    assert kayitli["tahta"][r["index"]] == r["rakam"] and kayitli["ipucu"] == 1  # çıkıp girince de yerinde
+    # bitirirken skora 15 sn/ipucu eklenir
+    sabitle(conn, oid, 99999)
+    saat["an"] += timedelta(seconds=60)
+    s = sudoku_bot.gonder(conn, oid, kid, z)
+    assert s["ipucu"] == 1 and s["skor"] == 60 + sudoku.IPUCU_CEZA
+
+
+def test_ipucu_siniri_dogru_tahta_ve_bitmis_oyun(conn, ornek, saat):
+    kid, baskasi = ornek["ogr1_k"], ornek["ogr2_k"]
+    oid = sudoku_bot.baslat(conn, kid, "basit")
+    _, z, _ = _bos(conn, oid)
+    for i in range(sudoku.IPUCU_EN_COK):
+        assert sudoku_bot.ipucu_al(conn, oid, kid, "0" * 81)["ipucu"] == i + 1
+    with pytest.raises(sudoku.SudokuHatasi, match="en çok"):
+        sudoku_bot.ipucu_al(conn, oid, kid, "0" * 81)  # 4. ipucu yok
+    with pytest.raises(sudoku.SudokuHatasi):
+        sudoku_bot.ipucu_al(conn, oid, baskasi, "0" * 81)  # başkasının oyunu
+    oid2 = sudoku_bot.baslat(conn, ornek["ogr2_k"], "basit")
+    z2 = cozum(conn, oid2)
+    with pytest.raises(sudoku.SudokuHatasi, match="doğru görünüyor"):
+        sudoku_bot.ipucu_al(conn, oid2, ornek["ogr2_k"], z2)  # tüm rakamlar doğruysa ipucu yok
+    sudoku_bot.gonder(conn, oid, kid, z)
+    with pytest.raises(sudoku.SudokuHatasi):
+        sudoku_bot.ipucu_al(conn, oid, kid, "0" * 81)  # bitmiş oyuna ipucu yok
+
+
+def test_gelisim_ipucu_cezasini_hesaba_katar(conn, ornek, saat):
+    kid = ornek["ogr1_k"]
+    bitir(conn, kid, "basit", 100, saat, bot_sure=99999)  # skor 100
+    oid = sudoku_bot.baslat(conn, kid, "basit")
+    sabitle(conn, oid, 99999)
+    sudoku_bot.ipucu_al(conn, oid, kid, "0" * 81)
+    sudoku_bot.ipucu_al(conn, oid, kid, "0" * 81)  # +30 sn ceza
+    saat["an"] += timedelta(seconds=60)  # süre 60 + 30 ceza = 90 -> %10 gelişim -> ceil(2)=2
+    sudoku_bot.gonder(conn, oid, kid, cozum(conn, oid))
+    assert sudoku_bot.kazanc(conn, conn.execute("SELECT * FROM sudoku_bot WHERE id = ?", (oid,)).fetchone())["gelisim"] == 2
+
+
+def test_rota_ipucu_ve_sayfa(istemci, conn, ornek, saat):
+    csrf = giris(istemci, "101", "ali-sifre")
+    istemci.post("/ogrenci/sudoku/bot", data={"csrf": csrf, "zorluk": "basit"}, follow_redirects=False)
+    oid = conn.execute("SELECT id FROM sudoku_bot").fetchone()[0]
+    sayfa = istemci.get(f"/ogrenci/sudoku/bot/{oid}").text
+    assert 'id="sudoku-ipucu-dugme"' in sayfa and f'data-ipucu="/ogrenci/sudoku/bot/{oid}/ipucu"' in sayfa and 'data-ipucu-kalan="3"' in sayfa
+    z = cozum(conn, oid)
+    js = {"Accept": "application/json"}
+    r = istemci.post(f"/ogrenci/sudoku/bot/{oid}/ipucu", data={"csrf": csrf, "tahta": "0" * 81}, headers=js)
+    j = r.json()
+    assert r.status_code == 200 and j["ok"] and j["rakam"] == z[j["index"]] and j["kalan"] == 2
+    assert 'data-ipucu-kalan="2"' in istemci.get(f"/ogrenci/sudoku/bot/{oid}").text  # çıkıp girince hak sayısı korunur
+    for _ in range(2):
+        assert istemci.post(f"/ogrenci/sudoku/bot/{oid}/ipucu", data={"csrf": csrf, "tahta": "0" * 81}, headers=js).status_code == 200
+    r4 = istemci.post(f"/ogrenci/sudoku/bot/{oid}/ipucu", data={"csrf": csrf, "tahta": "0" * 81}, headers=js)
+    assert r4.status_code == 409 and "en çok" in r4.json()["mesaj"] and z not in r4.text
+    assert istemci.post(f"/ogrenci/sudoku/bot/{oid}/ipucu", data={"tahta": "0" * 81}, follow_redirects=False).status_code in (400, 403)  # csrf yok
+
+
+def test_rota_ipucu_baskasi_404_ve_sonuc_sayfasi_ceza_gosterir(istemci, conn, yeni_kullanici, ornek, saat):
+    baskasi = _ogrenci(conn, yeni_kullanici, "Efe Demir", 103)
+    oid = sudoku_bot.baslat(conn, baskasi, "basit")
+    csrf = giris(istemci, "101", "ali-sifre")
+    assert istemci.post(f"/ogrenci/sudoku/bot/{oid}/ipucu", data={"csrf": csrf, "tahta": "0" * 81}).status_code == 404
+    kid = ornek["ogr1_k"]
+    oid2 = sudoku_bot.baslat(conn, kid, "basit")
+    sabitle(conn, oid2, 99999)
+    sudoku_bot.ipucu_al(conn, oid2, kid, "0" * 81)
+    saat["an"] += timedelta(seconds=40)
+    sudoku_bot.gonder(conn, oid2, kid, cozum(conn, oid2))
+    sonuc = istemci.get(f"/ogrenci/sudoku/bot/{oid2}/sonuc").text
+    assert "1 ipucu × 15" in sonuc
