@@ -300,14 +300,24 @@ function uyariSeriti(satirlar, bugunMu) {
   }
 }
 
-function ilerlemeyiGuncelle(alinan, bekleyen) {
+// yoklayici tahtaya ulaşamayınca başlamamış dersleri de tahta_ulasilamaz yazar; bugün için saate bak
+function dersBasladiMi(dersNo, bugunMu) {
+  if (!bugunMu) return true;
+  const th = document.querySelector(`.th-ders[data-ders-no="${dersNo}"]`);
+  const simdi = new Date();
+  const saat = String(simdi.getHours()).padStart(2, '0') + ':' + String(simdi.getMinutes()).padStart(2, '0');
+  return !!(th && th.dataset.baslangic && th.dataset.baslangic <= saat);
+}
+
+function ilerlemeyiGuncelle(alinan, bekleyen, bilinmeyen) {
   const kap = document.getElementById('pano-ilerleme');
-  const toplam = alinan + bekleyen;
+  const toplam = alinan + bekleyen + bilinmeyen;
   kap.hidden = toplam === 0;
   if (!toplam) return;
   const yuzde = Math.round(100 * alinan / toplam);
-  kap.dataset.durum = bekleyen ? 'eksik' : 'tamam';
-  document.getElementById('ilerleme-metin').textContent = `%${yuzde} · ${alinan}/${toplam} ders`;
+  kap.dataset.durum = bekleyen || bilinmeyen ? 'eksik' : 'tamam';
+  document.getElementById('ilerleme-metin').textContent = `%${yuzde} · ${alinan}/${toplam} ders` +
+    (bilinmeyen ? ` · ${bilinmeyen} bilinmiyor (tahta ulaşılamaz)` : '');
   document.getElementById('ilerleme-dolu').style.width = yuzde + '%';
   document.getElementById('ilerleme-cubuk').setAttribute('aria-valuenow', yuzde);
 }
@@ -328,6 +338,7 @@ async function tabloyuGuncelle(ilkVeri) {
   let tamSayac = 0;
   let yokSayac = 0;
   let bekleyenSayac = 0;
+  let bilinmeyenSayac = 0;
 
   for (const satir of veri.satirlar) {
     const hucre = document.getElementById(`hucre-${satir.sinif}-${satir.ders_no}`);
@@ -348,6 +359,8 @@ async function tabloyuGuncelle(ilkVeri) {
         }
       } else if (satir.durum === 'alinmadi') {
         bekleyenSayac++;
+      } else if (satir.durum === 'tahta_ulasilamaz' && dersBasladiMi(satir.ders_no, tarih === TARIH_SECICI.max)) {
+        bilinmeyenSayac++;
       }
     }
   }
@@ -361,7 +374,7 @@ async function tabloyuGuncelle(ilkVeri) {
   const elBekleyen = document.getElementById('ozet-bekleyen-ders');
   if (elBekleyen) elBekleyen.textContent = bekleyenSayac;
   document.getElementById('ozet-bekleyen-kart').classList.toggle('ozet-dikkat', bekleyenSayac > 0);
-  ilerlemeyiGuncelle(tamSayac + yokSayac, bekleyenSayac);
+  ilerlemeyiGuncelle(tamSayac + yokSayac, bekleyenSayac, bilinmeyenSayac);
 
   document.querySelectorAll('.hucre').forEach(h => {
     if (!bulunanlar.has(h.id) && h.classList.contains('durum-yukleniyor')) {
