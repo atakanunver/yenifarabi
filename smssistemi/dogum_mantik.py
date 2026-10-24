@@ -352,6 +352,11 @@ def dogum_gunu_istatistikleri(conn) -> dict:
         or "Sevgili {isim}, dogum gununuzu kutlar, saglikli ve mutlu bir yil dileriz. Okul Idaresi"
     )
 
+    # Taslak modu: otomatik gönderim henüz yok; 7 günlük listede şablondan üretilen
+    # mesaj yalnızca panelde gösterilir, hiçbir şey gönderilmez/kaydedilmez.
+    for y in yaklasan_7:
+        y["taslak"] = dogum_sms_sablonu.replace("{isim}", y["ad_soyad"])
+
     return {
         "toplam": toplam,
         "tanimli": tanimli,

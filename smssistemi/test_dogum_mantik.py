@@ -165,3 +165,15 @@ def test_dogum_gunu_istatistikleri(test_db):
     assert ist["eksik"] == 1
     assert ist["ogrenci_sayisi"] == 2
     assert ist["personel_sayisi"] == 0
+
+
+def test_yaklasan_7_gun_taslak_mesaji_sablondan_uretilir(test_db):
+    s9a = db.sinif_ekle(test_db, "9-A")
+    k1 = db.kisi_ekle(test_db, "Taslak Öğrenci", None, s9a, "ogrenci")
+    bugun = datetime.now(_ISTANBUL).date()
+    db.kisi_dogum_tarihi_guncelle(test_db, k1, f"2008-{bugun.month:02d}-{bugun.day:02d}")
+    db.ayar_yaz(test_db, "dogum_sms_sablonu", "Sevgili {isim}, mutlu yıllar")
+
+    stats = dogum_mantik.dogum_gunu_istatistikleri(test_db)
+
+    assert stats["yaklasan_7"][0]["taslak"] == "Sevgili Taslak Öğrenci, mutlu yıllar"
