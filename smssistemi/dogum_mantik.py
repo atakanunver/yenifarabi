@@ -8,9 +8,11 @@
 - İstatistik özetleri
 """
 
+import json
 from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
 import openpyxl
 
 import db
@@ -308,6 +310,13 @@ def yaklasan_dogum_gunleri(conn, gun_sayisi: int = 30) -> list[dict]:
     return sonuclar
 
 
+def _json_ayar(ham: str | None) -> dict | None:
+    try:
+        return json.loads(ham or "")
+    except ValueError:
+        return None
+
+
 def dogum_gunu_istatistikleri(conn) -> dict:
     """Dashboard KPI şeridi için gerekli özet verileri üretir."""
     bugun = datetime.now(_ISTANBUL).date()
@@ -358,6 +367,8 @@ def dogum_gunu_istatistikleri(conn) -> dict:
         y["taslak"] = dogum_sms_sablonu.replace("{isim}", y["ad_soyad"])
 
     return {
+        "dogum_sms_gercek": db.ayar_oku(conn, "dogum_sms_gercek") or "0",
+        "dogum_sms_son_sonuc": _json_ayar(db.ayar_oku(conn, "dogum_sms_son_sonuc")),
         "toplam": toplam,
         "tanimli": tanimli,
         "eksik": eksik,

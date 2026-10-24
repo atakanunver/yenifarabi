@@ -1010,12 +1010,14 @@ async def dogum_ayarlar_kaydet(
     request: Request,
     sms_otomatik: str = Form("0"),
     dogum_sms_sablonu: str = Form(...),
+    dogum_sms_gercek: str = Form("0"),
 ):
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
         oto = "1" if sms_otomatik == "1" else "0"
         db.ayar_yaz(conn, "sms_otomatik", oto)
+        db.ayar_yaz(conn, "dogum_sms_gercek", "1" if dogum_sms_gercek == "1" else "0")
         db.ayar_yaz(conn, "dogum_sms_sablonu", dogum_sms_sablonu.strip())
     finally:
         conn.close()

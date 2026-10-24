@@ -122,7 +122,7 @@
             <span class="sinif-rozet">{{ y.sinif_ad }}</span>
             • {{ y.yeni_yas }} yaşına giriyor
           </span>
-          <span class="kisi-alt">Taslak (gönderilmez): {{ y.taslak }}</span>
+          <span class="kisi-alt">SMS metni: {{ y.taslak }}</span>
         </div>
       </div>
       {% endfor %}
@@ -172,6 +172,27 @@
           <span class="rozet rozet-yesil">AÇIK (Otomatik Gönder)</span>
         </label>
       </div>
+    </div>
+
+    <div class="ayar-satir">
+      <label class="ayar-baslik">Gönderim Modu</label>
+      <p class="ipucu">Şalter AÇIK iken hafta içi 09:30'da, doğum günü olan telefonlu öğrenci ve personele günde bir SMS gider (pazartesi hafta sonu doğanlar da). <b>Kuru</b> modda kimseye SMS gitmez; yalnızca kaç kişiye gideceği hesaplanıp aşağıda gösterilir.</p>
+      <div class="radyo-grup">
+        <label class="radyo-etiket">
+          <input type="radio" name="dogum_sms_gercek" value="0" {% if stats.dogum_sms_gercek != '1' %}checked{% endif %}>
+          <span class="rozet rozet-turuncu">KURU (SMS gitmez)</span>
+        </label>
+        <label class="radyo-etiket">
+          <input type="radio" name="dogum_sms_gercek" value="1" {% if stats.dogum_sms_gercek == '1' %}checked{% endif %}>
+          <span class="rozet rozet-yesil">GERÇEK (SMS gider)</span>
+        </label>
+      </div>
+      {% if stats.dogum_sms_son_sonuc %}
+      <p class="ipucu">Son çalışma ({{ stats.dogum_sms_son_sonuc.tarih }}):
+        {% if stats.dogum_sms_son_sonuc.kuru %}kuru — {{ stats.dogum_sms_son_sonuc.alici_sayisi }} kişiye gidecekti
+        {% else %}{{ stats.dogum_sms_son_sonuc.basarili_sayisi }} gönderildi, {{ stats.dogum_sms_son_sonuc.hatali_sayisi }} hata{% endif %}
+        {% if stats.dogum_sms_son_sonuc.telefonsuz_sayisi %}({{ stats.dogum_sms_son_sonuc.telefonsuz_sayisi }} kişinin geçerli telefonu yok){% endif %}.</p>
+      {% endif %}
     </div>
 
     <div class="ayar-satir">

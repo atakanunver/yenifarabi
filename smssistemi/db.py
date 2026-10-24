@@ -113,6 +113,9 @@ _AYARLAR_VARSAYILAN = {
     "dogum_sms_sablonu": (
         "Sevgili {isim}, dogum gununuzu kutlar, saglikli ve mutlu bir yil dileriz. Okul Idaresi"
     ),
+    "dogum_sms_gercek": "0",  # 0 = KURU (alıcıları sayar, SMS göndermez); 1 = gerçek gönderim (dogum_sms.py)
+    "dogum_sms_son_tarih": "",
+    "dogum_sms_son_sonuc": "",
     "otomasyon_ilk_ders_aktif": "0",  # KAPALI — ilk kurulumda pasif, kullanıcı butondan açar
     "otomasyon_ilk_ders_sablonu": (
         "Sayın {isim}, öğrenciniz {ogrenci_adi} sabah ilk saate gelmemiştir. Bilginize."

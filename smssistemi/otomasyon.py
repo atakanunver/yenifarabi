@@ -23,6 +23,7 @@ import logging
 import re
 import threading
 import uuid
+from collections import Counter
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
@@ -451,6 +452,7 @@ def otomasyon_calistir(
         "hatali_sayisi": hatali_sayisi,
         "dahil_sinif_sayisi": len(derleme["dahil_siniflar"]),
         "haric_sinif_sayisi": len(derleme["haric_siniflar"]),
+        "haric_sebepleri": dict(Counter(h["sebep"] for h in derleme["haric_siniflar"])),
         "durum": sonuc_durum,
     }
     db.ayar_yaz(conn, ayar_son_sonuc, json.dumps(sonuc_ozet, ensure_ascii=False))
@@ -536,6 +538,18 @@ async def otomasyon_arkaplan_dongusu() -> None:
                             )
                 finally:
                     conn.close()
+
+            # Doğum günü SMS'i 09:30 - 09:40 (dogum_sms.py; ana şalter sms_otomatik, gerçek gönderim dogum_sms_gercek)
+            if simdi.hour == 9 and 30 <= simdi.minute <= 40:
+                conn = db.baglanti()
+                try:
+                    acik = db.ayar_oku(conn, "sms_otomatik") == "1"
+                finally:
+                    conn.close()
+                if acik:
+                    import dogum_sms  # döngüsel içe aktarmayı önler: dogum_sms otomasyon'u içe aktarır
+
+                    await asyncio.to_thread(dogum_sms.calistir_thread, tetikleyen="otomatik_zamanlayici")
 
         except asyncio.CancelledError:
             logger.info("Otomasyon arka plan döngüsü durduruldu.")

@@ -7,18 +7,19 @@ Yalnızca panonun kendi verisini salt-okunur toplar: bugünün yoklama önbelle�
 """
 
 import json
-
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+import time
+import urllib.error
+import urllib.request
 
 import auth
 import db
 import menu
-import program_esitligi
 import tahta_saglik
 import veli_mesajlari
 import zil
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -26,6 +27,13 @@ templates.env.globals["menu_agaci"] = menu.menu_agaci
 templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk
 
 _SORUNLU = {"hata": "Hata", "uyari": "Uyarı", "cevrimdisi": "Çevrimdışı"}
+_SMS_URL = "http://127.0.0.1:8020/api/panel/otomasyon-durum"
+_SMS_ONBELLEK_SN = 30
+_sms_onbellek: dict = {}
+_SEBEP = {
+    "alinmadi": "yoklama alınmamış", "tahta_ulasilamaz": "tahtaya ulaşılamadı", "veri_yok": "yoklama kaydı yok",
+    "henuz_baslamadi": "ders başlamamış", "tahta_atanmamis": "tahta atanmamış", "ders_yok_o_gun": "o gün ders yok",
+}
 
 
 def _sinif_sirasi(ad: str) -> tuple:
@@ -67,6 +75,34 @@ def yoklama_ozeti(conn, tarih: str) -> dict:
     }
 
 
+def sms_ozeti(simdi: float | None = None) -> dict | None:
+    """Bugünkü devamsızlık SMS'i çalışmalarının özeti (smssistemi panel API, 30 sn önbellekli). Ulaşılamazsa None."""
+    simdi = time.monotonic() if simdi is None else simdi
+    if "t" in _sms_onbellek and simdi - _sms_onbellek["t"] < _SMS_ONBELLEK_SN:
+        return _sms_onbellek["v"]
+    veri = None
+    anahtar = veli_mesajlari._anahtar()
+    if anahtar:
+        try:
+            istek = urllib.request.Request(_SMS_URL, headers={"X-Sms-Panel-Key": anahtar})
+            with urllib.request.urlopen(istek, timeout=veli_mesajlari.ZAMAN_ASIMI_SN) as y:
+                veri = json.loads(y.read().decode("utf-8"))
+        except (urllib.error.URLError, OSError, ValueError):
+            veri = None
+    if isinstance(veri, dict):
+        for servis, ad in (("ilk_ders", "Sabah 09:00 SMS'i"), ("ogle", "Öğleden sonra 14:00 SMS'i")):
+            s = veri.get(servis)
+            if isinstance(s, dict):
+                s["ad"] = ad
+                s["sebepler"] = ", ".join(
+                    f"{n} sınıf {_SEBEP.get(k, k)}" for k, n in sorted((s.get("haric_sebepleri") or {}).items())
+                )
+    else:
+        veri = None
+    _sms_onbellek.update(t=simdi, v=veri)
+    return veri
+
+
 def tahta_ozeti(conn) -> dict:
     """Tahta sağlığı sayıları + sorunlu olanların listesi (iyi olanlar listelenmez)."""
     tahtalar = tahta_saglik.liste(conn)
@@ -92,5 +128,5 @@ async def bugun_sayfa(request: Request):
     return templates.TemplateResponse(
         request,
         "bugun.html",
-        {"tarih": tarih, "yoklama": yoklama, "tahta": tahta, "veli": veli_mesajlari.sayac_getir(), "program": program_esitligi.program_farki()},
+        {"tarih": tarih, "yoklama": yoklama, "tahta": tahta, "veli": veli_mesajlari.sayac_getir(), "sms": sms_ozeti()},
     )

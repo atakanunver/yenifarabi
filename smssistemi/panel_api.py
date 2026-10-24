@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
 import db
+import otomasyon
 import veli_mesaj
 
 router = APIRouter(prefix="/api/panel")
@@ -62,6 +63,27 @@ def liste(okunmamis: int = 0, limit: int = 100, spam: int = 0):
     conn = db.baglanti()
     try:
         return {"mesajlar": [_satir(r) for r in conn.execute(sorgu, (limit,)).fetchall()]}
+    finally:
+        conn.close()
+
+
+_OTOMASYON_ALANLAR = ("durum", "veli_sms_sayisi", "basarili_sayisi", "hatali_sayisi", "dahil_sinif_sayisi",
+                      "haric_sinif_sayisi", "haric_sebepleri")
+
+
+@router.get("/otomasyon-durum", dependencies=[Depends(anahtar_dogrula)])
+def otomasyon_durum():
+    """Bugünkü devamsızlık SMS'i çalışmalarının ÖZETİ (yalnız sayılar; isim/telefon yok). Çalışmadıysa None."""
+    bugun = otomasyon.bugun_istanbul().isoformat()
+    conn = db.baglanti()
+    try:
+        yanit = {"tarih": bugun}
+        for servis in ("ilk_ders", "ogle"):
+            sonuc = otomasyon.son_sonuc_oku(conn, servis)
+            yanit[servis] = (
+                {k: sonuc.get(k) for k in _OTOMASYON_ALANLAR} if sonuc and sonuc.get("tarih") == bugun else None
+            )
+        return yanit
     finally:
         conn.close()
 

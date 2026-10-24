@@ -169,3 +169,20 @@ def test_sistem_numarasi_engeli_kaldir_yalniz_o_mesaj(ortam, monkeypatch):
     assert panel_api.engeli_kaldir(sp[0]["id"]) == {"ok": True, "etkilenen": 1}
     assert len(panel_api.liste(spam=1)["mesajlar"]) == 1
     assert panel_api.liste(okunmamis=1)["mesajlar"][0]["id"] == sp[0]["id"]
+
+
+def test_otomasyon_durum_yalniz_bugunku_sayilar(ortam):
+    import otomasyon
+
+    bugun = otomasyon.bugun_istanbul().isoformat()
+    c = db.baglanti()
+    db.ayar_yaz(c, "otomasyon_ilk_ders_son_sonuc", json.dumps({
+        "tarih": bugun, "durum": "tamamlandi", "veli_sms_sayisi": 8, "basarili_sayisi": 8, "hatali_sayisi": 0,
+        "dahil_sinif_sayisi": 5, "haric_sinif_sayisi": 2, "haric_sebepleri": {"alinmadi": 1, "tahta_ulasilamaz": 1},
+        "gonderim_id": "oto1_x", "calisma_zamani": "gizli-alan-sizmamali"}))
+    db.ayar_yaz(c, "otomasyon_ogle_son_sonuc", json.dumps({"tarih": "2020-01-01", "durum": "tamamlandi"}))  # eski gün
+    c.close()
+    y = panel_api.otomasyon_durum()
+    assert y["tarih"] == bugun and y["ogle"] is None
+    assert y["ilk_ders"]["haric_sebepleri"] == {"alinmadi": 1, "tahta_ulasilamaz": 1}
+    assert "gonderim_id" not in y["ilk_ders"] and "calisma_zamani" not in y["ilk_ders"]
