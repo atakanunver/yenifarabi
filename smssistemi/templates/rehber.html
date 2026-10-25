@@ -94,7 +94,7 @@
             {% endfor %}
           </select>
           {% else %}
-          <span style="color: #888;">—</span>
+          <span class="ipucu">—</span>
           {% endif %}
         </td>
         <td class="satir-eylemler">
@@ -103,7 +103,7 @@
           <form method="post" action="/rehber/kisi/{{ k.id }}/sil" class="satir-form">
             <input type="hidden" name="sinif_id" value="{{ secili_sinif_id or k.sinif_id }}">
             <input type="hidden" name="tur" value="{{ secili_tur or '' }}">
-            <button type="submit" onclick="return confirm('{{ k.ad_soyad }} silinsin mi?')">Sil</button>
+            <button type="submit" class="sil-btn" onclick="return confirm('{{ k.ad_soyad }} silinsin mi?')">Sil</button>
           </form>
         </td>
       </tr>

@@ -9,6 +9,7 @@ import asyncio
 from contextlib import asynccontextmanager
 import json
 import logging
+import os
 import sys
 import threading
 import urllib.request
@@ -73,6 +74,8 @@ app.include_router(rehber_api.router)  # /api/arac/ogrenci-iletisim — Atos oku
 app.include_router(panel_api.router)  # /api/panel/* — dashboard veli mesajları (anahtarlı)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+# stil.css?v=<mtime>: tarayıcı eski CSS'i yeni şablonla birleştirmesin (dosya değişince restart gerekir).
+templates.env.globals["stil_surum"] = int(os.path.getmtime("static/stil.css"))
 
 _DURDUR_BAYRAKLARI: dict[str, threading.Event] = {}
 
@@ -666,225 +669,201 @@ async def yoklama_sablon_kaydet(request: Request, yoklama_sms_sablonu: str = For
     return RedirectResponse("/yoklama-sms?mesaj=sablon_kaydedildi", status_code=303)
 
 
-# --- Otomasyon Modülü (Sabah 09:00 ve Öğle 14:00 Devamsızlık SMS) ------------
+# --- Otomasyon Modülü (eklenip silinebilen devamsızlık SMS kuralları) --------
 
 
-@app.get("/otomasyon", response_class=HTMLResponse)
-async def otomasyon_sayfa(
+def _bos_derleme(ders_no: int) -> dict:
+    return {
+        "ders_no": ders_no,
+        "tarih": otomasyon.bugun_istanbul().isoformat(),
+        "dahil_siniflar": [],
+        "haric_siniflar": [],
+        "ogrenciler": [],
+        "gonderilecek_smsler": [],
+        "toplam_ogrenci": 0,
+        "toplam_veli_sms": 0,
+        "telefonsuz_sayisi": 0,
+        "eslesmeyen_sayisi": 0,
+        "izinli_sayisi": 0,
+        "ulasilabilir_ogrenci": 0,
+        "sabah_gelen_sayisi": 0,
+    }
+
+
+def _otomasyon_sayfasi(
     request: Request,
-    gorunum: str | None = None,
-    sekme: str | None = None,
+    conn,
+    kural_id: int | None = None,
     mesaj: str | None = None,
+    form_hata: str | None = None,
+    form: dict | None = None,
+    duzenle_form: dict | None = None,
+    durum_kodu: int = 200,
 ):
-    conn = db.baglanti()
-    try:
-        yonlendirme = _oturum_yoksa_giris(request, conn)
-        if yonlendirme is not None:
-            return yonlendirme
+    bugun = otomasyon.bugun_istanbul().isoformat()
+    kurallar = otomasyon.kurallar(conn)
+    for k in kurallar:
+        k["bugun_gonderildi"] = otomasyon.ders_son_tarih(conn, k["ders_no"]) == bugun
 
-        aktif_sabah = db.ayar_oku(conn, otomasyon.AYAR_AKTIF) or "0"
-        aktif_ogle = db.ayar_oku(conn, otomasyon.AYAR_OGLE_AKTIF) or "0"
-        # Tek ana şalter: ikisinden biri açıksa açık sayılır
-        # Ana şalter yalnızca İKİSİ de açıksa AKTİF görünür (2026-10-06): eskiden
-        # "veya" idi — 14:00 otomasyonu 2026-10-04'te eklendiğinde sabah zaten
-        # açıktı, öğle ayarı hiç açılmadı ama sayfa "AÇIK (09:00 ve 14:00)"
-        # diyordu; 14:00 SMS'i hiç gitmedi. Yalnızca biri açıksa şablon uyarır.
-        aktif = "1" if (aktif_sabah == "1" and aktif_ogle == "1") else "0"
+    # Önizleme: istenen kural; yoksa saati geçmiş en son kural, o da yoksa ilki
+    secili = next((k for k in kurallar if k["id"] == kural_id), None)
+    if secili is None and kurallar:
+        simdi = otomasyon.simdi_istanbul().strftime("%H:%M")
+        gecmis = [k for k in kurallar if k["saat"] <= simdi]
+        secili = gecmis[-1] if gecmis else kurallar[0]
 
-        sablon_sabah = otomasyon.sablonu_oku(conn, "ilk_ders")
-        sablon_ogle = otomasyon.sablonu_oku(conn, "ogle")
-        son_sonuc_sabah = otomasyon.son_sonuc_oku(conn, "ilk_ders")
-        son_sonuc_ogle = otomasyon.son_sonuc_oku(conn, "ogle")
-
-        hata = None
-        derleme_sabah = None
-        derleme_ogle = None
-
+    hata = None
+    derleme = None
+    if secili is not None:
         try:
-            derleme_sabah = otomasyon.ilk_ders_devamsizlar(conn)
+            derleme = otomasyon.devamsizlar_derle(conn, ders_no=secili["ders_no"], sablon=secili["sablon"])
         except Exception as exc:
             hata = f"Yoklama panosu verisi okunamadı: {exc}"
-            derleme_sabah = {
-                "ders_no": 1,
-                "tarih": otomasyon.bugun_istanbul().isoformat(),
-                "dahil_siniflar": [],
-                "haric_siniflar": [],
-                "ogrenciler": [],
-                "gonderilecek_smsler": [],
-                "toplam_ogrenci": 0,
-                "toplam_veli_sms": 0,
-                "telefonsuz_sayisi": 0,
-                "eslesmeyen_sayisi": 0,
-                "izinli_sayisi": 0,
-                "ulasilabilir_ogrenci": 0,
-            }
-
-        try:
-            derleme_ogle = otomasyon.ogle_devamsizlar(conn)
-        except Exception as exc:
-            if not hata:
-                hata = f"Yoklama panosu verisi okunamadı: {exc}"
-            derleme_ogle = {
-                "ders_no": 6,
-                "tarih": otomasyon.bugun_istanbul().isoformat(),
-                "dahil_siniflar": [],
-                "haric_siniflar": [],
-                "ogrenciler": [],
-                "gonderilecek_smsler": [],
-                "toplam_ogrenci": 0,
-                "toplam_veli_sms": 0,
-                "telefonsuz_sayisi": 0,
-                "eslesmeyen_sayisi": 0,
-                "izinli_sayisi": 0,
-                "ulasilabilir_ogrenci": 0,
-                "yalnizca_ogle_sayisi": 0,
-            }
-    finally:
-        conn.close()
-
-    # Önizleme görünümü: URL parametresi varsa o, yoksa saat >= 12 ise öğle, değilse sabah
-    simdi_saat = otomasyon.simdi_istanbul().hour
-    varsayilan_gorunum = "ogle" if simdi_saat >= 12 else "sabah"
-    secili_gorunum = gorunum or sekme or varsayilan_gorunum
-    if secili_gorunum not in ("sabah", "ogle"):
-        secili_gorunum = varsayilan_gorunum
+            derleme = _bos_derleme(secili["ders_no"])
 
     return templates.TemplateResponse(
         request,
         "otomasyon.html",
         {
-            "aktif": aktif,
-            "aktif_sabah": aktif_sabah,
-            "aktif_ogle": aktif_ogle,
-            "sablon": sablon_sabah,
-            "sablon_sabah": sablon_sabah,
-            "sablon_ogle": sablon_ogle,
-            "son_sonuc": son_sonuc_sabah,
-            "son_sonuc_sabah": son_sonuc_sabah,
-            "son_sonuc_ogle": son_sonuc_ogle,
-            "derleme": derleme_sabah,
-            "derleme_sabah": derleme_sabah,
-            "derleme_ogle": derleme_ogle,
-            "secili_gorunum": secili_gorunum,
+            "kurallar": kurallar,
+            "secili": secili,
+            "derleme": derleme,
             "mesaj": mesaj,
             "hata": hata,
+            "form_hata": form_hata,
+            "form": form or {},
+            "duzenle_form": duzenle_form or {},
+            "pencere_dk": otomasyon.PENCERE_DK,
+            "ders_no_azami": otomasyon.DERS_NO_AZAMI,
+            "sablon_azami": otomasyon.SABLON_AZAMI,
+            "varsayilan_sablon": otomasyon.VARSAYILAN_SABLON_DERS,
         },
+        status_code=durum_kodu,
     )
 
 
-@app.post("/otomasyon/durum-degistir")
-async def otomasyon_durum_degistir(
-    request: Request,
-    aktif: str = Form("0"),
-    servis: str | None = Form(None),
-):
+@app.get("/otomasyon", response_class=HTMLResponse)
+async def otomasyon_sayfa(request: Request, kural: int | None = None, mesaj: str | None = None):
     conn = db.baglanti()
     try:
-        _oturum_sarti(request, conn)
-        yeni_deger = "1" if aktif == "1" else "0"
-        if servis in ("ogle", "ogleden_sonra"):
-            db.ayar_yaz(conn, otomasyon.AYAR_OGLE_AKTIF, yeni_deger)
-            return RedirectResponse("/otomasyon?mesaj=durum_degisti&sekme=ogle", status_code=303)
-        elif servis in ("ilk_ders", "sabah"):
-            db.ayar_yaz(conn, otomasyon.AYAR_AKTIF, yeni_deger)
-            return RedirectResponse("/otomasyon?mesaj=durum_degisti", status_code=303)
-        else:
-            # Tek ana şalter: her iki servisi birden açar/kapatır
-            db.ayar_yaz(conn, otomasyon.AYAR_AKTIF, yeni_deger)
-            db.ayar_yaz(conn, otomasyon.AYAR_OGLE_AKTIF, yeni_deger)
-            return RedirectResponse("/otomasyon?mesaj=durum_degisti", status_code=303)
+        yonlendirme = _oturum_yoksa_giris(request, conn)
+        if yonlendirme is not None:
+            return yonlendirme
+        return _otomasyon_sayfasi(request, conn, kural_id=kural, mesaj=mesaj)
     finally:
         conn.close()
 
 
-@app.post("/otomasyon/ayarlar")
-async def otomasyon_ayarlar_kaydet(
+@app.post("/otomasyon/kural/ekle")
+async def otomasyon_kural_ekle(
     request: Request,
-    sablon: str = Form(...),
-    servis: str = Form("ilk_ders"),
+    ad: str = Form(""),
+    saat: str = Form(""),
+    ders_no: str = Form(""),
+    sablon: str = Form(""),
 ):
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
-        ayar_adi = otomasyon.AYAR_OGLE_SABLON if servis in ("ogle", "ogleden_sonra") else otomasyon.AYAR_SABLON
-        db.ayar_yaz(conn, ayar_adi, sablon.strip())
+        try:
+            kural_id = otomasyon.kural_ekle(conn, ad, saat, ders_no, sablon)
+        except otomasyon.KuralHatasi as e:
+            form = {"ad": ad, "saat": saat, "ders_no": ders_no, "sablon": sablon}
+            return _otomasyon_sayfasi(request, conn, form_hata=str(e), form=form, durum_kodu=400)
     finally:
         conn.close()
-
-    sekme_param = "&sekme=ogle" if servis in ("ogle", "ogleden_sonra") else ""
-    return RedirectResponse(f"/otomasyon?mesaj=ayarlar_kaydedildi{sekme_param}", status_code=303)
+    return RedirectResponse(f"/otomasyon?kural={kural_id}&mesaj=eklendi", status_code=303)
 
 
-@app.post("/otomasyon/calistir")
-async def otomasyon_manuel_calistir(
+@app.post("/otomasyon/kural/{kural_id}/guncelle")
+async def otomasyon_kural_guncelle(
     request: Request,
-    servis: str = Form("ilk_ders"),
+    kural_id: int,
+    ad: str = Form(""),
+    saat: str = Form(""),
+    ders_no: str = Form(""),
+    sablon: str = Form(""),
 ):
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
+        if otomasyon.kural_getir(conn, kural_id) is None:
+            raise HTTPException(404, "Otomasyon bulunamadı.")
+        try:
+            otomasyon.kural_guncelle(conn, kural_id, ad, saat, ders_no, sablon)
+        except otomasyon.KuralHatasi as e:
+            duzenle_form = {"kural_id": kural_id, "ad": ad, "saat": saat, "ders_no": ders_no, "sablon": sablon}
+            return _otomasyon_sayfasi(
+                request, conn, kural_id=kural_id, form_hata=str(e), duzenle_form=duzenle_form, durum_kodu=400
+            )
+    finally:
+        conn.close()
+    return RedirectResponse(f"/otomasyon?kural={kural_id}&mesaj=guncellendi", status_code=303)
+
+
+@app.post("/otomasyon/kural/{kural_id}/durum")
+async def otomasyon_kural_durum(request: Request, kural_id: int, aktif: str = Form("0")):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        if not otomasyon.kural_aktif_yaz(conn, kural_id, aktif == "1"):
+            raise HTTPException(404, "Otomasyon bulunamadı.")
+    finally:
+        conn.close()
+    return RedirectResponse(f"/otomasyon?kural={kural_id}&mesaj=durum_degisti", status_code=303)
+
+
+@app.post("/otomasyon/kural/{kural_id}/sil")
+async def otomasyon_kural_sil(request: Request, kural_id: int):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        if not otomasyon.kural_sil(conn, kural_id):
+            raise HTTPException(404, "Otomasyon bulunamadı.")
+    finally:
+        conn.close()
+    return RedirectResponse("/otomasyon?mesaj=silindi", status_code=303)
+
+
+@app.post("/otomasyon/kural/{kural_id}/calistir")
+async def otomasyon_manuel_calistir(request: Request, kural_id: int):
+    conn = db.baglanti()
+    try:
+        _oturum_sarti(request, conn)
+        if otomasyon.kural_getir(conn, kural_id) is None:
+            raise HTTPException(404, "Otomasyon bulunamadı.")
     finally:
         conn.close()
 
     # Gönderim dakikalarca sürebilir — event loop'u bloklamasın (bkz. otomasyon_calistir_thread).
     sonuc = await asyncio.to_thread(
-        otomasyon.otomasyon_calistir_thread, servis=servis, kuru=False, tetikleyen="manuel_arayuz"
+        otomasyon.otomasyon_calistir_thread, kural_id, kuru=False, tetikleyen="manuel_arayuz"
     )
-
-    sekme_param = "&sekme=ogle" if servis in ("ogle", "ogleden_sonra") else ""
     durum = sonuc.get("durum")
-    if durum == "zaten_calisti":
-        return RedirectResponse(f"/otomasyon?mesaj=zaten_calisti{sekme_param}", status_code=303)
-    if durum == "calisiyor":
-        return RedirectResponse(f"/otomasyon?mesaj=calisiyor{sekme_param}", status_code=303)
-    if durum == "basarisiz":
-        return RedirectResponse(f"/otomasyon?mesaj=basarisiz{sekme_param}", status_code=303)
-    return RedirectResponse(f"/otomasyon?mesaj=gonderildi{sekme_param}", status_code=303)
+    mesaj = durum if durum in ("calisiyor", "basarisiz") else "gonderildi"
+    return RedirectResponse(f"/otomasyon?kural={kural_id}&mesaj={mesaj}", status_code=303)
 
 
 @app.get("/api/otomasyon/durum")
-async def api_otomasyon_durum(request: Request, servis: str | None = None):
+async def api_otomasyon_durum(request: Request):
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
-        if servis in ("ogle", "ogleden_sonra"):
-            return JSONResponse(
-                {
-                    "servis": "ogle",
-                    "aktif": db.ayar_oku(conn, otomasyon.AYAR_OGLE_AKTIF) or "0",
-                    "sablon": otomasyon.sablonu_oku(conn, "ogle"),
-                    "son_tarih": db.ayar_oku(conn, otomasyon.AYAR_OGLE_SON_TARIH) or "",
-                    "son_sonuc": otomasyon.son_sonuc_oku(conn, "ogle"),
-                }
-            )
-        elif servis in ("ilk_ders", "sabah"):
-            return JSONResponse(
-                {
-                    "servis": "ilk_ders",
-                    "aktif": db.ayar_oku(conn, otomasyon.AYAR_AKTIF) or "0",
-                    "sablon": otomasyon.sablonu_oku(conn, "ilk_ders"),
-                    "son_tarih": db.ayar_oku(conn, otomasyon.AYAR_SON_TARIH) or "",
-                    "son_sonuc": otomasyon.son_sonuc_oku(conn, "ilk_ders"),
-                }
-            )
         return JSONResponse(
             {
-                "aktif": db.ayar_oku(conn, otomasyon.AYAR_AKTIF) or "0",
-                "sablon": otomasyon.sablonu_oku(conn, "ilk_ders"),
-                "son_tarih": db.ayar_oku(conn, otomasyon.AYAR_SON_TARIH) or "",
-                "son_sonuc": otomasyon.son_sonuc_oku(conn, "ilk_ders"),
-                "sabah": {
-                    "aktif": db.ayar_oku(conn, otomasyon.AYAR_AKTIF) or "0",
-                    "sablon": otomasyon.sablonu_oku(conn, "ilk_ders"),
-                    "son_tarih": db.ayar_oku(conn, otomasyon.AYAR_SON_TARIH) or "",
-                    "son_sonuc": otomasyon.son_sonuc_oku(conn, "ilk_ders"),
-                },
-                "ogle": {
-                    "aktif": db.ayar_oku(conn, otomasyon.AYAR_OGLE_AKTIF) or "0",
-                    "sablon": otomasyon.sablonu_oku(conn, "ogle"),
-                    "son_tarih": db.ayar_oku(conn, otomasyon.AYAR_OGLE_SON_TARIH) or "",
-                    "son_sonuc": otomasyon.son_sonuc_oku(conn, "ogle"),
-                },
+                "kurallar": [
+                    {
+                        "id": k["id"],
+                        "ad": k["ad"],
+                        "saat": k["saat"],
+                        "ders_no": k["ders_no"],
+                        "aktif": k["aktif"],
+                        "sablon": k["sablon"],
+                        "son_tarih": otomasyon.ders_son_tarih(conn, k["ders_no"]),
+                        "son_sonuc": k["son_sonuc"],
+                    }
+                    for k in otomasyon.kurallar(conn)
+                ]
             }
         )
     finally:

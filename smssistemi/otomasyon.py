@@ -1,10 +1,9 @@
 """Devamsızlık SMS Otomasyonu ve Zamanlayıcı Servisi.
 
-Pazartesi-Cuma günleri:
-1. Sabah 09:00'da yoklama veritabanını kontrol ederek 1. derse gelmeyen öğrencilerin
-   velilerine (anne ve baba) otomatik SMS gönderir.
-2. Öğleden sonra 14:00'te yoklama veritabanını kontrol ederek öğleden sonraki derse (6. ders)
-   gelmeyen öğrencilerin velilerine otomatik SMS gönderir.
+Pazartesi-Cuma günleri her AKTİF kural (`otomasyon_kurallari`: saat + ders no + şablon) kendi
+saatinden itibaren PENCERE_DK dakika içinde o dersin yoklamasını kontrol eder ve gelmeyen
+öğrencilerin velilerine otomatik SMS gönderir. Kurallar panelden eklenir/silinir (2026-10-25);
+ilk kurulumda eski iki servis (09:00/1. ders, 14:00/6. ders) kural 1 ve 2 olarak taşınır.
 
 Tasarım ve Güvenlik İlkeleri:
 1. Yalnızca ilgili derste `durum == 'alindi'` olan sınıflar işlenir. Yoklaması
@@ -12,8 +11,8 @@ Tasarım ve Güvenlik İlkeleri:
 2. İzinli öğrenciler (`izinli_isimleri`) devamsız sayılmaz, SMS gönderilmez.
 3. Bir öğrencinin kayıtlı her iki velisine de (anne ve baba) kişiselleştirilmiş
    ayrı SMS gider.
-4. Aynı gün içinde mükerrer gönderim yapılmaz (idempotent; `otomasyon_ilk_ders_son_tarih` ve `otomasyon_ogle_son_tarih`).
-5. Arayüzden her iki servis de bağımsız tek tıkla açılıp kapatılabilir.
+4. Aynı gün aynı derse mükerrer otomatik gönderim yapılmaz (ders başına `otomasyon_ders{N}_son_tarih`).
+5. Her kural bağımsız açılır/kapatılır; yeni kural KAPALI eklenir.
 6. Kuru çalıştırma (dry-run / simülasyon) desteği ile test edilebilir.
 """
 
@@ -36,20 +35,21 @@ logger = logging.getLogger("smssistemi.otomasyon")
 
 _ISTANBUL = ZoneInfo("Europe/Istanbul")
 
-# Sabah İlk Ders (1. Ders - 09:00) Ayarları
-AYAR_AKTIF = "otomasyon_ilk_ders_aktif"
-AYAR_SABLON = "otomasyon_ilk_ders_sablonu"
-AYAR_SON_TARIH = "otomasyon_ilk_ders_son_tarih"
-AYAR_SON_SONUC = "otomasyon_ilk_ders_son_sonuc"
-
-# Öğleden Sonra (6. Ders - 14:00) Ayarları
-AYAR_OGLE_AKTIF = "otomasyon_ogle_aktif"
-AYAR_OGLE_SABLON = "otomasyon_ogle_sablonu"
-AYAR_OGLE_SON_TARIH = "otomasyon_ogle_son_tarih"
-AYAR_OGLE_SON_SONUC = "otomasyon_ogle_son_sonuc"
-
 VARSAYILAN_SABLON = "Sayın {isim}, öğrenciniz {ogrenci_adi} sabah ilk saate gelmemiştir. Bilginize."
-VARSAYILAN_SABLON_OGLE = "Sayın {isim}, öğrenciniz {ogrenci_adi} öğleden sonra derslere gelmemiştir. Bilginize."
+VARSAYILAN_SABLON_DERS = "Sayın {isim}, öğrenciniz {ogrenci_adi} bugün {ders_no}. derse gelmemiştir. Bilginize."
+
+PENCERE_DK = 10  # kural saatinden itibaren bu kadar dakika içinde tetiklenir (eski 09:00-09:10 penceresi)
+DERS_NO_AZAMI = 12
+SABLON_AZAMI = 480
+AD_AZAMI = 60
+_SAAT_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+
+# Panel API (dashboard Bugün kartı) eski 'ilk_ders'/'ogle' adlarını kullanır: taşınan kural 1 ve 2.
+SERVIS_KURAL = {"ilk_ders": 1, "ogle": 2}
+
+
+class KuralHatasi(ValueError):
+    pass
 
 _COZULMEMIS_ISIM_RE = re.compile(r"^No\s+\d+$")
 
@@ -80,27 +80,105 @@ def okul_gunu_mu(hedef_tarih: date) -> bool:
     return hedef_tarih.weekday() in (0, 1, 2, 3, 4)
 
 
-def sablonu_oku(conn, servis: str = "ilk_ders") -> str:
-    if servis in ("ogle", "ogleden_sonra"):
-        return db.ayar_oku(conn, AYAR_OGLE_SABLON) or VARSAYILAN_SABLON_OGLE
-    return db.ayar_oku(conn, AYAR_SABLON) or VARSAYILAN_SABLON
+def varsayilan_sablon(ders_no: int) -> str:
+    return VARSAYILAN_SABLON if ders_no == 1 else VARSAYILAN_SABLON_DERS.replace("{ders_no}", str(ders_no))
 
 
-def otomasyon_aktif_mi(conn, servis: str = "ilk_ders") -> bool:
-    if servis in ("ogle", "ogleden_sonra"):
-        return db.ayar_oku(conn, AYAR_OGLE_AKTIF) == "1"
-    return db.ayar_oku(conn, AYAR_AKTIF) == "1"
+def ders_son_tarih_anahtari(ders_no: int) -> str:
+    return f"otomasyon_ders{ders_no}_son_tarih"
+
+
+def ders_son_tarih(conn, ders_no: int) -> str:
+    return db.ayar_oku(conn, ders_son_tarih_anahtari(ders_no)) or ""
+
+
+def _kural_sozluk(satir) -> dict:
+    k = dict(satir)
+    k["aktif"] = bool(k["aktif"])
+    try:
+        k["son_sonuc"] = json.loads(k["son_sonuc"]) if k["son_sonuc"] else None
+    except ValueError:
+        k["son_sonuc"] = None
+    return k
+
+
+def kurallar(conn) -> list[dict]:
+    satirlar = conn.execute("SELECT * FROM otomasyon_kurallari ORDER BY saat, ders_no").fetchall()
+    return [_kural_sozluk(s) for s in satirlar]
+
+
+def kural_getir(conn, kural_id: int) -> dict | None:
+    satir = conn.execute("SELECT * FROM otomasyon_kurallari WHERE id = ?", (kural_id,)).fetchone()
+    return _kural_sozluk(satir) if satir else None
+
+
+def _dogrula(ad: str, saat: str, ders_no, sablon: str) -> tuple[str, str, int, str]:
+    saat = (saat or "").strip()
+    if not _SAAT_RE.match(saat):
+        raise KuralHatasi("Saat SS:DD biçiminde olmalı (örn. 09:00).")
+    try:
+        ders_no = int(ders_no)
+    except (TypeError, ValueError):
+        raise KuralHatasi("Ders numarası bir sayı olmalı.") from None
+    if not 1 <= ders_no <= DERS_NO_AZAMI:
+        raise KuralHatasi(f"Ders numarası 1 ile {DERS_NO_AZAMI} arasında olmalı.")
+    sablon = (sablon or "").strip()
+    if not sablon:
+        raise KuralHatasi("Mesaj şablonu boş olamaz.")
+    if len(sablon) > SABLON_AZAMI:
+        raise KuralHatasi(f"Mesaj şablonu en çok {SABLON_AZAMI} karakter olabilir.")
+    ad = " ".join((ad or "").split())[:AD_AZAMI] or f"{ders_no}. ders"
+    return ad, saat, ders_no, sablon
+
+
+def _ders_cakisiyor_mu(conn, ders_no: int, haric_id: int | None = None) -> bool:
+    return conn.execute(
+        "SELECT 1 FROM otomasyon_kurallari WHERE ders_no = ? AND id IS NOT ?", (ders_no, haric_id)
+    ).fetchone() is not None
+
+
+def kural_ekle(conn, ad: str, saat: str, ders_no, sablon: str) -> int:
+    """Yeni kural KAPALI eklenir; açmak ayrı ve bilinçli bir adımdır."""
+    ad, saat, ders_no, sablon = _dogrula(ad, saat, ders_no, sablon)
+    if _ders_cakisiyor_mu(conn, ders_no):
+        raise KuralHatasi(f"{ders_no}. ders için zaten bir otomasyon var; onu düzenleyin.")
+    imlec = conn.execute(
+        "INSERT INTO otomasyon_kurallari (ad, saat, ders_no, sablon, aktif) VALUES (?, ?, ?, ?, 0)",
+        (ad, saat, ders_no, sablon),
+    )
+    conn.commit()
+    return imlec.lastrowid
+
+
+def kural_guncelle(conn, kural_id: int, ad: str, saat: str, ders_no, sablon: str) -> None:
+    if kural_getir(conn, kural_id) is None:
+        raise KuralHatasi("Otomasyon bulunamadı.")
+    ad, saat, ders_no, sablon = _dogrula(ad, saat, ders_no, sablon)
+    if _ders_cakisiyor_mu(conn, ders_no, kural_id):
+        raise KuralHatasi(f"{ders_no}. ders için zaten başka bir otomasyon var.")
+    conn.execute(
+        "UPDATE otomasyon_kurallari SET ad = ?, saat = ?, ders_no = ?, sablon = ? WHERE id = ?",
+        (ad, saat, ders_no, sablon, kural_id),
+    )
+    conn.commit()
+
+
+def kural_aktif_yaz(conn, kural_id: int, aktif: bool) -> bool:
+    imlec = conn.execute("UPDATE otomasyon_kurallari SET aktif = ? WHERE id = ?", (1 if aktif else 0, kural_id))
+    conn.commit()
+    return imlec.rowcount == 1
+
+
+def kural_sil(conn, kural_id: int) -> bool:
+    imlec = conn.execute("DELETE FROM otomasyon_kurallari WHERE id = ?", (kural_id,))
+    conn.commit()
+    return imlec.rowcount == 1
 
 
 def son_sonuc_oku(conn, servis: str = "ilk_ders") -> dict | None:
-    ayar_anahtari = AYAR_OGLE_SON_SONUC if servis in ("ogle", "ogleden_sonra") else AYAR_SON_SONUC
-    ham = db.ayar_oku(conn, ayar_anahtari)
-    if not ham:
-        return None
-    try:
-        return json.loads(ham)
-    except Exception:
-        return None
+    """Eski servis adıyla (panel API): taşınan kural 1/2'nin son sonucu; kural silindiyse None."""
+    kural = kural_getir(conn, SERVIS_KURAL.get(servis, 0))
+    return kural["son_sonuc"] if kural else None
 
 
 def _ogrenciyi_eslestir(
@@ -147,18 +225,14 @@ def _ogrenciyi_eslestir(
 def devamsizlar_derle(
     conn, ders_no: int = 1, tarih: str | None = None, sablon: str | None = None
 ) -> dict:
-    """Belirtilen ders numarası (1: sabah ilk ders, 6: öğleden sonra ilk ders) için
-    devamsızlık özetini derler.
-    
+    """Belirtilen ders numarası için devamsızlık özetini derler.
+
     Yalnızca belirtilen `ders_no` ve `durum == 'alindi'` olan sınıflar işleme alınır.
-    İzinli öğrenciler yok sayılmaz.
-    6. ders için sabah 1. derste de devamsız olan öğrenciler işaretlenir.
+    İzinli öğrenciler devamsız sayılmaz.
+    1'den büyük derslerde sabah 1. derste de devamsız olan öğrenciler işaretlenir.
     """
     hedef_tarih = tarih or bugun_istanbul().isoformat()
-    if sablon:
-        mesaj_sablonu = sablon
-    else:
-        mesaj_sablonu = sablonu_oku(conn, "ogle" if ders_no == 6 else "ilk_ders")
+    mesaj_sablonu = sablon or varsayilan_sablon(ders_no)
 
     siniflar = db.siniflar_listele(conn)
     sinif_id_ile = {s["ad"]: s["id"] for s in siniflar}
@@ -167,10 +241,10 @@ def devamsizlar_derle(
     satirlar = yoklama_kaynak.gunun_satirlari(hedef_tarih)
     hedef_ders_satirlari = [s for s in satirlar if s.get("ders_no") == ders_no]
 
-    # 6. ders için sabah 1. ders yoklama listesini de kontrol edelim
+    # Sonraki dersler için sabah 1. ders yoklama listesini de kontrol edelim
     sabah_yok_kumesi: set[tuple[str, str]] = set()
     sabah_yok_no_kumesi: set[tuple[str, int]] = set()
-    if ders_no == 6:
+    if ders_no > 1:
         for s in satirlar:
             if s.get("ders_no") == 1 and s.get("durum") == yoklama_kaynak.DURUM_ALINDI:
                 sinif_adi = s["sinif"]
@@ -213,7 +287,7 @@ def devamsizlar_derle(
     ogrenciler: list[dict] = []
     gonderilecek_smsler: list[dict] = []
     izinli_sayisi = 0
-    yalnizca_ogle_sayisi = 0
+    sabah_gelen_sayisi = 0
 
     for sinif_ad in dahil_siniflar:
         satir = gorulen_siniflar[sinif_ad]
@@ -243,11 +317,11 @@ def devamsizlar_derle(
                     (sinif_ad, ad_soyad) in sabah_yok_kumesi
                     or (okul_no is not None and (sinif_ad, okul_no) in sabah_yok_no_kumesi)
                 )
-                if ders_no == 6
+                if ders_no > 1
                 else False
             )
-            if ders_no == 6 and not sabah_da_yok:
-                yalnizca_ogle_sayisi += 1
+            if ders_no > 1 and not sabah_da_yok:
+                sabah_gelen_sayisi += 1
 
             ogrenci_kayit = {
                 "sinif": sinif_ad,
@@ -305,81 +379,69 @@ def devamsizlar_derle(
             1 for o in ogrenciler if o["eslesme_durumu"] == ESLESME_YOK
         ),
         "izinli_sayisi": izinli_sayisi,
-        "yalnizca_ogle_sayisi": yalnizca_ogle_sayisi,
+        "sabah_gelen_sayisi": sabah_gelen_sayisi,
     }
-
-
-def ilk_ders_devamsizlar(
-    conn, tarih: str | None = None, sablon: str | None = None
-) -> dict:
-    return devamsizlar_derle(conn, ders_no=1, tarih=tarih, sablon=sablon)
-
-
-def ogle_devamsizlar(
-    conn, tarih: str | None = None, sablon: str | None = None
-) -> dict:
-    return devamsizlar_derle(conn, ders_no=6, tarih=tarih, sablon=sablon)
 
 
 def otomasyon_calistir(
     conn,
+    kural_id: int,
     kuru: bool = False,
     tetikleyen: str = "otomasyon",
     tarih: str | None = None,
     bekleme_sn: float = 2.0,
-    servis: str = "ilk_ders",
 ) -> dict:
-    """Devamsızlık SMS servisini yürütür.
-    
-    servis="ilk_ders": Sabah 09:00 1. ders devamsızlık servisi.
-    servis="ogle": Öğleden sonra 14:00 6. ders devamsızlık servisi.
+    """Bir devamsızlık SMS kuralını yürütür.
 
     kuru=True ise gerçek SMS göndermez ve son çalışma tarihini güncellemez.
-    kuru=False ise gönderim yapar, veritabanına loglar ve son çalışma tarihini kaydeder.
+    kuru=False ise gönderim yapar, veritabanına loglar ve dersin son çalışma tarihini kaydeder.
+    Otomatik zamanlayıcı aynı gün aynı derse ikinci kez göndermez; elle tetik bu kontrolü
+    bilerek atlar (arayüz onay ister).
     """
+    kural = kural_getir(conn, kural_id)
+    if kural is None:
+        return {"durum": "kural_yok", "mesaj": "Otomasyon bulunamadı."}
     hedef_tarih = tarih or bugun_istanbul().isoformat()
-    is_ogle = servis in ("ogle", "ogleden_sonra")
-    ayar_son_tarih = AYAR_OGLE_SON_TARIH if is_ogle else AYAR_SON_TARIH
-    ayar_son_sonuc = AYAR_OGLE_SON_SONUC if is_ogle else AYAR_SON_SONUC
-    oto_onek = "oto6_" if is_ogle else "oto1_"
-    servis_adi = "ogle" if is_ogle else "ilk_ders"
+    ders_no = kural["ders_no"]
 
-    son_tarih = db.ayar_oku(conn, ayar_son_tarih)
+    # Zamanlayıcı kuralları topluca seçer; önceki gönderim sürerken bu kural kapatılmış ya da saati
+    # değiştirilmiş olabilir. Kilit alındıktan sonra güncel kayda göre yeniden doğrula.
+    if not kuru and tetikleyen == "otomatik_zamanlayici" and not (
+        kural["aktif"] and pencerede_mi(kural["saat"], simdi_istanbul())
+    ):
+        logger.info(f"Otomasyon (kural {kural_id}) artık kapalı ya da penceresi dışında, atlandı.")
+        return {"durum": "atlandi", "kural_id": kural_id, "tarih": hedef_tarih}
 
-    if not kuru and son_tarih == hedef_tarih and tetikleyen == "otomatik_zamanlayici":
-        logger.info(f"Otomasyon ({servis_adi}) {hedef_tarih} için zaten çalışmış, mükerrer gönderim atlandı.")
+    if not kuru and ders_son_tarih(conn, ders_no) == hedef_tarih and tetikleyen == "otomatik_zamanlayici":
+        logger.info(f"Otomasyon ({ders_no}. ders) {hedef_tarih} için zaten çalışmış, mükerrer gönderim atlandı.")
         return {
             "durum": "zaten_calisti",
-            "servis": servis_adi,
-            "mesaj": f"{hedef_tarih} tarihinde otomasyon ({servis_adi}) zaten çalıştırılmış.",
+            "kural_id": kural_id,
+            "mesaj": f"{hedef_tarih} tarihinde {ders_no}. ders otomasyonu zaten çalıştırılmış.",
             "tarih": hedef_tarih,
         }
 
-    if is_ogle:
-        derleme = ogle_devamsizlar(conn, tarih=hedef_tarih)
-    else:
-        derleme = ilk_ders_devamsizlar(conn, tarih=hedef_tarih)
-
+    derleme = devamsizlar_derle(conn, ders_no=ders_no, tarih=hedef_tarih, sablon=kural["sablon"])
     gonderilecekler = derleme["gonderilecek_smsler"]
 
     if kuru:
         return {
             "durum": "simulasyon",
-            "servis": servis_adi,
+            "kural_id": kural_id,
             "kuru_calistirma": True,
             "tarih": hedef_tarih,
             "derleme": derleme,
             "gonderilecek_adet": len(gonderilecekler),
         }
 
-    gonderim_id = f"{oto_onek}{uuid.uuid4().hex[:8]}"
+    gonderim_id = f"oto{ders_no}_{uuid.uuid4().hex[:8]}"
     basarili_sayisi = 0
     hatali_sayisi = 0
     sms_denendi = False
 
     if gonderilecekler:
         logger.info(
-            f"Otomasyon ({servis_adi} - {tetikleyen}) başlatılıyor: {len(gonderilecekler)} veliye SMS gönderilecek. "
+            f"Otomasyon ({ders_no}. ders - {tetikleyen}) başlatılıyor: {len(gonderilecekler)} veliye SMS gönderilecek. "
             f"Gonderim ID: {gonderim_id}"
         )
         kisiler_listesi = [
@@ -424,7 +486,7 @@ def otomasyon_calistir(
                 _kaydet(k[0], k[1], k[2], "hata", str(exc))
 
     # 2026-09-28: hiç SMS gitmediyse (basarili_sayisi == 0, ör. proxy
-    # düşükken tüm gönderim "hata" ile sonuçlandı) AYAR_SON_TARIH YAZILMAZ —
+    # düşükken tüm gönderim "hata" ile sonuçlandı) dersin son tarihi YAZILMAZ —
     # aksi halde `otomasyon_arkaplan_dongusu`'nun penceresindeki
     # 30 saniyelik tekrar deneme döngüsü "bugün zaten çalışmış" sanıp asla
     # tekrar denemiyordu (DECISIONS.md 2026-09-28). En az bir SMS gittiyse
@@ -438,11 +500,12 @@ def otomasyon_calistir(
     if gonderilecekler and not sms_denendi:
         sonuc_durum = "basarisiz"
     else:
-        db.ayar_yaz(conn, ayar_son_tarih, hedef_tarih)
+        db.ayar_yaz(conn, ders_son_tarih_anahtari(ders_no), hedef_tarih)
 
     sonuc_ozet = {
         "gonderim_id": gonderim_id,
-        "servis": servis_adi,
+        "kural_id": kural_id,
+        "ders_no": ders_no,
         "tarih": hedef_tarih,
         "calisma_zamani": simdi_istanbul().strftime("%Y-%m-%d %H:%M:%S"),
         "tetikleyen": tetikleyen,
@@ -455,11 +518,15 @@ def otomasyon_calistir(
         "haric_sebepleri": dict(Counter(h["sebep"] for h in derleme["haric_siniflar"])),
         "durum": sonuc_durum,
     }
-    db.ayar_yaz(conn, ayar_son_sonuc, json.dumps(sonuc_ozet, ensure_ascii=False))
+    conn.execute(
+        "UPDATE otomasyon_kurallari SET son_sonuc = ? WHERE id = ?",
+        (json.dumps(sonuc_ozet, ensure_ascii=False), kural_id),
+    )
+    conn.commit()
 
     return {
         "durum": sonuc_durum,
-        "servis": servis_adi,
+        "kural_id": kural_id,
         "gonderim_id": gonderim_id,
         "ozet": sonuc_ozet,
         "derleme": derleme,
@@ -477,28 +544,43 @@ def otomasyon_calistir(
 _CALISMA_KILIDI = threading.Lock()
 
 
-def otomasyon_calistir_thread(servis: str = "ilk_ders", **kwargs) -> dict:
+def otomasyon_calistir_thread(kural_id: int, **kwargs) -> dict:
     """`await asyncio.to_thread(otomasyon_calistir_thread, ...)` için."""
     if not _CALISMA_KILIDI.acquire(blocking=False):
         return {"durum": "calisiyor", "mesaj": "Otomasyon şu anda zaten çalışıyor."}
     try:
         conn = db.baglanti()
         try:
-            return otomasyon_calistir(conn, servis=servis, **kwargs)
+            return otomasyon_calistir(conn, kural_id, **kwargs)
         finally:
             conn.close()
     finally:
         _CALISMA_KILIDI.release()
 
 
+def pencerede_mi(saat: str, simdi: datetime) -> bool:
+    """Kural saati ile saat+PENCERE_DK (dahil) arasında mı? Eski 09:00-09:10 penceresinin genellemesi."""
+    sa, dk = (int(p) for p in saat.split(":"))
+    fark = simdi.hour * 60 + simdi.minute - (sa * 60 + dk)
+    return 0 <= fark <= PENCERE_DK
+
+
+def tetiklenecek_kurallar(conn, simdi: datetime) -> list[int]:
+    """Şu an penceresinde olan, aktif ve dersi bugün henüz gönderilmemiş kuralların kimlikleri."""
+    bugun = simdi.date().isoformat()
+    return [
+        k["id"]
+        for k in kurallar(conn)
+        if k["aktif"] and pencerede_mi(k["saat"], simdi) and ders_son_tarih(conn, k["ders_no"]) != bugun
+    ]
+
+
 async def otomasyon_arkaplan_dongusu() -> None:
     """Arka planda koşan zamanlayıcı döngüsü.
-    
-    Her 30 saniyede bir İstanbul saatini kontrol eder.
-    Hafta içi okul günlerinde (Pzt-Cum):
-      - 09:00 - 09:10 penceresinde Sabah İlk Ders Otomasyonu (1. Ders)
-      - 14:00 - 14:10 penceresinde Öğleden Sonra Otomasyonu (6. Ders)
-    aktif ve o gün henüz çalışmamışsa devreye girer.
+
+    Her 30 saniyede bir İstanbul saatini kontrol eder. Hafta içi okul günlerinde her aktif
+    kural kendi saatinden itibaren PENCERE_DK dakika içinde, dersi o gün henüz gönderilmemişse
+    devreye girer (gönderim hiç denenemediyse pencere içinde yeniden dener).
     """
     logger.info("Otomasyon arka plan zamanlayıcı döngüsü başlatıldı.")
     while True:
@@ -511,33 +593,16 @@ async def otomasyon_arkaplan_dongusu() -> None:
             if not okul_gunu_mu(bugun):
                 continue
 
-            # Sabah 09:00 - 09:10 zaman penceresi (1. Ders)
-            if simdi.hour == 9 and 0 <= simdi.minute <= 10:
-                conn = db.baglanti()
-                try:
-                    if otomasyon_aktif_mi(conn, "ilk_ders"):
-                        son_tarih = db.ayar_oku(conn, AYAR_SON_TARIH)
-                        if son_tarih != bugun.isoformat():
-                            logger.info(f"Saat {simdi.strftime('%H:%M:%S')} - 09:00 Sabah Yoklama Otomasyonu tetikleniyor...")
-                            await asyncio.to_thread(
-                                otomasyon_calistir_thread, servis="ilk_ders", kuru=False, tetikleyen="otomatik_zamanlayici"
-                            )
-                finally:
-                    conn.close()
-
-            # Öğleden sonra 14:00 - 14:10 zaman penceresi (6. Ders)
-            if simdi.hour == 14 and 0 <= simdi.minute <= 10:
-                conn = db.baglanti()
-                try:
-                    if otomasyon_aktif_mi(conn, "ogle"):
-                        son_tarih = db.ayar_oku(conn, AYAR_OGLE_SON_TARIH)
-                        if son_tarih != bugun.isoformat():
-                            logger.info(f"Saat {simdi.strftime('%H:%M:%S')} - 14:00 Öğleden Sonra Yoklama Otomasyonu tetikleniyor...")
-                            await asyncio.to_thread(
-                                otomasyon_calistir_thread, servis="ogle", kuru=False, tetikleyen="otomatik_zamanlayici"
-                            )
-                finally:
-                    conn.close()
+            conn = db.baglanti()
+            try:
+                hedefler = tetiklenecek_kurallar(conn, simdi)
+            finally:
+                conn.close()
+            for kural_id in hedefler:
+                logger.info(f"Saat {simdi.strftime('%H:%M:%S')} - devamsızlık otomasyonu (kural {kural_id}) tetikleniyor...")
+                await asyncio.to_thread(
+                    otomasyon_calistir_thread, kural_id, kuru=False, tetikleyen="otomatik_zamanlayici"
+                )
 
             # Doğum günü SMS'i 09:30 - 09:40 (dogum_sms.py; ana şalter sms_otomatik, gerçek gönderim dogum_sms_gercek)
             if simdi.hour == 9 and 30 <= simdi.minute <= 40:
