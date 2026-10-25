@@ -1,0 +1,66 @@
+{
+  "active": true,
+  "hubId": "tablo-dosyasi",
+  "name": "SQL sonucundan Excel/PDF dosyası",
+  "schema": "skill-1.0.0",
+  "version": "1.0.0",
+  "description": "Okul kayıtlarında bir SELECT sorgusu çalıştırır ve SONUCU DOĞRUDAN Excel (.xlsx) veya PDF dosyasına çevirir; satırları sen yazmazsın. Sınıf listeleri, öğretmen/öğrenci/veli telefon listeleri, yoklama ve devamsızlık raporları gibi tablo çıktıları için BUNU kullan (yerleşik create-excel-file/create-pdf-file yerine; onlar satırları senin yazmanı ister ve uzun listelerde hata yapar). En fazla 2000 satır. Tablolar ve sütunlar için sql-sorgu aracının açıklamasındaki şemayı kullan (ara(kolon,'metin') Türkçe-duyarsız arama, sinif_atama/sinif ile sınıf listesi, json_each ile devamsız adları). Dosya sohbette indirme kartı olarak görünür.\n\nŞema:\n__SEMA__",
+  "author": "Farabi",
+  "author_url": "",
+  "license": "MIT",
+  "setup_args": {
+    "OKUL_API_KEY": {
+      "type": "string",
+      "required": true,
+      "input": {
+        "type": "text",
+        "default": "",
+        "placeholder": "",
+        "hint": "Dashboard /api/okul anahtarı (dağıtımda otomatik yazılır)"
+      },
+      "value": "__ANAHTAR__"
+    },
+    "OKUL_API_URL": {
+      "type": "string",
+      "required": false,
+      "input": {
+        "type": "text",
+        "default": "http://127.0.0.1/api/okul/sql",
+        "placeholder": "",
+        "hint": "Dashboard SQL ucu"
+      },
+      "value": "http://127.0.0.1/api/okul/sql"
+    }
+  },
+  "examples": [
+    {
+      "prompt": "9-A sınıf listesini Excel yap",
+      "call": "{\"sorgu\": \"SELECT o.okul_no AS \\\"Okul No\\\", o.ad_soyad AS \\\"Ad Soyad\\\" FROM ogrenci o JOIN sinif_atama a ON a.okul_no=o.okul_no JOIN sinif s ON s.id=a.sinif_id WHERE s.ad='9-A' ORDER BY o.ad_soyad\", \"dosya_adi\": \"9-A sınıf listesi\", \"bicim\": \"xlsx\", \"baslik\": \"9-A Sınıf Listesi\"}"
+    },
+    {
+      "prompt": "Son yoklama gününün devamsızlık raporunu PDF yap",
+      "call": "{\"sorgu\": \"SELECT y.tarih AS \\\"Tarih\\\", y.sinif AS \\\"Sınıf\\\", y.ders_no AS \\\"Ders\\\", j.value AS \\\"Devamsız\\\" FROM yoklama_onbellek y, json_each(y.yok_isimleri) j WHERE y.durum='alindi' ORDER BY y.tarih DESC, y.sinif, y.ders_no\", \"dosya_adi\": \"devamsizlik raporu\", \"bicim\": \"pdf\", \"baslik\": \"Devamsızlık Raporu\"}"
+    }
+  ],
+  "entrypoint": {
+    "file": "handler.js",
+    "params": {
+      "sorgu": {
+        "description": "Tek bir SELECT ifadesi (SQLite sözdizimi). Sütun adlarını AS ile Türkçe/okunur yaz.",
+        "type": "string"
+      },
+      "dosya_adi": {
+        "description": "Dosya adı (uzantısız).",
+        "type": "string"
+      },
+      "bicim": {
+        "description": "xlsx veya pdf.",
+        "type": "string"
+      },
+      "baslik": {
+        "description": "Dosya/sayfa başlığı (isteğe bağlı).",
+        "type": "string"
+      }
+    }
+  }
+}

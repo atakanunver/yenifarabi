@@ -27,7 +27,8 @@ class TestYardimcilar(unittest.TestCase):
         self.assertEqual(sd._port_bul("ollama", "argv[]=ollama serve", "OLLAMA_HOST=0.0.0.0:11434 X=1"), 11434)
         # son tanım kazanır (drop-in'ler)
         self.assertEqual(sd._port_bul("ollama", "", "OLLAMA_HOST=0.0.0.0:11434 OLLAMA_HOST=0.0.0.0"), 11434)
-        self.assertEqual(sd._port_bul("open-webui", "", "PORT=80"), 80)
+        self.assertEqual(sd._port_bul("farabi-yoklama-dashboard", "", "PORT=80"), 80)
+        self.assertEqual(sd._port_bul("pm2-anythingllm", "", ""), 8010)  # birimde port yok: varsayılan tablo
 
     def test_ortam_degiskeni_son_tanim(self):
         self.assertEqual(sd._ortam_degiskeni("CUDA_VISIBLE_DEVICES= CUDA_VISIBLE_DEVICES=1", "CUDA_VISIBLE_DEVICES"), "1")

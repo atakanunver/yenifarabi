@@ -26,7 +26,7 @@ VARSAYILAN_SET = AD / "model_davranis_set.json"
 VARSAYILAN_DB = "/opt/open-webui/data/webui.db"
 SISTEM_ISTEMI = KOK / "openwebui" / "promptlar" / "cekirdek.md"
 OLLAMA = "http://127.0.0.1:11434/api/chat"
-MODEL = "qwen3.8:27b"
+MODEL = "gemma4:12b"
 SAAT_SATIRI = "Şu an (Türkiye saati): Cumartesi, 17 Ekim 2026, 19:00"
 KATEGORILER = ("arac", "uydurma", "yaptim", "dil")
 
@@ -135,7 +135,7 @@ def puanla(sen, icerik, cagrilar):
 def ollama_cagir(mesajlar, araclar, model, zaman_asimi):
     govde = {"model": model, "messages": mesajlar, "tools": araclar, "stream": False,
              "think": False, "keep_alive": -1,
-             "options": {"temperature": 0, "seed": 1, "num_ctx": 32768}}
+             "options": {"temperature": 0, "seed": 1, "num_ctx": 8192}}
     r = urllib.request.Request(OLLAMA, json.dumps(govde).encode(), {"Content-Type": "application/json"})
     with urllib.request.urlopen(r, timeout=zaman_asimi) as f:
         return json.loads(f.read())["message"]
@@ -221,7 +221,7 @@ def karsilastir(a_yol, b_yol):
 def main():
     ap = argparse.ArgumentParser(description="Model davranis degerlendirmesi (arac secimi / uydurmama / yaptim-deme). Araclar calistirilmaz.")
     ap.add_argument("--set", default=str(VARSAYILAN_SET), help="senaryo JSON")
-    ap.add_argument("--model", default=MODEL, help="Ollama model tam adi (varsayilan qwen3.8:27b)")
+    ap.add_argument("--model", default=MODEL, help="Ollama model tam adi (varsayilan gemma4:12b)")
     ap.add_argument("--db", default=VARSAYILAN_DB, help="Open WebUI webui.db (salt-okunur)")
     ap.add_argument("--out", help="JSON rapor yolu (varsayilan reports/davranis_<zaman>.json)")
     ap.add_argument("--kuru", action="store_true", help="Ollama'yi cagirmadan set + sema + puanlama self-test")

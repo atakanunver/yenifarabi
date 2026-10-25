@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Sınıf akıllı tahtalarında sesli ders asistanı + aynı sunucuda okul operasyon
 servisleri (yoklama panosu, SMS). Monorepo; her alt projenin kendi `CLAUDE.md`'si
 var (client, server, tahtayoklama, smssistemi, tahtaayar, benchmark, mudur,
-soruhavuzu, kazanimtest, okul; `openwebui/`, `webui-tema/` için CLAUDE.md yok). Bu dosya: ortak kurallar + servisler arası resim.
+soruhavuzu, kazanimtest, okul; `anythingllm/` için CLAUDE.md yok; Open WebUI kodu `_arsiv/openwebui/`, `_arsiv/webui-tema/`'dedir). Bu dosya: ortak kurallar + servisler arası resim.
 
 - Kararlar/neden: `DECISIONS.md` (`grep "## <tarih>"`). Mimari (2026-09-13'te
   donmuş, çelişkide bu dosya esas): `docs/mimari.md`. Ağ envanteri, dağıtım,
@@ -27,11 +27,12 @@ soruhavuzu, kazanimtest, okul; `openwebui/`, `webui-tema/` için CLAUDE.md yok).
   açıkça istenmeden yeniden açma/önerme (birim dosyaları `_arsiv/kazanimtest-systemd/` altında). İSTİSNA: `soru-havuzu-uret.timer` Atakan tarafından bilerek yeniden AÇILDI
   (2026-10-14 itibarıyla açık; her gün 00:00 TR başlar, 06:00'da durur). Kapatma, açıkça istenmeden yapılmaz.
 - 9-11 çalışmaları Maarif modeline göre (2026-10-10).
-- Ollama'da TEK model `qwen3.8:27b` (iki RTX 3060); başka model kurulmaz. Çağıran
-  kod düşünmeyi kapatır (`think:false`). `CUDA_DEVICE_ORDER=PCI_BUS_ID` şart.
+- Ollama'da TEK model `gemma4:12b` (Gemma 4 12B Q4_K_M; tools/thinking/vision; 2026-10-25) (iki RTX 3060); başka model kurulmaz. TÜM istemciler aynı bağlamı
+  kullanır: sunucu `OLLAMA_CONTEXT_LENGTH=49152` (drop-in `zz-baglam.conf`; farklı `num_ctx` modeli yeniden yükletir). 49152 tek karta (GPU0 ~9 GB) sığar, 65536 ikinci karta taşıp `farabi-embed` ile çakışır.
+  Açılışta `/usr/local/bin/farabi-ollama-onyukle.sh` modeli yükler. Çağıran kod düşünmeyi kapatır (`think:false`; Gemma'da düşünme varsayılan AÇIK). `CUDA_DEVICE_ORDER=PCI_BUS_ID` şart.
 - Gömme + reranker Farabi'de `farabi-embed`'de (2026-10-25'ten beri, 2. RTX 3060, `127.0.0.1:8040`, `FARABI_EMBED_URL`); bilgehan yalnız ses düğümü.
 - Ses Gemini Live'da, client'ta. Yerel STT/TTS/Pipecat KALICI İPTAL (2026-09-28).
-- Open WebUI adı "Atos"; yalnızca iki yönetici.
+- Atos = AnythingLLM (Docker'sız, `/opt/anythingllm`, PM2 + `pm2-anythingllm.service`, port 8010, tek kullanıcı modu + erişim parolası; kurulum/yetenekler `anythingllm/`). Open WebUI 2026-10-25'te kaldırıldı, verisi `/mnt/farabi-data/farabi/arsiv/open-webui-atos-20261025.tgz`. Veri aracı: agent yetenekleri `sql-sorgu` ve `tablo-dosyasi` → dashboard `POST /api/okul/sql` (salt-okunur SQL; tablolar `okul_sql.py`).
 - Okul ağı SSL-inceleme yapıyor: yeni venv'de certifi'ye MEB sertifikası eklenmeli;
   `HF_HUB_OFFLINE=1` açık.
 - Asıl kimlik avahi hostname (`vestel9b` → `vestel9b.local`; sınıfı o belirler); IP ve MAC değişebilir
@@ -50,8 +51,8 @@ soruhavuzu, kazanimtest, okul; `openwebui/`, `webui-tema/` için CLAUDE.md yok).
 | farabi-yoklama-dashboard | tahtayoklama/dashboard/ | 8010 | yoklama, uzaktan yönetim, servisler |
 | farabi-smssistemi | smssistemi/ | 8020 | SMS, rehber, doğum günleri |
 | farabi-okul | okul/ | 9090 | dijital okul portalı, smual.app (Cloudflare Tunnel) |
-| ollama | — | 11434 | qwen3.8:27b |
-| open-webui | /opt/open-webui | 80 | Atos |
+| ollama | — | 11434 | gemma4:12b |
+| pm2-anythingllm | /opt/anythingllm | 8010 | Atos (AnythingLLM; collector 8888) |
 Servisler arası bağ = HTTP + HMAC/paylaşılan anahtar. Tek DB istisnası: smssistemi
 `yoklama_pano.db`'yi salt-okunur okur. Docker yok.
 - Client = ince arayüz (Gemini Live dahil); server = beyin. Server ham LLM metni

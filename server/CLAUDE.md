@@ -46,7 +46,7 @@ kendi dosya/DB/anahtar kontrollerini kendileri yapar.
 | `icerik.py` | `POST /api/egitim/ders_icerigi`, `GET /api/egitim/pdf_sayfa` (PyMuPDF → PNG), `GET /api/egitim/pdf_sayfa_metni`. `DATA_DIR = /mnt/farabi-data/farabi` tek sabit |
 | `yks.py` | `POST /api/egitim/yks_sorusu`, `GET /api/egitim/yks_sayfa` |
 | `saglayicilar.py` + `proxy.py` | bulut sağlayıcı havuzu (`GOREV_ZINCIRLERI`) + `POST /api/egitim/metin_uret`, `/gorsel_uret` |
-| `webui.py` | `POST /api/webui/ara` — Open WebUI filtresinin kaynak araması (LLM yok), `X-Farabi-WebUI-Key` (`config/api_keys.json::webui_key`), yalnızca `metrik`'e `webui_*` yazar |
+| `webui.py` | `POST /api/webui/ara` — (Open WebUI kaldırıldı 2026-10-25; şu an çağıran yok, AnythingLLM'e bağlanabilir) kaynak araması (LLM yok), `X-Farabi-WebUI-Key` (`config/api_keys.json::webui_key`), yalnızca `metrik`'e `webui_*` yazar |
 | `idari_yukle.py` + `schema_idari.sql` | mevzuat → `idari_belge`/`chunk_idari` (`--kuru` önce; OCR tesseract). `HF_HUB_OFFLINE=1 venv/bin/python idari_yukle.py --kuru`, sonra `--kuru` olmadan; şema: `sudo -u postgres psql -d farabi -v ON_ERROR_STOP=1 < schema_idari.sql` (stdin; postgres `/home/ata`'yı okuyamaz). Tam yükleme CPU'yu doyurur → `taskset -c 6-11` |
 | `ders_plani.py` | `POST /api/egitim/ders_plani` — 40 dk ders planı, önbellekli, kaynak dışı sayı uyarısı, görev zaman aşımı 120 sn, zincir deepseek > groq > cohere (Ollama bilerek yok). Client'a henüz bağlı değil |
 | `ders_hafizasi.py` | `POST /api/egitim/ders_hafizasi` — `yedekler/ders_kaydi/<derslik>/` dosyalarından geçmiş ders hatırlama |
@@ -76,7 +76,7 @@ paketi, öğrenci verisi değil); dizin yoksa yol hiç bağlanmaz.
 - `gorsel` zinciri: `mistral/pixtral-12b-2409` → `mistral/mistral-medium-latest`
   → `nvidia/meta/llama-3.2-11b-vision-instruct`. **NVIDIA bu ağdan
   güvenilmez** (410/timeout). openrouter anahtarı yok.
-- Ollama (`qwen3.8:27b`, tek model): sistem mesajı olmayan isteklere
+- Ollama (`gemma4:12b`, tek model): sistem mesajı olmayan isteklere
   `saglayicilar.py` Farabi promptunu (`ollama/farabi_sistem.txt`) ekler;
   prompt değişince `farabi-api` restart gerekir (modül açılışta okur).
   Düşünme her çağrıda kapalı olmalı: yerel API `"think": False`, `/v1`

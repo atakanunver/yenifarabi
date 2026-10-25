@@ -18,6 +18,7 @@ gitignore'lu): bu anahtar herkesin kullandığı araçta durur, tahta eylemi /
 yeniden başlatma yetkisi taşımamalı.
 """
 
+import asyncio
 import hmac
 import json
 import logging
@@ -26,6 +27,7 @@ from pathlib import Path
 
 import db
 import ders_programi
+import okul_sql
 import zil
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -401,3 +403,55 @@ async def okulda(request: Request, tarih: str = ""):
             "not": "Öğretmen için giriş-çıkış kaydı yok; liste yalnızca ders programına göre şu an dersi olanlardır.",
         }
     )
+
+
+KAZANIM_YOLU = Path(__file__).resolve().parent.parent / "data" / "kazanimlar.json"
+
+
+def _dosya_tablolari() -> dict:
+    """Öğretmen programı ve haftalık kazanımlar (dosya kaynaklı); dosya yoksa/bozuksa o tablo boş kalır."""
+    try:
+        program = _ogretmen_programi()
+    except HTTPException:
+        program = {}
+    try:
+        kazanim = json.loads(KAZANIM_YOLU.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        kazanim = {}
+    saatler = {d["no"]: d for d in zil.ders_saatleri()}
+    simdi = okul_sql.simdi_tablosu(simdi_bilgisi(), zil.simdi_istanbul().isoweekday())
+    return {**okul_sql.ogretmen_programi_tablosu(program, saatler), **okul_sql.kazanim_tablosu(kazanim), **simdi}
+
+
+@router.post("/sql")
+async def sql(request: Request):
+    """Atos'un tek veri ucu: okul_ana + yoklama tablolarında salt-okunur SELECT (bkz. okul_sql.py).
+    Öğrenci/veli telefonu içerdiği için yalnızca yönetici (admin) rolü."""
+    ayar = _dogrula(request)
+    if (request.headers.get("X-Farabi-Rol") or "").strip().lower() != "admin":
+        raise HTTPException(403, "SQL sorgusu yalnızca yönetici hesabıyla yapılabilir.")
+    dsn = ayar.get("sql_dsn")
+    if not dsn:
+        raise HTTPException(503, "SQL bağlantısı yapılandırılmamış.")
+    try:
+        govde = await request.json()
+        sorgu = govde.get("sorgu") if isinstance(govde, dict) else None
+    except ValueError:
+        govde, sorgu = None, None
+    if not isinstance(sorgu, str):
+        raise HTTPException(400, "Gövde {\"sorgu\": \"SELECT ...\"} olmalı.")
+    # Dosya/rapor üretimi daha çok satır isteyebilir (sınıf listesi, devamsızlık dökümü); en çok 2000.
+    satir = govde.get("azami_satir")
+    azami = min(max(satir, 1), 2000) if isinstance(satir, int) and not isinstance(satir, bool) else okul_sql.AZAMI_SATIR
+
+    def _calistir():
+        tablolar = {**okul_sql.pg_tablolari(dsn), **okul_sql.yoklama_tablolari(db.DB_YOLU), **_dosya_tablolari()}
+        return okul_sql.calistir(sorgu, okul_sql.personel_esle(tablolar), azami_satir=azami)
+
+    try:
+        sonuc = await asyncio.to_thread(_calistir)
+    except okul_sql.SqlHatasi as e:
+        log.info("okul/sql reddedildi: %s", e)
+        return JSONResponse({"hata": str(e)}, status_code=400)
+    log.info("okul/sql: %d satır (kullanıcı %s)", len(sonuc["satirlar"]), request.headers.get("X-Farabi-Kullanici", "?"))
+    return JSONResponse(sonuc)

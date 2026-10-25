@@ -150,7 +150,7 @@ Panel API: `GET /api/panel/otomasyon-durum` (X-Sms-Panel-Key) bugünkü devamsı
   seçim önceliklidir.
 - `kisisellestir`: `{isim}` (alıcı adı) ve `{ogrenci_adi}` (veli için bağlı
   öğrencinin adı, öğrenci için kendi adı) yer tutucularını destekler.
-- Ollama entegrasyonu: Farabi'deki `qwen3.8:27b` (`127.0.0.1:11434`) modeline
+- Ollama entegrasyonu: Farabi'deki `gemma4:12b` (`127.0.0.1:11434`) modeline
   bağlanan `POST /api/mesaj-duzelt` endpoint'i ve mesaj kutusu yanındaki "✨ Düzelt (AI)"
   butonu — taslak metni resmi Türkçe okul SMS'ine çevirir, `{isim}` ve
   `{ogrenci_adi}` yer tutucularını olduğu gibi korur.
@@ -269,7 +269,7 @@ zamanlayıcı/başlangıç klasörü) henüz yapılmadı.
 
 ## Atos SMS aracı API'si (`arac_api.py`, 2026-10-05)
 
-Open WebUI "SMS ve Hatırlatma" aracının (`openwebui/farabi_sms_araci.py`,
+Open WebUI "SMS ve Hatırlatma" aracının (`_arsiv/openwebui/farabi_sms_araci.py`; Open WebUI kaldırıldı, AnythingLLM'e henüz taşınmadı;
 yalnızca İdare) ve dijital okulun (`kod-sms`) makine API'si; kimlik `X-Sms-Arac-Key` (`config/arac.json`
 `anahtar`, gitignore'lu — yönetici adları/telefonları da orada, koda yazılmaz).
 

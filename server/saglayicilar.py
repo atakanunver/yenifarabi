@@ -101,7 +101,7 @@ GOREV_ZINCIRLERI: dict[str, list[tuple[str, str]]] = {
         # Ollama kullanilsin"). Bulut saglayicilar fallback olarak kaldi --
         # Ollama servisi cokerse/yanit vermezse zincir otomatik oraya duser
         # (mimari.md SS2 "Farabi asla dersi bozmaz" ile ayni desen).
-        ("ollama",   "qwen3.8:27b"),
+        ("ollama",   "gemma4:12b"),
         ("deepseek", "deepseek-v4-flash"),
         ("mistral",  "mistral-medium-latest"),
     ],
@@ -118,7 +118,7 @@ GOREV_ZINCIRLERI: dict[str, list[tuple[str, str]]] = {
         # ölçülmüş çalışan bir basamak kondu (groq, 0,8 sn).
         ("groq",     "openai/gpt-oss-120b"),
         ("deepseek", "deepseek-v4-flash"),
-        ("ollama",   "qwen3.8:27b"),
+        ("ollama",   "gemma4:12b"),
     ],
     "sembol_duzelt": [
         ("deepseek", "deepseek-v4-flash"),
@@ -134,7 +134,7 @@ GOREV_ZINCIRLERI: dict[str, list[tuple[str, str]]] = {
         # 2026-09-02: aynı ölü nvidia modeli (410) burada da vardı — bkz.
         # kitap_ozet'in yukarıdaki notu. Ölçülmüş çalışan basamakla değişti.
         ("groq",     "openai/gpt-oss-120b"),
-        ("ollama",   "qwen3.8:27b"),
+        ("ollama",   "gemma4:12b"),
     ],
     "ders_plani": [
         # 2026-09-29 (DECISIONS.md): Fizik 10 s.14-22 ölçümü — deepseek en

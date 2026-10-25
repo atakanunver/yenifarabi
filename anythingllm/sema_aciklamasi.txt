@@ -1,0 +1,39 @@
+Okul kayıtlarında SQL (yalnızca SELECT) çalıştırır. Öğrenci, veli, öğretmen, sınıf, ders programı ve
+yoklama sorularının HEPSİ için bunu kullan; tahmin etme, önce sorgula. Telefon ve veli bilgisi dahil
+her kayıt erişilebilir. Hata gelirse mesajı oku, sorguyu düzeltip yeniden dene.
+Ad ararken LIKE yerine `ara(ad_soyad, 'ayşe')` kullan: Türkçe harf ve büyük/küçük harf duyarsızdır
+(kayıtlar BÜYÜK harfli; ayşe, AYSE, Ayşe aynı eşleşir). Aynı ada birden çok kişi çıkarsa hepsini göster.
+
+Tablolar (kolonlar):
+ogrenci(okul_no, ad_soyad, cinsiyet 'Erkek'|'Kız', dogum_tarihi 'YYYY-AA-GG', telefon, aktif)
+veli(id, ad_soyad, telefon)
+veli_ogrenci(veli_id, okul_no, yakinlik 'Anne'|'Baba'|'Anneanne'|'Babanne'|'Dede'|'Teyze'|'Enişte')
+personel(id, ad_soyad, telefon, dogum_tarihi, gorev 'ogretmen'|'yonetici'|'diger', aktif)
+sinif(id, yil_id, ad '9-A'|'9-B'|'10-A'|'11-A'|'11-B'|'12-A'|'12-B', seviye)
+sinif_atama(okul_no, yil_id, sinif_id)            -- öğrencinin sınıfı: ogrenci.okul_no = sinif_atama.okul_no
+ders_programi(yil_id, sinif_id, gun 1..5 (1=Pazartesi), ders_no 1..8, ders, derslik_id)  -- hangi sınıfta hangi ders; ÖĞRETMEN YOK
+ogretmen_programi(ogretmen, personel_id, sinif, ders, gun 1..5, ders_no 1..8, baslangic, bitis)  -- TEK TABLODA öğretmen ↔ sınıf ↔ ders ↔ saat; öğretmenin programı için başka tablo gerekmez. personel_id = personel.id (kaydı olmayan öğretmende NULL → LEFT JOIN)
+simdi(tarih, saat 'SS:DD', gun 1..7, gun_adi, durum 'ders'|'teneffus'|'okul_disi', ders_no, aciklama)  -- TEK SATIR: şu anki Türkiye zamanı ve ders durumu
+kazanim(seviye '9'|'10'|'11'|'12', ders (küçük harf, örn. 'biyoloji'), hafta 1.., hafta_baslangic 'YYYY-AA-GG', metin)  -- haftalık işlenecek kazanım
+zil(yil_id, gun_tipi, ders_no, baslangic 'SS:DD', bitis 'SS:DD')
+ogretim_yili(id, ad, baslangic, bitis, aktif)     -- geçerli yıl: aktif = 1 (yil_id = 2026)
+derslik(id, ad, sinif_ad, tahta_host)
+yoklama_onbellek(tarih 'YYYY-AA-GG', sinif, ders_no, durum 'alindi'|'alinmadi'|'tahta_ulasilamaz'|'ders_yok_o_gun',
+                 yok_isimleri, izinli_isimleri, yok_nolari, izinli_nolari)  -- *_isimleri / *_nolari JSON listesi
+kulup_yoklama(yoklama_onbellek ile aynı kolonlar; sinif = kulüp kodu)
+
+İpuçları: devamsız adları için `SELECT y.tarih, y.sinif, j.value FROM yoklama_onbellek y, json_each(y.yok_isimleri) j
+WHERE y.durum='alindi'`; öğretmenin dersleri için `ogretmen_programi` (ad: `ara(ogretmen,'ayşe')`; aynı ad birden çok öğretmende olabilir);
+öğretmenin telefonu/görevi için `LEFT JOIN personel p ON p.id = ogretmen_programi.personel_id` (adla JOIN etme, ad sırası farklıdır).
+Sınıfın dersi için `ders_programi.sinif_id = sinif.id`. Bir sınıfın
+o hafta işleyeceği kazanım için `sinif.seviye = kazanim.seviye` ve hafta_baslangic <= bugün < sonraki hafta kullan. Bugünün tarihi mesajdaki <baglam> bloğundadır, kendin tahmin etme.
+Ders programı yalnızca hafta içi (gun 1-5) vardır. En fazla 200 satır döner.
+
+Örnekler (olduğu gibi çalışır; bu tablolara ek JOIN gerekmez):
+- Öğretmenin pazartesi sınıfları: SELECT DISTINCT sinif, ders FROM ogretmen_programi WHERE ara(ogretmen,'gözde') AND gun=1
+  (`sinif` zaten '12-A' gibi metindir; sinif tablosuna JOIN ETME, tür uyuşmaz)
+- Öğretmen şu an hangi sınıfta / okulda mı: SELECT op.ogretmen, op.sinif, op.ders FROM ogretmen_programi op, simdi s WHERE ara(op.ogretmen,'ayşe') AND op.gun=s.gun AND op.ders_no=s.ders_no
+  (sonuç boşsa SELECT durum, aciklama FROM simdi ile nedenini söyle: teneffüs / ders saati dışı / dersi yok. Öğretmen giriş-çıkış kaydı YOKTUR; "okulda mı" yalnızca ders programına göre cevaplanır, bunu belirt.)
+- Sınıf mevcudu: SELECT s.ad, count(*) FROM sinif_atama a JOIN sinif s ON s.id=a.sinif_id GROUP BY s.ad
+- Velinin öğrencisi ve telefonu: SELECT o.ad_soyad, v.ad_soyad, vo.yakinlik, v.telefon FROM ogrenci o
+  JOIN veli_ogrenci vo ON vo.okul_no=o.okul_no JOIN veli v ON v.id=vo.veli_id WHERE ara(o.ad_soyad,'çağla')

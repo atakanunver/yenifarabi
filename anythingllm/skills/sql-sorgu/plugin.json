@@ -1,0 +1,54 @@
+{
+  "active": true,
+  "hubId": "sql-sorgu",
+  "name": "Okul veri tabanı SQL sorgusu",
+  "schema": "skill-1.0.0",
+  "version": "1.0.0",
+  "description": "__SEMA__",
+  "author": "Farabi",
+  "author_url": "",
+  "license": "MIT",
+  "setup_args": {
+    "OKUL_API_KEY": {
+      "type": "string",
+      "required": true,
+      "input": {
+        "type": "text",
+        "default": "",
+        "placeholder": "",
+        "hint": "Dashboard /api/okul anahtarı (dağıtımda otomatik yazılır)"
+      },
+      "value": "__ANAHTAR__"
+    },
+    "OKUL_API_URL": {
+      "type": "string",
+      "required": false,
+      "input": {
+        "type": "text",
+        "default": "http://127.0.0.1/api/okul/sql",
+        "placeholder": "",
+        "hint": "Dashboard SQL ucu"
+      },
+      "value": "http://127.0.0.1/api/okul/sql"
+    }
+  },
+  "examples": [
+    {
+      "prompt": "Okulda kaç öğrenci kayıtlı?",
+      "call": "{\"sorgu\": \"SELECT count(*) FROM ogrenci\"}"
+    },
+    {
+      "prompt": "Gözde öğretmen pazartesi hangi sınıflara giriyor?",
+      "call": "{\"sorgu\": \"SELECT DISTINCT sinif, ders FROM ogretmen_programi WHERE ara(ogretmen,'gözde') AND gun=1\"}"
+    }
+  ],
+  "entrypoint": {
+    "file": "handler.js",
+    "params": {
+      "sorgu": {
+        "description": "Tek bir SELECT ifadesi (SQLite sözdizimi).",
+        "type": "string"
+      }
+    }
+  }
+}

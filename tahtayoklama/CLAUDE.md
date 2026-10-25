@@ -149,7 +149,7 @@ dosyası `dashboard/scripts/kazanim_yukle.py` ile yıllık planlardan üretilir
 
 Farabi'nin `server/`'daki FastAPI'sinden (`farabi-api.service`, GPU-bağımlı)
 **tamamen bağımsız**: kendi venv'i, kendi SQLite DB'si (`veri/yoklama_pano.db`),
-kendi portu (**80**; drop-in `port80.conf` ana birimdeki 8010'u ezer — 8010 artık Open WebUI/Atos), kendi systemd birimi (`farabi-yoklama-dashboard.service`,
+kendi portu (**80**; drop-in `port80.conf` ana birimdeki 8010'u ezer — 8010 artık AnythingLLM/Atos), kendi systemd birimi (`farabi-yoklama-dashboard.service`,
 `After=`/`Wants=` YOK — tam ayrık). `server/tahtalar.json`'a **geri yazma
 YAPILMAZ** — pano kendi tahta/sınıf kaydını tutar.
 
@@ -176,7 +176,7 @@ YAPILMAZ** — pano kendi tahta/sınıf kaydını tutar.
 | `zil.py` | `data/zil.json` okuma + ders-zamanlama, `Europe/Istanbul` saat dilimine sabit; `gun_adi_buyuk()` (2026-09-17 eklendi) — büyük harf Türkçe gün adı, `.upper()` DEĞİL sabit sözlük kullanır (Türkçe "İ" locale hatasından kaçınmak için) |
 | `admin.py` | `/admin/tahtalar`, `/admin/siniflar`, `/admin/siniflar/{id}/ogrenciler`, `/admin/rapor` — tahta↔sınıf atama, roster düzenleme/senkron, devamsızlık raporu+CSV |
 | `uzaktan_yonetim.py`, `uzaktan_baslat.py`, `tahta_kaydi.py` | Faz 6 — bkz. §5 |
-| `ajan_api.py`, `tahta_yeniden_baslat.py` | `/api/ajan/*` makine API'si ve tahta yeniden başlatma (Open WebUI "Farabi Yönetim" aracı için) — bkz. §5.2 |
+| `ajan_api.py`, `tahta_yeniden_baslat.py` | `/api/ajan/*` makine API'si ve tahta yeniden başlatma (eski Open WebUI "Farabi Yönetim" aracı için; araç `_arsiv/openwebui/`'de, AnythingLLM'e taşınmadı) — bkz. §5.2 |
 | `ders_programi.py` | pano hücrelerindeki ders kısa adı etiketi (MAT, İNG, ...) |
 | `db.py`, `auth.py` | SQLite şema/bağlantı; tek ortak şifre (scrypt) + `oturumlar`, smssistemi SSO token imzalama (`config/sms_sso.json`) |
 | `sistem_durumu.py` | `/sistem-durumu` — bkz. §4.1 |

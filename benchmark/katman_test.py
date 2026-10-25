@@ -87,7 +87,7 @@ def main() -> int:
                      help="Bu skorun ALTINDAKİ adaylar LLM'e HİÇ gitmez (ana savunma, mimari.md §8 adım 5)")
     ap.add_argument("--kitap-id", type=int, default=None)
     ap.add_argument("--ollama-host", default="127.0.0.1:11434")
-    ap.add_argument("--model", default="qwen2.5:14b")
+    ap.add_argument("--model", default="gemma4:12b")
     ap.add_argument("--llm-timeout", type=float, default=60.0)
     ap.add_argument("--db-host", default="127.0.0.1")
     ap.add_argument("--db-name", default="farabi")

@@ -218,7 +218,7 @@ ATLANAN = {
 # Okunamayan biçimler: kütüphane yok, sistem paketi kurulmaz.
 DESTEKLENMEYEN_UZANTILAR = {
     ".doc": "eski .doc: antiword/libreoffice/textract/olefile bu venv'de yok "
-            "(olefile yalnızca /opt/open-webui/venv'de; başka servisin venv'i, kullanılmadı)",
+            "(olefile bu venv'de kurulu değil)",
 }
 
 # --- Metin yardımcıları -------------------------------------------------------

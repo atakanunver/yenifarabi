@@ -80,7 +80,7 @@ templates.env.globals["stil_surum"] = int(os.path.getmtime("static/stil.css"))
 _DURDUR_BAYRAKLARI: dict[str, threading.Event] = {}
 
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
-OLLAMA_MODEL = "qwen3.8:27b"
+OLLAMA_MODEL = "gemma4:12b"
 
 
 def ollama_mesaj_duzelt(taslak: str) -> str:
@@ -108,7 +108,7 @@ def ollama_mesaj_duzelt(taslak: str) -> str:
         "system": system_prompt,
         "prompt": f"Taslak: {taslak}\nÇıktı:",
         "stream": False,
-        "think": False,  # qwen3.x düşünmesin; 30 sn zaman aşımı (2026-10-02)
+        "think": False,  # Gemma/qwen3.x düşünmesin; 30 sn zaman aşımı (2026-10-02)
         "options": {"temperature": 0.2},
     }
     veri_bytes = json.dumps(payload).encode("utf-8")

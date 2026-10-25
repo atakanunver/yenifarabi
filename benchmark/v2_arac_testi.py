@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-v2_arac_testi.py — Farabi Ollama qwen3.8:27b Araç Seçimi (Function Calling) Testi
+v2_arac_testi.py — Farabi Ollama gemma4:12b Araç Seçimi (Function Calling) Testi
 
-HEDEF: Farabi'deki Ollama qwen3.8:27b modelinin, tahta istemcisinin Gemini Live'a
+HEDEF: Farabi'deki Ollama gemma4:12b modelinin, tahta istemcisinin Gemini Live'a
 verdiği araç bildirimleriyle öğretmen cümlelerinde doğru aracı ve argümanları
 seçip seçemediğini ölçmek. SALT-OKUNUR benchmark betiğidir.
 
@@ -456,7 +456,7 @@ TEST_CUMLELERI = [
 ]
 
 
-def query_ollama(cumle: str, kip: str, tools: list[dict], host: str = "http://localhost:11434", model: str = "qwen3.8:27b") -> tuple[dict, float]:
+def query_ollama(cumle: str, kip: str, tools: list[dict], host: str = "http://localhost:11434", model: str = "gemma4:12b") -> tuple[dict, float]:
     """Ollama API'sine ardışık istek atar, yanıtı ve gecikmeyi (ms) döner."""
     url = f"{host}/api/chat"
     sys_prompt = PROMPTLAR.get(kip, PROMPTLAR["ogretmenli"])
@@ -516,7 +516,7 @@ def check_arguments(beklenen_args: dict, secilen_args: dict) -> list[str]:
 
 def main():
     print("=" * 70)
-    print("Farabi v2 Araç Seçimi Testi (qwen3.8:27b)")
+    print("Farabi v2 Araç Seçimi Testi (gemma4:12b)")
     print(f"Toplam Test Cümlesi: {len(TEST_CUMLELERI)}")
     print("=" * 70)
 
@@ -653,7 +653,7 @@ def main():
     
     rapor_icerik = {
         "tarih": datetime.now().isoformat(),
-        "model": "qwen3.8:27b",
+        "model": "gemma4:12b",
         "toplam_test": toplam_test,
         "arac_testleri": {
             "toplam": aracli_toplam,
