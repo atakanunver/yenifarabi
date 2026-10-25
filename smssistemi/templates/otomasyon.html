@@ -64,16 +64,17 @@
         Saat <strong>{{ k.saat }}</strong> · <strong>{{ k.ders_no }}. ders</strong> ·
         {% if k.son_sonuc %}son çalışma {{ k.son_sonuc.calisma_zamani }} ({{ k.son_sonuc.veli_sms_sayisi }} veli){% else %}henüz çalışmadı{% endif %}
       </p>
-      <details class="kural-duzenle" {{ 'open' if form_hata and secili and secili.id == k.id and not form }}>
+      {% set d = duzenle_form if duzenle_form.kural_id == k.id else k %}
+      <details class="kural-duzenle" {{ 'open' if duzenle_form.kural_id == k.id }}>
         <summary>Düzenle</summary>
         <form method="post" action="/otomasyon/kural/{{ k.id }}/guncelle" class="kural-form">
           <div class="kural-form-izgara">
-            <label>Ad <input type="text" name="ad" value="{{ k.ad }}" maxlength="60"></label>
-            <label>Saat <input type="time" name="saat" value="{{ k.saat }}" required></label>
-            <label>Ders <input type="number" name="ders_no" value="{{ k.ders_no }}" min="1" max="{{ ders_no_azami }}" required></label>
+            <label>Ad <input type="text" name="ad" value="{{ d.ad }}" maxlength="60"></label>
+            <label>Saat <input type="time" name="saat" value="{{ d.saat }}" required></label>
+            <label>Ders <input type="number" name="ders_no" value="{{ d.ders_no }}" min="1" max="{{ ders_no_azami }}" required></label>
           </div>
           <label>Mesaj şablonu
-            <textarea name="sablon" rows="3" maxlength="{{ sablon_azami }}" required data-sayac="sayac-{{ k.id }}">{{ k.sablon }}</textarea>
+            <textarea name="sablon" rows="3" maxlength="{{ sablon_azami }}" required data-sayac="sayac-{{ k.id }}">{{ d.sablon }}</textarea>
           </label>
           <div class="karakter-sayac-serit"><span id="sayac-{{ k.id }}"></span></div>
           <div class="kural-form-eylem">

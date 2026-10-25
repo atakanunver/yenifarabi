@@ -694,6 +694,7 @@ def _otomasyon_sayfasi(
     mesaj: str | None = None,
     form_hata: str | None = None,
     form: dict | None = None,
+    duzenle_form: dict | None = None,
     durum_kodu: int = 200,
 ):
     bugun = otomasyon.bugun_istanbul().isoformat()
@@ -728,6 +729,7 @@ def _otomasyon_sayfasi(
             "hata": hata,
             "form_hata": form_hata,
             "form": form or {},
+            "duzenle_form": duzenle_form or {},
             "pencere_dk": otomasyon.PENCERE_DK,
             "ders_no_azami": otomasyon.DERS_NO_AZAMI,
             "sablon_azami": otomasyon.SABLON_AZAMI,
@@ -787,7 +789,10 @@ async def otomasyon_kural_guncelle(
         try:
             otomasyon.kural_guncelle(conn, kural_id, ad, saat, ders_no, sablon)
         except otomasyon.KuralHatasi as e:
-            return _otomasyon_sayfasi(request, conn, kural_id=kural_id, form_hata=str(e), durum_kodu=400)
+            duzenle_form = {"kural_id": kural_id, "ad": ad, "saat": saat, "ders_no": ders_no, "sablon": sablon}
+            return _otomasyon_sayfasi(
+                request, conn, kural_id=kural_id, form_hata=str(e), duzenle_form=duzenle_form, durum_kodu=400
+            )
     finally:
         conn.close()
     return RedirectResponse(f"/otomasyon?kural={kural_id}&mesaj=guncellendi", status_code=303)

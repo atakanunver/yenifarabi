@@ -404,6 +404,14 @@ def otomasyon_calistir(
     hedef_tarih = tarih or bugun_istanbul().isoformat()
     ders_no = kural["ders_no"]
 
+    # Zamanlayıcı kuralları topluca seçer; önceki gönderim sürerken bu kural kapatılmış ya da saati
+    # değiştirilmiş olabilir. Kilit alındıktan sonra güncel kayda göre yeniden doğrula.
+    if not kuru and tetikleyen == "otomatik_zamanlayici" and not (
+        kural["aktif"] and pencerede_mi(kural["saat"], simdi_istanbul())
+    ):
+        logger.info(f"Otomasyon (kural {kural_id}) artık kapalı ya da penceresi dışında, atlandı.")
+        return {"durum": "atlandi", "kural_id": kural_id, "tarih": hedef_tarih}
+
     if not kuru and ders_son_tarih(conn, ders_no) == hedef_tarih and tetikleyen == "otomatik_zamanlayici":
         logger.info(f"Otomasyon ({ders_no}. ders) {hedef_tarih} için zaten çalışmış, mükerrer gönderim atlandı.")
         return {

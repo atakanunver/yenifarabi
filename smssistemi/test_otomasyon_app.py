@@ -280,3 +280,15 @@ async def test_manuel_calistir_zaten_calisiyorsa_gondermez(test_db, monkeypatch)
         otomasyon._CALISMA_KILIDI.release()
     assert resp.headers["location"] == "/otomasyon?kural=1&mesaj=calisiyor"
     assert gonderildi == []
+
+
+@pytest.mark.anyio
+async def test_kural_guncelle_hatasinda_girilen_degerler_korunur(test_db, pano):
+    """Ders çakışınca düzenleme formu DB'deki eski değerle değil gönderilenle gelir (Copilot, PR #3)."""
+    req = _sahte_oturum_request(test_db)
+    resp = await app.otomasyon_kural_guncelle(req, 2, ad="Yeni ad", saat="13:50", ders_no="1", sablon="Yeni metin {isim}")
+    assert resp.status_code == 400
+    govde = resp.body.decode("utf-8")
+    assert "1. ders için zaten başka bir otomasyon var" in govde
+    assert 'value="Yeni ad"' in govde and 'value="13:50"' in govde and "Yeni metin {isim}</textarea>" in govde
+    assert otomasyon.kural_getir(test_db, 2)["ad"] == "Öğleden sonra 6. ders"  # kayıt değişmedi

@@ -23,6 +23,14 @@ def test_db(tmp_path, monkeypatch):
     conn.close()
 
 
+@pytest.fixture
+def zamanlayici(test_db, monkeypatch):
+    """Otomatik tetik testleri için: kural 1/2 açık ve "şu an" pencerelerinin içinde."""
+    otomasyon.kural_aktif_yaz(test_db, 1, True)
+    otomasyon.kural_aktif_yaz(test_db, 2, True)
+    monkeypatch.setattr(otomasyon, "pencerede_mi", lambda saat, simdi: True)
+
+
 def test_okul_gunu_mu():
     pazartesi = date(2026, 9, 21)
     cuma = date(2026, 9, 25)
@@ -132,7 +140,7 @@ def test_otomasyon_calistir_kuru(test_db, monkeypatch):
     assert otomasyon.ders_son_tarih(test_db, 1) == ""
 
 
-def test_otomasyon_calistir_canli_ve_idempotent(test_db, monkeypatch):
+def test_otomasyon_calistir_canli_ve_idempotent(test_db, monkeypatch, zamanlayici):
     siniflar = {s["ad"]: s["id"] for s in db.siniflar_listele(test_db)}
     sinif_9a = siniflar["9-A"]
 
@@ -184,7 +192,7 @@ def test_otomasyon_calistir_canli_ve_idempotent(test_db, monkeypatch):
     assert len(gonderilenler) == 1
 
 
-def test_otomasyon_baglanti_hatasinda_son_tarih_yazilmaz_ve_tekrar_dener(test_db, monkeypatch):
+def test_otomasyon_baglanti_hatasinda_son_tarih_yazilmaz_ve_tekrar_dener(test_db, monkeypatch, zamanlayici):
     """2026-09-28 canlı olayının regresyon testi: Müdür PC proxy'si
     düşünce (_baglan hep başarısız), otomasyon o gün için dersin son tarihini
     YAZMAMALI — aksi halde arka plan döngüsü 09:00-09:10 penceresinde bir
@@ -231,7 +239,7 @@ def test_otomasyon_baglanti_hatasinda_son_tarih_yazilmaz_ve_tekrar_dener(test_db
     assert sonuc2["durum"] != "zaten_calisti"
 
 
-def test_otomasyon_kismi_basaridan_sonra_son_tarih_yazilir(test_db, monkeypatch):
+def test_otomasyon_kismi_basaridan_sonra_son_tarih_yazilir(test_db, monkeypatch, zamanlayici):
     """En az bir SMS gittiyse (kısmi başarı dahil) mükerrer gönderimi
     önlemek için son tarih yine de yazılmalı."""
     siniflar = {s["ad"]: s["id"] for s in db.siniflar_listele(test_db)}
@@ -264,7 +272,7 @@ def test_otomasyon_kismi_basaridan_sonra_son_tarih_yazilir(test_db, monkeypatch)
     assert otomasyon.ders_son_tarih(test_db, 1) == "2026-09-25"
 
 
-def test_otomasyon_sms_denendi_ama_hepsi_hata_ise_son_tarih_yazilir(test_db, monkeypatch):
+def test_otomasyon_sms_denendi_ama_hepsi_hata_ise_son_tarih_yazilir(test_db, monkeypatch, zamanlayici):
     """Bağlantı kuruldu, send_sms her alıcıda hata verdi (ör. modem kabul edip
     zaman aşımına düştü — SMS aslında gitmiş olabilir). Bu durumda 09:00-09:10
     döngüsü yeniden DENEMEMELİ, yoksa veliye 30 sn'de bir mükerrer SMS gider.
@@ -412,7 +420,7 @@ def test_ogle_devamsizlar_ve_veliler(test_db, monkeypatch):
         assert "öğleden sonra" in s["mesaj"]
 
 
-def test_otomasyon_calistir_ogle_canli_ve_idempotent(test_db, monkeypatch):
+def test_otomasyon_calistir_ogle_canli_ve_idempotent(test_db, monkeypatch, zamanlayici):
     """Öğle otomasyonunun çalışması, oto6_ ön eki, bağımsız son tarih ve mükerrer engeli."""
     siniflar = {s["ad"]: s["id"] for s in db.siniflar_listele(test_db)}
     sinif_9a = siniflar["9-A"]
@@ -469,7 +477,7 @@ def test_otomasyon_calistir_ogle_canli_ve_idempotent(test_db, monkeypatch):
     assert len(gonderilenler) == 1  # Tekrar SMS göndermedi
 
 
-def test_sabah_ve_ogle_otomasyonlari_birbirinden_bagimsiz(test_db, monkeypatch):
+def test_sabah_ve_ogle_otomasyonlari_birbirinden_bagimsiz(test_db, monkeypatch, zamanlayici):
     """Sabah otomasyonu çalışmış olsa bile öğle otomasyonu engellenmez; durumlar bağımsızdır."""
     monkeypatch.setattr(yoklama_kaynak, "gunun_satirlari", lambda tarih: [])
 
@@ -559,7 +567,7 @@ def test_kural_ekle_kapali_baslar_ve_ayni_derse_ikinci_kural_eklenemez(test_db):
         otomasyon.kural_guncelle(test_db, kid, "", "10:30", 1, "x")  # 1. ders kural 1'de
 
 
-def test_silinip_yeniden_eklenen_kural_ayni_gun_ikinci_sms_atmaz(test_db, monkeypatch):
+def test_silinip_yeniden_eklenen_kural_ayni_gun_ikinci_sms_atmaz(test_db, monkeypatch, zamanlayici):
     siniflar = {s["ad"]: s["id"] for s in db.siniflar_listele(test_db)}
     ogr = db.kisi_ekle(test_db, "Deniz Aras", None, siniflar["9-A"], "ogrenci", okul_no=105)
     db.kisi_ekle(test_db, "Selin Aras", "05329998877", siniflar["9-A"], "veli", ogrenci_kisi_id=ogr, veli_rol="Anne")
@@ -578,6 +586,7 @@ def test_silinip_yeniden_eklenen_kural_ayni_gun_ikinci_sms_atmaz(test_db, monkey
     otomasyon.otomasyon_calistir(test_db, 1, tetikleyen="otomatik_zamanlayici", tarih="2026-09-25")
     otomasyon.kural_sil(test_db, 1)
     yeni = otomasyon.kural_ekle(test_db, "", "09:05", 1, "Tekrar {isim}")
+    otomasyon.kural_aktif_yaz(test_db, yeni, True)
     sonuc = otomasyon.otomasyon_calistir(test_db, yeni, tetikleyen="otomatik_zamanlayici", tarih="2026-09-25")
     assert sonuc["durum"] == "zaten_calisti"
     assert gonderilen == ["05329998877"]
@@ -614,3 +623,44 @@ def test_sonraki_ders_kurali_sabah_gelenleri_ayirir_ve_varsayilan_sablon(test_db
     assert sonuc["sabah_gelen_sayisi"] == 1
     assert {o["ad_soyad"]: o["sabah_da_yok"] for o in sonuc["ogrenciler"]} == {"Ali Kaya": True, "Selin Yılmaz": False}
     assert all("3. derse" in s["mesaj"] for s in sonuc["gonderilecek_smsler"])
+
+
+def test_otomatik_tetik_kilitten_sonra_kural_kapali_ya_da_pencere_disindaysa_gondermez(test_db, monkeypatch):
+    """Zamanlayıcı kuralları topluca seçer; önceki gönderim sürerken kapatılan ya da saati ileri
+    alınan kural SMS göndermemeli (Copilot incelemesi, PR #3). Elle gönderim etkilenmez."""
+    from datetime import datetime
+
+    siniflar = {s["ad"]: s["id"] for s in db.siniflar_listele(test_db)}
+    ogr = db.kisi_ekle(test_db, "Deniz Aras", None, siniflar["9-A"], "ogrenci", okul_no=105)
+    db.kisi_ekle(test_db, "Selin Aras", "05329998877", siniflar["9-A"], "veli", ogrenci_kisi_id=ogr)
+    monkeypatch.setattr(yoklama_kaynak, "gunun_satirlari", lambda tarih: [{
+        "sinif": "9-A", "ders_no": 1, "durum": "alindi", "yok_isimleri": ["Deniz Aras"], "izinli_isimleri": [],
+    }])
+    gonderilen = []
+
+    def mock_toplu_gonder(ayarlar, kisiler, callback, durdur_bayragi, bekleme_sn):
+        for isim, tel, msg in kisiler:
+            gonderilen.append(tel)
+            callback(isim, tel, msg, "gonderildi", None)
+
+    monkeypatch.setattr(otomasyon.sms_gonderici, "toplu_gonder", mock_toplu_gonder)
+    monkeypatch.setattr(otomasyon, "simdi_istanbul", lambda: datetime(2026, 9, 25, 9, 5))
+
+    def calistir():
+        return otomasyon.otomasyon_calistir(
+            test_db, 1, tetikleyen="otomatik_zamanlayici", tarih="2026-09-25", bekleme_sn=0)
+
+    assert calistir()["durum"] == "atlandi"  # kural 1 kapalı
+    otomasyon.kural_aktif_yaz(test_db, 1, True)
+    otomasyon.kural_guncelle(test_db, 1, "", "09:30", 1, "x {isim}")  # saat ileri alındı
+    assert calistir()["durum"] == "atlandi"
+    assert gonderilen == [] and otomasyon.ders_son_tarih(test_db, 1) == ""
+
+    otomasyon.kural_guncelle(test_db, 1, "", "09:00", 1, "x {isim}")
+    assert calistir()["durum"] == "tamamlandi"
+    assert gonderilen == ["05329998877"]
+    # Elle gönderim aktiflik/pencereye bakmaz (onay penceresi arayüzde)
+    otomasyon.kural_aktif_yaz(test_db, 2, False)
+    monkeypatch.setattr(yoklama_kaynak, "gunun_satirlari", lambda tarih: [])
+    sonuc = otomasyon.otomasyon_calistir(test_db, 2, tetikleyen="manuel_arayuz", tarih="2026-09-25")
+    assert sonuc["durum"] == "tamamlandi"
