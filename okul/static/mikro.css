@@ -1,0 +1,63 @@
+/* Mikro-görevler: Günün Bilmecesi + Teşekkür Kartı. Yalnızca tema değişkenleri (temalar.css ile uyumlu). */
+
+/* Bilmece: defter sayfasına iliştirilmiş, fosforla işaretlenmiş not kâğıdı */
+.bilmece { position: relative; border: 1.5px solid var(--kenar); border-left: 6px solid var(--mor-orta); background:
+  repeating-linear-gradient(to bottom, transparent 0 27px, var(--cizgi) 27px 28px), var(--alan); }
+.bilmece h2 { gap: .4rem; }
+.bilmece-etiket { display: inline-block; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--mor-koyu); background: var(--mor-acik); padding: .15rem .55rem; border-radius: 999px; }
+.bilmece-soru { font-size: 1.12rem; font-weight: 700; line-height: 1.45; margin: .5rem 0 .8rem; }
+.bilmece-soru mark, .bilmece-vurgu { background: linear-gradient(transparent 55%, var(--fosfor) 55%); color: inherit; padding: 0 .1em; }
+.secenekler { display: grid; gap: .5rem; margin: 0 0 .8rem; padding: 0; border: 0; }
+.secenek { display: flex; align-items: center; gap: .65rem; padding: .7rem .85rem; border: 1.5px solid var(--kenar2); border-radius: 12px;
+  background: var(--alan); cursor: pointer; min-height: 48px; transition: transform .12s, border-color .12s; }
+.secenek input { width: 1.15rem; height: 1.15rem; accent-color: var(--mor-orta); flex: none; margin: 0; }
+.secenek:has(input:checked) { border-color: var(--mor-orta); background: var(--mor-acik); }
+.secenek-harf { font-weight: 800; color: var(--mor-orta); min-width: 1.2rem; }
+.secenek.dogru { border-color: var(--yesil); background: var(--yesil-acik); }
+.secenek.benim:not(.dogru) { border-color: var(--kirmizi); background: var(--kirmizi-acik); }
+.secenek.pasif { cursor: default; }
+.bilmece-durum { display: flex; align-items: center; gap: .6rem; padding: .7rem .85rem; border-radius: 12px; background: var(--sari-bg);
+  color: var(--sari-yazi); border: 1px dashed var(--sari-kenar); font-weight: 600; }
+.bilmece-sonuc { margin-top: .8rem; padding-top: .8rem; border-top: 1.5px dashed var(--kenar); }
+.bilmece-xp { display: inline-block; font-weight: 800; color: var(--yesil); }
+@media (prefers-reduced-motion: no-preference) {
+  .secenek:active { transform: scale(.985); }
+}
+
+/* Teşekkür Kartı: pul + kartpostal */
+.tesekkur-kartlar { display: grid; gap: .6rem; margin: 0; padding: 0; list-style: none; }
+.tesekkur-kart { position: relative; display: grid; grid-template-columns: auto 1fr; gap: .2rem .8rem; align-items: center;
+  padding: .8rem .9rem; border-radius: 14px; background: var(--alan); border: 1.5px solid var(--mor-kenar);
+  box-shadow: 0 1px 0 rgba(27, 42, 74, .05); }
+.tesekkur-pul { grid-row: span 2; display: grid; place-items: center; width: 3rem; height: 3rem; font-size: 1.6rem;
+  background: var(--mor-acik); border: 2px dashed var(--mor); border-radius: 6px; transform: rotate(-4deg); }
+.tesekkur-metin { font-weight: 700; line-height: 1.3; }
+.tesekkur-alt { font-size: .82rem; color: var(--soluk); }
+.tesekkur-xp { position: absolute; top: .5rem; right: .6rem; font-size: .72rem; font-weight: 800; color: var(--yesil);
+  background: var(--yesil-acik); padding: .1rem .45rem; border-radius: 999px; }
+
+/* Öğretmen gönderim formu */
+.sablon-sec { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .5rem; margin: .3rem 0 1rem; border: 0; padding: 0; }
+.sablon-sec label { display: flex; flex-direction: column; gap: .3rem; padding: .7rem; border: 1.5px solid var(--kenar2); border-radius: 12px;
+  background: var(--alan); cursor: pointer; font-weight: 600; font-size: .9rem; line-height: 1.3; }
+.sablon-sec label:has(input:checked) { border-color: var(--mor-orta); background: var(--mor-acik); }
+.sablon-sec input { position: absolute; opacity: 0; pointer-events: none; }
+.sablon-sec .simge { font-size: 1.5rem; }
+.sablon-sec label:has(input:focus-visible) { outline: 3px solid var(--halka); outline-offset: 2px; }
+.ogrenci-sec { display: grid; gap: .3rem; margin: 0 0 1rem; padding: 0; list-style: none; }
+.ogrenci-sec label { display: flex; align-items: center; gap: .6rem; padding: .5rem .6rem; border-radius: 10px; border: 1px solid var(--cizgi);
+  background: var(--alan); cursor: pointer; min-height: 44px; }
+.ogrenci-sec label:has(input:checked) { border-color: var(--mor-orta); background: var(--mor-acik); }
+.ogrenci-sec input { width: 1.1rem; height: 1.1rem; accent-color: var(--mor-orta); margin: 0; }
+.ogrenci-sec .no { color: var(--soluk); font-size: .8rem; min-width: 2.2rem; font-variant-numeric: tabular-nums; }
+.ogrenci-sec .aldi { margin-left: auto; }
+
+/* Günün bilgisi (sayfa sonu, sade): tarihte bugün + dünya günleri */
+.gunun-bilgisi { background: var(--kagit); border-style: dashed; }
+.gunun-bilgisi h2 { font-size: 1rem; }
+.gb-gun { margin: .2rem 0; font-weight: 600; }
+.gb-baslik { margin: .7rem 0 .3rem; font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--soluk); }
+.gb-liste { margin: 0; padding: 0; list-style: none; display: grid; gap: .35rem; }
+.gb-liste li { display: flex; gap: .6rem; align-items: baseline; font-size: .92rem; line-height: 1.4; }
+.gb-yil { flex: none; min-width: 3rem; font-variant-numeric: tabular-nums; color: var(--mor-orta); }

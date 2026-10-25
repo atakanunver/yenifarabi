@@ -70,6 +70,14 @@
 </section>
 {% endif %}
 
+{% if tesekkur is defined and tesekkur.son %}
+<link rel="stylesheet" href="/static/mikro.css?v=1">
+<section class="kart" aria-label="Teşekkür kartları">
+  <h2>💌 Öğretmenlerinden teşekkür <a href="/tesekkurler?ogr={{ cocuk.id }}">Tümü</a></h2>
+  {% set kartlar = tesekkur.son %}{% set xp_goster = false %}{% include "_tesekkur_kartlar.html" %}
+</section>
+{% endif %}
+
 <section class="kart veli-eylemler">
   <a class="tus tam veli-tus" href="/kutu">✉ Okula mesaj yazın</a>
   <a class="tus tam ikincil veli-tus" href="/veli/onaylar?ogr={{ cocuk.id }}">📋 Onay bekleyen belgeler</a>
@@ -134,4 +142,5 @@
 </div>
 <p><a class="tus ikincil tam" href="/veli/program?ogr={{ cocuk.id }}">Ders programı</a></p>
 {% endif %}
+{% include "_gunun_bilgisi.html" %}
 {% endblock %}

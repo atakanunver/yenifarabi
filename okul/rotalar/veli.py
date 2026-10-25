@@ -4,9 +4,11 @@ import sqlite3
 
 import denemeler
 import duyurular
+import gunun_bilgisi
 import odevler
 import onay
 import sinavlar
+import tesekkur
 import veli_bugun
 import yetki
 import zaman
@@ -51,7 +53,7 @@ def ana(
 ):
     cocuklar, c = _cocuk(request, conn, k, ogr, "veli_ana")
     if c is None:
-        return render(request, "veli/ana.html", cocuklar=[], cocuk=None)
+        return render(request, "veli/ana.html", cocuklar=[], cocuk=None, gunun_bilgisi=gunun_bilgisi.bugun())
     ozet, form, erisildi = ortak.kazanim_ozeti(conn, c)
     dv = ortak.devamsizlik(c, 30)
     bugun = zaman.simdi().strftime("%Y-%m-%d")
@@ -77,6 +79,8 @@ def ana(
         else None,
         kalan=sinavlar.kalan_gun,
         deneme_sayisi=denemeler.deneme_sayisi(conn, c["okul_no"]),
+        tesekkur=tesekkur.ozet(conn, c),
+        gunun_bilgisi=gunun_bilgisi.bugun(),
     )
 
 

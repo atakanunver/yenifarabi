@@ -20,6 +20,27 @@ from pathlib import Path
 
 # user_version N'den N-1'e inmek için çalışan betik. Yeni göç eklenince buraya da eklenir.
 GERI = {
+    35: """
+DROP TABLE IF EXISTS tesekkur;
+DROP TABLE IF EXISTS bilmece_cevap;
+DROP TABLE IF EXISTS bilmece_gun;
+DROP TABLE IF EXISTS bilmece;
+DELETE FROM bilgi_xp WHERE kaynak IN ('bilmece', 'tesekkur');
+CREATE TABLE bilgi_xp_eski (
+    id            INTEGER PRIMARY KEY,
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    kaynak        TEXT NOT NULL CHECK (kaynak IN ('arena_dogru', 'arena_bonus', 'maraton_tur', 'gayret')),
+    ref           TEXT NOT NULL,
+    miktar        INTEGER NOT NULL CHECK (miktar > 0),
+    gun           TEXT NOT NULL,
+    zaman         TEXT NOT NULL,
+    UNIQUE (kullanici_id, kaynak, ref)
+);
+INSERT INTO bilgi_xp_eski SELECT id, kullanici_id, kaynak, ref, miktar, gun, zaman FROM bilgi_xp;
+DROP TABLE bilgi_xp;
+ALTER TABLE bilgi_xp_eski RENAME TO bilgi_xp;
+CREATE INDEX bilgi_xp_kullanici ON bilgi_xp(kullanici_id);
+""",
     34: """
 ALTER TABLE sudoku_oyun DROP COLUMN ipucu;
 ALTER TABLE sudoku_bot DROP COLUMN ipucu;
@@ -163,7 +184,7 @@ DROP TABLE IF EXISTS bilgi_cevap;
 DROP TABLE IF EXISTS bilgi_tur;
 """,
 }
-TABLOLAR = {10: ["avatar"], 9: ["odul_hafta", "odul"], 8: ["hedef"], 7: ["anket_cevap", "anket_yanit", "anket_katilim", "anket_hedef", "anket_soru", "anket"], 6: ["deneme_ogrenci", "deneme"], 5: ["bilgi_rozet", "bilgi_xp", "bilgi_cevap", "bilgi_tur"]}
+TABLOLAR = {35: ["tesekkur", "bilmece_cevap", "bilmece_gun", "bilmece"], 10: ["avatar"], 9: ["odul_hafta", "odul"], 8: ["hedef"], 7: ["anket_cevap", "anket_yanit", "anket_katilim", "anket_hedef", "anket_soru", "anket"], 6: ["deneme_ogrenci", "deneme"], 5: ["bilgi_rozet", "bilgi_xp", "bilgi_cevap", "bilgi_tur"]}
 
 
 def geri_al(db_yolu: Path, hedef: int, onayla: bool) -> int:

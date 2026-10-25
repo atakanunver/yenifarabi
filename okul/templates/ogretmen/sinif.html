@@ -4,6 +4,7 @@
 {% block icerik %}
 <p class="kucuk"><a href="/ogretmen">← Sınıflarım</a></p>
 <h1>{{ sinif }} sınıf listesi</h1>
+{% if k.rol == 'ogretmen' %}<p><a class="tus ikincil" href="/ogretmen/tesekkur?sinif={{ sinif|urlencode }}">💌 Teşekkür kartı gönder</a></p>{% endif %}
 {% if MODULLER is defined %}<p><a class="tus ikincil" href="/ogretmen/gelisim/{{ sinif }}">📈 Gelişim raporu</a> <a class="tus ikincil" href="/ogretmen/liderlik/{{ sinif }}">🏆 Liderlik</a></p>{% endif %}
 {% if devamsiz is defined and devamsiz is not none %}
 <section class="kart" aria-labelledby="devamsizlik">

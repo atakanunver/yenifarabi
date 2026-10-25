@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block baslik %}Teşekkür kartı gönder — Dijital Okul{% endblock %}
+{% block icerik %}
+<link rel="stylesheet" href="/static/mikro.css?v=1">
+<p class="kucuk"><a href="/ogretmen">← Ana sayfa</a></p>
+<h1>💌 Günün Teşekkürü</h1>
+<p class="soluk">Bugün gayret gösteren, derse katılan ya da yardımsever davranan öğrencilere hazır bir kart gönderin. Kartı <b>öğrenci ve velisi</b> görür; öğrenciye avatarı için <b>+{{ kart_xp }} XP</b> kazandırır (haftalık XP yarışına sayılmaz). Bir öğrenciye günde bir kart gönderebilirsiniz.</p>
+{% set n = request.query_params.get('gonderildi') %}
+{% if n is not none %}<p class="kart" role="status">{% if n != '0' %}{{ n }} öğrenciye kart gönderildi. Teşekkürler!{% else %}Seçtiğiniz öğrenciler bugün sizden zaten kart almıştı.{% endif %}</p>{% endif %}
+{% if hata %}<p class="kart hata" role="alert">{{ hata }}</p>{% endif %}
+{% if not siniflar %}
+<section class="kart"><p class="bos">Size atanmış bir sınıf yok.</p></section>
+{% else %}
+{% if siniflar|length > 1 %}
+<p class="tuslar">{% for s in siniflar %}<a class="tus {{ '' if s == sinif else 'ikincil' }} kucuk" href="/ogretmen/tesekkur?sinif={{ s|urlencode }}">{{ s }}</a>{% endfor %}</p>
+{% endif %}
+<form class="kart" method="post" action="/ogretmen/tesekkur">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="sinif" value="{{ sinif }}">
+  <h2>1. Kartı seçin</h2>
+  <fieldset class="sablon-sec">
+    <legend class="gizli-etiket">Kart</legend>
+    {% for anahtar, sb in sablonlar.items() %}
+    <label><input type="radio" name="sablon" value="{{ anahtar }}" required{{ ' checked' if loop.first }}><span class="simge" aria-hidden="true">{{ sb[0] }}</span>{{ sb[1] }}</label>
+    {% endfor %}
+  </fieldset>
+  <h2>2. {{ sinif }} öğrencilerini seçin</h2>
+  {% if ogrenciler %}
+  <ul class="ogrenci-sec">
+    {% for o in ogrenciler %}
+    <li><label><input type="checkbox" name="ogrenci" value="{{ o.id }}"{{ ' disabled' if o.id in bugun_alan }}><span class="no">{{ o.okul_no }}</span><span>{{ o.ad_soyad }}</span>{% if o.id in bugun_alan %}<span class="etiket yesil aldi">bugün aldı</span>{% endif %}</label></li>
+    {% endfor %}
+  </ul>
+  <button class="tus tam">Kartı gönder</button>
+  {% else %}<p class="bos">Bu sınıfta kayıtlı öğrenci yok.</p>{% endif %}
+</form>
+{% endif %}
+{% if gonderilen %}
+<section class="kart">
+  <h2>Bugün gönderdikleriniz ({{ gonderilen|length }})</h2>
+  <ul class="liste">{% for g in gonderilen %}<li><span>{{ g.simge }} {{ g.ad }} <span class="soluk kucuk">· {{ g.sinif }}</span></span><span class="soluk kucuk">{{ g.metin }}</span></li>{% endfor %}</ul>
+</section>
+{% endif %}
+{% endblock %}

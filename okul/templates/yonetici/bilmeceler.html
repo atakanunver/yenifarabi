@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block baslik %}Günün Bilmecesi — Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/yonetici">← Yönetim</a></p>
+<h1>🧩 Günün Bilmecesi havuzu</h1>
+<p class="soluk">Her gün 08:00'de havuzdan sırayla bir bilmece açılır (hiç sorulmamışlar önce; bitince en uzun süredir sorulmamış olan tekrar gelir). Öğrenci günde bir kez cevaplar; doğru cevap ertesi gün açıklanır ve doğru bilen 9-11. sınıf öğrencileri XP alır. Kısa, tek doğru cevabı olan sorular yazın.</p>
+<p class="kart {{ 'uyari' if sorulmamis < 7 else 'bilgi' }}">Hiç sorulmamış aktif bilmece: <b>{{ sorulmamis }}</b>{% if sorulmamis < 7 %} — havuz azalıyor, yeni bilmece ekleyin.{% endif %}</p>
+{% if request.query_params.get('eklendi') %}<p class="kart" role="status">Bilmece eklendi.</p>{% endif %}
+{% if hata %}<p class="kart hata" role="alert">{{ hata }}</p>{% endif %}
+{% set harf = "ABCD" %}
+<form class="kart" method="post" action="/yonetici/bilmeceler">
+  <h2>Yeni bilmece</h2>
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="soru">Soru</label>
+  <textarea id="soru" name="soru" required maxlength="400">{{ form.soru or '' }}</textarea>
+  <p class="kucuk soluk">Seçenekler (en az 2, en çok {{ en_cok }}); doğru olanı soldaki düğmeyle işaretleyin.</p>
+  {% for i in range(en_cok) %}
+  <div style="display:flex;gap:.5rem;align-items:center;margin:.3rem 0">
+    <input type="radio" name="dogru" value="{{ i }}" aria-label="{{ harf[i] }} doğru"{{ ' checked' if form.dogru == i }} required>
+    <input name="secenek" maxlength="120" placeholder="{{ harf[i] }} seçeneği" value="{{ form.secenek[i] if form.secenek and form.secenek|length > i else '' }}">
+  </div>
+  {% endfor %}
+  <label for="aciklama">Açıklama (ertesi gün cevapla birlikte görünür, isteğe bağlı)</label>
+  <textarea id="aciklama" name="aciklama" maxlength="400">{{ form.aciklama or '' }}</textarea>
+  <div class="tuslar"><button class="tus tam">Ekle</button></div>
+</form>
+{% if gecmis %}
+<section class="kart">
+  <h2>Son günler</h2>
+  <ul class="liste">{% for g in gecmis %}<li><span>{{ g.gun|tarih(false) }} · {{ g.soru|truncate(70) }}</span><span class="soluk kucuk">{{ g.dogru_sayisi }}/{{ g.cevaplayan }} doğru</span></li>{% endfor %}</ul>
+</section>
+{% endif %}
+<h2>Havuz ({{ havuz|length }})</h2>
+{% for b in havuz %}
+<article class="kart"{% if not b.aktif %} style="opacity:.6"{% endif %}>
+  <p><b>{{ b.soru }}</b></p>
+  <ol type="A" class="kucuk">{% for s in b.secenekler %}<li>{% if loop.index0 == b.dogru %}<b>{{ s }} ✓</b>{% else %}{{ s }}{% endif %}</li>{% endfor %}</ol>
+  {% if b.aciklama %}<p class="kucuk soluk">{{ b.aciklama }}</p>{% endif %}
+  <form method="post" action="/yonetici/bilmeceler/{{ b.id }}/aktif" class="tuslar" style="align-items:center">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="aktif" value="{{ 0 if b.aktif else 1 }}">
+    <span class="kucuk soluk">{{ ('Son sorulduğu gün: ' ~ b.son_gun|tarih(false)) if b.son_gun else 'Henüz sorulmadı' }}{{ '' if b.aktif else ' · pasif' }}</span>
+    <button class="tus ikincil kucuk">{{ 'Pasifleştir' if b.aktif else 'Etkinleştir' }}</button>
+  </form>
+</article>
+{% else %}
+<div class="kart"><p class="bos">Havuz boş: öğrencilere bilmece kartı görünmez.</p></div>
+{% endfor %}
+{% endblock %}

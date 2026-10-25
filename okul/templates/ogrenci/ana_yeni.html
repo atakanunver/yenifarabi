@@ -58,6 +58,15 @@
 <section class="kart"><div class="tuslar"><a class="tus ikincil" href="/ogrenci/maraton">Hızlı Mod · 10 soru</a></div></section>
 {% endif %}
 
+{% if (bilmece is defined and (bilmece.bugun or bilmece.onceki)) or (tesekkur is defined and tesekkur.son) %}<link rel="stylesheet" href="/static/mikro.css?v=1">{% endif %}
+{% if tesekkur is defined and tesekkur.son %}
+<section class="kart" aria-labelledby="tesekkur-b">
+  <h2 id="tesekkur-b">💌 Teşekkür kartların <a href="/tesekkurler">Tümü</a></h2>
+  {% set kartlar = tesekkur.son %}{% include "_tesekkur_kartlar.html" %}
+</section>
+{% endif %}
+{% if bilmece is defined and (bilmece.bugun or bilmece.onceki) %}{% set b = bilmece %}{% include "_bilmece.html" %}{% endif %}
+
 <section class="kart bugun-kart" aria-labelledby="bugun-b">
   <h2 id="bugun-b">Bugün ne yapacağım?</h2>
   {% if bugun.gorevler %}
@@ -150,4 +159,5 @@
   <p class="kucuk soluk">{{ yks.tarih|tarih(false) }}'de yapılması bekleniyor</p>
 </section>
 {% endif %}
+{% include "_gunun_bilgisi.html" %}
 {% endblock %}

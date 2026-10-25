@@ -6,15 +6,18 @@ import sqlite3
 import analitik
 import arena
 import avatar
+import bilmece
 import bugun
 import denemeler
 import duyurular
+import gunun_bilgisi
 import kisisel
 import maraton
 import oduller
 import odevler
 import sinavlar
 import sinifpdf
+import tesekkur
 import yetki
 import zaman
 from ayarlar import AYAR
@@ -77,6 +80,9 @@ def ana(
         maraton=maraton.ana_ozet(conn, k["id"]),
         deneme_sayisi=denemeler.deneme_sayisi(conn, o["okul_no"]),
         calisma_seri=kisisel.calisma_serisi(conn, o),
+        bilmece=bilmece.kart(conn, o),
+        tesekkur=tesekkur.ozet(conn, o),
+        gunun_bilgisi=gunun_bilgisi.bugun(),
     )
 
 

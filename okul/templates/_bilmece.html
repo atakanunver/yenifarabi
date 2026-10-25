@@ -1,0 +1,54 @@
+{# Günün Bilmecesi kartı. Bağlam: b = bilmece.kart() {bugun|None, onceki|None, xp, yeni_xp, acilis, acik}; tam_sayfa (bool).
+   Bugünün doğru şıkkı burada YOKTUR (sunucu göndermez); yalnızca dünkü açıklanır. #}
+{% set harf = "ABCD" %}
+<section class="kart bilmece" aria-labelledby="bilmece-b">
+  <h2 id="bilmece-b"><span>🧩 Günün Bilmecesi</span>{% if not tam_sayfa|default(false) %} <a href="/ogrenci/bilmece">Aç</a>{% endif %}</h2>
+  {% if b.yeni_xp %}<p class="bilmece-durum" role="status">🎉 Doğru bildiğin bilmece için <b class="bilmece-xp">+{{ b.yeni_xp }} XP</b> kazandın!</p>{% endif %}
+  {% if b.bugun %}
+    <span class="bilmece-etiket">Bugün · genel kültür / mantık</span>
+    <p class="bilmece-soru">{{ b.bugun.soru }}</p>
+    {% if b.bugun.secim is none %}
+    <form method="post" action="/ogrenci/bilmece">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <fieldset class="secenekler">
+        <legend class="gizli-etiket">Seçenekler</legend>
+        {% for s in b.bugun.secenekler %}
+        <label class="secenek"><input type="radio" name="secim" value="{{ loop.index0 }}" required><span class="secenek-harf">{{ harf[loop.index0] }}</span><span>{{ s }}</span></label>
+        {% endfor %}
+      </fieldset>
+      <button class="tus tam">Cevabımı gönder</button>
+      <p class="kucuk soluk">Tek hakkın var. Doğru cevap yarın açıklanır{% if b.xp %}; gün içinde doğru bilen herkes <b>+{{ b.xp }} XP</b> alır{% endif %} — ilk olmak gerekmez.</p>
+    </form>
+    {% else %}
+    <div class="secenekler">
+      {% for s in b.bugun.secenekler %}
+      <div class="secenek pasif"{% if loop.index0 == b.bugun.secim %} style="border-color:var(--mor-orta);background:var(--mor-acik)"{% endif %}><span class="secenek-harf">{{ harf[loop.index0] }}</span><span>{{ s }}</span>{% if loop.index0 == b.bugun.secim %}<span class="etiket mor" style="margin-left:auto">Senin cevabın</span>{% endif %}</div>
+      {% endfor %}
+    </div>
+    <p class="bilmece-durum">✓ Cevabın kaydedildi. Doğru cevap yarın burada açıklanacak.</p>
+    {% endif %}
+  {% elif not b.acik %}
+    <p class="bilmece-durum">⏰ Bugünün bilmecesi saat {{ b.acilis }}'de açılır.</p>
+  {% endif %}
+
+  {% if b.onceki %}{% set o = b.onceki %}
+  <div class="bilmece-sonuc">
+    <span class="bilmece-etiket">Önceki bilmecenin cevabı · {{ o.gun|tarih(false) }}</span>
+    <p class="bilmece-soru" style="font-size:1rem">{{ o.soru }}</p>
+    {% if tam_sayfa|default(false) %}
+    <div class="secenekler">
+      {% for s in o.secenekler %}
+      <div class="secenek pasif{{ ' dogru' if loop.index0 == o.dogru }}{{ ' benim' if loop.index0 == o.secim }}"><span class="secenek-harf">{{ harf[loop.index0] }}</span><span>{{ s }}</span>{% if loop.index0 == o.dogru %}<span class="etiket yesil" style="margin-left:auto">Doğru</span>{% endif %}</div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p>Doğru cevap: <span class="bilmece-vurgu"><b>{{ harf[o.dogru] }}) {{ o.secenekler[o.dogru] }}</b></span></p>
+    {% endif %}
+    {% if o.aciklama %}<p class="kucuk">{{ o.aciklama }}</p>{% endif %}
+    <p class="kucuk soluk">
+      {% if o.secim is none %}Bu bilmeceye katılmadın.{% elif o.secim == o.dogru %}<b class="bilmece-xp">✓ Doğru bildin!</b>{% if b.xp %} +{{ b.xp }} XP{% endif %}{% else %}Bu sefer olmadı, yarın yeni bir bilmece var.{% endif %}
+      {% if o.cevaplayan %} · {{ o.cevaplayan }} kişiden {{ o.dogru_sayisi }} kişi doğru bildi.{% endif %}
+    </p>
+  </div>
+  {% endif %}
+</section>
