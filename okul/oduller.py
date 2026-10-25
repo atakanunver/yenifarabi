@@ -259,12 +259,14 @@ LIDER_ILK = 10
 
 
 def _xp_toplamlari(conn: sqlite3.Connection, hb: str | None) -> dict[int, int]:
+    # Teşekkür Kartı XP'si avatar seviyesine sayılır ama yarışa sayılmaz (öğretmen tercihi sıralamayı etkilemesin).
     if hb:
         satirlar = conn.execute(
-            "SELECT kullanici_id, SUM(miktar) FROM bilgi_xp WHERE gun BETWEEN ? AND ? GROUP BY kullanici_id", (hb, hafta_sonu(hb))
+            "SELECT kullanici_id, SUM(miktar) FROM bilgi_xp WHERE gun BETWEEN ? AND ? AND kaynak != 'tesekkur' GROUP BY kullanici_id",
+            (hb, hafta_sonu(hb)),
         )
     else:
-        satirlar = conn.execute("SELECT kullanici_id, SUM(miktar) FROM bilgi_xp GROUP BY kullanici_id")
+        satirlar = conn.execute("SELECT kullanici_id, SUM(miktar) FROM bilgi_xp WHERE kaynak != 'tesekkur' GROUP BY kullanici_id")
     return {r[0]: r[1] for r in satirlar}
 
 

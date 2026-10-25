@@ -32,6 +32,8 @@ SABLONLAR = {
     "deneme": ("Dijital Okul", "Test bildirimi: bildirimler açık.", "/bildirimler"),
     "devamsizlik": ("Dijital Okul", "Öğrenciniz bugün bir derse girmedi.", "/veli/devamsizlik"),
     "onay": ("Dijital Okul", "Onayınızı bekleyen bir belge var.", "/veli/onaylar"),
+    "tesekkur": ("Dijital Okul", "Bir teşekkür kartı aldın!", "/tesekkurler"),
+    "tesekkur_veli": ("Dijital Okul", "Öğrenciniz bir teşekkür kartı aldı.", "/tesekkurler"),
 }
 AZAMI_ABONELIK = 10  # kullanıcı başına cihaz
 AZAMI_HATA = 5  # ardışık geçici hatadan sonra abonelik silinir
@@ -308,3 +310,21 @@ def onay_alicilari(conn: sqlite3.Connection, hedef_tur: str, hedef: str | None, 
 
 def onay_bildir(hedef_tur: str, hedef: str | None, yazar_id: int) -> None:
     _arkaplan("onay", lambda c: onay_alicilari(c, hedef_tur, hedef, yazar_id))
+
+
+def tesekkur_alicilari(conn: sqlite3.Connection, ogrenci_idleri: list[int], veli: bool) -> list[int]:
+    """Kart alan öğrencilerin kendileri (veli=False) ya da velileri (veli=True)."""
+    if not ogrenci_idleri:
+        return []
+    yer = ",".join("?" * len(ogrenci_idleri))
+    alt = (
+        f"SELECT vo.veli_id FROM veli_ogrenci vo WHERE vo.ogrenci_id IN ({yer})"
+        if veli
+        else f"SELECT kullanici_id FROM ogrenci WHERE id IN ({yer}) AND kullanici_id IS NOT NULL"
+    )
+    return [r[0] for r in conn.execute(_ABONELI + f" AND u.id IN ({alt})", [0, *ogrenci_idleri])]
+
+
+def tesekkur_bildir(ogrenci_idleri: list[int]) -> None:
+    _arkaplan("tesekkur", lambda c: tesekkur_alicilari(c, ogrenci_idleri, veli=False))
+    _arkaplan("tesekkur_veli", lambda c: tesekkur_alicilari(c, ogrenci_idleri, veli=True))

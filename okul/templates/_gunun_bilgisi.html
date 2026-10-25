@@ -1,0 +1,14 @@
+{# Günün bilgisi: sayfa sonunda sade kart. Bağlam: gunun_bilgisi = gunun_bilgisi.bugun() {gunler, tarihte} | None #}
+{% if gunun_bilgisi is defined and gunun_bilgisi %}
+<link rel="stylesheet" href="/static/mikro.css?v=1">
+<section class="kart gunun-bilgisi" aria-labelledby="gunun-bilgisi-b">
+  <h2 id="gunun-bilgisi-b">📅 Bugün · {{ bugun_gun|default('') }}</h2>
+  {% for g in gunun_bilgisi.gunler %}<p class="gb-gun">🌍 {{ g }}</p>{% endfor %}
+  {% if gunun_bilgisi.tarihte %}
+  <p class="gb-baslik">Tarihte bugün</p>
+  <ul class="gb-liste">
+    {% for t in gunun_bilgisi.tarihte %}<li><b class="gb-yil">{{ t.yil }}</b><span>{{ t.olay }}</span></li>{% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endif %}

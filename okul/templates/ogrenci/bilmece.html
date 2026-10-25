@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block baslik %}Günün Bilmecesi — Dijital Okul{% endblock %}
+{% block icerik %}
+<link rel="stylesheet" href="/static/mikro.css?v=1">
+<p class="kucuk"><a href="/ogrenci">← Ana sayfa</a></p>
+{% if hata %}<p class="kart hata" role="alert">{{ hata }}</p>{% endif %}
+{% if request.query_params.get('kaydedildi') %}<p class="kart" role="status">Cevabın kaydedildi. Sonucu yarın burada göreceksin.</p>{% endif %}
+{% set b = bilmece %}{% set tam_sayfa = true %}
+{% if b.bugun or b.onceki or not b.acik %}
+{% include "_bilmece.html" %}
+{% else %}
+<section class="kart"><h1>🧩 Günün Bilmecesi</h1><p class="bos">Bugün için bilmece yok. Yarın tekrar bak!</p></section>
+{% endif %}
+<p class="kucuk soluk">Her sabah {{ b.acilis }}'de yeni bir bilmece gelir. Ders konusu değil; genel kültür ve mantık soruları.</p>
+{% endblock %}

@@ -769,10 +769,61 @@ ALTER TABLE sudoku_oyun ADD COLUMN ipucu INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE sudoku_bot ADD COLUMN ipucu INTEGER NOT NULL DEFAULT 0;
 """
 
+# Mikro-görevler: Günün Bilmecesi (bilmece.py) + öğretmen Teşekkür Kartı (tesekkur.py).
+# bilgi_xp.kaynak'a 'bilmece' ve 'tesekkur' eklenir (V33 gibi tablo yeniden kurulur; veri korunur).
+SEMA_V35 = """
+CREATE TABLE bilgi_xp_yeni (
+    id            INTEGER PRIMARY KEY,
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    kaynak        TEXT NOT NULL CHECK (kaynak IN ('arena_dogru', 'arena_bonus', 'maraton_tur', 'gayret', 'bilmece', 'tesekkur')),
+    ref           TEXT NOT NULL,
+    miktar        INTEGER NOT NULL CHECK (miktar > 0),
+    gun           TEXT NOT NULL,
+    zaman         TEXT NOT NULL,
+    UNIQUE (kullanici_id, kaynak, ref)
+);
+INSERT INTO bilgi_xp_yeni SELECT id, kullanici_id, kaynak, ref, miktar, gun, zaman FROM bilgi_xp;
+DROP TABLE bilgi_xp;
+ALTER TABLE bilgi_xp_yeni RENAME TO bilgi_xp;
+CREATE INDEX bilgi_xp_kullanici ON bilgi_xp(kullanici_id);
+CREATE TABLE bilmece (
+    id          INTEGER PRIMARY KEY,
+    soru        TEXT NOT NULL,
+    secenekler  TEXT NOT NULL,
+    dogru       INTEGER NOT NULL,
+    aciklama    TEXT NOT NULL DEFAULT '',
+    aktif       INTEGER NOT NULL DEFAULT 1,
+    ekleyen_id  INTEGER REFERENCES kullanici(id),
+    olusturma   TEXT NOT NULL
+);
+CREATE TABLE bilmece_gun (
+    gun         TEXT PRIMARY KEY,
+    bilmece_id  INTEGER NOT NULL REFERENCES bilmece(id)
+);
+CREATE TABLE bilmece_cevap (
+    kullanici_id INTEGER NOT NULL REFERENCES kullanici(id),
+    gun          TEXT NOT NULL,
+    secim        INTEGER NOT NULL,
+    zaman        TEXT NOT NULL,
+    PRIMARY KEY (kullanici_id, gun)
+);
+CREATE TABLE tesekkur (
+    id           INTEGER PRIMARY KEY,
+    ogretmen_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    ogrenci_id   INTEGER NOT NULL REFERENCES ogrenci(id) ON DELETE CASCADE,
+    sablon       TEXT NOT NULL,
+    gun          TEXT NOT NULL,
+    zaman        TEXT NOT NULL,
+    UNIQUE (ogretmen_id, ogrenci_id, gun)
+);
+CREATE INDEX tesekkur_ogrenci ON tesekkur(ogrenci_id, zaman);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
     SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27, SEMA_V28, SEMA_V29, SEMA_V30, SEMA_V31, SEMA_V32, SEMA_V33, SEMA_V34,
+    SEMA_V35,
 ]
 
 

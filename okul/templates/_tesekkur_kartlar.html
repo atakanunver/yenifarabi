@@ -1,0 +1,11 @@
+{# Teşekkür kartı listesi. Bağlam: kartlar (tesekkur.ogrenci_kartlari / ozet.son), xp_goster (bool). #}
+<ul class="tesekkur-kartlar">
+  {% for t in kartlar %}
+  <li class="tesekkur-kart">
+    <span class="tesekkur-pul" aria-hidden="true">{{ t.simge }}</span>
+    <span class="tesekkur-metin">{{ t.metin }}</span>
+    <span class="tesekkur-alt">{{ t.ogretmen }} · {{ t.zaman|tarih }}</span>
+    {% if xp_goster|default(true) and t.xp %}<span class="tesekkur-xp">+{{ t.xp }} XP</span>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
