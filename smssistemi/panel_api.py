@@ -77,12 +77,18 @@ def otomasyon_durum():
     bugun = otomasyon.bugun_istanbul().isoformat()
     conn = db.baglanti()
     try:
+        def ozet(sonuc):
+            return {k: sonuc.get(k) for k in _OTOMASYON_ALANLAR} if sonuc and sonuc.get("tarih") == bugun else None
+
+        # ilk_ders/ogle: dashboard Bugün kartının okuduğu eski anahtarlar (taşınan kural 1/2)
         yanit = {"tarih": bugun}
         for servis in ("ilk_ders", "ogle"):
-            sonuc = otomasyon.son_sonuc_oku(conn, servis)
-            yanit[servis] = (
-                {k: sonuc.get(k) for k in _OTOMASYON_ALANLAR} if sonuc and sonuc.get("tarih") == bugun else None
-            )
+            yanit[servis] = ozet(otomasyon.son_sonuc_oku(conn, servis))
+        yanit["kurallar"] = [
+            {"id": k["id"], "ad": k["ad"], "saat": k["saat"], "ders_no": k["ders_no"], "aktif": k["aktif"],
+             "bugun": ozet(k["son_sonuc"])}
+            for k in otomasyon.kurallar(conn)
+        ]
         return yanit
     finally:
         conn.close()

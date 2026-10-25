@@ -243,8 +243,58 @@ def semayi_kur() -> None:
             conn.execute("INSERT OR IGNORE INTO ayarlar (anahtar, deger) VALUES (?, ?)", (anahtar, deger))
 
         conn.commit()
+        _otomasyon_kurallari_tasi(conn)
     finally:
         conn.close()
+
+
+# Devamsızlık SMS kuralları (2026-10-25): sabit iki servis (09:00/1. ders, 14:00/6. ders) yerine
+# eklenip silinebilen kurallar. ders_no UNIQUE: aynı derse iki kural velilere çift SMS demektir.
+# "Günde bir kez" kuralda değil DERSTE tutulur (ayar `otomasyon_ders{N}_son_tarih`): gönderdikten
+# sonra silinip yeniden eklenen kural aynı gün aynı velilere ikinci SMS atmasın.
+_OTOMASYON_KURAL_SEMA = """
+CREATE TABLE IF NOT EXISTS otomasyon_kurallari (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    ad         TEXT NOT NULL,
+    saat       TEXT NOT NULL,
+    ders_no    INTEGER NOT NULL UNIQUE,
+    sablon     TEXT NOT NULL,
+    aktif      INTEGER NOT NULL DEFAULT 0,
+    son_sonuc  TEXT NOT NULL DEFAULT ''
+);
+"""
+
+
+def _otomasyon_kurallari_tasi(conn: sqlite3.Connection) -> None:
+    """Eski iki servisi (ayarlar tablosu) bir kez kural 1 ve 2 olarak taşır; son çalışma tarihi
+    ders anahtarına geçer (taşıma günü ikinci SMS gitmesin). Bayrak, iki kural da silindikten sonra
+    yeniden tohumlanmasını önler. Eski ayar anahtarları yerinde kalır (geri dönüş için)."""
+    conn.executescript(_OTOMASYON_KURAL_SEMA)
+    if ayar_oku(conn, "otomasyon_kurallari_tasindi") == "1":
+        return
+    for kid, ad, saat, ders_no, onek in (
+        (1, "Sabah 1. ders", "09:00", 1, "otomasyon_ilk_ders"),
+        (2, "Öğleden sonra 6. ders", "14:00", 6, "otomasyon_ogle"),
+    ):
+        conn.execute(
+            "INSERT OR IGNORE INTO otomasyon_kurallari (id, ad, saat, ders_no, sablon, aktif, son_sonuc)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                kid, ad, saat, ders_no,
+                ayar_oku(conn, f"{onek}_sablonu") or _AYARLAR_VARSAYILAN[f"{onek}_sablonu"],
+                1 if ayar_oku(conn, f"{onek}_aktif") == "1" else 0,
+                ayar_oku(conn, f"{onek}_son_sonuc") or "",
+            ),
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO ayarlar (anahtar, deger) VALUES (?, ?)",
+            (f"otomasyon_ders{ders_no}_son_tarih", ayar_oku(conn, f"{onek}_son_tarih") or ""),
+        )
+    conn.execute(
+        "INSERT INTO ayarlar (anahtar, deger) VALUES ('otomasyon_kurallari_tasindi', '1')"
+        " ON CONFLICT (anahtar) DO UPDATE SET deger = excluded.deger"
+    )
+    conn.commit()
 
 
 def gonderim_kaydet(

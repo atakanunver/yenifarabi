@@ -5,7 +5,7 @@
 <div class="sayfa-baslik-sarici">
   <div>
     <h1><svg class="ikon"><use href="#ik-kaydirici"/></svg> SMS Otomasyonu</h1>
-    <p class="bolum-aciklama">Hafta içi okul günlerinde sabah 09:00'da 1. ders, öğleden sonra 14:00'te 6. ders yoklamasını kontrol edip gelmeyen öğrencilerin velilerine otomatik SMS gönderir.</p>
+    <p class="bolum-aciklama">Hafta içi okul günlerinde her açık otomasyon kendi saatinde (sonraki {{ pencere_dk }} dakika içinde) seçtiği dersin yoklamasını kontrol eder ve gelmeyen öğrencilerin velilerine SMS gönderir. Aynı derse günde en çok bir kez otomatik gönderim yapılır.</p>
   </div>
   <div class="sayfa-eylemler">
     <a href="/yoklama-sms" class="ikincil-btn">
@@ -14,482 +14,282 @@
   </div>
 </div>
 
-{% if mesaj == "ayarlar_kaydedildi" %}
-  <div class="uyari-kutusu basari"><svg class="ikon"><use href="#ik-onay"/></svg> Otomasyon mesaj şablonu başarıyla kaydedildi.</div>
+{% if mesaj == "eklendi" %}
+  <div class="uyari-kutusu basari"><svg class="ikon"><use href="#ik-onay"/></svg> Otomasyon eklendi. Kapalı başlar; kontrol edip açın.</div>
+{% elif mesaj == "guncellendi" %}
+  <div class="uyari-kutusu basari"><svg class="ikon"><use href="#ik-onay"/></svg> Otomasyon kaydedildi.</div>
 {% elif mesaj == "durum_degisti" %}
-  <div class="uyari-kutusu basari"><svg class="ikon"><use href="#ik-onay"/></svg> Otomasyon servis durumu güncellendi.</div>
+  <div class="uyari-kutusu basari"><svg class="ikon"><use href="#ik-onay"/></svg> Otomasyon durumu güncellendi.</div>
+{% elif mesaj == "silindi" %}
+  <div class="uyari-kutusu basari"><svg class="ikon"><use href="#ik-onay"/></svg> Otomasyon silindi.</div>
 {% elif mesaj == "gonderildi" %}
-  <div class="uyari-kutusu basari"><svg class="ikon"><use href="#ik-onay"/></svg> Devamsızlık SMS servisi başarıyla çalıştırıldı ve SMS'ler gönderildi.</div>
+  <div class="uyari-kutusu basari"><svg class="ikon"><use href="#ik-onay"/></svg> Otomasyon çalıştırıldı. Sonuçlar Kayıtlar sayfasında.</div>
 {% elif mesaj == "basarisiz" %}
-  <div class="uyari-kutusu hata"><svg class="ikon"><use href="#ik-uyari"/></svg> Gönderim denendi ama muhtemelen bir bağlantı sorunu yüzünden hiçbir SMS gönderilemedi. Son çalışma tarihi kaydedilmedi; otomatik zamanlayıcı zaman penceresinde tekrar deneyecek.</div>
-{% elif mesaj == "zaten_calisti" %}
-  <div class="uyari-kutusu"><svg class="ikon"><use href="#ik-uyari"/></svg> Bu servis bugün için zaten daha önce çalıştırılmıştı. Mükerrer gönderim yapılmadı.</div>
+  <div class="uyari-kutusu hata"><svg class="ikon"><use href="#ik-uyari"/></svg> Gönderim denendi ama muhtemelen bir bağlantı sorunu yüzünden hiçbir SMS gönderilemedi. Son çalışma tarihi kaydedilmedi; otomatik zamanlayıcı pencere içinde tekrar deneyecek.</div>
 {% elif mesaj == "calisiyor" %}
-  <div class="uyari-kutusu"><svg class="ikon"><use href="#ik-uyari"/></svg> Otomasyon şu anda zaten çalışıyor. Mükerrer gönderim yapılmadı.</div>
-{% elif hata %}
+  <div class="uyari-kutusu"><svg class="ikon"><use href="#ik-uyari"/></svg> Başka bir gönderim şu anda sürüyor. Mükerrer gönderim yapılmadı; biraz sonra tekrar deneyin.</div>
+{% endif %}
+{% if form_hata %}
+  <div class="uyari-kutusu hata" role="alert"><svg class="ikon"><use href="#ik-uyari"/></svg> {{ form_hata }}</div>
+{% endif %}
+{% if hata %}
   <div class="uyari-kutusu hata"><svg class="ikon"><use href="#ik-uyari"/></svg> {{ hata }}</div>
 {% endif %}
 
-<!-- ANA KONTROL GRİDİ -->
-<div class="otomasyon-ana-grid">
-  <!-- DOLDURULABİLİR KART: DURUM SWITCH'İ -->
-  <div class="switch-karti {{ 'aktif' if aktif == '1' else 'pasif' }}">
-    <div class="switch-ust">
-      <div>
-        <div class="switch-baslik">
-          Otomatik Devamsızlık SMS Servisi (09:00 ve 14:00)
-        </div>
-        <p class="switch-aciklama">
-          {% if aktif == '1' %}
-            Otomatik SMS servisi <strong>AÇIK</strong>. Okul günleri (Pazartesi-Cuma) sabah 09:00'da 1. dersi,
-            öğleden sonra 14:00'te 6. dersi kontrol eder ve gelmeyen öğrencilerin anne ve babalarına otomatik SMS gönderir.
-          {% else %}
-            {% if aktif_sabah == '1' or aktif_ogle == '1' %}
-            Otomatik SMS servisi <strong>KISMEN AÇIK</strong>:
-            09:00 sabah gönderimi <strong>{{ 'AÇIK' if aktif_sabah == '1' else 'KAPALI' }}</strong>,
-            14:00 öğleden sonra gönderimi <strong>{{ 'AÇIK' if aktif_ogle == '1' else 'KAPALI' }}</strong>.
-            İkisini birden açmak için aşağıdaki butona basın.
-            {% else %}
-            Otomatik SMS servisi şu anda <strong>DEVRE DIŞI (KAPALI)</strong>.
-            Hiçbir veliye otomatik SMS gönderilmez. Servisi açmak için aşağıdaki butona basabilirsiniz.
-            {% endif %}
-          {% endif %}
-        </p>
-      </div>
-      <div>
-        {% if aktif == '1' %}
-          <span class="rozet rozet-yesil">AKTİF</span>
-        {% elif aktif_sabah == '1' or aktif_ogle == '1' %}
-          <span class="rozet rozet-gri">KISMEN</span>
-        {% else %}
-          <span class="rozet rozet-gri">PASİF</span>
-        {% endif %}
-      </div>
-    </div>
-
-    <div class="switch-eylem">
-      <form method="post" action="/otomasyon/durum-degistir">
-        {% if aktif == '1' %}
-          <input type="hidden" name="aktif" value="0">
-          <button type="submit" class="switch-btn-buyuk switch-btn-kapat">
-            <svg class="ikon"><use href="#ik-cikis"/></svg> Servisi Kapat (Devre Dışı Bırak)
-          </button>
-        {% else %}
-          <input type="hidden" name="aktif" value="1">
-          <button type="submit" class="switch-btn-buyuk switch-btn-ac">
-            <svg class="ikon"><use href="#ik-onay"/></svg> Servisi Aç (Aktifleştir)
-          </button>
-        {% endif %}
-      </form>
-    </div>
-  </div>
-
-  <!-- BİLGİ VE SON DURUM KARTI -->
-  <div class="otomasyon-bilgi-karti">
-    <div style="font-weight:700;font-size:1.05rem;display:flex;align-items:center;gap:6px;">
-      <svg class="ikon"><use href="#ik-nabiz"/></svg> Servis Parametreleri & Son Durum
-    </div>
-    <div class="bilgi-satirlar">
-      <div class="bilgi-satir">
-        <span class="bilgi-etiket">Otomatik Kontrol Saatleri</span>
-        <span class="bilgi-deger">Sabah 09:00 (1. Ders) ve Öğle 14:00 (6. Ders)</span>
-      </div>
-      <div class="bilgi-satir">
-        <span class="bilgi-etiket">Çalışma Günleri</span>
-        <span class="bilgi-deger">Pazartesi – Cuma (Hafta sonu kapalı)</span>
-      </div>
-      <div class="bilgi-satir">
-        <span class="bilgi-etiket">Hedef Alıcılar</span>
-        <span class="bilgi-deger">Öğrencinin Annesi ve Babası</span>
-      </div>
-      <div class="bilgi-satir">
-        <span class="bilgi-etiket">Güvenlik Kuralı</span>
-        <span class="bilgi-deger">İzinliler ve yoklaması eksik sınıflar hariç tutulur</span>
-      </div>
-      <div class="bilgi-satir">
-        <span class="bilgi-etiket">Son Sabah Çalışması (09:00)</span>
-        <span class="bilgi-deger">
-          {% if son_sonuc_sabah %}
-            {{ son_sonuc_sabah.calisma_zamani }} ({{ son_sonuc_sabah.veli_sms_sayisi }} veli)
-          {% else %}
-            Henüz çalıştırılmadı
-          {% endif %}
-        </span>
-      </div>
-      <div class="bilgi-satir">
-        <span class="bilgi-etiket">Son Öğle Çalışması (14:00)</span>
-        <span class="bilgi-deger">
-          {% if son_sonuc_ogle %}
-            {{ son_sonuc_ogle.calisma_zamani }} ({{ son_sonuc_ogle.veli_sms_sayisi }} veli)
-          {% else %}
-            Henüz çalıştırılmadı
-          {% endif %}
-        </span>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ŞABLON DÜZENLEME BÖLÜMÜ -->
 <section>
   <div class="bolum-ust">
     <div>
-      <h2><svg class="ikon"><use href="#ik-kaydirici"/></svg> Otomatik Devamsızlık SMS Şablonları</h2>
-      <p class="bolum-aciklama">Sabah 09:00 ve öğleden sonra 14:00 kontrollerinde velilere gidecek metinleri düzenleyebilirsiniz.</p>
+      <h2><svg class="ikon"><use href="#ik-saat"/></svg> Otomasyonlar</h2>
+      <p class="bolum-aciklama">Yer tutucular: <code>{isim}</code> (veli adı), <code>{ogrenci_adi}</code> (öğrenci adı). İzinli öğrenciler ve yoklaması alınmamış sınıflar her zaman hariç tutulur.</p>
     </div>
   </div>
 
-  <div class="sablon-grid">
-    <!-- SABAH ŞABLONU -->
-    <div class="otomasyon-bilgi-karti" style="gap:14px;">
-      <form method="post" action="/otomasyon/ayarlar" class="ayar-form">
-        <input type="hidden" name="servis" value="ilk_ders">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <strong style="font-size:0.98rem;color:var(--renk-metin);">☀️ Sabah 09:00 Şablonu (1. Ders)</strong>
-          <button type="button" class="ikincil-btn" id="btn-ai-sabah" title="Yapay Zeka ile Düzenle" style="padding:4px 10px;font-size:0.8rem;">
-            <svg class="ikon"><use href="#ik-nabiz"/></svg> AI İyileştir
-          </button>
+  {% if kurallar %}
+  <div class="kural-liste">
+    {% for k in kurallar %}
+    <article class="kural-karti {{ 'aktif' if k.aktif }} {{ 'secili' if secili and secili.id == k.id }}">
+      <div class="kural-ust">
+        <span class="kural-ad">{{ k.ad }}</span>
+        <span class="rozet {{ 'rozet-yesil' if k.aktif else 'rozet-gri' }}">{{ 'Açık' if k.aktif else 'Kapalı' }}</span>
+        {% if k.bugun_gonderildi %}<span class="rozet rozet-mavi">Bugün gönderildi</span>{% endif %}
+        <div class="kural-eylem">
+          <a class="ikincil-btn" href="/otomasyon?kural={{ k.id }}#onizleme">Önizle</a>
+          <form method="post" action="/otomasyon/kural/{{ k.id }}/durum">
+            <input type="hidden" name="aktif" value="{{ '0' if k.aktif else '1' }}">
+            <button type="submit" class="{{ 'kural-kapat-btn' if k.aktif else 'kural-ac-btn' }}">{{ 'Kapat' if k.aktif else 'Aç' }}</button>
+          </form>
         </div>
-        <textarea name="sablon" id="sablon-sabah" rows="3" required style="width:100%;margin-top:6px;">{{ sablon_sabah }}</textarea>
-        <div class="karakter-sayac-serit">
-          <span id="sayac-sabah">Hesaplanıyor...</span>
-        </div>
-        <div style="margin-top:8px;">
-          <button type="submit" class="kucuk-btn">
-            <svg class="ikon"><use href="#ik-onay"/></svg> Sabah Şablonunu Kaydet
-          </button>
-        </div>
-      </form>
-    </div>
+      </div>
+      <p class="kural-meta">
+        Saat <strong>{{ k.saat }}</strong> · <strong>{{ k.ders_no }}. ders</strong> ·
+        {% if k.son_sonuc %}son çalışma {{ k.son_sonuc.calisma_zamani }} ({{ k.son_sonuc.veli_sms_sayisi }} veli){% else %}henüz çalışmadı{% endif %}
+      </p>
+      <details class="kural-duzenle" {{ 'open' if form_hata and secili and secili.id == k.id and not form }}>
+        <summary>Düzenle</summary>
+        <form method="post" action="/otomasyon/kural/{{ k.id }}/guncelle" class="kural-form">
+          <div class="kural-form-izgara">
+            <label>Ad <input type="text" name="ad" value="{{ k.ad }}" maxlength="60"></label>
+            <label>Saat <input type="time" name="saat" value="{{ k.saat }}" required></label>
+            <label>Ders <input type="number" name="ders_no" value="{{ k.ders_no }}" min="1" max="{{ ders_no_azami }}" required></label>
+          </div>
+          <label>Mesaj şablonu
+            <textarea name="sablon" rows="3" maxlength="{{ sablon_azami }}" required data-sayac="sayac-{{ k.id }}">{{ k.sablon }}</textarea>
+          </label>
+          <div class="karakter-sayac-serit"><span id="sayac-{{ k.id }}"></span></div>
+          <div class="kural-form-eylem">
+            <button type="submit">Kaydet</button>
+            <button type="button" class="ikincil-btn ai-btn">AI ile düzelt</button>
+          </div>
+        </form>
+        <form method="post" action="/otomasyon/kural/{{ k.id }}/sil" class="kural-sil-form"
+              data-onay="“{{ k.ad }}” otomasyonu silinsin mi? Bu işlem geri alınamaz.">
+          <button type="submit" class="kural-sil-btn">Otomasyonu sil</button>
+        </form>
+      </details>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="ipucu">Henüz otomasyon yok. Aşağıdan ilkini ekleyin; eklenen otomasyon kapalı başlar.</p>
+  {% endif %}
 
-    <!-- ÖĞLE ŞABLONU -->
-    <div class="otomasyon-bilgi-karti" style="gap:14px;">
-      <form method="post" action="/otomasyon/ayarlar" class="ayar-form">
-        <input type="hidden" name="servis" value="ogle">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <strong style="font-size:0.98rem;color:var(--renk-metin);">🌤️ Öğleden Sonra 14:00 Şablonu (6. Ders)</strong>
-          <button type="button" class="ikincil-btn" id="btn-ai-ogle" title="Yapay Zeka ile Düzenle" style="padding:4px 10px;font-size:0.8rem;">
-            <svg class="ikon"><use href="#ik-nabiz"/></svg> AI İyileştir
-          </button>
-        </div>
-        <textarea name="sablon" id="sablon-ogle" rows="3" required style="width:100%;margin-top:6px;">{{ sablon_ogle }}</textarea>
-        <div class="karakter-sayac-serit">
-          <span id="sayac-ogle">Hesaplanıyor...</span>
-        </div>
-        <div style="margin-top:8px;">
-          <button type="submit" class="kucuk-btn">
-            <svg class="ikon"><use href="#ik-onay"/></svg> Öğle Şablonunu Kaydet
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-  <div style="margin-top:8px;font-size:0.84rem;color:var(--renk-metin-soluk);">
-    Kullanılabilir yer tutucular: <code>{isim}</code> (Veli Adı), <code>{ogrenci_adi}</code> (Öğrenci Adı).
-  </div>
+  <details class="kural-ekle" {{ 'open' if form or not kurallar }}>
+    <summary><svg class="ikon"><use href="#ik-arti"/></svg> Yeni otomasyon ekle</summary>
+    <form method="post" action="/otomasyon/kural/ekle" class="kural-form">
+      <div class="kural-form-izgara">
+        <label>Ad (isteğe bağlı) <input type="text" name="ad" value="{{ form.ad or '' }}" maxlength="60" placeholder="ör. 3. ders kontrolü"></label>
+        <label>Saat <input type="time" name="saat" value="{{ form.saat or '' }}" required></label>
+        <label>Ders <input type="number" name="ders_no" value="{{ form.ders_no or '' }}" min="1" max="{{ ders_no_azami }}" required></label>
+      </div>
+      <p class="ipucu">Saati dersin başlangıcından en az 15–20 dakika sonraya koyun. Yoklama henüz alınmamışsa o sınıf atlanır, SMS gitmez.</p>
+      <label>Mesaj şablonu
+        <textarea name="sablon" id="yeni-sablon" rows="3" maxlength="{{ sablon_azami }}" required data-sayac="sayac-yeni"
+                  data-varsayilan="{{ varsayilan_sablon }}">{{ form.sablon or '' }}</textarea>
+      </label>
+      <div class="karakter-sayac-serit"><span id="sayac-yeni"></span></div>
+      <div class="kural-form-eylem">
+        <button type="submit">Ekle (kapalı başlar)</button>
+        <button type="button" class="ikincil-btn ai-btn">AI ile düzelt</button>
+      </div>
+    </form>
+  </details>
 </section>
 
-<!-- SİMÜLASYON VE BUGÜNKÜ DEVAMSIZLIK ÖNİZLEMESİ -->
-<section style="margin-top: 32px;">
+{% if secili and derleme %}
+<section id="onizleme">
   <div class="bolum-ust">
     <div>
-      <h2><svg class="ikon"><use href="#ik-kullanicilar"/></svg> Bugünün Devamsızlık Simülasyonu & Canlı Önizleme</h2>
-      <p class="bolum-aciklama">Yoklama sistemindeki canlı duruma göre tespit edilen devamsızlar ve gönderilecek SMS önizlemeleri.</p>
+      <h2><svg class="ikon"><use href="#ik-kullanicilar"/></svg> Bugünün önizlemesi</h2>
+      <p class="bolum-aciklama">Yoklama panosundaki canlı duruma göre bu otomasyon şu an çalışsa kime ne gideceği.</p>
     </div>
+    {% if kurallar|length > 1 %}
     <div class="sekme-butonlar">
-      <button type="button" class="sekme-btn {{ 'aktif' if secili_gorunum == 'sabah' else '' }}" id="btn-gorunum-sabah" onclick="onizlemeGoster('sabah')">
-        ☀️ Sabah (1. Ders - 09:00)
-      </button>
-      <button type="button" class="sekme-btn {{ 'aktif' if secili_gorunum == 'ogle' else '' }}" id="btn-gorunum-ogle" onclick="onizlemeGoster('ogle')">
-        🌤️ Öğleden Sonra (6. Ders - 14:00)
-      </button>
+      {% for k in kurallar %}
+      <a class="sekme-btn {{ 'aktif' if k.id == secili.id }}" href="/otomasyon?kural={{ k.id }}#onizleme">{{ k.saat }} · {{ k.ders_no }}. ders</a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="onizleme-ust">
+    <span class="onizleme-baslik">{{ secili.ad }} — {{ derleme.ders_no }}. ders yoklaması</span>
+    <div class="kural-eylem">
+      <a href="/otomasyon?kural={{ secili.id }}#onizleme" class="ikincil-btn"><svg class="ikon"><use href="#ik-yenile"/></svg> Tazele</a>
+      {% if derleme.gonderilecek_smsler %}
+      <form method="post" action="/otomasyon/kural/{{ secili.id }}/calistir"
+            data-onay="{% if secili.bugun_gonderildi %}DİKKAT: Bu derse bugün ZATEN SMS gönderildi. {% endif %}{{ derleme.ders_no }}. derse gelmeyen öğrencilerin {{ derleme.toplam_veli_sms }} velisine ŞİMDİ gerçek SMS gönderilecek. Devam edilsin mi?">
+        <button type="submit"><svg class="ikon"><use href="#ik-gonder"/></svg> Şimdi gönder</button>
+      </form>
+      {% endif %}
     </div>
   </div>
 
-  <!-- 1. DERS (SABAH) ÖNİZLEMESİ -->
-  <div id="onizleme-sabah" style="display: {{ 'block' if secili_gorunum == 'sabah' else 'none' }};">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <span style="font-weight:600;color:var(--renk-metin);">Sabah 1. Ders Yoklama Durumu (08:10 - 08:50)</span>
-      <div style="display:flex;gap:8px;">
-        <a href="/otomasyon?gorunum=sabah" class="ikincil-btn">
-          <svg class="ikon"><use href="#ik-yenile"/></svg> Tazele
-        </a>
-        {% if derleme_sabah.gonderilecek_smsler %}
-        <form method="post" action="/otomasyon/calistir" onsubmit="return confirm('DİKKAT: Sabah 1. derse gelmeyen {{ derleme_sabah.toplam_veli_sms }} veliye ŞİMDİ gerçek SMS gönderilecektir. Devam etmek istiyor musunuz?');">
-          <input type="hidden" name="servis" value="ilk_ders">
-          <button type="submit" class="kucuk-btn" style="background:var(--renk-birincil);color:#fff;">
-            <svg class="ikon"><use href="#ik-gonder"/></svg> Şimdi Manuel Gönder (Sabah 1. Ders)
-          </button>
-        </form>
-        {% endif %}
-      </div>
+  <div class="kpi-grid">
+    <div class="kpi-karti kpi-turuncu">
+      <span class="kpi-etiket">Devamsız öğrenci</span>
+      <span class="kpi-deger">{{ derleme.toplam_ogrenci }}</span>
+      <span class="kpi-alt">{{ derleme.dahil_siniflar|length }} sınıfta {{ derleme.ders_no }}. ders yoklaması alındı</span>
     </div>
-
-    <!-- KPI KARTLARI (SABAH) -->
-    <div class="kpi-grid">
-      <div class="kpi-karti kpi-turuncu">
-        <span class="kpi-etiket">1. Ders Devamsız Öğrenci</span>
-        <span class="kpi-deger">{{ derleme_sabah.toplam_ogrenci }}</span>
-        <span class="kpi-alt">{{ derleme_sabah.dahil_siniflar|length }} sınıfta 1. ders yoklaması alındı</span>
-      </div>
-      <div class="kpi-karti kpi-yesil">
-        <span class="kpi-etiket">SMS Gönderilecek Veli</span>
-        <span class="kpi-deger">{{ derleme_sabah.toplam_veli_sms }}</span>
-        <span class="kpi-alt">{{ derleme_sabah.ulasilabilir_ogrenci }} öğrencinin anne ve babası</span>
-      </div>
-      <div class="kpi-karti kpi-turuncu">
-        <span class="kpi-etiket">Veli Telefonu Eksik</span>
-        <span class="kpi-deger">{{ derleme_sabah.telefonsuz_sayisi + derleme_sabah.eslesmeyen_sayisi }}</span>
-        <span class="kpi-alt">Rehberde veli telefonu bulunamadı</span>
-      </div>
-      <div class="kpi-karti kpi-mavi">
-        <span class="kpi-etiket">Hariç Tutulan Sınıf</span>
-        <span class="kpi-deger">{{ derleme_sabah.haric_siniflar|length }}</span>
-        <span class="kpi-alt">1. ders yoklaması eksik / tahta kapalı</span>
-      </div>
+    <div class="kpi-karti kpi-yesil">
+      <span class="kpi-etiket">SMS gidecek veli</span>
+      <span class="kpi-deger">{{ derleme.toplam_veli_sms }}</span>
+      <span class="kpi-alt">{{ derleme.ulasilabilir_ogrenci }} öğrencinin velileri</span>
     </div>
-
-    {% if derleme_sabah.haric_siniflar %}
-    <div class="uyari-kutusu">
-      <div>
-        <strong><svg class="ikon"><use href="#ik-uyari"/></svg> Bu sınıflarda 1. ders yoklaması alınmadığı için SMS gönderilmez:</strong>
-        <ul style="margin: 8px 0 0 16px;">
-          {% for h in derleme_sabah.haric_siniflar %}
-            <li><span class="sinif-rozet">{{ h.sinif }}</span> — {{ h.aciklama }}</li>
-          {% endfor %}
-        </ul>
-      </div>
+    {% if derleme.ders_no > 1 %}
+    <div class="kpi-karti kpi-mavi">
+      <span class="kpi-etiket">Sabah gelip bu derse gelmeyen</span>
+      <span class="kpi-deger">{{ derleme.sabah_gelen_sayisi }}</span>
+      <span class="kpi-alt">1. derste vardı</span>
     </div>
-    {% endif %}
-
-    {% if derleme_sabah.gonderilecek_smsler %}
-    <table>
-      <thead>
-        <tr>
-          <th>Sınıf</th>
-          <th>Öğrenci</th>
-          <th>Veli Adı</th>
-          <th>Yakınlık</th>
-          <th>Veli Telefonu</th>
-          <th>Gönderilecek SMS Önizlemesi</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for sms in derleme_sabah.gonderilecek_smsler %}
-        <tr>
-          <td><span class="sinif-rozet">{{ sms.sinif }}</span></td>
-          <td><strong>{{ sms.ogrenci_ad }}</strong></td>
-          <td>{{ sms.veli_ad }}</td>
-          <td>
-            {% if sms.veli_rol == 'anne' %}
-              <span class="rozet rozet-yesil">Anne</span>
-            {% elif sms.veli_rol == 'baba' %}
-              <span class="rozet rozet-mavi">Baba</span>
-            {% else %}
-              <span class="rozet rozet-gri">Veli</span>
-            {% endif %}
-          </td>
-          <td><span class="tel-metin">{{ sms.veli_telefon }}</span></td>
-          <td>
-            <div class="sms-onizleme-baloncuk">{{ sms.mesaj }}</div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
     {% else %}
-    <div class="uyari-kutusu basari">
-      <svg class="ikon"><use href="#ik-onay"/></svg>
-      Bugün 1. derste SMS gönderilecek devamsız öğrenci bulunmuyor (Tüm öğrenciler derste veya henüz 1. ders yoklaması işlenmemiş).
+    <div class="kpi-karti kpi-turuncu">
+      <span class="kpi-etiket">Veli telefonu eksik</span>
+      <span class="kpi-deger">{{ derleme.telefonsuz_sayisi + derleme.eslesmeyen_sayisi }}</span>
+      <span class="kpi-alt">Rehberde veli telefonu bulunamadı</span>
     </div>
     {% endif %}
+    <div class="kpi-karti kpi-mavi">
+      <span class="kpi-etiket">Hariç tutulan sınıf</span>
+      <span class="kpi-deger">{{ derleme.haric_siniflar|length }}</span>
+      <span class="kpi-alt">Yoklama eksik / tahta kapalı</span>
+    </div>
   </div>
 
-  <!-- 6. DERS (ÖĞLE) ÖNİZLEMESİ -->
-  <div id="onizleme-ogle" style="display: {{ 'block' if secili_gorunum == 'ogle' else 'none' }};">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <span style="font-weight:600;color:var(--renk-metin);">Öğleden Sonra 6. Ders Yoklama Durumu (13:30 - 14:10)</span>
-      <div style="display:flex;gap:8px;">
-        <a href="/otomasyon?gorunum=ogle" class="ikincil-btn">
-          <svg class="ikon"><use href="#ik-yenile"/></svg> Tazele
-        </a>
-        {% if derleme_ogle.gonderilecek_smsler %}
-        <form method="post" action="/otomasyon/calistir" onsubmit="return confirm('DİKKAT: Öğleden sonra 6. derse gelmeyen {{ derleme_ogle.toplam_veli_sms }} veliye ŞİMDİ gerçek SMS gönderilecektir. Devam etmek istiyor musunuz?');">
-          <input type="hidden" name="servis" value="ogle">
-          <button type="submit" class="kucuk-btn" style="background:var(--renk-birincil);color:#fff;">
-            <svg class="ikon"><use href="#ik-gonder"/></svg> Şimdi Manuel Gönder (Öğle 6. Ders)
-          </button>
-        </form>
+  {% if derleme.haric_siniflar %}
+  <div class="uyari-kutusu">
+    <strong><svg class="ikon"><use href="#ik-uyari"/></svg> Bu sınıflarda {{ derleme.ders_no }}. ders yoklaması alınmadığı için SMS gönderilmez:</strong>
+    <ul class="haric-liste">
+      {% for h in derleme.haric_siniflar %}
+      <li><span class="sinif-rozet">{{ h.sinif }}</span> — {{ h.aciklama }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if derleme.gonderilecek_smsler %}
+  <div class="tablo-kaydir">
+  <table>
+    <thead>
+      <tr>
+        <th>Sınıf</th>
+        <th>Öğrenci</th>
+        {% if derleme.ders_no > 1 %}<th>Durum</th>{% endif %}
+        <th>Veli</th>
+        <th>Yakınlık</th>
+        <th>Telefon</th>
+        <th>SMS önizlemesi</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for sms in derleme.gonderilecek_smsler %}
+      {% set rol = (sms.veli_rol or '')|lower %}
+      <tr>
+        <td><span class="sinif-rozet">{{ sms.sinif }}</span></td>
+        <td><strong>{{ sms.ogrenci_ad }}</strong></td>
+        {% if derleme.ders_no > 1 %}
+        <td>
+          {% if sms.sabah_da_yok %}<span class="rozet rozet-turuncu">Tüm gün yok</span>
+          {% else %}<span class="rozet rozet-mavi">Sabah vardı</span>{% endif %}
+        </td>
         {% endif %}
-      </div>
-    </div>
-
-    <!-- KPI KARTLARI (ÖĞLE) -->
-    <div class="kpi-grid">
-      <div class="kpi-karti kpi-turuncu">
-        <span class="kpi-etiket">6. Ders Devamsız Öğrenci</span>
-        <span class="kpi-deger">{{ derleme_ogle.toplam_ogrenci }}</span>
-        <span class="kpi-alt">{{ derleme_ogle.dahil_siniflar|length }} sınıfta 6. ders yoklaması alındı</span>
-      </div>
-      <div class="kpi-karti kpi-yesil">
-        <span class="kpi-etiket">SMS Gönderilecek Veli</span>
-        <span class="kpi-deger">{{ derleme_ogle.toplam_veli_sms }}</span>
-        <span class="kpi-alt">{{ derleme_ogle.ulasilabilir_ogrenci }} öğrencinin anne ve babası</span>
-      </div>
-      <div class="kpi-karti kpi-kirmizi">
-        <span class="kpi-etiket">Yalnızca Öğleden Sonra</span>
-        <span class="kpi-deger">{{ derleme_ogle.yalnizca_ogle_sayisi }}</span>
-        <span class="kpi-alt">Sabah derste olup öğleden sonra gelmeyen</span>
-      </div>
-      <div class="kpi-karti kpi-mavi">
-        <span class="kpi-etiket">Hariç Tutulan Sınıf</span>
-        <span class="kpi-deger">{{ derleme_ogle.haric_siniflar|length }}</span>
-        <span class="kpi-alt">6. ders yoklaması eksik / tahta kapalı</span>
-      </div>
-    </div>
-
-    {% if derleme_ogle.haric_siniflar %}
-    <div class="uyari-kutusu">
-      <div>
-        <strong><svg class="ikon"><use href="#ik-uyari"/></svg> Bu sınıflarda 6. ders yoklaması alınmadığı için SMS gönderilmez:</strong>
-        <ul style="margin: 8px 0 0 16px;">
-          {% for h in derleme_ogle.haric_siniflar %}
-            <li><span class="sinif-rozet">{{ h.sinif }}</span> — {{ h.aciklama }}</li>
-          {% endfor %}
-        </ul>
-      </div>
-    </div>
-    {% endif %}
-
-    {% if derleme_ogle.gonderilecek_smsler %}
-    <table>
-      <thead>
-        <tr>
-          <th>Sınıf</th>
-          <th>Öğrenci</th>
-          <th>Devamsızlık Durumu</th>
-          <th>Veli Adı</th>
-          <th>Yakınlık</th>
-          <th>Veli Telefonu</th>
-          <th>Gönderilecek SMS Önizlemesi</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for sms in derleme_ogle.gonderilecek_smsler %}
-        <tr>
-          <td><span class="sinif-rozet">{{ sms.sinif }}</span></td>
-          <td><strong>{{ sms.ogrenci_ad }}</strong></td>
-          <td>
-            {% if sms.sabah_da_yok %}
-              <span class="rozet rozet-turuncu" title="Sabah 1. derste de yoktu">Tüm Gün Yok</span>
-            {% else %}
-              <span class="rozet rozet-kirmizi" title="Sabah 1. dersteydi, öğleden sonra gelmedi">Öğleden Sonra Gelmedi</span>
-            {% endif %}
-          </td>
-          <td>{{ sms.veli_ad }}</td>
-          <td>
-            {% if sms.veli_rol == 'anne' %}
-              <span class="rozet rozet-yesil">Anne</span>
-            {% elif sms.veli_rol == 'baba' %}
-              <span class="rozet rozet-mavi">Baba</span>
-            {% else %}
-              <span class="rozet rozet-gri">Veli</span>
-            {% endif %}
-          </td>
-          <td><span class="tel-metin">{{ sms.veli_telefon }}</span></td>
-          <td>
-            <div class="sms-onizleme-baloncuk">{{ sms.mesaj }}</div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <div class="uyari-kutusu basari">
-      <svg class="ikon"><use href="#ik-onay"/></svg>
-      Bugün 6. derste SMS gönderilecek devamsız öğrenci bulunmuyor (Tüm öğrenciler derste veya henüz 6. ders yoklaması işlenmemiş).
-    </div>
-    {% endif %}
+        <td>{{ sms.veli_ad }}</td>
+        <td>
+          {% if rol == 'anne' %}<span class="rozet rozet-yesil">Anne</span>
+          {% elif rol == 'baba' %}<span class="rozet rozet-mavi">Baba</span>
+          {% else %}<span class="rozet rozet-gri">{{ sms.veli_rol or 'Veli' }}</span>{% endif %}
+        </td>
+        <td><span class="tel-metin">{{ sms.veli_telefon }}</span></td>
+        <td><div class="sms-onizleme-baloncuk">{{ sms.mesaj }}</div></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
   </div>
+  {% else %}
+  <div class="uyari-kutusu basari">
+    <svg class="ikon"><use href="#ik-onay"/></svg>
+    Şu an bu derse SMS gidecek devamsız öğrenci yok (herkes derste ya da yoklama henüz alınmamış).
+  </div>
+  {% endif %}
 </section>
+{% endif %}
 
 <script>
-function onizlemeGoster(hedef) {
-  const sabahDiv = document.getElementById("onizleme-sabah");
-  const ogleDiv = document.getElementById("onizleme-ogle");
-  const sabahBtn = document.getElementById("btn-gorunum-sabah");
-  const ogleBtn = document.getElementById("btn-gorunum-ogle");
-
-  if (hedef === "ogle") {
-    sabahDiv.style.display = "none";
-    ogleDiv.style.display = "block";
-    sabahBtn.classList.remove("aktif");
-    ogleBtn.classList.add("aktif");
-  } else {
-    sabahDiv.style.display = "block";
-    ogleDiv.style.display = "none";
-    sabahBtn.classList.add("aktif");
-    ogleBtn.classList.remove("aktif");
-  }
-}
-
 (function () {
-  function sayacBagla(inputId, sayacId) {
-    const input = document.getElementById(inputId);
-    const sayac = document.getElementById(sayacId);
-    if (!input || !sayac) return;
+  // Onay metni data-onay'da: kullanıcı metni (kural adı) JS koduna gömülmez
+  document.querySelectorAll("form[data-onay]").forEach((f) => {
+    f.addEventListener("submit", (e) => { if (!confirm(f.dataset.onay)) e.preventDefault(); });
+  });
 
-    function guncelle() {
-      const metin = input.value;
-      const turkce = /[^\x00-\x7F]/.test(metin);
-      const limit = turkce ? 70 : 160;
-      const adet = Math.max(1, Math.ceil(metin.length / limit));
-      sayac.textContent =
-        metin.length + " karakter · " + (turkce ? "Türkçe (UCS2)" : "ASCII") +
-        " · ~" + adet + " SMS";
-    }
-
-    input.addEventListener("input", guncelle);
+  function sayac(t) {
+    const s = document.getElementById(t.dataset.sayac);
+    if (!s) return;
+    const guncelle = () => {
+      const m = t.value, turkce = /[^\x00-\x7F]/.test(m), limit = turkce ? 70 : 160;
+      s.textContent = m.length + " karakter · " + (turkce ? "Türkçe (UCS2)" : "ASCII") + " · ~" + Math.max(1, Math.ceil(m.length / limit)) + " SMS";
+    };
+    t.addEventListener("input", guncelle);
     guncelle();
   }
+  document.querySelectorAll("textarea[data-sayac]").forEach(sayac);
 
-  sayacBagla("sablon-sabah", "sayac-sabah");
-  sayacBagla("sablon-ogle", "sayac-ogle");
-
-  function aiBagla(btnId, inputId, sayacId) {
-    const btn = document.getElementById(btnId);
-    const input = document.getElementById(inputId);
-    if (!btn || !input) return;
-
-    btn.addEventListener("click", async function () {
-      const taslak = input.value.trim();
-      if (!taslak) return;
-      btn.disabled = true;
-      btn.textContent = "Düzenleniyor...";
-      try {
-        const resp = await fetch("/api/mesaj-duzelt", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ taslak: taslak })
-        });
-        const data = await resp.json();
-        if (data.duzeltilmis) {
-          input.value = data.duzeltilmis;
-          input.dispatchEvent(new Event("input"));
-        } else if (data.hata) {
-          alert("Hata: " + data.hata);
-        }
-      } catch (err) {
-        alert("Yapay zeka servisine ulaşılamadı: " + err);
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<svg class="ikon"><use href="#ik-nabiz"/></svg> AI İyileştir';
-      }
+  // Yeni otomasyon: şablon boşsa ders numarasına göre varsayılan metin
+  const yeni = document.getElementById("yeni-sablon");
+  if (yeni) {
+    const ders = yeni.form.querySelector("input[name=ders_no]");
+    let elle = yeni.value.trim() !== "";
+    yeni.addEventListener("input", () => { elle = true; });
+    ders.addEventListener("input", () => {
+      if (elle || !ders.value) return;
+      yeni.value = yeni.dataset.varsayilan.replace("{ders_no}", ders.value);
+      yeni.dispatchEvent(new Event("input"));
+      elle = false;
     });
   }
 
-  aiBagla("btn-ai-sabah", "sablon-sabah", "sayac-sabah");
-  aiBagla("btn-ai-ogle", "sablon-ogle", "sayac-ogle");
+  document.querySelectorAll(".ai-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const t = btn.form.querySelector("textarea[name=sablon]");
+      const taslak = t.value.trim();
+      if (!taslak) return;
+      const eski = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Düzenleniyor…";
+      try {
+        const r = await fetch("/api/mesaj-duzelt", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taslak })
+        });
+        const d = await r.json();
+        if (d.duzeltilmis) { t.value = d.duzeltilmis; t.dispatchEvent(new Event("input")); }
+        else if (d.hata) alert("Hata: " + d.hata);
+      } catch (e) {
+        alert("Yapay zeka servisine ulaşılamadı.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = eski;
+      }
+    });
+  });
 })();
 </script>
 

@@ -91,63 +91,93 @@ async def test_otomasyon_sayfa_acilir(test_db, pano):
     assert "SMS Otomasyonu" in resp.body.decode("utf-8")
 
 
-@pytest.mark.anyio
-async def test_otomasyon_sayfa_yalniz_sabah_acikken_kismen_gosterir(test_db, pano):
-    # 2026-10-06 kök neden: sabah açık, öğle hiç açılmamıştı ama sayfa "AKTİF
-    # (09:00 ve 14:00)" diyordu → 14:00 SMS'i hiç gitmedi.
-    db.ayar_yaz(test_db, otomasyon.AYAR_AKTIF, "1")
-    db.ayar_yaz(test_db, otomasyon.AYAR_OGLE_AKTIF, "0")
-    govde = (await app.otomasyon_sayfa(_sahte_oturum_request(test_db))).body.decode("utf-8")
-    assert "KISMEN AÇIK" in govde and ">KISMEN<" in govde
-    assert "Servisi Aç" in govde  # tek basış ikisini birden açar
-    db.ayar_yaz(test_db, otomasyon.AYAR_OGLE_AKTIF, "1")
-    govde = (await app.otomasyon_sayfa(_sahte_oturum_request(test_db))).body.decode("utf-8")
-    assert ">AKTİF<" in govde and "KISMEN" not in govde
+def _ogrenci_ve_veli(conn, sinif="9-A"):
+    sinif_id = next(s["id"] for s in db.siniflar_listele(conn) if s["ad"] == sinif)
+    ogr_id = db.kisi_ekle(conn, "Murat Polat", None, sinif_id, "ogrenci")
+    db.kisi_ekle(conn, "Zeynep Polat", "05321110099", sinif_id, "veli", ogrenci_kisi_id=ogr_id, veli_rol="Anne")
 
 
 @pytest.mark.anyio
-async def test_otomasyon_durum_degistir(test_db):
+async def test_otomasyon_sayfa_kurallari_ve_rol_rozetini_gosterir(test_db, pano, monkeypatch):
+    from datetime import date
+
+    monkeypatch.setattr(otomasyon, "bugun_istanbul", lambda: date.fromisoformat(TARIH))
+    pano("9-A", 1, "alindi", yok=["Murat Polat"])
+    _ogrenci_ve_veli(test_db)
+    govde = (await app.otomasyon_sayfa(_sahte_oturum_request(test_db), kural=1)).body.decode("utf-8")
+    assert "Sabah 1. ders" in govde and "Öğleden sonra 6. ders" in govde
+    assert "/otomasyon/kural/1/sil" in govde and "/otomasyon/kural/ekle" in govde
+    # rehberde 'Anne' büyük harfle; eskiden her zaman "Veli" rozeti çıkıyordu
+    assert '<span class="rozet rozet-yesil">Anne</span>' in govde
+    # kullanıcı metni JS'e gömülmez (onay metni data-onay'da)
+    assert "onsubmit" not in govde
+
+
+@pytest.mark.anyio
+async def test_kural_ekle_guncelle_durum_sil(test_db):
     req = _sahte_oturum_request(test_db)
-    resp = await app.otomasyon_durum_degistir(req, aktif="1")
+    resp = await app.otomasyon_kural_ekle(req, ad="", saat="10:30", ders_no="3", sablon="Sayın {isim}")
     assert resp.status_code == 303
-    assert resp.headers["location"] == "/otomasyon?mesaj=durum_degisti"
-    assert db.ayar_oku(test_db, otomasyon.AYAR_AKTIF) == "1"
+    kid = next(k["id"] for k in otomasyon.kurallar(test_db) if k["ders_no"] == 3)
+    assert resp.headers["location"] == f"/otomasyon?kural={kid}&mesaj=eklendi"
+    assert otomasyon.kural_getir(test_db, kid)["aktif"] is False
 
-    resp2 = await app.otomasyon_durum_degistir(req, aktif="0")
-    assert resp2.status_code == 303
-    assert db.ayar_oku(test_db, otomasyon.AYAR_AKTIF) == "0"
+    resp = await app.otomasyon_kural_guncelle(req, kid, ad="Üçüncü", saat="10:45", ders_no="3", sablon="Yeni {isim}")
+    assert resp.headers["location"] == f"/otomasyon?kural={kid}&mesaj=guncellendi"
+    k = otomasyon.kural_getir(test_db, kid)
+    assert (k["ad"], k["saat"], k["sablon"]) == ("Üçüncü", "10:45", "Yeni {isim}")
+
+    await app.otomasyon_kural_durum(req, kid, aktif="1")
+    assert otomasyon.kural_getir(test_db, kid)["aktif"] is True
+
+    resp = await app.otomasyon_kural_sil(req, kid)
+    assert resp.headers["location"] == "/otomasyon?mesaj=silindi"
+    assert otomasyon.kural_getir(test_db, kid) is None
 
 
 @pytest.mark.anyio
-async def test_otomasyon_ayarlar_kaydet(test_db):
+async def test_kural_ekle_hatali_girdi_400_ve_formu_korur(test_db, pano):
     req = _sahte_oturum_request(test_db)
-    yeni_sablon = "Özel şablon: {isim}, {ogrenci_adi} derse gelmedi."
-    resp = await app.otomasyon_ayarlar_kaydet(req, sablon=yeni_sablon)
-    assert resp.status_code == 303
-    assert resp.headers["location"] == "/otomasyon?mesaj=ayarlar_kaydedildi"
-    assert db.ayar_oku(test_db, otomasyon.AYAR_SABLON) == yeni_sablon
+    resp = await app.otomasyon_kural_ekle(req, ad="Deneme", saat="10:30", ders_no="1", sablon="x")
+    assert resp.status_code == 400
+    govde = resp.body.decode("utf-8")
+    assert "1. ders için zaten bir otomasyon var" in govde
+    assert 'value="Deneme"' in govde
+    assert len(otomasyon.kurallar(test_db)) == 2
+
+
+@pytest.mark.anyio
+async def test_kural_uclari_oturumsuz_401_ve_olmayan_kural_404(test_db):
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as e:
+        await app.otomasyon_kural_sil(_oturumsuz_request(), 1)
+    assert e.value.status_code == 401
+    assert otomasyon.kural_getir(test_db, 1) is not None
+    req = _sahte_oturum_request(test_db)
+    for cagri in (
+        app.otomasyon_kural_sil(req, 999),
+        app.otomasyon_kural_durum(req, 999, aktif="1"),
+        app.otomasyon_manuel_calistir(req, 999),
+    ):
+        with pytest.raises(HTTPException) as e:
+            await cagri
+        assert e.value.status_code == 404
 
 
 @pytest.mark.anyio
 async def test_otomasyon_manuel_calistir(test_db, pano, monkeypatch):
     pano("9-A", 1, "alindi", yok=["Murat Polat"])
-    sinif_9a = [s["id"] for s in db.siniflar_listele(test_db) if s["ad"] == "9-A"][0]
-    ogr_id = db.kisi_ekle(test_db, "Murat Polat", None, sinif_9a, "ogrenci")
-    db.kisi_ekle(test_db, "Zeynep Polat", "05321110099", sinif_9a, "veli", ogrenci_kisi_id=ogr_id)
-
-    gonderilenler = []
+    _ogrenci_ve_veli(test_db)
 
     def mock_toplu_gonder(ayarlar, kisiler, callback, durdur_bayragi, bekleme_sn):
         for isim, tel, msg in kisiler:
-            gonderilenler.append((isim, tel, msg))
             callback(isim, tel, msg, "gonderildi", None)
 
     monkeypatch.setattr(otomasyon.sms_gonderici, "toplu_gonder", mock_toplu_gonder)
-
-    req = _sahte_oturum_request(test_db)
-    resp = await app.otomasyon_manuel_calistir(req)
+    resp = await app.otomasyon_manuel_calistir(_sahte_oturum_request(test_db), 1)
     assert resp.status_code == 303
-    assert resp.headers["location"] == "/otomasyon?mesaj=gonderildi"
+    assert resp.headers["location"] == "/otomasyon?kural=1&mesaj=gonderildi"
 
 
 @pytest.mark.anyio
@@ -157,36 +187,50 @@ async def test_otomasyon_manuel_calistir_baglanti_hatasinda_basarisiz_mesaji_don
     hiçbir SMS gitmemişken bile 'başarıyla gönderildi' gösteriyordu)."""
     from datetime import date
 
-    # otomasyon_calistir tarihi bugun_istanbul()'dan alır; pano satırı TARIH'e
-    # yazıldığı için "bugün" sabitlenmezse test yalnızca TARIH günü geçer.
     monkeypatch.setattr(otomasyon, "bugun_istanbul", lambda: date.fromisoformat(TARIH))
     pano("9-A", 1, "alindi", yok=["Murat Polat"])
-    sinif_9a = [s["id"] for s in db.siniflar_listele(test_db) if s["ad"] == "9-A"][0]
-    ogr_id = db.kisi_ekle(test_db, "Murat Polat", None, sinif_9a, "ogrenci")
-    db.kisi_ekle(test_db, "Zeynep Polat", "05321110099", sinif_9a, "veli", ogrenci_kisi_id=ogr_id)
+    _ogrenci_ve_veli(test_db)
 
     def mock_toplu_gonder(ayarlar, kisiler, callback, durdur_bayragi, bekleme_sn):
         for isim, tel, msg in kisiler:
             callback(isim, tel, msg, "hata", "BAĞLANTI HATASI: proxy erişilemedi")
 
     monkeypatch.setattr(otomasyon.sms_gonderici, "toplu_gonder", mock_toplu_gonder)
+    resp = await app.otomasyon_manuel_calistir(_sahte_oturum_request(test_db), 1)
+    assert resp.headers["location"] == "/otomasyon?kural=1&mesaj=basarisiz"
+    assert otomasyon.ders_son_tarih(test_db, 1) == ""
 
-    req = _sahte_oturum_request(test_db)
-    resp = await app.otomasyon_manuel_calistir(req)
-    assert resp.status_code == 303
-    assert resp.headers["location"] == "/otomasyon?mesaj=basarisiz"
-    assert db.ayar_oku(test_db, otomasyon.AYAR_SON_TARIH) == ""
+
+@pytest.mark.anyio
+async def test_otomasyon_manuel_calistir_ogle(test_db, pano, monkeypatch):
+    from datetime import date
+
+    monkeypatch.setattr(otomasyon, "bugun_istanbul", lambda: date.fromisoformat(TARIH))
+    pano("9-A", 6, "alindi", yok=["Murat Polat"])
+    _ogrenci_ve_veli(test_db)
+    gonderilenler = []
+
+    def mock_toplu_gonder(ayarlar, kisiler, callback, durdur_bayragi, bekleme_sn):
+        for isim, tel, msg in kisiler:
+            gonderilenler.append(msg)
+            callback(isim, tel, msg, "gonderildi", None)
+
+    monkeypatch.setattr(otomasyon.sms_gonderici, "toplu_gonder", mock_toplu_gonder)
+    resp = await app.otomasyon_manuel_calistir(_sahte_oturum_request(test_db), 2)
+    assert resp.headers["location"] == "/otomasyon?kural=2&mesaj=gonderildi"
+    assert len(gonderilenler) == 1 and "öğleden sonra" in gonderilenler[0]
+    assert otomasyon.ders_son_tarih(test_db, 6) == TARIH
 
 
 @pytest.mark.anyio
 async def test_api_otomasyon_durum(test_db):
-    req = _sahte_oturum_request(test_db)
-    db.ayar_yaz(test_db, otomasyon.AYAR_AKTIF, "1")
-    resp = await app.api_otomasyon_durum(req)
+    otomasyon.kural_aktif_yaz(test_db, 1, True)
+    resp = await app.api_otomasyon_durum(_sahte_oturum_request(test_db))
     assert resp.status_code == 200
-    veri = json.loads(resp.body)
-    assert veri["aktif"] == "1"
-    assert "Sayın {isim}" in veri["sablon"]
+    kurallar = {k["id"]: k for k in json.loads(resp.body)["kurallar"]}
+    assert kurallar[1]["aktif"] is True and kurallar[1]["ders_no"] == 1
+    assert kurallar[2]["aktif"] is False and kurallar[2]["saat"] == "14:00"
+    assert "Sayın {isim}" in kurallar[1]["sablon"]
 
 
 @pytest.mark.anyio
@@ -197,13 +241,9 @@ async def test_manuel_calistir_event_loopu_bloklamaz(test_db, pano, monkeypatch)
     import time
     from datetime import date
 
-    # otomasyon_calistir tarihi bugun_istanbul()'dan alır; pano satırı TARIH'e
-    # yazıldığı için "bugün" sabitlenmezse test yalnızca TARIH günü geçer.
     monkeypatch.setattr(otomasyon, "bugun_istanbul", lambda: date.fromisoformat(TARIH))
     pano("9-A", 1, "alindi", yok=["Murat Polat"])
-    sinif_9a = [s["id"] for s in db.siniflar_listele(test_db) if s["ad"] == "9-A"][0]
-    ogr_id = db.kisi_ekle(test_db, "Murat Polat", None, sinif_9a, "ogrenci")
-    db.kisi_ekle(test_db, "Zeynep Polat", "05321110099", sinif_9a, "veli", ogrenci_kisi_id=ogr_id)
+    _ogrenci_ve_veli(test_db)
 
     def yavas_toplu_gonder(ayarlar, kisiler, callback, durdur_bayragi, bekleme_sn):
         time.sleep(0.5)  # gerçek gönderimdeki time.sleep'in yerine
@@ -221,9 +261,9 @@ async def test_manuel_calistir_event_loopu_bloklamaz(test_db, pano, monkeypatch)
             tikler += 1
 
     gorev = asyncio.create_task(sayac())
-    resp = await app.otomasyon_manuel_calistir(_sahte_oturum_request(test_db))
+    resp = await app.otomasyon_manuel_calistir(_sahte_oturum_request(test_db), 1)
     gorev.cancel()
-    assert resp.headers["location"] == "/otomasyon?mesaj=gonderildi"
+    assert resp.headers["location"] == "/otomasyon?kural=1&mesaj=gonderildi"
     assert tikler >= 5  # bloklansaydı gönderim boyunca 0 kalırdı
 
 
@@ -235,92 +275,8 @@ async def test_manuel_calistir_zaten_calisiyorsa_gondermez(test_db, monkeypatch)
     )
     assert otomasyon._CALISMA_KILIDI.acquire(blocking=False)
     try:
-        resp = await app.otomasyon_manuel_calistir(_sahte_oturum_request(test_db))
+        resp = await app.otomasyon_manuel_calistir(_sahte_oturum_request(test_db), 1)
     finally:
         otomasyon._CALISMA_KILIDI.release()
-    assert resp.headers["location"] == "/otomasyon?mesaj=calisiyor"
+    assert resp.headers["location"] == "/otomasyon?kural=1&mesaj=calisiyor"
     assert gonderildi == []
-
-
-@pytest.mark.anyio
-async def test_otomasyon_sayfa_ogle_sekmesi_acilir(test_db, pano):
-    req = _sahte_oturum_request(test_db, path="/otomasyon?sekme=ogle")
-    resp = await app.otomasyon_sayfa(req, sekme="ogle")
-    assert resp.status_code == 200
-    icerik = resp.body.decode("utf-8")
-    assert "Öğleden Sonra 14:00" in icerik
-    assert "6. Ders" in icerik
-
-
-@pytest.mark.anyio
-async def test_otomasyon_durum_degistir_ogle(test_db):
-    req = _sahte_oturum_request(test_db)
-    resp = await app.otomasyon_durum_degistir(req, aktif="1", servis="ogle")
-    assert resp.status_code == 303
-    assert resp.headers["location"] == "/otomasyon?mesaj=durum_degisti&sekme=ogle"
-    assert db.ayar_oku(test_db, otomasyon.AYAR_OGLE_AKTIF) == "1"
-
-    resp2 = await app.otomasyon_durum_degistir(req, aktif="0", servis="ogle")
-    assert resp2.status_code == 303
-    assert resp2.headers["location"] == "/otomasyon?mesaj=durum_degisti&sekme=ogle"
-    assert db.ayar_oku(test_db, otomasyon.AYAR_OGLE_AKTIF) == "0"
-
-
-@pytest.mark.anyio
-async def test_otomasyon_ayarlar_kaydet_ogle(test_db):
-    req = _sahte_oturum_request(test_db)
-    yeni_sablon = "Özel öğle şablonu: Sayın {isim}, {ogrenci_adi} öğleden sonra gelmedi."
-    resp = await app.otomasyon_ayarlar_kaydet(req, sablon=yeni_sablon, servis="ogle")
-    assert resp.status_code == 303
-    assert resp.headers["location"] == "/otomasyon?mesaj=ayarlar_kaydedildi&sekme=ogle"
-    assert db.ayar_oku(test_db, otomasyon.AYAR_OGLE_SABLON) == yeni_sablon
-
-
-@pytest.mark.anyio
-async def test_otomasyon_manuel_calistir_ogle(test_db, pano, monkeypatch):
-    from datetime import date
-    monkeypatch.setattr(otomasyon, "bugun_istanbul", lambda: date.fromisoformat(TARIH))
-    pano("9-A", 6, "alindi", yok=["Murat Polat"])
-    sinif_9a = next(s["id"] for s in db.siniflar_listele(test_db) if s["ad"] == "9-A")
-    ogr_id = db.kisi_ekle(test_db, "Murat Polat", None, sinif_9a, "ogrenci")
-    db.kisi_ekle(test_db, "Zeynep Polat", "05321110099", sinif_9a, "veli", ogrenci_kisi_id=ogr_id)
-
-    gonderilenler = []
-
-    def mock_toplu_gonder(ayarlar, kisiler, callback, durdur_bayragi, bekleme_sn):
-        for isim, tel, msg in kisiler:
-            gonderilenler.append((isim, tel, msg))
-            callback(isim, tel, msg, "gonderildi", None)
-
-    monkeypatch.setattr(otomasyon.sms_gonderici, "toplu_gonder", mock_toplu_gonder)
-
-    req = _sahte_oturum_request(test_db)
-    resp = await app.otomasyon_manuel_calistir(req, servis="ogle")
-    assert resp.status_code == 303
-    assert resp.headers["location"] == "/otomasyon?mesaj=gonderildi&sekme=ogle"
-    assert len(gonderilenler) == 1
-    assert db.ayar_oku(test_db, otomasyon.AYAR_OGLE_SON_TARIH) == TARIH
-
-
-@pytest.mark.anyio
-async def test_api_otomasyon_durum_ogle_ve_genel(test_db):
-    req = _sahte_oturum_request(test_db)
-    db.ayar_yaz(test_db, otomasyon.AYAR_AKTIF, "1")
-    db.ayar_yaz(test_db, otomasyon.AYAR_OGLE_AKTIF, "1")
-
-    # 1. servis=ogle
-    resp_ogle = await app.api_otomasyon_durum(req, servis="ogle")
-    assert resp_ogle.status_code == 200
-    veri_ogle = json.loads(resp_ogle.body)
-    assert veri_ogle["servis"] == "ogle"
-    assert veri_ogle["aktif"] == "1"
-
-    # 2. genel (servis=None)
-    resp_genel = await app.api_otomasyon_durum(req)
-    assert resp_genel.status_code == 200
-    veri_genel = json.loads(resp_genel.body)
-    assert "sabah" in veri_genel
-    assert "ogle" in veri_genel
-    assert veri_genel["sabah"]["aktif"] == "1"
-    assert veri_genel["ogle"]["aktif"] == "1"
-

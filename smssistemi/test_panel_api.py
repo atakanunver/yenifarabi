@@ -176,13 +176,22 @@ def test_otomasyon_durum_yalniz_bugunku_sayilar(ortam):
 
     bugun = otomasyon.bugun_istanbul().isoformat()
     c = db.baglanti()
-    db.ayar_yaz(c, "otomasyon_ilk_ders_son_sonuc", json.dumps({
+    yaz = "UPDATE otomasyon_kurallari SET son_sonuc = ? WHERE id = ?"
+    c.execute(yaz, (json.dumps({
         "tarih": bugun, "durum": "tamamlandi", "veli_sms_sayisi": 8, "basarili_sayisi": 8, "hatali_sayisi": 0,
         "dahil_sinif_sayisi": 5, "haric_sinif_sayisi": 2, "haric_sebepleri": {"alinmadi": 1, "tahta_ulasilamaz": 1},
-        "gonderim_id": "oto1_x", "calisma_zamani": "gizli-alan-sizmamali"}))
-    db.ayar_yaz(c, "otomasyon_ogle_son_sonuc", json.dumps({"tarih": "2020-01-01", "durum": "tamamlandi"}))  # eski gün
+        "gonderim_id": "oto1_x", "calisma_zamani": "gizli-alan-sizmamali"}), 1))
+    c.execute(yaz, (json.dumps({"tarih": "2020-01-01", "durum": "tamamlandi"}), 2))  # eski gün
+    c.commit()
     c.close()
     y = panel_api.otomasyon_durum()
     assert y["tarih"] == bugun and y["ogle"] is None
     assert y["ilk_ders"]["haric_sebepleri"] == {"alinmadi": 1, "tahta_ulasilamaz": 1}
     assert "gonderim_id" not in y["ilk_ders"] and "calisma_zamani" not in y["ilk_ders"]
+    assert [(k["id"], k["ders_no"], k["bugun"] is not None) for k in y["kurallar"]] == [(1, 1, True), (2, 6, False)]
+    assert "gonderim_id" not in y["kurallar"][0]["bugun"]
+
+    c = db.baglanti()
+    otomasyon.kural_sil(c, 1)
+    c.close()
+    assert panel_api.otomasyon_durum()["ilk_ders"] is None  # silinen kural: dashboard kartı "çalışmadı" gösterir
