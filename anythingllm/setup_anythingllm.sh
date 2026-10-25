@@ -15,6 +15,10 @@
 #  - `SERVER_MODE` diye bir ortam değişkeni YOK. Tek kullanıcı + parola = `AUTH_TOKEN`. Çok kullanıcılı mod yalnızca
 #    arayüzden (Ayarlar > Çok kullanıcılı mod) açılır ve GERİ ALINAMAZ; burada kullanılmıyor.
 #  - Collector kendi `collector/.env` dosyasında `STORAGE_DIR` ister (yoksa açılışta çöker).
+#  - Dosya yükleme: sunucu (üretim kipinde) yükleme klasörünü STORAGE_DIR/../../collector/hotdir olarak hesaplar; Docker düzeninde
+#    (/app/server/storage) doğru çıkar, bizim düzende /opt/collector/hotdir'e düşer ve "ENOENT" ile her yükleme çöker.
+#    Çözüm: /opt/collector -> /opt/anythingllm/app/collector sembolik bağı (adım 4).
+#  - OCR varsayılan olarak yalnızca İngilizce tanır (Türkçe harfler kaybolur: "şubat" -> "subat"); TARGET_OCR_LANG="tur,eng".
 #  - Okul ağı SSL denetimi yapar: Node için NODE_EXTRA_CA_CERTS, Puppeteer'ın Chromium indirmesi atlanır (web kazıma yok).
 #  - Node: resmî hedef 18; Node 22 ile sorunsuz kuruldu ve çalıştı.
 set -euo pipefail
@@ -70,9 +74,13 @@ OLLAMA_MODEL_PREF='$MODEL'
 OLLAMA_MODEL_TOKEN_LIMIT=$CTX
 EMBEDDING_ENGINE='native'
 VECTOR_DB='lancedb'
+TARGET_OCR_LANG="tur,eng"
 ENV
 printf 'STORAGE_DIR="%s"\n' "$DIZIN/storage" > "$UYGULAMA/collector/.env"
 echo "VITE_API_BASE='/api'" > "$UYGULAMA/frontend/.env"
+# Yükleme klasörü köprüsü: sunucu STORAGE_DIR/../../collector/hotdir'e yazar (= $(dirname "$DIZIN")/collector/hotdir), collector ise
+# kendi dizinindeki hotdir'i izler; ikisini aynı yere bağla.
+ln -sfn "$UYGULAMA/collector" "$(dirname "$DIZIN")/collector"
 chown "$KULLANICI:$KULLANICI" "$UYGULAMA/server/.env" "$UYGULAMA/collector/.env" "$UYGULAMA/frontend/.env" "$DIZIN/storage"
 chmod 600 "$UYGULAMA/server/.env"
 
