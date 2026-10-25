@@ -637,11 +637,11 @@ a.sekme-btn { text-decoration: none; white-space: nowrap; }
    karıştırarak koyulaştır/açıklaştır; desteklemeyen tarayıcı yukarıdaki pano renklerinde kalır. */
 @supports (color: color-mix(in srgb, red 50%, blue)) {
   .ust-cubuk nav a.aktif, .sinif-rozet, .rozet-mavi, .sekme-btn.aktif, .yaklasan-gun-rozet.gun-bugun,
-  .kural-duzenle summary, .kural-ekle summary { color: color-mix(in srgb, var(--renk-birincil-koyu) 55%, var(--renk-metin)); }
-  .rozet-yesil, .ogr-rozet, .uyari-kutusu.basari { color: color-mix(in srgb, var(--renk-yesil) 70%, var(--renk-metin)); }
-  .rozet-turuncu, .yaklasan-gun-rozet.gun-yarin { color: color-mix(in srgb, var(--renk-amber) 70%, var(--renk-metin)); }
-  .rozet-gri, .yaklasan-gun-rozet { color: color-mix(in srgb, var(--renk-gri) 70%, var(--renk-metin)); }
-  .ogr-rozet.eslesmedi { color: color-mix(in srgb, var(--renk-kirmizi) 70%, var(--renk-metin)); }
+  .kural-duzenle summary, .kural-ekle summary { color: color-mix(in srgb, var(--renk-birincil-koyu) 40%, var(--renk-metin)); }
+  .rozet-yesil, .ogr-rozet, .uyari-kutusu.basari { color: color-mix(in srgb, var(--renk-yesil) 55%, var(--renk-metin)); }
+  .rozet-turuncu, .yaklasan-gun-rozet.gun-yarin { color: color-mix(in srgb, var(--renk-amber) 55%, var(--renk-metin)); }
+  .rozet-gri, .yaklasan-gun-rozet { color: color-mix(in srgb, var(--renk-gri) 55%, var(--renk-metin)); }
+  .ogr-rozet.eslesmedi, .hata, tr.hata td, .uyari-kutusu.hata, .alici-sil-btn { color: color-mix(in srgb, var(--renk-kirmizi) 55%, var(--renk-metin)); }
 
   /* Beyaz yazılı dolu düğmeler: zemini her temada beyaza karşı ≥4,5:1 olacak kadar koyulaştır. */
   button, .duzelt-btn, .gonder-ana-btn { background: color-mix(in srgb, var(--renk-birincil-koyu) 85%, black); }
