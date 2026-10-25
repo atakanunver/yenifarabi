@@ -68,8 +68,8 @@
 <div class="uyari-kutusu">
   <div>
     <strong><svg class="ikon"><use href="#ik-uyari"/></svg> Bu sınıflar listeye dahil edilmedi</strong>
-    <p class="bolum-aciklama">Yoklaması alınmadığı için kimin geldiği bilinmiyor —
-    bu sınıflardan <strong>hiç kimseye SMS gönderilmez</strong>.</p>
+    <p class="bolum-aciklama">Yoklaması alınmadığı ya da eşiği değerlendirecek kadar
+    dersin yoklaması olmadığı için bu sınıflardan <strong>hiç kimseye SMS gönderilmez</strong>.</p>
     <ul>
       {% for h in ozet.haric_siniflar %}
         <li><span class="sinif-rozet">{{ h.sinif }}</span> — {{ h.aciklama }}{% if h.ders_sayisi %} ({{ h.ders_sayisi }} ders){% endif %}</li>
