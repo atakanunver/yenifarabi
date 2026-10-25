@@ -16,6 +16,9 @@ Kritik kurallar (hepsi `test_yoklama_mantik.py`'de sınanır):
    `haric_siniflar`'a yazılır. 12-A'nın 2026-09-22'de DHCP kirası bozulunca
    4-8. derslerde `tahta_ulasilamaz` olması tam bu vakadır — o gün o sınıfın
    tüm öğrencilerine "okula gelmedi" SMS'i gitmesi kabul edilemez.
+   Alınan ders sayısı eşikten az olan sınıf da (`esik_alti`) hariç tutulur
+   ve uyarıda görünür; aksi halde oradaki tüm gün gelmeyen öğrenci sessizce
+   kaybolurdu (2026-10-25).
 3. **İzinli ders "yok" sayılmaz.** Gün içinde bir kez bile izinli görünen
    öğrenci `izinli_mi` ile işaretlenir ve arayüzde varsayılan SEÇİLİ GELMEZ.
 4. **Eşleşmeyen isim sessizce düşürülmez.** Panonun roster'ında numarası
@@ -210,6 +213,19 @@ def devamsiz_ozet(conn, tarih: str | None = None, esik: int = ESIK_VARSAYILAN) -
 
     satirlar = yoklama_kaynak.gunun_satirlari(hedef_tarih)
     dahil, haric = _sinif_ozetleri(satirlar)
+    # Alınan ders eşikten azsa o sınıfta kimse eşiğe ulaşamaz; "dahil" sayılsaydı tüm gün gelmeyen
+    # öğrenci de listeye girmez, sınıf uyarıda da görünmezdi (sessiz kayıp). Eşik otomatik
+    # düşürülmez: yalnız 1. dersi alınmış sınıfta geç gelenin velisine yanlış SMS giderdi.
+    for sinif in [s for s, v in dahil.items() if v["alinan"] < esik]:
+        v = dahil.pop(sinif)
+        tumunde_yok = sum(1 for adet in v["yok"].values() if adet == v["alinan"])
+        aciklama = f"Yalnız {v['alinan']} derste yoklama alındı, eşik {esik}"
+        if tumunde_yok:
+            aciklama += f" — {tumunde_yok} öğrenci alınan tüm derslerde yok; eşiği düşürerek listeleyebilirsiniz"
+        haric.append(
+            {"sinif": sinif, "sebep": "esik_alti", "aciklama": aciklama, "ders_sayisi": 0,
+             "tumunde_yok": tumunde_yok}
+        )
     haric += _kayitsiz_siniflar(conn, set(dahil) | {h["sinif"] for h in haric})
     haric.sort(key=lambda h: db._sinif_sira_anahtari(h["sinif"]))
 

@@ -187,6 +187,28 @@ def test_kismi_yoklama_sadece_alinan_dersleri_sayar(test_db, pano):
     assert ozet["haric_siniflar"] == [] or "10-A" not in {h["sinif"] for h in ozet["haric_siniflar"]}
 
 
+def test_esik_altinda_yoklama_alinan_sinif_sessizce_kaybolmaz(test_db, pano):
+    """2026-10-25: 2 dersi alınmış sınıf eşik 4'te "dahil" sayılıyordu; kimse eşiğe ulaşamadığı için
+    tüm gün gelmeyen öğrenci listede de uyarıda da görünmüyordu. Artık sebebiyle hariç tutulur,
+    SMS yine gitmez (eşik otomatik düşmez); eşik düşürülünce öğrenci listelenir."""
+    ogr = _ogrenci_ekle(test_db, "Ali Kaya", "9-B")
+    _veli_ekle(test_db, "Ali Kaya Babası", "05559998877", "9-B", ogr)
+    pano("9-B", 1, yok=["Ali Kaya", "Ayşe Can"])
+    pano("9-B", 2, yok=["Ali Kaya"])
+    for ders in range(3, 9):
+        pano("9-B", ders, durum="alinmadi")
+
+    ozet = yoklama_mantik.devamsiz_ozet(test_db, tarih=TARIH, esik=4)
+    assert ozet["ogrenciler"] == [] and ozet["dahil_sinif_sayisi"] == 0
+    haric = next(h for h in ozet["haric_siniflar"] if h["sinif"] == "9-B")
+    assert haric["sebep"] == "esik_alti" and haric["tumunde_yok"] == 1
+    assert "Yalnız 2 derste yoklama alındı, eşik 4" in haric["aciklama"]
+
+    ozet = yoklama_mantik.devamsiz_ozet(test_db, tarih=TARIH, esik=2)
+    assert _ogrenci(ozet, "Ali Kaya")["yok_sayisi"] == 2
+    assert "9-B" not in {h["sinif"] for h in ozet["haric_siniflar"]}
+
+
 def test_panoda_hic_kaydi_olmayan_sinif_uyarida_gorunur(test_db, pano):
     pano("9-A", 1, yok=[])
     ozet = yoklama_mantik.devamsiz_ozet(test_db, tarih=TARIH, esik=1)

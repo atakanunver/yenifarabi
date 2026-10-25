@@ -113,6 +113,17 @@ async def test_esik_parametresi_listeyi_degistirir(test_db, pano):
 
 
 @pytest.mark.anyio
+async def test_tum_siniflar_esik_altindaysa_yoklama_alinmamis_demez(test_db, pano):
+    # Copilot, PR #4: esik_alti sınıflar dahil sayılmayınca boş liste "hiçbir sınıfın yoklaması alınmamış" diyordu.
+    sinif_ad = db.siniflar_listele(test_db)[0]["ad"]
+    pano(sinif_ad, 1, yok=["Ali Kaya"])
+    pano(sinif_ad, 2, yok=["Ali Kaya"])
+    govde = (await app.yoklama_sms(_sahte_oturum_request(test_db), tarih=TARIH, esik=4)).body.decode("utf-8")
+    assert "hiçbir sınıfın yoklaması alınmamış" not in govde
+    assert "değerlendirecek kadar" in govde and "Yalnız 2 derste yoklama alındı, eşik 4" in govde
+
+
+@pytest.mark.anyio
 async def test_pano_erisilemezse_sayfa_hata_ile_acilir(test_db, tmp_path, monkeypatch):
     """Pano DB'si yoksa sayfa 500 vermez — 'servis çökse de iş durmaz'."""
     monkeypatch.setattr(yoklama_kaynak, "YOKLAMA_DB_YOLU", tmp_path / "olmayan.db")
