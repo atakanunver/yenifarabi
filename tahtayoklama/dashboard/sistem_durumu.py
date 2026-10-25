@@ -71,10 +71,10 @@ POSTGRES_CONF = "/etc/postgresql/18/main/postgresql.conf"
 # nodes/bilgehan.md, nodes/zil.md, nodes/mudur-pc.md). `beklenen`: "ayakta" sayılan HTTP kodları
 # (zil paneli Basic Auth'lu → 401 = ayakta).
 UZAK_SERVISLER = [
-    {"anahtar": "bilgehan_embed", "ad": "RAG Embed & Rerank", "makine": "bilgehan",
-     "host": "bilgehan.local", "port": 8040, "yol": "/saglik", "beklenen": (200,)},
-    # farabi2-ses (Chatterbox, RTX 3060) — zil anonsları buraya gider (2026-10-08); :5002 değil.
-    {"anahtar": "bilgehan_tts", "ad": "Chatterbox TTS (zil anonsları)", "makine": "bilgehan",
+    {"anahtar": "bilgehan_embed", "ad": "RAG Embed & Rerank", "makine": "farabi",
+     "host": "127.0.0.1", "port": 8040, "yol": "/saglik", "beklenen": (200,)},
+    # farabi2-ses (Trendyol-TTS RTX 3060 + Whisper 1660 Ti) — zil anonsları buraya gider (2026-10-08); :5002 değil.
+    {"anahtar": "bilgehan_tts", "ad": "Trendyol TTS (zil anonsları)", "makine": "bilgehan",
      "host": "bilgehan.local", "port": 8060, "yol": "/saglik", "beklenen": (200,)},
     {"anahtar": "tts", "ad": "TTS Sunucusu (EMA Lightning)", "makine": "debian",
      "host": "debian.local", "port": 5002, "yol": "/saglik", "beklenen": (200,)},

@@ -32,7 +32,7 @@ journalctl -u farabi-api.service            # tek log kaynağı — dosya log YO
 
 ## Yapı ve uç noktalar
 
-**RAG (2026-10-04): gömme + rerank bilgehan'da.** `FARABI_EMBED_URL` ayarlıysa
+**RAG (2026-10-25 itibarıyla gömme + rerank Farabi'de `farabi-embed`, 2. RTX 3060, `127.0.0.1:8040`; 2026-10-04–25 arası bilgehan'daydı, aşağıdaki "bilgehan" ifadeleri tarihsel).** `FARABI_EMBED_URL` ayarlıysa
 (drop-in `embed.conf`) `uzak_model.olustur` bge-m3 + reranker'ı bilgehan'ın
 `farabi-embed` servisinden kullanır, Farabi'de model yüklenmez; `/api/egitim/question`
 çalışır. URL boşsa yerel CPU bge-m3, reranker yok (`RERANK_YUKLE = False`) ve

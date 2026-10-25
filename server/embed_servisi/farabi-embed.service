@@ -1,21 +1,26 @@
 [Unit]
-Description=Farabi RAG gomme + rerank servisi (bge-m3 / bge-reranker-v2-m3, GTX 1660 Ti)
-After=network-online.target nvidia-persistenced.service
+Description=Farabi RAG gomme + rerank servisi (bge-m3 / bge-reranker-v2-m3, Farabi 2. RTX 3060)
+After=network-online.target ollama.service
 Wants=network-online.target
 
 [Service]
 User=ata
 Group=ata
-WorkingDirectory=/opt/farabi-embed
-# PCI sirasi: 0 = 01:00.0 GTX 1660 Ti, 1 = 02:00.0 RTX 3060 (bos, rezerve).
+WorkingDirectory=/home/ata/farabi/server/embed_servisi
+# 2026-10-25: bilgehan'dan Farabi'ye dondu (Ollama cosmos-8b tek karta indi, 2. 3060 bos).
+# PCI sirasi: 1 = Ollama'nin kullanmadigi 2. RTX 3060. Ollama tekrar iki karti doldurursa buraya sigmaz.
 Environment="CUDA_DEVICE_ORDER=PCI_BUS_ID"
-Environment="CUDA_VISIBLE_DEVICES=0"
-Environment="HF_HOME=/opt/farabi-embed/hf"
+Environment="CUDA_VISIBLE_DEVICES=1"
+Environment="FARABI_EMBED_DEVICE=cuda:0"
+Environment="FARABI_RERANK_DEVICE=cuda:0"
+Environment="FARABI_EMBED_FP16=0"
+Environment="FARABI_RERANK_FP16=1"
+Environment="HF_HOME=/home/ata/.cache/huggingface"
 Environment="HF_HUB_OFFLINE=1"
 Environment="TRANSFORMERS_OFFLINE=1"
-# FARABI_EMBED_ANAHTAR burada (repoya girmez, 600 izinli)
-EnvironmentFile=/opt/farabi-embed/.env
-ExecStart=/opt/farabi-embed/venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port 8040 --workers 1
+# FARABI_EMBED_ANAHTAR burada (repoya girmez, root 600)
+EnvironmentFile=/etc/farabi-embed.env
+ExecStart=/home/ata/farabi/server/venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8040 --workers 1
 Restart=always
 RestartSec=5
 TimeoutStartSec=180

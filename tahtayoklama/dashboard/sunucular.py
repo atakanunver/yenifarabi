@@ -54,13 +54,13 @@ _ISTANBUL = ZoneInfo("Europe/Istanbul")
 MAKINELER = {
     "farabi": {
         "ad": "Farabi",
-        "rol": "RAG + LLM sunucusu",
+        "rol": "RAG + LLM + Embed & Rerank sunucusu",
         "yerel": True,
         "proxy_dugmesi": True,
     },
     "bilgehan": {
         "ad": "Bilgehan",
-        "rol": "RAG Embed & Rerank + Chatterbox TTS",
+        "rol": "Ses düğümü: Whisper STT + Trendyol TTS",
         "host": "bilgehan.local",
         "proxy_dugmesi": True,
     },

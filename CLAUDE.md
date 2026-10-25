@@ -29,7 +29,7 @@ soruhavuzu, kazanimtest, okul; `openwebui/`, `webui-tema/` için CLAUDE.md yok).
 - 9-11 çalışmaları Maarif modeline göre (2026-10-10).
 - Ollama'da TEK model `qwen3.8:27b` (iki RTX 3060); başka model kurulmaz. Çağıran
   kod düşünmeyi kapatır (`think:false`). `CUDA_DEVICE_ORDER=PCI_BUS_ID` şart.
-- Gömme + reranker bilgehan'daki `farabi-embed`'de (`FARABI_EMBED_URL`).
+- Gömme + reranker Farabi'de `farabi-embed`'de (2026-10-25'ten beri, 2. RTX 3060, `127.0.0.1:8040`, `FARABI_EMBED_URL`); bilgehan yalnız ses düğümü.
 - Ses Gemini Live'da, client'ta. Yerel STT/TTS/Pipecat KALICI İPTAL (2026-09-28).
 - Open WebUI adı "Atos"; yalnızca iki yönetici.
 - Okul ağı SSL-inceleme yapıyor: yeni venv'de certifi'ye MEB sertifikası eklenmeli;

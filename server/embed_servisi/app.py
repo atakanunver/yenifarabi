@@ -2,18 +2,23 @@
 
 2026-10-04: Farabi'nin iki RTX 3060'ı tamamen Ollama'da (qwen3.8:27b), RAG
 modelleri CPU'ya itilmişti (reranker CPU'da ~10 sn/soru → kapalıydı). Bu
-servis aynı modelleri bilgehan'ın GTX 1660 Ti'sinde (6 GB) fp16 çalıştırır;
+servis aynı modelleri bilgehan'ın GPU'larında çalıştırır (dağılım aşağıda);
 Farabi `server/uzak_model.py` ile HTTP üzerinden çağırır, pgvector ve LLM
 Farabi'de kalır.
 
 Davranış Farabi'deki yerel kullanımla birebir aynı tutuldu: SentenceTransformer
 `.encode(normalize_embeddings=...)`, CrossEncoder `.predict()` (varsayılan
-aktivasyon, skor 0..1 — rag.py'deki ESIK_RERANK 0,5 bu ölçekte), fp16 (40
-soruluk ölçümde fp32'den farkı ihmal edilebilir, bkz. Farabi DECISIONS.md
-2026-10-03).
+aktivasyon, skor 0..1 — rag.py'deki ESIK_RERANK 0,5 bu ölçekte).
 
-GPU tek kart: model çağrıları kilitle sıraya alınır (aynı anda iki istek
-VRAM'i ikiye katlamasın).
+Kart/hassasiyet (2026-10-04 ölçümü, 30 aday × ~625 token):
+  GTX 1660 Ti fp16 19,4 sn | fp32 4,4 sn   (TU116'da tensor çekirdeği yok —
+  RTX 3060    fp16  0,7 sn | fp32 2,1 sn    fp16 orada fp32'den YAVAŞ)
+→ reranker (üretimde kullanılan tek parça) RTX 3060'ta fp16; gömme (yalnızca
+toplu indeksleme için) 1660 Ti'de fp32. Cihazlar PCI sırasıyla (servis
+dosyasında CUDA_DEVICE_ORDER=PCI_BUS_ID): cuda:0 = 1660 Ti, cuda:1 = 3060.
+
+Her model kendi kilidiyle sıraya alınır (aynı kartta iki istek VRAM'i
+ikiye katlamasın); iki model farklı kartlarda olduğundan birbirini beklemez.
 """
 
 import os
@@ -27,20 +32,25 @@ from sentence_transformers import CrossEncoder, SentenceTransformer
 
 EMBED_MODEL = os.environ.get("FARABI_EMBED_MODEL", "BAAI/bge-m3")
 RERANK_MODEL = os.environ.get("FARABI_RERANK_MODEL", "BAAI/bge-reranker-v2-m3")
-DEVICE = os.environ.get("FARABI_EMBED_DEVICE", "cuda:0")
+EMBED_DEVICE = os.environ.get("FARABI_EMBED_DEVICE", "cuda:0")
+EMBED_FP16 = os.environ.get("FARABI_EMBED_FP16", "0") == "1"
+RERANK_DEVICE = os.environ.get("FARABI_RERANK_DEVICE", "cuda:1")
+RERANK_FP16 = os.environ.get("FARABI_RERANK_FP16", "1") == "1"
 ANAHTAR = os.environ.get("FARABI_EMBED_ANAHTAR", "")
 MAKS_METIN = 256  # tek istekte en fazla metin/çift
 MAKS_KARAKTER = 20_000  # tek metin üst sınırı (OOM koruması)
 
-_kilit = threading.Lock()
+_embed_kilit = threading.Lock()
+_rerank_kilit = threading.Lock()
 _sayac = {"embed": 0, "rerank": 0, "hata": 0}
 _son_ms: dict[str, int | None] = {"embed": None, "rerank": None}
 _baslangic = time.time()
 
-embed_model = SentenceTransformer(EMBED_MODEL, device=DEVICE)
-reranker = CrossEncoder(RERANK_MODEL, device=DEVICE)
-if DEVICE.startswith("cuda"):
+embed_model = SentenceTransformer(EMBED_MODEL, device=EMBED_DEVICE)
+reranker = CrossEncoder(RERANK_MODEL, device=RERANK_DEVICE)
+if EMBED_FP16 and EMBED_DEVICE.startswith("cuda"):
     embed_model.half()
+if RERANK_FP16 and RERANK_DEVICE.startswith("cuda"):
     reranker.model.half()
 # Isınma: ilk gerçek istek CUDA çekirdek derlemesini ödemesin.
 embed_model.encode("ısınma sorgusu", normalize_embeddings=True)
@@ -72,7 +82,7 @@ def embed(istek: EmbedIstek, x_farabi_embed_key: str | None = Header(default=Non
     _yetki(x_farabi_embed_key)
     t0 = time.perf_counter()
     try:
-        with _kilit, torch.inference_mode():
+        with _embed_kilit, torch.inference_mode():
             v = embed_model.encode(
                 [_kirp(m) for m in istek.metinler],
                 normalize_embeddings=istek.normalize,
@@ -91,7 +101,7 @@ def rerank(istek: RerankIstek, x_farabi_embed_key: str | None = Header(default=N
     _yetki(x_farabi_embed_key)
     t0 = time.perf_counter()
     try:
-        with _kilit, torch.inference_mode():
+        with _rerank_kilit, torch.inference_mode():
             s = reranker.predict(
                 [(_kirp(a), _kirp(b)) for a, b in istek.ciftler],
                 show_progress_bar=False,
@@ -106,19 +116,21 @@ def rerank(istek: RerankIstek, x_farabi_embed_key: str | None = Header(default=N
 
 @app.get("/saglik")
 def saglik():
-    gpu = None
-    if torch.cuda.is_available():
-        bos, toplam = torch.cuda.mem_get_info()
-        gpu = {
-            "ad": torch.cuda.get_device_name(0),
+    gpu = []
+    for i in range(torch.cuda.device_count() if torch.cuda.is_available() else 0):
+        bos, toplam = torch.cuda.mem_get_info(i)
+        gpu.append({
+            "cihaz": f"cuda:{i}",
+            "ad": torch.cuda.get_device_name(i),
             "vram_kullanilan_mib": round((toplam - bos) / 2**20),
             "vram_toplam_mib": round(toplam / 2**20),
-        }
+        })
     return {
         "durum": "ok",
         "embed_model": EMBED_MODEL,
         "rerank_model": RERANK_MODEL,
-        "cihaz": DEVICE,
+        "embed_cihaz": f"{EMBED_DEVICE} {'fp16' if EMBED_FP16 else 'fp32'}",
+        "rerank_cihaz": f"{RERANK_DEVICE} {'fp16' if RERANK_FP16 else 'fp32'}",
         "calisma_suresi_sn": round(time.time() - _baslangic),
         "sayaclar": dict(_sayac),
         "son_ms": dict(_son_ms),
