@@ -6,10 +6,12 @@
 <form method="post" id="tekrar-form" action="/tekrar-gonder/{{ gonderim_id }}" style="display:inline">
   <button type="submit" id="tekrar-btn" disabled>Başarısızları Tekrar Gönder</button>
 </form>
+<div class="tablo-kaydir">
 <table id="durum-tablo">
   <thead><tr><th>İsim</th><th>Telefon</th><th>Durum</th><th>Hata</th><th>Zaman</th></tr></thead>
   <tbody id="durum-govde"></tbody>
 </table>
+</div>
 <script>
 const GONDERIM_ID = {{ gonderim_id | tojson }};
 const GOVDE = document.getElementById('durum-govde');

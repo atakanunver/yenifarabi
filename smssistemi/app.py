@@ -9,6 +9,7 @@ import asyncio
 from contextlib import asynccontextmanager
 import json
 import logging
+import os
 import sys
 import threading
 import urllib.request
@@ -73,6 +74,8 @@ app.include_router(rehber_api.router)  # /api/arac/ogrenci-iletisim — Atos oku
 app.include_router(panel_api.router)  # /api/panel/* — dashboard veli mesajları (anahtarlı)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+# stil.css?v=<mtime>: tarayıcı eski CSS'i yeni şablonla birleştirmesin (dosya değişince restart gerekir).
+templates.env.globals["stil_surum"] = int(os.path.getmtime("static/stil.css"))
 
 _DURDUR_BAYRAKLARI: dict[str, threading.Event] = {}
 
