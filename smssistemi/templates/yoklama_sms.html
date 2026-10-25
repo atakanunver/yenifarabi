@@ -150,6 +150,9 @@
         {% if ozet.dahil_sinif_sayisi %}
           Bu tarihte eşiği ({{ ozet.esik }} ders) aşan devamsız öğrenci yok.
           Eşiği düşürerek daha az ders kaçıranları da görebilirsiniz.
+        {% elif ozet.haric_siniflar|selectattr("sebep", "equalto", "esik_alti")|list %}
+          Yoklaması alınan sınıfların hiçbirinde eşiği ({{ ozet.esik }} ders) değerlendirecek kadar
+          dersin yoklaması yok. Eşiği düşürerek bu sınıflardaki devamsızları görebilirsiniz.
         {% else %}
           Bu tarihte hiçbir sınıfın yoklaması alınmamış — değerlendirilecek veri yok.
         {% endif %}
