@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Dijital Bilgi Panosu</title>
+<meta name="viewport" content="width=1920">
+<style>
+:root{
+  --plum:#3E1B47; --plum-d:#2E0836; --lila:#B388D4; --lila-l:#C8A2C8;
+  --bg:#EFEBF2; --card:#fff; --ink:#2b1733; --muted:#6d5a78;
+  --shadow:0 4px 15px rgba(62,27,71,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--plum-d)}
+body{font-family:"Inter","Poppins","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--ink)}
+#app{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;background:var(--bg);display:grid;grid-template-rows:120px 1fr 96px;overflow:hidden}
+
+/* ÜST BAŞLIK */
+header{position:relative;background:var(--plum);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 40px;border-bottom:4px solid var(--lila);z-index:3}
+.sol .okul{font-size:31px;font-weight:800;letter-spacing:0;line-height:1.1;white-space:nowrap}
+.sol .etiket{display:inline-block;margin-top:8px;font-size:22px;font-weight:600;letter-spacing:4px;color:var(--plum-d);background:var(--lila-l);padding:2px 16px;border-radius:20px}
+.logo{position:absolute;left:50%;top:8px;width:170px;height:170px;margin:0 0 0 -85px;border-radius:50%;background:var(--plum);border:7px solid var(--lila);box-shadow:0 6px 18px rgba(0,0,0,.35);overflow:hidden;display:flex;align-items:center;justify-content:center}
+.logo img{width:100%;height:100%;object-fit:cover}
+.sag{display:flex;align-items:center;gap:26px}
+#tarih{font-size:32px;font-weight:600;text-align:right;line-height:1.2}
+.ayrac{width:2px;height:70px;background:var(--lila)}
+#saat{font-size:84px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:2px;line-height:1}
+#saat small{font-size:40px;color:var(--lila-l);margin-left:6px}
+
+/* GÖVDE */
+main{display:grid;grid-template-columns:22fr 53fr 25fr;gap:22px;padding:22px 24px 18px}
+.kolon{display:flex;flex-direction:column;gap:22px;min-height:0;min-width:0}
+.kart{background:var(--card);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;min-height:0}
+.kart h2{background:var(--plum);color:#fff;font-size:26px;font-weight:700;letter-spacing:1.5px;padding:14px 20px;border-bottom:3px solid var(--lila);flex:none}
+.govde{padding:14px 18px;flex:1;min-height:0}
+
+/* nöbetçi */
+#nobetci{display:flex;flex-direction:column;height:100%;justify-content:space-around}
+#nobetci .nb{padding:8px 6px;border-bottom:1px solid #e6dcee}
+#nobetci .nb:last-child{border-bottom:0}
+#nobetci .y{display:block;font-size:24px;font-weight:700;color:var(--lila);letter-spacing:1px;text-transform:uppercase}
+#nobetci .a{display:block;font-size:36px;font-weight:800;color:var(--plum);line-height:1.15}
+/* yks */
+#yks{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px}
+#yks .gun{font-size:132px;font-weight:800;color:var(--plum);line-height:1;font-variant-numeric:tabular-nums}
+#yks .gun span{font-size:40px;color:var(--lila);margin-left:8px}
+#yks .alt{font-size:36px;font-weight:600;color:var(--muted)}
+
+/* orta */
+.slayt{flex:1;position:relative;border-radius:12px;overflow:hidden;box-shadow:var(--shadow);background:var(--plum-d)}
+.slayt img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.2s ease}
+.slayt img.on{opacity:1}
+#slaytyedek{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:#fff;text-align:center;background:linear-gradient(135deg,var(--plum-d),var(--plum) 60%,#6a3d7a)}
+#slaytyedek img{position:static;opacity:1;width:240px;height:240px;border-radius:50%;border:8px solid var(--lila)}
+#slaytyedek div{font-size:42px;font-weight:700;padding:0 60px;line-height:1.25}
+.soz{flex:none;height:230px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:10px;padding:0 44px;border-left:10px solid var(--lila)}
+#sozet{font-size:24px;font-weight:800;letter-spacing:2px;color:var(--plum-d);background:var(--lila-l);padding:2px 16px;border-radius:20px}
+#soz{font-size:33px;font-weight:700;color:var(--plum);line-height:1.3;transition:opacity .7s}
+
+/* sağ */
+.zilkutu{margin:14px 16px 4px;padding:14px 16px;background:#FFF3C4;border:2px solid #E8C84A;border-radius:10px;font-size:25px;font-weight:600;line-height:1.35;color:#5a4500;flex:none}
+.derstitle{display:flex;justify-content:space-between;padding:8px 18px 4px;font-size:22px;color:var(--muted);font-weight:600;flex:none}
+#dersler{padding:0 16px 12px;flex:1;display:flex;flex-direction:column;justify-content:space-around;min-height:0}
+.satir{display:flex;align-items:center;justify-content:space-between;padding:0 14px;height:78px;border-radius:10px;font-size:34px;font-weight:700}
+.satir:nth-child(odd){background:#f3eef7}
+.satir .sinif{color:var(--plum);width:130px}
+.satir .kod{color:var(--ink);flex:1;text-align:right}
+.satir .kod small{font-size:26px;font-weight:600;color:var(--muted);margin-left:12px}
+.satir .kod.bos{color:#b7a8c2}
+
+/* alt bant */
+footer{background:var(--plum);display:flex;align-items:stretch;border-top:4px solid var(--lila);overflow:hidden}
+footer .etiket{flex:none;display:flex;align-items:center;padding:0 34px;font-size:30px;font-weight:800;color:var(--plum-d);background:var(--lila-l);letter-spacing:1px;z-index:2}
+.bant{flex:1;position:relative;overflow:hidden}
+#kayan{position:absolute;left:0;top:0;height:100%;display:flex;align-items:center;white-space:nowrap;color:#fff;font-size:42px;font-weight:600;will-change:transform}
+#kayan span.ayirac{color:var(--lila);margin:0 36px}
+@keyframes kay{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
+/* belirli gün şeridi (2026-10-26) */
+#gunseridi{position:absolute;left:24px;right:24px;top:22px;z-index:3;display:none;padding:16px 26px;border-radius:14px;background:rgba(40,12,52,.82);color:#fff;font-size:36px;font-weight:700;line-height:1.3;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+#gunseridi small{font-size:26px;font-weight:600;opacity:.85;margin-left:6px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="sol">
+      <div class="okul" id="okul">KURŞUNLU ŞEHİT MURAT USTAOĞLU ANADOLU LİSESİ</div>
+      <div class="etiket">LCD PANO</div>
+    </div>
+    <div class="logo"><img src="assets/logo.jpg" alt=""></div>
+    <div class="sag">
+      <div id="tarih">—</div>
+      <div class="ayrac"></div>
+      <div id="saat">--:--</div>
+    </div>
+  </header>
+
+  <main>
+    <section class="kolon">
+      <div class="kart" style="flex:1.25">
+        <h2>📋 NÖBETÇİ PERSONEL</h2>
+        <div class="govde"><div id="nobetci"></div></div>
+      </div>
+      <div class="kart" style="flex:1">
+        <h2>⏱ YKS SAYACI</h2>
+        <div class="govde" id="yks"></div>
+      </div>
+    </section>
+
+    <section class="kolon">
+      <div class="slayt" id="slayt">
+        <div id="slaytyedek"><img src="assets/logo.jpg" alt=""><div id="slaytad"></div></div>
+        <div id="gunseridi"></div>
+      </div>
+      <div class="kart soz"><div id="sozet"></div><div id="soz"></div></div>
+    </section>
+
+    <section class="kolon">
+      <div class="kart" style="flex:1">
+        <h2>📚 DERS PROGRAMI</h2>
+        <div class="zilkutu" id="zil">…</div>
+        <div class="derstitle"><span>SINIF</span><span id="dersbaslik">DERS</span></div>
+        <div id="dersler"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="etiket">📢 DUYURULAR</div>
+    <div class="bant"><div id="kayan"></div></div>
+  </footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+var GUN=["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"];
+var GUNK=["","pazartesi","sali","carsamba","persembe","cuma",""];
+var AY=["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+var cfg={}, zil=null, prog=null;
+function $(id){return document.getElementById(id);}
+function p2(n){return (n<10?"0":"")+n;}
+function getJSON(u){return fetch(u,{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.json();});}
+
+/* 1920x1080 sabit tasarımı ekrana sığdır */
+function fit(){var s=Math.min(innerWidth/1920,innerHeight/1080),a=$("app");
+  a.style.transform="scale("+s+")";a.style.left=((innerWidth-1920*s)/2)+"px";a.style.top=((innerHeight-1080*s)/2)+"px";}
+addEventListener("resize",fit);fit();
+
+/* saat + tarih (sadece değişen metin güncellenir) */
+var sonDk=-1,sonGun=-1;
+var TT=location.search.match(/[?&]t=(\d\d):(\d\d)/); /* test: ?t=10:45 */
+function simdi(){var d=new Date();if(TT)d.setHours(+TT[1],+TT[2],d.getSeconds(),0);return d;}
+function saat(){var d=simdi(),dk=d.getMinutes();
+  if(d.getHours()===3&&dk===30&&d.getSeconds()<2)location.reload(); /* günlük tazeleme */
+  $("saat").innerHTML=p2(d.getHours())+":"+p2(dk)+"<small>"+p2(d.getSeconds())+"</small>";
+  if(d.getDate()!==sonGun){sonGun=d.getDate();nobetci();$("tarih").innerHTML=GUN[d.getDay()]+",<br>"+d.getDate()+" "+AY[d.getMonth()]+" "+d.getFullYear();}
+  if(dk!==sonDk){sonDk=dk;dakika(d);}
+}
+function dakika(d){yks(d);zilDurum(d);}
+
+/* YKS: her yıl 20 Haziran (geçtiyse sonraki yıl) */
+function yksHedef(d){var ay=(cfg.yks_ay||6)-1,gn=cfg.yks_gun||20,sa=(cfg.yks_saat||"10:15").split(":");
+  var t=new Date(d.getFullYear(),ay,gn,+sa[0],+sa[1],0);
+  if(t<=d)t=new Date(d.getFullYear()+1,ay,gn,+sa[0],+sa[1],0);return t;}
+function yks(d){var t=yksHedef(d),ms=t-d,el=$("yks");
+  var dk=Math.floor(ms/60000),g=Math.floor(dk/1440),s=Math.floor(dk%1440/60),m=dk%60;
+  el.innerHTML='<div class="gun">'+g+'<span>GÜN</span></div><div class="alt">'+s+' Saat '+m+' Dakika</div><div class="alt" style="font-size:26px">'+t.getDate()+" "+AY[t.getMonth()]+" "+t.getFullYear()+'</div>';}
+
+/* zil / ders durumu */
+function mins(s){var a=s.split(":");return (+a[0])*60+(+a[1]);}
+function sureYaz(m){if(m>=60)return Math.floor(m/60)+" saat "+(m%60?(m%60)+" dk":"");return m+" dk";}
+function zilDurum(d){
+  var kutu=$("zil"),liste=$("dersler");
+  var dersler=(zil&&zil.dersler)||[],gun=d.getDay(),okulGunu=(zil&&zil.ders_gunleri||[1,2,3,4,5]).indexOf(gun)>=0;
+  var now=d.getHours()*60+d.getMinutes(),per=0,sira=false,msg="";
+  if(!dersler.length){kutu.textContent="Ders çizelgesi yüklenemedi.";}
+  else if(!okulGunu){msg="Bugün ders yok. İyi dinlenmeler!";}
+  else{
+    var ilk=mins(dersler[0].baslangic),son=mins(dersler[dersler.length-1].bitis);
+    if(now<ilk){msg="Şu an mesai saatlerinin dışındayız. 1. ders ziline "+sureYaz(ilk-now)+" var.";}
+    else if(now>=son){msg="Bugünkü dersler sona erdi. İyi akşamlar!";}
+    else{
+      for(var i=0;i<dersler.length;i++){var b=mins(dersler[i].baslangic),e=mins(dersler[i].bitis);
+        if(now>=b&&now<e){per=dersler[i].no;msg=per+". ders devam ediyor. Teneffüse "+sureYaz(e-now)+" var.";break;}
+        var nb=i+1<dersler.length?mins(dersler[i+1].baslangic):null;
+        if(nb!==null&&now>=e&&now<nb){per=dersler[i+1].no;sira=true;
+          msg=(nb-e>30?"Öğle arasındayız. ":"Teneffüstesiniz. ")+per+". ders ziline "+sureYaz(nb-now)+" var.";break;}
+      }}
+    }
+  if(msg)kutu.textContent=msg;
+  $("dersbaslik").textContent=per?(sira?"SIRADAKİ: "+per+". DERS":per+". DERS"):"DERS";
+  var h="",sn=(prog&&prog.siniflar)||{},key=GUNK[gun];
+  Object.keys(sn).forEach(function(c){var k=(per&&key&&sn[c][key])?sn[c][key][per-1]:null;
+    if(typeof k==="string")k={d:k,o:""};var dd=k&&k.d||"",oo=k&&k.o||"";
+    h+='<div class="satir"><span class="sinif">'+c+'</span><span class="kod'+(dd?"":" bos")+'">'+(dd?dd+(oo?'<small>'+oo+'</small>':""):"—")+'</span></div>';});
+  if(liste.__h!==h){liste.innerHTML=h;liste.__h=h;}
+}
+
+/* nöbetçi: bugünün sütunu (hafta sonu -> pazartesi) */
+function nobetci(){var d=simdi(),g=d.getDay(),i=(g>=1&&g<=5)?g-1:0,h="",c=cfg.nobetci_cizelge||{};
+  Object.keys(c).forEach(function(yer){h+='<div class="nb"><span class="y">'+yer+'</span><span class="a">'+(c[yer][i]||"—")+'</span></div>';});
+  $("nobetci").innerHTML=h;}
+
+/* ilginç bilgi: data/bilgiler.json, 45 sn'de bir, günlük kaydırmalı sıra */
+var bilgiler=[],bilgiNo=-1;
+function bilgi(){if(!bilgiler.length)return;var d=new Date();
+  var i=(Math.floor(d/45000)+d.getFullYear()*372+d.getMonth()*31+d.getDate()*13)%bilgiler.length;
+  if(i===bilgiNo)return;bilgiNo=i;var e=$("soz"),b=bilgiler[i];e.style.opacity=0;
+  setTimeout(function(){$("sozet").textContent="💡 İLGİNÇ BİLGİ · "+b.k;e.textContent=b.m;e.style.opacity=1;},bilgiNo<0?0:600);}
+
+/* slayt */
+var resimler=[],ri=0,kat=[];
+function slaytKur(){var s=$("slayt");
+  getJSON("/api/resimler").then(function(l){
+    if(JSON.stringify(l)===JSON.stringify(resimler))return;
+    resimler=l;kat.forEach(function(x){x.remove();});kat=[];ri=0;
+    $("slaytyedek").style.display=l.length?"none":"flex";
+    if(!l.length)return;
+    for(var k=0;k<2;k++){var im=document.createElement("img");s.appendChild(im);kat.push(im);}
+    kat[0].src="panoresim/"+encodeURIComponent(l[0]);kat[0].className="on";
+    if(l.length>1)kat[1].src="panoresim/"+encodeURIComponent(l[1]);
+  }).catch(function(){});}
+var on=0;
+function slaytIlerle(){if(resimler.length<2)return;
+  var yeni=1-on;ri=(ri+1)%resimler.length;
+  kat[on].className="";kat[yeni].className="on";on=yeni;
+  kat[1-on].src="panoresim/"+encodeURIComponent(resimler[(ri+1)%resimler.length]);}
+
+/* duyurular */
+var duyuruSon="";
+function duyuruGoster(l){var m=l.join("|");if(m===duyuruSon)return;duyuruSon=m;
+  var t=l.map(function(x){return '<span>'+x+'</span>';}).join('<span class="ayirac">✦</span>')+'<span class="ayirac">✦</span>';
+  var k=$("kayan");k.innerHTML=t+t; /* iki kopya: kesintisiz döngü */
+  var w=k.scrollWidth/2,sn=Math.max(20,w/110); /* ~110 px/sn */
+  k.style.animation="kay "+sn+"s linear infinite";}
+function metinle(x){if(typeof x==="string")return x;if(!x)return "";return (x.baslik&&x.metin)?x.baslik+": "+x.metin:(x.metin||x.baslik||x.title||x.text||"");}
+function duyurular(){
+  var yedek=cfg.duyurular_yedek||[];
+  var to=new Promise(function(_,r){setTimeout(r,5000);});
+  Promise.race([getJSON(cfg.duyuru_url||"data/duyurular.json"),to]).then(function(j){
+    var a=(Array.isArray(j)?j:(j.duyurular||j.items||[])).map(metinle).filter(Boolean);
+    duyuruGoster(a.length?a:yedek);
+  }).catch(function(){duyuruGoster(yedek);});}
+
+/* belirli gün/hafta şeridi: data/belirli_gunler.json [{ad, tur, metin}]; boşsa gizli */
+function gunSeridi(){getJSON("data/belirli_gunler.json").then(function(l){
+  var e=$("gunseridi");if(!Array.isArray(l)||!l.length){e.style.display="none";return;}
+  e.textContent="";e.appendChild(document.createTextNode("🗓️ Bugün: "));
+  l.forEach(function(g,i){if(i)e.appendChild(document.createTextNode(" · "));e.appendChild(document.createTextNode(g.ad));
+    if(g.metin){var m=document.createElement("small");m.textContent="("+g.metin+")";e.appendChild(m);}});
+  e.style.display="block";}).catch(function(){$("gunseridi").style.display="none";});}
+
+function yukle(ilk){
+  return getJSON("data/config.json").then(function(c){cfg=c;}).catch(function(){})
+  .then(function(){
+    $("okul").textContent=cfg.okul||$("okul").textContent;$("slaytad").textContent=cfg.okul||"";
+    nobetci();duyurular();slaytKur();gunSeridi();
+    getJSON("data/bilgiler.json").then(function(l){bilgiler=l;bilgi();}).catch(function(){});
+    return Promise.all([getJSON("data/zil.json").then(function(z){zil=z;}).catch(function(){}),
+                               getJSON("data/program.json").then(function(p){prog=p;}).catch(function(){})]);
+  }).then(function(){dakika(simdi());});}
+
+yukle(true).then(function(){saat();setInterval(saat,1000);});
+setInterval(function(){yukle(false);},60*1000);      /* ayar+duyuru yenile (panel değişikliği 1 dk içinde görünür) */
+(function dongu(){setTimeout(function(){slaytIlerle();dongu();},(cfg.slayt_sn||6)*1000);})();
+setInterval(bilgi,5000);
+})();
+</script>
+</body>
+</html>
