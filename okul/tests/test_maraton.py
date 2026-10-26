@@ -93,11 +93,11 @@ def maraton_ekle(conn, kid, sinif, bitis, puan, terk=False):
 
 
 def test_puan_formulu():
-    assert maraton.puan_hesapla(True, 0) == 190
-    assert maraton.puan_hesapla(True, 5) == 175
-    assert maraton.puan_hesapla(True, 30) == 100
-    assert maraton.puan_hesapla(True, 31.5) == 100
-    assert maraton.puan_hesapla(True, 33) == 0
+    assert maraton.puan_hesapla(True, 0) == 340
+    assert maraton.puan_hesapla(True, 5) == 325
+    assert maraton.puan_hesapla(True, 80) == 100
+    assert maraton.puan_hesapla(True, 81.5) == 100
+    assert maraton.puan_hesapla(True, 83) == 0
     assert maraton.puan_hesapla(False, 1) == 0
 
 
@@ -117,11 +117,11 @@ def test_dogru_cevap_hizli_puan_ve_akis(istemci, ornek, saat):
     istemci.get(f"/ogrenci/maraton/{mid}")
     saat["an"] += timedelta(seconds=5)
     j = cevapla(istemci, csrf, mid, 1, 2).json()
-    assert j["dogru"] and j["puan"] == 175 and j["toplam"] == 175 and j["dogru_index"] == 2 and not j["bitti"]
+    assert j["dogru"] and j["puan"] == 325 and j["toplam"] == 325 and j["dogru_index"] == 2 and not j["bitti"]
     # ikinci soru: yanlış şık
     istemci.get(f"/ogrenci/maraton/{mid}")
     j = cevapla(istemci, csrf, mid, 2, 0).json()
-    assert not j["dogru"] and j["puan"] == 0 and j["dogru_index"] == 2 and j["toplam"] == 175
+    assert not j["dogru"] and j["puan"] == 0 and j["dogru_index"] == 2 and j["toplam"] == 325
     # aynı soruyu tekrar cevaplamak ya da atlamak olmaz
     assert cevapla(istemci, csrf, mid, 1, 2).status_code == 409
     assert cevapla(istemci, csrf, mid, 5, 2).status_code == 409
@@ -131,18 +131,18 @@ def test_sure_asimi_sunucuda(istemci, ornek, saat, conn):
     csrf = giris(istemci, "101", "ali-sifre")
     mid = baslat(istemci, csrf)
     istemci.get(f"/ogrenci/maraton/{mid}")
-    saat["an"] += timedelta(seconds=33)  # 30 + 2 tolerans aşıldı
+    saat["an"] += timedelta(seconds=83)  # 80 + 2 tolerans aşıldı
     j = cevapla(istemci, csrf, mid, 1, 2).json()  # doğru şık bile 0 puan
     assert j["sure_doldu"] and not j["dogru"] and j["puan"] == 0
     # sayfa terk edilip geç dönülürse sıradaki soru otomatik süre doldu sayılır
     istemci.get(f"/ogrenci/maraton/{mid}")
-    saat["an"] += timedelta(seconds=40)
+    saat["an"] += timedelta(seconds=90)
     r = istemci.get(f"/ogrenci/maraton/{mid}", follow_redirects=False)
     assert r.status_code == 303
     assert conn.execute("SELECT cevap FROM maraton_soru WHERE maraton_id=? AND sira=2", (mid,)).fetchone()[0] == -1
-    # tolerans içinde (31 sn) doğru cevap 100 puan
+    # tolerans içinde (81 sn) doğru cevap 100 puan
     istemci.get(f"/ogrenci/maraton/{mid}")
-    saat["an"] += timedelta(seconds=31)
+    saat["an"] += timedelta(seconds=81)
     assert cevapla(istemci, csrf, mid, 3, 2).json()["puan"] == 100
 
 
@@ -155,7 +155,7 @@ def test_formla_tum_maraton_ve_sonuc(istemci, ornek, saat):
         assert r.status_code == 303
     assert r.headers["location"].endswith("/sonuc")
     s = istemci.get(f"/ogrenci/maraton/{mid}/sonuc")
-    assert s.status_code == 200 and "1900" in s.text and "10</b> / 10" in s.text
+    assert s.status_code == 200 and "3400" in s.text and "10</b> / 10" in s.text
     assert istemci.get(f"/ogrenci/maraton/{mid}", follow_redirects=False).status_code == 303
 
 
@@ -307,7 +307,7 @@ def test_ana_sayfa_karti(istemci, ornek):
 
 def test_sw_ve_css_surumu(istemci):
     sw = istemci.get("/sw.js").text
-    assert "okul-v47" in sw and "/static/maraton.js?v=3" in sw and "okul.css?v=30" in sw
+    assert "okul-v48" in sw and "/static/maraton.js?v=4" in sw and "okul.css?v=30" in sw
     assert "okul.css?v=30" in istemci.get("/giris").text
 
 

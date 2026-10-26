@@ -4,9 +4,6 @@
 <link rel="stylesheet" href="/static/mikro.css?v=1">
 <p class="kucuk"><a href="/{{ k.rol }}{{ ('?ogr=' ~ ogrenci.id) if k.rol == 'veli' }}">← Ana sayfa</a></p>
 <h1>💌 Teşekkür kartları</h1>
-{% if cocuklar|length > 1 %}
-<p class="tuslar">{% for c in cocuklar %}<a class="tus {{ '' if c.id == ogrenci.id else 'ikincil' }} kucuk" href="/tesekkurler?ogr={{ c.id }}">{{ c.ad_soyad }}</a>{% endfor %}</p>
-{% endif %}
 <p class="soluk">{% if k.rol == 'veli' %}{{ ogrenci.ad_soyad }} için öğretmenlerinin gönderdiği teşekkür kartları (son 60 gün).{% else %}Öğretmenlerinin sana gönderdiği teşekkür kartları (son 60 gün). Kartlar avatarına XP kazandırır.{% endif %}</p>
 <section class="kart">
   {% if kartlar %}{% set xp_goster = k.rol == 'ogrenci' %}{% include "_tesekkur_kartlar.html" %}

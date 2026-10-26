@@ -49,7 +49,11 @@ def _baglan():
 
     try:
         c = psycopg2.connect(
-            host="127.0.0.1", dbname=AYAR.havuz_db, user="farabi", connect_timeout=3
+            host="127.0.0.1",
+            dbname=AYAR.havuz_db,
+            user="farabi",
+            connect_timeout=3,
+            options="-c statement_timeout=3000",
         )
     except psycopg2.Error as e:
         raise KaynakHatasi(f"soru havuzu veritabanına bağlanılamadı: {e}") from e

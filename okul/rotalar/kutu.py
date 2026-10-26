@@ -1,4 +1,4 @@
-"""Dilek/istek/şikayet kutusu rotaları. Gönderen: öğrenci/öğretmen; okuyan: yönetici. Diğer roller 404."""
+"""Dilek/istek/şikayet kutusu rotaları. Gönderen: öğrenci/öğretmen/veli; okuyan: yönetici. Diğer roller 404."""
 
 import sqlite3
 

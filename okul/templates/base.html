@@ -77,7 +77,7 @@
 {% if k and not k.sifre_degismeli and k.rol == 'yonetici' and request.url.path == '/yonetici' %}
 <a class="kart sohbet-kart" href="/yonetici/kutu" style="background:#3b4048;border-color:#3b4048;color:#fff;text-align:center">
   <b>Dilek İstek Şikayet Kutusu</b>{% if kutu_yeni|default(0) %} <span class="sayi-rozet">{{ kutu_yeni }} yeni</span>{% endif %}
-  <span class="kucuk" style="color:#d5d9de">Öğrenci ve öğretmen kayıtları</span>
+  <span class="kucuk" style="color:#d5d9de">Öğrenci, öğretmen ve veli kayıtları</span>
 </a>
 {% endif %}
 {% if k and not k.sifre_degismeli and k.rol in ('ogretmen', 'yonetici') and request.url.path in ('/ogretmen', '/yonetici') %}

@@ -35,13 +35,13 @@
   <form method="post" action="/profil/tema">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="tema-liste">
-      {% for kod, t in TEMALAR.items() if TEMALAR is defined %}
+      {% if TEMALAR is defined %}{% for kod, t in TEMALAR.items() %}
       <label class="tema-kart">
         <input type="radio" name="tema" value="{{ kod }}"{% if (k.tema or 'defter') == kod %} checked{% endif %}>
         <span class="tema-seritler" aria-hidden="true">{% for r in t[2] %}<i style="background:{{ r }}"></i>{% endfor %}</span>
         <span>{{ t[0] }}</span>
       </label>
-      {% endfor %}
+      {% endfor %}{% endif %}
     </div>
     <div class="tuslar"><button class="tus">Temayı kaydet</button></div>
   </form>

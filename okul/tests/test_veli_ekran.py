@@ -9,7 +9,6 @@ import duyurular
 import onay
 import pytest
 import veli_bugun
-import zaman
 from ayarlar import AYAR
 from fastapi.testclient import TestClient
 from kaynaklar import kazanim

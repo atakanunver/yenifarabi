@@ -1,4 +1,4 @@
-"""Soru Maratonu: 10 soru x 30 sn, sunucu tarafında puanlama (saf mantık, okul.db).
+"""Soru Maratonu: 10 soru x 80 sn, sunucu tarafında puanlama (saf mantık, okul.db).
 
 Doğru şık istemciye cevaptan önce gitmez; süre sunucuda ölçülür (gösterim zamanı kaydedilir).
 cevap: NULL bekliyor, 0.. şık, SURE_DOLDU süre doldu, TERK yarıda bırakıldı (puana/seriye/liderliğe sayılmaz).
@@ -16,7 +16,7 @@ from kaynaklar import soru as havuz
 from metin import kisa_ad
 
 SORU_SAYISI = 10
-SURE = 30
+SURE = 80
 TOLERANS = 2  # ağ gecikmesi payı: geçen > SURE + TOLERANS ise süre doldu
 TEMEL_PUAN = 100
 HIZ_CARPANI = 3

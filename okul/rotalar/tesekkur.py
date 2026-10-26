@@ -68,4 +68,7 @@ def liste(request: Request, ogr: int | None = None, k=Depends(ALICI), conn: sqli
             yetki.erisim_kaydet(conn, k, "tesekkurler", o["id"], istemci_ip(request))
     if o is None:
         raise HTTPException(404)
-    return render(request, "tesekkurler.html", ogrenci=o, cocuklar=cocuklar, kartlar=tesekkur.ogrenci_kartlari(conn, o))
+    return render(
+        request, "tesekkurler.html", ogrenci=o, cocuk=o if k["rol"] == "veli" else None,
+        cocuklar=cocuklar, kartlar=tesekkur.ogrenci_kartlari(conn, o),
+    )

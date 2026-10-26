@@ -103,9 +103,9 @@ def baslat(
 ):
     bilgi = _tur(tur)
     anahtar = f"acil:{k['id']}"
-    tatbikat, uyari = _mod()
 
     def dogrula_sayfasi(hata: str, durum: int):
+        tatbikat, uyari = _mod()
         return render(
             request, "acil_dogrula.html", status_code=durum, tur=tur, bilgi=bilgi, yer=yer, jeton=jeton,
             tatbikat=tatbikat, uyari=uyari, hata=hata,

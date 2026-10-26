@@ -1,7 +1,10 @@
 venv/
 veri/
-config/gizli.json
+config/gizli*
+!config/gizli.example.json
+*.bak*
 __pycache__/
 .pytest_cache/
+.ruff_cache/
 # Tema maketleri (tasarım zip'i; repo public, koda girmez)
 tema/

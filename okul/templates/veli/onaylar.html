@@ -1,11 +1,6 @@
 {% extends "base.html" %}
 {% block baslik %}Onay bekleyen belgeler — Dijital Okul{% endblock %}
 {% block icerik %}
-{% if cocuklar|length > 1 %}
-<nav class="cocuklar" aria-label="Çocuk seçimi">
-  {% for c in cocuklar %}<a href="/veli/onaylar?ogr={{ c.id }}" class="{{ 'secili' if c.id == cocuk.id }}">{{ c.ad_soyad.split(' ')[0] }} · {{ c.sinif }}</a>{% endfor %}
-</nav>
-{% endif %}
 <h1>📋 Onay bekleyen belgeler</h1>
 <p class="veli-alt"><b>{{ cocuk.ad_soyad }}</b> için okulun sizden istediği onaylar.</p>
 {% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}

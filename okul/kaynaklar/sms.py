@@ -70,7 +70,8 @@ def _panel(yontem: str, yol: str, json: dict | None = None):
         raise SmsHatasi("SMS servisine şu an ulaşılamıyor.") from e
     if r.status_code != 200:
         try:
-            ayrinti = r.json().get("detail")
+            veri = r.json()
+            ayrinti = veri.get("detail") if isinstance(veri, dict) else None
         except ValueError:
             ayrinti = None
         raise SmsHatasi(
@@ -80,11 +81,27 @@ def _panel(yontem: str, yol: str, json: dict | None = None):
                 r.status_code, f"SMS servisi hata verdi ({r.status_code})."
             )
         )
-    return r.json()
+    try:
+        veri = r.json()
+    except ValueError as e:
+        raise SmsHatasi("SMS servisinden geçersiz yanıt alındı.") from e
+    if not isinstance(veri, dict):
+        raise SmsHatasi("SMS servisinden geçersiz yanıt alındı.")
+    return veri
+
+
+_TURLER = ("veli", "ogrenci", "personel")
+
+
+def _tur_dogrula(tur: str) -> str:
+    if tur not in _TURLER:
+        raise SmsHatasi("Geçersiz alıcı grubu.")
+    return tur
 
 
 def taslak(tur: str, sinif: str, metin: str, test_telefon: str = "") -> dict:
     """tur: veli|ogrenci|personel. Gönderilmez; alıcı sayısı + önizleme döner."""
+    _tur_dogrula(tur)
     if tur == "personel":
         return _panel("POST", "/personel-taslak", {"metin": metin})
     govde = {"sinif": sinif, "metin": metin}
@@ -94,13 +111,15 @@ def taslak(tur: str, sinif: str, metin: str, test_telefon: str = "") -> dict:
 
 
 def taslak_gonder(tur: str, taslak_id: str, alici_sayisi: int | None) -> dict:
+    _tur_dogrula(tur)
     return _panel(
         "POST", f"/{tur}-gonder", {"taslak_id": taslak_id, "alici_sayisi": alici_sayisi}
     )
 
 
 def gonderimler() -> list[dict]:
-    return _panel("GET", "/gonderimler?limit=100")["gonderimler"]
+    sonuc = _panel("GET", "/gonderimler?limit=100").get("gonderimler")
+    return sonuc if isinstance(sonuc, list) else []
 
 
 def _gid(gonderim_id: str) -> str:

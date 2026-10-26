@@ -3,7 +3,6 @@
 import hmac
 import json
 import sqlite3
-import time
 from datetime import datetime
 
 import anket
@@ -103,7 +102,8 @@ TEMPLATES.env.globals["kanallar"] = _kanallar
 
 def _saat_verisi() -> dict:
     # epoch: telefonun saati yanlışsa saat.js sunucu saatine göre düzeltir
-    return {**zil.widget_verisi(zaman.simdi()), "epoch": int(time.time() * 1000)}
+    an = zaman.simdi()
+    return {**zil.widget_verisi(an), "epoch": int(an.replace(tzinfo=zaman.TZ).timestamp() * 1000)}
 
 
 def _zil_cizelgesi() -> list[tuple[int, str, str]] | None:

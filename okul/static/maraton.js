@@ -1,11 +1,11 @@
-// Soru Maratonu: 30 sn dairesel sayaç + cevabı fetch ile gönder. JS yoksa form normal POST eder.
+// Soru Maratonu: 80 sn dairesel sayaç + cevabı fetch ile gönder. JS yoksa form normal POST eder.
 (function () {
   "use strict";
   var form = document.getElementById("cevap-formu");
   var sayac = document.getElementById("sayac");
   if (!form || !sayac) return;
 
-  var SURE = parseInt(sayac.dataset.sure, 10) || 30;
+  var SURE = parseInt(sayac.dataset.sure, 10) || 80;
   var kalan = parseFloat(sayac.dataset.kalan);
   var halka = document.getElementById("halka");
   var sn = document.getElementById("sn");

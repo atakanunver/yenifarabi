@@ -11,6 +11,7 @@ from ayarlar import AYAR
 from deps import db_conn
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
+from rotalar.pano import _lan_mi
 
 router = APIRouter()
 
@@ -21,8 +22,7 @@ YAZAR = "atakan"  # duyurular bu yönetici adına yayınlanır
 async def duyuru_ekle(request: Request, arka: BackgroundTasks, conn: sqlite3.Connection = Depends(db_conn)):
     """Gövde (JSON): hedef ogrenci|veli|ogretmen, baslik, metin, gecerlilik_gun (1-90, varsayılan 14).
     Tünelden (cf-*/x-forwarded-*) gelirse ya da X-Duyuru-Anahtar yanlış/tanımsızsa 404."""
-    basliklar = {b.lower() for b in request.headers.keys()}
-    if any(b.startswith("cf-") or b.startswith("x-forwarded-") for b in basliklar):
+    if not _lan_mi(request):
         raise HTTPException(404)
     verilen = request.headers.get("x-duyuru-anahtar", "")
     if not AYAR.duyuru_anahtar or not hmac.compare_digest(verilen, AYAR.duyuru_anahtar):

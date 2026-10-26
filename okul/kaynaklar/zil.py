@@ -65,11 +65,11 @@ def tatil_adi(tarih: date) -> str | None:
         return "Hafta sonu"
     t = _takvim()
     g = tarih.isoformat()
-    for tatil in t.get("tatiller", []):
-        if tatil.get("baslangic", "") <= g <= tatil.get("bitis", ""):
+    for tatil in t.get("tatiller") or []:
+        if (tatil.get("baslangic") or "") <= g <= (tatil.get("bitis") or ""):
             return tatil.get("ad") or "Tatil"
     donem = t.get("donem") or {}
-    if donem and not (donem.get("baslangic", "") <= g <= donem.get("bitis", "9999")):
+    if donem and not ((donem.get("baslangic") or "") <= g <= (donem.get("bitis") or "9999")):
         return "Yaz tatili"
     return None
 
@@ -102,7 +102,7 @@ def durum(an: datetime) -> dict:
             ogle = ogle_arasi()
             tur = "ogle" if ogle and ogle[0] <= saat < ogle[1] else "teneffus"
             ad = "Öğle arası" if tur == "ogle" else "Teneffüs"
-            return {"tur": tur, "metin": f"{ad} · {sonraki[0]}. ders {sonraki[1]}"}
+            return {"tur": tur, "metin": f"{ad} · {sonraki[0]}. ders {sonraki[1]}", "sonraki": sonraki[0]}
     return {"tur": "bitti", "metin": "Dersler bitti"}
 
 
@@ -111,6 +111,9 @@ def widget_verisi(an: datetime) -> dict:
     ilk = durum(an)
     veri = {"durum": ilk, "dersler": [], "ogle": None, "tarih": an.date().isoformat(), "saat": an.strftime("%H:%M")}
     if ilk["tur"] not in ("tatil", "yok"):
-        veri["dersler"] = [list(d) for d in gunun_dersleri(an.date())]
+        try:
+            veri["dersler"] = [list(d) for d in gunun_dersleri(an.date())]
+        except KaynakHatasi:
+            veri["dersler"] = []
         veri["ogle"] = ogle_arasi()
     return veri

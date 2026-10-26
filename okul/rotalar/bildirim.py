@@ -102,8 +102,9 @@ def liste(request: Request, k=Depends(rol("yonetici")), conn: sqlite3.Connection
 
 def _servis_anahtari(request: Request) -> None:
     """soruhavuzu → okul uçları: tünelden (cf-*/x-forwarded-*) gelirse 404; anahtar (X-Soru-Anahtar) yoksa/yanlışsa 404."""
-    basliklar = {b.lower() for b in request.headers.keys()}
-    if any(b.startswith("cf-") or b.startswith("x-forwarded-") for b in basliklar):
+    from rotalar.pano import _lan_mi
+
+    if not _lan_mi(request):
         raise HTTPException(404)
     verilen = request.headers.get("x-soru-anahtar", "")
     if not AYAR.soru_anahtar or not hmac.compare_digest(verilen, AYAR.soru_anahtar):

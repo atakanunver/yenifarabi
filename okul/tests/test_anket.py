@@ -143,10 +143,11 @@ def test_tek_yanit_ve_yanitlanan_listesi(conn, ornek, a):
 
 def test_paralel_ayni_kullanici_tek_yanit(tmp_path, conn, ornek, a, monkeypatch):
     anket.dagit(conn, a, "ogrenci")
+    db_yolu = conn.execute("PRAGMA database_list").fetchone()[2]
     sonuc = []
 
     def gonder():
-        c = sqlite3.connect(conn.execute("PRAGMA database_list").fetchone()[2], timeout=5)
+        c = sqlite3.connect(db_yolu, timeout=5)
         c.row_factory = sqlite3.Row
         k = c.execute("SELECT * FROM kullanici WHERE id = ?", (ornek["ogr1_k"],)).fetchone()
         try:

@@ -184,7 +184,33 @@ DROP TABLE IF EXISTS bilgi_cevap;
 DROP TABLE IF EXISTS bilgi_tur;
 """,
 }
-TABLOLAR = {35: ["tesekkur", "bilmece_cevap", "bilmece_gun", "bilmece"], 10: ["avatar"], 9: ["odul_hafta", "odul"], 8: ["hedef"], 7: ["anket_cevap", "anket_yanit", "anket_katilim", "anket_hedef", "anket_soru", "anket"], 6: ["deneme_ogrenci", "deneme"], 5: ["bilgi_rozet", "bilgi_xp", "bilgi_cevap", "bilgi_tur"]}
+TABLOLAR = {
+    35: ["tesekkur", "bilmece_cevap", "bilmece_gun", "bilmece"],
+    30: ["sudoku_bot"],
+    29: ["onay_yanit", "onay_talep"],
+    28: ["ogretmen_not", "ders_defteri"],
+    27: ["kullanici_tema"],
+    26: ["calisma_soru"],
+    25: ["odev_uyari"],
+    24: ["odev_hatirlatma"],
+    23: ["soru_inceleme"],
+    20: ["soru_bildirim"],
+    19: ["odev_foto", "odev_pdf", "sinif_pdf"],
+    18: ["sudoku_oyun", "sudoku_duello"],
+    17: ["acil_dis_olay"],
+    16: ["acil_ogrenci"],
+    15: ["acil_konum", "acil_olay"],
+    14: ["kutu_kayit"],
+    13: ["duyuru_okuma"],
+    12: ["sohbet_okuma", "sohbet_mesaj"],
+    11: ["push_abonelik"],
+    10: ["avatar"],
+    9: ["odul_hafta", "odul"],
+    8: ["hedef"],
+    7: ["anket_cevap", "anket_yanit", "anket_katilim", "anket_hedef", "anket_soru", "anket"],
+    6: ["deneme_ogrenci", "deneme"],
+    5: ["bilgi_rozet", "bilgi_xp", "bilgi_cevap", "bilgi_tur"],
+}
 
 
 def geri_al(db_yolu: Path, hedef: int, onayla: bool) -> int:
