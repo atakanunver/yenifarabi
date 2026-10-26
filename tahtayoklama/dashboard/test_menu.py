@@ -47,7 +47,7 @@ class TestMenu(unittest.TestCase):
         adlar = [u["ad"] for u in menu.MENU]
         # 2026-10-23: sol kenar menü sırası; Acil en üstte sabit, Atos/Temalar/Ayarlar dipte
         self.assertEqual(adlar, ["Acil durum", "Ana pano", "Yoklama", "Tahtalar", "Zil paneli", "Bilgehan Paneli", "Kiosk Paneli", "Kiosk yüz tanıma paneli", "İletişim", "Eğitim",
-                                 "Güvenlik", "Sistem", "Atos yapay zekâ", "Temalar", "Ayarlar"])
+                                 "Kelebek", "Güvenlik", "Sistem", "Atos yapay zekâ", "Temalar", "Ayarlar"])
         self.assertEqual([u["ad"] for u in menu.MENU if u.get("acil")], ["Acil durum"])
         self.assertEqual([u["ad"] for u in menu.MENU if u.get("alt")], ["Atos yapay zekâ", "Temalar", "Ayarlar"])
         for kalkan in ("EBYS", "Pano", "Kiosk", "Google Form", "Anons-Zil", "Uygulamalar"):

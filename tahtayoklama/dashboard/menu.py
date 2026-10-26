@@ -83,6 +83,7 @@ MENU: list[dict] = [
             {"ad": "smual.app yönetim", "href": SMUAL_YONETIM_URL, "ikon": "kaydirici", "yeni_sekme": True},
         ],
     },
+    {"ad": "Kelebek", "kisayol": "l", "ikon": "tahta", "href": "/kelebek-git", "yeni_sekme": True},
     {
         "ad": "Güvenlik",
         "kisayol": "k",

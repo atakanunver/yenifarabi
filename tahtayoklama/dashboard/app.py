@@ -339,6 +339,18 @@ async def otomasyon_git(request: Request):
     )
 
 
+@app.get("/kelebek-git")
+async def kelebek_git(request: Request):
+    """Kelebek (ortak sınav salon dağıtımı, port 8050) paneline yönlendirir; kendi şifresini ister."""
+    conn = db.baglanti()
+    try:
+        if not auth.dogrula(request, conn):
+            return RedirectResponse("/giris", status_code=303)
+    finally:
+        conn.close()
+    return RedirectResponse("http://farabi.local:8050/", status_code=303)
+
+
 @app.post("/api/tahta/{tahta_id}/baslat")
 async def api_tahta_baslat(request: Request, tahta_id: int):
     conn = db.baglanti()
