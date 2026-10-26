@@ -29,6 +29,7 @@ def statik_surum() -> str:
 ZIL_PANELI = "http://zil.local:8090/"  # kimlik gömülmez; tarayıcı Basic Auth sorar
 BILGEHAN_PANELI = "http://bilgehan.local:9100/"  # okul-panel, Basic Auth
 KIOSK_PANELI = "http://kiosk.local:9100/"
+PANO_PANELI = "http://kiosk.local:9100/pano"  # pano içeriği: nöbetçi, slayt, bilgiler, YKS (okul-panel, Basic Auth)
 KIOSK_YUZ_PANELI = "http://kiosk.local:5050/"  # yuzpanel.service, kendi girişini ister
 
 SMUAL_URL = "https://smual.app"
@@ -60,6 +61,7 @@ MENU: list[dict] = [
     {"ad": "Zil paneli", "kisayol": "z", "ikon": "zil", "href": ZIL_PANELI, "yeni_sekme": True},
     {"ad": "Bilgehan Paneli", "kisayol": "b", "ikon": "sunucu", "href": BILGEHAN_PANELI, "yeni_sekme": True},
     {"ad": "Kiosk Paneli", "kisayol": "j", "ikon": "sunucu", "href": KIOSK_PANELI, "yeni_sekme": True},
+    {"ad": "Pano Paneli", "kisayol": "p", "ikon": "tahta", "href": PANO_PANELI, "yeni_sekme": True},
     {"ad": "Kiosk yüz tanıma paneli", "kisayol": "u", "ikon": "kullanicilar", "href": KIOSK_YUZ_PANELI, "yeni_sekme": True},
     {
         "ad": "İletişim",
