@@ -6,6 +6,7 @@ import time
 from datetime import datetime, timedelta
 
 import analitik
+import belirli_gunler
 import ders_defteri
 import duyurular
 import gunun_bilgisi
@@ -193,6 +194,7 @@ def ana(
         duyurular=duyurular.gorunur_duyurular(conn, k, 5),
         liderlik_pano=_pano(conn, k),
         inceleme_kart=inceleme.kart(conn, k),
+        belirli_gunler=belirli_gunler.bugun(),
         gunun_bilgisi=gunun_bilgisi.bugun(),
     )
 

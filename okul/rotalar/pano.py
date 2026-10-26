@@ -10,6 +10,7 @@ import ipaddress
 import json
 from datetime import date, timedelta
 
+import belirli_gunler
 import db
 import maraton
 import oduller
@@ -132,8 +133,13 @@ async def pano(request: Request):
         dogum_ogesi = None
     if dogum_ogesi:
         duyuru.insert(0, dogum_ogesi)
+    try:
+        gunler = belirli_gunler.bugun()
+    except Exception:  # noqa: BLE001 — belirli gün kaynağı pano ucunu düşürmesin
+        gunler = []
     return {
         "duyurular": duyuru,
         "program": program,
         "zil": zil,
+        "belirli_gunler": gunler,
     }

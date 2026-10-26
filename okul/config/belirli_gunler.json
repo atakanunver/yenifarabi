@@ -1,0 +1,664 @@
+{
+ "_not": "MEB belirli gün ve haftalar. Kural tipleri belirli_gunler.py başında. Mevlid-i Nebî Haftası: Diyanet'in tarihi yıla göre 'yila_ozel' içine {\"2027\": [\"AA-GG\",\"AA-GG\"]} girilir; girilene kadar görünmez.",
+ "liste": [
+  {
+   "ad": "Uluslararası Temiz Hava Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "09-07"
+   }
+  },
+  {
+   "ad": "Dünya İlk Yardım Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "ayin_gunu",
+    "deger": [
+     9,
+     2,
+     "cumartesi"
+    ]
+   }
+  },
+  {
+   "ad": "İlköğretim Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "ayin_haftasi",
+    "deger": [
+     9,
+     3
+    ]
+   }
+  },
+  {
+   "ad": "Öğrenciler Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "ayin_haftasi_son_gun",
+    "deger": [
+     9,
+     3
+    ]
+   }
+  },
+  {
+   "ad": "Gaziler Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "09-19"
+   }
+  },
+  {
+   "ad": "15 Temmuz Demokrasi ve Millî Birlik Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "07-15"
+   }
+  },
+  {
+   "ad": "Dünya Okul Sütü Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "09-28"
+   }
+  },
+  {
+   "ad": "Disleksi Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "ayin_haftasi",
+    "deger": [
+     10,
+     1
+    ]
+   }
+  },
+  {
+   "ad": "Dünya Disleksi Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "ayin_haftasi_gunu",
+    "deger": [
+     10,
+     1,
+     "persembe"
+    ]
+   }
+  },
+  {
+   "ad": "Mevlid-i Nebî Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "yila_ozel",
+    "deger": {}
+   }
+  },
+  {
+   "ad": "Hayvanları Koruma Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "10-04"
+   }
+  },
+  {
+   "ad": "Ahilik Kültürü Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "10-08",
+     "10-12"
+    ]
+   }
+  },
+  {
+   "ad": "Dünya Afet Azaltma Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "10-13"
+   }
+  },
+  {
+   "ad": "Birleşmiş Milletler Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "10-24"
+   }
+  },
+  {
+   "ad": "Cumhuriyet Bayramı",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "10-29"
+   }
+  },
+  {
+   "ad": "Kızılay Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "10-29",
+     "11-04"
+    ]
+   }
+  },
+  {
+   "ad": "Organ Bağışı ve Nakli Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "11-03",
+     "11-09"
+    ]
+   }
+  },
+  {
+   "ad": "Lösemili Çocuklar Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "11-02",
+     "11-08"
+    ]
+   }
+  },
+  {
+   "ad": "Atatürk Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "11-10",
+     "11-16"
+    ]
+   }
+  },
+  {
+   "ad": "Dünya Diyabet Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "11-14"
+   }
+  },
+  {
+   "ad": "Afet Eğitimi Hazırlık Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "11-12"
+   }
+  },
+  {
+   "ad": "Dünya Felsefe Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "11-20"
+   }
+  },
+  {
+   "ad": "Dünya Çocuk Hakları Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "11-20"
+   }
+  },
+  {
+   "ad": "Ağız ve Diş Sağlığı Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "11-21",
+     "11-27"
+    ]
+   }
+  },
+  {
+   "ad": "Öğretmenler Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "11-24"
+   }
+  },
+  {
+   "ad": "Dünya Engelliler Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "12-03"
+   }
+  },
+  {
+   "ad": "Dünya Madenciler Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "12-04"
+   }
+  },
+  {
+   "ad": "Türk Kadınına Seçme ve Seçilme Hakkının Verilişi",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "12-05"
+   }
+  },
+  {
+   "ad": "Mevlana Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "12-07",
+     "12-17"
+    ]
+   }
+  },
+  {
+   "ad": "İnsan Hakları ve Demokrasi Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "hafta_icerir",
+    "deger": "12-10"
+   }
+  },
+  {
+   "ad": "Tutum, Yatırım ve Türk Malları Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "12-12",
+     "12-18"
+    ]
+   }
+  },
+  {
+   "ad": "Mehmet Akif Ersoy’u Anma Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "12-20",
+     "12-27"
+    ]
+   }
+  },
+  {
+   "ad": "Enerji Tasarrufu Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "ayin_haftasi",
+    "deger": [
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "ad": "Vergi Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "ayin_son_haftasi",
+    "deger": [
+     2
+    ]
+   }
+  },
+  {
+   "ad": "Yeşilay Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "hafta_icerir",
+    "deger": "03-01"
+   }
+  },
+  {
+   "ad": "Girişimcilik Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "ayin_haftasi",
+    "deger": [
+     3,
+     1
+    ]
+   }
+  },
+  {
+   "ad": "Dünya Kadınlar Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "03-08"
+   }
+  },
+  {
+   "ad": "Bilim ve Teknoloji Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "03-08",
+     "03-14"
+    ]
+   }
+  },
+  {
+   "ad": "İstiklâl Marşı’nın Kabulü ve Mehmet Akif Ersoy’u Anma Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "03-12"
+   }
+  },
+  {
+   "ad": "Tüketiciyi Koruma Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "03-15",
+     "03-21"
+    ]
+   }
+  },
+  {
+   "ad": "Şehitler Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "03-18"
+   }
+  },
+  {
+   "ad": "Yaşlılar Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "03-18",
+     "03-24"
+    ]
+   }
+  },
+  {
+   "ad": "Türk Dünyası ve Toplulukları Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "hafta_icerir",
+    "deger": "03-21"
+   }
+  },
+  {
+   "ad": "Orman Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "03-21",
+     "03-26"
+    ]
+   }
+  },
+  {
+   "ad": "Dünya Su Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "03-22"
+   }
+  },
+  {
+   "ad": "Dünya Tiyatrolar Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "03-27"
+   }
+  },
+  {
+   "ad": "Kütüphaneler Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "ayin_son_pazartesi_haftasi",
+    "deger": [
+     3
+    ]
+   }
+  },
+  {
+   "ad": "Kanser Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "04-01",
+     "04-07"
+    ]
+   }
+  },
+  {
+   "ad": "Dünya Otizm Farkındalık Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "04-02"
+   }
+  },
+  {
+   "ad": "Kişisel Verileri Koruma Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "04-07"
+   }
+  },
+  {
+   "ad": "Dünya Sağlık Günü / Dünya Sağlık Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "04-07",
+     "04-13"
+    ]
+   }
+  },
+  {
+   "ad": "Turizm Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "04-15",
+     "04-22"
+    ]
+   }
+  },
+  {
+   "ad": "Ulusal Egemenlik ve Çocuk Bayramı",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "04-23"
+   }
+  },
+  {
+   "ad": "Dünya Fikrî Mülkiyet Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "04-26"
+   }
+  },
+  {
+   "ad": "Kût’ül Amâre Zaferi",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "04-29"
+   }
+  },
+  {
+   "ad": "Bilişim Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "ayin_haftasi",
+    "deger": [
+     5,
+     1
+    ]
+   }
+  },
+  {
+   "ad": "Trafik ve İlkyardım Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "ayin_haftasi",
+    "deger": [
+     5,
+     1
+    ]
+   }
+  },
+  {
+   "ad": "İş Sağlığı ve Güvenliği Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "05-04",
+     "05-10"
+    ]
+   }
+  },
+  {
+   "ad": "Vakıflar Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "ayin_haftasi",
+    "deger": [
+     5,
+     2
+    ]
+   }
+  },
+  {
+   "ad": "Anneler Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "ayin_gunu",
+    "deger": [
+     5,
+     2,
+     "pazar"
+    ]
+   }
+  },
+  {
+   "ad": "Engelliler Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "05-10",
+     "05-16"
+    ]
+   }
+  },
+  {
+   "ad": "Müzeler Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "aralik",
+    "deger": [
+     "05-18",
+     "05-24"
+    ]
+   }
+  },
+  {
+   "ad": "Atatürk'ü Anma ve Gençlik ve Spor Bayramı",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "05-19"
+   }
+  },
+  {
+   "ad": "Etik Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "05-25"
+   }
+  },
+  {
+   "ad": "İstanbul’un Fethi",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "05-29"
+   }
+  },
+  {
+   "ad": "Hayat Boyu Öğrenme Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "ayin_haftasi",
+    "deger": [
+     6,
+     1
+    ]
+   }
+  },
+  {
+   "ad": "Çevre ve İklim Değişikliği Haftası",
+   "tur": "hafta",
+   "kural": {
+    "tip": "ayin_haftasi",
+    "deger": [
+     6,
+     2
+    ]
+   }
+  },
+  {
+   "ad": "Babalar Günü",
+   "tur": "gun",
+   "kural": {
+    "tip": "ayin_gunu",
+    "deger": [
+     6,
+     3,
+     "pazar"
+    ]
+   }
+  },
+  {
+   "ad": "Zafer Bayramı",
+   "tur": "gun",
+   "kural": {
+    "tip": "sabit",
+    "deger": "08-30"
+   }
+  }
+ ]
+}

@@ -1,0 +1,9 @@
+{# Belirli gün ve haftalar (MEB): gününde / haftası boyunca. Bağlam: belirli_gunler = belirli_gunler.bugun() [{ad, tur, metin}] #}
+{% if belirli_gunler is defined and belirli_gunler %}
+<section class="kart belirli-gunler" aria-labelledby="belirli-gunler-b">
+  <h2 id="belirli-gunler-b">🗓️ Belirli gün ve haftalar</h2>
+  <ul class="liste">
+    {% for g in belirli_gunler %}<li><b>{{ g.ad }}</b>{% if g.metin %} <span class="soluk kucuk">{{ g.metin }}</span>{% endif %}{% if g.tur == 'hafta' %} <span class="etiket">hafta</span>{% endif %}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}

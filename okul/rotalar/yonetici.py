@@ -6,6 +6,7 @@ from datetime import timedelta
 
 import analitik
 import auth
+import belirli_gunler
 import duyurular
 import ice_aktar
 import yetki
@@ -58,6 +59,7 @@ def ana(
         siniflar=siniflar,
         yok=yok,
         eslesmeyen=eslesmeyen,
+        belirli_gunler=belirli_gunler.bugun(),
     )
 
 

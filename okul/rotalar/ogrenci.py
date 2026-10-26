@@ -6,6 +6,7 @@ import sqlite3
 import analitik
 import arena
 import avatar
+import belirli_gunler
 import bilmece
 import bugun
 import denemeler
@@ -82,6 +83,7 @@ def ana(
         calisma_seri=kisisel.calisma_serisi(conn, o),
         bilmece=bilmece.kart(conn, o),
         tesekkur=tesekkur.ozet(conn, o),
+        belirli_gunler=belirli_gunler.bugun(),
         gunun_bilgisi=gunun_bilgisi.bugun(),
     )
 
