@@ -86,7 +86,7 @@ def test_sayfa_araligi():
 
 
 # --- uçtan uca ---
-from test_web_belge_sinav import giris, istemci, veli_giris  # noqa: E402,F401
+from test_web_belge_sinav import giris, istemci, lan_istemci, veli_giris  # noqa: E402,F401
 
 
 def test_web_akis(istemci, conn, ornek):
@@ -166,24 +166,24 @@ def test_soru_iste_12_sinif_kapali(conn, ornek):
     assert sinifpdf.pdf_getir(conn, pid)["soru_durum"] == "yok"
 
 
-def test_soru_api_akisi(istemci, conn, ornek, monkeypatch):
+def test_soru_api_akisi(lan_istemci, conn, ornek, monkeypatch):
     monkeypatch.setattr(AYAR, "soru_anahtar", "anahtar-x")
     h = {"X-Soru-Anahtar": "anahtar-x"}
     k, pid = _yeni_pdf(conn, ornek)
-    assert istemci.get("/api/soru-istek", headers=h).json() == {"istekler": []}
+    assert lan_istemci.get("/api/soru-istek", headers=h).json() == {"istekler": []}
     sinifpdf.soru_iste(conn, k, pid, "2", "4", True)
-    assert istemci.get("/api/soru-istek").status_code == 404  # anahtarsız
-    liste = istemci.get("/api/soru-istek", headers=h).json()["istekler"]
+    assert lan_istemci.get("/api/soru-istek").status_code == 404  # anahtarsız
+    liste = lan_istemci.get("/api/soru-istek", headers=h).json()["istekler"]
     assert [(i["id"], i["soru_bas"], i["soru_bit"], i["sinif"]) for i in liste] == [(pid, 2, 4, "9-A")]
-    r = istemci.get(f"/api/soru-istek/{pid}/pdf", headers=h)
+    r = lan_istemci.get(f"/api/soru-istek/{pid}/pdf", headers=h)
     assert r.status_code == 200 and r.content.startswith(b"%PDF-")
-    assert istemci.post(f"/api/soru-istek/{pid}/sonuc", json={"durum": "isleniyor"}, headers=h).status_code == 200
-    assert istemci.get("/api/soru-istek", headers=h).json() == {"istekler": []}  # işleniyor → sıradan çıktı
-    assert istemci.post(f"/api/soru-istek/{pid}/sonuc", json={"durum": "bitti", "onayli": 7, "red": 2}, headers=h).status_code == 200
+    assert lan_istemci.post(f"/api/soru-istek/{pid}/sonuc", json={"durum": "isleniyor"}, headers=h).status_code == 200
+    assert lan_istemci.get("/api/soru-istek", headers=h).json() == {"istekler": []}  # işleniyor → sıradan çıktı
+    assert lan_istemci.post(f"/api/soru-istek/{pid}/sonuc", json={"durum": "bitti", "onayli": 7, "red": 2}, headers=h).status_code == 200
     p = sinifpdf.pdf_getir(conn, pid)
     assert (p["soru_durum"], p["soru_onayli"], p["soru_red"]) == ("bitti", 7, 2)
-    assert istemci.post(f"/api/soru-istek/{pid}/sonuc", json={"durum": "x"}, headers=h).status_code == 400
-    assert istemci.post("/api/soru-istek/999/sonuc", json={"durum": "bitti"}, headers=h).status_code == 404
+    assert lan_istemci.post(f"/api/soru-istek/{pid}/sonuc", json={"durum": "x"}, headers=h).status_code == 400
+    assert lan_istemci.post("/api/soru-istek/999/sonuc", json={"durum": "bitti"}, headers=h).status_code == 404
 
 
 def test_takili_isleniyor_yeniden_siraya_girer(conn, ornek):

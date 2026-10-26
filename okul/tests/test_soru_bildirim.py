@@ -6,7 +6,7 @@ import pytest
 import soru_bildirim
 from ayarlar import AYAR
 
-from tests.test_web_belge_sinav import giris, istemci  # noqa: F401
+from tests.test_web_belge_sinav import giris, istemci, lan_istemci  # noqa: F401
 
 
 def _maraton_sorusu(conn, kullanici_id, soru_id=500):
@@ -83,20 +83,20 @@ def test_yonetici_listesi(istemci, conn, ornek, monkeypatch):
     assert r.status_code == 200 and "#500" in r.text and "Şekil / grafik yok" in r.text
 
 
-def test_api_anahtar_ve_tunel(istemci, conn, ornek, monkeypatch):
+def test_api_anahtar_ve_tunel(lan_istemci, conn, ornek, monkeypatch):
     monkeypatch.setattr(AYAR, "soru_anahtar", "gizli-anahtar")
     _maraton_sorusu(conn, ornek["ogr1_k"])
     soru_bildirim.bildir(conn, ornek["ogr1_k"], 500, "sekil")
-    assert istemci.get("/api/soru-bildirim").status_code == 404
-    assert istemci.get("/api/soru-bildirim", headers={"X-Soru-Anahtar": "yanlis"}).status_code == 404
-    assert istemci.get("/api/soru-bildirim", headers={"X-Soru-Anahtar": "gizli-anahtar", "CF-Ray": "x"}).status_code == 404
-    r = istemci.get("/api/soru-bildirim", headers={"X-Soru-Anahtar": "gizli-anahtar"})
+    assert lan_istemci.get("/api/soru-bildirim").status_code == 404
+    assert lan_istemci.get("/api/soru-bildirim", headers={"X-Soru-Anahtar": "yanlis"}).status_code == 404
+    assert lan_istemci.get("/api/soru-bildirim", headers={"X-Soru-Anahtar": "gizli-anahtar", "CF-Ray": "x"}).status_code == 404
+    r = lan_istemci.get("/api/soru-bildirim", headers={"X-Soru-Anahtar": "gizli-anahtar"})
     assert r.status_code == 200
     o = r.json()["sorular"][0]
     assert (o["soru_id"], o["kisi"], o["agirlik"], o["turler"], o["roller"]) == (500, 1, 1, {"sekil": 1}, {"ogrenci": 1})
     assert r.json()["iptal"] == []
     monkeypatch.setattr(AYAR, "soru_anahtar", "")  # anahtar tanımsızsa uç kapalı
-    assert istemci.get("/api/soru-bildirim", headers={"X-Soru-Anahtar": ""}).status_code == 404
+    assert lan_istemci.get("/api/soru-bildirim", headers={"X-Soru-Anahtar": ""}).status_code == 404
 
 
 def _havuz_var(monkeypatch, *idler):
@@ -133,23 +133,23 @@ def test_iptal_soruyu_yeniden_acar(conn, ornek, monkeypatch):
     assert soru_bildirim.gizli_idler(conn) == [] and soru_bildirim.ozet(conn) == []
 
 
-def test_web_ogretmen_ve_tahta_ve_iptal(istemci, conn, ornek, monkeypatch):
+def test_web_ogretmen_ve_tahta_ve_iptal(lan_istemci, conn, ornek, monkeypatch):
     _havuz_var(monkeypatch, 730)
     monkeypatch.setattr(AYAR, "soru_anahtar", "gizli-anahtar")
-    csrf = giris(istemci, "201", "ayse-sifre")  # öğrenci öğretmen ucunu göremez
-    assert istemci.post("/ogretmen/soru-bildir", data={"csrf": csrf, "soru_id": 730, "tur": "sacma"}).status_code == 404
-    csrf = giris(istemci, "hoca", "hoca-sifre")
-    r = istemci.post("/ogretmen/soru-bildir", data={"csrf": csrf, "soru_id": 730, "tur": "sacma"}, headers={"Accept": "application/json"})
+    csrf = giris(lan_istemci, "201", "ayse-sifre")  # öğrenci öğretmen ucunu göremez
+    assert lan_istemci.post("/ogretmen/soru-bildir", data={"csrf": csrf, "soru_id": 730, "tur": "sacma"}).status_code == 404
+    csrf = giris(lan_istemci, "hoca", "hoca-sifre")
+    r = lan_istemci.post("/ogretmen/soru-bildir", data={"csrf": csrf, "soru_id": 730, "tur": "sacma"}, headers={"Accept": "application/json"})
     assert r.status_code == 200 and r.json() == {"tamam": True, "yeni": True}
-    r = istemci.post("/ogretmen/soru-bildir", data={"csrf": csrf, "soru_id": 999, "tur": "sacma"}, headers={"Accept": "application/json"})
+    r = lan_istemci.post("/ogretmen/soru-bildir", data={"csrf": csrf, "soru_id": 999, "tur": "sacma"}, headers={"Accept": "application/json"})
     assert r.status_code == 400
     kotu = {"soru_id": 730, "tur": "alakasiz", "sube": "9-A"}
-    assert istemci.post("/api/soru-bildirim", json=kotu).status_code == 404
-    assert istemci.post("/api/soru-bildirim", json=kotu, headers={"X-Soru-Anahtar": "gizli-anahtar", "CF-Ray": "x"}).status_code == 404
-    assert istemci.post("/api/soru-bildirim", json={**kotu, "sube": "x"}, headers={"X-Soru-Anahtar": "gizli-anahtar"}).status_code == 400
-    assert istemci.post("/api/soru-bildirim", json=kotu, headers={"X-Soru-Anahtar": "gizli-anahtar"}).status_code == 200
-    csrf = giris(istemci, "mudur", "mudur-sifre")
-    assert istemci.post("/yonetici/soru-bildirimleri/730/iptal", data={"csrf": csrf}, follow_redirects=False).status_code == 303
+    assert lan_istemci.post("/api/soru-bildirim", json=kotu).status_code == 404
+    assert lan_istemci.post("/api/soru-bildirim", json=kotu, headers={"X-Soru-Anahtar": "gizli-anahtar", "CF-Ray": "x"}).status_code == 404
+    assert lan_istemci.post("/api/soru-bildirim", json={**kotu, "sube": "x"}, headers={"X-Soru-Anahtar": "gizli-anahtar"}).status_code == 400
+    assert lan_istemci.post("/api/soru-bildirim", json=kotu, headers={"X-Soru-Anahtar": "gizli-anahtar"}).status_code == 200
+    csrf = giris(lan_istemci, "mudur", "mudur-sifre")
+    assert lan_istemci.post("/yonetici/soru-bildirimleri/730/iptal", data={"csrf": csrf}, follow_redirects=False).status_code == 303
     assert soru_bildirim.gizli_idler(conn) == []
 
 

@@ -18,6 +18,16 @@ def istemci(monkeypatch):
         yield c
 
 
+@pytest.fixture
+def lan_istemci(monkeypatch):
+    """LAN'dan gelen istek: API uçları yalnız LAN'a açık (_lan_mi özel IP ister; varsayılan 'testclient' reddedilir)."""
+    monkeypatch.setattr(kazanim, "form_sonuclari", lambda okul_no: [])
+    from app import app
+
+    with TestClient(app, client=("192.168.23.254", 5555)) as c:
+        yield c
+
+
 def giris(c, kadi, sifre):
     c.cookies.clear()
     assert (
