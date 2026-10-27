@@ -191,3 +191,6 @@ analizatakanekim2026.txt
 
 # Harici panel (zil/bilgehan/kiosk) Basic Auth kimlikleri
 tahtayoklama/dashboard/config/panel_giris.json
+
+# Kelebek: kendi git deposu var (ayrı sürümlenir)
+kelebek/
