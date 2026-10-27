@@ -188,3 +188,6 @@ benchmark/reports/**/*.wav
 *.bak-*
 *.log
 analizatakanekim2026.txt
+
+# Harici panel (zil/bilgehan/kiosk) Basic Auth kimlikleri
+tahtayoklama/dashboard/config/panel_giris.json

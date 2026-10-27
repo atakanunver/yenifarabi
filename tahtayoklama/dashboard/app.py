@@ -6,9 +6,12 @@ BAĞIMSIZ — bkz. CLAUDE.md.
 """
 
 import asyncio
+import json
 import re
 from contextlib import asynccontextmanager
 from datetime import date
+from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -349,6 +352,40 @@ async def kelebek_git(request: Request):
     finally:
         conn.close()
     return RedirectResponse("http://farabi.local:8050/", status_code=303)
+
+
+# ad -> (hedef adres, config/panel_giris.json anahtarı)
+PANEL_HEDEFLERI = {
+    "zil": (menu.ZIL_PANELI, "zil"),
+    "bilgehan": (menu.BILGEHAN_PANELI, "bilgehan"),
+    "kiosk": (menu.KIOSK_PANELI, "kiosk"),
+    "pano": (menu.PANO_PANELI, "kiosk"),
+}
+
+
+@app.get("/panel-git/{ad}")
+async def panel_git(request: Request, ad: str):
+    """Harici Basic Auth panellerine (zil, bilgehan, kiosk) şifresiz geçiş: dashboard oturumu geçerliyse
+    kullanıcı:şifre'li adrese yönlendirir. Şifreler yalnız config/panel_giris.json'da (gitignore'lu) durur."""
+    conn = db.baglanti()
+    try:
+        if not auth.dogrula(request, conn):
+            return RedirectResponse("/giris", status_code=303)
+    finally:
+        conn.close()
+    hedef = PANEL_HEDEFLERI.get(ad)
+    if hedef is None:
+        raise HTTPException(404, "Panel bulunamadı.")
+    url, anahtar = hedef
+    try:
+        with open(Path(__file__).parent / "config" / "panel_giris.json", encoding="utf-8") as f:
+            k = json.load(f)[anahtar]
+        url = url.replace("://", f"://{quote(k['kullanici'], safe='')}:{quote(k['sifre'], safe='')}@", 1)
+    except (OSError, ValueError, KeyError):
+        pass  # kimlik yoksa düz adres: tarayıcı kendisi sorar
+    yanit = RedirectResponse(url, status_code=303)
+    yanit.headers["Cache-Control"] = "no-store"
+    return yanit
 
 
 @app.post("/api/tahta/{tahta_id}/baslat")

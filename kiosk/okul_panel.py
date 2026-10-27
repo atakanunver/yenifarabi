@@ -202,6 +202,17 @@ def bilgiler_kaydet(form):
     return f"{len(liste)} bilgi kaydedildi."
 
 
+def duyurular_kaydet(form):
+    """Kioskta gösterilecek duyurular: işaretli kalanlar; işaretsizler duyuru_gizli.json'a yazılır.
+    Kaynak liste (duyurular_tum.json) pano_server.senkron'dan gelir."""
+    goster = set(form.get("goster", []))
+    tum = [t for t in form.get("t", []) if t]
+    gizli = [t for t in tum if t not in goster]
+    _json_yaz("duyuru_gizli.json", gizli)
+    _json_yaz("duyurular.json", [t for t in tum if t in goster])
+    return f"{len(tum) - len(gizli)} duyuru gösterilecek, {len(gizli)} gizlendi."
+
+
 def _resim_uzantisi(b):
     if b[:3] == b"\xff\xd8\xff":
         return ".jpg"
@@ -297,6 +308,11 @@ def pano_sayfasi(mesaj="", hata="", host="kiosk.local"):
         f"<tr><td><input name=k value=\"{e(b.get('k', ''))}\" size=10></td>"
         f"<td><input name=m value=\"{e(b.get('m', ''))}\" size=70></td></tr>"
         for b in _json_oku("bilgiler.json", []) + [{}])
+    gizli = set(_json_oku("duyuru_gizli.json", []))
+    duyuru = "".join(
+        f"<tr><td><label><input type=checkbox name=goster value=\"{e(d)}\"{'' if d in gizli else ' checked'}> {e(d)}</label>"
+        f"<input type=hidden name=t value=\"{e(d)}\"></td></tr>"
+        for d in _json_oku("duyurular_tum.json", []))
     return f"""<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
 <title>{e(BASLIK)} · Pano</title>
 <style>body{{font:15px system-ui;max-width:900px;margin:1rem auto;padding:0 1rem}}td,th{{padding:.25rem;text-align:left}}
@@ -314,6 +330,8 @@ def pano_sayfasi(mesaj="", hata="", host="kiosk.local"):
 <form method=post action=/pano/yks><fieldset><legend>YKS sayacı</legend>Ay <input name=ay type=number min=1 max=12 value="{e(str(cfg.get('yks_ay', 6)))}" style=width:4em>
 Gün <input name=gun type=number min=1 max=31 value="{e(str(cfg.get('yks_gun', 20)))}" style=width:4em>
 Saat <input name=saat value="{e(str(cfg.get('yks_saat', '10:15')))}" size=5> <button>Kaydet</button></fieldset></form>
+<form method=post action=/pano/duyurular><fieldset><legend>Kayan duyurular (smual.app'ten gelir; işareti kaldırılan kioskta gösterilmez)</legend>
+<table>{duyuru or '<tr><td>Duyuru yok (veya henüz alınmadı).</td></tr>'}</table><button>Kaydet</button></fieldset></form>
 <form method=post action=/pano/bilgiler><fieldset><legend>İlginç bilgiler (son satır yeni bilgi; metni boşaltılan satır silinir)</legend>
 <table>{bilgi}</table><button>Kaydet</button></fieldset></form>"""
 
@@ -326,7 +344,7 @@ def pano_post(yol, basliklar, govde):
             return resim_yukle(ad, veri), ""
         form = urllib.parse.parse_qs(govde.decode("utf-8", "replace"), keep_blank_values=True)
         islem = {"/pano/nobetci": nobetci_kaydet, "/pano/yks": yks_kaydet, "/pano/slayt-sn": slayt_sn_kaydet,
-                 "/pano/bilgiler": bilgiler_kaydet, "/pano/resim-sil": lambda f: resim_sil(f.get("ad", [""])[0])}.get(yol)
+                 "/pano/bilgiler": bilgiler_kaydet, "/pano/duyurular": duyurular_kaydet, "/pano/resim-sil": lambda f: resim_sil(f.get("ad", [""])[0])}.get(yol)
         if islem is None:
             return None
         return islem(form), ""

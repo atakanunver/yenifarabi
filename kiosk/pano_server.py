@@ -29,6 +29,16 @@ def _atomik(ad, veri):
     os.replace(yol + ".tmp", yol)
 
 
+def _duyuru_metni(x):
+    if isinstance(x, str):
+        return x
+    if not isinstance(x, dict):
+        return ""
+    if x.get("baslik") and x.get("metin"):
+        return f"{x['baslik']}: {x['metin']}"
+    return str(x.get("metin") or x.get("baslik") or x.get("title") or x.get("text") or "")
+
+
 def senkron():
     """Farabi /api/pano -> data/{program,duyurular,belirli_gunler}.json (zil.json bilerek 1 kez elle çekildi) (5 dk'da bir).
     Hata olursa son iyi kopya kalır; Farabi'den boş/bozuk veri gelirse yazılmaz."""
@@ -42,7 +52,15 @@ def senkron():
                 if v.get("program", {}).get("siniflar"):
                     _atomik("program.json", v["program"])
                 if isinstance(v.get("duyurular"), list):
-                    _atomik("duyurular.json", v["duyurular"])
+                    # tümü duyurular_tum.json'da (panel listeler); kioskta görünen = tümü - /pano'da gizlenenler
+                    tum = [m for m in map(_duyuru_metni, v["duyurular"]) if m]
+                    _atomik("duyurular_tum.json", tum)
+                    try:
+                        with open(os.path.join(ROOT, "data", "duyuru_gizli.json"), encoding="utf-8") as f:
+                            gizli = set(json.load(f))
+                    except (OSError, ValueError):
+                        gizli = set()
+                    _atomik("duyurular.json", [m for m in tum if m not in gizli])
                 if isinstance(v.get("belirli_gunler"), list):
                     _atomik("belirli_gunler.json", v["belirli_gunler"])
         except Exception as e:  # 2026-10-26: sessizce yutulan hata veri 1 hafta bayat kaldı (eski Farabi IP'si); journal'a yaz

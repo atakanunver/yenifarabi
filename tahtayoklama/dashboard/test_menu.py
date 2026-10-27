@@ -35,10 +35,10 @@ class TestMenu(unittest.TestCase):
         self.assertTrue(DAHILI <= hrefler, DAHILI - hrefler)
 
     def test_menu_route_lari_var(self):
-        rotalar = {r.path for r in app.routes}
         for h in _ust_hrefler(menu.MENU):
             if h.startswith("/") and not h.startswith("//"):
-                self.assertIn(h.split("#")[0], rotalar, h)
+                yol = h.split("#")[0]  # /panel-git/<ad> gibi parametreli rotalar da eşleşir
+                self.assertTrue(any(getattr(r, "path_regex", None) and r.path_regex.match(yol) for r in app.routes), h)
 
     def test_dis_baglantilarda_kimlik_yok(self):
         self.assertNotIn("@", json.dumps(menu.MENU))

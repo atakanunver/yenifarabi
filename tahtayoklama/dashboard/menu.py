@@ -58,13 +58,14 @@ MENU: list[dict] = [
     },
     # 2026-10-23: tahta↔sınıf ataması Sınıflar ve tahtalar sayfasına katıldı; burada yalnız uzaktan yönetim.
     {"ad": "Tahtalar", "kisayol": "t", "ikon": "tahta", "href": "/admin/uzaktan"},
-    {"ad": "Zil paneli", "kisayol": "z", "ikon": "zil", "href": ZIL_PANELI, "yeni_sekme": True},
-    {"ad": "Bilgehan Paneli", "kisayol": "b", "ikon": "sunucu", "href": BILGEHAN_PANELI, "yeni_sekme": True},
-    {"ad": "Kiosk Paneli", "kisayol": "j", "ikon": "sunucu", "href": KIOSK_PANELI, "yeni_sekme": True},
-    {"ad": "Pano Paneli", "kisayol": "p", "ikon": "tahta", "href": PANO_PANELI, "yeni_sekme": True},
+    {"ad": "Zil paneli", "etiket": "Harici paneller", "kisayol": "z", "ikon": "zil", "href": "/panel-git/zil", "yeni_sekme": True},
+    {"ad": "Bilgehan Paneli", "kisayol": "b", "ikon": "sunucu", "href": "/panel-git/bilgehan", "yeni_sekme": True},
+    {"ad": "Kiosk Paneli", "kisayol": "j", "ikon": "sunucu", "href": "/panel-git/kiosk", "yeni_sekme": True},
+    {"ad": "Pano Paneli", "kisayol": "p", "ikon": "tahta", "href": "/panel-git/pano", "yeni_sekme": True},
     {"ad": "Kiosk yüz tanıma paneli", "kisayol": "u", "ikon": "kullanicilar", "href": KIOSK_YUZ_PANELI, "yeni_sekme": True},
     {
         "ad": "İletişim",
+        "etiket": "Okul işleri",
         "kisayol": "i",
         "ikon": "log",
         "sayac": "veli",

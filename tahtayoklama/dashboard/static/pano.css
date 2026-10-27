@@ -280,7 +280,7 @@ body {
   position: sticky; top: 0; height: 100vh; overflow-y: auto; z-index: 30;
   display: flex; flex-direction: column; gap: 0.35rem; padding: 1rem 0.75rem;
   background: var(--renk-kenar-zemin); color: var(--renk-kenar-metin);
-  border-right: 1px solid var(--renk-kenar-cizgi); box-shadow: var(--renk-golge-kart);
+  border-right: 1px solid var(--renk-kenar-cizgi);
 }
 .marka { display: flex; align-items: center; gap: 0.6rem; padding: 0.2rem 0.4rem 0.75rem; color: var(--renk-kenar-metin); text-decoration: none; }
 .marka-simge {
@@ -289,11 +289,15 @@ body {
 }
 .marka-metin { display: flex; flex-direction: column; font-weight: 700; font-size: 1rem; line-height: 1.2; }
 .marka-metin small { font-size: 0.74rem; font-weight: 500; color: var(--renk-kenar-soluk); }
+/* Acil düğme menünün en altında; kısa ekranda menü kayarken de görünür kalır (sticky) */
 .kenar-acil {
-  display: flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 44px; margin-bottom: 0.5rem;
-  border-radius: var(--yaricap); background: var(--renk-acil); color: #fff; font-weight: 800; letter-spacing: 0.04em;
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 44px; margin-top: 0.5rem;
+  position: sticky; bottom: 0; flex-shrink: 0;
+  border-radius: var(--yaricap); background: var(--renk-acil); color: #fff; font-weight: 700;
   text-decoration: none; transition: filter 0.15s;
 }
+.kenar-etiket { padding: 0.9rem 0.75rem 0.25rem; font-size: 0.78rem; color: var(--renk-kenar-soluk); opacity: 0.8; }
+.kenar-dar .kenar-etiket { font-size: 0; padding: 0; margin: 0.4rem 0; border-top: 1px solid var(--renk-kenar-cizgi); }
 .kenar-acil:hover { filter: brightness(1.08); }
 .kenar-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.15rem; }
 .kenar-oge {

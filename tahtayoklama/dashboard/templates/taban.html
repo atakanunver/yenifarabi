@@ -18,6 +18,7 @@
 {%- endmacro %}
 {% macro dis_ikon(o) %}{% if o.yeni_sekme %}<svg class="ikon ikon-kucuk ikon-disa" aria-label="yeni sekmede açılır"><use href="#ik-dis"/></svg>{% endif %}{% endmacro %}
 {% macro kenar_ogesi(ust) %}
+  {% if ust.etiket %}<li class="kenar-etiket" role="presentation">{{ ust.etiket }}</li>{% endif %}
   {% if ust.ogeler %}
   <li class="kenar-grup">
     <button type="button" class="kenar-oge kenar-grup-dugme" aria-expanded="{{ 'true' if ust.acik else 'false' }}"
@@ -45,11 +46,7 @@
 {% endmacro %}
 <div class="kabuk" id="kabuk">
   <nav class="kenar" id="kenar" aria-label="Ana menü">
-    <a class="marka" href="/" title="Ana pano"><span class="marka-simge" aria-hidden="true">F</span><span class="marka-metin kenar-metin">Farabi<small>Okul yönetimi</small></span></a>
-    {% for ust in agac.menu if ust.acil %}
-    <a class="kenar-acil{{ ' aktif' if ust.aktif }}" href="{{ ust.href }}" data-kisayol="{{ ust.kisayol }}" title="{{ ust.ad }}">
-      <svg class="ikon"><use href="#ik-{{ ust.ikon }}"/></svg><span class="kenar-metin">ACİL DURUM</span></a>
-    {% endfor %}
+    <a class="marka" href="/" title="Ana pano"><span class="marka-simge" aria-hidden="true">A</span><span class="marka-metin kenar-metin">Atos<small>Okul Yönetimi</small></span></a>
     <ul class="kenar-liste">
       {% for ust in agac.menu if not ust.acil and not ust.alt %}{{ kenar_ogesi(ust) }}{% endfor %}
     </ul>
@@ -63,6 +60,10 @@
     </button>
     <button type="button" class="kenar-oge kenar-daralt" data-eylem="daralt" title="Menüyü daralt/genişlet">
       <svg class="ikon"><use href="#ik-menu"/></svg><span class="kenar-metin">Menüyü daralt</span></button>
+      {% for ust in agac.menu if ust.acil %}
+    <a class="kenar-acil{{ ' aktif' if ust.aktif }}" href="{{ ust.href }}" data-kisayol="{{ ust.kisayol }}" title="{{ ust.ad }}">
+      <svg class="ikon"><use href="#ik-{{ ust.ikon }}"/></svg><span class="kenar-metin">Acil durum</span></a>
+    {% endfor %}
   </nav>
   <div class="cekmece-ortu" id="cekmece-ortu" hidden></div>
   <div class="icerik-alani">

@@ -127,6 +127,19 @@ def test_bilgiler_ekle_sil_bos_liste_reddi(pano):
     assert len(json.loads((web / "data" / "bilgiler.json").read_text(encoding="utf-8"))) == 2
 
 
+def test_duyuru_gizle_goster(pano):
+    taban, web = pano
+    d = web / "data"
+    (d / "duyurular_tum.json").write_text(json.dumps(["A", "B", "C"]), encoding="utf-8")
+    istek(taban, "/pano/duyurular", form(t=["A", "B", "C"], goster=["A", "C"]))
+    assert json.loads((d / "duyuru_gizli.json").read_text(encoding="utf-8")) == ["B"]
+    assert json.loads((d / "duyurular.json").read_text(encoding="utf-8")) == ["A", "C"]
+    sayfa = urllib.request.urlopen(urllib.request.Request(taban + "/pano", headers={"Authorization": AUTH})).read().decode()
+    assert 'value="B"> B' in sayfa and 'value="A" checked' in sayfa
+    istek(taban, "/pano/duyurular", form(t=["A", "B", "C"], goster=["A", "B", "C"]))
+    assert json.loads((d / "duyuru_gizli.json").read_text(encoding="utf-8")) == []
+
+
 def test_resim_yukle_cakisma_ve_reddedilenler(pano):
     taban, web = pano
     govde, tur = yukle_govdesi("Güzel Resim.png", PNG)
