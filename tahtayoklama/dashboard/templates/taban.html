@@ -46,7 +46,7 @@
 {% endmacro %}
 <div class="kabuk" id="kabuk">
   <nav class="kenar" id="kenar" aria-label="Ana menü">
-    <a class="marka" href="/" title="Ana pano"><span class="marka-simge" aria-hidden="true">A</span><span class="marka-metin kenar-metin">Atos<small>Okul Yönetimi</small></span></a>
+    <a class="marka" href="/" title="Ana pano"><img class="marka-simge" src="/static/atos-logo.png" alt="" width="36" height="36"><span class="marka-metin kenar-metin">Atos<small>Okul Yönetimi</small></span></a>
     <ul class="kenar-liste">
       {% for ust in agac.menu if not ust.acil and not ust.alt %}{{ kenar_ogesi(ust) }}{% endfor %}
     </ul>
