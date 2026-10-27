@@ -97,7 +97,7 @@ class TestMenu(unittest.TestCase):
         yol = menu.STATIK_DIZINI / "pano.css"
         st = os.stat(yol)
         try:
-            os.utime(yol, (st.st_atime, st.st_mtime + 5))
+            os.utime(yol, (st.st_atime, st.st_mtime + 86400))
             menu._surum_onbellek.clear()
             s2 = menu.menu_agaci("/")["surum"]
         finally:
