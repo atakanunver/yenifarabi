@@ -100,8 +100,8 @@ def xls_satirlari(yol):
                 if tip == xlrd.XL_CELL_DATE:
                     try:
                         v = xlrd.xldate.xldate_as_datetime(v, wb.datemode)
-                    except Exception:  # noqa: BLE001 — bozuk tarih seri sayısı ham kalsın
-                        pass
+                    except (ValueError, xlrd.xldate.XLDateError):
+                        v = str(v)  # bozuk tarih seri sayısı ham kalsın
                 satir.append(v)
             yield sh.name, satir
 
