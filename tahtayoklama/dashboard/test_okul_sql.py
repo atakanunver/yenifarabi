@@ -241,6 +241,23 @@ class TestSmsTc(unittest.TestCase):
             self.assertEqual(t["tc_kimlik"][1], [("9-A", "42", "AYŞE DEMİR", "12345678901", None, "10987654321", None, None)])
             self.assertEqual(os_.calistir("SELECT ogrenci_tc FROM tc_kimlik WHERE okul_no='42'", t)["satirlar"], [["12345678901"]])
 
+    def test_ogrenci_genis_birlestirir(self):
+        t = {
+            "ogrenci": (["okul_no", "ad_soyad", "cinsiyet", "dogum_tarihi", "telefon", "aktif"], [(42, "AYŞE DEMİR", "K", None, None, 1)]),
+            "sinif": (["id", "ad"], [(1, "9-A")]),
+            "sinif_atama": (["okul_no", "sinif_id"], [(42, 1)]),
+            "tc_kimlik": (["sinif", "okul_no", "ogrenci_tc", "anne_ad_soyad", "anne_tc", "baba_ad_soyad", "baba_tc"],
+                          [("9-A", "42", "11111111111", "FATMA DEMİR", "22222222222", None, None)]),
+            "kisiler": (["id", "ad_soyad", "tur", "okul_no", "dogum_tarihi", "telefon", "ogrenci_kisi_id", "veli_rol"],
+                        [(1, "AYŞE DEMİR", "ogrenci", 42, "2010-05-01", "5550000001", None, None),
+                         (2, "FATMA DEMİR", "veli", None, None, "5550000002", 1, "Anne"),
+                         (3, "ALİ DEMİR", "veli", None, None, "5550000003", 1, "Baba")]),
+        }
+        k, r = os_.ogrenci_genis(t)["ogrenci_genis"]
+        s = dict(zip(k, r[0], strict=True))
+        self.assertEqual((s["sinif"], s["dogum_tarihi"], s["telefon"], s["ogrenci_tc"], s["anne_tc"], s["anne_telefon"], s["baba_telefon"], s["baba_ad_soyad"]),
+                         ("9-A", "2010-05-01", "5550000001", "11111111111", "22222222222", "5550000002", "5550000003", "ALİ DEMİR"))
+
     def test_tc_dizin_yoksa_bos(self):
         self.assertEqual(os_.tc_tablosu("/yok/yok")["tc_kimlik"][1], [])
 
