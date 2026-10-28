@@ -451,7 +451,11 @@ async def sql(request: Request):
             sms = okul_sql.sms_tablolari(SMS_DB_YOLU)
         except okul_sql.SqlHatasi:  # SMS servisi/DB'si yokken diğer tablolar yine sorgulanabilsin
             sms = {}
-        tablolar = {**okul_sql.pg_tablolari(dsn), **okul_sql.yoklama_tablolari(db.DB_YOLU), **sms, **okul_sql.tc_tablosu(TC_DIZINI), **_dosya_tablolari()}
+        try:
+            osym = okul_sql.osym_tablolari(ayar["osym_dsn"]) if ayar.get("osym_dsn") else {}
+        except okul_sql.SqlHatasi:
+            osym = {}
+        tablolar = {**okul_sql.pg_tablolari(dsn), **okul_sql.yoklama_tablolari(db.DB_YOLU), **sms, **osym, **okul_sql.tc_tablosu(TC_DIZINI), **_dosya_tablolari()}
         return okul_sql.calistir(sorgu, okul_sql.ogretmen_tablosu(okul_sql.personel_esle(okul_sql.ogrenci_genis(tablolar))), azami_satir=azami)
 
     try:

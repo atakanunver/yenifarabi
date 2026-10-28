@@ -154,6 +154,7 @@ def uc(istek):
          patch.object(os_, "yoklama_tablolari", return_value={"yoklama_onbellek": TABLOLAR["yoklama_onbellek"]}), \
          patch.object(os_, "sms_tablolari", return_value={}), \
          patch.object(os_, "tc_tablosu", return_value={}), \
+         patch.object(os_, "osym_tablolari", return_value={}), \
          patch.object(ob, "_dosya_tablolari", return_value={}):
         return asyncio.run(ob.sql(istek))
 

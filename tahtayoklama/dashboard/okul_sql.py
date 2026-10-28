@@ -27,9 +27,13 @@ PG_TABLOLARI = (
 YOKLAMA_TABLOLARI = ("yoklama_onbellek", "kulup_yoklama")
 SMS_TABLOLARI = ("kisiler", "siniflar", "gonderimler")  # smssistemi.db (rehber + gönderim kayıtları)
 TC_TABLOLARI = ("tc_kimlik",)
+OSYM_KAYNAKLARI = {  # Atos tablo adı → osym veri tabanındaki ilişki (osym_ro yalnızca bunlara SELECT yapabilir)
+    "osym_yerlestirme": "yerlestirme_guncel", "osym_yks_puan": "yks_puan_guncel", "osym_dogru_yanlis": "dogru_yanlis_guncel",
+    "osym_genel_istatistik": "genel_istatistik", "osym_ozet": "ozet_son5", "mezun": "mezun",
+}
 TURETILMIS_TABLOLAR = ("ogrenci_genis", "ogretmen")  # ogrenci_genis: ogrenci + sinif + tc_kimlik + SMS kisiler; ogretmen: personel + ders programı
 DOSYA_TABLOLARI = ("ogretmen_programi", "kazanim", "simdi")  # config/ogretmenler.json ve data/kazanimlar.json'dan türetilir
-IZINLI_TABLOLAR = frozenset(PG_TABLOLARI + YOKLAMA_TABLOLARI + SMS_TABLOLARI + TC_TABLOLARI + TURETILMIS_TABLOLAR + DOSYA_TABLOLARI)
+IZINLI_TABLOLAR = frozenset(PG_TABLOLARI + YOKLAMA_TABLOLARI + SMS_TABLOLARI + TC_TABLOLARI + tuple(OSYM_KAYNAKLARI) + TURETILMIS_TABLOLAR + DOSYA_TABLOLARI)
 TABLO_FONKSIYONLARI = frozenset({"json_each", "json_tree"})
 YASAK_FONKSIYONLAR = frozenset({"load_extension", "readfile", "writefile", "edit", "fts3_tokenizer"})
 AZAMI_SATIR = 200
@@ -67,6 +71,24 @@ def pg_tablolari(dsn: str) -> dict[str, tuple[list[str], list[tuple]]]:
         return sonuc
     except Exception as e:  # noqa: BLE001 — DSN/parola hata metnine sızmasın
         raise SqlHatasi("Okul veri tabanına ulaşılamadı.") from type(e)
+
+
+def osym_tablolari(dsn: str) -> dict[str, tuple[list[str], list[tuple]]]:
+    """osym veri tabanı (ÖSYM/YKS okul raporları, mezunlar) — salt-okunur rolle. Hata → SqlHatasi."""
+    try:
+        import psycopg
+
+        sonuc = {}
+        with psycopg.connect(dsn, connect_timeout=3) as c:
+            for ad, kaynak in OSYM_KAYNAKLARI.items():
+                cur = c.execute(f'SELECT * FROM "{kaynak}"')
+                kolon = [d.name for d in cur.description]
+                at = {i for i, k in enumerate(kolon) if k == "yukleme_id"}  # dosya kimliği modele anlamsız
+                sonuc[ad] = ([k for i, k in enumerate(kolon) if i not in at],
+                             [tuple(_deger(v) for i, v in enumerate(r) if i not in at) for r in cur.fetchall()])
+        return sonuc
+    except Exception as e:  # noqa: BLE001 — DSN/parola hata metnine sızmasın
+        raise SqlHatasi("ÖSYM veri tabanına ulaşılamadı.") from type(e)
 
 
 def yoklama_tablolari(yol) -> dict[str, tuple[list[str], list[tuple]]]:
