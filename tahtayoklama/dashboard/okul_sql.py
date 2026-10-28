@@ -239,8 +239,9 @@ def ogretmen_tablosu(tablolar: dict) -> dict:
     for r in pr:
         p = dict(zip(pk, r, strict=True))
         if p.get("aktif") and (p.get("gorev") == "ogretmen" or p["id"] in saat):
-            satir.append((p["id"], p["ad_soyad"], p["gorev"], p.get("brans"), p["telefon"], p["dogum_tarihi"], saat.get(p["id"], 0)))
-    return {**tablolar, "ogretmen": (["personel_id", "ad_soyad", "gorev", "brans", "telefon", "dogum_tarihi", "haftalik_ders_saati"], satir)}
+            satir.append((p["id"], p["ad_soyad"], p["gorev"], p.get("brans"), p["telefon"], p["dogum_tarihi"], p.get("tc_kimlik"),
+                          p.get("eposta"), saat.get(p["id"], 0)))
+    return {**tablolar, "ogretmen": (["personel_id", "ad_soyad", "gorev", "brans", "telefon", "dogum_tarihi", "tc_kimlik", "eposta", "haftalik_ders_saati"], satir)}
 
 
 def personel_esle(tablolar: dict) -> dict:

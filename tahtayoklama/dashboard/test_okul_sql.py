@@ -260,14 +260,14 @@ class TestSmsTc(unittest.TestCase):
 
     def test_ogretmen_yonetici_dersi_varsa_dahil(self):
         t = {
-            "personel": (["id", "ad_soyad", "telefon", "dogum_tarihi", "gorev", "aktif", "brans"],
-                         [(1, "ARZU ORAL", None, None, "yonetici", True, "İngilizce"), (2, "VELİ HOCA", None, None, "ogretmen", True, "Fizik"),
-                          (3, "ÇAY Cİ", None, None, "diger", True, None)]),
+            "personel": (["id", "ad_soyad", "telefon", "dogum_tarihi", "gorev", "aktif", "brans", "tc_kimlik"],
+                         [(1, "ARZU ORAL", None, None, "yonetici", True, "İngilizce", "10000000146"), (2, "VELİ HOCA", None, None, "ogretmen", True, "Fizik", None),
+                          (3, "ÇAY Cİ", None, None, "diger", True, None, None)]),
             "ogretmen_programi": (["ogretmen", "personel_id", "sinif", "ders", "gun", "ders_no", "baslangic", "bitis"],
                                   [("ORAL ARZU", 1, "9-A", "ingilizce", 1, 1, None, None), ("ORAL ARZU", 1, "9-A", "ingilizce", 1, 2, None, None)]),
         }
         _, r = os_.ogretmen_tablosu(t)["ogretmen"]
-        self.assertEqual([(x[0], x[6]) for x in r], [(1, 2), (2, 0)])
+        self.assertEqual([(x[0], x[6], x[8]) for x in r], [(1, "10000000146", 2), (2, None, 0)])
 
     def test_tc_dizin_yoksa_bos(self):
         self.assertEqual(os_.tc_tablosu("/yok/yok")["tc_kimlik"][1], [])
