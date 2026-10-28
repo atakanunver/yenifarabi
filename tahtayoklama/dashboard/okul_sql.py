@@ -22,7 +22,7 @@ from contextlib import closing
 
 PG_TABLOLARI = (
     "ogrenci", "veli", "veli_ogrenci", "personel", "sinif", "sinif_atama",
-    "ders_programi", "zil", "ogretim_yili", "derslik",
+    "ders_programi", "zil", "ogretim_yili", "derslik", "dosya", "dosya_satir",
 )
 YOKLAMA_TABLOLARI = ("yoklama_onbellek", "kulup_yoklama")
 SMS_TABLOLARI = ("kisiler", "siniflar", "gonderimler")  # smssistemi.db (rehber + gönderim kayıtları)
