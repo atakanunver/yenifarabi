@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Sınıf akıllı tahtalarında sesli ders asistanı + aynı sunucuda okul operasyon
 servisleri (yoklama panosu, SMS). Monorepo; her alt projenin kendi `CLAUDE.md`'si
 var (client, server, tahtayoklama, smssistemi, tahtaayar, benchmark, mudur,
-soruhavuzu, kazanimtest, okul; `anythingllm/` için CLAUDE.md yok; Open WebUI kodu `_arsiv/openwebui/`, `_arsiv/webui-tema/`'dedir). Bu dosya: ortak kurallar + servisler arası resim.
+soruhavuzu, kazanimtest, okul, kameralar, kiosk; `anythingllm/` için CLAUDE.md yok; Open WebUI kodu `_arsiv/openwebui/`, `_arsiv/webui-tema/`'dedir). Bu dosya: ortak kurallar + servisler arası resim.
 
 - Kararlar/neden: `DECISIONS.md` (`grep "## <tarih>"`). Mimari (2026-09-13'te
   donmuş, çelişkide bu dosya esas): `docs/mimari.md`. Ağ envanteri, dağıtım,
@@ -48,7 +48,7 @@ soruhavuzu, kazanimtest, okul; `anythingllm/` için CLAUDE.md yok; Open WebUI ko
 | Servis | Dizin | Port | Not |
 |---|---|---|---|
 | farabi-api | server/ | 8000 | RAG, kitap/PDF, YKS, LLM proxy, tahta auth |
-| farabi-yoklama-dashboard | tahtayoklama/dashboard/ | 8010 | yoklama, uzaktan yönetim, servisler |
+| farabi-yoklama-dashboard | tahtayoklama/dashboard/ | 80 | yoklama, uzaktan yönetim, servisler |
 | farabi-smssistemi | smssistemi/ | 8020 | SMS, rehber, doğum günleri |
 | farabi-okul | okul/ | 9090 | dijital okul portalı, smual.app (Cloudflare Tunnel) |
 | ollama | — | 11434 | gemma4:12b |
@@ -102,7 +102,7 @@ kütüphane (Docker, Redis, Qdrant, Celery, yeni LLM, bulut API…) için önce 
 
 ## Okuma yasakları
 `data/`, `models/`, `*.onnx`, `venv/`, `__pycache__/`, `**/api_keys.json*`, `*.env`,
-`network.txt`, `apikeys.env`, `gizli.json`; `mudur/SINIF/` ve e-Okul/yoklama/SMS dışa aktarımları
+`network.txt`, `apikeys.env`, `gizli.json`, `analizatakanekim2026.txt`, `soruhavuzu_uret_12.log` (büyük log; grep/tail serbest); `mudur/SINIF/` ve e-Okul/yoklama/SMS dışa aktarımları
 (kişisel veri). Halka açık kitap/YKS PDF'leri sayfa aralığıyla okunabilir.
 Log >1000 satır/>200 KB ise boyutu bildir, tamamını okumadan sor (grep/tail serbest).
 Log, hata avında birincil kanıttır; varsayımla debug etme.
