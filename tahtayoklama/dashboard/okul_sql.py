@@ -27,7 +27,7 @@ PG_TABLOLARI = (
 YOKLAMA_TABLOLARI = ("yoklama_onbellek", "kulup_yoklama")
 SMS_TABLOLARI = ("kisiler", "siniflar", "gonderimler")  # smssistemi.db (rehber + gönderim kayıtları)
 TC_TABLOLARI = ("tc_kimlik",)
-TURETILMIS_TABLOLAR = ("ogrenci_genis",)  # ogrenci + sinif + tc_kimlik + SMS kisiler (ogrenci_genis ile üretilir)
+TURETILMIS_TABLOLAR = ("ogrenci_genis", "ogretmen")  # ogrenci_genis: ogrenci + sinif + tc_kimlik + SMS kisiler; ogretmen: personel + ders programı
 DOSYA_TABLOLARI = ("ogretmen_programi", "kazanim", "simdi")  # config/ogretmenler.json ve data/kazanimlar.json'dan türetilir
 IZINLI_TABLOLAR = frozenset(PG_TABLOLARI + YOKLAMA_TABLOLARI + SMS_TABLOLARI + TC_TABLOLARI + TURETILMIS_TABLOLAR + DOSYA_TABLOLARI)
 TABLO_FONKSIYONLARI = frozenset({"json_each", "json_tree"})
@@ -221,6 +221,26 @@ def ogrenci_genis(tablolar: dict) -> dict:
                       t.get("ogrenci_tc"), t.get("anne_ad_soyad") or ad.get((no, "anne")), t.get("anne_tc"), tel.get((no, "anne")),
                       t.get("baba_ad_soyad") or ad.get((no, "baba")), t.get("baba_tc"), tel.get((no, "baba"))))
     return {**tablolar, "ogrenci_genis": (kolonlar, satir)}
+
+
+def ogretmen_tablosu(tablolar: dict) -> dict:
+    """Ders veren herkes (görevi 'ogretmen' olanlar + programda dersi olan yönetici/diğer personel) tek tabloda.
+    personel_esle'den SONRA çağrılmalı (ogretmen_programi.personel_id gerekir)."""
+    if "personel" not in tablolar or "ogretmen_programi" not in tablolar:
+        return tablolar
+    pk, pr = tablolar["personel"]
+    ok, orr = tablolar["ogretmen_programi"]
+    saat: dict = {}
+    for r in orr:
+        pid = r[ok.index("personel_id")]
+        if pid is not None:
+            saat[pid] = saat.get(pid, 0) + 1
+    satir = []
+    for r in pr:
+        p = dict(zip(pk, r, strict=True))
+        if p.get("aktif") and (p.get("gorev") == "ogretmen" or p["id"] in saat):
+            satir.append((p["id"], p["ad_soyad"], p["gorev"], p.get("brans"), p["telefon"], p["dogum_tarihi"], saat.get(p["id"], 0)))
+    return {**tablolar, "ogretmen": (["personel_id", "ad_soyad", "gorev", "brans", "telefon", "dogum_tarihi", "haftalik_ders_saati"], satir)}
 
 
 def personel_esle(tablolar: dict) -> dict:

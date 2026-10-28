@@ -452,7 +452,7 @@ async def sql(request: Request):
         except okul_sql.SqlHatasi:  # SMS servisi/DB'si yokken diğer tablolar yine sorgulanabilsin
             sms = {}
         tablolar = {**okul_sql.pg_tablolari(dsn), **okul_sql.yoklama_tablolari(db.DB_YOLU), **sms, **okul_sql.tc_tablosu(TC_DIZINI), **_dosya_tablolari()}
-        return okul_sql.calistir(sorgu, okul_sql.personel_esle(okul_sql.ogrenci_genis(tablolar)), azami_satir=azami)
+        return okul_sql.calistir(sorgu, okul_sql.ogretmen_tablosu(okul_sql.personel_esle(okul_sql.ogrenci_genis(tablolar))), azami_satir=azami)
 
     try:
         sonuc = await asyncio.to_thread(_calistir)
