@@ -127,16 +127,17 @@
   <select name="gorev">
     {% for g in ['ogretmen','yonetici','diger'] %}<option value="{{ g }}" {% if pduzenlenen and pduzenlenen.gorev == g %}selected{% endif %}>{{ g }}</option>{% endfor %}
   </select>
+  <input type="text" name="brans" placeholder="branş" maxlength="60" value="{{ pduzenlenen.brans or '' if pduzenlenen }}">
   <input type="date" name="dogum_tarihi" value="{{ pduzenlenen.dogum_tarihi or '' if pduzenlenen }}">
   <button type="submit">{{ 'Kaydet' if pduzenlenen else 'Personel ekle' }}</button>
   {% if pduzenlenen %}<a href="/admin/okul-verisi?sekme=personel" class="btn-ikincil">Vazgeç</a>{% endif %}
 </form>
 <div class="tablo-sarici"><table class="admin-tablo">
-  <thead><tr><th>Ad soyad</th><th>Görev</th><th>Telefon</th><th>Doğum</th><th>Durum</th><th></th></tr></thead>
+  <thead><tr><th>Ad soyad</th><th>Görev</th><th>Branş</th><th>Telefon</th><th>Doğum</th><th>Durum</th><th></th></tr></thead>
   <tbody>
   {% for p in personel %}
   <tr class="{{ '' if p.aktif else 'pasif' }}">
-    <td><strong>{{ p.ad_soyad }}</strong></td><td>{{ p.gorev }}</td><td>{{ p.telefon or '—' }}</td>
+    <td><strong>{{ p.ad_soyad }}</strong></td><td>{{ p.gorev }}</td><td>{{ p.brans or '—' }}</td><td>{{ p.telefon or '—' }}</td>
     <td>{{ p.dogum_tarihi or '—' }}</td><td>{{ 'aktif' if p.aktif else 'pasif' }}</td>
     <td style="text-align:right">
       <a class="btn-ikincil" href="/admin/okul-verisi?sekme=personel&pduzenle={{ p.id }}">Düzenle</a>

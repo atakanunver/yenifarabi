@@ -282,22 +282,23 @@ def personel(c, pasifler=False):
     ).fetchall()
 
 
-def personel_kaydet(c, pid, ad, telefon, gorev, dogum):
+def personel_kaydet(c, pid, ad, telefon, gorev, dogum, brans=None):
     ad, telefon, dogum = _ad(ad), _tel(telefon), _tarih(dogum)
+    brans = " ".join((brans or "").split())[:60] or None
     if gorev not in ("ogretmen", "yonetici", "diger"):
         raise ValueError("Görev ogretmen, yonetici veya diger olmalı.")
     if pid:
         n = c.execute(
-            "UPDATE personel SET ad_soyad=%s,telefon=%s,gorev=%s,dogum_tarihi=%s,aktif=true WHERE id=%s",
-            (ad, telefon, gorev, dogum, pid),
+            "UPDATE personel SET ad_soyad=%s,telefon=%s,gorev=%s,dogum_tarihi=%s,brans=%s,aktif=true WHERE id=%s",
+            (ad, telefon, gorev, dogum, brans, pid),
         ).rowcount
         if not n:
             raise ValueError("Personel bulunamadı.")
         denetim(c, "personel_guncelle", str(pid))
     else:
         r = c.execute(
-            "INSERT INTO personel(ad_soyad,telefon,gorev,dogum_tarihi) VALUES(%s,%s,%s,%s) RETURNING id",
-            (ad, telefon, gorev, dogum),
+            "INSERT INTO personel(ad_soyad,telefon,gorev,dogum_tarihi,brans) VALUES(%s,%s,%s,%s,%s) RETURNING id",
+            (ad, telefon, gorev, dogum, brans),
         ).fetchone()
         denetim(c, "personel_ekle", str(r["id"]))
 

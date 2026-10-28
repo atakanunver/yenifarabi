@@ -230,6 +230,7 @@ async def personel_kaydet(request: Request):
             f.get("telefon"),
             f.get("gorev"),
             f.get("dogum_tarihi"),
+            f.get("brans"),
         ),
         "Personel kaydedildi.",
     )
