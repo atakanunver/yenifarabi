@@ -3,7 +3,7 @@
 {% block baslik %}Yoklama Panosu{% endblock %}
 
 {% block ust_sag %}
-<a href="/acil" class="pano-acil-dugme">🚨 ACİL DURUM</a>
+<a href="/acil" class="pano-acil-dugme"><svg class="ikon"><use href="#ik-uyari"/></svg> ACİL DURUM</a>
 {% if siniflar %}
 <label>Tarih:
   <input type="date" id="tarih-secici" value="{{ tarih }}" max="{{ bugun }}">

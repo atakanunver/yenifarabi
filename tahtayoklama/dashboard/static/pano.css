@@ -1,40 +1,41 @@
 /* ---------- Tasarım sistemi ---------- */
-/* Tema: "argon" — Argon açık (varsayılan açık tema; data-tema yoksa da geçerli).
-   2026-10-23: "klasik" ve "yumuşak" yerine geldi. Görünüm Creative Tim Argon
-   Dashboard'dan (MIT) esinlenmiştir; kod/CSS kopyalanmadı, yalnızca renk ve gölge dili. */
+/* Tema: "argon" — Varsayılan açık tema (data-tema yoksa da geçerli).
+   2026-10-28: "achromatic-ledger" yönüne yenilendi (tasteskill v2) — zeminde
+   marka rengi yok, tek vurgu rengi veri üzerinde, kartlar düz (gölgesiz),
+   ayrım kenarlıkla. Önceki Argon/Creative-Tim esinli sürüm tarihçededir. */
 :root {
-  --renk-zemin: #f8f9fe;
+  --renk-zemin: #f2f4f6;
   --renk-yuzey: #ffffff;
-  --renk-yuzey-2: #f4f5fa;
-  --renk-kenar: #e9ecef;
-  --renk-kenar-vurgu: #dee2e6;
-  --renk-golge: 0 1px 3px 0 rgba(50, 50, 93, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
-  --renk-golge-kart: 0 0 2rem 0 rgba(136, 152, 170, 0.15);
-  --renk-golge-yukseltilmis: 0 15px 35px rgba(50, 50, 93, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07);
+  --renk-yuzey-2: #e9edf0;
+  --renk-kenar: #dde2e7;
+  --renk-kenar-vurgu: #c7ced6;
+  --renk-golge: none;
+  --renk-golge-kart: none;
+  --renk-golge-yukseltilmis: 0 8px 24px rgba(15, 23, 42, 0.14);
 
-  --renk-metin: #32325d;
-  --renk-metin-soluk: #525f7f;
-  --renk-metin-cok-soluk: #8898aa;
+  --renk-metin: #10151c;
+  --renk-metin-soluk: #5b6472;
+  --renk-metin-cok-soluk: #8992a0;
 
-  --renk-birincil: #4c5fd5;
-  --renk-birincil-koyu: #3d4fc4;
-  --renk-birincil-zemin: #eef0fd;
+  --renk-birincil: #1d5fbf;
+  --renk-birincil-koyu: #164a94;
+  --renk-birincil-zemin: #e4ecf7;
 
-  --renk-yesil: #1a8754;
-  --renk-yesil-zemin: #e6f7ef;
-  --renk-kirmizi: #d4264f;
-  --renk-kirmizi-zemin: #fdeef1;
-  --renk-amber: #c2410c;
-  --renk-amber-zemin: #fff0eb;
-  --renk-gri: #6b778f;
-  --renk-gri-zemin: #f1f3f7;
-  --renk-acil: #d4264f;
-  --renk-bant: linear-gradient(87deg, #5e72e4 0%, #825ee4 100%);
+  --renk-yesil: #2e7d32;
+  --renk-yesil-zemin: #e3f1e4;
+  --renk-kirmizi: #c4242a;
+  --renk-kirmizi-zemin: #fbe7e8;
+  --renk-amber: #92400e;
+  --renk-amber-zemin: #f8ede0;
+  --renk-gri: #6b7280;
+  --renk-gri-zemin: #eceef1;
+  --renk-acil: #c4242a;
+  --renk-bant: none;
 
-  --yaricap: 10px;
-  --yaricap-buyuk: 16px;
-  --yazi-tipi: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --yazi-tipi-baslik: "Fraunces", Georgia, "Times New Roman", serif;
+  --yaricap: 8px;
+  --yaricap-buyuk: 10px;
+  --yazi-tipi: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --yazi-tipi-baslik: var(--yazi-tipi);
   --kenar-genislik: 268px;
   --renk-ortu: rgba(10, 14, 26, 0.45);
 
@@ -49,36 +50,37 @@
   --renk-kenar-cizgi: var(--renk-kenar);
 }
 
-/* Tema: "argon-koyu" — Argon koyu (2026-10-23): lacivert zemin, kartlar zeminden açık. */
+/* Tema: "argon-koyu" — Varsayılan koyu tema. 2026-10-28: açık temanın
+   achromatic-ledger yönüyle eşleşen koyu karşılığı (düz, gölgesiz, tek vurgu). */
 :root[data-tema="argon-koyu"] {
-  --renk-ortu: rgba(5, 10, 25, 0.6);
-  --renk-zemin: #0f1b33;
-  --renk-yuzey: #172b4d;
-  --renk-yuzey-2: #1f375f;
-  --renk-kenar: #24406e;
-  --renk-kenar-vurgu: #2f4f85;
-  --renk-golge: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
-  --renk-golge-kart: 0 4px 14px 0 rgba(0, 0, 0, 0.35);
+  --renk-ortu: rgba(5, 10, 20, 0.6);
+  --renk-zemin: #11161d;
+  --renk-yuzey: #171d26;
+  --renk-yuzey-2: #1e2530;
+  --renk-kenar: #2a323d;
+  --renk-kenar-vurgu: #3a4350;
+  --renk-golge: none;
+  --renk-golge-kart: none;
   --renk-golge-yukseltilmis: 0 12px 30px 0 rgba(0, 0, 0, 0.5);
 
-  --renk-metin: #f1f3f9;
-  --renk-metin-soluk: #b3bdd3;
-  --renk-metin-cok-soluk: #8f9bb8;
+  --renk-metin: #e8ecf1;
+  --renk-metin-soluk: #a7b0bd;
+  --renk-metin-cok-soluk: #7c8695;
 
-  --renk-birincil: #5e72e4;
-  --renk-birincil-koyu: #4c5fd5;
-  --renk-birincil-zemin: rgba(94, 114, 228, 0.18);
+  --renk-birincil: #5b9bf0;
+  --renk-birincil-koyu: #3f7ed0;
+  --renk-birincil-zemin: rgba(91, 155, 240, 0.16);
 
-  --renk-yesil: #2dce89;
-  --renk-yesil-zemin: rgba(45, 206, 137, 0.16);
-  --renk-kirmizi: #f5365c;
-  --renk-kirmizi-zemin: rgba(245, 54, 92, 0.16);
-  --renk-amber: #fb6340;
-  --renk-amber-zemin: rgba(251, 99, 64, 0.16);
-  --renk-gri: #8f9bb8;
-  --renk-gri-zemin: #1f375f;
-  --renk-acil: #d4264f;
-  --renk-bant: linear-gradient(87deg, #5e72e4 0%, #825ee4 100%);
+  --renk-yesil: #4caf50;
+  --renk-yesil-zemin: rgba(76, 175, 80, 0.16);
+  --renk-kirmizi: #e5484d;
+  --renk-kirmizi-zemin: rgba(229, 72, 77, 0.16);
+  --renk-amber: #d6912f;
+  --renk-amber-zemin: rgba(214, 145, 47, 0.16);
+  --renk-gri: #8b93a0;
+  --renk-gri-zemin: #1e2530;
+  --renk-acil: #e5484d;
+  --renk-bant: none;
 }
 
 /* Tema: "koyu" — "Taş Tahta" (2026-10-16, 2026-10-16 revize): nötr koyu
@@ -92,8 +94,8 @@
   --renk-yuzey-2: #232a2f;
   --renk-kenar: #333c42;
   --renk-kenar-vurgu: #475059;
-  --renk-golge: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
-  --renk-golge-kart: 0 4px 12px 0 rgba(0, 0, 0, 0.35);
+  --renk-golge: none;
+  --renk-golge-kart: none;
   --renk-golge-yukseltilmis: 0 12px 30px 0 rgba(0, 0, 0, 0.5);
 
   --renk-metin: #f4f1e8;
@@ -125,8 +127,8 @@
   --renk-yuzey-2: #2d3048;
   --renk-kenar: #34374f;
   --renk-kenar-vurgu: #44486a;
-  --renk-golge: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
-  --renk-golge-kart: 0 1px 20px 0 rgba(0, 0, 0, 0.1);
+  --renk-golge: none;
+  --renk-golge-kart: none;
   --renk-golge-yukseltilmis: 0 12px 30px 0 rgba(0, 0, 0, 0.5);
 
   --renk-metin: #f5f5f7;
@@ -146,7 +148,7 @@
   --renk-gri: #9a9cb0;
   --renk-gri-zemin: #2d3048;
   --renk-acil: #d4264f;
-  --renk-bant: linear-gradient(to right, #e14eca 0%, #ba54f5 100%);
+  --renk-bant: none;
 }
 
 /* Tema: "material" — Material Dashboard (Creative Tim, MIT) esinli açık (2026-10-23): açık gri
@@ -158,8 +160,8 @@
   --renk-yuzey-2: #f5f6f8;
   --renk-kenar: #e3e6ea;
   --renk-kenar-vurgu: #d2d6da;
-  --renk-golge: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
-  --renk-golge-kart: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --renk-golge: none;
+  --renk-golge-kart: none;
   --renk-golge-yukseltilmis: 0 20px 27px 0 rgba(0, 0, 0, 0.05), 0 8px 16px -4px rgba(0, 0, 0, 0.12);
 
   --renk-metin: #344767;
@@ -179,13 +181,13 @@
   --renk-gri: #7b809a;
   --renk-gri-zemin: #f0f2f5;
   --renk-acil: #d4264f;
-  --renk-bant: linear-gradient(195deg, #ec407a 0%, #d81b60 100%);
+  --renk-bant: none;
 
-  --renk-kenar-zemin: linear-gradient(195deg, #42424a 0%, #191919 100%);
+  --renk-kenar-zemin: #212121;
   --renk-kenar-metin: #ffffff;
   --renk-kenar-soluk: #c7c9d3;
   --renk-kenar-hover: rgba(255, 255, 255, 0.08);
-  --renk-kenar-aktif-zemin: linear-gradient(195deg, #ec407a 0%, #d81b60 100%);
+  --renk-kenar-aktif-zemin: #d81b60;
   --renk-kenar-aktif-metin: #ffffff;
   --renk-kenar-cizgi: rgba(255, 255, 255, 0.12);
 }
@@ -198,8 +200,8 @@
   --renk-yuzey-2: #283353;
   --renk-kenar: #2f3a5a;
   --renk-kenar-vurgu: #3c4a72;
-  --renk-golge: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
-  --renk-golge-kart: 0 4px 14px 0 rgba(0, 0, 0, 0.35);
+  --renk-golge: none;
+  --renk-golge-kart: none;
   --renk-golge-yukseltilmis: 0 12px 30px 0 rgba(0, 0, 0, 0.5);
 
   --renk-metin: #f0f2f5;
@@ -219,13 +221,13 @@
   --renk-gri: #8b93ab;
   --renk-gri-zemin: #283353;
   --renk-acil: #d4264f;
-  --renk-bant: linear-gradient(195deg, #ec407a 0%, #d81b60 100%);
+  --renk-bant: none;
 
-  --renk-kenar-zemin: linear-gradient(195deg, #323a54 0%, #1a2035 100%);
+  --renk-kenar-zemin: #1a2035;
   --renk-kenar-metin: #ffffff;
   --renk-kenar-soluk: #b2b9cc;
   --renk-kenar-hover: rgba(255, 255, 255, 0.08);
-  --renk-kenar-aktif-zemin: linear-gradient(195deg, #ec407a 0%, #d81b60 100%);
+  --renk-kenar-aktif-zemin: #d81b60;
   --renk-kenar-aktif-metin: #ffffff;
   --renk-kenar-cizgi: rgba(255, 255, 255, 0.12);
 }
@@ -933,7 +935,7 @@ thead th.sinif-baslik { z-index: 15; }
 /* ---------- Giriş sayfası ---------- */
 .giris-sarici {
   font-family: var(--yazi-tipi);
-  background: linear-gradient(160deg, var(--renk-birincil-zemin) 0%, var(--renk-zemin) 60%);
+  background: var(--renk-zemin);
   display: flex;
   align-items: center;
   justify-content: center;
