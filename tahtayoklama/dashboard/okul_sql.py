@@ -11,9 +11,12 @@ from __future__ import annotations
 
 import datetime
 import decimal
+import os
 import re
 import sqlite3
 import time
+import xml.etree.ElementTree as ET
+import zipfile
 from contextlib import closing
 
 PG_TABLOLARI = (
@@ -21,8 +24,11 @@ PG_TABLOLARI = (
     "ders_programi", "zil", "ogretim_yili", "derslik",
 )
 YOKLAMA_TABLOLARI = ("yoklama_onbellek", "kulup_yoklama")
+SMS_TABLOLARI = ("kisiler", "siniflar", "gonderimler")  # smssistemi.db (rehber + gönderim kayıtları)
+TC_DOSYALARI = ("9-LAR.xlsx", "10-LAR.xlsx", "11ler.xlsx", "12ler.xlsx")  # mudur/SINIF/ (e-Okul listeleri; şifre.xlsx ASLA)
+TC_TABLOLARI = ("tc_kimlik",)
 DOSYA_TABLOLARI = ("ogretmen_programi", "kazanim", "simdi")  # config/ogretmenler.json ve data/kazanimlar.json'dan türetilir
-IZINLI_TABLOLAR = frozenset(PG_TABLOLARI + YOKLAMA_TABLOLARI + DOSYA_TABLOLARI)
+IZINLI_TABLOLAR = frozenset(PG_TABLOLARI + YOKLAMA_TABLOLARI + SMS_TABLOLARI + TC_TABLOLARI + DOSYA_TABLOLARI)
 TABLO_FONKSIYONLARI = frozenset({"json_each", "json_tree"})
 YASAK_FONKSIYONLAR = frozenset({"load_extension", "readfile", "writefile", "edit", "fts3_tokenizer"})
 AZAMI_SATIR = 200
@@ -72,6 +78,77 @@ def yoklama_tablolari(yol) -> dict[str, tuple[list[str], list[tuple]]]:
             return sonuc
     except sqlite3.Error as e:
         raise SqlHatasi("Yoklama veri tabanına ulaşılamadı.") from type(e)
+
+
+def sms_tablolari(yol) -> dict[str, tuple[list[str], list[tuple]]]:
+    """SMS rehberi ve gönderim kayıtları (smssistemi.db, salt-okunur). Hata → SqlHatasi."""
+    try:
+        with closing(sqlite3.connect(f"file:{yol}?mode=ro", uri=True, timeout=3)) as c:
+            sonuc = {}
+            for t in SMS_TABLOLARI:
+                cur = c.execute(f'SELECT * FROM "{t}"')
+                sonuc[t] = ([d[0] for d in cur.description], cur.fetchall())
+            return sonuc
+    except sqlite3.Error as e:
+        raise SqlHatasi("SMS veri tabanına ulaşılamadı.") from type(e)
+
+
+_NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+_TC_ONBELLEK: dict = {}
+
+
+def _xlsx_satirlari(yol) -> list[dict[str, str]]:
+    """İlk çalışma sayfası → satırlar ({'A': 'değer', ...}); yalnızca stdlib (openpyxl venv'de yok)."""
+    with zipfile.ZipFile(yol) as z:
+        ortak = []
+        if "xl/sharedStrings.xml" in z.namelist():
+            ortak = ["".join(t.text or "" for t in si.iter(f"{_NS}t")) for si in ET.fromstring(z.read("xl/sharedStrings.xml")).iter(f"{_NS}si")]
+        satirlar = []
+        for satir in ET.fromstring(z.read("xl/worksheets/sheet1.xml")).iter(f"{_NS}row"):
+            hucreler = {}
+            for h in satir.iter(f"{_NS}c"):
+                v = h.find(f"{_NS}v")
+                if h.get("t") == "inlineStr":
+                    deger = "".join(t.text or "" for t in h.iter(f"{_NS}t"))
+                elif v is None or v.text is None:
+                    continue
+                else:
+                    deger = ortak[int(v.text)] if h.get("t") == "s" else v.text
+                hucreler[re.sub(r"\d+", "", h.get("r", ""))] = deger.strip()
+            satirlar.append(hucreler)
+        return satirlar
+
+
+def _tarih(v: str | None) -> str | None:
+    """Excel seri sayısı → ISO tarih; metinse olduğu gibi."""
+    try:
+        return (datetime.date(1899, 12, 30) + datetime.timedelta(days=int(float(v)))).isoformat() if v and 20000 < float(v) < 80000 else v
+    except ValueError:
+        return v
+
+
+def tc_tablosu(dizin) -> dict[str, tuple[list[str], list[tuple]]]:
+    """mudur/SINIF e-Okul listelerinden (Adı Soyadı, T.C. Kimlik No, Okul No, Sınıf, Doğum Tarihi) tc_kimlik
+    tablosu. Dosya değişmedikçe (mtime) önbellekten; dosya yoksa/bozuksa o dosya atlanır."""
+    kolonlar = ["ad_soyad", "tc_kimlik", "okul_no", "sinif", "dogum_tarihi", "kaynak"]
+    satirlar = []
+    for ad in TC_DOSYALARI:
+        yol = f"{dizin}/{ad}"
+        try:
+            mtime = os.stat(yol).st_mtime
+            if _TC_ONBELLEK.get(yol, (None,))[0] != mtime:
+                _TC_ONBELLEK[yol] = (mtime, _xlsx_satirlari(yol))
+        except (OSError, KeyError, ET.ParseError, zipfile.BadZipFile):
+            continue
+        tum = _TC_ONBELLEK[yol][1]
+        if not tum:
+            continue
+        harf = {_sade(v): k for k, v in tum[0].items()}  # başlık → sütun harfi (sütunlar A'dan başlamayabilir)
+        ad_k, tc_k, no_k, sn_k, dg_k = (harf.get(b) for b in ("adi soyadi", "t.c. kimlik no", "okul no", "sinif", "dogum tarihi"))
+        for h in tum[1:]:
+            if ad_k and h.get(ad_k):
+                satirlar.append((h[ad_k], h.get(tc_k), h.get(no_k), h.get(sn_k), _tarih(h.get(dg_k)), ad))
+    return {"tc_kimlik": (kolonlar, satirlar)}
 
 
 _SADE = str.maketrans("çğıöşü", "cgiosu")

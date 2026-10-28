@@ -152,6 +152,8 @@ def uc(istek):
     with patch.object(ob, "_ayar", return_value=AYAR), \
          patch.object(os_, "pg_tablolari", return_value={k: v for k, v in TABLOLAR.items() if k != "yoklama_onbellek"}), \
          patch.object(os_, "yoklama_tablolari", return_value={"yoklama_onbellek": TABLOLAR["yoklama_onbellek"]}), \
+         patch.object(os_, "sms_tablolari", return_value={}), \
+         patch.object(os_, "tc_tablosu", return_value={}), \
          patch.object(ob, "_dosya_tablolari", return_value={}):
         return asyncio.run(ob.sql(istek))
 
@@ -199,6 +201,46 @@ class TestUc(unittest.TestCase):
         self.assertEqual(r.status_code, 400)
         self.assertIn("İzin yok", json.loads(r.body)["hata"])
 
+
+
+class TestSmsTc(unittest.TestCase):
+    def test_sms_tablolari_okunur(self):
+        import os
+        import sqlite3
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            yol = os.path.join(d, "s.db")
+            c = sqlite3.connect(yol)
+            c.executescript("CREATE TABLE kisiler (id, ad_soyad, telefon); CREATE TABLE siniflar (id, ad);"
+                            "CREATE TABLE gonderimler (id, telefon, durum); INSERT INTO kisiler VALUES (1,'Ayşe','5551112233');")
+            c.commit(); c.close()
+            t = os_.sms_tablolari(yol)
+            self.assertEqual(set(t), set(os_.SMS_TABLOLARI))
+            self.assertEqual(os_.calistir("SELECT telefon FROM kisiler", t)["satirlar"], [["5551112233"]])
+
+    def test_sms_db_yoksa_sql_hatasi(self):
+        with self.assertRaises(os_.SqlHatasi):
+            os_.sms_tablolari("/yok/yok.db")
+
+    def test_tc_tablosu_xlsx(self):
+        import os
+        import tempfile
+        import zipfile
+        ns = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+        ortak = f'<sst {ns}><si><t>Adı Soyadı</t></si><si><t>AYŞE DEMİR</t></si><si><t>10-A</t></si></sst>'
+        sayfa = (f'<worksheet {ns}><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="inlineStr"><is><t>T.C. Kimlik No</t></is></c><c r="C1" t="inlineStr"><is><t>Okul No</t></is></c><c r="D1" t="inlineStr"><is><t>Sınıf</t></is></c><c r="E1" t="inlineStr"><is><t>Doğum Tarihi</t></is></c></row>'
+                 '<row r="2"><c r="A2" t="s"><v>1</v></c><c r="B2" t="inlineStr"><is><t>12345678901</t></is></c>'
+                 '<c r="C2"><v>42</v></c><c r="D2" t="s"><v>2</v></c><c r="E2"><v>38000</v></c></row></sheetData></worksheet>')
+        with tempfile.TemporaryDirectory() as d:
+            with zipfile.ZipFile(os.path.join(d, "9-LAR.xlsx"), "w") as z:
+                z.writestr("xl/sharedStrings.xml", ortak)
+                z.writestr("xl/worksheets/sheet1.xml", sayfa)
+            t = os_.tc_tablosu(d)
+            self.assertEqual(t["tc_kimlik"][1], [("AYŞE DEMİR", "12345678901", "42", "10-A", "2004-01-14", "9-LAR.xlsx")])
+            self.assertEqual(os_.calistir("SELECT tc_kimlik FROM tc_kimlik WHERE okul_no='42'", t)["satirlar"], [["12345678901"]])
+
+    def test_tc_dizin_yoksa_bos(self):
+        self.assertEqual(os_.tc_tablosu("/yok/yok")["tc_kimlik"][1], [])
 
 if __name__ == "__main__":
     unittest.main()

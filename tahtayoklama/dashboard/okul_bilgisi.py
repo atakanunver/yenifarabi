@@ -406,6 +406,8 @@ async def okulda(request: Request, tarih: str = ""):
 
 
 KAZANIM_YOLU = Path(__file__).resolve().parent.parent / "data" / "kazanimlar.json"
+TC_DIZINI = Path(__file__).resolve().parent.parent.parent / "mudur" / "SINIF"
+SMS_DB_YOLU = Path(__file__).resolve().parent.parent.parent / "smssistemi" / "veri" / "smssistemi.db"
 
 
 def _dosya_tablolari() -> dict:
@@ -445,7 +447,11 @@ async def sql(request: Request):
     azami = min(max(satir, 1), 2000) if isinstance(satir, int) and not isinstance(satir, bool) else okul_sql.AZAMI_SATIR
 
     def _calistir():
-        tablolar = {**okul_sql.pg_tablolari(dsn), **okul_sql.yoklama_tablolari(db.DB_YOLU), **_dosya_tablolari()}
+        try:
+            sms = okul_sql.sms_tablolari(SMS_DB_YOLU)
+        except okul_sql.SqlHatasi:  # SMS servisi/DB'si yokken diğer tablolar yine sorgulanabilsin
+            sms = {}
+        tablolar = {**okul_sql.pg_tablolari(dsn), **okul_sql.yoklama_tablolari(db.DB_YOLU), **sms, **okul_sql.tc_tablosu(TC_DIZINI), **_dosya_tablolari()}
         return okul_sql.calistir(sorgu, okul_sql.personel_esle(tablolar), azami_satir=azami)
 
     try:
