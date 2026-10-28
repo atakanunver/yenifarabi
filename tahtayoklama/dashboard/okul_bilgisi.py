@@ -406,7 +406,7 @@ async def okulda(request: Request, tarih: str = ""):
 
 
 KAZANIM_YOLU = Path(__file__).resolve().parent.parent / "data" / "kazanimlar.json"
-TC_DIZINI = Path(__file__).resolve().parent.parent.parent / "mudur" / "SINIF"
+TC_DIZINI = Path(__file__).resolve().parent.parent.parent / "mudur" / "SINIF" / "tcler"
 SMS_DB_YOLU = Path(__file__).resolve().parent.parent.parent / "smssistemi" / "veri" / "smssistemi.db"
 
 

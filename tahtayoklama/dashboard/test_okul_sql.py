@@ -227,17 +227,19 @@ class TestSmsTc(unittest.TestCase):
         import tempfile
         import zipfile
         ns = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
-        ortak = f'<sst {ns}><si><t>Adı Soyadı</t></si><si><t>AYŞE DEMİR</t></si><si><t>10-A</t></si></sst>'
-        sayfa = (f'<worksheet {ns}><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="inlineStr"><is><t>T.C. Kimlik No</t></is></c><c r="C1" t="inlineStr"><is><t>Okul No</t></is></c><c r="D1" t="inlineStr"><is><t>Sınıf</t></is></c><c r="E1" t="inlineStr"><is><t>Doğum Tarihi</t></is></c></row>'
-                 '<row r="2"><c r="A2" t="s"><v>1</v></c><c r="B2" t="inlineStr"><is><t>12345678901</t></is></c>'
-                 '<c r="C2"><v>42</v></c><c r="D2" t="s"><v>2</v></c><c r="E2"><v>38000</v></c></row></sheetData></worksheet>')
+        basliklar = ["OKUL NO", "ÖĞRENCİ AD-SOYAD", "ANNE AD-SOYAD", "BABA AD-SOYAD", "ÖĞRENCİ TC", "ANNE TC", "BABA TC"]
+        ortak = f'<sst {ns}>' + "".join(f"<si><t>{b}</t></si>" for b in basliklar) + "</sst>"
+        satir1 = "".join(f'<c r="{c}2" t="s"><v>{i}</v></c>' for i, c in enumerate("ABCDEFG"))
+        veri = ('<c r="A3"><v>42</v></c><c r="B3" t="inlineStr"><is><t>AYŞE DEMİR</t></is></c>'
+                '<c r="E3" t="inlineStr"><is><t>12345678901</t></is></c><c r="F3" t="inlineStr"><is><t>10987654321</t></is></c>')
+        sayfa = f'<worksheet {ns}><sheetData><row r="1"/><row r="2">{satir1}</row><row r="3">{veri}</row></sheetData></worksheet>'
         with tempfile.TemporaryDirectory() as d:
-            with zipfile.ZipFile(os.path.join(d, "9-LAR.xlsx"), "w") as z:
+            with zipfile.ZipFile(os.path.join(d, "9-A.xlsx"), "w") as z:
                 z.writestr("xl/sharedStrings.xml", ortak)
                 z.writestr("xl/worksheets/sheet1.xml", sayfa)
             t = os_.tc_tablosu(d)
-            self.assertEqual(t["tc_kimlik"][1], [("AYŞE DEMİR", "12345678901", "42", "10-A", "2004-01-14", "9-LAR.xlsx")])
-            self.assertEqual(os_.calistir("SELECT tc_kimlik FROM tc_kimlik WHERE okul_no='42'", t)["satirlar"], [["12345678901"]])
+            self.assertEqual(t["tc_kimlik"][1], [("9-A", "42", "AYŞE DEMİR", "12345678901", None, "10987654321", None, None)])
+            self.assertEqual(os_.calistir("SELECT ogrenci_tc FROM tc_kimlik WHERE okul_no='42'", t)["satirlar"], [["12345678901"]])
 
     def test_tc_dizin_yoksa_bos(self):
         self.assertEqual(os_.tc_tablosu("/yok/yok")["tc_kimlik"][1], [])

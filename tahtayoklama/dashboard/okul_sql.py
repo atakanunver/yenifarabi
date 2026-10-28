@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import datetime
 import decimal
+import glob
 import os
 import re
 import sqlite3
@@ -25,7 +26,6 @@ PG_TABLOLARI = (
 )
 YOKLAMA_TABLOLARI = ("yoklama_onbellek", "kulup_yoklama")
 SMS_TABLOLARI = ("kisiler", "siniflar", "gonderimler")  # smssistemi.db (rehber + gönderim kayıtları)
-TC_DOSYALARI = ("9-LAR.xlsx", "10-LAR.xlsx", "11ler.xlsx", "12ler.xlsx")  # mudur/SINIF/ (e-Okul listeleri; şifre.xlsx ASLA)
 TC_TABLOLARI = ("tc_kimlik",)
 DOSYA_TABLOLARI = ("ogretmen_programi", "kazanim", "simdi")  # config/ogretmenler.json ve data/kazanimlar.json'dan türetilir
 IZINLI_TABLOLAR = frozenset(PG_TABLOLARI + YOKLAMA_TABLOLARI + SMS_TABLOLARI + TC_TABLOLARI + DOSYA_TABLOLARI)
@@ -119,21 +119,13 @@ def _xlsx_satirlari(yol) -> list[dict[str, str]]:
         return satirlar
 
 
-def _tarih(v: str | None) -> str | None:
-    """Excel seri sayısı → ISO tarih; metinse olduğu gibi."""
-    try:
-        return (datetime.date(1899, 12, 30) + datetime.timedelta(days=int(float(v)))).isoformat() if v and 20000 < float(v) < 80000 else v
-    except ValueError:
-        return v
-
-
 def tc_tablosu(dizin) -> dict[str, tuple[list[str], list[tuple]]]:
-    """mudur/SINIF e-Okul listelerinden (Adı Soyadı, T.C. Kimlik No, Okul No, Sınıf, Doğum Tarihi) tc_kimlik
-    tablosu. Dosya değişmedikçe (mtime) önbellekten; dosya yoksa/bozuksa o dosya atlanır."""
-    kolonlar = ["ad_soyad", "tc_kimlik", "okul_no", "sinif", "dogum_tarihi", "kaynak"]
+    """mudur/SINIF/tcler/<sınıf>.xlsx (OKUL NO, ÖĞRENCİ AD-SOYAD, ANNE/BABA AD-SOYAD, ÖĞRENCİ/ANNE/BABA TC)
+    → tc_kimlik tablosu; sınıf dosya adından. Dosya değişmedikçe (mtime) önbellekten; bozuk dosya atlanır."""
+    kolonlar = ["sinif", "okul_no", "ogrenci_ad_soyad", "ogrenci_tc", "anne_ad_soyad", "anne_tc", "baba_ad_soyad", "baba_tc"]
+    basliklar = ("okul no", "ogrenci ad-soyad", "ogrenci tc", "anne ad-soyad", "anne tc", "baba ad-soyad", "baba tc")
     satirlar = []
-    for ad in TC_DOSYALARI:
-        yol = f"{dizin}/{ad}"
+    for yol in sorted(glob.glob(f"{dizin}/*.xlsx")):
         try:
             mtime = os.stat(yol).st_mtime
             if _TC_ONBELLEK.get(yol, (None,))[0] != mtime:
@@ -141,13 +133,15 @@ def tc_tablosu(dizin) -> dict[str, tuple[list[str], list[tuple]]]:
         except (OSError, KeyError, ET.ParseError, zipfile.BadZipFile):
             continue
         tum = _TC_ONBELLEK[yol][1]
-        if not tum:
+        bas = next((i for i, h in enumerate(tum) if "okul no" in {_sade(v) for v in h.values()}), None)
+        if bas is None:
             continue
-        harf = {_sade(v): k for k, v in tum[0].items()}  # başlık → sütun harfi (sütunlar A'dan başlamayabilir)
-        ad_k, tc_k, no_k, sn_k, dg_k = (harf.get(b) for b in ("adi soyadi", "t.c. kimlik no", "okul no", "sinif", "dogum tarihi"))
-        for h in tum[1:]:
+        harf = {_sade(v): k for k, v in tum[bas].items()}
+        no_k, ad_k, tc_k, aa_k, at_k, ba_k, bt_k = (harf.get(b) for b in basliklar)
+        sinif = os.path.basename(yol)[:-5]
+        for h in tum[bas + 1:]:
             if ad_k and h.get(ad_k):
-                satirlar.append((h[ad_k], h.get(tc_k), h.get(no_k), h.get(sn_k), _tarih(h.get(dg_k)), ad))
+                satirlar.append((sinif, h.get(no_k), h[ad_k], h.get(tc_k), h.get(aa_k), h.get(at_k), h.get(ba_k), h.get(bt_k)))
     return {"tc_kimlik": (kolonlar, satirlar)}
 
 
