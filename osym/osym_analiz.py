@@ -165,7 +165,7 @@ def istatistik_kontrol(c):
             rapor("TAMAM" if say == ist else "UYARI", f"{y}: Word toplam yerleşen {ist}, Excel (birincil dosya) {say} kişi")
     for y, mez, giren, yer, oran, son, bas, top in sorgu(c, """SELECT o.yil, o.mezun, o.sinava_giren, o.yerlesen, o.oran, g.son_sinif, g.basvuran, g.toplam_yerlesen
             FROM ozet_son5 o LEFT JOIN genel_istatistik g USING (yil) ORDER BY 1"""):
-        if g_yok := (son is None):
+        if son is None:
             rapor("UYARI", f"{y}: ozet_son5 var, genel_istatistik (Word) yok")
             continue
         for ad, a, b in (("mezun/son sınıf", mez, son), ("sınava giren/başvuran", giren, bas), ("yerleşen/toplam yerleşen", yer, top)):
