@@ -196,6 +196,12 @@ def test_sayfa_olayi_esleme():
     assert analitik.sayfa_olayi("/ogrenci/odev/12/test") is None
     assert analitik.sayfa_olayi("/veli/kazanim") == "veli_gelisim_raporu"
     assert analitik.sayfa_olayi("/ogrenci/kazanimlar") == "kazanim_raporu"
+    assert analitik.sayfa_olayi("/veli/deneme") == "deneme_goruntule"
+    assert analitik.sayfa_olayi("/ogrenci/deneme/3") == "deneme_goruntule"
+    assert analitik.sayfa_olayi("/ogretmen/deneme/3/9-A") == "deneme_goruntule"
+    assert analitik.sayfa_olayi("/yonetici/deneme/3") == "deneme_goruntule"
+    assert analitik.sayfa_olayi("/veli/deneme/3/pdf") == "deneme_pdf"
+    assert analitik.sayfa_olayi("/ogretmen/deneme/3/9-A/12/pdf") == "deneme_pdf"
     assert analitik.sayfa_olayi("/giris") is None
 
 

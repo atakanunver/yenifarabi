@@ -164,3 +164,14 @@ def test_rol_ayrimi(istemci, ornek):
     _giris(istemci, "hoca", "hoca-sifre")
     assert istemci.get("/ogrenci/deneme").status_code == 404
     assert istemci.get("/veli/deneme").status_code == 404
+
+
+def test_kazanim_satirlari_yalniz_yayindaki_denemeden(conn):
+    conn.execute("INSERT INTO deneme (id, ad, yayinda, olusturma) VALUES (1, 'A', 1, 'x'), (2, 'B', 0, 'x')")
+    veri = json.dumps({"kazanimlar": [{"ders": "Tarih-1", "kazanim": "K", "d": 2, "y": 1, "b": 1}, {"ders": "x"}]})
+    for did in (1, 2):
+        conn.execute(
+            "INSERT INTO deneme_ogrenci (deneme_id, okul_no, girdi, veri) VALUES (?, 7, 1, ?)", (did, veri)
+        )
+    assert denemeler.kazanim_satirlari(conn, 7) == [("tarih", "K", 2, 4)]
+    assert denemeler.kazanim_satirlari(conn, 8) == []

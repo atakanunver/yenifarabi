@@ -3,7 +3,7 @@
 {% block baslik %}Kazanımlar — Dijital Okul{% endblock %}
 {% block icerik %}
 <h1>{{ kim }}</h1>
-<p class="soluk kucuk">Her kare bir kazanım. Dolu kare: doğruların en az %{{ (esik * 100)|round|int }}'i. Taralı kare: çalışılması önerilen kazanım.</p>
+<p class="soluk kucuk">Her kare bir kazanım. Dolu kare: doğruların en az %{{ (esik * 100)|round|int }}'i. Taralı kare: çalışılması önerilen kazanım. Veriler deneme, ödev testi ve eski kazanım testlerinden gelir; 3'ten az soruda "Veri az" yazar.</p>
 {% if not erisildi %}<div class="kart">{{ kaynak_yok("Kazanım testi sonuçları") }}</div>{% endif %}
 
 {% for ders, liste in ozet.items() %}
@@ -13,14 +13,14 @@
   {{ kareler(b.n, liste|length) }}
   {% for d in liste|sort(attribute='yuzde') %}
   <div class="kazanim">
-    <span class="etiket {{ 'yesil' if d.basarili(esik) else 'kirmizi' }}">{{ 'Tamam' if d.basarili(esik) else 'Çalış' }}</span>
+    <span class="etiket {{ 'yesil' if d.basarili(esik) else ('kirmizi' if d.yeterli else '') }}">{{ 'Tamam' if d.basarili(esik) else ('Çalış' if d.yeterli else 'Veri az') }}</span>
     <span>{{ d.kazanim }}<br><span class="soluk kucuk">{{ d.dogru }}/{{ d.toplam }} doğru</span></span>
-    <span class="yuzde {{ 'iyi' if d.basarili(esik) else 'zayif' }}">%{{ d.yuzde }}</span>
+    <span class="yuzde {{ 'iyi' if d.basarili(esik) else ('zayif' if d.yeterli else '') }}">%{{ d.yuzde }}</span>
   </div>
   {% endfor %}
 </section>
 {% else %}
-<div class="kart"><p class="bos">Henüz değerlendirilmiş bir kazanım yok. Kazanım testleri ve öğretmenin verdiği testler çözüldükçe burada görünecek.</p></div>
+<div class="kart"><p class="bos">Henüz değerlendirilmiş bir kazanım yok. Denemeler yayınlandıkça ve öğretmenin verdiği testler çözüldükçe burada görünecek.</p></div>
 {% endfor %}
 
 {% if form %}

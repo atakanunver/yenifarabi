@@ -19,6 +19,13 @@ def test_ozet_form_ve_odev_birlesir():
     assert {d.kazanim for d in o["fizik"]} == {"Hız", "Kuvvet"}
 
 
+def test_deneme_kazanimi_birlesir_ve_az_veri_isaretlenir():
+    o = kazanim.ozet([], [("türkçe", "Anlam", True)], [("türkçe", "Anlam", 3, 4), ("türkçe", "Tek", 0, 1)])
+    d = {x.kazanim: x for x in o["türkçe"]}
+    assert (d["Anlam"].dogru, d["Anlam"].toplam) == (4, 5) and d["Anlam"].yeterli
+    assert not d["Tek"].yeterli
+
+
 def test_basari_esigi():
     d = kazanim.KazanimDurum("matematik", "K", 7, 10)
     assert d.basarili(0.7)

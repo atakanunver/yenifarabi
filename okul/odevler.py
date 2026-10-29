@@ -277,11 +277,8 @@ def ogrenci_kazanim_satirlari(
     ):
         cevap = json.loads(t["cevaplar"])
         for s in sorular(conn, t["id"]):
-            satirlar.append(
-                (
-                    t["ders"],
-                    s["kazanim"] or t["baslik"],
-                    cevap.get(str(s["id"])) == s["dogru"],
-                )
-            )
+            verilen = cevap.get(str(s["id"]))
+            if not s["kazanim"] or verilen is None:
+                continue  # kazanımsız ya da cevaplanmamış soru kazanım verisine girmez
+            satirlar.append((t["ders"], s["kazanim"], verilen == s["dogru"]))
     return satirlar

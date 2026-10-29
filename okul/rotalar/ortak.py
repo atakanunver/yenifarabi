@@ -6,6 +6,7 @@ Dış kaynak hatası sayfayı düşürmez: ilgili alan None döner, şablon 'şu
 import sqlite3
 from datetime import timedelta
 
+import denemeler
 import odevler
 import sinavlar
 import zaman
@@ -36,7 +37,11 @@ def kazanim_ozeti(
         erisildi = True
     except KaynakHatasi:
         form, erisildi = [], False
-    o = kazanim.ozet(form, odevler.ogrenci_kazanim_satirlari(conn, ogrenci["id"]))
+    o = kazanim.ozet(
+        form,
+        odevler.ogrenci_kazanim_satirlari(conn, ogrenci["id"]),
+        denemeler.kazanim_satirlari(conn, ogrenci["okul_no"]),
+    )
     return o, form, erisildi
 
 

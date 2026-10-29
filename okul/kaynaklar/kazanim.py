@@ -16,6 +16,9 @@ from ayarlar import AYAR
 from kaynaklar import KaynakHatasi
 
 
+MIN_SORU = 3  # kazanım başına; altında durum etiketi yok (gelisim.MIN_SORU ile aynı ilke)
+
+
 @dataclass(frozen=True)
 class TestSonucu:
     __test__ = False  # pytest bunu test sınıfı sanmasın
@@ -38,6 +41,11 @@ class KazanimDurum:
     @property
     def yuzde(self) -> int:
         return round(100 * self.dogru / self.toplam) if self.toplam else 0
+
+    @property
+    def yeterli(self) -> bool:
+        """Birkaç soruluk veriyle 'çalış' etiketi basılmaz."""
+        return self.toplam >= MIN_SORU
 
     def basarili(self, esik: float) -> bool:
         return self.toplam > 0 and self.dogru / self.toplam >= esik
@@ -128,7 +136,9 @@ def _havuz_satiri(r) -> dict:
 
 
 def ozet(
-    form: list[TestSonucu], odev: list[tuple[str, str, bool]]
+    form: list[TestSonucu],
+    odev: list[tuple[str, str, bool]],
+    deneme: list[tuple[str, str, int, int]] = (),
 ) -> dict[str, list[KazanimDurum]]:
     toplam: dict[tuple[str, str], list[int]] = defaultdict(lambda: [0, 0])
     for t in form:
@@ -137,6 +147,9 @@ def ozet(
     for ders, kaz, dogru in odev:
         toplam[(ders, kaz)][0] += int(dogru)
         toplam[(ders, kaz)][1] += 1
+    for ders, kaz, dogru, n in deneme:
+        toplam[(ders, kaz)][0] += dogru
+        toplam[(ders, kaz)][1] += n
     sonuc: dict[str, list[KazanimDurum]] = defaultdict(list)
     for (ders, kaz), (d, n) in sorted(toplam.items()):
         sonuc[ders].append(KazanimDurum(ders, kaz, d, n))

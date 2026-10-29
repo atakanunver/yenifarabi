@@ -108,6 +108,12 @@ OZELLIKLER = {
         "Sudoku: düello bitirme", ("ogrenci",), True,
         "Meydan okuyup bitirmeyenler varsa süreyi (24 saat) ve bildirim akışını gözden geçir; öğrencilere neden bıraktıklarını sor.",
     ),
+    "deneme_goruntule": (
+        "Deneme sonuçları ekranı", ("ogrenci", "veli", "ogretmen", "yonetici"), False, "",
+    ),
+    "deneme_pdf": (
+        "Deneme karnesi PDF", ("ogrenci", "veli", "ogretmen", "yonetici"), False, "",
+    ),
     "veli_gelisim_raporu": (
         "Veli: gelişim raporu", ("veli",), True,
         "Veli ana sayfasına 'Kazanım raporu' bağlantısı ekle; veli toplantısında kısa gösterim yap.",
@@ -125,6 +131,9 @@ _SAYFALAR = (
     (re.compile(r"^/ogrenci/arena$"), "arena_goruntule"),
     (re.compile(r"^/duyurular$"), "duyuru_goruntule"),
     (re.compile(r"^/ogrenci/sudoku$"), "sudoku_goruntule"),
+    (re.compile(r"^/(ogrenci|veli|ogretmen|yonetici)/deneme/.+/pdf$"), "deneme_pdf"),
+    (re.compile(r"^/(ogrenci|veli|ogretmen)/deneme(/[^/]+)*$"), "deneme_goruntule"),
+    (re.compile(r"^/yonetici/deneme/\d+$"), "deneme_goruntule"),
 )
 
 

@@ -88,6 +88,31 @@ def ogrenci_denemesi(
     return _coz(s) if s else None
 
 
+# Karnedeki ders adı → ödev/okul ders adı (kazanım raporunda tek bölümde birleşsin)
+DERS_ESLEME = {
+    "türkçe": "türk dili ve edebiyatı",
+    "tarih-1": "tarih",
+    "coğrafya-1": "coğrafya",
+    "din kül. ve ahl. bil.": "din kültürü ve ahlak bilgisi",
+}
+
+
+def kazanim_satirlari(conn: sqlite3.Connection, okul_no: int) -> list[tuple[str, str, int, int]]:
+    """Yayındaki denemelerden öğrencinin kazanımları: (ders, kazanım, doğru, soru sayısı)."""
+    satirlar = []
+    for s in conn.execute(_SORGU, (okul_no,)):
+        try:
+            veri = json.loads(s["veri"] or "{}")
+            for k in veri.get("kazanimlar") or []:
+                d, y, b = int(k["d"]), int(k["y"]), int(k["b"])
+                if d + y + b:
+                    ders = tr_kucuk(str(k["ders"]))
+                    satirlar.append((DERS_ESLEME.get(ders, ders), str(k["kazanim"]), d, d + y + b))
+        except (ValueError, TypeError, KeyError, AttributeError):
+            continue
+    return satirlar
+
+
 def deneme_sayisi(conn: sqlite3.Connection, okul_no: int) -> int:
     return conn.execute(
         "SELECT COUNT(*) FROM deneme d JOIN deneme_ogrenci o ON o.deneme_id = d.id"
