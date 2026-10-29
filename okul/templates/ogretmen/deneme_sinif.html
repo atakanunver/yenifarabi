@@ -1,0 +1,47 @@
+{# Bağlam: deneme_id, deneme_ad, o{sinif,katilim,ortalama_net,ders_ortalamalari,ortak_eksikler,ogrenciler}, yorum, yonetici. #}
+{% extends "base.html" %}
+{% block baslik %}{{ o.sinif }} · {{ deneme_ad }}{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/ogretmen/deneme">← Denemeler</a></p>
+<h1>{{ o.sinif }} — {{ deneme_ad }}</h1>
+<section class="kart">
+  <h2>Sınıf özeti</h2>
+  <p>Katılan öğrenci: <b>{{ o.katilim }}</b></p>
+  {% if o.ortalama_net is not none %}
+  <p>Sınıf ortalama neti: <b>{{ o.ortalama_net }}</b></p>
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Ders</th><th class="sayi">Ortalama net</th></tr></thead>
+    <tbody>{% for ders, net in o.ders_ortalamalari.items() %}<tr><td>{{ ders }}</td><td class="sayi">{{ net }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <p class="soluk">Katılım {{ o.katilim }} olduğu için ortalama ve ortak eksikler gösterilmiyor (en az 5 öğrenci gerekir).</p>
+  {% endif %}
+</section>
+{% if o.ortak_eksikler %}
+<section class="kart">
+  <h2>Sınıfın ortak eksik kazanımları</h2>
+  <ul class="liste">
+    {% for e in o.ortak_eksikler %}<li><span>{{ e.kazanim }} <span class="soluk kucuk">({{ e.ders }})</span></span><span><b>%{{ e.basari }}</b></span></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% if yorum %}
+<section class="kart">
+  <h2>Yapay zekâ yorumu</h2>
+  {% for p in yorum.split('\n') if p.strip() %}<p>{{ p }}</p>{% endfor %}
+  <p class="kucuk soluk">Kimliksiz sınıf verisinden üretilmiştir; karar vermeden önce kontrol edin.</p>
+</section>
+{% endif %}
+<section class="kart">
+  <h2>Öğrenciler</h2>
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Öğrenci</th><th class="sayi">Toplam net</th><th>Karne</th></tr></thead>
+    <tbody>
+    {% for s in o.ogrenciler %}
+      <tr><td><span class="soluk kucuk">{{ s.okul_no }}</span> {{ s.ad }}</td><td class="sayi">{{ s.net if s.net is not none else '—' }}</td>
+        <td><a href="/ogretmen/deneme/{{ deneme_id }}/{{ o.sinif }}/{{ s.okul_no }}/pdf" target="_blank" rel="noopener">PDF</a></td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

@@ -1,0 +1,41 @@
+{# Bağlam: deneme_id, deneme_ad, yayinda, o{katilim,ortalama_net,ders_ortalamalari,ortak_eksikler,subeler}, yorum. #}
+{% extends "base.html" %}
+{% block baslik %}{{ deneme_ad }} · Okul geneli{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/ogretmen/deneme">← Denemeler</a></p>
+<h1>{{ deneme_ad }} — okul geneli</h1>
+{% if not yayinda %}<p class="uyari">Bu deneme henüz yayınlanmadı; yalnızca yöneticiler görüyor.</p>{% endif %}
+<section class="kart">
+  <h2>Genel tablo</h2>
+  <p>Katılan öğrenci: <b>{{ o.katilim }}</b>{% if o.ortalama_net is not none %} · Okul ortalama neti: <b>{{ o.ortalama_net }}</b>{% endif %}</p>
+  {% if o.ders_ortalamalari %}
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Ders</th><th class="sayi">Ortalama net</th></tr></thead>
+    <tbody>{% for ders, net in o.ders_ortalamalari.items() %}<tr><td>{{ ders }}</td><td class="sayi">{{ net }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+</section>
+<section class="kart">
+  <h2>Şubeler</h2>
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Şube</th><th class="sayi">Katılım</th><th class="sayi">Ortalama net</th></tr></thead>
+    <tbody>{% for s in o.subeler %}<tr><td><a href="/ogretmen/deneme/{{ deneme_id }}/{{ s.sinif }}">{{ s.sinif }}</a></td><td class="sayi">{{ s.katilim }}</td><td class="sayi">{{ s.ortalama_net if s.ortalama_net is not none else '—' }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <p class="kucuk soluk">Şubeler ada göre listelenir. 5'ten az katılımlı şubenin ortalaması gösterilmez.</p>
+</section>
+{% if o.ortak_eksikler %}
+<section class="kart">
+  <h2>Okul genelinde en düşük başarılı kazanımlar</h2>
+  <ul class="liste">
+    {% for e in o.ortak_eksikler %}<li><span>{{ e.kazanim }} <span class="soluk kucuk">({{ e.ders }})</span></span><span><b>%{{ e.basari }}</b></span></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% if yorum %}
+<section class="kart">
+  <h2>Yapay zekâ yönetici özeti</h2>
+  {% for p in yorum.split('\n') if p.strip() %}<p>{{ p }}</p>{% endfor %}
+  <p class="kucuk soluk">Kimliksiz okul verisinden üretilmiştir; karar vermeden önce kontrol edin.</p>
+</section>
+{% endif %}
+{% endblock %}

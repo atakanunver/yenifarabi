@@ -20,6 +20,10 @@ from pathlib import Path
 
 # user_version N'den N-1'e inmek için çalışan betik. Yeni göç eklenince buraya da eklenir.
 GERI = {
+    36: """
+DROP TABLE IF EXISTS deneme_sinif_yorum;
+DROP TABLE IF EXISTS deneme_pdf;
+""",
     35: """
 DROP TABLE IF EXISTS tesekkur;
 DROP TABLE IF EXISTS bilmece_cevap;
@@ -185,6 +189,7 @@ DROP TABLE IF EXISTS bilgi_tur;
 """,
 }
 TABLOLAR = {
+    36: ["deneme_sinif_yorum", "deneme_pdf"],
     35: ["tesekkur", "bilmece_cevap", "bilmece_gun", "bilmece"],
     30: ["sudoku_bot"],
     29: ["onay_yanit", "onay_talep"],

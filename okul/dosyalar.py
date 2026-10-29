@@ -116,6 +116,14 @@ def pdf_kaydet(veri: bytes) -> Dosya:
     return _kaydet("pdf", veri, "pdf")
 
 
+def deneme_pdf_kaydet(veri: bytes) -> Dosya:
+    if veri[:5] != b"%PDF-":
+        raise DosyaHatasi("Yalnızca PDF dosyası yükleyebilirsiniz.")
+    if len(veri) > PLAN_AZAMI:
+        raise DosyaHatasi("PDF en fazla 10 MB olabilir.")
+    return _kaydet("deneme", veri, "pdf")
+
+
 def odev_foto_kaydet(veri: bytes) -> Dosya:
     if not veri:
         raise DosyaHatasi("Bir fotoğraf seçin.")

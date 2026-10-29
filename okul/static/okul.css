@@ -629,3 +629,22 @@ tr.ben td { background: rgba(122, 63, 168, .10); }
 .soru-gec { margin-top: 1rem; }
 .soru-gec .tuslar { margin-top: .4rem; }
 .soru-gec details { margin-top: .6rem; }
+
+/* Deneme karnesi: son deneme vurgulu; ders netleri, kazanım çubuğu, yorum kutuları */
+.deneme-son { border-width: 2px; border-color: var(--mavi); }
+.deneme-etiket { font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--mavi); background: var(--mavi-acik); padding: .15rem .55rem; border-radius: 999px; }
+.deneme-toplam b { font-size: 1.6rem; margin-left: .35rem; }
+.deneme-dersler { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: .5rem; margin: .5rem 0 .75rem; }
+.deneme-ders { display: flex; flex-direction: column; padding: .45rem .65rem; border: 1px solid var(--cizgi); border-radius: 10px; background: var(--mavi-acik); }
+.deneme-ders b { font-size: 1.15rem; }
+.deneme-not { border-radius: 12px; padding: .6rem .85rem; margin: .6rem 0; }
+.deneme-not h3 { margin: 0 0 .3rem; }
+.deneme-not p { margin: .3rem 0; }
+.deneme-not.analiz { background: var(--mavi-acik); }
+.deneme-not.tavsiye { background: var(--yesil-acik); }
+.deneme-kazanimlar { list-style: none; margin: 0; padding: 0; }
+.deneme-kazanimlar > li { padding: .6rem 0; border-top: 1px dashed var(--cizgi); }
+.deneme-cubuk { display: flex; height: 10px; border-radius: 999px; overflow: hidden; margin: .35rem 0 .2rem; background: var(--cizgi); }
+.deneme-cubuk .d { background: var(--yesil); }
+.deneme-cubuk .y { background: var(--kirmizi); }
+.deneme-cubuk .b { background: var(--kenar2); }

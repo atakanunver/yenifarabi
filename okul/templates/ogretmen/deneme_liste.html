@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block baslik %}Denemeler — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Deneme sonuçları</h1>
+{% for d in liste %}
+<section class="kart">
+  <h2>{{ d.ad }}{% if d.tarih %} <span class="soluk kucuk">{{ d.tarih|tarih }}</span>{% endif %}</h2>
+  <ul class="liste">
+    {% for s in d.siniflar %}<li><a href="/ogretmen/deneme/{{ d.id }}/{{ s.sinif }}">{{ s.sinif }}</a><span class="soluk kucuk">{{ s.katilim }} öğrenci</span></li>{% endfor %}
+  </ul>
+  {% if k.rol == 'yonetici' %}<p><a href="/yonetici/deneme/{{ d.id }}">Okul geneli</a></p>{% endif %}
+</section>
+{% else %}
+<section class="kart"><p class="bos">Yayınlanmış deneme sonucu yok.</p></section>
+{% endfor %}
+{% endblock %}

@@ -1,16 +1,37 @@
 {% for d in denemeler %}
-<section class="kart">
-  <h2>{{ d.ad }}{% if d.tarih %} <span class="soluk kucuk">{{ d.tarih|tarih }}</span>{% endif %}</h2>
+<section class="kart deneme-kart{% if loop.first %} deneme-son{% endif %}">
+  <h2>{% if loop.first %}<span class="deneme-etiket">Son deneme</span> {% endif %}{{ d.ad }}{% if d.tarih %} <span class="soluk kucuk">{{ d.tarih|tarih }}</span>{% endif %}</h2>
   {% if d.ozet %}<p class="kucuk soluk">{{ d.ozet }}</p>{% endif %}
-  {% if d.toplam_net is not none %}<p>Toplam net: <b>{{ d.toplam_net }}</b></p>{% endif %}
-  {% if d.dersler %}
-  <div class="tablo-kap"><table>
-    <thead><tr><th>Ders</th><th>Net</th></tr></thead>
-    <tbody>{% for ders, net in d.dersler %}<tr><td>{{ ders }}</td><td>{{ net }}</td></tr>{% endfor %}</tbody>
-  </table></div>
+  {% if d.toplam_net is not none %}<p class="deneme-toplam"><span class="kucuk soluk">Toplam net</span> <b>{{ d.toplam_net }}</b></p>{% endif %}
+  {% if d.siralama %}{% set sr = d.siralama %}
+  <div class="deneme-dersler deneme-sira">
+    <div class="deneme-ders"><span class="kucuk soluk">Sınıf sıram</span><b>{{ sr.sube[0] }}<span class="soluk kucuk"> / {{ sr.sube[1] }} kişi</span></b></div>
+    <div class="deneme-ders"><span class="kucuk soluk">Okul sıram</span><b>{{ sr.kurum[0] }}<span class="soluk kucuk"> / {{ sr.kurum[1] }} kişi</span></b></div>
+    <div class="deneme-ders"><span class="kucuk soluk">Genel sıram</span><b>{{ sr.genel[0] }}<span class="soluk kucuk"> / {{ sr.genel[1] }} kişi</span></b></div>
+    <div class="deneme-ders"><span class="kucuk soluk">Yüzdelik dilim</span><b>%{{ ('%.2f' % sr.yuzdelik)|replace('.', ',') }}</b></div>
+  </div>
   {% endif %}
-  {% if d.analiz %}<h3>Analiz</h3>{% for p in d.analiz.split('\n') if p.strip() %}<p>{{ p }}</p>{% endfor %}{% endif %}
-  {% if d.tavsiye %}<h3>Tavsiye</h3>{% for p in d.tavsiye.split('\n') if p.strip() %}<p>{{ p }}</p>{% endfor %}{% endif %}
+  {% if d.dersler %}
+  <div class="deneme-dersler">
+    {% for ders, net in d.dersler %}<div class="deneme-ders"><span class="kucuk soluk">{{ ders }}</span><b>{{ net }}</b></div>{% endfor %}
+  </div>
+  {% endif %}
+  {% if d.analiz %}<div class="deneme-not analiz"><h3>📊 Analiz</h3>{% for p in d.analiz.split('\n') if p.strip() %}<p>{{ p }}</p>{% endfor %}</div>{% endif %}
+  {% if d.tavsiye %}<div class="deneme-not tavsiye"><h3>💡 Tavsiye</h3>{% for p in d.tavsiye.split('\n') if p.strip() %}<p>{{ p }}</p>{% endfor %}</div>{% endif %}
+  {% if d.zayif_kazanimlar %}
+  <h3>Geliştirilecek kazanımlar</h3>
+  <ul class="deneme-kazanimlar">
+    {% for z in d.zayif_kazanimlar %}{% set t = z.d + z.y + z.b %}
+    <li>
+      <div>{{ z.kazanim }} <span class="soluk kucuk">({{ z.ders }})</span></div>
+      <div class="deneme-cubuk" role="img" aria-label="{{ z.d }} doğru, {{ z.y }} yanlış, {{ z.b }} boş">
+        <span class="d" style="flex: {{ z.d }}"></span><span class="y" style="flex: {{ z.y }}"></span><span class="b" style="flex: {{ z.b }}"></span>
+      </div>
+      <div class="kucuk soluk">{{ z.d }} doğru · {{ z.y }} yanlış · {{ z.b }} boş</div>
+    </li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if d.pdf %}<div class="tuslar"><a class="tus tam" href="{{ pdf_taban }}/{{ d.id }}/pdf{{ pdf_ek }}" target="_blank" rel="noopener">📄 Karne sayfasını PDF olarak aç</a></div>{% endif %}
 </section>
 {% else %}
 <section class="kart"><p class="bos">Yayınlanmış deneme sonucu yok.</p></section>
