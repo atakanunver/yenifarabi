@@ -12,7 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Sınıf akıllı tahtalarında sesli ders asistanı + aynı sunucuda okul operasyon
 servisleri (yoklama panosu, SMS). Monorepo; her alt projenin kendi `CLAUDE.md`'si
 var (client, server, tahtayoklama, smssistemi, tahtaayar, benchmark, mudur,
-soruhavuzu, kazanimtest, okul, kameralar, kiosk; `anythingllm/` için CLAUDE.md yok; Open WebUI kodu `_arsiv/openwebui/`, `_arsiv/webui-tema/`'dedir). Bu dosya: ortak kurallar + servisler arası resim.
+soruhavuzu, kazanimtest, okul, kameralar, kiosk; `kelebek/` (sınav salon dağıtım paneli, :8050,
+systemd `farabi-kelebek`) ve `osym/` (ÖSYM/YKS rapor yükleyici, `osym` DB) ile `anythingllm/` için CLAUDE.md yok; Open WebUI kodu `_arsiv/openwebui/`, `_arsiv/webui-tema/`'dedir). Bu dosya: ortak kurallar + servisler arası resim.
 
 - Kararlar/neden: `DECISIONS.md` (`grep "## <tarih>"`). Mimari (2026-09-13'te
   donmuş, çelişkide bu dosya esas): `docs/mimari.md`. Ağ envanteri, dağıtım,
@@ -20,6 +21,8 @@ soruhavuzu, kazanimtest, okul, kameralar, kiosk; `anythingllm/` için CLAUDE.md 
   `README.md` yalnızca Atakan isterse güncellenir. Eski analiz/planlar: `_arsiv/` (okuma).
 - ⚠️ `/home/ata/farabi` CANLI ÜRETİM — servisler buradan koşuyor. Master'a commit
   = deploy kaynağı; üretime almak = ilgili servisi restart.
+  Çalışma dizini tek: hangi dal checkout'taysa servisler onu koşar; dal değiştirmek de canlı kodu değiştirir.
+  Özellik dalında çalışırken (örn. `atos-anythingllm-gemma`) master'a merge edilmeden restart canlıya o dalı alır.
 
 ## Mevcut durum (kalıcı)
 - `farabi-idari-yukle.timer` KALICI KAPALI (2026-10-10), açıkça istenmeden açma.
@@ -32,7 +35,7 @@ soruhavuzu, kazanimtest, okul, kameralar, kiosk; `anythingllm/` için CLAUDE.md 
   Açılışta `/usr/local/bin/farabi-ollama-onyukle.sh` modeli yükler. Çağıran kod düşünmeyi kapatır (`think:false`; Gemma'da düşünme varsayılan AÇIK). `CUDA_DEVICE_ORDER=PCI_BUS_ID` şart.
 - Gömme + reranker Farabi'de `farabi-embed`'de (2026-10-25'ten beri, 2. RTX 3060, `127.0.0.1:8040`, `FARABI_EMBED_URL`); bilgehan yalnız ses düğümü.
 - Ses Gemini Live'da, client'ta. Yerel STT/TTS/Pipecat KALICI İPTAL (2026-09-28).
-- Atos = AnythingLLM (Docker'sız, `/opt/anythingllm`, PM2 + `pm2-anythingllm.service`, port 8010, tek kullanıcı modu + erişim parolası; kurulum/yetenekler `anythingllm/`). Open WebUI 2026-10-25'te kaldırıldı, verisi `/mnt/farabi-data/farabi/arsiv/open-webui-atos-20261025.tgz`. Veri aracı: agent yetenekleri `sql-sorgu` ve `tablo-dosyasi` → dashboard `POST /api/okul/sql` (salt-okunur SQL; tablolar `okul_sql.py`).
+- Atos = AnythingLLM (Docker'sız, `/opt/anythingllm`, PM2 + `pm2-anythingllm.service`, port 8010, tek kullanıcı modu + erişim parolası; kurulum/yetenekler `anythingllm/`). Open WebUI 2026-10-25'te kaldırıldı, verisi `/mnt/farabi-data/farabi/arsiv/open-webui-atos-20261025.tgz`. Veri erişimi: aşağıdaki "Atos veri erişimi".
 - Okul ağı SSL-inceleme yapıyor: yeni venv'de certifi'ye MEB sertifikası eklenmeli;
   `HF_HUB_OFFLINE=1` açık.
 - Asıl kimlik avahi hostname (`vestel9b` → `vestel9b.local`; sınıfı o belirler); IP ve MAC değişebilir
@@ -61,6 +64,22 @@ Servisler arası bağ = HTTP + HMAC/paylaşılan anahtar. Tek DB istisnası: sms
   doğrudan çeker. Client kodu SSH ile kopyalanmaz.
 - Tahta auth: `/api/egitim/*` `X-Farabi-Board-Key` ile, üretimde ZORUNLU.
 
+## Atos veri erişimi (dashboard `POST /api/okul/sql`)
+Akış: Atos agent yetenekleri `sql-sorgu` / `tablo-dosyasi` (`anythingllm/skills/`, ortak istemci `_ortak/okul.js`)
+→ `tahtayoklama/dashboard/okul_bilgisi.py::sql` → `okul_sql.py`. Yetenekler `anythingllm/kur_yetenekler.sh` ile
+`/opt/anythingllm/storage/plugins/agent-skills` altına dağıtılır (`__SEMA__` ← `sema_aciklamasi.txt`, `__ANAHTAR__` ←
+`config/okul.json::anahtar`; anahtar depoya yazılmaz). Şema/tablo listesi değişince `sema_aciklamasi.txt`'yi de güncelle, betiği yeniden çalıştır.
+- Güvenlik burada, istemcide değil: yalnız yerel IP + `X-Farabi-Okul-Key` + `X-Farabi-Rol: admin` (uç öğrenci/veli telefonu, TC, rehberlik/disiplin dosyaları döndürür).
+  Her çağrıda kaynaklar bellek içi SQLite'a kopyalanır; tek ifade, `set_authorizer` (yalnız SELECT + `IZINLI_TABLOLAR`),
+  200 satır (`azami_satir` ile en çok 2000), 3 sn. Parola/oturum/anahtar tabloları kopyaya hiç alınmaz.
+- Kaynaklar: `okul_ana` (PG, `atos_ro`), `yoklama_pano.db`, `smssistemi.db`, `mudur/SINIF/tcler` (TC), `osym` DB (`osym_ro`,
+  `okul.json::osym_dsn`; tablolar `osym_*` + `mezun`), `okul_ana.dosya`/`dosya_satir` (Excel/Word içeriği; yükleyici
+  `tahtayoklama/dashboard/scripts/okul_dosya_yukle.py`), türetilmişler `ogrenci_genis`, `ogretmen`, `ogretmen_programi`, `kazanim`, `simdi`.
+  Yeni tablo = `okul_sql.py`'de sabit + `IZINLI_TABLOLAR` + `okul_bilgisi.py::sql` birleşimi + şema açıklaması.
+- SMS ve osym kaynakları yoksa sessizce atlanır (diğer tablolar çalışır); hata metinleri DSN/yol sızdırmaz (`SqlHatasi`).
+- Test: `cd tahtayoklama/dashboard && venv/bin/python -m unittest test_okul_sql`. Dashboard restart'ı ders saati dışında (08:00-17:00 TR dışı).
+- Bu çalışma dizininde `anythingllm/` sparse-checkout dışındadır (diskte yok; `git show HEAD:anythingllm/<dosya>` ya da `git sparse-checkout add anythingllm`).
+
 ## Komutlar
 | Proje | Test | Üretime alma |
 |---|---|---|
@@ -69,6 +88,9 @@ Servisler arası bağ = HTTP + HMAC/paylaşılan anahtar. Tek DB istisnası: sms
 | smssistemi | `venv/bin/python -m pytest -q` | `... restart farabi-smssistemi` |
 | okul | `cd okul && venv/bin/python -m pytest -q` | `... restart farabi-okul` |
 | client | tahtada: `server/tahta-ssh.sh <derslik> "cd ~/farabi/client && venv/bin/python -m pytest tests/ -q"` | GitHub push |
+- Diğer projeler: kelebek `cd kelebek && venv/bin/python -m pytest tests -q`; osym `cd osym && venv/bin/python -m unittest` (pytest YOK);
+  soruhavuzu `server/venv/bin/python -m pytest soruhavuzu/tests -q`; tahtaayar `cd tahtaayar && python3 -m unittest test_tahta_fix_uygula -v`;
+  benchmark (pytest'e bağlı değil, DB'ye yazan betikler içerir) ve kameralar (test yok) için kendi `CLAUDE.md`'sine bak; kiosk `tests/` boş.
 - Tek test: pytest projelerinde `venv/bin/python -m pytest tests/test_x.py::test_adi -q` (smssistemi'de `tests/` yok: `pytest test_x.py::test_adi -q`); dashboard'da (dizin `tahtayoklama/dashboard`, modül adı .py'siz) `venv/bin/python -m unittest test_uzaktan_ekran.TestUzaktanEkran.test_route_gecersiz_tahta`.
 - CRLF: `okul/` altındaki bazı dosyalar CRLF (`git ls-files --eol`); Python `open()` ile yeniden yazma, `newline=''` kullan ya da Edit aracı.
 - Tahta SSH: `server/tahta-ssh.sh [--admin] <derslik> "<komut>"`. Server logu
