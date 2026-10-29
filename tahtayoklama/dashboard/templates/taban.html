@@ -52,17 +52,22 @@
     </ul>
     <div class="kenar-bosluk"></div>
     <ul class="kenar-liste kenar-dip">
-      {% for ust in agac.menu if ust.alt %}{{ kenar_ogesi(ust) }}{% endfor %}
+      {% for ust in agac.menu if ust.alt and ust.href != 'atos' %}{{ kenar_ogesi(ust) }}{% endfor %}
     </ul>
+    {# 2026-10-28: Acil durum Ayarlar'ın altında kırmızı düğme; eski yerine (en alt) Atos geldi. #}
+    {% for ust in agac.menu if ust.acil %}
+    <a class="kenar-acil kenar-acil-dip{{ ' aktif' if ust.aktif }}" href="{{ ust.href }}" data-kisayol="{{ ust.kisayol }}" title="{{ ust.ad }}">
+      <svg class="ikon"><use href="#ik-{{ ust.ikon }}"/></svg><span class="kenar-metin">Acil durum</span></a>
+    {% endfor %}
     <button type="button" class="mini-durum kenar-durum" id="mini-durum" title="Sunucu durumunu yüklemek için tıkla">
       <span class="mini-durum-nokta" id="mini-durum-nokta"></span>
       <span class="kenar-metin"><span id="mini-durum-servis">Durumu göster</span> <span id="mini-durum-sicaklik" class="soluk"></span></span>
     </button>
     <button type="button" class="kenar-oge kenar-daralt" data-eylem="daralt" title="Menüyü daralt/genişlet">
       <svg class="ikon"><use href="#ik-menu"/></svg><span class="kenar-metin">Menüyü daralt</span></button>
-      {% for ust in agac.menu if ust.acil %}
-    <a class="kenar-acil{{ ' aktif' if ust.aktif }}" href="{{ ust.href }}" data-kisayol="{{ ust.kisayol }}" title="{{ ust.ad }}">
-      <svg class="ikon"><use href="#ik-{{ ust.ikon }}"/></svg><span class="kenar-metin">Acil durum</span></a>
+      {% for ust in agac.menu if ust.href == 'atos' %}
+    <a class="kenar-acil kenar-atos" href="{{ baglanti(ust) }}" data-kisayol="{{ ust.kisayol }}" title="{{ ust.ad }}" target="_blank" rel="noopener">
+      <svg class="ikon"><use href="#ik-{{ ust.ikon }}"/></svg><span class="kenar-metin">{{ ust.ad }}</span></a>
     {% endfor %}
   </nav>
   <div class="cekmece-ortu" id="cekmece-ortu" hidden></div>
