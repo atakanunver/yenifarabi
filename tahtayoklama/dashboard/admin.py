@@ -10,6 +10,7 @@ import json
 import math
 import re
 from datetime import date, timedelta
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
@@ -118,8 +119,17 @@ async def _tahtaya_roster_gonder(tahta: dict, sinif_ad: str, payload: bytes) -> 
     }
 
 
-def _siniflar_sayfasi(request: Request, conn, **ek) -> HTMLResponse:
-    """Sınıflar ve tahtalar tek sayfada (2026-10-23; eski /admin/tahtalar buraya katıldı)."""
+def _panel_adresi(yol: str):
+    """Liste + ayrıntı paneli sayfaları için adres üretici: `adres(duzenle=3)` -> `<yol>?duzenle=3`."""
+    def adres(**ek) -> str:
+        q = {k: v for k, v in ek.items() if v not in (None, "")}
+        return yol + ("?" + urlencode(q) if q else "")
+    return adres
+
+
+def _siniflar_sayfasi(request: Request, conn, duzenle=None, yeni=None, **ek) -> HTMLResponse:
+    """Sınıflar ve tahtalar tek sayfada (2026-10-23; eski /admin/tahtalar buraya katıldı).
+    `duzenle` = seçili sınıf id (sağ panel), `yeni` = sinif | tahta (boş ekleme paneli)."""
     tahtalar, _ = _tahtalar_ve_siniflar(conn)
     siniflar = [dict(r) for r in conn.execute(
         "SELECT s.id, s.ad, s.aktif, COUNT(o.id) AS ogrenci_sayisi "
@@ -128,9 +138,12 @@ def _siniflar_sayfasi(request: Request, conn, **ek) -> HTMLResponse:
     )]
     for s in siniflar:
         s["tahtalar"] = [t["ad"] for t in tahtalar if t["sinif_id"] == s["id"] and t["aktif"]]
+    secili = next((s for s in siniflar if s["id"] == duzenle), None)
     return templates.TemplateResponse(
         request, "admin_siniflar.html",
-        {"siniflar": siniflar, "aktif_siniflar": [s for s in siniflar if s["aktif"]], "tahtalar": tahtalar, **ek},
+        {"siniflar": siniflar, "aktif_siniflar": [s for s in siniflar if s["aktif"]], "tahtalar": tahtalar,
+         "secili": secili, "yeni": yeni if yeni in ("sinif", "tahta") else None,
+         "adres": _panel_adresi("/admin/siniflar"), **ek},
     )
 
 
@@ -211,11 +224,11 @@ async def tahta_ekle(request: Request):
 # ----------------------------------------------------------------------
 
 @router.get("/siniflar", response_class=HTMLResponse)
-async def siniflar_listesi(request: Request):
+async def siniflar_listesi(request: Request, duzenle: int | None = None, yeni: str | None = None):
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
-        return _siniflar_sayfasi(request, conn)
+        return _siniflar_sayfasi(request, conn, duzenle=duzenle, yeni=yeni)
     finally:
         conn.close()
 
@@ -313,15 +326,18 @@ def _aktif_sinif_adlari(conn) -> list[str]:
 
 
 @router.get("/kulupler", response_class=HTMLResponse)
-async def kulup_listesi(request: Request):
+async def kulup_listesi(request: Request, duzenle: str | None = None, yeni: str | None = None):
     conn = db.baglanti()
     try:
         _oturum_sarti(request, conn)
         siniflar = _aktif_sinif_adlari(conn)
     finally:
         conn.close()
+    tum = kulupler.yukle()
     return templates.TemplateResponse(
-        request, "admin_kulupler.html", {"kulupler": kulupler.yukle(), "siniflar": siniflar})
+        request, "admin_kulupler.html",
+        {"kulupler": tum, "siniflar": siniflar, "secili": next((k for k in tum if k["kod"] == duzenle), None),
+         "yeni": bool(yeni), "adres": _panel_adresi("/admin/kulupler")})
 
 
 @router.post("/kulupler")
