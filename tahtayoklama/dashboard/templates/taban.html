@@ -6,6 +6,7 @@
 <title>{% block baslik_etiketi %}Yoklama ve Yönetim Paneli{% endblock %}</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
 {% set agac = menu_agaci(request.url.path, request.url.query) %}
+<link rel="stylesheet" href="/static/tema.css?v={{ agac.surum }}">
 <link rel="stylesheet" href="/static/pano.css?v={{ agac.surum }}">
 <script>(function(){var t=null;try{t=localStorage.getItem('farabi_yoklama_tema')}catch(e){}if(t==='klasik'||t==='yumusak')t='argon';if(['argon','argon-koyu','koyu','black','material','material-koyu'].indexOf(t)<0)t=matchMedia('(prefers-color-scheme: dark)').matches?'argon-koyu':'argon';document.documentElement.dataset.tema=t;try{if(localStorage.getItem('farabi_kenar_dar')==='1')document.documentElement.classList.add('kenar-dar')}catch(e){}})();</script>
 </head>

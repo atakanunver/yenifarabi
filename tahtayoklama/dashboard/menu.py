@@ -116,8 +116,11 @@ AYARLAR: list[dict] = [
     {"ad": "Klavye kısayolları", "eylem": "kisayollar", "ikon": "kaydirici"},
     {"ad": "Çıkış", "eylem": "cikis", "ikon": "cikis"},
 ]
-# (anahtar, ad); Task 3 dokuza çıkarır
+# (anahtar, ad); sırası tema döngü düğmesinin sırasıdır, ilki varsayılan
 TEMALAR: list[tuple[str, str]] = [
+    ("sade-koyu", "Sade koyu"),
+    ("kurumsal", "Sakin kurumsal"),
+    ("lacivert", "Lacivert"),
     ("argon", "Argon açık"),
     ("argon-koyu", "Argon koyu"),
     ("material", "Material açık"),
