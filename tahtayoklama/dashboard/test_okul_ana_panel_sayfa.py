@@ -5,6 +5,7 @@ import asyncio
 import contextlib
 import re
 import unittest
+from pathlib import Path
 from typing import ClassVar
 from unittest import mock
 from urllib.parse import parse_qsl, urlencode, urlsplit
@@ -191,6 +192,50 @@ class TestOkulVerisiSayfa(unittest.TestCase):
         p = self._panel(self._sayfa(**q))
         self.assertIn("Yeni personel", p)
         self.assertIn("Ad soyad gerekli.", p)
+
+    def _post(self, fn, yol, govde):
+        r = asyncio.run(fn(_istek(yol=yol, yontem="POST", govde=urlencode(govde).encode())))
+        self.assertEqual(r.status_code, 303)
+        return dict(parse_qsl(urlsplit(r.headers["location"]).query))
+
+    def test_yeni_ogrenci_hatasi_yeni_panelde(self):
+        self.veri.ogrenci_kaydet = mock.Mock(side_effect=ValueError("Okul no zaten var."))
+        q = self._post(panel.ogrenci_kaydet, "/admin/okul-verisi/ogrenci",
+                       {"yeni": "1", "okul_no": "555", "ad_soyad": "X", "sinif": "9-A"})
+        self.assertEqual(q.get("yeni"), "1")
+        self.assertNotIn("duzenle", q)
+        self.assertEqual(q.get("hata"), "Okul no zaten var.")
+
+    def test_sinif_ekle_hatasi_yeni_panelde(self):
+        self.veri.sinif_ekle = mock.Mock(side_effect=ValueError("Sınıf zaten var."))
+        q = self._post(panel.sinif_ekle, "/admin/okul-verisi/sinif", {"ad": "9-A"})
+        self.assertEqual(q.get("yeni"), "1")
+        self.assertEqual(q.get("hata"), "Sınıf zaten var.")
+        self.assertIn("Sınıf zaten var.", self._panel(self._sayfa(**q)))
+
+    def test_tek_satir_hucreler(self):
+        html = self._sayfa(sekme="personel")
+        satir = re.search(r'<tr class="tablo-satir[^>]*>(.*?)</tr>', html, re.DOTALL).group(1)
+        self.assertEqual(len(re.findall(r'<td class="tek-satir"', satir)), 3)  # görev, telefon, durum
+        html = self._sayfa(sekme="ogrenci", pasifler="1")
+        satir = re.search(r'<tr class="tablo-satir[^>]*>(.*?)</tr>', html, re.DOTALL).group(1)
+        self.assertEqual(len(re.findall(r'<td class="(?:sayi )?tek-satir"', satir)), 3)  # no, telefon, durum
+
+    def test_css_tablo_baglanti_ve_sarma(self):
+        css = (Path(__file__).parent / "static" / "bilesen.css").read_text(encoding="utf-8")
+        hucre = re.search(r"\.tablo th, \.tablo td \{([^}]*)\}", css).group(1)
+        self.assertIn("overflow-wrap: break-word", hucre)
+        self.assertNotIn("anywhere", hucre)
+        self.assertRegex(css, r"\.tablo td\.tek-satir, \.tablo th\.tek-satir \{[^}]*white-space: nowrap")
+        self.assertRegex(css, r"\.tablo td a \{[^}]*color: inherit[^}]*text-decoration: none")
+        self.assertRegex(css, r"\.tablo td a:hover[^{]*\{[^}]*var\(--renk-birincil\)[^}]*underline")
+        self.assertRegex(css, r"\.tablo td a:focus-visible \{[^}]*outline:")
+        self.assertRegex(css, r"\.ayrinti-eylem \{[^}]*flex-wrap: wrap")
+        self.assertRegex(css, r"#pano-tablo td \{[^}]*overflow-wrap: anywhere")  # ızgara değişmez
+
+    def test_zil_ayrinti_eylem_kullanmaz(self):
+        html = self._sayfa(sekme="zil")
+        self.assertNotIn("ayrinti-eylem", html.split('id="icerik"')[1])
 
     def test_hata_paneli_yoksa_seritte(self):
         html = self._sayfa(sekme="personel", hata="Bir sorun var.")

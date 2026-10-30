@@ -244,8 +244,14 @@ a.cip:focus-visible { outline: 2px solid var(--renk-birincil); outline-offset: 2
 table.tablo { width: 100%; min-width: 0; border-collapse: collapse; table-layout: auto; font-size: var(--punto-govde); }
 .tablo th, .tablo td {
   padding: var(--bosluk-2) var(--bosluk-3); text-align: left; vertical-align: middle;
-  border-bottom: 1px solid var(--renk-kenar); white-space: normal; overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--renk-kenar); white-space: normal; overflow-wrap: break-word;
 }
+/* Telefon, no, durum gibi bölünmemesi gereken hücreler */
+.tablo td.tek-satir, .tablo th.tek-satir { white-space: nowrap; }
+/* Satırdaki bağlantı (ör. kayıt adı): metin renginde, üzerine gelince birincil + alt çizgi */
+.tablo td a { color: inherit; font-weight: 500; text-decoration: none; }
+.tablo td a:hover, .tablo td a:focus-visible { color: var(--renk-birincil); text-decoration: underline; }
+.tablo td a:focus-visible { outline: 2px solid var(--renk-birincil); outline-offset: 2px; border-radius: 2px; }
 .tablo thead th {
   position: static; background: transparent; color: var(--renk-metin-soluk);
   font-size: var(--punto-kucuk); font-weight: 600; text-transform: none; letter-spacing: 0;
@@ -294,7 +300,7 @@ table.tablo { width: 100%; min-width: 0; border-collapse: collapse; table-layout
   margin: 0; font-family: var(--yazi-tipi-baslik); font-size: 1rem; font-weight: 600; color: var(--renk-metin);
 }
 .ayrinti-eylem {
-  display: flex; align-items: center; gap: var(--bosluk-2); margin-top: var(--bosluk-2);
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--bosluk-2); margin-top: var(--bosluk-2);
   padding-top: var(--bosluk-3); border-top: 1px solid var(--renk-kenar);
 }
 .ayrinti-eylem .dugme-tehlike { margin-left: auto; }

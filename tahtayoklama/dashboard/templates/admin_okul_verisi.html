@@ -63,11 +63,11 @@
       <tbody>
       {% for o in ogrenciler %}{% set href = adres(duzenle=o.okul_no) %}
       <tr class="tablo-satir tikla{{ ' secili' if duzenlenen and duzenlenen.okul_no == o.okul_no }}{{ '' if o.aktif else ' pasif' }}" data-href="{{ href }}" data-ara="{{ (o.ad_soyad ~ ' ' ~ o.okul_no)|lower }}">
-        <td class="sayi">{{ o.okul_no }}</td>
+        <td class="sayi tek-satir">{{ o.okul_no }}</td>
         <td><a href="{{ href }}">{{ o.ad_soyad }}</a></td>
         <td>{{ o.sinif or '—' }}</td>
-        <td>{% if o.telefon %}{{ o.telefon }}{% else %}<span class="rozet rozet-amber">Telefonsuz</span>{% endif %}</td>
-        <td>{% if o.aktif %}<span class="rozet rozet-yesil">Aktif</span>{% else %}<span class="rozet rozet-gri">Pasif</span>{% endif %}</td>
+        <td class="tek-satir">{% if o.telefon %}{{ o.telefon }}{% else %}<span class="rozet rozet-amber">Telefonsuz</span>{% endif %}</td>
+        <td class="tek-satir">{% if o.aktif %}<span class="rozet rozet-yesil">Aktif</span>{% else %}<span class="rozet rozet-gri">Pasif</span>{% endif %}</td>
       </tr>
       {% endfor %}
       </tbody>
@@ -163,10 +163,10 @@
       {% for p in personel %}{% set href = adres(pduzenle=p.id) %}
       <tr class="tablo-satir tikla{{ ' secili' if pduzenlenen and pduzenlenen.id == p.id }}{{ '' if p.aktif else ' pasif' }}" data-href="{{ href }}" data-ara="{{ p.ad_soyad|lower }}">
         <td><a href="{{ href }}">{{ p.ad_soyad }}</a></td>
-        <td>{{ gorev_adi.get(p.gorev, p.gorev) }}</td>
+        <td class="tek-satir">{{ gorev_adi.get(p.gorev, p.gorev) }}</td>
         <td>{{ p.brans or '—' }}</td>
-        <td>{% if p.telefon %}{{ p.telefon }}{% else %}<span class="rozet rozet-amber">Telefonsuz</span>{% endif %}</td>
-        <td>{% if p.aktif %}<span class="rozet rozet-yesil">Aktif</span>{% else %}<span class="rozet rozet-gri">Pasif</span>{% endif %}
+        <td class="tek-satir">{% if p.telefon %}{{ p.telefon }}{% else %}<span class="rozet rozet-amber">Telefonsuz</span>{% endif %}</td>
+        <td class="tek-satir">{% if p.aktif %}<span class="rozet rozet-yesil">Aktif</span>{% else %}<span class="rozet rozet-gri">Pasif</span>{% endif %}
           {%- if p.aktif and (not p.tc_kimlik or not p.eposta) %} <span class="rozet rozet-amber" title="{{ 'TC' if not p.tc_kimlik }}{{ ', ' if not p.tc_kimlik and not p.eposta }}{{ 'e-posta' if not p.eposta }} eksik">Eksik</span>{% endif %}</td>
       </tr>
       {% endfor %}
@@ -227,6 +227,11 @@
 
 {% elif sekme == 'zil' %}
 <form method="post" action="/admin/okul-verisi/zil">
+  <div class="cip-satir">
+    {% call alan('Ders süresi (dk)', 'z-ders') %}<input id="z-ders" type="number" name="ders_suresi" min="10" max="120" value="{{ zil_ayar.get('ders_suresi_dk', 40) }}" required>{% endcall %}
+    {% call alan('Teneffüs (dk)', 'z-ten') %}<input id="z-ten" type="number" name="teneffus" min="0" max="60" value="{{ zil_ayar.get('teneffus_dk', 10) }}" required>{% endcall %}
+    <button type="submit" class="dugme">Kaydet</button>
+  </div>
   <div class="tablo-kutu"><table class="tablo">
     <thead><tr><th class="sayi">Ders</th><th>Başlangıç</th><th>Bitiş</th></tr></thead>
     <tbody>
@@ -238,11 +243,6 @@
     {% endfor %}
     </tbody>
   </table></div>
-  <div class="ayrinti-eylem">
-    {% call alan('Ders süresi (dk)', 'z-ders') %}<input id="z-ders" type="number" name="ders_suresi" min="10" max="120" value="{{ zil_ayar.get('ders_suresi_dk', 40) }}" required>{% endcall %}
-    {% call alan('Teneffüs (dk)', 'z-ten') %}<input id="z-ten" type="number" name="teneffus" min="0" max="60" value="{{ zil_ayar.get('teneffus_dk', 10) }}" required>{% endcall %}
-    <button type="submit" class="dugme">Kaydet</button>
-  </div>
 </form>
 <p class="serit">Boş bırakılan satırlar silinir. Öğle arası, iki ders arasındaki en büyük boşluk olarak hesaplanır.
   Zil makinesi (.230) ayrı bir kaynaktan çalışıyor; o hâlâ kendi panelinden güncellenir.</p>
