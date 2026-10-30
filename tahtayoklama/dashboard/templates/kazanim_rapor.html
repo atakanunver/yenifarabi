@@ -2,84 +2,82 @@
 {% block baslik_etiketi %}Kazanımlar — Yoklama ve Yönetim Paneli{% endblock %}
 {% block baslik %}Kazanımlar{% endblock %}
 
-{% block icerik %}
-<div class="kr-baslik-satiri">
-  {% if adlar %}
-  <nav class="kr-sinif-secici" aria-label="Sınıf seçimi">
-    {% for ad in adlar %}
-    <a href="/kazanim?sinif={{ ad|urlencode }}" class="btn-ikincil{{ ' kr-aktif' if ad == secili else '' }}"{% if ad == secili %} aria-current="page"{% endif %}>{{ ad }}</a>
-    {% endfor %}
-  </nav>
-  {% endif %}
+{% block ust_sag %}
+<button type="button" class="dugme dugme-birincil" id="btn-sonuc-guncelle" onclick="sonucGuncelle()">
+  <svg class="ikon"><use href="#ik-yenile"/></svg> Sonuçları güncelle
+</button>
+{% if secili %}
+<button type="button" class="dugme dugme-ikincil" id="btn-sms-gonder" onclick="smsGonder('{{ secili }}')">
+  <svg class="ikon"><use href="#ik-zil"/></svg> {{ secili }} SMS gönder
+</button>
+{% endif %}
+<button type="button" class="dugme dugme-ikincil" id="btn-yeni-test-ac" onclick="toggleUretPanel()">
+  <svg class="ikon"><use href="#ik-arti"/></svg> Yeni test hazırla
+</button>
+{% endblock %}
 
-  <div class="kr-eylemler">
-    <button type="button" class="btn-birincil" id="btn-sonuc-guncelle" onclick="sonucGuncelle()">
-      <svg class="ikon"><use href="#ik-yenile"/></svg> Sonuçları Güncelle
-    </button>
-    {% if secili %}
-    <button type="button" class="btn-ikincil" id="btn-sms-gonder" onclick="smsGonder('{{ secili }}')">
-      <svg class="ikon"><use href="#ik-zil"/></svg> {{ secili }} SMS Gönder
-    </button>
-    {% endif %}
-    <button type="button" class="btn-ikincil" id="btn-yeni-test-ac" onclick="toggleUretPanel()">
-      <svg class="ikon"><use href="#ik-arti"/></svg> Yeni Test Hazırla
-    </button>
-  </div>
-</div>
+{% block icerik %}
+{% if adlar %}
+<nav class="cip-satir" aria-label="Sınıf seçimi">
+  {% for ad in adlar %}
+  <a href="/kazanim?sinif={{ ad|urlencode }}" class="cip{{ ' secili' if ad == secili else '' }}"{% if ad == secili %} aria-current="page"{% endif %}>{{ ad }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
 
 <div id="kr-uret-panel" class="kr-uret-panel" style="display:none;">
   <div class="kr-uret-baslik">
-    <strong>Yeni Kazanım Testi Hazırla</strong>
-    <button type="button" class="btn-kucuk btn-ikincil" onclick="toggleUretPanel()">✕ Kapat</button>
+    <strong>Yeni kazanım testi hazırla</strong>
+    <button type="button" class="dugme dugme-ikincil dugme-kucuk" onclick="toggleUretPanel()">✕ Kapat</button>
   </div>
   <form id="kr-uret-form" onsubmit="testUret(event)">
     <div class="kr-uret-alanlar">
-      <div class="form-grup">
-        <label class="form-etiket" for="kr-sinif">Sınıf</label>
-        <select id="kr-sinif" class="form-secim" required>
+      <div class="form-alan">
+        <label for="kr-sinif">Sınıf</label>
+        <select id="kr-sinif" required>
           {% for sn in tum_siniflar %}
           <option value="{{ sn }}"{% if sn == secili %} selected{% endif %}>{{ sn }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="form-grup">
-        <label class="form-etiket" for="kr-ders">Ders</label>
-        <select id="kr-ders" class="form-secim" required>
+      <div class="form-alan">
+        <label for="kr-ders">Ders</label>
+        <select id="kr-ders" required>
           {% for d in tum_dersler %}
           <option value="{{ d }}">{{ d|ders_adi }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="form-grup">
-        <label class="form-etiket" for="kr-tarih">Tarih (İsteğe Bağlı)</label>
-        <input type="date" id="kr-tarih" class="form-girdi" />
+      <div class="form-alan">
+        <label for="kr-tarih">Tarih (isteğe bağlı)</label>
+        <input type="date" id="kr-tarih" />
       </div>
     </div>
     <div class="kr-uret-butonlar">
-      <button type="submit" class="btn-birincil" id="btn-test-uret-kaydet">
-        <svg class="ikon"><use href="#ik-hedef"/></svg> Soruları Seç & Google Form Oluştur
+      <button type="submit" class="dugme dugme-birincil" id="btn-test-uret-kaydet">
+        <svg class="ikon"><use href="#ik-hedef"/></svg> Soruları seç ve Google Form oluştur
       </button>
-      <span class="kr-not">Yıllık plan kazanımına göre soru havuzundan 10 soru seçilir ve Google Form açılır.</span>
+      <span class="ipucu">Yıllık plan kazanımına göre soru havuzundan 10 soru seçilir ve Google Form açılır.</span>
     </div>
   </form>
 </div>
 
 {% if hata %}
-<div class="kr-bos">
+<div class="bos-durum">
   <svg class="ikon ikon-buyuk"><use href="#ik-hedef"/></svg>
-  <p class="kr-bos-baslik">Gösterilecek rapor yok</p>
+  <p class="bos-durum-baslik">Gösterilecek rapor yok</p>
   <p>{{ hata }}</p>
 </div>
 {% elif g.bos %}
-<div class="kr-bos">
+<div class="bos-durum">
   <svg class="ikon ikon-buyuk"><use href="#ik-hedef"/></svg>
-  <p class="kr-bos-baslik">{{ secili }} için henüz veri yok</p>
+  <p class="bos-durum-baslik">{{ secili }} için henüz veri yok</p>
   <p>Bu sınıfta kazanım testi yapılıp öğrenci cevapları toplandığında rapor burada görünür.</p>
 </div>
 {% else %}
 
 {% if g.testler %}
-<h2 class="kr-baslik">Açık Testler & Paylaşım</h2>
+<h2 class="bolum-basligi">Açık testler ve paylaşım</h2>
 <div class="kr-aktif-kartlar">
   {% for t in g.testler %}
   <div class="kr-test-karti">
@@ -90,13 +88,13 @@
       </div>
       <div class="kr-tk-rozetler">
         {% if t.sms_gonderildi %}
-        <span class="pill pill-tam"><svg class="ikon ikon-kucuk"><use href="#ik-onay"/></svg> SMS İletildi</span>
+        <span class="rozet rozet-yesil"><svg class="ikon ikon-kucuk"><use href="#ik-onay"/></svg> SMS iletildi</span>
         {% else %}
-        <button type="button" class="btn-kucuk btn-ikincil" onclick="smsGonder('{{ secili }}', '{{ t.ders }}')">
-          <svg class="ikon ikon-kucuk"><use href="#ik-zil"/></svg> SMS Gönder
+        <button type="button" class="dugme dugme-ikincil dugme-kucuk" onclick="smsGonder('{{ secili }}', '{{ t.ders }}')">
+          <svg class="ikon ikon-kucuk"><use href="#ik-zil"/></svg> SMS gönder
         </button>
         {% endif %}
-        <span class="pill pill-alinmadi">{{ t.katilim }} Öğrenci Yanıtladı</span>
+        <span class="rozet rozet-amber">{{ t.katilim }} öğrenci yanıtladı</span>
       </div>
     </div>
     {% if t.kazanim %}
@@ -108,8 +106,8 @@
         {{ t.form_url }} <svg class="ikon ikon-kucuk"><use href="#ik-ok-sag"/></svg>
       </a>
       <div class="kr-tk-butonlar">
-        <button type="button" class="btn-kucuk btn-ikincil" onclick="metinKopyala('Bugünkü kazanım testleriniz: {{ t.ders|ders_adi }} {{ t.form_url }}', this)">
-          📋 WhatsApp İçin Kopyala
+        <button type="button" class="dugme dugme-ikincil dugme-kucuk" onclick="metinKopyala('Bugünkü kazanım testleriniz: {{ t.ders|ders_adi }} {{ t.form_url }}', this)">
+          📋 WhatsApp için kopyala
         </button>
       </div>
     </div>
@@ -119,59 +117,32 @@
 </div>
 {% endif %}
 
-<div class="pano-ozet">
-  <div class="pano-ozet-kart">
-    <div class="pano-ozet-ikon ozet-ikon-sinif"><svg class="ikon"><use href="#ik-hedef"/></svg></div>
-    <div class="pano-ozet-bilgi">
-      <span class="pano-ozet-baslik">Test sayısı</span>
-      <span class="pano-ozet-sayi">{{ g.ozet.test }}</span>
-    </div>
-  </div>
-  <div class="pano-ozet-kart">
-    <div class="pano-ozet-ikon ozet-ikon-tam"><svg class="ikon"><use href="#ik-kullanicilar"/></svg></div>
-    <div class="pano-ozet-bilgi">
-      <span class="pano-ozet-baslik">Katılım</span>
-      <span class="pano-ozet-sayi">{{ g.ozet.katilan }}{% if g.ozet.roster is not none %} / {{ g.ozet.roster }}{% endif %}</span>
-    </div>
-  </div>
-  <div class="pano-ozet-kart">
-    <div class="pano-ozet-ikon ozet-ikon-sinif"><svg class="ikon"><use href="#ik-grafik"/></svg></div>
-    <div class="pano-ozet-bilgi">
-      <span class="pano-ozet-baslik">Sınıf ortalaması</span>
-      <span class="pano-ozet-sayi">{% if g.ozet.ortalama is not none %}%{{ g.ozet.ortalama|yuzde }}{% else %}—{% endif %}</span>
-    </div>
-  </div>
-  <div class="pano-ozet-kart">
-    <div class="pano-ozet-ikon ozet-ikon-yok"><svg class="ikon"><use href="#ik-kapat"/></svg></div>
-    <div class="pano-ozet-bilgi">
-      <span class="pano-ozet-baslik">Zorlanılan kazanım</span>
-      <span class="pano-ozet-sayi">{{ g.ozet.zorlanilan }}</span>
-    </div>
-  </div>
+<div class="ozet-serit">
+  <div class="ozet-kutu"><span class="ozet-etiket">Test sayısı</span><strong>{{ g.ozet.test }}</strong></div>
+  <div class="ozet-kutu"><span class="ozet-etiket">Katılım</span><strong>{{ g.ozet.katilan }}{% if g.ozet.roster is not none %} / {{ g.ozet.roster }}{% endif %}</strong></div>
+  <div class="ozet-kutu"><span class="ozet-etiket">Sınıf ortalaması</span><strong>{% if g.ozet.ortalama is not none %}%{{ g.ozet.ortalama|yuzde }}{% else %}—{% endif %}</strong></div>
+  <div class="ozet-kutu"><span class="ozet-etiket">Zorlanılan kazanım</span><strong>{{ g.ozet.zorlanilan }}</strong></div>
 </div>
-<p class="kr-not"><svg class="ikon ikon-kucuk"><use href="#ik-saat"/></svg> Rapor üretim zamanı: {{ g.ozet.uretim }}</p>
+<p class="ipucu"><svg class="ikon ikon-kucuk"><use href="#ik-saat"/></svg> Rapor üretim zamanı: {{ g.ozet.uretim }}</p>
 
 {% if g.eslesmeyen %}
-<div class="kr-uyari" role="alert">
-  <svg class="ikon"><use href="#ik-kilit"/></svg>
-  <div>
-    <strong>Eşleşmeyen numaralar</strong>
-    <p>{% if g.roster_yok %}Bu sınıf panoda kayıtlı değil, öğrenci adları gösterilemiyor.{% else %}Aşağıdaki okul numaraları bu sınıfın listesinde yok; formu yanlış numarayla doldurmuş olabilirler.{% endif %}
-    Numaralar: {% for o in g.eslesmeyen %}<span class="pill pill-alinmadi">{{ o.no or '(boş)' }} · %{{ o.oran|yuzde }}</span> {% endfor %}</p>
-  </div>
+<div class="serit serit-uyari" role="alert">
+  <span><strong>Eşleşmeyen numaralar.</strong>
+    {% if g.roster_yok %}Bu sınıf panoda kayıtlı değil, öğrenci adları gösterilemiyor.{% else %}Aşağıdaki okul numaraları bu sınıfın listesinde yok; formu yanlış numarayla doldurmuş olabilirler.{% endif %}
+    Numaralar: {% for o in g.eslesmeyen %}<span class="rozet rozet-amber">{{ o.no or '(boş)' }} · %{{ o.oran|yuzde }}</span> {% endfor %}</span>
 </div>
 {% endif %}
 
-<h2 class="kr-baslik">Kazanımlar</h2>
+<h2 class="bolum-basligi">Kazanımlar</h2>
 {% if g.kazanimlar %}
-<div class="tablo-sarici">
-  <table class="kr-tablo">
+<div class="tablo-kutu">
+  <table class="tablo">
     <thead><tr><th>Ders</th><th>Kazanım</th><th>Doğru oranı</th><th>Soru / cevap</th></tr></thead>
     <tbody>
     {% for k in g.kazanimlar %}
       <tr{% if k.zorlanilan %} class="kr-zorlanilan"{% endif %}>
         <td>{{ k.ders|ders_adi }}</td>
-        <td class="kr-uzun">{{ k.satir }}{% if k.zorlanilan %} <span class="pill pill-yok">Zorlanılan</span>{% endif %}</td>
+        <td>{{ k.satir }}{% if k.zorlanilan %} <span class="rozet rozet-kirmizi">Zorlanılan</span>{% endif %}</td>
         <td><div class="kr-oran"><div class="kr-cubuk-yol"><div class="kr-cubuk {{ k.cubuk }}" style="width: {{ k.oran|yuzde }}%"></div></div><span>%{{ k.oran|yuzde }}</span></div></td>
         <td>{{ k.soru }} soru / {{ k.cevap }} cevap</td>
       </tr>
@@ -180,10 +151,10 @@
   </table>
 </div>
 {% else %}
-<div class="kr-bos"><p>Kazanım bazında özet henüz oluşmadı.</p></div>
+<div class="bos-durum"><p>Kazanım bazında özet henüz oluşmadı.</p></div>
 {% endif %}
 
-<h2 class="kr-baslik">Testler</h2>
+<h2 class="bolum-basligi">Testler</h2>
 {% if g.testler %}
 <div class="kr-liste">
   {% for t in g.testler %}
@@ -200,20 +171,20 @@
       <div class="kr-soru">
         <div class="kr-soru-metin"><strong>{{ s.sira }}.</strong> {{ s.soru }}</div>
         <div class="kr-oran"><div class="kr-cubuk-yol"><div class="kr-cubuk {{ s.cubuk }}" style="width: {{ s.oran|yuzde }}%"></div></div><span>%{{ s.oran|yuzde }}</span></div>
-        <div class="kr-soru-not">{{ s.cevap }} cevap{% if s.yanlis_sik %} · <span class="pill pill-alinmadi">%{{ s.yanlis_oran }} {{ s.yanlis_sik }} şıkkını seçti</span>{% endif %}</div>
+        <div class="kr-soru-not">{{ s.cevap }} cevap{% if s.yanlis_sik %} · <span class="rozet rozet-amber">%{{ s.yanlis_oran }} {{ s.yanlis_sik }} şıkkını seçti</span>{% endif %}</div>
       </div>
       {% else %}
-      <p class="kr-not">Bu testte soru verisi yok.</p>
+      <p class="ipucu">Bu testte soru verisi yok.</p>
       {% endfor %}
     </div>
   </details>
   {% endfor %}
 </div>
 {% else %}
-<div class="kr-bos"><p>Henüz kayıtlı test yok.</p></div>
+<div class="bos-durum"><p>Henüz kayıtlı test yok.</p></div>
 {% endif %}
 
-<h2 class="kr-baslik">Öğrenciler</h2>
+<h2 class="bolum-basligi">Öğrenciler</h2>
 {% if g.ogrenciler %}
 <div class="kr-liste">
   {% for o in g.ogrenciler %}
@@ -224,29 +195,29 @@
       <span class="kr-oran"><span class="kr-cubuk-yol"><span class="kr-cubuk {{ o.cubuk }}" style="width: {{ o.oran|yuzde }}%"></span></span><span>%{{ o.oran|yuzde }}</span></span>
     </summary>
     <div class="kr-detay">
-      <p class="kr-not">{{ o.testler }} test · {{ o.dogru }} / {{ o.toplam }} doğru</p>
+      <p class="ipucu">{{ o.testler }} test · {{ o.dogru }} / {{ o.toplam }} doğru</p>
       {% for k in o.kazanimlar %}
       <div class="kr-soru">
         <div class="kr-soru-metin"><strong>{{ k.ders|ders_adi }}</strong> · {{ k.satir }}</div>
-        <div><span class="pill {{ k.rozet }}">{{ k.etiket }}</span> <span class="kr-not">{{ k.dogru }} / {{ k.soru }} doğru</span></div>
+        <div><span class="rozet {{ k.rozet }}">{{ k.etiket }}</span> <span class="ipucu">{{ k.dogru }} / {{ k.soru }} doğru</span></div>
         {% if k.sayfalar %}<div class="kr-soru-not">Tekrar: {{ k.sayfalar|join(', ') }}</div>{% endif %}
       </div>
       {% else %}
-      <p class="kr-not">Kazanım bazında veri yok.</p>
+      <p class="ipucu">Kazanım bazında veri yok.</p>
       {% endfor %}
     </div>
   </details>
   {% endfor %}
 </div>
 {% else %}
-<div class="kr-bos"><p>Roster ile eşleşen öğrenci verisi yok.</p></div>
+<div class="bos-durum"><p>Roster ile eşleşen öğrenci verisi yok.</p></div>
 {% endif %}
 
 {% if g.katilmadi %}
-<h2 class="kr-baslik">Katılmadı</h2>
-<p class="kr-not">Bu sınıfın aktif öğrencilerinden hiçbir testte cevabı bulunmayanlar ({{ g.katilmadi|length }}).</p>
+<h2 class="bolum-basligi">Katılmadı</h2>
+<p class="ipucu">Bu sınıfın aktif öğrencilerinden hiçbir testte cevabı bulunmayanlar ({{ g.katilmadi|length }}).</p>
 <div class="kr-katilmadi">
-  {% for r in g.katilmadi %}<span class="pill pill-ulasilamaz"><span class="kr-no">{{ r.no }}</span> {{ r.ad }}</span>{% endfor %}
+  {% for r in g.katilmadi %}<span class="rozet rozet-gri"><span class="kr-no">{{ r.no }}</span> {{ r.ad }}</span>{% endfor %}
 </div>
 {% endif %}
 
@@ -346,12 +317,12 @@ function metinKopyala(metin, btn) {
   navigator.clipboard.writeText(metin).then(() => {
     const eski = btn.textContent;
     btn.textContent = 'Kopyalandı! ✓';
-    btn.classList.add('btn-birincil');
-    btn.classList.remove('btn-ikincil');
+    btn.classList.add('dugme-birincil');
+    btn.classList.remove('dugme-ikincil');
     setTimeout(() => {
       btn.textContent = eski;
-      btn.classList.remove('btn-birincil');
-      btn.classList.add('btn-ikincil');
+      btn.classList.remove('dugme-birincil');
+      btn.classList.add('dugme-ikincil');
     }, 2000);
     toastGoster('WhatsApp mesaj metni panoya kopyalandı.', false);
   }).catch(() => {
