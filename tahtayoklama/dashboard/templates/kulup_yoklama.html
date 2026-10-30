@@ -2,22 +2,23 @@
 {% block baslik_etiketi %}Kulüp yoklaması — Yoklama ve Yönetim Paneli{% endblock %}
 {% block baslik %}Kulüp yoklaması{% endblock %}
 {% block ust_sag %}
-<form method="get" action="/kulup-yoklama" class="yeni-form">
-  <label>Tarih: <input type="date" name="tarih" value="{{ tarih }}"></label>
-  <button type="submit" class="dugme dugme-kucuk">Göster</button>
+<form method="get" action="/kulup-yoklama" class="satir-form">
+  <div class="form-alan"><label for="k-tarih">Tarih</label>
+    <input type="date" id="k-tarih" name="tarih" value="{{ tarih }}"></div>
+  <button type="submit" class="dugme">Göster</button>
 </form>
 {% endblock %}
 
 {% block icerik %}
 {% if not kayitlar %}
-<section class="kr-bos">
+<section class="bos-durum">
   <svg class="ikon ikon-buyuk"><use href="#ik-kullanicilar"/></svg>
-  <p class="kr-bos-baslik">Bu tarihte kulüp yoklaması yok</p>
+  <p class="bos-durum-baslik">Bu tarihte kulüp yoklaması yok</p>
   <p>Öğretmen tahtada açılır listeden kulübü seçip kaydedince burada görünür. Sınıf devamsızlığını etkilemez.</p>
 </section>
 {% else %}
-<div class="tablo-sarici">
-  <table class="admin-tablo">
+<div class="tablo-kutu">
+  <table class="tablo">
     <thead><tr><th>Kulüp</th><th>Ders</th><th>Yok</th><th>İzinli</th><th>Saat</th><th>Tahta</th></tr></thead>
     <tbody>
       {% for k in kayitlar %}

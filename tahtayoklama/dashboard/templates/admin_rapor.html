@@ -3,28 +3,29 @@
 {% block baslik %}Rapor{% endblock %}
 
 {% block icerik %}
-<form method="get" action="/admin/rapor" class="yeni-form">
-  <label>Başlangıç: <input type="date" name="baslangic" value="{{ baslangic }}" max="{{ bitis }}"></label>
-  <label>Bitiş: <input type="date" name="bitis" value="{{ bitis }}" max="{{ bitis }}"></label>
-  <label>Sınıf:
-    <select name="sinif_id">
-      <option value="">— tümü —</option>
+<form method="get" action="/admin/rapor" class="satir-form">
+  <div class="form-alan"><label for="r-baslangic">Başlangıç</label>
+    <input type="date" id="r-baslangic" name="baslangic" value="{{ baslangic }}" max="{{ bitis }}"></div>
+  <div class="form-alan"><label for="r-bitis">Bitiş</label>
+    <input type="date" id="r-bitis" name="bitis" value="{{ bitis }}" max="{{ bitis }}"></div>
+  <div class="form-alan"><label for="r-sinif">Sınıf</label>
+    <select id="r-sinif" name="sinif_id">
+      <option value="">Tümü</option>
       {% for s in siniflar %}
       <option value="{{ s.id }}" {{ 'selected' if s.id == sinif_id else '' }}>{{ s.ad }}</option>
       {% endfor %}
-    </select>
-  </label>
-  <button type="submit">Filtrele</button>
+    </select></div>
+  <button type="submit" class="dugme">Filtrele</button>
 </form>
 
 {% set csv_kuyruk = '?baslangic=' + baslangic + '&bitis=' + bitis + (('&sinif_id=' + sinif_id|string) if sinif_id else '') %}
 
 {% if grafik.gunluk %}
-<h2>Grafikler</h2>
+<h2 class="bolum-basligi">Grafikler</h2>
 <div class="rapor-grafikler">
   <section class="grafik-kart">
     <h3>Günlük devamsız öğrenci</h3>
-    <p class="rapor-aciklama">Gün içinde en az bir derste yok/izinli görünen öğrenci sayısı.
+    <p class="ipucu">Gün içinde en az bir derste yok/izinli görünen öğrenci sayısı.
       <span class="grafik-lejant"><i class="lejant-yok"></i>Yok <i class="lejant-izinli"></i>İzinli</span></p>
     <div class="grafik-cubuklar" role="img" aria-label="Günlük devamsız öğrenci sayısı, {{ baslangic }} – {{ bitis }}">
       {% for g in grafik.gunluk %}
@@ -39,7 +40,7 @@
   </section>
   <section class="grafik-kart">
     <h3>Sınıf bazında yoklama alınma oranı</h3>
-    <p class="rapor-aciklama">Alındı ÷ (alındı + alınmadı + tahta ulaşılamaz) ders saati.</p>
+    <p class="ipucu">Alındı ÷ (alındı + alınmadı + tahta ulaşılamaz) ders saati.</p>
     <div class="grafik-yatay">
       {% for s in grafik.siniflar %}
       <div class="yatay-satir" title="{{ s.sinif }}: {{ s.alindi }} / {{ s.toplam }} ders">
@@ -48,28 +49,28 @@
         <span class="yatay-deger">%{{ s.oran }}</span>
       </div>
       {% else %}
-      <p class="rapor-aciklama">Bu aralıkta değerlendirilecek ders yok.</p>
+      <p class="ipucu">Bu aralıkta değerlendirilecek ders yok.</p>
       {% endfor %}
     </div>
   </section>
 </div>
 {% endif %}
 
-<h2>Öğrenci bazlı devamsızlık özeti</h2>
-<p class="rapor-aciklama">
+<h2 class="bolum-basligi">Öğrenci bazlı devamsızlık özeti</h2>
+<p class="ipucu">
   {{ baslangic }} – {{ bitis }} arası, "yoklama alındı" durumundaki derslerde kaç kez yok/izinli görünmüş.
   <a href="/admin/rapor/csv?tip=ozet{{ csv_kuyruk }}"><svg class="ikon ikon-kucuk"><use href="#ik-indir"/></svg> CSV indir</a>
 </p>
-<div class="tablo-sarici">
-  <table class="admin-tablo">
+<div class="tablo-kutu">
+  <table class="tablo">
     <thead><tr><th>Sınıf</th><th>Öğrenci</th><th>Yok</th><th>İzinli</th></tr></thead>
     <tbody>
       {% for d in devamsizlik %}
       <tr>
         <td>{{ d.sinif }}</td>
         <td>{{ d.ad_soyad }}</td>
-        <td>{{ d.yok|gun }} gün <span class="rapor-aciklama">({{ d.yok }} ders saati)</span></td>
-        <td>{{ d.izinli|gun }} gün <span class="rapor-aciklama">({{ d.izinli }} ders saati)</span></td>
+        <td>{{ d.yok|gun }} gün <span class="ipucu">({{ d.yok }} ders saati)</span></td>
+        <td>{{ d.izinli|gun }} gün <span class="ipucu">({{ d.izinli }} ders saati)</span></td>
       </tr>
       {% else %}
       <tr><td colspan="4">Bu aralıkta kayıt yok.</td></tr>
@@ -78,13 +79,13 @@
   </table>
 </div>
 
-<h2 id="detay">Tarih/sınıf/ders detayı</h2>
-<p class="rapor-aciklama">
+<h2 class="bolum-basligi" id="detay">Tarih/sınıf/ders detayı</h2>
+<p class="ipucu">
   Toplam {{ toplam_kayit }} kayıt · sayfa {{ sayfa }} / {{ toplam_sayfa }}.
   <a href="/admin/rapor/csv?tip=detay{{ csv_kuyruk }}"><svg class="ikon ikon-kucuk"><use href="#ik-indir"/></svg> CSV indir</a>
 </p>
-<div class="tablo-sarici">
-  <table class="admin-tablo">
+<div class="tablo-kutu">
+  <table class="tablo">
     <thead><tr><th>Tarih</th><th>Sınıf</th><th>Ders</th><th>Durum</th><th>Yok</th><th>İzinli</th><th>Kaynak tahta</th></tr></thead>
     <tbody>
       {% for d in detay %}
@@ -106,15 +107,15 @@
 {% if toplam_sayfa > 1 %}
 <div class="sayfa-gezinme">
   {% if sayfa > 1 %}
-  <a href="/admin/rapor{{ csv_kuyruk }}&sayfa={{ sayfa - 1 }}#detay">← Önceki</a>
+  <a class="dugme dugme-ikincil dugme-kucuk" href="/admin/rapor{{ csv_kuyruk }}&sayfa={{ sayfa - 1 }}#detay">← Önceki</a>
   {% else %}
-  <span class="sayfa-gezinme-pasif" aria-disabled="true">← Önceki</span>
+  <span class="dugme dugme-ikincil dugme-kucuk" aria-disabled="true">← Önceki</span>
   {% endif %}
   <span class="sayfa-gezinme-durum">{{ sayfa }} / {{ toplam_sayfa }}</span>
   {% if sayfa < toplam_sayfa %}
-  <a href="/admin/rapor{{ csv_kuyruk }}&sayfa={{ sayfa + 1 }}#detay">Sonraki →</a>
+  <a class="dugme dugme-ikincil dugme-kucuk" href="/admin/rapor{{ csv_kuyruk }}&sayfa={{ sayfa + 1 }}#detay">Sonraki →</a>
   {% else %}
-  <span class="sayfa-gezinme-pasif" aria-disabled="true">Sonraki →</span>
+  <span class="dugme dugme-ikincil dugme-kucuk" aria-disabled="true">Sonraki →</span>
   {% endif %}
 </div>
 {% endif %}

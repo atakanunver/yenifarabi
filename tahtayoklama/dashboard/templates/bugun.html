@@ -3,39 +3,39 @@
 {% block baslik %}Bugün{% endblock %}
 
 {% block icerik %}
-<div class="kpi-satir">
-  <div class="kpi">
-    <span class="kpi-etiket">Bugün en az bir derste yok</span>
+<div class="ozet-serit">
+  <div class="ozet-kutu">
+    <span class="ozet-etiket">Bugün en az bir derste yok</span>
     <strong>{{ yoklama.toplam_yok }}</strong>
     <a href="/admin/rapor">İsimli döküm</a>
   </div>
-  <div class="kpi">
-    <span class="kpi-etiket">Yoklaması alınmayan ders</span>
+  <div class="ozet-kutu">
+    <span class="ozet-etiket">Yoklaması alınmayan ders</span>
     <strong>{{ yoklama.alinmayan_ders }}</strong>
     {% if yoklama.alinmayan_ders %}<span class="rozet rozet-amber">Takip et</span>{% endif %}
   </div>
-  <div class="kpi">
-    <span class="kpi-etiket">Tahtası ulaşılamayan ders</span>
+  <div class="ozet-kutu">
+    <span class="ozet-etiket">Tahtası ulaşılamayan ders</span>
     <strong>{{ yoklama.ulasilamayan_ders }}</strong>
     {% if yoklama.ulasilamayan_ders %}<span class="rozet rozet-kirmizi">Kontrol et</span>{% endif %}
   </div>
-  <div class="kpi">
-    <span class="kpi-etiket">Sorunlu tahta</span>
+  <div class="ozet-kutu">
+    <span class="ozet-etiket">Sorunlu tahta</span>
     <strong>{{ tahta.sorunlu|length }} / {{ tahta.toplam }}</strong>
     {% if not tahta.sorunlu %}<span class="rozet rozet-yesil">Hepsi iyi</span>{% endif %}
   </div>
   {% if veli %}
-  <div class="kpi">
-    <span class="kpi-etiket">Okunmamış veli mesajı</span>
+  <div class="ozet-kutu">
+    <span class="ozet-etiket">Okunmamış veli mesajı</span>
     <strong>{{ veli.okunmamis }}</strong>
     <a href="/veli-mesajlari">Mesajlar</a>
   </div>
   {% endif %}
 </div>
 
-<h2>Sınıflara göre yoklama</h2>
+<h2 class="bolum-basligi">Sınıflara göre yoklama</h2>
 {% if yoklama.siniflar %}
-<table class="tablo">
+<div class="tablo-kutu"><table class="tablo">
   <thead><tr><th>Sınıf</th><th>Alınan ders</th><th>Alınmayan</th><th>Ulaşılamayan</th><th>Yok olan öğrenci</th></tr></thead>
   <tbody>
     {% for s in yoklama.siniflar %}
@@ -48,12 +48,12 @@
     </tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 {% else %}
 <p class="ipucu">Bugün için yoklama kaydı yok. Ders saatleri başlayınca burada görünür.</p>
 {% endif %}
 
-<h2>Tahtalar</h2>
+<h2 class="bolum-basligi">Tahtalar</h2>
 {% if tahta.sorunlu %}
 <ul>
   {% for t in tahta.sorunlu %}
@@ -66,7 +66,7 @@
 {% endif %}
 
 {% if sms and (sms.ilk_ders or sms.ogle) %}
-<h2>Devamsızlık SMS'i</h2>
+<h2 class="bolum-basligi">Devamsızlık SMS'i</h2>
 <ul>
   {% for s in [sms.ilk_ders, sms.ogle] if s %}
   <li>{{ s.ad }}:
@@ -79,9 +79,9 @@
 </ul>
 {% endif %}
 
-<h2>Kısayollar</h2>
-<p>
+<h2 class="bolum-basligi">Kısayollar</h2>
+<div class="cip-satir">
   <a class="dugme dugme-ikincil" href="/kameralar">Kameralar</a>
   <a class="dugme dugme-ikincil" href="/yoklama-sms-git" target="_blank" rel="noopener">Yoklama SMS</a>
-</p>
+</div>
 {% endblock %}

@@ -3,22 +3,22 @@
 {% block baslik %}Aylık özet · {{ ay_adi }}{% endblock %}
 
 {% block icerik %}
-<p>
+<div class="cip-satir">
   <a class="dugme dugme-ikincil dugme-kucuk" href="/aylik-ozet?ay={{ onceki }}">← Önceki ay</a>
   {% if sonraki %}<a class="dugme dugme-ikincil dugme-kucuk" href="/aylik-ozet?ay={{ sonraki }}">Sonraki ay →</a>{% endif %}
   {% if devam_ediyor %}<span class="rozet rozet-amber">Ay devam ediyor, sayılar kesin değil</span>{% endif %}
-</p>
+</div>
 <p class="ipucu">Yalnızca toplu sayılar gösterilir; öğrenci adı yok. İsimli döküm için <a href="/admin/rapor">Rapor</a>.</p>
 
-<h2>Yoklama</h2>
+<h2 class="bolum-basligi">Yoklama</h2>
 {% if yoklama.siniflar %}
-<div class="kpi-satir">
-  <div class="kpi"><span class="kpi-etiket">Yoklama alınan gün</span><strong>{{ yoklama.gun }}</strong></div>
-  <div class="kpi"><span class="kpi-etiket">Derslerin yoklaması alınma oranı</span><strong>%{{ yoklama.oran }}</strong></div>
-  <div class="kpi"><span class="kpi-etiket">En az bir derste yok olan öğrenci</span><strong>{{ yoklama.yok_ogrenci }}</strong></div>
-  <div class="kpi"><span class="kpi-etiket">Toplam ders devamsızlığı</span><strong>{{ yoklama.yok_ders }}</strong></div>
+<div class="ozet-serit">
+  <div class="ozet-kutu"><span class="ozet-etiket">Yoklama alınan gün</span><strong>{{ yoklama.gun }}</strong></div>
+  <div class="ozet-kutu"><span class="ozet-etiket">Derslerin yoklaması alınma oranı</span><strong>%{{ yoklama.oran }}</strong></div>
+  <div class="ozet-kutu"><span class="ozet-etiket">En az bir derste yok olan öğrenci</span><strong>{{ yoklama.yok_ogrenci }}</strong></div>
+  <div class="ozet-kutu"><span class="ozet-etiket">Toplam ders devamsızlığı</span><strong>{{ yoklama.yok_ders }}</strong></div>
 </div>
-<table class="tablo">
+<div class="tablo-kutu"><table class="tablo">
   <thead><tr><th>Sınıf</th><th>Ders</th><th>Yoklaması alınan</th><th>Alınma oranı</th><th>Yok olan öğrenci</th><th>Ders devamsızlığı</th></tr></thead>
   <tbody>
     {% for s in yoklama.siniflar %}
@@ -29,21 +29,21 @@
     </tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 {% else %}
 <p class="ipucu">Bu ay için yoklama kaydı yok.</p>
 {% endif %}
 
-<h2>Dijital okul etkinliği</h2>
+<h2 class="bolum-basligi">Dijital okul etkinliği</h2>
 {% if etkinlik and etkinlik.roller %}
-<table class="tablo">
+<div class="tablo-kutu"><table class="tablo">
   <thead><tr><th>Kullanıcı</th><th>Ayda en az bir gün giren</th><th>Kayıtlı</th><th>Oran</th></tr></thead>
   <tbody>
     {% for r in etkinlik.roller %}
     <tr><td>{{ r.ad }}</td><td>{{ r.aktif }}</td><td>{{ r.kayitli }}</td><td>%{{ r.oran }}</td></tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 {% if etkinlik.veri_baslangici %}<p class="ipucu">Kullanım verisi {{ etkinlik.veri_baslangici }} tarihinden başlıyor; öncesi için sayı yok.</p>{% endif %}
 {% else %}
 <p class="ipucu">Dijital okul kullanım verisine şu an ulaşılamıyor.</p>
