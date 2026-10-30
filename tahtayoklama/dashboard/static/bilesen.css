@@ -602,7 +602,7 @@ label.pano-tarih {
 .acil-blok { padding: var(--bosluk-4); border: 1px solid var(--renk-kenar); border-radius: var(--yaricap-buyuk); background: var(--renk-yuzey); }
 .acil-blok .bolum-basligi { margin-top: 0; }
 .acil-durum { padding: var(--bosluk-4); border-radius: var(--yaricap-buyuk); font-size: 1.1rem; font-weight: 600; background: var(--renk-yesil-zemin); color: var(--renk-yesil); }
-.acil-durum.aktif { background: var(--renk-kirmizi); color: var(--renk-sabit-acik); animation: acil-yanip 1.2s infinite; }
+.acil-durum.aktif { background: var(--renk-acil); color: var(--renk-sabit-acik); animation: acil-yanip 1.2s infinite; }
 @keyframes acil-yanip { 50% { opacity: 0.75; } }
 .acil-mod { display: flex; align-items: center; gap: var(--bosluk-2); margin-bottom: var(--bosluk-3); padding: var(--bosluk-2) var(--bosluk-3); border-radius: var(--yaricap); background: var(--renk-amber-zemin); color: var(--renk-amber); }
 .acil-mod.gercek { background: var(--renk-kirmizi-zemin); color: var(--renk-kirmizi); }
@@ -610,7 +610,7 @@ label.pano-tarih {
 .acil-dugmeler { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--bosluk-3); }
 .acil-dugme { padding: 1.25rem 0.6rem; border: 0; border-radius: var(--yaricap-buyuk); color: var(--renk-sabit-acik); font: inherit; font-size: 1.1rem; font-weight: 700; cursor: pointer; }
 .acil-dugme:disabled { opacity: 0.5; cursor: wait; }
-.dugme-tehlike-dolu, .dugme-tehlike-dolu:hover { background: var(--renk-kirmizi); border-color: var(--renk-kirmizi); color: var(--renk-sabit-acik); }
+.dugme-tehlike-dolu, .dugme-tehlike-dolu:hover { background: var(--renk-acil); border-color: var(--renk-acil); color: var(--renk-sabit-acik); }
 .dugme-tehlike-dolu:hover { filter: brightness(1.1); }
 /* İçerik alanında sınıfsız bağlantı: birincil renk, üzerine gelince alt çizgi */
 .icerik a:where(:not([class])), .kr-detay a { color: var(--renk-birincil); text-decoration: none; }
