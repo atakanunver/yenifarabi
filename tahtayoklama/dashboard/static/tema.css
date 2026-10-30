@@ -104,6 +104,7 @@
   --renk-gri: #8b98a8;
   --renk-gri-zemin: #171e29;
   --renk-acil: #e5484d;
+  --renk-sabit-acik: #ffffff;
   --renk-bant: none;
 
   --yaricap: 8px;
@@ -163,6 +164,7 @@
   --renk-gri: #64748b;
   --renk-gri-zemin: #eef1f5;
   --renk-acil: #b91c1c;
+  --renk-sabit-acik: #ffffff;
   --renk-bant: none;
 
   --yaricap: 8px;
@@ -222,6 +224,7 @@
   --renk-gri: #5f6f85;
   --renk-gri-zemin: #eaeef3;
   --renk-acil: #b91c1c;
+  --renk-sabit-acik: #ffffff;
   --renk-bant: none;
 
   --yaricap: 8px;
@@ -281,6 +284,7 @@
   --renk-gri: #6b7280;
   --renk-gri-zemin: #eceef1;
   --renk-acil: #c4242a;
+  --renk-sabit-acik: #ffffff;
   --renk-bant: none;
 
   --yaricap: 8px;
@@ -341,6 +345,7 @@
   --renk-gri: #8b93a0;
   --renk-gri-zemin: #1e2530;
   --renk-acil: #e5484d;
+  --renk-sabit-acik: #ffffff;
   --renk-bant: none;
 
   --renk-kenar-zemin: var(--renk-yuzey);
@@ -400,6 +405,7 @@
   --renk-gri: #7b809a;
   --renk-gri-zemin: #f0f2f5;
   --renk-acil: #d4264f;
+  --renk-sabit-acik: #ffffff;
   --renk-bant: none;
 
   --renk-kenar-zemin: #212121;
@@ -458,6 +464,7 @@
   --renk-gri: #8b93ab;
   --renk-gri-zemin: #283353;
   --renk-acil: #d4264f;
+  --renk-sabit-acik: #ffffff;
   --renk-bant: none;
 
   --renk-kenar-zemin: #1a2035;
@@ -517,6 +524,7 @@
   --renk-gri: #9a9cb0;
   --renk-gri-zemin: #2d3048;
   --renk-acil: #d4264f;
+  --renk-sabit-acik: #ffffff;
   --renk-bant: none;
 
   --renk-kenar-zemin: var(--renk-yuzey);
@@ -578,6 +586,7 @@
   --renk-gri: #8a93a8;
   --renk-gri-zemin: #232a2f;
   --renk-acil: #c8324a;
+  --renk-sabit-acik: #ffffff;
   --renk-bant: none;
 
   --renk-kenar-zemin: var(--renk-yuzey);
