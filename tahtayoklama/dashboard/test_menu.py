@@ -51,7 +51,7 @@ class TestMenu(unittest.TestCase):
         self.assertIn("/b/atos", {o.get("href") for o in menu.AYARLAR})
         self.assertEqual(len(menu.TEMALAR), 6)
         self.assertIn(("koyu", "Taş Tahta"), menu.TEMALAR)
-        veli = [s for s in _sayfalar() if s["ad"] == "Veli mesajları"][0]
+        veli = next(s for s in _sayfalar() if s["ad"] == "Veli mesajları")
         self.assertEqual(veli["sayac"], "veli")
 
     def test_kisayollar_benzersiz(self):
