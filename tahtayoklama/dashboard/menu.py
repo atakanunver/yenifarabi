@@ -43,6 +43,7 @@ SMUAL_YONETIM_URL = SMUAL_URL + "/yonetici"  # şifresiz giriş (SSO) sonraki a�
 MENU: list[dict] = [
     {"ad": "Acil durum", "kisayol": "a", "ikon": "uyari", "href": "/acil", "acil": True},
     {"ad": "Ana pano", "kisayol": "h", "ikon": "ev", "href": "/"},
+    {"ad": "Okul verisi", "kisayol": "v", "ikon": "kullanicilar", "href": "/admin/okul-verisi"},
     # 2026-10-30: görev odaklı gruplar (müdür "ne yapmak istiyorum?" diye arar); makine adlı paneller Teknoloji'de.
     {
         "ad": "Öğrenciler",
@@ -82,6 +83,7 @@ MENU: list[dict] = [
             {"ad": "Doğum günleri", "href": "/dogum", "ikon": "pasta", "yeni_sekme": True},
         ],
     },
+    {"ad": "Tahta duyuru", "kisayol": "d", "ikon": "zil", "href": "/admin/uzaktan#duyuru"},
     {
         "ad": "Eğitim ve sınav",
         "kisayol": "e",
@@ -111,7 +113,6 @@ MENU: list[dict] = [
         "ikon": "sunucu",
         "ogeler": [
             {"ad": "Tahtalar", "href": "/admin/uzaktan", "ikon": "tahta"},
-            {"ad": "Tahta duyuru", "href": "/admin/uzaktan#duyuru", "ikon": "zil"},
             {"ad": "Pano Paneli", "href": "/panel-git/pano", "ikon": "tahta", "yeni_sekme": True},
             {"ad": "Kiosk Paneli", "href": "/panel-git/kiosk", "ikon": "sunucu", "yeni_sekme": True},
             {"ad": "Bilgehan Paneli", "href": "/panel-git/bilgehan", "ikon": "sunucu", "yeni_sekme": True},
