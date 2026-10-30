@@ -208,7 +208,7 @@
 </form>
 <form method="post" action="/admin/okul-verisi/program">
   <input type="hidden" name="sinif" value="{{ psinif }}">
-  <div class="tablo-sarici"><table class="admin-tablo">
+  <div class="tablo-sarici"><table class="admin-tablo program-tablo">
     <thead><tr><th>Ders</th>{% for g, ad in gunler.items() %}<th>{{ ad }}</th>{% endfor %}</tr></thead>
     <tbody>
     {% for n in ders_nolar %}
