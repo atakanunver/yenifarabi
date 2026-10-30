@@ -51,11 +51,11 @@ MENU: list[dict] = [
             {"ad": "Rapor", "href": "/admin/rapor", "ikon": "grafik"},
             {"ad": "Aylık özet", "href": "/aylik-ozet", "ikon": "grafik"},
             {"ad": "Sınıflar ve tahtalar", "href": "/admin/siniflar", "ikon": "kullanicilar"},
-            {"ad": "Okul verisi", "href": "/admin/okul-verisi", "ikon": "kullanicilar"},
             {"ad": "Kulüp listeleri", "href": "/admin/kulupler", "ikon": "kullanicilar"},
             {"ad": "Kulüp yoklaması", "href": "/kulup-yoklama", "ikon": "kullanicilar"},
         ],
     },
+    {"ad": "Okul verisi", "kisayol": "v", "ikon": "kullanicilar", "href": "/admin/okul-verisi"},
     # 2026-10-23: tahta↔sınıf ataması Sınıflar ve tahtalar sayfasına katıldı; burada yalnız uzaktan yönetim.
     {"ad": "Tahtalar", "kisayol": "t", "ikon": "tahta", "href": "/admin/uzaktan"},
     {"ad": "Zil paneli", "etiket": "Harici paneller", "kisayol": "z", "ikon": "zil", "href": "/panel-git/zil", "yeni_sekme": True},
