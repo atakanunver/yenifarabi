@@ -8,95 +8,96 @@
 {% set agac = menu_agaci(request.url.path, request.url.query) %}
 <link rel="stylesheet" href="/static/tema.css?v={{ agac.surum }}">
 <link rel="stylesheet" href="/static/pano.css?v={{ agac.surum }}">
-<script>(function(){var t=null;try{t=localStorage.getItem('farabi_yoklama_tema')}catch(e){}if(t==='klasik'||t==='yumusak')t='argon';if(['argon','argon-koyu','koyu','black','material','material-koyu'].indexOf(t)<0)t=matchMedia('(prefers-color-scheme: dark)').matches?'argon-koyu':'argon';document.documentElement.dataset.tema=t;try{if(localStorage.getItem('farabi_kenar_dar')==='1')document.documentElement.classList.add('kenar-dar')}catch(e){}})();</script>
+<link rel="stylesheet" href="/static/bilesen.css?v={{ agac.surum }}">
+{# Tema listesinin tek kaynağı menu.TEMALAR; tema.js de bu listeyi okur. Kayıt yoksa sade koyu
+   (işletim sistemi tercihine bakılmaz, 2026-10-30). Sayfa boyanmadan önce uygulanır. #}
+<script>window.FARABI_TEMALAR = {{ agac.temalar | map(attribute=0) | list | tojson }};
+(function(){var t=null;try{t=localStorage.getItem('farabi_yoklama_tema')}catch(e){}if(t==='klasik'||t==='yumusak')t='argon';if(window.FARABI_TEMALAR.indexOf(t)<0)t='sade-koyu';document.documentElement.dataset.tema=t;})();</script>
 </head>
 <body>
 {% include "_ikon_sprite.html" %}
-{# Menü ağacının tek kaynağı menu.py: kenar menü (geniş, daraltılmış ve <720px çekmece
-   hâlleri tek <nav>) bu ağaçtan üretilir — öğe burada elle yazılmaz (2026-10-23). #}
+{# Kabuk (2026-10-30): üstte alan sekmeleri, solda etkin alanın sayfaları. Ağacın tek kaynağı
+   menu.py::menu_agaci; öğe burada elle yazılmaz. <=720px: .gezinme (sekmeler + sol menü) tek çekmece. #}
 {% macro baglanti(o) -%}
   {%- if o.href == 'atos' -%}http://{{ request.url.hostname }}:8010/{%- else -%}{{ o.href }}{%- endif -%}
 {%- endmacro %}
 {% macro dis_ikon(o) %}{% if o.yeni_sekme %}<svg class="ikon ikon-kucuk ikon-disa" aria-label="yeni sekmede açılır"><use href="#ik-dis"/></svg>{% endif %}{% endmacro %}
-{% macro kenar_ogesi(ust) %}
-  {% if ust.etiket %}<li class="kenar-etiket" role="presentation">{{ ust.etiket }}</li>{% endif %}
-  {% if ust.ogeler %}
-  <li class="kenar-grup">
-    <button type="button" class="kenar-oge kenar-grup-dugme" aria-expanded="{{ 'true' if ust.acik else 'false' }}"
-            aria-controls="grup-{{ ust.kisayol }}" data-kisayol="{{ ust.kisayol }}" title="{{ ust.ad }}">
-      <svg class="ikon"><use href="#ik-{{ ust.ikon }}"/></svg><span class="kenar-metin">{{ ust.ad }}</span>
-      {% if ust.sayac %}<span class="menu-sayac kenar-grup-sayac" data-sayac="{{ ust.sayac }}" hidden></span>{% endif %}
-      <svg class="ikon ikon-kucuk kenar-ok"><use href="#ik-ok-sag"/></svg></button>
-    <ul class="kenar-alt-liste" id="grup-{{ ust.kisayol }}" {% if not ust.acik %}hidden{% endif %}
-        {% if ust.ogeler[0].eylem and ust.ogeler[0].eylem.startswith('tema:') %}role="radiogroup" aria-label="{{ ust.ad }}"{% endif %}>
-      {% for o in ust.ogeler %}
-      <li>{% if o.eylem %}<button type="button" class="kenar-alt-oge" data-eylem="{{ o.eylem }}"
-            {% if o.eylem.startswith('tema:') %}role="radio" aria-checked="false"{% endif %}>{{ o.ad }}</button>
-        {% else %}<a class="kenar-alt-oge{{ ' aktif' if o.aktif }}" href="{{ baglanti(o) }}"
-            {% if o.aktif %}aria-current="page"{% endif %}{% if o.yeni_sekme %} target="_blank" rel="noopener"{% endif %}>
-          <span>{{ o.ad }}</span>{{ dis_ikon(o) }}</a>{% endif %}</li>
+<header class="ust-cubuk">
+  <button type="button" class="ust-dugme ust-cekmece-dugme" id="menu-ac" aria-label="Menüyü aç" aria-controls="gezinme" aria-expanded="false">
+    <svg class="ikon"><use href="#ik-menu"/></svg></button>
+  <a class="ust-marka" href="/" title="Ders ızgarası"><img src="/static/atos-logo.png" alt="" width="24" height="24"><span>Atos</span></a>
+  <div class="gezinme" id="gezinme">
+    <nav class="alan-sekmeler" aria-label="Ana alanlar">
+      {% for alan in agac.alanlar %}{% set ilk = alan.sayfalar[0] %}
+      <a class="alan-sekme" href="{{ baglanti(ilk) }}" data-kisayol="{{ alan.kisayol }}"
+         {% if alan.aktif %}aria-current="true"{% endif %}{% if ilk.yeni_sekme %} target="_blank" rel="noopener"{% endif %}>
+        <svg class="ikon"><use href="#ik-{{ alan.ikon }}"/></svg><span>{{ alan.ad }}</span>
+        {%- for s in alan.sayfalar if s.sayac %}<span class="menu-sayac" data-sayac="{{ s.sayac }}" hidden></span>{% endfor %}</a>
       {% endfor %}
-    </ul>
-  </li>
-  {% else %}
-  <li><a class="kenar-oge{{ ' aktif' if ust.aktif }}{{ ' kenar-vurgu' if ust.vurgu }}" href="{{ baglanti(ust) }}"
-         data-kisayol="{{ ust.kisayol }}" title="{{ ust.ad }}"
-         {% if ust.aktif %}aria-current="page"{% endif %}{% if ust.yeni_sekme %} target="_blank" rel="noopener"{% endif %}>
-      <svg class="ikon"><use href="#ik-{{ ust.ikon }}"/></svg><span class="kenar-metin">{{ ust.ad }}</span>{{ dis_ikon(ust) }}</a></li>
-  {% endif %}
-{% endmacro %}
-<div class="kabuk" id="kabuk">
-  <nav class="kenar" id="kenar" aria-label="Ana menü">
-    <a class="marka" href="/" title="Ana pano"><img class="marka-simge" src="/static/atos-logo.png" alt="" width="36" height="36"><span class="marka-metin kenar-metin">Atos<small>Okul Yönetimi</small></span></a>
-    <ul class="kenar-liste">
-      {% for ust in agac.menu if not ust.acil and not ust.alt %}{{ kenar_ogesi(ust) }}{% endfor %}
-    </ul>
-    <div class="kenar-bosluk"></div>
-    <ul class="kenar-liste kenar-dip">
-      {% for ust in agac.menu if ust.alt and ust.href != 'atos' %}{{ kenar_ogesi(ust) }}{% endfor %}
-    </ul>
-    {# 2026-10-28: Acil durum Ayarlar'ın altında kırmızı düğme; eski yerine (en alt) Atos geldi. #}
-    {% for ust in agac.menu if ust.acil %}
-    <a class="kenar-acil kenar-acil-dip{{ ' aktif' if ust.aktif }}" href="{{ ust.href }}" data-kisayol="{{ ust.kisayol }}" title="{{ ust.ad }}">
-      <svg class="ikon"><use href="#ik-{{ ust.ikon }}"/></svg><span class="kenar-metin">Acil durum</span></a>
-    {% endfor %}
-    <button type="button" class="mini-durum kenar-durum" id="mini-durum" title="Sunucu durumunu yüklemek için tıkla">
-      <span class="mini-durum-nokta" id="mini-durum-nokta"></span>
-      <span class="kenar-metin"><span id="mini-durum-servis">Durumu göster</span> <span id="mini-durum-sicaklik" class="soluk"></span></span>
-    </button>
-    <button type="button" class="kenar-oge kenar-daralt" data-eylem="daralt" title="Menüyü daralt/genişlet">
-      <svg class="ikon"><use href="#ik-menu"/></svg><span class="kenar-metin">Menüyü daralt</span></button>
-      {% for ust in agac.menu if ust.href == 'atos' %}
-    <a class="kenar-acil kenar-atos" href="{{ baglanti(ust) }}" data-kisayol="{{ ust.kisayol }}" title="{{ ust.ad }}" target="_blank" rel="noopener">
-      <svg class="ikon"><use href="#ik-{{ ust.ikon }}"/></svg><span class="kenar-metin">{{ ust.ad }}</span></a>
-    {% endfor %}
-  </nav>
-  <div class="cekmece-ortu" id="cekmece-ortu" hidden></div>
-  <div class="icerik-alani">
-    <header class="sayfa-ust">
-      <button type="button" class="dugme-ikon menu-ac" id="menu-ac" aria-label="Menüyü aç" aria-controls="kenar" aria-expanded="false">
-        <svg class="ikon"><use href="#ik-menu"/></svg></button>
-      <div class="sayfa-baslik">
-        {% if agac.konum %}<span class="kirinti">{{ agac.konum | join(' › ') }}</span>{% endif %}
-        <h1>{% block baslik %}{% endblock %}</h1>
-      </div>
-      <div class="ust-sag">{% block ust_sag %}{% endblock %}</div>
-      <div class="ust-bilgi">
-        <span class="gun-etiketi">{{ gun_adi_buyuk() }}</span>
-        <span><svg class="ikon ikon-kucuk"><use href="#ik-saat"/></svg> <span id="ust-saat"></span>{% if agac.ders %} · {{ agac.ders }}{% endif %}</span>
-      </div>
-      <button type="button" class="dugme-ikon" data-eylem="tema-dongu" aria-label="Temayı değiştir" title="Temayı değiştir">
-        <svg class="ikon"><use href="#ik-ay"/></svg></button>
-    </header>
-    <main>{% block icerik %}{% endblock %}</main>
+    </nav>
+    {% if agac.sayfalar %}
+    <nav class="sol-menu" id="sol-menu" aria-label="{{ agac.aktif_alan.ad }} sayfaları">
+      <div class="sol-baslik" aria-hidden="true">{{ agac.aktif_alan.ad }}</div>
+      {% for s in agac.sayfalar %}
+      <a class="sol-oge{{ ' aktif' if s.aktif }}" href="{{ baglanti(s) }}"
+         {% if s.aktif %}aria-current="page"{% endif %}{% if s.yeni_sekme %} target="_blank" rel="noopener"{% endif %}>
+        <svg class="ikon"><use href="#ik-{{ s.ikon }}"/></svg><span class="sol-metin">{{ s.ad }}</span>
+        {%- if s.sayac %}<span class="menu-sayac" data-sayac="{{ s.sayac }}" hidden></span>{% endif %}{{ dis_ikon(s) }}</a>
+      {% endfor %}
+    </nav>
+    {% endif %}
   </div>
-</div>
+  <div class="ust-araclar">
+    <a class="ust-acil" href="{{ agac.acil.href }}" data-kisayol="{{ agac.acil.kisayol }}" title="{{ agac.acil.ad }}"{% if request.url.path == agac.acil.href %} aria-current="page"{% endif %}>
+      <svg class="ikon"><use href="#ik-{{ agac.acil.ikon }}"/></svg><span>{{ agac.acil.ad }}</span></a>
+    <a class="ust-atos" href="{{ baglanti(agac.atos) }}" data-kisayol="{{ agac.atos.kisayol }}" title="{{ agac.atos.ad }} (yeni sekmede açılır)" target="_blank" rel="noopener">
+      <svg class="ikon"><use href="#ik-{{ agac.atos.ikon }}"/></svg><span>Atos</span></a>
+    <span class="ust-zaman"><span class="ust-gun">{{ agac.gun }}</span> <span id="ust-saat"></span>{% if agac.ders %}<span class="ust-ders"> · {{ agac.ders }}</span>{% endif %}</span>
+    <button type="button" class="ust-dugme" data-eylem="tema-dongu" aria-label="Temayı değiştir" title="Temayı değiştir">
+      <svg class="ikon"><use href="#ik-ay"/></svg></button>
+    <details class="ayar-menu" id="ayar-menu">
+      <summary class="ust-dugme" aria-label="Ayarlar" title="Ayarlar"><svg class="ikon"><use href="#ik-kaydirici"/></svg></summary>
+      <div class="ayar-panel">
+        <button type="button" class="mini-durum ayar-durum" id="mini-durum" title="Sunucu durumunu yüklemek için tıkla">
+          <span class="mini-durum-nokta" id="mini-durum-nokta"></span>
+          <span><span id="mini-durum-servis">Sunucu durumunu göster</span> <span id="mini-durum-sicaklik" class="soluk"></span></span>
+        </button>
+        <ul class="ayar-liste">
+          {% for o in agac.ayarlar %}
+          <li>{% if o.eylem %}<button type="button" class="ayar-oge" data-eylem="{{ o.eylem }}">
+              <svg class="ikon"><use href="#ik-{{ o.ikon }}"/></svg><span>{{ o.ad }}</span></button>
+            {% else %}<a class="ayar-oge" href="{{ baglanti(o) }}"><svg class="ikon"><use href="#ik-{{ o.ikon }}"/></svg><span>{{ o.ad }}</span></a>{% endif %}</li>
+          {% endfor %}
+        </ul>
+        <div class="ayar-baslik" id="tema-baslik">Temalar</div>
+        <div class="tema-liste" role="radiogroup" aria-labelledby="tema-baslik">
+          {% for anahtar, ad in agac.temalar %}
+          <button type="button" class="ayar-oge tema-oge" role="radio" aria-checked="false" data-eylem="tema:{{ anahtar }}">{{ ad }}</button>
+          {% endfor %}
+        </div>
+      </div>
+    </details>
+  </div>
+</header>
+<div class="cekmece-ortu" id="cekmece-ortu" hidden></div>
+<main class="icerik{{ ' icerik-sol-menulu' if agac.sayfalar }}" id="icerik">
+  <header class="sayfa-basligi">
+    <div class="sayfa-basligi-metin">
+      {% if agac.konum %}<span class="kirinti">{{ agac.konum | join(' › ') }}</span>{% endif %}
+      <h1>{% block baslik %}{% endblock %}</h1>
+    </div>
+    <div class="ust-sag">{% block ust_sag %}{% endblock %}</div>
+  </header>
+  {% block icerik %}{% endblock %}
+</main>
 <form method="post" action="/cikis" id="cikis-form" hidden></form>
 <dialog class="pencere" id="kisayol-penceresi" aria-labelledby="kisayol-baslik">
   <h2 id="kisayol-baslik">Klavye kısayolları</h2>
-  <dl><dt>F10</dt><dd>Kenar menüye git</dd><dt>↓ ↑</dt><dd>Menü öğeleri arasında</dd>
-      <dt>Enter</dt><dd>Seç / grubu aç</dd><dt>Esc</dt><dd>Çekmeceyi kapat</dd>
-      <dt>?</dt><dd>Bu pencere</dd></dl>
+  <dl><dt>F10</dt><dd>Alan sekmelerine git</dd><dt>← →</dt><dd>Alan sekmeleri arasında</dd>
+      <dt>↓ ↑</dt><dd>Sol menüde sayfalar arasında</dd>
+      {% for alan in agac.alanlar %}<dt>{{ alan.kisayol }}</dt><dd>{{ alan.ad }}</dd>{% endfor %}
+      <dt>{{ agac.acil.kisayol }}</dt><dd>{{ agac.acil.ad }}</dd><dt>{{ agac.atos.kisayol }}</dt><dd>{{ agac.atos.ad }}</dd>
+      <dt>Esc</dt><dd>Menüyü / çekmeceyi kapat</dd><dt>?</dt><dd>Bu pencere</dd></dl>
   <form method="dialog"><button class="dugme">Kapat</button></form>
 </dialog>
 <dialog class="pencere" id="hakkinda-penceresi" aria-labelledby="hakkinda-baslik">
@@ -108,7 +109,6 @@
 
 <script src="/static/tema.js?v={{ agac.surum }}"></script>
 <script src="/static/menu.js?v={{ agac.surum }}"></script>
-<script src="/static/kenar.js?v={{ agac.surum }}"></script>
 {% block script %}{% endblock %}
 </body>
 </html>

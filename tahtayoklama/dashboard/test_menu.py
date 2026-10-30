@@ -1,5 +1,6 @@
 """menu.py: menü ağacı her sayfayı içerir, aktif işaretleme, şifresiz dış bağlantı."""
 import json
+import re
 import unittest
 
 import menu
@@ -122,21 +123,97 @@ class TestMenu(unittest.TestCase):
                 mock.patch.object(zil, "okul_gunu_mu", return_value=True):
             self.assertEqual(zil.ust_bilgi(), "")
 
-    @unittest.skip("Task 4")
-    def test_taban_kenar_menu_render(self):
-        # Üst menü çubuğu yok, kenar menü + kırıntı yolu var (2026-10-23). DB'siz: şablonu doğrudan render et.
+    def _render(self, yol, sorgu=b""):
+        # DB'siz: şablonu doğrudan render et (httpx yok → TestClient yok).
         from starlette.requests import Request
 
         import app as uygulama
-        istek = Request({"type": "http", "method": "GET", "path": "/admin/rapor", "headers": [],
-                         "query_string": b"", "server": ("farabi.local", 80), "scheme": "http", "root_path": ""})
-        html = uygulama.templates.env.from_string(
-            '{% extends "taban.html" %}{% block baslik %}Rapor{% endblock %}').render(request=istek)
-        self.assertIn('class="kenar"', html)
-        self.assertNotIn('role="menubar"', html)
-        self.assertIn("Öğrenciler › Yoklama raporu", html)
+        istek = Request({"type": "http", "method": "GET", "path": yol, "headers": [],
+                         "query_string": sorgu, "server": ("farabi.local", 80), "scheme": "http", "root_path": ""})
+        return uygulama.templates.env.from_string(
+            '{% extends "taban.html" %}{% block baslik %}Başlık{% endblock %}').render(request=istek)
+
+    @staticmethod
+    def _sol_menu(html):
+        bas = html.find('<nav class="sol-menu"')
+        return html[bas:html.index("</nav>", bas)] if bas != -1 else ""
+
+    def test_taban_kenar_menu_render(self):
+        # 2026-10-30: kenar menü yerine üst alan çubuğu + sol sayfa menüsü.
+        html = self._render("/admin/rapor")
+        self.assertIn('class="ust-cubuk"', html)
+        self.assertNotIn('class="kenar"', html)
+        self.assertNotIn("kenar.js", html)
+        self.assertIn("Yoklama › Rapor", html)
         self.assertIn('aria-current="page"', html)
         self.assertIn('href="/acil"', html)
+        for ad in ("tema.css", "pano.css", "bilesen.css", "tema.js", "menu.js"):
+            self.assertRegex(html, rf"/static/{re.escape(ad)}\?v=\d+")
+        self.assertLess(html.index("tema.css"), html.index("pano.css"))
+        self.assertLess(html.index("pano.css"), html.index("bilesen.css"))
+        for kimlik in ('id="toast"', 'id="cikis-form"', 'id="kisayol-penceresi"', 'id="hakkinda-penceresi"',
+                       'id="mini-durum"', 'id="menu-ac"', 'data-sayac="veli"'):
+            self.assertIn(kimlik, html)
+        self.assertNotIn("prefers-color-scheme", html)
+
+    def test_ust_cubukta_alti_alan(self):
+        html = self._render("/admin/rapor")
+        sekmeler = re.findall(r'<a class="alan-sekme"[^>]*>', html)
+        self.assertEqual(len(sekmeler), 6)
+        for etiket, alan in zip(sekmeler, menu.ALANLAR):
+            self.assertIn(f'href="{alan["sayfalar"][0]["href"]}"', etiket)
+        aktif = [e for e in sekmeler if 'aria-current="true"' in e]
+        self.assertEqual(len(aktif), 1)
+        self.assertIn('href="/"', aktif[0])  # Yoklama alanının ilk sayfası
+
+    def test_sol_menude_yalniz_aktif_alan(self):
+        sol = self._sol_menu(self._render("/servisler"))
+        self.assertIn("Servis yönetimi", sol)
+        self.assertNotIn("Personel", sol)
+        aktif = re.findall(r'<a class="sol-oge[^"]*"[^>]*aria-current="page"[^>]*>', sol)
+        self.assertEqual(len(aktif), 1)
+        self.assertIn('href="/servisler"', aktif[0])
+
+    def test_acil_ve_atos_her_sayfada(self):
+        for yol in ("/servisler", "/kazanim", "/"):
+            html = self._render(yol)
+            self.assertIn('href="/acil"', html, yol)
+            self.assertIn('href="http://farabi.local:8010/"', html, yol)
+        self.assertIn("Sistem › Servis yönetimi", self._render("/servisler"))
+
+    def test_js_siz_gezinme(self):
+        # Alan sekmeleri ve sol menü düz <a href>: JS olmadan da gezinilir.
+        html = self._render("/servisler")
+        self.assertEqual(len(re.findall(r'<a class="alan-sekme"[^>]*href="[^"]+"', html)), 6)
+        sol = self._sol_menu(html)
+        self.assertNotIn("<button", sol)
+        self.assertEqual(len(re.findall(r'<a class="sol-oge[^"]*"[^>]*href="[^"]+"', sol)),
+                         len(menu.ALANLAR[-1]["sayfalar"]))
+
+    def test_tema_listesi_sayfada(self):
+        html = self._render("/")
+        m = re.search(r"window\.FARABI_TEMALAR\s*=\s*(\[[^\]]*\])", html)
+        self.assertIsNotNone(m)
+        self.assertEqual(json.loads(m.group(1)), [a for a, _ in menu.TEMALAR])
+        self.assertLess(m.start(), html.index("/static/tema.js"))
+
+    def test_menude_olmayan_yolda_render(self):
+        html = self._render("/kazanim")
+        self.assertEqual(self._sol_menu(html), "")
+        self.assertNotIn('class="sol-oge', html)
+        self.assertNotIn('aria-current="true"', html)
+
+
+    def test_gun_adi_cumle_duzeni(self):
+        # Üst çubukta BÜYÜK HARF yok; .capitalize() "İ"yi bozar, sabit sözlük kullanılır.
+        from datetime import date
+
+        import zil
+        self.assertEqual(zil.gun_adi(date(2026, 10, 31)), "Cumartesi")
+        self.assertEqual(zil.gun_adi(date(2026, 10, 28)), "Çarşamba")
+        self.assertEqual(menu.menu_agaci("/")["gun"], zil.gun_adi())
+        self.assertIn(f">{zil.gun_adi()}<", self._render("/"))
+
 
 if __name__ == "__main__":
     unittest.main()

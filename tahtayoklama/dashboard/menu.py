@@ -165,5 +165,6 @@ def menu_agaci(yol: str, sorgu: str = "") -> dict:
         "ayarlar": copy.deepcopy(AYARLAR),
         "temalar": list(TEMALAR),
         "ders": zil.ust_bilgi(),
+        "gun": zil.gun_adi(),
         "surum": statik_surum(),
     }
