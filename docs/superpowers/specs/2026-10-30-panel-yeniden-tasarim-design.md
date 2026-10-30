@@ -87,6 +87,16 @@ Hedef: "üst düzey" görünen, pratik, bir bakışta anlaşılan bir yönetim p
 - Klavye ile: alan sekmeleri, sol menü, ayrıntı paneli formu gezilebilir.
 - Son kabul: Atakan önizlemede (ve geçişten sonra fiziksel ekranında).
 
+## Arayüz dondurma (Atakan kararı)
+Geçişe kadar canlı panelin arayüzünde (menu.py, templates/, static/) değişiklik yapılmaz; yalnız acil hata düzeltmesi. Acil düzeltme olursa yeni dala da taşınır.
+
+## Benim kararlarım (builder-check sonrası, Atakan'a sunuldu)
+- **Dal:** yeni dal `panel-yeniden-tasarim`, canlının bulunduğu `atos-anythingllm-gemma`'dan (2026-10-30 taşma düzeltmesi commit'i dahil) ayrı worktree'de açılır; geçişte yine `atos-anythingllm-gemma`'ya merge edilir (canlı o dalı koşuyor). Master'a alma ayrı karardır.
+- **Güvenlik sayfaları** (`kameralar*.html`, `guvenlik.html`, kendi girişli `/guvenlik`): bugün `taban.html`'i genişletmiyorlar; yeni kabuğa alınmaz, yalnız yeni renk/font değişkenlerine uyar (giris/acil_ekran gibi). Menüde Güvenlik alanından bağlantı olarak kalırlar.
+- **Yerleşmeyen sayfalar:** Okul verisi "Denetim günlüğü" → Öğrenci ve personel alanının son sayfası ("Değişiklik günlüğü"). `/b/atos` ve yer tutucu sayfalar → üst çubuktaki ayar menüsü. `/kazanim` menüye girmez (kazanım testi kalıcı iptal; bugün de menüde yok).
+- **Varsayılan tema:** kayıtlı tercihi olmayan herkes, işletim sistemi açık ya da koyu olsun, sade koyu ile açılır (ana tema C seçildi).
+- **Ayrıntı paneli kapsamı:** Öğrenciler ve veliler, Personel, Sınıflar ve tahtalar, Kulüpler. Sınıf listesi (`admin_sinif_ogrenciler`) ve kulüp üyeleri (`admin_kulup_uyeler`) ayrı alt sayfa kalır, yalnız yeni görünüme geçer. Filtre çipleri yalnız mevcut veriden hesaplanan sayaçlarla (Personel: aktif/telefonsuz/TC/e-posta eksik/pasif; Öğrenci: aktif/telefonsuz/pasif); yeni sorgu alanı eklenmez.
+
 ## Uygulayıcıya bırakılanlar
 - Kesin renk değerleri, punto/boşluk ölçeği (bir `--bosluk-*`/`--punto-*` ölçeği kurmak serbest ve önerilir), ikon seçimi.
 - KPI kartlarının ana ekranda nasıl sadeleşeceği (ızgara ilk ekranda görünsün şartıyla).
