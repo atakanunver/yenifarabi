@@ -158,10 +158,13 @@ class TestMenu(unittest.TestCase):
 
     def test_ust_cubukta_alti_alan(self):
         html = self._render("/admin/rapor")
-        sekmeler = re.findall(r'<a class="alan-sekme"[^>]*>', html)
+        sekmeler = re.findall(r'<(?:a|summary) class="alan-sekme"[^>]*>', html)
         self.assertEqual(len(sekmeler), 6)
         for etiket, alan in zip(sekmeler, menu.ALANLAR):
-            self.assertIn(f'href="{alan["sayfalar"][0]["href"]}"', etiket)
+            if alan.get("acilir"):  # açılır alan: sekme <summary>, sayfalar panelde
+                self.assertTrue(etiket.startswith("<summary"), alan["ad"])
+            else:
+                self.assertIn(f'href="{alan["sayfalar"][0]["href"]}"', etiket)
         aktif = [e for e in sekmeler if 'aria-current="true"' in e]
         self.assertEqual(len(aktif), 1)
         self.assertIn('href="/"', aktif[0])  # Yoklama alanının ilk sayfası
@@ -184,11 +187,14 @@ class TestMenu(unittest.TestCase):
     def test_js_siz_gezinme(self):
         # Alan sekmeleri ve sol menü düz <a href>: JS olmadan da gezinilir.
         html = self._render("/servisler")
-        self.assertEqual(len(re.findall(r'<a class="alan-sekme"[^>]*href="[^"]+"', html)), 6)
+        acilir = [a for a in menu.ALANLAR if a.get("acilir")]
+        self.assertEqual(len(re.findall(r'<a class="alan-sekme"[^>]*href="[^"]+"', html)), 6 - len(acilir))
+        self.assertEqual(len(re.findall(r'<details class="alan-acilir"', html)), len(acilir))  # <details> JS'siz açılır
         sol = self._sol_menu(html)
         self.assertNotIn("<button", sol)
+        sistem = next(a for a in menu.ALANLAR if a["anahtar"] == "sistem")
         self.assertEqual(len(re.findall(r'<a class="sol-oge[^"]*"[^>]*href="[^"]+"', sol)),
-                         len(menu.ALANLAR[-1]["sayfalar"]))
+                         len(sistem["sayfalar"]))
 
     def test_tema_listesi_sayfada(self):
         html = self._render("/")
@@ -203,6 +209,37 @@ class TestMenu(unittest.TestCase):
         self.assertNotIn('class="sol-oge', html)
         self.assertNotIn('aria-current="true"', html)
 
+    def test_acilir_alanlar_tum_sayfalari_listeler(self):
+        # Eğitim: hepsi dış bağlantı; Güvenlik: sayfalar taban.html'siz → sol menü hiç çıkmaz (2026-10-30).
+        html = self._render("/")
+        beklenen = {
+            "egitim": {menu.SMUAL_URL, menu.SMUAL_YONETIM_URL, "/kelebek-git"},
+            "guvenlik": {"/kameralar", "/kameralar-ip", "/kameralar-kayit", "/guvenlik", menu.KIOSK_YUZ_PANELI},
+        }
+        for anahtar, hrefler in beklenen.items():
+            bas = html.find(f'<details class="alan-acilir" data-alan="{anahtar}"')
+            self.assertNotEqual(bas, -1, anahtar)
+            parca = html[bas:html.index("</details>", bas)]
+            self.assertEqual(set(re.findall(r'<a [^>]*?href="([^"]+)"', parca)), hrefler, anahtar)
+            self.assertIn("<summary", parca)
+        self.assertIn('target="_blank" rel="noopener"', html[html.find('data-alan="egitim"'):])
+
+    def test_her_sayfa_kabuktan_erisilir(self):
+        # "/" kabuğunda: açılır alanların tüm sayfaları, diğer alanların ilk sayfası (sekme bağlantısı)
+        self.assertEqual({a["anahtar"] for a in menu.ALANLAR if a.get("acilir")}, {"egitim", "guvenlik"})
+        html = self._render("/")
+        for alan in menu.ALANLAR:
+            for sayfa in (alan["sayfalar"] if alan.get("acilir") else alan["sayfalar"][:1]):
+                self.assertIn(f'href="{sayfa["href"]}"', html, sayfa["ad"])
+        # Açılır olmayan alanların diğer sayfaları kendi alanında sol menüden erişilir
+        for alan in menu.ALANLAR:
+            if alan.get("acilir"):
+                continue
+            ilk = alan["sayfalar"][0]["href"]
+            yol, _, sorgu = ilk.partition("?")
+            sol = self._sol_menu(self._render(yol, sorgu.encode()))
+            for sayfa in alan["sayfalar"]:
+                self.assertIn(f'href="{sayfa["href"]}"', sol, sayfa["ad"])
 
     def test_gun_adi_cumle_duzeni(self):
         # Üst çubukta BÜYÜK HARF yok; .capitalize() "İ"yi bozar, sabit sözlük kullanılır.

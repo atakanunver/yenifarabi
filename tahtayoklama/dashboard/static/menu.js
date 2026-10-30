@@ -19,17 +19,28 @@
   }
   window.farabiToast = toast;
 
-  // ---- Ayar açılır menüsü (<details>): dışarı tıklayınca / Esc ile kapanır ----
-  var ayar = document.getElementById('ayar-menu');
-  function ayarKapat(odakDon) {
-    if (!ayar || !ayar.open) return false;
-    ayar.open = false;
-    if (odakDon) ayar.querySelector('summary').focus();
-    return true;
+  // ---- Açılır menüler (<details>: ayar menüsü, Eğitim/Güvenlik alanları) ----
+  // JS'siz de açılır; burada yalnız dışarı tıklama / Esc ile kapanma ve tek seferde tek açık menü.
+  // Çekmecede alan listeleri açık durur (sekmenin altındaki sayfa listesi), onlara dokunulmaz.
+  function cekmecede() { return kok.classList.contains('cekmece-acik'); }
+  function kapatilabilir(d) { return !(cekmecede() && d.classList.contains('alan-acilir')); }
+  function acilirKapat(odakDon, haric) {
+    var kapandi = false;
+    hepsi('details.alan-acilir[open], #ayar-menu[open]').forEach(function (d) {
+      if (d === haric || !kapatilabilir(d)) return;
+      d.open = false; kapandi = true;
+      if (odakDon && d.contains(document.activeElement)) d.querySelector('summary').focus();
+    });
+    return kapandi;
   }
   document.addEventListener('click', function (e) {
-    if (ayar && ayar.open && !ayar.contains(e.target)) ayarKapat(false);
+    acilirKapat(false, e.target.closest('details'));
   });
+  // toggle olayı kabarmaz: yakalama evresinde dinle; biri açılınca diğerleri kapanır
+  document.addEventListener('toggle', function (e) {
+    var d = e.target;
+    if (d.open && d.matches && d.matches('details.alan-acilir, #ayar-menu') && kapatilabilir(d)) acilirKapat(false, d);
+  }, true);
 
   // ---- <=720px: alan sekmeleri + sol menü tek çekmece ----
   var ortu = document.getElementById('cekmece-ortu');
@@ -38,12 +49,14 @@
     if (!kok.classList.contains('cekmece-acik')) return false;
     kok.classList.remove('cekmece-acik'); ortu.hidden = true;
     acDugme.setAttribute('aria-expanded', 'false');
+    hepsi('details.alan-acilir').forEach(function (d) { d.open = false; });
     if (odakDon) acDugme.focus();
     return true;
   }
   acDugme.addEventListener('click', function () {
     if (cekmeceKapat(false)) return;
     kok.classList.add('cekmece-acik'); ortu.hidden = false; acDugme.setAttribute('aria-expanded', 'true');
+    hepsi('details.alan-acilir').forEach(function (d) { d.open = true; });
     var ilk = gezinme.querySelector('.sol-oge[aria-current="page"]') || gezinme.querySelector('.alan-sekme');
     if (ilk) ilk.focus();
   });
@@ -73,7 +86,7 @@
       if (window.farabiTemaUygula) window.farabiTemaUygula(ad.slice(5));
       return; // temalar arasında gezinirken menü açık kalsın
     }
-    if (EYLEMLER[ad]) { ayarKapat(false); EYLEMLER[ad](); }
+    if (EYLEMLER[ad]) { acilirKapat(false); EYLEMLER[ad](); }
   });
 
   // ---- Klavye: ok tuşları ----
@@ -96,7 +109,18 @@
     if (a.classList.contains('alan-sekme')) {
       // Çekmecede sekmeler alt alta durur: orada ↑↓ sekmeler arasında gezer.
       var yatay = masaustu.matches;
+      if (yatay && e.key === 'ArrowDown' && a.tagName === 'SUMMARY') {
+        // Açılır alan: ↓ listeyi açar, ilk sayfaya odaklanır
+        e.preventDefault();
+        a.parentNode.open = true;
+        var ilkOge = a.parentNode.querySelector('.alan-acilir-oge');
+        if (ilkOge) ilkOge.focus();
+        return;
+      }
       okGezin(e, gorunur(hepsi('.alan-sekme')), yatay ? 'ArrowLeft' : 'ArrowUp', yatay ? 'ArrowRight' : 'ArrowDown');
+    } else if (a.classList.contains('alan-acilir-oge')) {
+      okGezin(e, gorunur(hepsi('.alan-acilir-oge')).filter(function (o) { return o.closest('details') === a.closest('details'); }),
+        'ArrowUp', 'ArrowDown');
     } else if (a.classList.contains('sol-oge')) {
       okGezin(e, gorunur(hepsi('.sol-oge')), 'ArrowUp', 'ArrowDown');
     } else if (a.closest('.ayar-panel')) {
@@ -109,7 +133,7 @@
     var pencereAcik = !!document.querySelector('dialog[open]');
     if (e.key === 'Escape') {
       if (pencereAcik) return; // açık <dialog> Esc'i kendisi işler
-      if (ayarKapat(true) || cekmeceKapat(true)) e.preventDefault();
+      if (acilirKapat(true) || cekmeceKapat(true)) e.preventDefault();
       return;
     }
     if (e.key === 'F10') {
@@ -127,7 +151,7 @@
     if (e.key === '?') { e.preventDefault(); EYLEMLER.kisayollar(); return; }
     if (e.key.length !== 1) return;
     var hedef = document.querySelector('[data-kisayol="' + e.key.toLocaleLowerCase('tr') + '"]');
-    if (hedef) { e.preventDefault(); hedef.click(); }
+    if (hedef) { e.preventDefault(); hedef.click(); if (hedef.tagName === 'SUMMARY') hedef.focus(); }
   });
 
   // ---- Üst çubuk saati ----

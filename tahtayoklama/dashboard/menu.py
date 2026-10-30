@@ -39,6 +39,8 @@ SMUAL_YONETIM_URL = SMUAL_URL + "/yonetici"  # şifresiz giriş (SSO) sonraki a�
 # 2026-10-30: panel yeniden tasarımı: üst ALAN menüsü (6 alan) → alanın sayfaları. Alan dışı sabitler:
 # ACIL (kırmızı düğme), ATOS (dipte vurgulu), AYARLAR (menü), TEMALAR (tema seçici).
 # EBYS/Duyuru panosu/Kiosk ve diğer "/b/<ad>" yer tutucuları menüde yok (yakinda.py'de duruyor).
+# acilir: alanın sayfaları sekmede açılır listede (Eğitim: hepsi dış bağlantı; Güvenlik: sayfalar
+# taban.html'siz, sol menü hiç çıkmaz).
 _OKUL = "/admin/okul-verisi"
 ALANLAR: list[dict] = [
     {
@@ -75,7 +77,7 @@ ALANLAR: list[dict] = [
         ],
     },
     {
-        "ad": "Eğitim", "anahtar": "egitim", "kisayol": "e", "ikon": "hedef",
+        "ad": "Eğitim", "anahtar": "egitim", "kisayol": "e", "ikon": "hedef", "acilir": True,
         "sayfalar": [
             {"ad": "Kelebek", "href": "/kelebek-git", "ikon": "tahta", "yeni_sekme": True},
             {"ad": "smual.app", "href": SMUAL_URL, "ikon": "yildiz", "yeni_sekme": True},
@@ -83,7 +85,7 @@ ALANLAR: list[dict] = [
         ],
     },
     {
-        "ad": "Güvenlik", "anahtar": "guvenlik", "kisayol": "k", "ikon": "kamera",
+        "ad": "Güvenlik", "anahtar": "guvenlik", "kisayol": "k", "ikon": "kamera", "acilir": True,
         "sayfalar": [
             {"ad": "DVR kameralar", "href": "/kameralar", "ikon": "kamera"},
             {"ad": "IP kameralar (yedek)", "href": "/kameralar-ip", "ikon": "kamera"},

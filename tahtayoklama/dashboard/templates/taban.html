@@ -29,10 +29,26 @@
   <div class="gezinme" id="gezinme">
     <nav class="alan-sekmeler" aria-label="Ana alanlar">
       {% for alan in agac.alanlar %}{% set ilk = alan.sayfalar[0] %}
+      {% if alan.acilir %}
+      {# Açılır alan: sayfalar sekmenin altındaki listede (<details>: JS'siz de açılır) #}
+      <details class="alan-acilir" data-alan="{{ alan.anahtar }}">
+        <summary class="alan-sekme" data-kisayol="{{ alan.kisayol }}"{% if alan.aktif %} aria-current="true"{% endif %}>
+          <svg class="ikon"><use href="#ik-{{ alan.ikon }}"/></svg><span>{{ alan.ad }}</span>
+          <svg class="ikon ikon-kucuk alan-acilir-ok" aria-hidden="true"><use href="#ik-ok-sag"/></svg></summary>
+        <div class="alan-acilir-panel">
+          {% for s in alan.sayfalar %}
+          <a class="alan-acilir-oge{{ ' aktif' if s.aktif }}" href="{{ baglanti(s) }}"
+             {% if s.aktif %}aria-current="page"{% endif %}{% if s.yeni_sekme %} target="_blank" rel="noopener"{% endif %}>
+            <svg class="ikon"><use href="#ik-{{ s.ikon }}"/></svg><span class="sol-metin">{{ s.ad }}</span>{{ dis_ikon(s) }}</a>
+          {% endfor %}
+        </div>
+      </details>
+      {% else %}
       <a class="alan-sekme" href="{{ baglanti(ilk) }}" data-kisayol="{{ alan.kisayol }}"
          {% if alan.aktif %}aria-current="true"{% endif %}{% if ilk.yeni_sekme %} target="_blank" rel="noopener"{% endif %}>
         <svg class="ikon"><use href="#ik-{{ alan.ikon }}"/></svg><span>{{ alan.ad }}</span>
         {%- for s in alan.sayfalar if s.sayac %}<span class="menu-sayac" data-sayac="{{ s.sayac }}" hidden></span>{% endfor %}</a>
+      {% endif %}
       {% endfor %}
     </nav>
     {% if agac.sayfalar %}
@@ -94,7 +110,7 @@
 <dialog class="pencere" id="kisayol-penceresi" aria-labelledby="kisayol-baslik">
   <h2 id="kisayol-baslik">Klavye kısayolları</h2>
   <dl><dt>F10</dt><dd>Alan sekmelerine git</dd><dt>← →</dt><dd>Alan sekmeleri arasında</dd>
-      <dt>↓ ↑</dt><dd>Sol menüde sayfalar arasında</dd>
+      <dt>↓ ↑</dt><dd>Sol menüde sayfalar arasında; açılır alanda (Eğitim, Güvenlik) listeyi açar</dd>
       {% for alan in agac.alanlar %}<dt>{{ alan.kisayol }}</dt><dd>{{ alan.ad }}</dd>{% endfor %}
       <dt>{{ agac.acil.kisayol }}</dt><dd>{{ agac.acil.ad }}</dd><dt>{{ agac.atos.kisayol }}</dt><dd>{{ agac.atos.ad }}</dd>
       <dt>Esc</dt><dd>Menüyü / çekmeceyi kapat</dd><dt>?</dt><dd>Bu pencere</dd></dl>

@@ -23,11 +23,8 @@ html { scroll-padding-top: 4rem; }  /* #duyuru gibi çapalar yapışkan çubuğu
 .ust-marka img { width: 24px; height: 24px; border-radius: 6px; display: block; }
 
 .gezinme { display: flex; align-self: stretch; flex: 1 1 auto; min-width: 0; }
-.alan-sekmeler {
-  display: flex; align-items: stretch; gap: 2px; min-width: 0;
-  overflow-x: auto; scrollbar-width: none;  /* dar masaüstünde son çare: taşma yerine kayar */
-}
-.alan-sekmeler::-webkit-scrollbar { display: none; }
+/* overflow yok: açılır alan panelleri (position: absolute) kırpılmasın; sığma ara genişlik kurallarıyla */
+.alan-sekmeler { display: flex; align-items: stretch; gap: 2px; min-width: 0; }
 .alan-sekme {
   display: inline-flex; align-items: center; gap: var(--bosluk-2); flex-shrink: 0;
   padding: 0 0.7rem; color: var(--renk-ust-metin); opacity: 0.66;
@@ -42,6 +39,30 @@ html { scroll-padding-top: 4rem; }  /* #duyuru gibi çapalar yapışkan çubuğu
   box-shadow: inset 0 -2px 0 var(--renk-ust-aktif);
 }
 .alan-sekme .menu-sayac { margin-left: 0; }
+
+/* Açılır alan (Eğitim, Güvenlik): <summary> sekme gibi görünür, sayfalar altta panelde */
+.alan-acilir { position: relative; display: flex; }
+.alan-acilir > summary { list-style: none; cursor: pointer; user-select: none; }
+.alan-acilir > summary::-webkit-details-marker { display: none; }
+.alan-sekme .alan-acilir-ok { display: inline-block; margin-left: -0.15rem; transform: rotate(90deg); opacity: 0.8; transition: transform 0.12s; }
+.alan-acilir[open] > .alan-sekme { opacity: 1; }
+.alan-acilir[open] .alan-acilir-ok { transform: rotate(-90deg); }
+.alan-acilir-panel {
+  position: absolute; left: 0; top: calc(100% + 0.35rem); z-index: 60;
+  min-width: 15rem; display: flex; flex-direction: column; gap: 1px;
+  padding: var(--bosluk-2); border: 1px solid var(--renk-kenar); border-radius: var(--yaricap-buyuk);
+  background: var(--renk-yuzey); color: var(--renk-metin); box-shadow: var(--renk-golge-yukseltilmis);
+}
+.alan-acilir-oge {
+  display: flex; align-items: center; gap: 0.6rem; min-height: 2.2rem;
+  padding: 0.45rem 0.6rem; border-radius: 6px; white-space: nowrap;
+  color: var(--renk-metin); text-decoration: none; transition: background 0.15s, color 0.15s;
+}
+.alan-acilir-oge .ikon { color: var(--renk-metin-soluk); }
+.alan-acilir-oge .ikon-disa { margin-left: auto; }
+.alan-acilir-oge:hover { background: var(--renk-yuzey-2); }
+.alan-acilir-oge.aktif { background: var(--renk-birincil-zemin); color: var(--renk-birincil); font-weight: 600; }
+.alan-acilir-oge:focus-visible { outline: 2px solid var(--renk-birincil); outline-offset: -2px; }
 
 .ust-araclar { display: flex; align-items: center; gap: var(--bosluk-1); margin-left: auto; flex-shrink: 0; }
 .ust-acil {
@@ -158,7 +179,7 @@ html { scroll-padding-top: 4rem; }  /* #duyuru gibi çapalar yapışkan çubuğu
   .alan-sekme { padding: 0 0.5rem; }
 }
 @media (max-width: 900px) and (min-width: 721px) {
-  .ust-acil span { display: none; }
+  .ust-acil span, .ust-marka span { display: none; }
   .ust-acil { padding: 0.38rem; }
 }
 
@@ -195,6 +216,13 @@ html { scroll-padding-top: 4rem; }  /* #duyuru gibi çapalar yapışkan çubuğu
     background: none; border-right: 0; border-top: 1px solid var(--renk-kenar);
   }
   .sol-oge { min-height: 2.75rem; }
+  /* Çekmecede açılır alanlar: sayfalar sekmenin altında girintili liste (menu.js çekmece açılınca açar) */
+  .alan-acilir { flex-direction: column; }
+  .alan-acilir-panel {
+    position: static; min-width: 0; padding: 0 0 var(--bosluk-1) 1.6rem;
+    border: 0; background: none; box-shadow: none;
+  }
+  .alan-acilir-oge { min-height: 2.5rem; white-space: normal; color: var(--renk-metin-soluk); }
   .icerik { padding: var(--bosluk-4); }
   .icerik-sol-menulu { margin-left: 0; }
 }
@@ -202,4 +230,11 @@ html { scroll-padding-top: 4rem; }  /* #duyuru gibi çapalar yapışkan çubuğu
 @media print {
   .ust-cubuk, .sol-menu, .cekmece-ortu { display: none !important; }
   .icerik, .icerik-sol-menulu { margin: 0; padding: 0; }
+}
+
+/* Hareket azaltma: bu dosyanın geçişleri (pano.css'teki genel kural Task 9'da kalkar) */
+@media (prefers-reduced-motion: reduce) {
+  .ust-cubuk, .ust-cubuk *, .ust-cubuk *::before, .ust-cubuk *::after {
+    transition: none !important; animation: none !important;
+  }
 }
