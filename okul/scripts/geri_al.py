@@ -20,6 +20,9 @@ from pathlib import Path
 
 # user_version N'den N-1'e inmek için çalışan betik. Yeni göç eklenince buraya da eklenir.
 GERI = {
+    37: """
+ALTER TABLE kullanici DROP COLUMN eposta;
+""",
     36: """
 DROP TABLE IF EXISTS deneme_sinif_yorum;
 DROP TABLE IF EXISTS deneme_pdf;

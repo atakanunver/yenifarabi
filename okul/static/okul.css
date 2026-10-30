@@ -191,7 +191,7 @@ h2 { font-size: 1.05rem; margin: 0 0 .6rem; }
 
 /* --- formlar --- */
 label { display: block; font-weight: 600; font-size: .9rem; margin: .8rem 0 .3rem; }
-input[type=text], input[type=password], input[type=tel], input[type=date], input[type=datetime-local], input[type=search], input[type=number], select, textarea {
+input[type=text], input[type=password], input[type=tel], input[type=email], input[type=date], input[type=datetime-local], input[type=search], input[type=number], select, textarea {
   width: 100%; font: inherit; color: inherit; padding: .7rem .8rem; border: 1.5px solid var(--kenar); border-radius: 10px; background: var(--alan);
 }
 textarea { min-height: 7rem; resize: vertical; }

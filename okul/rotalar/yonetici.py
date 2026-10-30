@@ -152,6 +152,7 @@ def kullanicilar(
             if aranan in tr_kucuk(u["ad_soyad"])
             or aranan in (u["kullanici_adi"] or "")
             or aranan in (u["telefon"] or "")
+            or aranan in (u["eposta"] or "")
         ]
     return render(
         request,

@@ -20,6 +20,7 @@ Spec: `docs/superpowers/specs/2026-10-10-dijital-okul-design.md`.
 - ayarlar, zaman, metin: yapılandırma, saat, metin yardımcıları
 - db (şema + `GOCLER`), auth, deps, yetki
 - duyurular, odevler, ice_aktar
+- profil iletişim (`rotalar/belge_sinav.py` `POST /profil/iletisim`, şema V37 `kullanici.eposta`; telefon `kullanici.telefon`): öğrenci/öğretmen kendi telefon+e-postasını yazar, yalnızca kendisi + yönetici (kullanıcı listesi) görür; `ice_aktar.ogretmen_uygula` CSV'de boş telefonla mevcudu ezmez.
 - belirli_gunler (`belirli_gunler.py`, `config/belirli_gunler.json`: MEB belirli gün/hafta kartı; her istekte okunur, restart gerekmez)
 - denemeler (`denemeler.py`: deneme sonuçlarının saf mantığı/sorguları; rota `rotalar/deneme.py`, ayrıntı aşağıda `denemeler` maddesinde)
 - analitik (kullanım/etkileşim sayaçları: tamponlu+tekilleştirilmiş `olay` yazımı ve yönetici sorguları; `/yonetici/analitik`)

@@ -124,6 +124,14 @@ def test_ogretmen_aktarimi(conn, saat):
     assert [tuple(g) for g in gorev] == [("9-A", "matematik"), ("9-B", "matematik")]
 
 
+def test_ogretmen_bos_telefon_mevcudu_ezmez(conn, saat):
+    satir = {"ad_soyad": "Hatice Öz", "kullanici_adi": "hoz", "telefon": "05320000001", "sinif": "9-A", "ders": "matematik"}
+    ice_aktar.ogretmen_uygula(conn, [satir])
+    conn.execute("UPDATE kullanici SET telefon = '05329998877' WHERE kullanici_adi = 'hoz'")
+    ice_aktar.ogretmen_uygula(conn, [{**satir, "telefon": None}])
+    assert conn.execute("SELECT telefon FROM kullanici WHERE kullanici_adi = 'hoz'").fetchone()[0] == "05329998877"
+
+
 def test_taslak_kaydet_al_ve_sure(conn, saat):
     tid = ice_aktar.taslak_kaydet(conn, "ogrenci", [{"okul_no": 1}])
     assert ice_aktar.taslak_al(conn, tid, "ogrenci") == [{"okul_no": 1}]

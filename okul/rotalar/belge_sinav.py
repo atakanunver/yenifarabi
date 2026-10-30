@@ -1,5 +1,6 @@
 """Profil (vesikalık), yıllık plan ve sınav takvimi sayfaları."""
 
+import re
 import sqlite3
 
 import analitik
@@ -12,9 +13,11 @@ import zaman
 from deps import db_conn, istemci_ip, mevcut_kullanici, render, rol
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
-
+from metin import normalize_telefon
 from rotalar.ogretmen import gorevler as ogretmen_gorevleri
 from rotalar.veli import _cocuk
+
+EPOSTA_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 router = APIRouter()
 FOTOLU = rol("ogrenci", "ogretmen", "yonetici")
@@ -38,8 +41,8 @@ def _bugun() -> str:
 
 
 @router.get("/profil")
-def profil(request: Request, k=Depends(FOTOLU)):
-    return render(request, "profil.html")
+def profil(request: Request, kaydedildi: str = "", k=Depends(FOTOLU)):
+    return render(request, "profil.html", kaydedildi=kaydedildi == "1")
 
 
 @router.post("/profil/tema")
@@ -53,6 +56,27 @@ def tema_sec(
         return render(request, "profil.html", 422, hata="Geçersiz tema.")
     tema.kaydet(conn, k["id"], tema_kodu)
     return RedirectResponse("/profil", status_code=303)
+
+
+@router.post("/profil/iletisim")
+def iletisim_kaydet(
+    request: Request,
+    telefon: str = Form(""),
+    eposta: str = Form(""),
+    k=Depends(rol("ogrenci", "ogretmen", post=True)),
+    conn: sqlite3.Connection = Depends(db_conn),
+):
+    tel = None
+    if telefon.strip():
+        tel = normalize_telefon(telefon)
+        if tel is None:
+            return render(request, "profil.html", 422, hata="Telefon numarası geçersiz.")
+    posta = eposta.strip().lower() or None
+    if posta and (len(posta) > 120 or not EPOSTA_RE.match(posta)):
+        return render(request, "profil.html", 422, hata="E-posta adresi geçersiz.")
+    conn.execute("UPDATE kullanici SET telefon = ?, eposta = ? WHERE id = ?", (tel, posta, k["id"]))
+    conn.commit()
+    return RedirectResponse("/profil?kaydedildi=1", status_code=303)
 
 
 @router.post("/profil/foto")

@@ -255,13 +255,14 @@ def ogretmen_uygula(conn: sqlite3.Connection, satirlar: list[dict]) -> Sonuc:
                 )
             if mevcut:
                 kid = mevcut["id"]
+                telefon = r["telefon"] or mevcut["telefon"]
                 if (mevcut["ad_soyad"], mevcut["telefon"]) != (
                     r["ad_soyad"],
-                    r["telefon"],
+                    telefon,
                 ):
                     conn.execute(
                         "UPDATE kullanici SET ad_soyad = ?, telefon = ? WHERE id = ?",
-                        (r["ad_soyad"], r["telefon"], kid),
+                        (r["ad_soyad"], telefon, kid),
                     )
                     s.guncellenen += 1
             else:

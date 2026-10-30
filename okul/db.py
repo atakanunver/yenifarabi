@@ -836,11 +836,16 @@ CREATE TABLE deneme_sinif_yorum (
 );
 """
 
+# Öğrenci/öğretmen profilinden kendi yazdığı e-posta (telefon `kullanici.telefon`'da zaten var).
+SEMA_V37 = """
+ALTER TABLE kullanici ADD COLUMN eposta TEXT;
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
     SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27, SEMA_V28, SEMA_V29, SEMA_V30, SEMA_V31, SEMA_V32, SEMA_V33, SEMA_V34,
-    SEMA_V35, SEMA_V36,
+    SEMA_V35, SEMA_V36, SEMA_V37,
 ]
 
 

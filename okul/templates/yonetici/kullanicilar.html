@@ -4,7 +4,7 @@
 <h1>Kullanıcılar</h1>
 <a class="tus" href="/yonetici/kullanici/ekle" style="margin-bottom:.8rem">+ Kullanıcı ekle</a>
 <form class="kart" method="get" action="/yonetici/kullanicilar">
-  <label for="q">Ara (ad, kullanıcı adı, telefon)</label>
+  <label for="q">Ara (ad, kullanıcı adı, telefon, e-posta)</label>
   <input id="q" name="q" type="search" value="{{ q }}">
   <label for="rol_">Rol</label>
   <select id="rol_" name="rol_"><option value="">Hepsi</option>{% for r, ad in ROL_ADLARI.items() %}<option value="{{ r }}" {{ 'selected' if r == rol_ }}>{{ ad }}</option>{% endfor %}</select>
@@ -17,7 +17,7 @@
   {% for u in liste %}
     <li>
       <span>{{ u.ad_soyad }} {% if not u.aktif %}<span class="etiket kirmizi">Pasif</span>{% endif %}{% if u.sifre_degismeli and u.rol != 'veli' %}<span class="etiket sari">İlk şifre</span>{% endif %}<br>
-        <span class="soluk kucuk">{{ ROL_ADLARI[u.rol] }}{% if u.sinif %} · {{ u.sinif }}{% endif %} · {{ u.kullanici_adi or u.telefon or '' }}</span></span>
+        <span class="soluk kucuk">{{ ROL_ADLARI[u.rol] }}{% if u.sinif %} · {{ u.sinif }}{% endif %} · {{ u.kullanici_adi or u.telefon or '' }}{% if u.rol != 'veli' and u.telefon and u.kullanici_adi %} · {{ u.telefon }}{% endif %}{% if u.eposta %} · {{ u.eposta }}{% endif %}</span></span>
       <span class="sag" style="display:flex;gap:.3rem;flex-wrap:wrap;justify-content:flex-end">
         {% if u.rol != 'veli' %}<form method="post" action="/yonetici/kullanici/{{ u.id }}/sifirla" onsubmit="return confirm('Şifre ilk şifreye sıfırlansın mı?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus ikincil kucuk">Şifre sıfırla</button></form>{% endif %}
         {% if u.id != k.id %}<form method="post" action="/yonetici/kullanici/{{ u.id }}/sil" onsubmit="return confirm('{{ u.ad_soyad|e }} kalıcı silinsin mi? Yalnızca kaydı olmayan hesap silinebilir.')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus tehlike kucuk">Sil</button></form>{% endif %}

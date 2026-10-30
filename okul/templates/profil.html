@@ -30,6 +30,20 @@
   </form>
   {% endif %}
 </section>
+{% if k.rol in ('ogrenci', 'ogretmen') %}
+<section class="kart">
+  <h2>İletişim <span class="soluk kucuk">(isteğe bağlı)</span></h2>
+  <p class="soluk kucuk">{% if k.rol == 'ogrenci' %}Bu bilgileri yalnızca sen ve okul yönetimi görür.{% else %}Bu bilgileri yalnızca siz ve okul yönetimi görür.{% endif %}</p>
+  <form method="post" action="/profil/iletisim">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="telefon">Telefon</label>
+    <input id="telefon" name="telefon" type="tel" inputmode="tel" autocomplete="tel" placeholder="05xx xxx xx xx" value="{{ k.telefon or '' }}" maxlength="20">
+    <label for="eposta">E-posta</label>
+    <input id="eposta" name="eposta" type="email" inputmode="email" autocomplete="email" placeholder="ornek@eposta.com" value="{{ k.eposta or '' }}" maxlength="120">
+    <div class="tuslar"><button class="tus">Kaydet</button>{% if kaydedildi is defined and kaydedildi %}<span class="kucuk" role="status">Kaydedildi ✓</span>{% endif %}</div>
+  </form>
+</section>
+{% endif %}
 <section class="kart">
   <h2>Görünüm</h2>
   <form method="post" action="/profil/tema">
