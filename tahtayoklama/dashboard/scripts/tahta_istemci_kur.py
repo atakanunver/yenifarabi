@@ -28,6 +28,8 @@ import db  # noqa: E402
 import ssh_istemci  # noqa: E402
 
 ISTEMCI_KAYNAK = DASHBOARD_DIR.parent / "tahta_istemci.py"
+DUYURU_AJANI_KAYNAK = DASHBOARD_DIR.parent / "announcement_agent.py"
+DING_KAYNAK = DASHBOARD_DIR.parent / "assets" / "ding.wav"
 TOKEN_DOSYASI = DASHBOARD_DIR / "config" / "tahta_tokenlari.json"
 VARSAYILAN_SUNUCU = "http://192.168.23.20"
 
@@ -69,6 +71,14 @@ async def _kur(tahta: dict, sunucu: str) -> str:
     s = await ssh_istemci.scp_gonder(ip, kul, ISTEMCI_KAYNAK, "tahtayoklama/tahta_istemci.py")
     if not s.basarili:
         return f"HATA scp: {s.stderr.decode(errors='replace').strip()[:120]}"
+
+    # Duyuru penceresi (2026-10-30): ajan + ding sesi
+    await ssh_istemci.komut_calistir(ip, kul, "mkdir -p ~/tahtayoklama/assets")
+    for kaynak, hedef in ((DUYURU_AJANI_KAYNAK, "tahtayoklama/announcement_agent.py"),
+                          (DING_KAYNAK, "tahtayoklama/assets/ding.wav")):
+        s = await ssh_istemci.scp_gonder(ip, kul, kaynak, hedef)
+        if not s.basarili:
+            return f"HATA scp {kaynak.name}: {s.stderr.decode(errors='replace').strip()[:120]}"
 
     token = secrets.token_urlsafe(32)
     ayar = json.dumps({"sunucu": sunucu, "token": token}).encode()

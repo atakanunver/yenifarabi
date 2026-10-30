@@ -1274,6 +1274,21 @@ main p { color: var(--renk-metin-soluk); font-size: 0.88rem; line-height: 1.5; }
   transform: translateY(-1px);
 }
 
+/* Tahta duyuru formu (2026-10-30) */
+.uz-duyuru-form { flex-wrap: wrap; }
+.uz-duyuru-form textarea, .uz-duyuru-form select {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--renk-kenar);
+  border-radius: var(--yaricap);
+  font-family: inherit;
+  font-size: 0.85rem;
+  background: var(--renk-yuzey-2);
+  color: var(--renk-metin);
+}
+.uz-duyuru-form textarea { width: 22rem; resize: vertical; }
+.uz-duyuru-etiket { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; }
+.duyuru-ekle-btn { margin-left: 0.35rem; cursor: pointer; font-family: inherit; }
+
 /* ---------- Sistem Durumu sayfası ---------- */
 .durum-izgara {
   display: grid;

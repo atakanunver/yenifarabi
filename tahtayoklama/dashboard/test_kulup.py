@@ -282,7 +282,7 @@ class TestIstemciTemizligi(unittest.TestCase):
         self.assertEqual(self._adlar(), ["9-A.json"])
 
     def test_surum(self):
-        self.assertEqual(ti.SURUM, "4")
+        self.assertEqual(ti.SURUM, "5")
 
 
 if __name__ == "__main__":

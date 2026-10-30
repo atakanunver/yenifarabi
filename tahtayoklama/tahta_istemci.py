@@ -14,6 +14,8 @@ Döngü:
   Ayrı bir "giden kutusu" kopyası yok; kuyruk = kayitlar/ + durum dosyası.
 - 60 sn: POST /nabiz (+ donanım sağlığı: sıcaklık, bellek/takas, yük,
   OOM sayacı, dokunmatik USB kopması — `saglik_olc`, sürüm 3).
+- ~5 sn: GET /duyuru (2026-10-30) → yeni duyuru varsa announcement_agent.py'yi ayrı
+  süreç olarak açar (PyQt6 penceresi; ses wav'ı sunucudan indirilir), iptal edilenleri kapatır.
 - 10 dk (ve açılışta): GET /yapilandirma (ETag) → roster / kulüp rosterları / zil.json /
   ders_programi.json / kazanimlar.json içerik farklıysa doğrulayıp atomik yazar.
 
@@ -29,6 +31,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import time
 import urllib.error
@@ -36,7 +39,7 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-SURUM = "4"
+SURUM = "5"
 BASE_DIR = Path(__file__).resolve().parent
 AYAR_DOSYASI = BASE_DIR / "istemci.json"
 DATA_DIR = BASE_DIR / "data"
@@ -44,8 +47,14 @@ KAYIT_DIR = DATA_DIR / "kayitlar"
 ROSTER_DIR = DATA_DIR / "roster"
 YEDEK_DIR = DATA_DIR / ".istemci_yedek"
 DURUM_DOSYASI = DATA_DIR / ".istemci_durum.json"
+DUYURU_DIR = DATA_DIR / ".duyuru"
+DUYURU_AJANI = BASE_DIR / "announcement_agent.py"
+# Pencere PyQt6 ister: kendi venv'i olan tahtalar ve yalnız 9-A'daki client venv'i (bkz. CLAUDE.md §3).
+DUYURU_PYTHONLARI = (BASE_DIR / "venv" / "bin" / "python",
+                     Path.home() / "farabi" / "repo" / "client" / "venv" / "bin" / "python")
 
 KAYIT_ARALIGI_SN = 15
+DUYURU_ARALIGI_SN = 5
 NABIZ_ARALIGI_SN = 60
 YAPILANDIRMA_ARALIGI_SN = 600
 GERIYE_GUN = 7
@@ -413,6 +422,76 @@ def yapilandirma_cek(ayar: dict, durum: dict) -> None:
     durum_kaydet(durum)
 
 
+# --- duyuru ----------------------------------------------------------------
+
+def duyuru_kapat(duyuru_id: int) -> None:
+    """Açık duyuru penceresini (varsa) sonlandırır; pid dosyası ajanın kendi süreci olduğunu doğrular."""
+    pid_dosyasi = DUYURU_DIR / f"{duyuru_id}.pid"
+    try:
+        pid = int(pid_dosyasi.read_text().strip())
+        if "announcement_agent" in Path(f"/proc/{pid}/cmdline").read_text():
+            os.kill(pid, 15)
+        pid_dosyasi.unlink(missing_ok=True)
+    except (OSError, ValueError):
+        pass
+
+
+def duyuru_ac(ayar: dict, duyuru: dict) -> None:
+    """Sesi indirir, announcement_agent.py'yi ayrı süreç olarak başlatır (beklemez)."""
+    python = next((p for p in DUYURU_PYTHONLARI if p.is_file()), None)
+    if python is None or not DUYURU_AJANI.is_file():
+        log("duyuru gosterilemedi: PyQt6 python'u ya da announcement_agent.py yok")
+        return
+    DUYURU_DIR.mkdir(parents=True, exist_ok=True)
+    veri = {k: duyuru.get(k) for k in ("id", "mesaj", "tip", "sesli_oku", "sure_sn", "okuma_sayisi")}
+    if duyuru.get("ses"):
+        kod, _, ses = istek(ayar, "GET", f"/api/v1/tahta/duyuru/{duyuru['id']}/ses")
+        if kod == 200 and ses[:4] == b"RIFF":
+            yol = DUYURU_DIR / f"{duyuru['id']}.wav"
+            atomik_yaz(yol, ses)
+            veri["ses_dosya"] = str(yol)
+        else:
+            log(f"duyuru {duyuru['id']} sesi alinamadi ({kod}); sessiz gosterilecek")
+    ortam = dict(os.environ)
+    ortam.setdefault("DISPLAY", ":0")
+    ortam.setdefault("XAUTHORITY", str(Path.home() / ".Xauthority"))
+    ortam.setdefault("QT_QPA_PLATFORM", "xcb")
+    subprocess.Popen([str(python), str(DUYURU_AJANI), "--goster", json.dumps(veri, ensure_ascii=False)],
+                     env=ortam, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def duyuru_cek(ayar: dict, durum: dict) -> None:
+    kod, _, govde = istek(ayar, "GET", f"/api/v1/tahta/duyuru?son_id={int(durum.get('duyuru_son_id', 0))}")
+    if kod != 200:
+        if kod:
+            log(f"duyuru alinamadi ({kod})")
+        return
+    try:
+        yanit = json.loads(govde)
+    except ValueError:
+        log("duyuru bozuk JSON")
+        return
+    for duyuru_id in yanit.get("iptal", []):
+        duyuru_kapat(duyuru_id)
+    for duyuru in yanit.get("duyurular", []):
+        # Önce kimliği ilerlet: pencere açılamasa bile aynı duyuru her 5 sn'de yeniden denenmez.
+        durum["duyuru_son_id"] = duyuru["id"]
+        durum_kaydet(durum)
+        try:
+            duyuru_ac(ayar, duyuru)
+        except Exception as e:  # noqa: BLE001 — bir duyuru hatası döngüyü düşürmemeli
+            log(f"duyuru acilamadi: {e!r}")
+    # Eski ses/pid kalıntıları (1 günden eski)
+    sinir = time.time() - 86400
+    for dosya in DUYURU_DIR.glob("*.wav") if DUYURU_DIR.is_dir() else ():
+        try:
+            if dosya.stat().st_mtime < sinir:
+                dosya.unlink()
+        except OSError:
+            pass
+
+
 # --- ana döngü -------------------------------------------------------------
 
 def main() -> int:
@@ -423,7 +502,7 @@ def main() -> int:
         return 1
     log(f"tahta_istemci {SURUM} basladi, sunucu={ayar['sunucu']}")
     durum = durum_yukle()
-    son_nabiz = son_yap = 0.0
+    son_nabiz = son_yap = son_kayit = 0.0
     while True:
         simdi = time.monotonic()
         for ad, aralik, son, is_ in (
@@ -440,10 +519,16 @@ def main() -> int:
                 else:
                     son_nabiz = simdi
         try:
-            kayitlari_gonder(ayar, durum)
+            duyuru_cek(ayar, durum)
         except Exception as e:  # noqa: BLE001
-            log(f"kayit hatasi: {e!r}")
-        time.sleep(KAYIT_ARALIGI_SN)
+            log(f"duyuru hatasi: {e!r}")
+        if son_kayit == 0.0 or simdi - son_kayit >= KAYIT_ARALIGI_SN:
+            son_kayit = simdi
+            try:
+                kayitlari_gonder(ayar, durum)
+            except Exception as e:  # noqa: BLE001
+                log(f"kayit hatasi: {e!r}")
+        time.sleep(DUYURU_ARALIGI_SN)
 
 
 if __name__ == "__main__":

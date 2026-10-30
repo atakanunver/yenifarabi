@@ -127,6 +127,20 @@ CREATE TABLE IF NOT EXISTS tahta_saglik_gecmis (
 );
 CREATE INDEX IF NOT EXISTS idx_tahta_saglik_gecmis_tahta_zaman
     ON tahta_saglik_gecmis (tahta_ad, zaman);
+
+-- Tahta duyuruları (2026-10-30, bkz. duyuru.py): hedef 'tum-okul' | tahta adı | sınıf adı.
+-- olusturma/bitis UTC; iptal=1 "duyuru ekranlarını kapat". ses_dosya veri/duyuru_ses/ altında.
+CREATE TABLE IF NOT EXISTS duyuru (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    hedef      TEXT NOT NULL,
+    mesaj      TEXT NOT NULL,
+    tip        TEXT NOT NULL,
+    sesli_oku  INTEGER NOT NULL DEFAULT 0,
+    ses_dosya  TEXT,
+    olusturma  TEXT NOT NULL DEFAULT (datetime('now')),
+    bitis      TEXT NOT NULL,
+    iptal      INTEGER NOT NULL DEFAULT 0
+);
 """
 
 

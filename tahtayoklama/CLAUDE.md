@@ -136,6 +136,10 @@ konuşur (`dashboard/tahta_api.py`):
   Log: tahtada `journalctl --user -u tahta-istemci`.
 - `onbellege_yaz` (`yoklayici.py`) tek yazma yolu: 'alindi' üstüne yalnızca
   kesin daha yeni `kaydedilme_saati` yazar (bkz. kök DECISIONS.md 2026-10-06).
+- **Duyuru (2026-10-30):** ~5 sn'de `GET /duyuru` (`dashboard/duyuru.py`; hedef `tum-okul`|tahta|sınıf)
+  → `announcement_agent.py --goster` ayrı süreç (PyQt6, venv python'u; odak çalmaz; bilgi/idare/acil).
+  Ses: sunucuda EMA TTS wav, `GET /duyuru/<id>/ses`; ding `assets/ding.wav`. Pencere/pid `data/.duyuru/`.
+  `announcement_agent.py --test` sunucusuz dener. Panel: `/admin/uzaktan#duyuru`. Test: `test_duyuru.py`.
 - SSH roster senkronu (`admin.py`) ve uzaktan yönetim hâlâ SSH ile; istemci
   kurulu olmayan tahta eskisi gibi tamamen SSH ile taranır.
 

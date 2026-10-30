@@ -81,6 +81,7 @@
               <span>Ekran Aç</span>
               <svg class="ikon mini-ok"><use href="#ik-buyut"/></svg>
             </a>
+            <button type="button" class="ss-link-btn duyuru-ekle-btn" data-tahta="{{ t.ad }}" title="{{ t.ad }} tahtasına duyuru yaz"><svg class="ikon"><use href="#ik-zil"/></svg><span>Duyuru ekle</span></button>
             {% else %}
             <span class="ss-link-pasif" title="{{ 'Kontrol ediliyor' if t.ulasilabilir is none else 'Tahta ulaşılamaz' }}">—</span>
             {% endif %}
@@ -143,6 +144,25 @@
   </form>
 </div>
 
+<h2 id="duyuru">Tahta duyuru</h2>
+<div class="uz-eylem-cubugu">
+  <form class="uz-eylem-form uz-duyuru-form" id="duyuru-form" method="post" action="/admin/uzaktan/duyuru">
+    <textarea name="mesaj" rows="2" maxlength="300" required placeholder="Duyuru metni (en çok 300 karakter)"></textarea>
+    <select name="tip" title="Duyuru tipi">
+      <option value="bilgi">Bilgi — mavi, sessiz, 10 sn</option>
+      <option value="idare">İdare — sarı, ding + sesli okuma, 15 sn</option>
+      <option value="acil">Acil — kırmızı, 3× sesli okuma, elle kapanır</option>
+    </select>
+    <label class="uz-duyuru-etiket"><input type="checkbox" name="sesli_oku" value="1"> Sesli oku</label>
+    <label class="uz-duyuru-etiket"><input type="checkbox" name="tum_okul" value="1"> Tüm okul</label>
+    <button type="submit"><svg class="ikon"><use href="#ik-zil"/></svg> Duyuru gönder</button>
+  </form>
+  <form class="uz-eylem-form uz-genel-form" method="post" action="/admin/uzaktan/duyuru-kapat">
+    <button type="submit"><svg class="ikon"><use href="#ik-kapat"/></svg> Duyuru ekranlarını kapat</button>
+  </form>
+</div>
+<p class="canli-bilgi">Duyuru yukarıda seçili tahtalara gider ("Tüm okul" işaretliyse hepsine). Tahtalar birkaç saniyede bir sorar; açık programları kapatmak için "Chrome Kapat" eylemini kullan.</p>
+
 <h2>Canlı ekranlar</h2>
 <p class="canli-bilgi" id="canli-bilgi">Açık tahtaların ekranı 30 saniyede bir yenilenir; büyütmek için görüntüye tıkla, eylemler için sağ tıkla.</p>
 <div class="canli-ekranlar" id="canli-ekranlar"></div>
@@ -164,9 +184,10 @@
 {% block script %}
 <script>
 document.querySelectorAll('.uz-eylem-form').forEach(function (form) {
+  if (form.classList.contains('uz-genel-form')) return;  // tahta seçimi gerektirmeyen eylem
   form.addEventListener('submit', function (olay) {
     var secilenler = document.querySelectorAll('#tahta-secim input[name=tahta]:checked');
-    if (secilenler.length === 0) {
+    if (secilenler.length === 0 && !form.querySelector('[name=tum_okul]:checked')) {
       olay.preventDefault();
       alert('Lütfen en az bir tahta seç.');
       return;
@@ -183,6 +204,16 @@ document.querySelectorAll('.uz-eylem-form').forEach(function (form) {
       form.appendChild(gizli);
     });
   });
+});
+document.getElementById('uzaktan-tablo').addEventListener('click', function (olay) {
+  var dugme = olay.target.closest('.duyuru-ekle-btn');
+  if (!dugme) return;
+  document.querySelectorAll('#tahta-secim input[name=tahta]').forEach(function (k) {
+    k.checked = (k.value === dugme.dataset.tahta);
+  });
+  var form = document.getElementById('duyuru-form');
+  form.scrollIntoView({ block: 'center' });
+  form.querySelector('textarea').focus();
 });
 document.getElementById('tumunu-sec').addEventListener('click', function () {
   document.querySelectorAll('#tahta-secim input[name=tahta]').forEach(function (k) { k.checked = true; });
@@ -242,7 +273,7 @@ async function tahtaDurumlariniGetir(yenile = false) {
       const ssCell = satir.querySelector('.hucre-ss');
       if (ssCell) {
         if (t.ulasilabilir) {
-          ssCell.innerHTML = `<a href="/admin/uzaktan/ekran-goruntusu/${t.ad}?ham=1" target="_blank" rel="noopener noreferrer" class="ss-link-btn" title="${t.ad} ekran görüntüsünü yeni sekmede aç"><svg class="ikon"><use href="#ik-kamera"/></svg><span>Ekran Aç</span><svg class="ikon mini-ok"><use href="#ik-buyut"/></svg></a>`;
+          ssCell.innerHTML = `<a href="/admin/uzaktan/ekran-goruntusu/${t.ad}?ham=1" target="_blank" rel="noopener noreferrer" class="ss-link-btn" title="${t.ad} ekran görüntüsünü yeni sekmede aç"><svg class="ikon"><use href="#ik-kamera"/></svg><span>Ekran Aç</span><svg class="ikon mini-ok"><use href="#ik-buyut"/></svg></a><button type="button" class="ss-link-btn duyuru-ekle-btn" data-tahta="${t.ad}" title="${t.ad} tahtasına duyuru yaz"><svg class="ikon"><use href="#ik-zil"/></svg><span>Duyuru ekle</span></button>`;
         } else {
           ssCell.innerHTML = `<span class="ss-link-pasif" title="Tahta ulaşılamaz">—</span>`;
         }

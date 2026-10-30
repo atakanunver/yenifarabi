@@ -4,6 +4,7 @@
 SSH ile çekme modelinin yerine (2026-10-06) "tahta iter / tahta çeker":
 - POST /kayit         — yoklama kaydı (yoklama.py'nin yazdığı JSON'un aynısı)
 - POST /nabiz         — 60 sn'de bir; taze nabızlı tahta SSH ile taranmaz
+- GET  /duyuru, /duyuru/<id>/ses — tahta duyuruları (2026-10-30, bkz. duyuru.py)
 - GET  /yapilandirma  — roster (atanmış sınıf) + zil.json + ders_programi.json
                         + kazanimlar.json (2026-10-06) + kulupler (2026-10-22),
                         ETag/If-None-Match ile
@@ -28,6 +29,7 @@ from fastapi.responses import JSONResponse, Response
 
 import db
 import devamsizlik_bildirim
+import duyuru
 import kulupler
 import tahta_saglik
 import yoklayici
@@ -190,6 +192,30 @@ async def nabiz_al(request: Request):
     finally:
         conn.close()
     return JSONResponse({"durum": "tamam"})
+
+
+@router.get("/duyuru")
+async def duyuru_al(request: Request, son_id: int = 0):
+    """Tahtaya yeni duyurular + iptal edilenlerin id'leri (tahta_istemci ~5 sn'de bir çeker)."""
+    tahta = _tahta_dogrula(request)
+    conn = db.baglanti()
+    try:
+        return JSONResponse(duyuru.tahta_icin(conn, tahta, max(son_id, 0)))
+    finally:
+        conn.close()
+
+
+@router.get("/duyuru/{duyuru_id}/ses")
+async def duyuru_ses(request: Request, duyuru_id: int):
+    tahta = _tahta_dogrula(request)
+    conn = db.baglanti()
+    try:
+        yol = duyuru.ses_yolu(conn, tahta, duyuru_id)
+    finally:
+        conn.close()
+    if yol is None:
+        raise HTTPException(404, "Ses yok.")
+    return Response(content=yol.read_bytes(), media_type="audio/wav")
 
 
 def _dosya_metni(yol: Path) -> str | None:

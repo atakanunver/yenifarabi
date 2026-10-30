@@ -28,6 +28,7 @@ from PIL import Image
 import menu
 import auth
 import db
+import duyuru
 import ssh_istemci
 import tahta_kaydi
 import tahta_yeniden_baslat
@@ -409,7 +410,7 @@ async def _duvar_kagidi_tek(t: dict, icerik: bytes, uzanti: str) -> dict:
     # (gnome) başarılıysa panel yanlışlıkla "değiştirildi" diyebiliyordu.
     ic_komut = (
         f"gsettings set org.cinnamon.desktop.background picture-uri {shlex.quote(uri)} && "
-        f"gsettings set org.cinnamon.desktop.background picture-options zoom; "
+        f"gsettings set org.cinnamon.desktop.background picture-options scaled; "
         f"CINNAMON_DURUM=$?; "
         f"gsettings set org.gnome.desktop.background picture-uri {shlex.quote(uri)} >/dev/null 2>&1; "
         f"exit $CINNAMON_DURUM"
@@ -546,6 +547,71 @@ async def web_ac_route(request: Request):
 @router.post("/uzaktan/chrome-kapat", response_class=HTMLResponse)
 async def chrome_kapat_route(request: Request):
     return await _eylem_calistir_ve_render(request, _chrome_kapat_tek, "chrome_kapat")
+
+
+async def _duyuru_sonuc_sayfasi(request: Request, sonuclar: list[dict]) -> HTMLResponse:
+    _denetim_yaz(request, "duyuru", sonuclar)
+    durumlar = await durumlar_al(yenile=True)
+    return templates.TemplateResponse(
+        request,
+        "uzaktan_yonetim.html",
+        {"tahtalar": durumlar, "yukleniyor": False, "sonuclar": sonuclar},
+    )
+
+
+@router.post("/uzaktan/duyuru", response_class=HTMLResponse)
+async def duyuru_gonder_route(request: Request):
+    """Seçili tahtalara (ya da 'tum_okul' işaretliyse tüm okula) duyuru yazar; tahtalar
+    tahta_istemci üzerinden birkaç sn içinde çeker (bkz. duyuru.py)."""
+    _dogrula(request)
+    form = await request.form()
+    secilenler = set(form.getlist("tahta"))
+    if form.get("tum_okul"):
+        hedefler = [duyuru.TUM_OKUL]
+    else:
+        hedefler = [t["ad"] for t in tahta_kaydi.tahtalari_yukle() if t["ad"] in secilenler]
+    tip = form.get("tip", "bilgi")
+    sesli = bool(form.get("sesli_oku"))
+    try:
+        mesaj = duyuru.mesaj_temizle(form.get("mesaj"))
+        if not hedefler:
+            raise duyuru.DuyuruHatasi("Hiçbir tahta seçilmedi.")
+        if tip not in duyuru.TIPLER:
+            raise duyuru.DuyuruHatasi("Geçersiz duyuru tipi.")
+    except duyuru.DuyuruHatasi as hata:
+        return await _duyuru_sonuc_sayfasi(
+            request, [{"tahta": None, "basarili": False, "detay": str(hata)}]
+        )
+    ses = None
+    if sesli and duyuru.OKUMA_SAYISI[tip] > 0:
+        ses = await asyncio.to_thread(duyuru.tts_uret, mesaj)
+    conn = db.baglanti()
+    try:
+        duyuru.olustur(conn, hedefler, mesaj, tip, sesli, ses)
+    finally:
+        conn.close()
+    detay = "Duyuru gönderildi (tahta birkaç saniye içinde gösterir)."
+    if sesli and duyuru.OKUMA_SAYISI[tip] > 0 and ses is None:
+        detay = "Duyuru gönderildi, ancak ses üretilemedi; sessiz gösterilecek."
+    return await _duyuru_sonuc_sayfasi(
+        request, [{"tahta": h, "basarili": True, "detay": detay} for h in hedefler]
+    )
+
+
+@router.post("/uzaktan/duyuru-kapat", response_class=HTMLResponse)
+async def duyuru_kapat_route(request: Request):
+    """Etkin tüm duyuruları iptal eder; tahtalar açık pencereleri birkaç sn içinde kapatır."""
+    _dogrula(request)
+    conn = db.baglanti()
+    try:
+        sayi = duyuru.hepsini_iptal_et(conn)
+    finally:
+        conn.close()
+    return await _duyuru_sonuc_sayfasi(
+        request,
+        [{"tahta": duyuru.TUM_OKUL, "basarili": True,
+          "detay": f"{sayi} etkin duyuru iptal edildi; açık pencereler kapanacak."}],
+    )
 
 
 @router.post("/uzaktan/ekran-karart", response_class=HTMLResponse)
