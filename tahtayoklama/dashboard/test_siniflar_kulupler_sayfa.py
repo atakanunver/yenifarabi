@@ -2,6 +2,7 @@
 Geçici SQLite ve geçici kulupler.json; SSH/Yükle ASLA çağrılmaz (yalnız GET render)."""
 
 import asyncio
+import html
 import json
 import re
 import unittest
@@ -55,7 +56,8 @@ class Temel(unittest.TestCase):
         self.kulup_yolu = tmp / "kulupler.json"
         self.kulup_yolu.write_text(json.dumps([
             {"kod": "KULUP-SATRANC", "ad": "Satranç Kulübü", "danisman": "Ayşe Hoca", "sinif": "9-A",
-             "uyeler": [{"no": 12, "ad_soyad": "Deniz Deneme", "sinif": "9-A"}]},
+             "uyeler": [{"no": 12, "ad_soyad": "Deniz Deneme", "sinif": "9-A"},
+                        {"no": 13, "ad_soyad": 'Ali "Çelik" & <b>', "sinif": "9-B"}]},
             {"kod": "KULUP-TIYATRO", "ad": "Tiyatro", "danisman": "", "sinif": "", "uyeler": []},
         ], ensure_ascii=False), encoding="utf-8")
         for yama in (patch.object(admin.auth, "dogrula", lambda r, c: True),
@@ -154,7 +156,8 @@ class TestKulupler(Temel):
         p = _panel(self._sayfa(duzenle="KULUP-SATRANC"))
         govde = [("ad", "Satranç 2"), ("danisman", "X"), ("sinif", "9-A")]
         govde += [("no", n) for n in re.findall(r'type="hidden" name="no" value="([^"]*)"', p)]
-        govde += [("ad_soyad", n) for n in re.findall(r'type="hidden" name="ad_soyad" value="([^"]*)"', p)]
+        govde += [("ad_soyad", html.unescape(n))
+                  for n in re.findall(r'type="hidden" name="ad_soyad" value="([^"]*)"', p)]
         govde += [("uye_sinif", n) for n in re.findall(r'type="hidden" name="uye_sinif" value="([^"]*)"', p)]
         gonderildi = False
 
@@ -172,7 +175,8 @@ class TestKulupler(Temel):
         self.assertEqual(r.status_code, 303)
         k = kulupler.bul("KULUP-SATRANC")
         self.assertEqual(k["ad"], "Satranç 2")
-        self.assertEqual(k["uyeler"], [{"no": 12, "ad_soyad": "Deniz Deneme", "sinif": "9-A"}])
+        self.assertEqual(k["uyeler"], [{"no": 12, "ad_soyad": "Deniz Deneme", "sinif": "9-A"},
+                                       {"no": 13, "ad_soyad": 'Ali "Çelik" & <b>', "sinif": "9-B"}])
 
 
 if __name__ == "__main__":
