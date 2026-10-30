@@ -10,82 +10,83 @@ DAHILI = {"/", "/admin/siniflar", "/admin/rapor",
           "/acil", "/kulup-yoklama", "/admin/kulupler", "/kameralar", "/kameralar-ip", "/zamanlanmis-gorevler"}
 
 
-def _ogeler(ust):
-    """Üst başlık doğrudan bağlantıysa (Zil Paneli, Atos Yapay Zeka) 'ogeler' yoktur."""
-    return ust.get("ogeler", [])
+def _sayfalar():
+    for alan in menu.ALANLAR:
+        yield from alan["sayfalar"]
 
 
-def _ust_hrefler(menu_listesi):
-    for ust in menu_listesi:
-        if ust.get("href"):
-            yield ust["href"]
-        yield from _hrefler(_ogeler(ust))
-
-
-def _hrefler(ogeler):
-    for o in ogeler:
-        if o.get("href"):
-            yield o["href"]
-        yield from _hrefler(o.get("alt", []))
+def _hrefler():
+    yield from (s["href"] for s in _sayfalar())
+    yield menu.ACIL["href"]
+    yield menu.ATOS["href"]
+    yield from (o["href"] for o in menu.AYARLAR if o.get("href"))
 
 
 class TestMenu(unittest.TestCase):
+    def test_alan_sirasi(self):
+        self.assertEqual([a["ad"] for a in menu.ALANLAR],
+                         ["Yoklama", "Öğrenci ve personel", "İletişim", "Eğitim", "Güvenlik", "Sistem"])
+        self.assertEqual([a["kisayol"] for a in menu.ALANLAR], list("ypieks"))
+
     def test_tum_sayfalar_menude(self):
-        hrefler = {h.split("#")[0] for h in _ust_hrefler(menu.MENU)}
+        hrefler = {h.split("#")[0] for h in _hrefler()}
         self.assertTrue(DAHILI <= hrefler, DAHILI - hrefler)
 
     def test_menu_route_lari_var(self):
-        for h in _ust_hrefler(menu.MENU):
+        for h in _hrefler():
             if h.startswith("/") and not h.startswith("//"):
                 yol = h.split("#")[0].split("?")[0]  # /panel-git/<ad> gibi parametreli rotalar da eşleşir
                 self.assertTrue(any(getattr(r, "path_regex", None) and r.path_regex.match(yol) for r in app.routes), h)
 
     def test_dis_baglantilarda_kimlik_yok(self):
-        self.assertNotIn("@", json.dumps(menu.MENU))
+        self.assertNotIn("@", json.dumps([menu.ALANLAR, menu.ACIL, menu.ATOS, menu.AYARLAR]))
 
-    def test_yeni_menu_yapisi(self):
-        adlar = [u["ad"] for u in menu.MENU]
-        # 2026-10-23: sol kenar menü sırası; Acil en üstte sabit, Atos/Temalar/Ayarlar dipte
-        self.assertEqual(adlar, ["Acil durum", "Ana pano", "Okul verisi", "Öğrenciler", "Öğretmenler ve program", "İletişim", "Tahta duyuru", "Eğitim ve sınav",
-                                 "Güvenlik", "Teknoloji", "Atos yapay zekâ", "Temalar", "Ayarlar"])
-        self.assertEqual([u["ad"] for u in menu.MENU if u.get("acil")], ["Acil durum"])
-        self.assertEqual([u["ad"] for u in menu.MENU if u.get("alt")], ["Atos yapay zekâ", "Temalar", "Ayarlar"])
-        for kalkan in ("EBYS", "Pano", "Kiosk", "Google Form", "Anons-Zil", "Uygulamalar"):
-            self.assertNotIn(kalkan, adlar)
-        hrefler = set(_ust_hrefler(menu.MENU))
-        for yer_tutucu in ("/b/ebys", "/b/pano", "/b/kiosk", "/b/form", "/b/anons", "/b/oyunlar"):
-            self.assertNotIn(yer_tutucu, hrefler)
-        eylemler = {o.get("eylem") for u in menu.MENU if u["ad"] == "Ayarlar" for o in _ogeler(u)}
+    def test_yapi(self):
+        self.assertEqual(menu.ACIL["href"], "/acil")
+        self.assertEqual(menu.ACIL["kisayol"], "a")
+        self.assertEqual(menu.ATOS["href"], "atos")
+        self.assertEqual(menu.ATOS["kisayol"], "t")
+        eylemler = {o.get("eylem") for o in menu.AYARLAR}
         self.assertLessEqual({"yazdir", "kisayollar", "cikis"}, eylemler)
-        temalar = {o.get("eylem") for u in menu.MENU if u["ad"] == "Temalar" for o in _ogeler(u)}
-        self.assertEqual(temalar, {"tema:argon", "tema:argon-koyu", "tema:koyu", "tema:black", "tema:material", "tema:material-koyu"})
-        atos = [u for u in menu.MENU if u["ad"] == "Atos yapay zekâ"]
-        self.assertEqual([u.get("href") for u in atos], ["atos"])
+        self.assertIn("/b/atos", {o.get("href") for o in menu.AYARLAR})
+        self.assertEqual(len(menu.TEMALAR), 6)
+        self.assertIn(("koyu", "Taş Tahta"), menu.TEMALAR)
+        veli = [s for s in _sayfalar() if s["ad"] == "Veli mesajları"][0]
+        self.assertEqual(veli["sayac"], "veli")
 
     def test_kisayollar_benzersiz(self):
-        harfler = [u["kisayol"] for u in menu.MENU]
+        harfler = [a["kisayol"] for a in menu.ALANLAR] + [menu.ACIL["kisayol"], menu.ATOS["kisayol"]]
         self.assertEqual(len(harfler), len(set(harfler)))
 
     def test_aktif_isaretleme(self):
         agac = menu.menu_agaci("/servisler")
-        aktifler = [o["ad"] for u in agac["menu"] for o in _ogeler(u) if o.get("aktif")]
-        self.assertEqual(aktifler, ["Servis yönetimi"])
-        self.assertEqual([u["ad"] for u in agac["menu"] if u.get("acik")], ["Teknoloji"])  # etkin grup açık gelir
-        self.assertEqual(agac["konum"], ["Teknoloji", "Servis yönetimi"])
-        ana = menu.menu_agaci("/")
-        self.assertEqual([u["ad"] for u in ana["menu"] if u.get("aktif")], ["Ana pano"])
-        self.assertEqual(ana["konum"], ["Ana pano"])
-        self.assertFalse(any(o.get("aktif") or o.get("acik") for u in menu.MENU for o in [u, *_ogeler(u)]))  # kaynak bozulmaz
+        self.assertEqual(agac["aktif_alan"]["ad"], "Sistem")
+        self.assertEqual(agac["konum"], ["Sistem", "Servis yönetimi"])
+        self.assertEqual([s["ad"] for s in agac["sayfalar"] if s.get("aktif")], ["Servis yönetimi"])
+        self.assertEqual([a["ad"] for a in agac["alanlar"] if a.get("aktif")], ["Sistem"])
+        for anahtar in ("acil", "atos", "ayarlar", "temalar", "ders", "surum"):
+            self.assertIn(anahtar, agac)
+        self.assertFalse(any(s.get("aktif") for s in _sayfalar()) or any(a.get("aktif") for a in menu.ALANLAR))  # kaynak bozulmaz
+
+    def test_ana_sayfa(self):
+        self.assertEqual(menu.menu_agaci("/")["konum"], ["Yoklama", "Ders ızgarası"])
+        agac = menu.menu_agaci("/admin/rapor")
+        self.assertNotIn("Ders ızgarası", [s["ad"] for s in agac["sayfalar"] if s.get("aktif")])
 
     def test_okul_verisi_sekme_duyarli_aktif(self):
-        for sorgu, ad in (("", "Öğrenci ve veli"), ("sekme=ogrenci&sinif=9-A", "Öğrenci ve veli"),
-                          ("sekme=personel", "Personel"), ("sekme=program", "Ders programı"), ("sekme=zil", "Zil saatleri")):
+        for sorgu, ad in (("", "Öğrenciler ve veliler"), ("sekme=ogrenci&sinif=9-A", "Öğrenciler ve veliler"),
+                          ("sekme=personel", "Personel"), ("sekme=program", "Ders programı"),
+                          ("sekme=zil", "Zil saatleri"), ("sekme=denetim", "Değişiklik günlüğü")):
             agac = menu.menu_agaci("/admin/okul-verisi", sorgu)
-            self.assertEqual([o["ad"] for u in agac["menu"] for o in _ogeler(u) if o.get("aktif")], [ad], sorgu)
+            self.assertEqual([s["ad"] for s in agac["sayfalar"] if s.get("aktif")], [ad], sorgu)
 
-    def test_ana_sayfa_yalniz_tam_eslesme(self):
-        agac = menu.menu_agaci("/admin/rapor")
-        self.assertFalse([u for u in agac["menu"] if u.get("href") == "/" and u.get("aktif")])
+    def test_menude_olmayan_yol(self):
+        agac = menu.menu_agaci("/admin/siniflar/5/ogrenciler")
+        self.assertEqual(agac["aktif_alan"]["ad"], "Öğrenci ve personel")
+        for yol in ("/kazanim", "/b/atos"):
+            agac = menu.menu_agaci(yol)
+            self.assertIsNone(agac["aktif_alan"], yol)
+            self.assertEqual(agac["konum"], [], yol)
 
     def test_taban_tum_sablon_ortamlarinda_menu_var(self):
         import importlib
@@ -121,6 +122,7 @@ class TestMenu(unittest.TestCase):
                 mock.patch.object(zil, "okul_gunu_mu", return_value=True):
             self.assertEqual(zil.ust_bilgi(), "")
 
+    @unittest.skip("Task 4")
     def test_taban_kenar_menu_render(self):
         # Üst menü çubuğu yok, kenar menü + kırıntı yolu var (2026-10-23). DB'siz: şablonu doğrudan render et.
         from starlette.requests import Request

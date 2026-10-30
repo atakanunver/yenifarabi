@@ -36,127 +36,94 @@ KIOSK_YUZ_PANELI = "http://kiosk.local:5050/"  # yuzpanel.service, kendi girişi
 SMUAL_URL = "https://smual.app"
 SMUAL_YONETIM_URL = SMUAL_URL + "/yonetici"  # şifresiz giriş (SSO) sonraki aşamada
 
-# 2026-10-23: üst menü çubuğu kalktı, menü SOL KENAR MENÜ oldu (Argon ilhamlı tasarım).
-# Sıra = kenar menüdeki sıra. "acil": en üstte sabit kırmızı düğme; "alt": kenar menünün
-# dibinde (Atos, Temalar, Ayarlar). EBYS/Duyuru panosu/Kiosk ve diğer "/b/<ad>" yer
-# tutucuları menüde yok; sayfaları yapılınca buraya eklenir (yakinda.py'de duruyor).
-MENU: list[dict] = [
-    {"ad": "Acil durum", "kisayol": "a", "ikon": "uyari", "href": "/acil", "acil": True},
-    {"ad": "Ana pano", "kisayol": "h", "ikon": "ev", "href": "/"},
-    {"ad": "Okul verisi", "kisayol": "v", "ikon": "kullanicilar", "href": "/admin/okul-verisi"},
-    # 2026-10-30: görev odaklı gruplar (müdür "ne yapmak istiyorum?" diye arar); makine adlı paneller Teknoloji'de.
+# 2026-10-30: panel yeniden tasarımı: üst ALAN menüsü (6 alan) → alanın sayfaları. Alan dışı sabitler:
+# ACIL (kırmızı düğme), ATOS (dipte vurgulu), AYARLAR (menü), TEMALAR (tema seçici).
+# EBYS/Duyuru panosu/Kiosk ve diğer "/b/<ad>" yer tutucuları menüde yok (yakinda.py'de duruyor).
+_OKUL = "/admin/okul-verisi"
+ALANLAR: list[dict] = [
     {
-        "ad": "Öğrenciler",
-        "kisayol": "r",
-        "ikon": "kullanicilar",
-        "ogeler": [
-            {"ad": "Bugünkü yoklama", "href": "/bugun", "ikon": "ev"},
-            {"ad": "Yoklama raporu", "href": "/admin/rapor", "ikon": "grafik"},
+        "ad": "Yoklama", "anahtar": "yoklama", "kisayol": "y", "ikon": "ev",
+        "sayfalar": [
+            {"ad": "Ders ızgarası", "href": "/", "ikon": "ev"},
+            {"ad": "Bugünkü liste", "href": "/bugun", "ikon": "ev"},
+            {"ad": "Rapor", "href": "/admin/rapor", "ikon": "grafik"},
             {"ad": "Aylık özet", "href": "/aylik-ozet", "ikon": "grafik"},
-            {"ad": "Öğrenci ve veli", "href": "/admin/okul-verisi?sekme=ogrenci", "ikon": "kullanicilar"},
-            {"ad": "Sınıflar ve tahtalar", "href": "/admin/siniflar", "ikon": "kullanicilar"},
-            {"ad": "Kulüp listeleri", "href": "/admin/kulupler", "ikon": "kullanicilar"},
             {"ad": "Kulüp yoklaması", "href": "/kulup-yoklama", "ikon": "kullanicilar"},
         ],
     },
     {
-        "ad": "Öğretmenler ve program",
-        "kisayol": "p",
-        "ikon": "saat",
-        "ogeler": [
-            {"ad": "Personel", "href": "/admin/okul-verisi?sekme=personel", "ikon": "kullanicilar"},
-            {"ad": "Ders programı", "href": "/admin/okul-verisi?sekme=program", "ikon": "saat"},
-            {"ad": "Zil saatleri", "href": "/admin/okul-verisi?sekme=zil", "ikon": "zil"},
-            {"ad": "Zil paneli", "href": "/panel-git/zil", "ikon": "zil", "yeni_sekme": True},
+        "ad": "Öğrenci ve personel", "anahtar": "personel", "kisayol": "p", "ikon": "kullanicilar",
+        "sayfalar": [
+            {"ad": "Öğrenciler ve veliler", "href": _OKUL + "?sekme=ogrenci", "ikon": "kullanicilar"},
+            {"ad": "Personel", "href": _OKUL + "?sekme=personel", "ikon": "kullanicilar"},
+            {"ad": "Sınıflar ve tahtalar", "href": "/admin/siniflar", "ikon": "tahta"},
+            {"ad": "Ders programı", "href": _OKUL + "?sekme=program", "ikon": "saat"},
+            {"ad": "Zil saatleri", "href": _OKUL + "?sekme=zil", "ikon": "zil"},
+            {"ad": "Kulüpler", "href": "/admin/kulupler", "ikon": "kullanicilar"},
+            {"ad": "Değişiklik günlüğü", "href": _OKUL + "?sekme=denetim", "ikon": "log"},
         ],
     },
     {
-        "ad": "İletişim",
-        "kisayol": "i",
-        "ikon": "log",
-        "sayac": "veli",
-        "ogeler": [
-            {"ad": "Veli mesajları", "href": "/veli-mesajlari", "ikon": "log"},
+        "ad": "İletişim", "anahtar": "iletisim", "kisayol": "i", "ikon": "log",
+        "sayfalar": [
+            {"ad": "Veli mesajları", "href": "/veli-mesajlari", "ikon": "log", "sayac": "veli"},
             {"ad": "SMS gönder", "href": "/sms-git", "ikon": "log", "yeni_sekme": True},
             {"ad": "Yoklama SMS", "href": "/yoklama-sms-git", "ikon": "log", "yeni_sekme": True},
             {"ad": "SMS otomasyonu", "href": "/otomasyon-git", "ikon": "kaydirici", "yeni_sekme": True},
             {"ad": "Doğum günleri", "href": "/dogum", "ikon": "pasta", "yeni_sekme": True},
+            {"ad": "Tahta duyuru", "href": "/admin/uzaktan#duyuru", "ikon": "zil"},
         ],
     },
-    {"ad": "Tahta duyuru", "kisayol": "d", "ikon": "zil", "href": "/admin/uzaktan#duyuru"},
     {
-        "ad": "Eğitim ve sınav",
-        "kisayol": "e",
-        "ikon": "hedef",
-        "ogeler": [
+        "ad": "Eğitim", "anahtar": "egitim", "kisayol": "e", "ikon": "hedef",
+        "sayfalar": [
+            {"ad": "Kelebek", "href": "/kelebek-git", "ikon": "tahta", "yeni_sekme": True},
             {"ad": "smual.app", "href": SMUAL_URL, "ikon": "yildiz", "yeni_sekme": True},
             {"ad": "smual.app yönetim", "href": SMUAL_YONETIM_URL, "ikon": "kaydirici", "yeni_sekme": True},
-            {"ad": "Kelebek", "href": "/kelebek-git", "ikon": "tahta", "yeni_sekme": True},
         ],
     },
     {
-        "ad": "Güvenlik",
-        "kisayol": "k",
-        "ikon": "kamera",
-        "ogeler": [
+        "ad": "Güvenlik", "anahtar": "guvenlik", "kisayol": "k", "ikon": "kamera",
+        "sayfalar": [
             {"ad": "DVR kameralar", "href": "/kameralar", "ikon": "kamera"},
             {"ad": "IP kameralar (yedek)", "href": "/kameralar-ip", "ikon": "kamera"},
             {"ad": "Kamera kayıtları", "href": "/kameralar-kayit", "ikon": "kamera"},
             {"ad": "Güvenlik ekranı", "href": "/guvenlik", "ikon": "kamera"},
-            {"ad": "Kiosk yüz tanıma paneli", "href": KIOSK_YUZ_PANELI, "ikon": "kullanicilar", "yeni_sekme": True},
+            {"ad": "Kiosk yüz tanıma", "href": KIOSK_YUZ_PANELI, "ikon": "kullanicilar", "yeni_sekme": True},
         ],
     },
     {
-        "ad": "Teknoloji",
-        "etiket": "Teknik",
-        "kisayol": "s",
-        "ikon": "sunucu",
-        "ogeler": [
+        "ad": "Sistem", "anahtar": "sistem", "kisayol": "s", "ikon": "sunucu",
+        "sayfalar": [
             {"ad": "Tahtalar", "href": "/admin/uzaktan", "ikon": "tahta"},
-            {"ad": "Pano Paneli", "href": "/panel-git/pano", "ikon": "tahta", "yeni_sekme": True},
-            {"ad": "Kiosk Paneli", "href": "/panel-git/kiosk", "ikon": "sunucu", "yeni_sekme": True},
-            {"ad": "Bilgehan Paneli", "href": "/panel-git/bilgehan", "ikon": "sunucu", "yeni_sekme": True},
             {"ad": "Sistem durumu", "href": "/sistem-durumu", "ikon": "nabiz"},
             {"ad": "Servis yönetimi", "href": "/servisler", "ikon": "sunucu"},
             {"ad": "Zamanlanmış görevler", "href": "/zamanlanmis-gorevler", "ikon": "saat"},
             {"ad": "Sunucular", "href": "/sunucular", "ikon": "katman"},
+            {"ad": "Zil paneli", "href": "/panel-git/zil", "ikon": "zil", "yeni_sekme": True},
+            {"ad": "Pano paneli", "href": "/panel-git/pano", "ikon": "tahta", "yeni_sekme": True},
+            {"ad": "Kiosk paneli", "href": "/panel-git/kiosk", "ikon": "sunucu", "yeni_sekme": True},
+            {"ad": "Bilgehan paneli", "href": "/panel-git/bilgehan", "ikon": "sunucu", "yeni_sekme": True},
         ],
     },
-    {
-        "ad": "Atos yapay zekâ",
-        "kisayol": "o",
-        "ikon": "yildiz",
-        "href": "atos",
-        "yeni_sekme": True,
-        "alt": True,
-        "vurgu": True,
-    },
-    {
-        "ad": "Temalar",
-        "kisayol": "m",
-        "ikon": "gunes",
-        "alt": True,
-        "ogeler": [
-            {"ad": "Argon açık", "eylem": "tema:argon", "ikon": "gunes"},
-            {"ad": "Argon koyu", "eylem": "tema:argon-koyu", "ikon": "ay"},
-            {"ad": "Material açık", "eylem": "tema:material", "ikon": "gunes"},
-            {"ad": "Material koyu", "eylem": "tema:material-koyu", "ikon": "ay"},
-            {"ad": "Black", "eylem": "tema:black", "ikon": "ay"},
-            {"ad": "Taş Tahta", "eylem": "tema:koyu", "ikon": "tahta"},
-        ],
-    },
-    {
-        "ad": "Ayarlar",
-        "kisayol": "g",
-        "ikon": "kaydirici",
-        "alt": True,
-        "ogeler": [
-            {"ad": "Atos iş ve ayarlar", "href": "/b/atos", "ikon": "kaydirici"},
-            {"ad": "Yazdır", "eylem": "yazdir", "ikon": "indir"},
-            {"ad": "Klavye kısayolları", "eylem": "kisayollar", "ikon": "kaydirici"},
-            {"ad": "Çıkış", "eylem": "cikis", "ikon": "cikis"},
-        ],
-    },
+]
+
+ACIL: dict = {"ad": "Acil durum", "kisayol": "a", "ikon": "uyari", "href": "/acil"}
+ATOS: dict = {"ad": "Atos yapay zekâ", "kisayol": "t", "ikon": "yildiz", "href": "atos", "yeni_sekme": True}
+AYARLAR: list[dict] = [
+    {"ad": "Atos iş ve ayarlar", "href": "/b/atos", "ikon": "kaydirici"},
+    {"ad": "Yazdır", "eylem": "yazdir", "ikon": "indir"},
+    {"ad": "Klavye kısayolları", "eylem": "kisayollar", "ikon": "kaydirici"},
+    {"ad": "Çıkış", "eylem": "cikis", "ikon": "cikis"},
+]
+# (anahtar, ad); Task 3 dokuza çıkarır
+TEMALAR: list[tuple[str, str]] = [
+    ("argon", "Argon açık"),
+    ("argon-koyu", "Argon koyu"),
+    ("material", "Material açık"),
+    ("material-koyu", "Material koyu"),
+    ("black", "Black"),
+    ("koyu", "Taş Tahta"),
 ]
 
 
@@ -176,15 +143,24 @@ def _eslesir(href: str, yol: str, sorgu: str = "") -> bool:
 
 
 def menu_agaci(yol: str, sorgu: str = "") -> dict:
-    menu = copy.deepcopy(MENU)
-    konum: list[str] = []  # başlık şeridindeki kırıntı yolu: [grup, öğe] ya da [öğe]
-    for ust in menu:
-        for o in ust.get("ogeler", []):
-            if _eslesir(o.get("href", ""), yol, sorgu):
-                o["aktif"] = True
-                ust["acik"] = True  # etkin sayfanın grubu açık gelir
-                konum = [ust["ad"], o["ad"]]
-        if _eslesir(ust.get("href", ""), yol, sorgu):
-            ust["aktif"] = True
-            konum = [ust["ad"]]
-    return {"menu": menu, "konum": konum, "ders": zil.ust_bilgi(), "surum": statik_surum()}
+    alanlar = copy.deepcopy(ALANLAR)
+    aktif_alan = None
+    aktif_sayfa = None
+    for alan in alanlar:
+        for sayfa in alan["sayfalar"]:
+            if aktif_sayfa is None and _eslesir(sayfa["href"], yol, sorgu):
+                sayfa["aktif"] = True
+                alan["aktif"] = True
+                aktif_alan, aktif_sayfa = alan, sayfa
+    return {
+        "alanlar": alanlar,
+        "aktif_alan": aktif_alan,
+        "sayfalar": aktif_alan["sayfalar"] if aktif_alan else [],
+        "konum": [aktif_alan["ad"], aktif_sayfa["ad"]] if aktif_alan else [],
+        "acil": copy.deepcopy(ACIL),
+        "atos": copy.deepcopy(ATOS),
+        "ayarlar": copy.deepcopy(AYARLAR),
+        "temalar": list(TEMALAR),
+        "ders": zil.ust_bilgi(),
+        "surum": statik_surum(),
+    }
