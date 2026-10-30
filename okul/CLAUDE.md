@@ -13,11 +13,15 @@ Spec: `docs/superpowers/specs/2026-10-10-dijital-okul-design.md`.
 - İlk yönetici: `venv/bin/python scripts/yonetici_olustur.py "Ad Soyad" kullanici_adi`
 - Yıllık planlar: `venv/bin/python scripts/yillik_planlari_aktar.py` (argümansız; `/mnt/farabi-data/farabi/YILLIK PLANLAR 2026_2027` altındaki .docx'leri koddaki `PLAN_HARITASI` (öğretmen id, sınıf, ders) ile `belgeler`/db'ye aktarır; yeni plan = haritaya satır ekle)
 - CSS/JS değişirse sürüm sorgusunu (`okul.css?v=N` base.html'de, `*.js?v=N` onu yükleyen şablonda) ve `static/sw.js` içindeki SURUM + STATIK listesini artır; yeni statik JS STATIK'e de eklenir.
+- ⚠️ Şablonlar canlıya ANINDA yansır, Python (`deps.py` global vb.) restart ister: yeni Jinja global kullanan şablonu `is defined` ile koru, değişiklikten hemen sonra `sudo systemctl restart farabi-okul` (2026-10-14'te korumasız global ~3 dk /giris 503 verdi). Şema göçü eklenince `scripts/geri_al.py` için GERI girdisi de ekle (ayrıntı: Mimari notları > Analitik).
+- Şema değişikliği: `db.GOCLER` listesine yeni eleman ekle (eskileri değiştirme).
 
 ## Modül haritası
 - ayarlar, zaman, metin: yapılandırma, saat, metin yardımcıları
 - db (şema + `GOCLER`), auth, deps, yetki
 - duyurular, odevler, ice_aktar
+- belirli_gunler (`belirli_gunler.py`, `config/belirli_gunler.json`: MEB belirli gün/hafta kartı; her istekte okunur, restart gerekmez)
+- denemeler (`denemeler.py`: deneme sonuçlarının saf mantığı/sorguları; rota `rotalar/deneme.py`, ayrıntı aşağıda `denemeler` maddesinde)
 - analitik (kullanım/etkileşim sayaçları: tamponlu+tekilleştirilmiş `olay` yazımı ve yönetici sorguları; `/yonetici/analitik`)
 - maraton (Soru Maratonu: puanlama, haftalık liderlik; okul.db. Ders saati kilidi 2026-10-14'te kaldırıldı: `maraton.DERS_KILIDI = False`, True yapılırsa Maraton+Günlük Görev ders saatinde 423)
 - arena (Bilgi Arenası: Günlük Görev 5 soru + ortak XP/seviye/rozet defteri `bilgi_xp`; Hızlı Mod = Maraton, tur bitince `maraton_xp`; 9-11 sınıf; XP/seviye saklanmaz, defterden türetilir), kisisel (haftalık hedef; ilerleme `bilgi_tur`/`maraton`/`odev_teslim`'den hesaplanır), bugun (öğrenci ana ekranı görev listesi)
@@ -57,10 +61,8 @@ Spec: `docs/superpowers/specs/2026-10-10-dijital-okul-design.md`.
 - Yetkisiz erişim = 404 (varlığı sızdırma).
 - `gizli.json` gitignore'lu; repo PUBLIC — şifre/anahtar/token yazma.
 - Zaman için daima `zaman.simdi()` kullan (test edilebilirlik).
-- Şema değişikliği: `db.GOCLER` listesine yeni eleman ekle (eskileri değiştirme).
 - Tahta yoklaması isimle tutuluyor: aynı sınıfta aynı isim/eşleşmeyen isim veliye gösterilmez (yanlış çocuğa devamsızlık yazmamak için); yönetici `/yonetici/eslesmeyen`'de görür.
 - Okul kanalları şeridi: `config/kanallar.json` (`web`/`instagram`/`youtube`, yalnızca https; her istekte okunur, restart gerekmez) → `templates/_kanallar.html` (sayfa altı, giriş dahil). Dosya yoksa şerit gizli. WhatsApp grup davet bağlantıları (`whatsapp_veli`, `whatsapp_ogrenci`) ANAHTAR gibidir: yalnızca gitignore'lu `config/gizli.json`'da durur (repo PUBLIC, `kanallar.json`'a YAZMA), giriş sayfasında görünmez, veli grubu yalnızca veliye, öğrenci grubu yalnızca öğrenciye (yöneticiye ikisi) gösterilir. Testler `conftest.py`'de bunları boşaltır.
-- ⚠️ Şablonlar canlıya ANINDA yansır, Python (`deps.py` global vb.) restart ister: yeni Jinja global kullanan şablonu `is defined` ile koru, değişiklikten hemen sonra `sudo systemctl restart farabi-okul` (2026-10-14'te korumasız global ~3 dk /giris 503 verdi).
 - Üst çubuk (`.ust`) tek satır flex: yeni öğe eklerken dar telefonda (≤360px) taşıp Çıkış düğmesini itmediğini kontrol et (Çıkış `flex: none`, ad bölümü kısalır).
 - Oturum 1 yıl kayan çerez (bilinçli karar); ilk şifre ad+123, zorunlu değişim; veli girişi SMS kodu.
 
