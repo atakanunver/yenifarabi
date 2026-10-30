@@ -69,7 +69,11 @@ DB_USER = "farabi"
 # Ollama'da kalır. Open WebUI Farabi modları /api/webui/ara üzerinden
 # kitap/mevzuat parçası alır (docs/superpowers/specs/2026-10-03-openwebui-
 # farabi-modlar-design.md). CPU ölçümü DECISIONS.md 2026-10-03'te.
-RAG_AKTIF = True
+# 2026-10-30 (kullanıcı kararı): RAG tamamen kapatıldı — 2026-10-25'ten beri
+# hiç sorgu yok (Open WebUI kaldırıldı, AnythingLLM çağırmıyor). Tahtalar
+# yalnızca Gemini Live; kitap_sorusu "hata" alıp kısıtlı metne düşer.
+# farabi-embed disable edildi. Geri açmak: True + embed'i aç + restart.
+RAG_AKTIF = False
 
 EMBED_DEVICE = "cpu"
 RERANK_DEVICE = "cpu"
