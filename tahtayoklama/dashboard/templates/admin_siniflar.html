@@ -19,7 +19,7 @@
 {% endmacro %}
 
 {% macro yukle_formu(t, onek) %}
-<form method="post" action="/admin/tahtalar/{{ t.id }}" class="ayrinti-eylem">
+<form method="post" action="/admin/tahtalar/{{ t.id }}" class="satir-eylem">
   <div class="form-alan">
     <select name="sinif_id" aria-label="{{ t.ad }} için liste">
       <option value="">— liste seçme —</option>
@@ -34,12 +34,11 @@
 {% endmacro %}
 
 {% block icerik %}
-<div class="cip-satir">
-  <input type="search" class="ara-kutu" id="tablo-ara" aria-label="Ara" placeholder="Sınıf veya tahta…">
-</div>
-
 <div class="ayrinti-duzen{{ '' if panel_acik else ' panel-kapali' }}">
   <div>
+    <div class="cip-satir">
+      <input type="search" class="ara-kutu" id="tablo-ara" aria-label="Ara" placeholder="Sınıf veya tahta…">
+    </div>
     <h2>Sınıflar</h2>
     <div class="tablo-kutu"><table class="tablo" id="ana-tablo">
       <thead><tr><th>Sınıf</th><th>Öğrenci</th><th>Bağlı tahta</th></tr></thead>

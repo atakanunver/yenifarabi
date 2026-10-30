@@ -291,8 +291,6 @@ table.tablo { width: 100%; min-width: 0; border-collapse: collapse; table-layout
 }
 .ayrinti-duzen.panel-kapali, .ayrinti-duzen:has(> .ayrinti-panel[hidden]) { grid-template-columns: minmax(0, 1fr); }
 .ayrinti-duzen > * { min-width: 0; }
-/* Sol sütunun ilk başlığı: pano.css `main h2` üst boşluğu ızgara öğesinde çökmez, iki sütunu hizalar */
-.ayrinti-duzen > div > h2:first-child { margin-top: 0; }
 .ayrinti-panel {
   position: sticky; top: calc(var(--ust-yukseklik, 3.25rem) + var(--bosluk-4));
   display: flex; flex-direction: column; gap: var(--bosluk-3);
@@ -309,6 +307,8 @@ table.tablo { width: 100%; min-width: 0; border-collapse: collapse; table-layout
   padding-top: var(--bosluk-3); border-top: 1px solid var(--renk-kenar);
 }
 .ayrinti-eylem .dugme-tehlike { margin-left: auto; }
+/* Tablo hücresi içi satır eylemi: çizgisiz, tek satırlık form */
+.satir-eylem { display: flex; flex-wrap: wrap; align-items: center; gap: var(--bosluk-2); }
 
 /* Form alanı: dikey, etiket üstte. .eksik = doldurulmamış alan (turuncu) */
 .form-alan { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }

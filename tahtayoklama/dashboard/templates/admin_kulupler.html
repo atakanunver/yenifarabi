@@ -20,12 +20,11 @@
 {% block icerik %}
 <p class="serit serit-bilgi"><span>Kulüp listesi, "tahta" sütunundaki sınıfın tahtasında yoklama ekranındaki açılır listede görünür.
   Değişiklik tahtaya en geç 10 dakikada kendiliğinden ulaşır.</span></p>
-<div class="cip-satir">
-  <input type="search" class="ara-kutu" id="tablo-ara" aria-label="Ara" placeholder="Kulüp veya danışman…">
-</div>
-
 <div class="ayrinti-duzen{{ '' if panel_acik else ' panel-kapali' }}">
   <div>
+    <div class="cip-satir">
+      <input type="search" class="ara-kutu" id="tablo-ara" aria-label="Ara" placeholder="Kulüp veya danışman…">
+    </div>
     {% if kulupler %}
     <div class="tablo-kutu"><table class="tablo" id="ana-tablo">
       <thead><tr><th>Kulüp</th><th>Danışman</th><th>Tahta (sınıf)</th><th>Üye</th></tr></thead>
