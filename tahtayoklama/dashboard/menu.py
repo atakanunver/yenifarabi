@@ -4,6 +4,7 @@ taban.html üçünü de bu ağaçtan üretir; menü öğesi başka yerde elle ya
 import copy
 import time
 from pathlib import Path
+from urllib.parse import parse_qs
 
 import zil
 
@@ -42,27 +43,34 @@ SMUAL_YONETIM_URL = SMUAL_URL + "/yonetici"  # şifresiz giriş (SSO) sonraki a�
 MENU: list[dict] = [
     {"ad": "Acil durum", "kisayol": "a", "ikon": "uyari", "href": "/acil", "acil": True},
     {"ad": "Ana pano", "kisayol": "h", "ikon": "ev", "href": "/"},
+    # 2026-10-30: görev odaklı gruplar (müdür "ne yapmak istiyorum?" diye arar); makine adlı paneller Teknoloji'de.
     {
-        "ad": "Yoklama",
-        "kisayol": "y",
-        "ikon": "onay",
+        "ad": "Öğrenciler",
+        "kisayol": "r",
+        "ikon": "kullanicilar",
         "ogeler": [
-            {"ad": "Bugün", "href": "/bugun", "ikon": "ev"},
-            {"ad": "Rapor", "href": "/admin/rapor", "ikon": "grafik"},
+            {"ad": "Bugünkü yoklama", "href": "/bugun", "ikon": "ev"},
+            {"ad": "Yoklama raporu", "href": "/admin/rapor", "ikon": "grafik"},
             {"ad": "Aylık özet", "href": "/aylik-ozet", "ikon": "grafik"},
+            {"ad": "Öğrenci ve veli", "href": "/admin/okul-verisi?sekme=ogrenci", "ikon": "kullanicilar"},
             {"ad": "Sınıflar ve tahtalar", "href": "/admin/siniflar", "ikon": "kullanicilar"},
             {"ad": "Kulüp listeleri", "href": "/admin/kulupler", "ikon": "kullanicilar"},
             {"ad": "Kulüp yoklaması", "href": "/kulup-yoklama", "ikon": "kullanicilar"},
         ],
     },
-    {"ad": "Okul verisi", "kisayol": "v", "ikon": "kullanicilar", "href": "/admin/okul-verisi"},
-    # 2026-10-23: tahta↔sınıf ataması Sınıflar ve tahtalar sayfasına katıldı; burada yalnız uzaktan yönetim.
-    {"ad": "Tahtalar", "kisayol": "t", "ikon": "tahta", "href": "/admin/uzaktan"},
-    {"ad": "Zil paneli", "etiket": "Harici paneller", "kisayol": "z", "ikon": "zil", "href": "/panel-git/zil", "yeni_sekme": True},
-    {"ad": "Pano Paneli", "kisayol": "p", "ikon": "tahta", "href": "/panel-git/pano", "yeni_sekme": True},
+    {
+        "ad": "Öğretmenler ve program",
+        "kisayol": "p",
+        "ikon": "saat",
+        "ogeler": [
+            {"ad": "Personel", "href": "/admin/okul-verisi?sekme=personel", "ikon": "kullanicilar"},
+            {"ad": "Ders programı", "href": "/admin/okul-verisi?sekme=program", "ikon": "saat"},
+            {"ad": "Zil saatleri", "href": "/admin/okul-verisi?sekme=zil", "ikon": "zil"},
+            {"ad": "Zil paneli", "href": "/panel-git/zil", "ikon": "zil", "yeni_sekme": True},
+        ],
+    },
     {
         "ad": "İletişim",
-        "etiket": "Okul işleri",
         "kisayol": "i",
         "ikon": "log",
         "sayac": "veli",
@@ -75,15 +83,15 @@ MENU: list[dict] = [
         ],
     },
     {
-        "ad": "Eğitim",
+        "ad": "Eğitim ve sınav",
         "kisayol": "e",
         "ikon": "hedef",
         "ogeler": [
             {"ad": "smual.app", "href": SMUAL_URL, "ikon": "yildiz", "yeni_sekme": True},
             {"ad": "smual.app yönetim", "href": SMUAL_YONETIM_URL, "ikon": "kaydirici", "yeni_sekme": True},
+            {"ad": "Kelebek", "href": "/kelebek-git", "ikon": "tahta", "yeni_sekme": True},
         ],
     },
-    {"ad": "Kelebek", "kisayol": "l", "ikon": "tahta", "href": "/kelebek-git", "yeni_sekme": True},
     {
         "ad": "Güvenlik",
         "kisayol": "k",
@@ -93,20 +101,24 @@ MENU: list[dict] = [
             {"ad": "IP kameralar (yedek)", "href": "/kameralar-ip", "ikon": "kamera"},
             {"ad": "Kamera kayıtları", "href": "/kameralar-kayit", "ikon": "kamera"},
             {"ad": "Güvenlik ekranı", "href": "/guvenlik", "ikon": "kamera"},
+            {"ad": "Kiosk yüz tanıma paneli", "href": KIOSK_YUZ_PANELI, "ikon": "kullanicilar", "yeni_sekme": True},
         ],
     },
     {
-        "ad": "Sistem",
+        "ad": "Teknoloji",
+        "etiket": "Teknik",
         "kisayol": "s",
         "ikon": "sunucu",
         "ogeler": [
+            {"ad": "Tahtalar", "href": "/admin/uzaktan", "ikon": "tahta"},
+            {"ad": "Tahta duyuru", "href": "/admin/uzaktan#duyuru", "ikon": "zil"},
+            {"ad": "Pano Paneli", "href": "/panel-git/pano", "ikon": "tahta", "yeni_sekme": True},
+            {"ad": "Kiosk Paneli", "href": "/panel-git/kiosk", "ikon": "sunucu", "yeni_sekme": True},
+            {"ad": "Bilgehan Paneli", "href": "/panel-git/bilgehan", "ikon": "sunucu", "yeni_sekme": True},
             {"ad": "Sistem durumu", "href": "/sistem-durumu", "ikon": "nabiz"},
             {"ad": "Servis yönetimi", "href": "/servisler", "ikon": "sunucu"},
             {"ad": "Zamanlanmış görevler", "href": "/zamanlanmis-gorevler", "ikon": "saat"},
             {"ad": "Sunucular", "href": "/sunucular", "ikon": "katman"},
-            {"ad": "Bilgehan Paneli", "href": "/panel-git/bilgehan", "ikon": "sunucu", "yeni_sekme": True},
-            {"ad": "Kiosk Paneli", "href": "/panel-git/kiosk", "ikon": "sunucu", "yeni_sekme": True},
-            {"ad": "Kiosk yüz tanıma paneli", "href": KIOSK_YUZ_PANELI, "ikon": "kullanicilar", "yeni_sekme": True},
         ],
     },
     {
@@ -147,22 +159,31 @@ MENU: list[dict] = [
 ]
 
 
-def _eslesir(href: str, yol: str) -> bool:
+_VARSAYILAN_SORGU = {"sekme": "ogrenci"}  # /admin/okul-verisi sekmesiz açılınca Öğrenci ve veli
+
+
+def _eslesir(href: str, yol: str, sorgu: str = "") -> bool:
     if not href or not href.startswith("/") or "#" in href:
         return False
-    return yol == "/" if href == "/" else yol == href or yol.startswith(href + "/")
+    href, _, href_sorgu = href.partition("?")
+    if not (yol == "/" if href == "/" else yol == href or yol.startswith(href + "/")):
+        return False
+    var = parse_qs(sorgu)
+    return all(
+        var.get(k, [_VARSAYILAN_SORGU.get(k)])[0] == v[0] for k, v in parse_qs(href_sorgu).items()
+    )
 
 
-def menu_agaci(yol: str) -> dict:
+def menu_agaci(yol: str, sorgu: str = "") -> dict:
     menu = copy.deepcopy(MENU)
     konum: list[str] = []  # başlık şeridindeki kırıntı yolu: [grup, öğe] ya da [öğe]
     for ust in menu:
         for o in ust.get("ogeler", []):
-            if _eslesir(o.get("href", ""), yol):
+            if _eslesir(o.get("href", ""), yol, sorgu):
                 o["aktif"] = True
                 ust["acik"] = True  # etkin sayfanın grubu açık gelir
                 konum = [ust["ad"], o["ad"]]
-        if _eslesir(ust.get("href", ""), yol):
+        if _eslesir(ust.get("href", ""), yol, sorgu):
             ust["aktif"] = True
             konum = [ust["ad"]]
     return {"menu": menu, "konum": konum, "ders": zil.ust_bilgi(), "surum": statik_surum()}

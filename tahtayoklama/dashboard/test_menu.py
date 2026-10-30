@@ -37,7 +37,7 @@ class TestMenu(unittest.TestCase):
     def test_menu_route_lari_var(self):
         for h in _ust_hrefler(menu.MENU):
             if h.startswith("/") and not h.startswith("//"):
-                yol = h.split("#")[0]  # /panel-git/<ad> gibi parametreli rotalar da eşleşir
+                yol = h.split("#")[0].split("?")[0]  # /panel-git/<ad> gibi parametreli rotalar da eşleşir
                 self.assertTrue(any(getattr(r, "path_regex", None) and r.path_regex.match(yol) for r in app.routes), h)
 
     def test_dis_baglantilarda_kimlik_yok(self):
@@ -46,8 +46,8 @@ class TestMenu(unittest.TestCase):
     def test_yeni_menu_yapisi(self):
         adlar = [u["ad"] for u in menu.MENU]
         # 2026-10-23: sol kenar menü sırası; Acil en üstte sabit, Atos/Temalar/Ayarlar dipte
-        self.assertEqual(adlar, ["Acil durum", "Ana pano", "Yoklama", "Okul verisi", "Tahtalar", "Zil paneli", "Pano Paneli", "İletişim", "Eğitim",
-                                 "Kelebek", "Güvenlik", "Sistem", "Atos yapay zekâ", "Temalar", "Ayarlar"])
+        self.assertEqual(adlar, ["Acil durum", "Ana pano", "Öğrenciler", "Öğretmenler ve program", "İletişim", "Eğitim ve sınav",
+                                 "Güvenlik", "Teknoloji", "Atos yapay zekâ", "Temalar", "Ayarlar"])
         self.assertEqual([u["ad"] for u in menu.MENU if u.get("acil")], ["Acil durum"])
         self.assertEqual([u["ad"] for u in menu.MENU if u.get("alt")], ["Atos yapay zekâ", "Temalar", "Ayarlar"])
         for kalkan in ("EBYS", "Pano", "Kiosk", "Google Form", "Anons-Zil", "Uygulamalar"):
@@ -70,12 +70,18 @@ class TestMenu(unittest.TestCase):
         agac = menu.menu_agaci("/servisler")
         aktifler = [o["ad"] for u in agac["menu"] for o in _ogeler(u) if o.get("aktif")]
         self.assertEqual(aktifler, ["Servis yönetimi"])
-        self.assertEqual([u["ad"] for u in agac["menu"] if u.get("acik")], ["Sistem"])  # etkin grup açık gelir
-        self.assertEqual(agac["konum"], ["Sistem", "Servis yönetimi"])
+        self.assertEqual([u["ad"] for u in agac["menu"] if u.get("acik")], ["Teknoloji"])  # etkin grup açık gelir
+        self.assertEqual(agac["konum"], ["Teknoloji", "Servis yönetimi"])
         ana = menu.menu_agaci("/")
         self.assertEqual([u["ad"] for u in ana["menu"] if u.get("aktif")], ["Ana pano"])
         self.assertEqual(ana["konum"], ["Ana pano"])
         self.assertFalse(any(o.get("aktif") or o.get("acik") for u in menu.MENU for o in [u, *_ogeler(u)]))  # kaynak bozulmaz
+
+    def test_okul_verisi_sekme_duyarli_aktif(self):
+        for sorgu, ad in (("", "Öğrenci ve veli"), ("sekme=ogrenci&sinif=9-A", "Öğrenci ve veli"),
+                          ("sekme=personel", "Personel"), ("sekme=program", "Ders programı"), ("sekme=zil", "Zil saatleri")):
+            agac = menu.menu_agaci("/admin/okul-verisi", sorgu)
+            self.assertEqual([o["ad"] for u in agac["menu"] for o in _ogeler(u) if o.get("aktif")], [ad], sorgu)
 
     def test_ana_sayfa_yalniz_tam_eslesme(self):
         agac = menu.menu_agaci("/admin/rapor")
@@ -126,7 +132,7 @@ class TestMenu(unittest.TestCase):
             '{% extends "taban.html" %}{% block baslik %}Rapor{% endblock %}').render(request=istek)
         self.assertIn('class="kenar"', html)
         self.assertNotIn('role="menubar"', html)
-        self.assertIn("Yoklama › Rapor", html)
+        self.assertIn("Öğrenciler › Yoklama raporu", html)
         self.assertIn('aria-current="page"', html)
         self.assertIn('href="/acil"', html)
 
