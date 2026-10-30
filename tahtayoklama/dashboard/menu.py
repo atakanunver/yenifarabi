@@ -59,10 +59,7 @@ MENU: list[dict] = [
     # 2026-10-23: tahta↔sınıf ataması Sınıflar ve tahtalar sayfasına katıldı; burada yalnız uzaktan yönetim.
     {"ad": "Tahtalar", "kisayol": "t", "ikon": "tahta", "href": "/admin/uzaktan"},
     {"ad": "Zil paneli", "etiket": "Harici paneller", "kisayol": "z", "ikon": "zil", "href": "/panel-git/zil", "yeni_sekme": True},
-    {"ad": "Bilgehan Paneli", "kisayol": "b", "ikon": "sunucu", "href": "/panel-git/bilgehan", "yeni_sekme": True},
-    {"ad": "Kiosk Paneli", "kisayol": "j", "ikon": "sunucu", "href": "/panel-git/kiosk", "yeni_sekme": True},
     {"ad": "Pano Paneli", "kisayol": "p", "ikon": "tahta", "href": "/panel-git/pano", "yeni_sekme": True},
-    {"ad": "Kiosk yüz tanıma paneli", "kisayol": "u", "ikon": "kullanicilar", "href": KIOSK_YUZ_PANELI, "yeni_sekme": True},
     {
         "ad": "İletişim",
         "etiket": "Okul işleri",
@@ -107,6 +104,9 @@ MENU: list[dict] = [
             {"ad": "Servis yönetimi", "href": "/servisler", "ikon": "sunucu"},
             {"ad": "Zamanlanmış görevler", "href": "/zamanlanmis-gorevler", "ikon": "saat"},
             {"ad": "Sunucular", "href": "/sunucular", "ikon": "katman"},
+            {"ad": "Bilgehan Paneli", "href": "/panel-git/bilgehan", "ikon": "sunucu", "yeni_sekme": True},
+            {"ad": "Kiosk Paneli", "href": "/panel-git/kiosk", "ikon": "sunucu", "yeni_sekme": True},
+            {"ad": "Kiosk yüz tanıma paneli", "href": KIOSK_YUZ_PANELI, "ikon": "kullanicilar", "yeni_sekme": True},
         ],
     },
     {
