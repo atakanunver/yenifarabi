@@ -5,10 +5,13 @@ kaydını tutar (bkz. CLAUDE.md "server/tahtalar.json'a geri yazma
 YAPILMAZ").
 """
 
+import os
 import sqlite3
 from pathlib import Path
 
-DB_YOLU = Path(__file__).resolve().parent / "veri" / "yoklama_pano.db"
+# FARABI_PANEL_DB: önizleme için DB yolunu değiştirir (canlıda tanımsız).
+DB_YOLU = Path(os.environ.get("FARABI_PANEL_DB")
+               or Path(__file__).resolve().parent / "veri" / "yoklama_pano.db")
 
 SEMA = """
 CREATE TABLE IF NOT EXISTS siniflar (

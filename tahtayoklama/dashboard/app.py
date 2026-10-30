@@ -7,6 +7,7 @@ BAĞIMSIZ — bkz. CLAUDE.md.
 
 import asyncio
 import json
+import os
 import re
 from contextlib import asynccontextmanager
 from datetime import date
@@ -14,7 +15,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.gzip import GZipMiddleware
@@ -102,9 +103,17 @@ async def _polling_dongusu() -> None:
         await asyncio.sleep(POLLING_ARALIGI_SN)
 
 
+# Önizleme: yeniden tasarım dalı ayrı portta canlı veriyi bozmadan denenir
+# (scripts/onizleme.sh). Arka plan görevi yok, değiştiren istek yok.
+ONIZLEME = os.environ.get("FARABI_ONIZLEME") == "1"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.semayi_kur()
+    if ONIZLEME:
+        yield
+        return
     gorev = asyncio.create_task(_polling_dongusu())
     # Sistem Durumu ölçümleri tek arka plan görevinde toplanır; /api/sistem-durumu
     # önbellekten okur (bkz. sistem_durumu.py docstring'i).
@@ -115,6 +124,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+@app.middleware("http")
+async def onizleme_koruma(request: Request, call_next):
+    if (ONIZLEME and request.method not in ("GET", "HEAD")
+            and request.url.path not in ("/giris", "/cikis")):
+        return PlainTextResponse("Önizlemede değişiklik kapalı", status_code=403)
+    return await call_next(request)
+
+
 app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=6)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(admin.router)
