@@ -15,7 +15,7 @@ from pathlib import Path
 ADRES = "http://127.0.0.1/api/ajan"
 ANAHTAR_YOLU = Path(__file__).resolve().parent.parent / "config" / "ajan.json"
 ZAMAN_ASIMI = 300  # sn; ulaşılamayan tahtada SSH beklemesi uzayabilir
-EYLEMLER = ("ekran_karart", "ekran_kaldir", "yoklama_kapat", "chrome_kapat")
+EYLEMLER = ("ekran_karart", "ekran_kaldir", "yoklama_kapat", "chrome_kapat", "yeniden_baslat")
 
 
 def _istek(yol: str, anahtar: str, govde: dict | None = None) -> dict:
@@ -40,7 +40,10 @@ def main(eylem: str, tahtalar: str, kuru: bool) -> int:
     if kuru:
         print("--kuru: eylem gönderilmedi.")
         return 0
-    sonuclar = _istek("/eylem", anahtar, {"eylem": eylem, "tahtalar": adlar})["sonuclar"]
+    if eylem == "yeniden_baslat":  # ayrı uç: ders saatinde 409, tahta başına 120 sn bekleme
+        sonuclar = _istek("/yeniden-baslat", anahtar, {"tahtalar": adlar})["sonuclar"]
+    else:
+        sonuclar = _istek("/eylem", anahtar, {"eylem": eylem, "tahtalar": adlar})["sonuclar"]
     for s in sonuclar:
         print(f"{s['tahta']}: {'tamam' if s['basarili'] else 'BASARISIZ'} ({s['sebep']})")
     return 0 if any(s["basarili"] for s in sonuclar) else 1

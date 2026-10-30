@@ -36,7 +36,8 @@ YONETILEN = ("soru-havuzu-uret", "farabi-idari-yukle", "farabi-tahta-karart-haft
 GOREV_ONEKI = "farabi-gorev-"
 ID_DESENI = re.compile(r"^[a-z0-9][a-z0-9-]{0,29}$")
 EYLEM_ETIKETLERI = {"ekran_karart": "Ekranı karart", "ekran_kaldir": "Karartmayı kaldır",
-                    "yoklama_kapat": "Yoklamayı kapat", "chrome_kapat": "Chrome'u kapat"}
+                    "yoklama_kapat": "Yoklamayı kapat", "chrome_kapat": "Chrome'u kapat",
+                    "yeniden_baslat": "Tahtayı yeniden başlat"}
 ORTAK_EYLEMLER = ("ac", "kapat", "calistir", "takvim", "takvim-sifirla")
 IZINLI_EYLEMLER = {"farabi": ORTAK_EYLEMLER, "panel": (*ORTAK_EYLEMLER, "sil")}
 DERS_SAATINDE_YASAK = {("soru-havuzu-uret", "calistir")}

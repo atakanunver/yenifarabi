@@ -190,7 +190,7 @@ class TestUclar(unittest.TestCase):
     def test_olustur_gecersizler_betige_gitmez(self):
         temel = {"eylem": "olustur", "ad": "x", "sablon": "ekran_karart", "tahtalar": ["9-A"], "gunler": ["Mon"],
                  "saat": "10:00"}
-        for degisim in ({"sablon": "tahta_yeniden_baslat"}, {"sablon": "rm -rf"}, {"tahtalar": ["9-Z"]},
+        for degisim in ({"sablon": "sunucu_yeniden_baslat"}, {"sablon": "rm -rf"}, {"tahtalar": ["9-Z"]},
                         {"tahtalar": []}, {"tahtalar": ["9-A;id"]}, {"ad": "!!!"}, {"saat": "xx"}):
             self._reddedilir({**temel, **degisim}, 400)
 
