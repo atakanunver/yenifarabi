@@ -3,6 +3,16 @@
 {% block baslik %}Okul verisi{% endblock %}
 
 {% block icerik %}
+{% macro kpi(href, etiket, sayi, alt, ikon, simge, secili=False) %}
+<a class="pano-ozet-kart kpi-tikla{{ ' kpi-secili' if secili }}" href="{{ href }}">
+  <div class="pano-ozet-ikon {{ ikon }}" aria-hidden="true"><svg class="ikon"><use href="#{{ simge }}"/></svg></div>
+  <div class="pano-ozet-bilgi">
+    <span class="pano-ozet-baslik">{{ etiket }}</span>
+    <span class="pano-ozet-sayi">{{ sayi }}</span>
+    <span class="kpi-alt">{{ alt }}</span>
+  </div>
+</a>
+{% endmacro %}
 {% if mesaj %}<p class="etiket">{{ mesaj }}</p>{% endif %}
 {% if hata %}<p class="etiket etiket-uyari">{{ hata }}</p>{% endif %}
 {% if uyari %}<p class="etiket etiket-uyari">{{ uyari }}</p>{% endif %}
@@ -34,7 +44,8 @@
   <button type="submit">Sınıf ekle</button>
 </form>
 
-<h2>{% if duzenlenen %}Öğrenciyi düzenle — {{ duzenlenen.okul_no }}{% else %}Yeni öğrenci{% endif %}</h2>
+<details id="ogrenci-form" class="form-kutu" {% if duzenlenen %}open{% endif %}>
+<summary>{% if duzenlenen %}Öğrenciyi düzenle — {{ duzenlenen.okul_no }}{% else %}Yeni öğrenci ekle{% endif %}</summary>
 <form method="post" action="/admin/okul-verisi/ogrenci" class="yeni-form">
   <input type="hidden" name="yeni" value="{{ '0' if duzenlenen else '1' }}">
   <input type="number" name="okul_no" placeholder="okul no" min="1" max="99998" required
@@ -53,6 +64,7 @@
   <button type="submit">{{ 'Kaydet' if duzenlenen else 'Öğrenci ekle' }}</button>
   {% if duzenlenen %}<a href="/admin/okul-verisi?sekme=ogrenci" class="btn-ikincil">Vazgeç</a>{% endif %}
 </form>
+</details>
 
 {% if duzenlenen %}
 <h3>Veliler</h3>
@@ -87,23 +99,32 @@
 </form>
 {% endif %}
 
-<h2>Öğrenciler</h2>
-<form method="get" action="/admin/okul-verisi" class="yeni-form">
+<div class="pano-ozet">
+  {{ kpi('/admin/okul-verisi?sekme=ogrenci', 'Aktif öğrenci', ozet.aktif, 'Tüm liste', 'ozet-ikon-sinif', 'ik-kullanicilar', not durum) }}
+  {{ kpi('/admin/okul-verisi?sekme=ogrenci&durum=eksik_tel', 'Telefonsuz', ozet.telefonsuz, 'Filtrelemek için tıkla', 'ozet-ikon-alinmadi', 'ik-uyari', durum == 'eksik_tel') }}
+  {{ kpi('/admin/okul-verisi?sekme=ogrenci&durum=pasif', 'Pasif', ozet.pasif, 'Geri alınabilir', 'ozet-ikon-yok', 'ik-kapat', durum == 'pasif') }}
+</div>
+<form method="get" action="/admin/okul-verisi" class="yeni-form filtre-bar">
   <input type="hidden" name="sekme" value="ogrenci">
-  <select name="sinif"><option value="">tüm sınıflar</option>{% for s in siniflar %}<option value="{{ s.ad }}" {% if sinif == s.ad %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}</select>
-  <input type="search" name="ara" placeholder="ad veya okul no" value="{{ ara }}">
-  <label><input type="checkbox" name="pasifler" value="1" {% if pasifler %}checked{% endif %}> pasifler de</label>
-  <button type="submit">Filtrele</button>
+  <label>Sınıf <select name="sinif" onchange="this.form.submit()"><option value="">Tüm sınıflar</option>{% for s in siniflar %}<option value="{{ s.ad }}" {% if sinif == s.ad %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}</select></label>
+  <label>Durum <select name="durum" onchange="this.form.submit()">
+    <option value="">Tümü</option>
+    <option value="eksik_tel" {% if durum == 'eksik_tel' %}selected{% endif %}>Telefonsuz</option>
+    <option value="pasif" {% if durum == 'pasif' %}selected{% endif %}>Pasif</option>
+  </select></label>
+  <label><input type="checkbox" name="pasifler" value="1" onchange="this.form.submit()" {% if pasifler %}checked{% endif %}> pasifler de</label>
+  <label class="filtre-ara">Hızlı arama <input type="search" name="ara" id="tablo-ara" placeholder="Ad veya okul no ile anlık filtrele…" value="{{ ara }}"></label>
 </form>
-<div class="tablo-sarici"><table class="admin-tablo">
+<div class="tablo-sarici"><table class="admin-tablo" id="ana-tablo">
   <thead><tr><th>No</th><th>Ad soyad</th><th>Sınıf</th><th>Telefon</th><th>Durum</th><th></th></tr></thead>
   <tbody>
   {% for o in ogrenciler %}
-  <tr class="{{ '' if o.aktif else 'pasif' }}">
-    <td>{{ o.okul_no }}</td><td><strong>{{ o.ad_soyad }}</strong></td><td>{{ o.sinif or '—' }}</td>
-    <td>{{ o.telefon or '—' }}</td><td>{{ 'aktif' if o.aktif else 'pasif' }}</td>
+  <tr class="tablo-satir {{ '' if o.aktif else 'pasif' }}" data-ara="{{ (o.ad_soyad ~ ' ' ~ o.okul_no)|lower }}">
+    <td>{{ o.okul_no }}</td><td><strong>{{ o.ad_soyad }}</strong></td><td>{% if o.sinif %}<span class="pill pill-kucuk pill-izinli">{{ o.sinif }}</span>{% else %}—{% endif %}</td>
+    <td>{% if o.telefon %}{{ o.telefon }}{% else %}<span class="pill pill-kucuk pill-alinmadi">Telefonsuz</span>{% endif %}</td>
+    <td>{% if o.aktif %}<span class="pill pill-kucuk pill-tam">Aktif</span>{% else %}<span class="pill pill-kucuk pill-atanmamis">Pasif</span>{% endif %}</td>
     <td style="text-align:right">
-      <a class="btn-ikincil" href="/admin/okul-verisi?sekme=ogrenci&duzenle={{ o.okul_no }}">Düzenle · veliler</a>
+      <a class="btn-ikincil" href="/admin/okul-verisi?sekme=ogrenci&duzenle={{ o.okul_no }}#ogrenci-form">Düzenle · veliler</a>
       {% if o.aktif %}
       <form method="post" action="/admin/okul-verisi/ogrenci/{{ o.okul_no }}/pasif" style="display:inline"><button type="submit" class="btn-ikincil">Pasifleştir</button></form>
       {% else %}
@@ -119,7 +140,15 @@
   kayıtları (ödev, onay) silinmez.</p>
 
 {% elif sekme == 'personel' %}
-<h2>{% if pduzenlenen %}Personeli düzenle{% else %}Yeni personel{% endif %}</h2>
+<div class="pano-ozet">
+  {{ kpi('/admin/okul-verisi?sekme=personel', 'Aktif personel', ozet.aktif, 'Tüm liste', 'ozet-ikon-sinif', 'ik-kullanicilar', not durum) }}
+  {{ kpi('/admin/okul-verisi?sekme=personel&durum=eksik_tel', 'Telefonsuz', ozet.telefonsuz, 'Filtrelemek için tıkla', 'ozet-ikon-alinmadi', 'ik-uyari', durum == 'eksik_tel') }}
+  {{ kpi('/admin/okul-verisi?sekme=personel&durum=eksik_tc', 'TC eksik', ozet.tc_eksik, 'Filtrelemek için tıkla', 'ozet-ikon-alinmadi', 'ik-uyari', durum == 'eksik_tc') }}
+  {{ kpi('/admin/okul-verisi?sekme=personel&durum=eksik_eposta', 'E-posta eksik', ozet.eposta_eksik, 'Filtrelemek için tıkla', 'ozet-ikon-alinmadi', 'ik-uyari', durum == 'eksik_eposta') }}
+  {{ kpi('/admin/okul-verisi?sekme=personel&durum=pasif', 'Pasif', ozet.pasif, 'Geri alınabilir', 'ozet-ikon-yok', 'ik-kapat', durum == 'pasif') }}
+</div>
+<details id="personel-form" class="form-kutu" {% if pduzenlenen %}open{% endif %}>
+<summary>{% if pduzenlenen %}Personeli düzenle{% else %}Yeni personel ekle{% endif %}</summary>
 <form method="post" action="/admin/okul-verisi/personel" class="yeni-form">
   <input type="hidden" name="id" value="{{ pduzenlenen.id if pduzenlenen }}">
   <input type="text" name="ad_soyad" placeholder="ad soyad" required maxlength="100" value="{{ pduzenlenen.ad_soyad if pduzenlenen }}">
@@ -129,19 +158,42 @@
   </select>
   <input type="text" name="brans" placeholder="branş" maxlength="60" value="{{ pduzenlenen.brans or '' if pduzenlenen }}">
   <input type="date" name="dogum_tarihi" value="{{ pduzenlenen.dogum_tarihi or '' if pduzenlenen }}">
+  <input type="text" name="tc_kimlik" placeholder="TC kimlik no" inputmode="numeric" pattern="[0-9]{11}" maxlength="11" value="{{ pduzenlenen.tc_kimlik or '' if pduzenlenen }}">
+  <input type="email" name="eposta" placeholder="e-posta" maxlength="100" value="{{ pduzenlenen.eposta or '' if pduzenlenen }}">
   <button type="submit">{{ 'Kaydet' if pduzenlenen else 'Personel ekle' }}</button>
   {% if pduzenlenen %}<a href="/admin/okul-verisi?sekme=personel" class="btn-ikincil">Vazgeç</a>{% endif %}
 </form>
-<div class="tablo-sarici"><table class="admin-tablo">
-  <thead><tr><th>Ad soyad</th><th>Görev</th><th>Branş</th><th>Telefon</th><th>Doğum</th><th>Durum</th><th></th></tr></thead>
+</details>
+<form method="get" action="/admin/okul-verisi" class="yeni-form filtre-bar">
+  <input type="hidden" name="sekme" value="personel">
+  <label>Görev <select name="gorev" onchange="this.form.submit()">
+    <option value="">Tümü</option>
+    {% for g in ['ogretmen','yonetici','diger'] %}<option value="{{ g }}" {% if gorev == g %}selected{% endif %}>{{ g }}</option>{% endfor %}
+  </select></label>
+  <label>Durum <select name="durum" onchange="this.form.submit()">
+    <option value="">Tümü</option>
+    <option value="eksik_tel" {% if durum == 'eksik_tel' %}selected{% endif %}>Telefonsuz</option>
+    <option value="eksik_tc" {% if durum == 'eksik_tc' %}selected{% endif %}>TC eksik</option>
+    <option value="eksik_eposta" {% if durum == 'eksik_eposta' %}selected{% endif %}>E-posta eksik</option>
+    <option value="pasif" {% if durum == 'pasif' %}selected{% endif %}>Pasif</option>
+  </select></label>
+  <label><input type="checkbox" name="pasifler" value="1" onchange="this.form.submit()" {% if pasifler %}checked{% endif %}> pasifler de</label>
+  <label class="filtre-ara">Hızlı arama <input type="search" id="tablo-ara" placeholder="Ad soyad ile anlık filtrele…"></label>
+</form>
+<div class="tablo-sarici"><table class="admin-tablo" id="ana-tablo">
+  <thead><tr><th>Ad soyad</th><th>Görev</th><th>Branş</th><th>Telefon</th><th>E-posta</th><th>Doğum</th><th>Durum</th><th></th></tr></thead>
   <tbody>
   {% for p in personel %}
-  <tr class="{{ '' if p.aktif else 'pasif' }}">
-    <td><strong>{{ p.ad_soyad }}</strong></td><td>{{ p.gorev }}</td><td>{{ p.brans or '—' }}</td><td>{{ p.telefon or '—' }}</td>
-    <td>{{ p.dogum_tarihi or '—' }}</td><td>{{ 'aktif' if p.aktif else 'pasif' }}</td>
+  <tr class="tablo-satir {{ '' if p.aktif else 'pasif' }}" data-ara="{{ p.ad_soyad|lower }}">
+    <td><strong>{{ p.ad_soyad }}</strong></td><td><span class="pill pill-kucuk {{ 'pill-tam' if p.gorev == 'yonetici' else 'pill-izinli' }}">{{ p.gorev }}</span></td><td>{{ p.brans or '—' }}</td>
+    <td>{% if p.telefon %}{{ p.telefon }}{% else %}<span class="pill pill-kucuk pill-alinmadi">Telefonsuz</span>{% endif %}</td>
+    <td>{% if p.eposta %}{{ p.eposta }}{% else %}<span class="pill pill-kucuk pill-alinmadi">Eksik</span>{% endif %}</td>
+    <td>{{ p.dogum_tarihi or '—' }}</td>
+    <td>{% if p.aktif %}<span class="pill pill-kucuk pill-tam">Aktif</span>{% else %}<span class="pill pill-kucuk pill-atanmamis">Pasif</span>{% endif %}{% if p.aktif and (not p.tc_kimlik or not p.eposta) %} <span class="pill pill-kucuk pill-alinmadi" title="{{ 'TC' if not p.tc_kimlik }}{{ ', ' if not p.tc_kimlik and not p.eposta }}{{ 'e-posta' if not p.eposta }} eksik">Eksik</span>{% endif %}</td>
     <td style="text-align:right">
-      <a class="btn-ikincil" href="/admin/okul-verisi?sekme=personel&pduzenle={{ p.id }}">Düzenle</a>
-      {% if p.aktif %}<form method="post" action="/admin/okul-verisi/personel/{{ p.id }}/pasif" style="display:inline"><button type="submit" class="btn-ikincil">Pasifleştir</button></form>{% endif %}
+      <a class="btn-ikincil" href="/admin/okul-verisi?sekme=personel&pduzenle={{ p.id }}#personel-form">Düzenle</a>
+      {% if p.aktif %}<form method="post" action="/admin/okul-verisi/personel/{{ p.id }}/pasif" style="display:inline"><button type="submit" class="btn-ikincil">Pasifleştir</button></form>
+      {% else %}<form method="post" action="/admin/okul-verisi/personel/{{ p.id }}/geri" style="display:inline"><button type="submit" class="btn-ikincil">Geri al</button></form>{% endif %}
     </td>
   </tr>
   {% endfor %}
@@ -201,4 +253,21 @@
   <tbody>{% for d in denetim %}<tr><td>{{ d.zaman.strftime('%d.%m.%Y %H:%M:%S') }}</td><td>{{ d.islem }}</td><td>{{ d.hedef }}</td><td>{{ d.kim }}</td></tr>{% else %}<tr><td colspan="4">— kayıt yok —</td></tr>{% endfor %}</tbody>
 </table></div>
 {% endif %}
+{% endblock %}
+
+{% block script %}
+<script>
+(function () {
+  const kutu = document.getElementById('tablo-ara');
+  if (!kutu) return;
+  function filtrele() {
+    const q = kutu.value.trim().toLocaleLowerCase('tr');
+    document.querySelectorAll('#ana-tablo .tablo-satir').forEach(function (satir) {
+      satir.hidden = !(satir.dataset.ara || '').includes(q);
+    });
+  }
+  kutu.addEventListener('input', filtrele);
+  filtrele();
+})();
+</script>
 {% endblock %}

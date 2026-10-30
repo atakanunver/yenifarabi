@@ -87,6 +87,8 @@ def sayfa(
     sinif: str = "",
     ara: str = "",
     pasifler: str = "",
+    durum: str = "",
+    gorev: str = "",
     duzenle: str = "",
     pduzenle: str = "",
     psinif: str = "",
@@ -105,22 +107,51 @@ def sayfa(
         "sinif": sinif,
         "ara": ara,
         "pasifler": bool(pasifler),
+        "durum": durum,
+        "gorev": gorev,
     }
     with veri.baglan() as c:
         ctx["siniflar"] = veri.siniflar(c)
         if sekme == "ogrenci":
-            ctx["ogrenciler"] = veri.ogrenciler(
-                c, sinif or None, ara or None, bool(pasifler)
+            tum = veri.ogrenciler(c, None, None, True)
+            ctx["ozet"] = {
+                "aktif": sum(1 for o in tum if o["aktif"]),
+                "telefonsuz": sum(1 for o in tum if o["aktif"] and not o["telefon"]),
+                "pasif": sum(1 for o in tum if not o["aktif"]),
+            }
+            liste = veri.ogrenciler(
+                c, sinif or None, ara or None, bool(pasifler) or durum == "pasif"
             )
+            if durum == "eksik_tel":
+                liste = [o for o in liste if o["aktif"] and not o["telefon"]]
+            elif durum == "pasif":
+                liste = [o for o in liste if not o["aktif"]]
+            ctx["ogrenciler"] = liste
             if duzenle:
                 o = veri.ogrenci_getir(c, int(duzenle)) if duzenle.isdigit() else None
                 ctx["duzenlenen"] = o
                 ctx["veliler"] = veri.veliler(c, o["okul_no"]) if o else []
         elif sekme == "personel":
-            ctx["personel"] = veri.personel(c, bool(pasifler))
+            tum = veri.personel(c, True)
+            ctx["ozet"] = {
+                "aktif": sum(1 for p in tum if p["aktif"]),
+                "telefonsuz": sum(1 for p in tum if p["aktif"] and not p["telefon"]),
+                "tc_eksik": sum(1 for p in tum if p["aktif"] and not p["tc_kimlik"]),
+                "eposta_eksik": sum(1 for p in tum if p["aktif"] and not p["eposta"]),
+                "pasif": sum(1 for p in tum if not p["aktif"]),
+            }
+            liste = [p for p in tum if p["aktif"] or pasifler or durum == "pasif"]
+            if gorev:
+                liste = [p for p in liste if p["gorev"] == gorev]
+            eksik = {"eksik_tel": "telefon", "eksik_tc": "tc_kimlik", "eksik_eposta": "eposta"}
+            if durum in eksik:
+                liste = [p for p in liste if p["aktif"] and not p[eksik[durum]]]
+            elif durum == "pasif":
+                liste = [p for p in liste if not p["aktif"]]
+            ctx["personel"] = liste
             if pduzenle.isdigit():
                 ctx["pduzenlenen"] = next(
-                    (p for p in ctx["personel"] if p["id"] == int(pduzenle)), None
+                    (p for p in tum if p["id"] == int(pduzenle)), None
                 )
         elif sekme == "program":
             ad = psinif or (ctx["siniflar"][0]["ad"] if ctx["siniflar"] else "")
@@ -231,6 +262,8 @@ async def personel_kaydet(request: Request):
             f.get("gorev"),
             f.get("dogum_tarihi"),
             f.get("brans"),
+            f.get("tc_kimlik"),
+            f.get("eposta"),
         ),
         "Personel kaydedildi.",
     )
@@ -243,6 +276,17 @@ def personel_pasif(request: Request, pid: int):
         "personel",
         lambda c: veri.personel_pasif(c, pid),
         "Personel pasifleştirildi.",
+    )
+
+
+@router.post("/personel/{pid}/geri")
+def personel_geri(request: Request, pid: int):
+    return _islem(
+        request,
+        "personel",
+        lambda c: veri.personel_pasif(c, pid, True),
+        "Personel geri alındı.",
+        pduzenle=str(pid),
     )
 
 

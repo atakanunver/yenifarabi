@@ -31,28 +31,6 @@
 </script>
 
 {% if siniflar %}
-<!-- Durum özeti: yalnızca /api/durum verisinden (sunucu durumu açılışta çekilmez, 2026-10-03) -->
-<section class="durum-ozet" id="uyari-seridi" data-durum="yukleniyor" aria-labelledby="durum-baslik">
-  <div class="durum-ozet-ust">
-    <span class="durum-ozet-ikon" aria-hidden="true"><svg class="ikon"><use href="#ik-nabiz"/></svg></span>
-    <div class="durum-ozet-metin">
-      <h2 class="durum-baslik" id="durum-baslik" aria-live="polite">Durum yükleniyor…</h2>
-      <p class="durum-alt" id="durum-alt"></p>
-    </div>
-    <button type="button" class="dugme dugme-ikincil" id="durum-tekrar" hidden>
-      <svg class="ikon" aria-hidden="true"><use href="#ik-yenile"/></svg> Tekrar dene
-    </button>
-    <a class="durum-baglanti" href="/sistem-durumu">Sunucu ve servisler <svg class="ikon" aria-hidden="true"><use href="#ik-ok-sag"/></svg></a>
-  </div>
-  <div class="pano-ilerleme" id="pano-ilerleme" hidden>
-    <div class="pano-ilerleme-cubuk" id="ilerleme-cubuk" role="progressbar" aria-labelledby="ilerleme-metin" aria-valuemin="0" aria-valuemax="100">
-      <span class="pano-ilerleme-dolu" id="ilerleme-dolu"></span>
-    </div>
-    <span class="pano-ilerleme-metin" id="ilerleme-metin"></span>
-  </div>
-  <ul class="sorun-liste" id="sorun-liste" aria-label="Sorunlar" hidden></ul>
-</section>
-
 <div class="pano-ozet" id="pano-ozet">
   <div class="pano-ozet-kart">
     <div class="pano-ozet-ikon ozet-ikon-sinif" aria-hidden="true"><svg class="ikon"><use href="#ik-kullanicilar"/></svg></div>
@@ -116,6 +94,28 @@
     </tbody>
   </table>
 </div>
+
+<!-- Durum özeti: yalnızca /api/durum verisinden (sunucu durumu açılışta çekilmez, 2026-10-03) -->
+<section class="durum-ozet" id="uyari-seridi" data-durum="yukleniyor" aria-labelledby="durum-baslik">
+  <div class="durum-ozet-ust">
+    <span class="durum-ozet-ikon" aria-hidden="true"><svg class="ikon"><use href="#ik-nabiz"/></svg></span>
+    <div class="durum-ozet-metin">
+      <h2 class="durum-baslik" id="durum-baslik" aria-live="polite">Durum yükleniyor…</h2>
+      <p class="durum-alt" id="durum-alt"></p>
+    </div>
+    <button type="button" class="dugme dugme-ikincil" id="durum-tekrar" hidden>
+      <svg class="ikon" aria-hidden="true"><use href="#ik-yenile"/></svg> Tekrar dene
+    </button>
+    <a class="durum-baglanti" href="/sistem-durumu">Sunucu ve servisler <svg class="ikon" aria-hidden="true"><use href="#ik-ok-sag"/></svg></a>
+  </div>
+  <div class="pano-ilerleme" id="pano-ilerleme" hidden>
+    <div class="pano-ilerleme-cubuk" id="ilerleme-cubuk" role="progressbar" aria-labelledby="ilerleme-metin" aria-valuemin="0" aria-valuemax="100">
+      <span class="pano-ilerleme-dolu" id="ilerleme-dolu"></span>
+    </div>
+    <span class="pano-ilerleme-metin" id="ilerleme-metin"></span>
+  </div>
+  <ul class="sorun-liste" id="sorun-liste" aria-label="Sorunlar" hidden></ul>
+</section>
 {% else %}
 <section class="kr-bos">
   <svg class="ikon ikon-buyuk" aria-hidden="true"><use href="#ik-kullanicilar"/></svg>

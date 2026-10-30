@@ -275,6 +275,24 @@ def veli_sil(c, no, veli_id):
 # --- personel ----------------------------------------------------------------------
 
 
+def _tc(v):
+    d = (v or "").strip()
+    if not d:
+        return None
+    if not re.fullmatch(r"\d{11}", d):
+        raise ValueError("TC kimlik no 11 haneli olmalı.")
+    return d
+
+
+def _eposta(v):
+    v = (v or "").strip().lower()
+    if not v:
+        return None
+    if len(v) > 100 or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", v):
+        raise ValueError("E-posta geçerli biçimde olmalı.")
+    return v
+
+
 def personel(c, pasifler=False):
     return c.execute(
         "SELECT * FROM personel WHERE aktif OR %s ORDER BY aktif DESC,ad_soyad",
@@ -282,31 +300,32 @@ def personel(c, pasifler=False):
     ).fetchall()
 
 
-def personel_kaydet(c, pid, ad, telefon, gorev, dogum, brans=None):
+def personel_kaydet(c, pid, ad, telefon, gorev, dogum, brans=None, tc=None, eposta=None):
     ad, telefon, dogum = _ad(ad), _tel(telefon), _tarih(dogum)
+    tc, eposta = _tc(tc), _eposta(eposta)
     brans = " ".join((brans or "").split())[:60] or None
     if gorev not in ("ogretmen", "yonetici", "diger"):
         raise ValueError("Görev ogretmen, yonetici veya diger olmalı.")
     if pid:
         n = c.execute(
-            "UPDATE personel SET ad_soyad=%s,telefon=%s,gorev=%s,dogum_tarihi=%s,brans=%s,aktif=true WHERE id=%s",
-            (ad, telefon, gorev, dogum, brans, pid),
+            "UPDATE personel SET ad_soyad=%s,telefon=%s,gorev=%s,dogum_tarihi=%s,brans=%s,tc_kimlik=%s,eposta=%s,aktif=true WHERE id=%s",
+            (ad, telefon, gorev, dogum, brans, tc, eposta, pid),
         ).rowcount
         if not n:
             raise ValueError("Personel bulunamadı.")
         denetim(c, "personel_guncelle", str(pid))
     else:
         r = c.execute(
-            "INSERT INTO personel(ad_soyad,telefon,gorev,dogum_tarihi,brans) VALUES(%s,%s,%s,%s,%s) RETURNING id",
-            (ad, telefon, gorev, dogum, brans),
+            "INSERT INTO personel(ad_soyad,telefon,gorev,dogum_tarihi,brans,tc_kimlik,eposta) VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            (ad, telefon, gorev, dogum, brans, tc, eposta),
         ).fetchone()
         denetim(c, "personel_ekle", str(r["id"]))
 
 
-def personel_pasif(c, pid):
-    if not c.execute("UPDATE personel SET aktif=false WHERE id=%s", (pid,)).rowcount:
+def personel_pasif(c, pid, aktif: bool = False):
+    if not c.execute("UPDATE personel SET aktif=%s WHERE id=%s", (aktif, pid)).rowcount:
         raise ValueError("Personel bulunamadı.")
-    denetim(c, "personel_pasif", str(pid))
+    denetim(c, "personel_geri_al" if aktif else "personel_pasif", str(pid))
 
 
 # --- ders programı -----------------------------------------------------------------
