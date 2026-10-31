@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <!-- Kırmızı / Mavi Çift Köşe Düello Gradyanı -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b91c1c" />
+      <stop offset="48%" stop-color="#7c2d12" />
+      <stop offset="52%" stop-color="#1e1b4b" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+
+    <!-- Altın Çark & Kılıç Gradyanı -->
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="40%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+
+    <!-- Çelik Kılıç Gradyanı -->
+    <linearGradient id="bladeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="50%" stop-color="#cbd5e1" />
+      <stop offset="100%" stop-color="#64748b" />
+    </linearGradient>
+  </defs>
+
+  <!-- Arka Plan Gölgesi -->
+  <rect x="16" y="24" width="224" height="224" rx="54" fill="#030712" opacity="0.45" />
+
+  <!-- Arka Plan Squircle (Kırmızı-Mavi Karşılaşma) -->
+  <rect x="16" y="16" width="224" height="224" rx="54" fill="url(#bgGrad)" />
+  <rect x="18" y="18" width="220" height="220" rx="52" fill="none" stroke="#f59e0b" stroke-width="3" stroke-opacity="0.6" />
+
+  <!-- Düello Çarkı Dairesel Arka Planı -->
+  <circle cx="128" cy="128" r="72" fill="#0f172a" stroke="url(#goldGrad)" stroke-width="6" opacity="0.9" />
+
+  <!-- Çark Dilimleri Çizgileri -->
+  <g stroke="#f59e0b" stroke-width="2" opacity="0.5">
+    <line x1="128" y1="56" x2="128" y2="200" />
+    <line x1="56" y1="128" x2="200" y2="128" />
+    <line x1="77" y1="77" x2="179" y2="179" />
+    <line x1="179" y1="77" x2="77" y2="179" />
+  </g>
+
+  <!-- Çapraz Kılıçlar (Sol Kılıç: Sol-Alttan Sağ-Üste) -->
+  <g transform="translate(128, 128) rotate(-45) translate(-128, -128)">
+    <!-- Bıçak -->
+    <path d="M 125 50 L 131 50 L 130 180 L 126 180 Z" fill="url(#bladeGrad)" />
+    <polygon points="128,40 131,50 125,50" fill="#ffffff" />
+    <!-- Kabza Siperliği -->
+    <rect x="114" y="180" width="28" height="6" rx="2" fill="url(#goldGrad)" />
+    <!-- Sap ve Topuz -->
+    <rect x="126" y="186" width="4" height="18" fill="#451a03" />
+    <circle cx="128" cy="206" r="5" fill="url(#goldGrad)" />
+  </g>
+
+  <!-- Çapraz Kılıçlar (Sağ Kılıç: Sağ-Alttan Sol-Üste) -->
+  <g transform="translate(128, 128) rotate(45) translate(-128, -128)">
+    <!-- Bıçak -->
+    <path d="M 125 50 L 131 50 L 130 180 L 126 180 Z" fill="url(#bladeGrad)" />
+    <polygon points="128,40 131,50 125,50" fill="#ffffff" />
+    <!-- Kabza Siperliği -->
+    <rect x="114" y="180" width="28" height="6" rx="2" fill="url(#goldGrad)" />
+    <!-- Sap ve Topuz -->
+    <rect x="126" y="186" width="4" height="18" fill="#451a03" />
+    <circle cx="128" cy="206" r="5" fill="url(#goldGrad)" />
+  </g>
+
+  <!-- Merkez Rozet (Altın Madalyon & Şimşek) -->
+  <circle cx="128" cy="128" r="26" fill="url(#goldGrad)" stroke="#ffffff" stroke-width="2.5" />
+  <!-- Şimşek Simgesi -->
+  <polygon points="131,111 120,127 127,127 125,145 137,125 130,125" fill="#1e1b4b" />
+
+  <!-- Kıvılcımlar & Parlamalar -->
+  <polygon points="196,44 199,52 207,55 199,58 196,66 193,58 185,55 193,52" fill="#fef08a" />
+  <polygon points="56,48 58,54 64,56 58,58 56,64 54,58 48,56 54,54" fill="#fef08a" />
+</svg>

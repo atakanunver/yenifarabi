@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <!-- Canlı Mavi-Cyan ve Derin Lacivert Strateji Gradyanı -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="50%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+
+    <!-- Kalkan Altın-Turuncu Gradyanı -->
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="50%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+
+    <!-- Neon Cyan Petek Gradyanı -->
+    <linearGradient id="hexGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+
+  <!-- Arka Plan Gölgesi (Filtresiz, saf vektör) -->
+  <rect x="16" y="24" width="224" height="224" rx="54" fill="#030712" opacity="0.45" />
+
+  <!-- Arka Plan Squircle -->
+  <rect x="16" y="16" width="224" height="224" rx="54" fill="url(#bgGrad)" />
+  <rect x="18" y="18" width="220" height="220" rx="52" fill="none" stroke="#38bdf8" stroke-width="3" stroke-opacity="0.4" />
+
+  <!-- Arka Planda Şeffaf Petek Izgara Ağı (Hexagon Grid Motif) -->
+  <g stroke="#38bdf8" stroke-width="2.5" stroke-opacity="0.3" fill="none">
+    <!-- Üst Orta Petek -->
+    <polygon points="128,42 148,54 148,76 128,88 108,76 108,54" />
+    <!-- Üst Sol Petek -->
+    <polygon points="98,60 118,72 118,94 98,106 78,94 78,72" />
+    <!-- Üst Sağ Petek -->
+    <polygon points="158,60 178,72 178,94 158,106 138,94 138,72" />
+    <!-- Sol Petek -->
+    <polygon points="68,78 88,90 88,112 68,124 48,112 48,90" />
+    <!-- Sağ Petek -->
+    <polygon points="188,78 208,90 208,112 188,124 168,112 168,90" />
+  </g>
+
+  <!-- Kalkan Gölgesi -->
+  <path d="M 128 66 C 174 66, 194 80, 194 130 C 194 176, 150 206, 128 218 C 106 206, 62 176, 62 130 C 62 80, 82 66, 128 66 Z" fill="#000000" opacity="0.3" transform="translate(0, 6)" />
+
+  <!-- Şövalye / Fetih Kalkanı -->
+  <path d="M 128 66 C 174 66, 194 80, 194 130 C 194 176, 150 206, 128 218 C 106 206, 62 176, 62 130 C 62 80, 82 66, 128 66 Z" fill="url(#shieldGrad)" stroke="#fef08a" stroke-width="4" />
+
+  <!-- Kalkan İçi Koyu Alan -->
+  <path d="M 128 76 C 166 76, 182 88, 182 128 C 182 166, 146 192, 128 204 C 110 192, 74 166, 74 128 C 74 88, 90 76, 128 76 Z" fill="#1e1b4b" />
+
+  <!-- Kalkan Üzerindeki Parlayan Altın Hexagon (Bölge Fetih Sembolü) -->
+  <polygon points="128,96 156,112 156,144 128,160 100,144 100,112" fill="url(#hexGrad)" stroke="#fef08a" stroke-width="3" />
+
+  <!-- Hexagon İçi Kılıç / Bayrak Simgesi -->
+  <!-- Kılıç Bıçağı -->
+  <path d="M 128 108 L 132 142 L 128 148 L 124 142 Z" fill="#ffffff" />
+  <!-- Kılıç Siperliği -->
+  <rect x="120" y="142" width="16" height="4" rx="2" fill="#fbbf24" />
+  <!-- Kılıç Kabzası -->
+  <rect x="126" y="146" width="4" height="8" rx="1" fill="#b45309" />
+  <circle cx="128" cy="155" r="2.5" fill="#fbbf24" />
+
+  <!-- Parlama Işıltıları -->
+  <polygon points="128,78 131,85 138,88 131,91 128,98 125,91 118,88 125,85" fill="#fef08a" />
+  <polygon points="186,186 188,191 193,193 188,195 186,200 184,195 179,193 184,191" fill="#38bdf8" />
+</svg>

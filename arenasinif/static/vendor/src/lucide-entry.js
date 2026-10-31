@@ -1,0 +1,3 @@
+import { createIcons, Activity, Bell, BookOpen, Check, CheckCircle, ChevronDown, Clock, Copy, Crown, Database, Disc, Eye, LayoutGrid, Lightbulb, MapPin, Maximize, Pause, Play, RefreshCw, Repeat, RotateCcw, Settings, Shield, Shuffle, Sparkles, Timer, Trophy, Users, UserX, Volume2, VolumeX, X, Zap } from 'lucide';
+const icons = { Activity, Bell, BookOpen, Check, CheckCircle, ChevronDown, Clock, Copy, Crown, Database, Disc, Eye, LayoutGrid, Lightbulb, MapPin, Maximize, Pause, Play, RefreshCw, Repeat, RotateCcw, Settings, Shield, Shuffle, Sparkles, Timer, Trophy, Users, UserX, Volume2, VolumeX, X, Zap };
+window.lucide = { createIcons: (o) => createIcons(Object.assign({ icons }, o || {})), icons };

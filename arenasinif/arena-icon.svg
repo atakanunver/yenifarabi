@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <!-- Zengin indigo-mor ve altın yarışma gradyanı -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#312e81"/>
+      <stop offset="50%" stop-color="#4338ca"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="35%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+    <linearGradient id="rimGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fef9c3"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Vektör Tabanlı Düşen Gölge (feDropShadow yok, tam uyumlu) -->
+  <rect x="16" y="24" width="224" height="224" rx="54" fill="#090d16" opacity="0.45"/>
+
+  <!-- Arka Plan Squircle -->
+  <rect x="16" y="16" width="224" height="224" rx="54" fill="url(#bgGrad)"/>
+  <!-- İç İnce Işıma Çerçevesi -->
+  <rect x="18" y="18" width="220" height="220" rx="52" fill="none" stroke="#818cf8" stroke-width="3" stroke-opacity="0.5"/>
+
+  <!-- Alt Kaide Gölgesi -->
+  <rect x="80" y="202" width="96" height="12" rx="4" fill="#000000" opacity="0.35"/>
+
+  <!-- Kupa Kaidesi -->
+  <path d="M 80 196 H 176 V 206 H 80 Z" fill="url(#goldGrad)" rx="3"/>
+  <path d="M 96 178 H 160 V 196 H 96 Z" fill="url(#goldGrad)"/>
+  <path d="M 116 150 H 140 V 178 H 116 Z" fill="url(#goldGrad)"/>
+
+  <!-- Kupa Kulpları -->
+  <path d="M 72 74 C 38 74 38 120 76 126" fill="none" stroke="url(#goldGrad)" stroke-width="12" stroke-linecap="round"/>
+  <path d="M 184 74 C 218 74 218 120 180 126" fill="none" stroke="url(#goldGrad)" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- Kupa Gövdesi -->
+  <path d="M 68 62 H 188 C 188 126 150 152 128 152 C 106 152 68 126 68 62 Z" fill="url(#goldGrad)"/>
+
+  <!-- Kupa Ağız Çemberi -->
+  <ellipse cx="128" cy="62" rx="60" ry="12" fill="url(#rimGrad)"/>
+  <ellipse cx="128" cy="62" rx="52" ry="8" fill="#d97706"/>
+
+  <!-- Kupa Üzerindeki Yıldız -->
+  <polygon points="128,84 132,96 145,96 135,104 139,116 128,109 117,116 121,104 111,96 124,96" fill="#ffffff" opacity="0.95"/>
+
+  <!-- Parlama Yıldızları -->
+  <polygon points="196,40 199,48 207,51 199,54 196,62 193,54 185,51 193,48" fill="#fef08a"/>
+  <polygon points="58,142 60,147 65,149 60,151 58,156 56,151 51,149 56,147" fill="#fef08a"/>
+</svg>

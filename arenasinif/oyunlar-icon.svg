@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <!-- Canlı Mor-Turuncu Oyun Teması Gradyanı -->
+    <linearGradient id="folderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="50%" stop-color="#ef4444"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="padGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Vektör Tabanlı Düşen Gölge -->
+  <rect x="16" y="24" width="224" height="224" rx="54" fill="#090d16" opacity="0.45"/>
+
+  <!-- Arka Plan Squircle -->
+  <rect x="16" y="16" width="224" height="224" rx="54" fill="url(#folderGrad)"/>
+  <!-- İç İnce Işıma Çerçevesi -->
+  <rect x="18" y="18" width="220" height="220" rx="52" fill="none" stroke="#ffffff" stroke-width="3" stroke-opacity="0.35"/>
+
+  <!-- Gamepad Alt Gölgesi -->
+  <rect x="52" y="86" width="152" height="96" rx="40" fill="#000000" opacity="0.25"/>
+
+  <!-- Gamepad Gövdesi -->
+  <rect x="52" y="80" width="152" height="96" rx="40" fill="url(#padGrad)" stroke="#38bdf8" stroke-width="4"/>
+  <!-- Sol Tutamak -->
+  <ellipse cx="68" cy="144" rx="24" ry="32" fill="url(#padGrad)" stroke="#38bdf8" stroke-width="4"/>
+  <!-- Sağ Tutamak -->
+  <ellipse cx="188" cy="144" rx="24" ry="32" fill="url(#padGrad)" stroke="#38bdf8" stroke-width="4"/>
+
+  <!-- D-Pad (Yön Tuşları) -->
+  <rect x="74" y="104" width="12" height="36" rx="3" fill="#64748b"/>
+  <rect x="62" y="116" width="36" height="12" rx="3" fill="#64748b"/>
+  <circle cx="80" cy="122" r="4" fill="#38bdf8"/>
+
+  <!-- Aksiyon Düğmeleri (A/B/X/Y) -->
+  <circle cx="176" cy="108" r="7" fill="#ef4444"/>
+  <circle cx="164" cy="122" r="7" fill="#3b82f6"/>
+  <circle cx="188" cy="122" r="7" fill="#10b981"/>
+  <circle cx="176" cy="136" r="7" fill="#f59e0b"/>
+
+  <!-- Orta Ekran / Play Logosu -->
+  <rect x="114" y="112" width="28" height="16" rx="4" fill="#0284c7" opacity="0.85"/>
+  <polygon points="124,116 134,120 124,124" fill="#ffffff"/>
+</svg>

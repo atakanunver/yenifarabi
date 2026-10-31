@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="tr" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Katılım ve Skor Özeti - Sınıflar Arası Skor Tablosu</title>
+  <link rel="stylesheet" href="/static/vendor/fonts.css">
+  <link rel="stylesheet" href="/static/tailwind.css">
+  <script src="/static/hata.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .font-fun { font-family: 'Fredoka', cursive, sans-serif; }
+  </style>
+</head>
+<body class="min-h-full bg-slate-950 text-slate-100 flex flex-col">
+  <!-- ÜST BAŞLIK & NAVİGASYON -->
+  <header class="bg-slate-900/90 border-b border-slate-800 px-4 py-4 sticky top-0 z-30 backdrop-blur">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <span class="text-3xl">🏆</span>
+          <h1 class="font-fun text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-indigo-300 to-emerald-400">
+            Sınıflar Arası Skor Tablosu
+          </h1>
+        </div>
+        <p class="text-slate-400 text-xs md:text-sm mt-1" id="aralik-metni">Katılım ve Skor Özeti yükleniyor...</p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2 text-sm">
+        <label for="gun-sec" class="text-slate-400 text-xs md:text-sm">Dönem:</label>
+        <select id="gun-sec" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-slate-200 text-xs md:text-sm focus:outline-none focus:border-indigo-500">
+          <option value="7">Son 7 gün</option>
+          <option value="14">Son 14 gün</option>
+          <option value="30" selected>Son 30 gün</option>
+          <option value="90">Son 90 gün</option>
+          <option value="365">Tüm Dönem (365 gün)</option>
+        </select>
+        <div class="flex items-center gap-1.5 ml-2">
+          <a href="/" class="px-2.5 py-1.5 rounded-xl bg-indigo-950/70 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-300 text-xs font-semibold transition" title="Sınıf Arenası Jeopardy">
+            🎮 Arena
+          </a>
+          <a href="/fetih" class="px-2.5 py-1.5 rounded-xl bg-sky-950/70 hover:bg-sky-900 border border-sky-700/50 text-sky-300 text-xs font-semibold transition" title="HexaFetih Bölge Fethi">
+            ⬡ Fetih
+          </a>
+          <a href="/duello" class="px-2.5 py-1.5 rounded-xl bg-amber-950/70 hover:bg-amber-900 border border-amber-700/50 text-amber-300 text-xs font-semibold transition" title="Tahta Düellosu">
+            ⚔️ Düello
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-6 flex flex-col gap-6">
+    <!-- ÖNE ÇIKAN ŞAMPİYONLAR (HERO CARDS) -->
+    <section id="hero-bolumu" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <!-- 1. En Çok Soru Cevaplayan Sınıf -->
+      <div class="rounded-3xl bg-gradient-to-br from-amber-500/15 via-slate-900 to-slate-900 border border-amber-500/30 p-5 shadow-lg relative overflow-hidden">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs uppercase font-bold tracking-wider text-amber-400">👑 En Çok Soru Cevaplayan</span>
+          <span class="text-2xl">🥇</span>
+        </div>
+        <h2 id="hero-sinif-ad" class="font-fun text-3xl font-black text-amber-300">-</h2>
+        <div class="mt-3 flex items-baseline gap-2">
+          <span id="hero-sinif-soru" class="text-2xl font-bold text-white">0</span>
+          <span class="text-xs text-slate-400">Doğru Soru</span>
+        </div>
+        <p id="hero-sinif-detay" class="text-xs text-slate-400 mt-1">0 Oyun · 0 Puan</p>
+      </div>
+
+      <!-- 2. En Çok Soru Bilen Öğrenci (Okul MVP) -->
+      <div class="rounded-3xl bg-gradient-to-br from-indigo-500/15 via-slate-900 to-slate-900 border border-indigo-500/30 p-5 shadow-lg relative overflow-hidden">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs uppercase font-bold tracking-wider text-indigo-400">🌟 Okulun En Çok Soru Bilen Kişisi</span>
+          <span class="text-2xl">⭐</span>
+        </div>
+        <h2 id="hero-ogrenci-ad" class="font-fun text-2xl font-black text-indigo-300 truncate">-</h2>
+        <div class="mt-3 flex items-baseline gap-2">
+          <span id="hero-ogrenci-soru" class="text-2xl font-bold text-white">0</span>
+          <span class="text-xs text-slate-400">Doğru Soru</span>
+        </div>
+        <p id="hero-ogrenci-detay" class="text-xs text-slate-400 mt-1">- Sınıfı · 0 Puan</p>
+      </div>
+
+      <!-- 3. Okul Geneli Özet Sayaç -->
+      <div class="rounded-3xl bg-gradient-to-br from-emerald-500/15 via-slate-900 to-slate-900 border border-emerald-500/30 p-5 shadow-lg relative overflow-hidden">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs uppercase font-bold tracking-wider text-emerald-400">🎯 Okul Geneli Katılım</span>
+          <span class="text-2xl">📊</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mt-2">
+          <div>
+            <div id="hero-toplam-soru" class="text-2xl font-bold text-emerald-300">0</div>
+            <div class="text-[11px] text-slate-400">Çözülen Soru</div>
+          </div>
+          <div>
+            <div id="hero-toplam-oyun" class="text-2xl font-bold text-white">0</div>
+            <div class="text-[11px] text-slate-400">Oynanan Oyun</div>
+          </div>
+        </div>
+        <p id="hero-katilim-detay" class="text-xs text-slate-400 mt-2">0 Sınıf · 0 Aktif Öğrenci</p>
+      </div>
+    </section>
+
+    <!-- SEKME BUTONLARI -->
+    <div class="flex items-center border-b border-slate-800 gap-2 overflow-x-auto pb-1 text-sm font-semibold">
+      <button id="sekme-btn-siniflar" onclick="sekmeDegistir('siniflar')" class="px-4 py-2 rounded-t-xl border-b-2 border-amber-400 text-amber-300 bg-slate-900 flex items-center gap-2">
+        <span>🏫</span>
+        <span>Sınıflar Arası Skor Tablosu</span>
+      </button>
+      <button id="sekme-btn-ogrenciler" onclick="sekmeDegistir('ogrenciler')" class="px-4 py-2 rounded-t-xl border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+        <span>🌟</span>
+        <span>En Çok Soru Bilen Öğrenciler</span>
+      </button>
+      <button id="sekme-btn-takimlar" onclick="sekmeDegistir('takimlar')" class="px-4 py-2 rounded-t-xl border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+        <span>🛡️</span>
+        <span>En İyi Takımlar</span>
+      </button>
+      <button id="sekme-btn-detaylar" onclick="sekmeDegistir('detaylar')" class="px-4 py-2 rounded-t-xl border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+        <span>📊</span>
+        <span>Sınıf Bazlı Detay Kartları</span>
+      </button>
+    </div>
+
+    <!-- 1. SEKME: SINIFLAR ARASI SKOR TABLOSU -->
+    <section id="panel-siniflar" class="bg-slate-900 border border-slate-800 rounded-3xl p-4 md:p-6 shadow-xl">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="font-fun text-xl font-bold text-amber-400 flex items-center gap-2">
+            <span>🏆</span> Sınıflar Arası Şampiyonluk Sıralaması
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Tüm dersler, düellolar ve sınıf içi yarışmalarda doğru cevaplanan soru sayılarına göre sıralanmıştır.</p>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="text-xs uppercase text-slate-400 border-b border-slate-800 bg-slate-950/40">
+            <tr>
+              <th class="py-3 px-3 w-16 text-center">Sıra</th>
+              <th class="py-3 px-3">Sınıf</th>
+              <th class="py-3 px-3 text-center text-amber-300 font-bold">Doğru Soru 🎯</th>
+              <th class="py-3 px-3 text-center">Toplam Puan 🏆</th>
+              <th class="py-3 px-3 text-center">Oyun Sayısı 🎮</th>
+              <th class="py-3 px-3 text-center">Aktif Kadro 👥</th>
+              <th class="py-3 px-3">Sınıfın Yıldızı ⭐</th>
+            </tr>
+          </thead>
+          <tbody id="tablo-siniflar" class="divide-y divide-slate-800 font-semibold">
+            <!-- Dinamik doldurulacak -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 2. SEKME: EN ÇOK SORU BİLEN ÖĞRENCİLER -->
+    <section id="panel-ogrenciler" class="hidden bg-slate-900 border border-slate-800 rounded-3xl p-4 md:p-6 shadow-xl">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <h2 class="font-fun text-xl font-bold text-indigo-400 flex items-center gap-2">
+            <span>🌟</span> Okul Geneli Öğrenci Liderlik Tablosu
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Düello ve takım yarışmalarında en çok doğru cevap veren ve puan toplayan öğrenciler.</p>
+        </div>
+        <div class="flex items-center gap-1.5 text-xs">
+          <button id="ogr-filtre-hepsi" onclick="ogrenciFiltrele('hepsi')" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold">Tümü</button>
+          <button id="ogr-filtre-duello" onclick="ogrenciFiltrele('duello')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold">⚔️ Düello</button>
+          <button id="ogr-filtre-takim" onclick="ogrenciFiltrele('takim')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold">🛡️ Takım</button>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="text-xs uppercase text-slate-400 border-b border-slate-800 bg-slate-950/40">
+            <tr>
+              <th class="py-3 px-3 w-16 text-center">Sıra</th>
+              <th class="py-3 px-3">Öğrenci</th>
+              <th class="py-3 px-3 text-center">Sınıf</th>
+              <th class="py-3 px-3 text-center text-indigo-300 font-bold">Doğru Soru 🎯</th>
+              <th class="py-3 px-3 text-center">Toplam Puan 🏆</th>
+              <th class="py-3 px-3 text-center">Oyun Sayısı</th>
+              <th class="py-3 px-3 text-center">Galibiyet ⭐</th>
+              <th class="py-3 px-3 text-center text-amber-400">En İyi Seri 🔥</th>
+            </tr>
+          </thead>
+          <tbody id="tablo-ogrenciler" class="divide-y divide-slate-800 font-semibold">
+            <!-- Dinamik doldurulacak -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 3. SEKME: EN İYİ TAKIMLAR -->
+    <section id="panel-takimlar" class="hidden bg-slate-900 border border-slate-800 rounded-3xl p-4 md:p-6 shadow-xl">
+      <div class="mb-4">
+        <h2 class="font-fun text-xl font-bold text-emerald-400 flex items-center gap-2">
+          <span>🛡️</span> Sınıf İçi Yarışmaların En İyi Takımları
+        </h2>
+        <p class="text-xs text-slate-400 mt-0.5">Sınıf Arenası ve HexaFetih'te en yüksek skor ve galibiyet elde eden tematik takımlar.</p>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="text-xs uppercase text-slate-400 border-b border-slate-800 bg-slate-950/40">
+            <tr>
+              <th class="py-3 px-3 w-16 text-center">Sıra</th>
+              <th class="py-3 px-3">Takım Adı</th>
+              <th class="py-3 px-3 text-center">Sınıf</th>
+              <th class="py-3 px-3 text-center text-emerald-300 font-bold">Doğru Soru 🎯</th>
+              <th class="py-3 px-3 text-center">Toplam Puan 🏆</th>
+              <th class="py-3 px-3 text-center">Oyun Sayısı</th>
+              <th class="py-3 px-3 text-center">Galibiyet ⭐</th>
+            </tr>
+          </thead>
+          <tbody id="tablo-takimlar" class="divide-y divide-slate-800 font-semibold">
+            <!-- Dinamik doldurulacak -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 4. SEKME: SINIF BAZLI DETAY KARTLARI -->
+    <section id="panel-detaylar" class="hidden">
+      <div id="siniflar-kart-alani" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </section>
+
+    <p id="bos" class="hidden py-8 text-center text-slate-400 text-sm">Bu dönemde henüz kaydedilmiş oyun bulunamadı.</p>
+  </main>
+
+  <footer class="mt-auto border-t border-slate-800/80 py-4 text-center text-xs text-slate-500">
+    Farabi.local Akıllı Tahta Arenası · Veriler yalnızca yerel veritabanında saklanır.
+  </footer>
+
+  <script>
+    const OYUN_ADI = { sinif_arena: 'Sınıf Arenası', hexafetih: 'HexaFetih', duello: 'Tahta Düellosu' };
+    let aktifVeri = null;
+    let seciliOgrenciFiltre = 'hepsi';
+
+    function el(etiket, sinif, metin) {
+      const e = document.createElement(etiket);
+      if (sinif) e.className = sinif;
+      if (metin !== undefined) e.textContent = metin;
+      return e;
+    }
+
+    function siraRozeti(sira) {
+      if (sira === 1) return '🥇 1';
+      if (sira === 2) return '🥈 2';
+      if (sira === 3) return '🥉 3';
+      return String(sira);
+    }
+
+    function sekmeDegistir(sekme) {
+      const paneller = ['siniflar', 'ogrenciler', 'takimlar', 'detaylar'];
+      paneller.forEach(p => {
+        const panelEl = document.getElementById('panel-' + p);
+        const btnEl = document.getElementById('sekme-btn-' + p);
+        if (panelEl) panelEl.classList.toggle('hidden', p !== sekme);
+        if (btnEl) {
+          if (p === sekme) {
+            btnEl.className = 'px-4 py-2 rounded-t-xl border-b-2 border-amber-400 text-amber-300 bg-slate-900 flex items-center gap-2';
+          } else {
+            btnEl.className = 'px-4 py-2 rounded-t-xl border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2';
+          }
+        }
+      });
+    }
+
+    function ogrenciFiltrele(tur) {
+      seciliOgrenciFiltre = tur;
+      ['hepsi', 'duello', 'takim'].forEach(t => {
+        const b = document.getElementById('ogr-filtre-' + t);
+        if (b) {
+          if (t === tur) {
+            b.className = 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold';
+          } else {
+            b.className = 'px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold';
+          }
+        }
+      });
+      tabloOgrencilerCiz();
+    }
+
+    function tabloSiniflarCiz(siniflar) {
+      const govde = document.getElementById('tablo-siniflar');
+      govde.textContent = '';
+      if (!siniflar || !siniflar.length) {
+        const tr = el('tr');
+        const td = el('td', 'py-4 text-center text-slate-500', 'Sınıf verisi bulunamadı.');
+        td.colSpan = 7;
+        tr.appendChild(td);
+        govde.appendChild(tr);
+        return;
+      }
+
+      siniflar.forEach(s => {
+        const tr = el('tr', 'hover:bg-slate-800/40 transition');
+        
+        // Sıra
+        const tdSira = el('td', 'py-3 px-3 text-center font-bold text-amber-400', siraRozeti(s.sira));
+        tr.appendChild(tdSira);
+
+        // Sınıf
+        const tdSinif = el('td', 'py-3 px-3 font-fun text-base text-indigo-300', s.sinif);
+        tr.appendChild(tdSinif);
+
+        // Doğru Soru
+        const tdSoru = el('td', 'py-3 px-3 text-center font-fun text-lg text-amber-300 font-bold', `${s.dogru_soru}`);
+        tr.appendChild(tdSoru);
+
+        // Puan
+        const tdPuan = el('td', 'py-3 px-3 text-center text-slate-200 font-semibold', `${s.toplam_puan.toLocaleString('tr-TR')}`);
+        tr.appendChild(tdPuan);
+
+        // Oyun
+        const tdOyun = el('td', 'py-3 px-3 text-center text-xs text-slate-300');
+        tdOyun.innerHTML = `<span class="font-bold text-white">${s.toplam_oyun}</span> <span class="text-slate-500 text-[10px]">(D:${s.duello_oyun} · A:${s.arena_oyun} · F:${s.fetih_oyun})</span>`;
+        tr.appendChild(tdOyun);
+
+        // Kadro
+        const tdKadro = el('td', 'py-3 px-3 text-center text-slate-300', `${s.ogrenci_sayisi} Öğrenci`);
+        tr.appendChild(tdKadro);
+
+        // Yıldız
+        const tdYildiz = el('td', 'py-3 px-3 text-xs text-slate-300');
+        if (s.en_iyi_ogrenci && s.en_iyi_ogrenci !== '-') {
+          tdYildiz.innerHTML = `<span class="text-amber-300 font-bold">${s.en_iyi_ogrenci}</span> <span class="text-slate-500 text-[10px]">(${s.en_iyi_ogrenci_dogru} soru)</span>`;
+        } else {
+          tdYildiz.textContent = '-';
+        }
+        tr.appendChild(tdYildiz);
+
+        govde.appendChild(tr);
+      });
+    }
+
+    function tabloOgrencilerCiz() {
+      const govde = document.getElementById('tablo-ogrenciler');
+      govde.textContent = '';
+      if (!aktifVeri || !aktifVeri.siniflar_arasi) return;
+
+      let liste = aktifVeri.siniflar_arasi.ogrenciler_genel || [];
+      if (seciliOgrenciFiltre === 'duello') {
+        liste = aktifVeri.siniflar_arasi.ogrenciler_duello || [];
+      } else if (seciliOgrenciFiltre === 'takim') {
+        liste = aktifVeri.siniflar_arasi.ogrenciler_takim || [];
+      }
+
+      if (!liste.length) {
+        const tr = el('tr');
+        const td = el('td', 'py-4 text-center text-slate-500', 'Öğrenci verisi bulunamadı.');
+        td.colSpan = 8;
+        tr.appendChild(td);
+        govde.appendChild(tr);
+        return;
+      }
+
+      liste.forEach((o, i) => {
+        const tr = el('tr', 'hover:bg-slate-800/40 transition');
+        tr.appendChild(el('td', 'py-3 px-3 text-center font-bold text-amber-400', siraRozeti(i + 1)));
+        tr.appendChild(el('td', 'py-3 px-3 font-semibold text-slate-100', o.ad));
+        tr.appendChild(el('td', 'py-3 px-3 text-center font-fun text-indigo-300', o.sinif));
+        
+        const soruSayisi = (seciliOgrenciFiltre === 'duello') ? o.duello_dogru : (seciliOgrenciFiltre === 'takim' ? o.takim_dogru : o.dogru_soru);
+        tr.appendChild(el('td', 'py-3 px-3 text-center font-fun text-base text-indigo-300 font-bold', `${soruSayisi || 0}`));
+        tr.appendChild(el('td', 'py-3 px-3 text-center text-slate-200', `${o.toplam_puan.toLocaleString('tr-TR')}`));
+        tr.appendChild(el('td', 'py-3 px-3 text-center text-xs text-slate-300', `${o.oyun_sayisi} oyun`));
+        tr.appendChild(el('td', 'py-3 px-3 text-center text-emerald-400 font-bold', `${o.galibiyet}`));
+        tr.appendChild(el('td', 'py-3 px-3 text-center text-amber-400 font-bold', o.en_iyi_seri > 0 ? `${o.en_iyi_seri}x` : '-'));
+        govde.appendChild(tr);
+      });
+    }
+
+    function tabloTakimlarCiz(takimlar) {
+      const govde = document.getElementById('tablo-takimlar');
+      govde.textContent = '';
+      if (!takimlar || !takimlar.length) {
+        const tr = el('tr');
+        const td = el('td', 'py-4 text-center text-slate-500', 'Takım verisi bulunamadı.');
+        td.colSpan = 7;
+        tr.appendChild(td);
+        govde.appendChild(tr);
+        return;
+      }
+
+      takimlar.forEach((t, i) => {
+        const tr = el('tr', 'hover:bg-slate-800/40 transition');
+        tr.appendChild(el('td', 'py-3 px-3 text-center font-bold text-amber-400', siraRozeti(i + 1)));
+        tr.appendChild(el('td', 'py-3 px-3 font-semibold text-emerald-300', t.takim));
+        tr.appendChild(el('td', 'py-3 px-3 text-center font-fun text-indigo-300', t.sinif));
+        tr.appendChild(el('td', 'py-3 px-3 text-center font-fun text-base text-emerald-300 font-bold', `${t.dogru_soru || 0}`));
+        tr.appendChild(el('td', 'py-3 px-3 text-center text-slate-200', `${t.toplam_puan.toLocaleString('tr-TR')}`));
+        tr.appendChild(el('td', 'py-3 px-3 text-center text-xs text-slate-300', `${t.oyun_sayisi}`));
+        tr.appendChild(el('td', 'py-3 px-3 text-center text-emerald-400 font-bold', `${t.galibiyet}`));
+        govde.appendChild(tr);
+      });
+    }
+
+    function kartCiz(s) {
+      const kart = el('section', 'rounded-2xl bg-slate-900 border border-slate-800 p-4 shadow-lg');
+      const ust = el('div', 'flex items-center justify-between');
+      ust.appendChild(el('h3', 'font-fun text-xl font-bold text-indigo-300', s.sinif));
+      ust.appendChild(el('span', 'text-xs text-slate-400', `Bu hafta ${s.bu_hafta} oyun · dönemde ${s.oyun_sayisi} oyun`));
+      kart.appendChild(ust);
+
+      const turler = Object.entries(s.oyun_turleri).map(([t, n]) => `${OYUN_ADI[t] || t}: ${n}`).join(' · ');
+      kart.appendChild(el('div', 'text-xs text-slate-500 mt-1', turler));
+
+      // Takım Listesi
+      const tKutu = el('div', 'mt-3');
+      tKutu.appendChild(el('div', 'text-xs font-semibold text-slate-400 mb-1', 'En İyi Takımlar'));
+      if (s.en_iyi_takimlar && s.en_iyi_takimlar.length) {
+        s.en_iyi_takimlar.forEach((k, i) => {
+          const satir = el('div', 'flex items-center justify-between text-sm py-0.5');
+          satir.appendChild(el('span', 'text-slate-200', `${i + 1}. ${k.ad}`));
+          satir.appendChild(el('span', 'font-fun text-amber-300', `${k.puan} puan · ${k.oyun} oyun`));
+          tKutu.appendChild(satir);
+        });
+      } else {
+        tKutu.appendChild(el('div', 'text-xs text-slate-500', 'Takım kaydı yok'));
+      }
+      kart.appendChild(tKutu);
+
+      // Öğrenci Listesi
+      const oKutu = el('div', 'mt-3');
+      oKutu.appendChild(el('div', 'text-xs font-semibold text-slate-400 mb-1', 'En Başarılı Öğrenciler'));
+      if (s.en_iyi_ogrenciler && s.en_iyi_ogrenciler.length) {
+        s.en_iyi_ogrenciler.forEach((k, i) => {
+          const satir = el('div', 'flex items-center justify-between text-sm py-0.5');
+          satir.appendChild(el('span', 'text-slate-200', `${i + 1}. ${k.ad}`));
+          satir.appendChild(el('span', 'font-fun text-indigo-300', `${k.puan} puan · ${k.oyun} oyun`));
+          oKutu.appendChild(satir);
+        });
+      } else {
+        oKutu.appendChild(el('div', 'text-xs text-slate-500', 'Öğrenci kaydı yok'));
+      }
+      kart.appendChild(oKutu);
+
+      // Son Oyunlar
+      const son = el('div', 'mt-3 pt-2 border-t border-slate-800');
+      son.appendChild(el('div', 'text-xs font-semibold text-slate-400 mb-1', 'Son Oyunlar'));
+      if (s.son_oyunlar && s.son_oyunlar.length) {
+        s.son_oyunlar.slice(0, 4).forEach(o => {
+          const kazanan = (o.katilimcilar.find(k => k.kazanan) || o.katilimcilar[0] || {}).ad || '-';
+          son.appendChild(el('div', 'text-xs text-slate-300 py-0.5 truncate',
+            `${o.tarih.replace('T', ' ').slice(0, 16)} · ${OYUN_ADI[o.oyun] || o.oyun} · ${o.ders || '-'} · 🏆 ${kazanan}`));
+        });
+      } else {
+        son.appendChild(el('div', 'text-xs text-slate-500', 'Geçmiş oyun yok'));
+      }
+      kart.appendChild(son);
+
+      return kart;
+    }
+
+    async function yukle() {
+      const gun = document.getElementById('gun-sec').value;
+      const detayKap = document.getElementById('siniflar-kart-alani');
+      detayKap.textContent = '';
+
+      try {
+        const r = await fetch('/api/arena/ozet?gun=' + encodeURIComponent(gun));
+        if (!r.ok) throw new Error('Özet alınamadı');
+        const d = await r.json();
+        aktifVeri = d;
+
+        document.getElementById('aralik-metni').textContent = `Son ${d.gun} gün · veriler yalnızca bu sunucuda tutulur`;
+        const bosMu = (!d.siniflar || d.siniflar.length === 0);
+        document.getElementById('bos').classList.toggle('hidden', !bosMu);
+
+        const sa = d.siniflar_arasi || {};
+
+        // Hero 1: En Çok Soru Cevaplayan Sınıf
+        const topSinif = sa.en_cok_soru_cevaplayan_sinif;
+        if (topSinif) {
+          document.getElementById('hero-sinif-ad').textContent = topSinif.sinif;
+          document.getElementById('hero-sinif-soru').textContent = topSinif.dogru_soru.toLocaleString('tr-TR');
+          document.getElementById('hero-sinif-detay').textContent = `${topSinif.toplam_oyun} Oyun · ${topSinif.toplam_puan.toLocaleString('tr-TR')} Puan`;
+        } else {
+          document.getElementById('hero-sinif-ad').textContent = '-';
+          document.getElementById('hero-sinif-soru').textContent = '0';
+          document.getElementById('hero-sinif-detay').textContent = '0 Oyun · 0 Puan';
+        }
+
+        // Hero 2: En Çok Soru Bilen Öğrenci (MVP)
+        const topOgr = sa.en_cok_soru_bilen_ogrenci;
+        if (topOgr) {
+          document.getElementById('hero-ogrenci-ad').textContent = topOgr.ad;
+          document.getElementById('hero-ogrenci-soru').textContent = topOgr.dogru_soru.toLocaleString('tr-TR');
+          document.getElementById('hero-ogrenci-detay').textContent = `${topOgr.sinif} · ${topOgr.toplam_puan.toLocaleString('tr-TR')} Puan · ${topOgr.oyun_sayisi} Oyun`;
+        } else {
+          document.getElementById('hero-ogrenci-ad').textContent = '-';
+          document.getElementById('hero-ogrenci-soru').textContent = '0';
+          document.getElementById('hero-ogrenci-detay').textContent = '- Sınıfı · 0 Puan';
+        }
+
+        // Hero 3: Toplam Katılım
+        document.getElementById('hero-toplam-soru').textContent = (sa.toplam_dogru_soru || 0).toLocaleString('tr-TR');
+        document.getElementById('hero-toplam-oyun').textContent = (sa.toplam_oyun || 0).toLocaleString('tr-TR');
+        document.getElementById('hero-katilim-detay').textContent = `${sa.sinif_sayisi || 0} Sınıf · ${sa.ogrenci_sayisi || 0} Aktif Öğrenci`;
+
+        // Tablo Çizimleri
+        tabloSiniflarCiz(sa.siniflar || []);
+        tabloOgrencilerCiz();
+        tabloTakimlarCiz(sa.takimlar || []);
+
+        // Detay Kartları
+        (d.siniflar || []).forEach(s => detayKap.appendChild(kartCiz(s)));
+
+      } catch (e) {
+        document.getElementById('aralik-metni').textContent = 'Özet yüklenemedi: ' + e.message;
+      }
+    }
+
+    document.getElementById('gun-sec').addEventListener('change', yukle);
+    yukle();
+  </script>
+</body>
+</html>
