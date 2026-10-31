@@ -433,6 +433,15 @@ class FarabiLive:
         # `_video_icin_duraklat`); DEVAM ET bunu da geri açmalı, yoksa
         # öğretmen video bitince mikrofonu ayrıca elle açmak zorunda kalır.
         self._video_yuzunden_susturuldu = False
+        # DURDUR da mikrofonu kapatır: açık kalırsa sınıf sesi oturuma gider,
+        # Gemini duraklatılmışken cevap verir ve DEVAM ET'in "son konuşmalar"
+        # bağlamı sınıf gürültüsüyle dolar (2026-10-31). DEVAM ET geri açar.
+        self._durdur_yuzunden_susturuldu = False
+        # Gemini'nin son oturum devam anahtarı. DUR konuşma sırasında gelip
+        # bağlantı zorla yenilenince bununla bağlanılır; yoksa yeni oturum
+        # dersin geçmişini bilmez ve DEVAM ET kaldığı yeri kaçırır.
+        self._devam_anahtari: str | None = None
+        self._devam_anahtariyla_baglan = False
         # Oturumu öğretmen başlatır; olay run() içinde kurulur (loop gerekiyor).
         self._oturum_izni: asyncio.Event | None = None
         # Talimat modundan sesle çıkış — run() içinde her bağlantıda
@@ -531,6 +540,9 @@ class FarabiLive:
             if anahtar == "durdur":
                 # Kalıcı duraklatma: yalnızca DEVAM ET kaldırır.
                 self.motor.duraklat(True)
+                if not self.ui.muted:
+                    self.ui.muted = True
+                    self._durdur_yuzunden_susturuldu = True
                 # Sesi ANINDA kes. Modele "duraklat" demek yeterli değil:
                 # o yalnızca üretimi durdurur, kuyrukta bekleyen ses çalmaya
                 # devam eder ve öğretmen DURDUR'a bastıktan sonra Farabi
@@ -556,6 +568,9 @@ class FarabiLive:
                     # duyulmadığını fark etmeyebilir.
                     self.ui.muted = False
                     self._video_yuzunden_susturuldu = False
+                if self._durdur_yuzunden_susturuldu:
+                    self.ui.muted = False
+                    self._durdur_yuzunden_susturuldu = False
                 if not self.ui.muted:
                     self.ui.set_state("LISTENING")
                 d = getattr(self.motor, "durum", None)
@@ -564,7 +579,7 @@ class FarabiLive:
                     ekler.append(f"Ders: {getattr(d, 'ders_adi', '')} {getattr(d, 'konu', '')}".strip())
                 if d and getattr(d, "adim", None):
                     ekler.append(f"Adım: {d.adim}")
-                son = transcript.son_konusmalar(4)
+                son = transcript.son_konusmalar(10)
                 if son:
                     ekler.append(f"Son konuşmalar:\n{son}")
                 ek_bilgi = ("\nBağlam:\n" + "\n".join(ekler)) if ekler else ""
@@ -1614,6 +1629,10 @@ class FarabiLive:
                     if getattr(response, "usage_metadata", None):
                         self._kullanim_kaydet(response.usage_metadata)
 
+                    guncelleme = getattr(response, "session_resumption_update", None)
+                    if guncelleme and guncelleme.resumable and guncelleme.new_handle:
+                        self._devam_anahtari = guncelleme.new_handle
+
                     if response.server_content:
                         sc = response.server_content
 
@@ -1853,7 +1872,7 @@ class FarabiLive:
                 satirlar.append(f"- Ders: {d.ders_adi} {d.konu}".rstrip())
             if d.adim:
                 satirlar.append(f"- Bulunduğun adım: {d.adim}")
-            son = transcript.son_konusmalar(4)
+            son = transcript.son_konusmalar(10)
             if son:
                 satirlar.append("Son konuşmalar:\n" + son)
             await self.session.send_client_content(
@@ -2383,6 +2402,11 @@ class FarabiLive:
                          fail_streak + 1, anahtar.durum())
                 self.ui.set_state("THINKING")
                 config = self._build_config()
+                if self._devam_anahtariyla_baglan and self._devam_anahtari:
+                    config.session_resumption = types.SessionResumptionConfig(
+                        handle=self._devam_anahtari)
+                    log.info("DUR sonrası oturum devam anahtarıyla bağlanılıyor.")
+                self._devam_anahtariyla_baglan = False
 
                 # İstemci DÖNGÜ İÇİNDE kuruluyor. Eskiden döngünün dışındaydı;
                 # anahtar devri eklenince orada kalsaydı yeni anahtar SDK'ya
@@ -2498,6 +2522,7 @@ class FarabiLive:
                     # oturum DURAKLATILDI durumunu miras alır,
                     # _oturum_devam_notu() bunu görüp suskun kalır.
                     self._durdur_zorla_istendi = False
+                    self._devam_anahtariyla_baglan = True
                     log.info("DUR konuşma sırasında geldi — bağlantı yenilenip duraklatıldı.")
                     self.ui.write_log("SYS: Konuşma zorla kesildi (DUR) — bağlantı yenilendi.")
                     self.session = None
