@@ -30,7 +30,10 @@ systemd `farabi-kelebek`; `kameralar/` ile birlikte git'te izlenmez, `.gitignore
   açıkça istenmeden yeniden açma/önerme (birim dosyaları `_arsiv/kazanimtest-systemd/` altında). İSTİSNA: `soru-havuzu-uret.timer` Atakan tarafından bilerek yeniden AÇILDI
   (2026-10-14 itibarıyla açık; her gün 00:00 TR başlar, 06:00'da durur). Kapatma, açıkça istenmeden yapılmaz.
 - 9-11 çalışmaları Maarif modeline göre (2026-10-10).
-- Ollama'da TEK model `gemma4:12b` (Gemma 4 12B Q4_K_M; tools/thinking/vision; 2026-10-25) (iki RTX 3060); başka model kurulmaz. TÜM istemciler aynı bağlamı
+- Ollama'da Farabi'nin VARSAYILAN modeli `gemma4:12b` (Gemma 4 12B Q4_K_M; tools/thinking/vision; 2026-10-25) (iki RTX 3060). 2026-10-31'den beri
+  her uygulama ihtiyacı olan modeli o an yükler (Atakan kararı): kod ajanları (qwen, codewhale) `qwen3.8:27b` (iki karta yayılır, ~19 GB) kullanır.
+  İkisi aynı anda sığmaz; Ollama boştaki modeli boşaltıp isteneni yükler, geçiş ~50 sn (ölçüldü: qwen→gemma 48 sn). `saglayicilar.py` Ollama
+  çağrısı 30 sn'de bulut yedeğine düşer, soru havuzu 180 sn bekler. Yeni model kurmak yine onay ister. TÜM istemciler aynı bağlamı
   kullanır: sunucu `OLLAMA_CONTEXT_LENGTH=49152` (drop-in `zz-baglam.conf`; farklı `num_ctx` modeli yeniden yükletir). 49152 tek karta (GPU0 ~9 GB) sığar, 65536 ikinci karta taşıp `farabi-embed` ile çakışır.
   Açılışta `/usr/local/bin/farabi-ollama-onyukle.sh` modeli yükler. Çağıran kod düşünmeyi kapatır (`think:false`; Gemma'da düşünme varsayılan AÇIK). `CUDA_DEVICE_ORDER=PCI_BUS_ID` şart.
 - Gömme + reranker servisi `farabi-embed` (2. RTX 3060, `127.0.0.1:8040`, `FARABI_EMBED_URL`) 2026-10-30'dan beri BİLEREK durdurulmuş ve disabled;
