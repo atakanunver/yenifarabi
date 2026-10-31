@@ -1,6 +1,6 @@
 import unittest
 
-from client.tools.ders_gorsel_olc import (
+from tools.ders_gorsel_olc import (
     cpu_yuzdesi,
     esik_karari,
     log_parse,
