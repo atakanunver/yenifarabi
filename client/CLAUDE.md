@@ -336,7 +336,8 @@ connect, locked after DERSİ BAŞLAT.
   catalogue. Grade defaults from this board's `derslik`
   (`tahta.sinif_duzeyi()`). It is also where `transcript.log_frame()` is
   called — the one point both typed and spoken frames pass through.
-- **`kitap_sorusu`** — a concrete question to the server RAG
+- **`kitap_sorusu`** — (RAG permanently cancelled 2026-10-31; server answers "hata",
+  tool is a leftover) a concrete question to the server RAG
   (`/api/egitim/question`); returns a source-checked answer to be read as
   given. `ders` is **required** (without it a grade-only match picked the
   wrong subject's book). The `Kaynak: …, s. …` line dedupes pages and marks

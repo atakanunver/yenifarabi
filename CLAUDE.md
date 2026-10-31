@@ -2,18 +2,21 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Çalışma ilkeleri
-1. **Önce düşün:** Sessiz varsayım yapma. Belirsizlik ya da birden fazla yorum varsa söyle, gerekirse sor.
-2. **Önce sadelik:** İsteneni yapan en az kodu yaz; spekülatif özellik ve gereksiz soyutlama ekleme.
-3. **Cerrahi değişiklik:** Yalnızca istenen satırlara dokun; komşu kodu "iyileştirme", stili/biçimi değiştirme. SSH ile birden çok makineye dağıtılan kodda özellikle önemli.
-4. **Hedef odaklı:** Görevi doğrulanabilir bir başarı kriterine çevir (test, `curl`, `systemctl is-active`, log satırı); kriter sağlanmadan "bitti" deme.
-
 # Farabi
 Sınıf akıllı tahtalarında sesli ders asistanı + aynı sunucuda okul operasyon
-servisleri (yoklama panosu, SMS). Monorepo; her alt projenin kendi `CLAUDE.md`'si
-var (client, server, tahtayoklama, smssistemi, tahtaayar, benchmark, mudur,
-soruhavuzu, kazanimtest, okul, kameralar, kiosk; `kelebek/` (sınav salon dağıtım paneli, :8050,
-systemd `farabi-kelebek`; `kameralar/` ile birlikte git'te izlenmez, `.gitignore`'da) ve `osym/` (ÖSYM/YKS rapor yükleyici, `osym` DB), `arenasinif/` (tahta yarışma oyunları, :8030, systemd `sinif-arena`; kendi `DECISIONS.md`'si var) ile `anythingllm/` için CLAUDE.md yok; Open WebUI kodu `_arsiv/openwebui/`, `_arsiv/webui-tema/`'dedir). Bu dosya: ortak kurallar + servisler arası resim.
+servisleri (yoklama panosu, SMS). Monorepo. Bu dosya: ortak kurallar + servisler arası resim
+(genel çalışma ilkeleri global `~/.claude/CLAUDE.md`'de).
+- Kendi `CLAUDE.md`'si olan alt projeler: client, server, tahtayoklama, smssistemi, tahtaayar, benchmark,
+  mudur, soruhavuzu, kazanimtest, okul, kameralar, kiosk.
+- CLAUDE.md'si olmayanlar: `kelebek/` (sınav salon dağıtım paneli), `osym/` (ÖSYM/YKS rapor yükleyici, `osym` DB),
+  `arenasinif/` (tahta yarışma oyunları; kendi `DECISIONS.md`'si var), `anythingllm/` (Atos kurulum + yetenekler),
+  `tahtagoruntuyakala/` (2026-10-31 açılan ders görsel arşivi proje notları; yalnız `codex.md`, git'te izlenmiyor).
+  Ders görsel arşivi kodu: `client/ders_gorsel_servis.py` + `client/core/ders_gorsel.py` (tahta, `systemd --user`
+  `farabi-ders-gorsel`, bayrak `ders_gorsel.enabled`, pilot 10-A) → `server/ders_gorsel.py` (`POST /api/ders-gorsel`,
+  arşiv `/mnt/farabi-data/farabi/ders_gorselleri/`). Gece analizi PLANLANDI (henüz yok).
+- Git'te izlenmeyenler (`.gitignore`): `kelebek/`, `kameralar/`. ⚠️ Bu yüzden `git sparse-checkout set/reapply`
+  ÇALIŞTIRMA: koni dışındaki yok sayılan dizinleri (canlı `kelebek/`, `kameralar/`) silebilir.
+- Open WebUI kodu `_arsiv/openwebui/`, `_arsiv/webui-tema/`'dedir.
 
 - Kararlar/neden: `DECISIONS.md` (`grep "## <tarih>"`). Mimari (2026-09-13'te
   donmuş, çelişkide bu dosya esas): `docs/mimari.md`. Ağ envanteri, dağıtım,
@@ -35,13 +38,14 @@ systemd `farabi-kelebek`; `kameralar/` ile birlikte git'te izlenmez, `.gitignore
   `smssistemi/app.py`, `soruhavuzu/uretici.py`, Atos (`/opt/anythingllm/app/server/.env`: `OLLAMA_MODEL_PREF='farabi'`, `OLLAMA_KEEP_ALIVE_TIMEOUT='-1'`),
   EBYS botu (Müdür PC `C:\Users\exa\Desktop\ebys\config.json`). qwen/codewhale CLI'leri `qwen3.8:27b` adını kullanır (aynı digest, ek yükleme yok).
   **Model değişimi = `ollama cp <yeni> farabi`**; kod değişmez. Başka bir adla istek atan istemci ikinci modeli yükletip `farabi`yi boşaltır (~50 sn).
-  `gemma4:12b` diskte duruyor, kullanılmıyor. Yeni model kurmak onay ister. TÜM istemciler aynı bağlamı
+  `gemma4:12b`, `mistral-nemo:12b`, `cosmos-8b` diskte duruyor, kullanılmıyor. Yeni model kurmak onay ister. TÜM istemciler aynı bağlamı
   kullanır: sunucu `OLLAMA_CONTEXT_LENGTH=49152` (drop-in `zz-baglam.conf`; farklı `num_ctx` modeli yeniden yükletir). qwen iki kartı da kullandığı için `farabi-embed` (GPU1) ile aynı anda çalışamaz.
   Ajanlar qwen'i yoğun kullanırken `saglayicilar.py` (30 sn) ve SMS çağrıları kuyrukta bekleyip bulut yedeğine düşebilir.
   Açılışta `/usr/local/bin/farabi-ollama-onyukle.sh` `farabi`yi yükler. Çağıran kod düşünmeyi kapatır (`think:false`; qwen3.x'te düşünme varsayılan AÇIK). `CUDA_DEVICE_ORDER=PCI_BUS_ID` şart.
 - Gömme + reranker servisi `farabi-embed` (2. RTX 3060, `127.0.0.1:8040`, `FARABI_EMBED_URL`) 2026-10-30'dan beri BİLEREK durdurulmuş ve disabled;
-  RAG kapalı (`server/main.py::RAG_AKTIF = False`). Açıkça istenmeden başlatma; RAG açılırsa önce bu servis açılır. bilgehan yalnız ses düğümü.
-- Ses Gemini Live'da, client'ta. Yerel STT/TTS/Pipecat KALICI İPTAL (2026-09-28).
+  RAG KALICI İPTAL (2026-10-31, Atakan; `server/main.py::RAG_AKTIF = False`). Başlatma, RAG'ı geri açma. bilgehan yalnız ses düğümü.
+- Ses Gemini Live'da, client'ta; tahtalarda tek yol. Yerel STT/TTS/Pipecat KALICI İPTAL (2026-09-28).
+- Planlanan: tahta arayüzüne "Soruyu çöz" seçeneği (mevcut `actions/ekrandaki_soruyu_oku.py`'yi tetikler).
 - Atos = AnythingLLM (Docker'sız, `/opt/anythingllm`, PM2 + `pm2-anythingllm.service`, port 8010, tek kullanıcı modu + erişim parolası; kurulum/yetenekler `anythingllm/`). Open WebUI 2026-10-25'te kaldırıldı, verisi `/mnt/farabi-data/farabi/arsiv/open-webui-atos-20261025.tgz`. Veri erişimi: aşağıdaki "Atos veri erişimi".
 - Okul ağı SSL-inceleme yapıyor: yeni venv'de certifi'ye MEB sertifikası eklenmeli;
   `HF_HUB_OFFLINE=1` açık.
@@ -57,7 +61,7 @@ systemd `farabi-kelebek`; `kameralar/` ile birlikte git'te izlenmez, `.gitignore
 ## Servisler (ayrı systemd birimi + ayrı venv; BİRLEŞTİRME)
 | Servis | Dizin | Port | Not |
 |---|---|---|---|
-| farabi-api | server/ | 8000 | RAG, kitap/PDF, YKS, LLM proxy, tahta auth |
+| farabi-api | server/ | 8000 | kitap/PDF, YKS, LLM proxy, tahta auth, ders görsel arşivi |
 | farabi-yoklama-dashboard | tahtayoklama/dashboard/ | 80 | yoklama, uzaktan yönetim, servisler |
 | farabi-smssistemi | smssistemi/ | 8020 | SMS, rehber, doğum günleri |
 | farabi-okul | okul/ | 9090 | dijital okul portalı, smual.app (Cloudflare Tunnel) |
@@ -90,7 +94,11 @@ Akış: Atos agent yetenekleri `sql-sorgu` / `tablo-dosyasi` (`anythingllm/skill
   Yeni tablo = `okul_sql.py`'de sabit + `IZINLI_TABLOLAR` + `okul_bilgisi.py::sql` birleşimi + şema açıklaması.
 - SMS ve osym kaynakları yoksa sessizce atlanır (diğer tablolar çalışır); hata metinleri DSN/yol sızdırmaz (`SqlHatasi`).
 - Test: `cd tahtayoklama/dashboard && venv/bin/python -m unittest test_okul_sql`. Dashboard restart'ı ders saati dışında (08:00-17:00 TR dışı).
-- Bu çalışma dizininde `anythingllm/` ve `kiosk/` sparse-checkout dışındadır (diskte yok; `git show HEAD:<dizin>/<dosya>` ya da `git sparse-checkout add <dizin>`).
+- `anythingllm/` 2026-10-31'de sparse-checkout'a eklendi; `kiosk/` hâlâ dışarıdadır.
+- SMS yeteneği `anythingllm/skills/sms-gonder/`: önce taslak → AnythingLLM kullanıcı onayı → gönderim; zamanlanmış görev/otomatik onay yok,
+  tüm okul gönderimi SMS arayüzündeki sayı onayına yönlendirilir. Onay, AnythingLLM'nin `User approved the tool execution.` yanıtına bağlı:
+  AnythingLLM güncellenince bu sözleşmeyi kontrol et. `__SMS_ANAHTAR__` ← `smssistemi/config/arac.json::anahtar`.
+  Test: `node --test anythingllm/tests/sms-gonder.test.js` (sahte servis).
 
 ## Komutlar
 | Proje | Test | Üretime alma |
@@ -116,10 +124,9 @@ Akış: Atos agent yetenekleri `sql-sorgu` / `tablo-dosyasi` (`anythingllm/skill
 6. Büyük refactor: önce plan, onay. 7. Testi atlama/gizleme. 8. Yeni teknoloji/servis/
 kütüphane (Docker, Redis, Qdrant, Celery, yeni LLM, bulut API…) için önce onay.
 9. `.env`/API anahtarı commit'lenmez, koda yazılmaz. 10. Ölçmeden optimizasyon yok.
-11. Bug/özellik: plan Opus, uygulama Sonnet (tek satırlık işte zorunlu değil).
-12. Client+server bağlı değişiklikte ikisi birlikte; son kabul fiziksel tahtada Atakan.
+11. Client+server bağlı değişiklikte ikisi birlikte; son kabul fiziksel tahtada Atakan.
 
-## RAG
+## RAG (KALICI İPTAL 2026-10-31 — aşağısı tarihsel; `kitap_sorusu` aracı kalıntı)
 - Cevap yalnızca retrieval'dan. Skor eşik altı → "Bu konu ders kitabında bulunmuyor."
   `ESIK_RERANK` 0,5; `kitap_id` filtresi; `chunk_egitim` top-20 + `chunk_tablo` top-10,
   rerank birleşimde top-4. Kazanım filtresi YOK. Geri dönüş: `rag.py::TABLO_KAYNAGI`.
@@ -149,4 +156,3 @@ Log, hata avında birincil kanıttır; varsayımla debug etme.
 - Dil: Türkçe; kod ve teknik terimler orijinal.
 - Frontend (`tahtayoklama/dashboard/`): önce `tahtayoklama/CLAUDE.md` tasarım bölümü;
   CDN/yeni kütüphane yok.
-- Dış ajan çıktısına güvenme, doğrula.
