@@ -3,32 +3,30 @@
 {% block baslik %}Servis yönetimi{% endblock %}
 {% block ust_sag %}<button type="button" class="dugme dugme-ikincil" id="yenile"><svg class="ikon"><use href="#ik-yenile"/></svg> Yenile</button>{% endblock %}
 {% block icerik %}
-<div class="servis-sayfa">
-<section class="kpi-satir" aria-live="polite">
-  <div class="kpi"><span class="kpi-etiket">Çalışan servis</span><strong id="kpi-calisan">—</strong></div>
-  <div class="kpi"><span class="kpi-etiket">Sorunlu</span><strong id="kpi-sorunlu">—</strong></div>
-  <div class="kpi kpi-genis"><span class="kpi-etiket">Sıradaki zamanlayıcı</span><strong id="kpi-siradaki">—</strong></div>
-  <div class="kpi" id="ders-saati-rozeti" hidden><span class="rozet rozet-amber">Ders saati</span>
-    <span class="kpi-etiket">Derse etki eden işlemler ikinci onay ister</span></div>
+<section class="ozet-serit" aria-live="polite">
+  <div class="ozet-kutu"><span class="ozet-etiket">Çalışan servis</span><strong id="ozet-calisan">—</strong></div>
+  <div class="ozet-kutu"><span class="ozet-etiket">Sorunlu</span><strong id="ozet-sorunlu">—</strong></div>
+  <div class="ozet-kutu"><span class="ozet-etiket">Sıradaki zamanlayıcı</span><strong id="ozet-siradaki">—</strong></div>
+  <div class="ozet-kutu" id="ders-saati-rozeti" hidden><span class="rozet rozet-amber">Ders saati</span>
+    <span class="ozet-etiket">Derse etki eden işlemler ikinci onay ister</span></div>
 </section>
 
-<h2 class="bolum-baslik">Servisler</h2>
+<h2 class="bolum-basligi">Servisler</h2>
 <div class="servis-izgara" id="servis-kartlari">
   <div class="servis-kart iskelet"></div><div class="servis-kart iskelet"></div><div class="servis-kart iskelet"></div>
 </div>
 
-<h2 class="bolum-baslik" id="zamanlayicilar-baslik">Zamanlayıcılar</h2>
-<div class="tablo-sarici"><table class="servis-zaman-tablo" id="zamanlayicilar" aria-labelledby="zamanlayicilar-baslik">
+<h2 class="bolum-basligi" id="zamanlayicilar-baslik">Zamanlayıcılar</h2>
+<div class="tablo-kutu"><table class="tablo" id="zamanlayicilar" aria-labelledby="zamanlayicilar-baslik">
   <thead><tr><th>Zamanlayıcı</th><th>Sonraki</th><th>Son çalışma</th><th>Etkin</th><th><span class="gorsel-gizli">Eylemler</span></th></tr></thead>
   <tbody><tr><td colspan="5"><div class="iskelet iskelet-satir"></div></td></tr></tbody>
 </table></div>
 
 <section class="soru-havuzu" id="soru-havuzu-karti" aria-labelledby="sh-baslik">
-  <h2 id="sh-baslik" class="bolum-baslik">Soru havuzu</h2>
+  <h2 id="sh-baslik" class="bolum-basligi">Soru havuzu</h2>
   <p class="soluk" id="sh-durum">Yükleniyor…</p>
-  <div class="kapsam-cubugu" id="sh-kapsam" hidden></div>
+  <div id="sh-kapsam" hidden></div>
 </section>
-</div>
 
 <aside class="log-paneli" id="log-paneli" aria-labelledby="log-baslik" hidden>
   <header><h2 id="log-baslik">Log</h2>
@@ -42,7 +40,7 @@
 <dialog class="pencere" id="onay-penceresi" aria-labelledby="onay-baslik">
   <h2 id="onay-baslik">Emin misiniz?</h2>
   <p id="onay-metin"></p>
-  <p class="uyari-not" id="onay-uyari" hidden><svg class="ikon"><use href="#ik-uyari"/></svg> <span></span></p>
+  <p class="serit serit-uyari" id="onay-uyari" hidden><svg class="ikon"><use href="#ik-uyari"/></svg> <span></span></p>
   <form method="dialog" class="pencere-dugmeler">
     <button class="dugme dugme-ikincil" value="iptal">Vazgeç</button>
     <button class="dugme" id="onay-evet" value="evet">Devam</button>
@@ -121,11 +119,11 @@
     });
     var calisan = servisler.filter(function (b) { return b.aktif_durum === 'active'; }).length;
     var sorunlu = veri.birimler.filter(function (b) { return b.aktif_durum === 'failed'; }).length;
-    document.getElementById('kpi-calisan').textContent = calisan + '/' + servisler.length;
-    var s = document.getElementById('kpi-sorunlu'); s.textContent = sorunlu; s.className = sorunlu ? 'metin-kirmizi' : '';
+    document.getElementById('ozet-calisan').textContent = calisan + '/' + servisler.length;
+    var s = document.getElementById('ozet-sorunlu'); s.textContent = sorunlu; s.className = sorunlu ? 'metin-kirmizi' : '';
     var siradaki = zam.filter(function (b) { return b.zamanlayici_etkin && tarih(b.sonraki); })
       .sort(function (a, c) { return tarih(a.sonraki) - tarih(c.sonraki); })[0];
-    document.getElementById('kpi-siradaki').textContent = siradaki ? siradaki.ad.replace(/ \(.*\)$/, '') + ' · ' + zaman(siradaki.sonraki) : '—';
+    document.getElementById('ozet-siradaki').textContent = siradaki ? siradaki.ad.replace(/ \(.*\)$/, '') + ' · ' + zaman(siradaki.sonraki) : '—';
     document.getElementById('ders-saati-rozeti').hidden = !veri.ders_saati;
     soruHavuzu(zam.filter(function (b) { return b.birim === 'soru-havuzu-uret'; })[0]);
   }
