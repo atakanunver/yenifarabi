@@ -77,22 +77,12 @@
     "kullanici": "ogretmen",
     "admin": "etapadmin"
   },
-  "tahta-234": {
-    "ip": "192.168.23.234",
-    "kullanici": "ogretmen",
-    "admin": "etapadmin"
-  },
   "fenlab": {
     "hostname": "fenlab",
     "ip": "192.168.23.244",
     "kullanici": "ogretmen",
     "admin": "etapadmin",
     "mac": "00:09:df:8c:32:8a"
-  },
-  "tahta-236": {
-    "ip": "192.168.23.236",
-    "kullanici": "ogretmen",
-    "admin": "etapadmin"
   },
   "sporodasi": {
     "hostname": "sporodasi",
