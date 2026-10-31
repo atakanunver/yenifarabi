@@ -1,0 +1,20 @@
+[Unit]
+Description=Farabi Bağımsız Ders Görseli Gözlemcisi
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/farabi/client/venv/bin/python %h/farabi/client/ders_gorsel_servis.py
+WorkingDirectory=%h/farabi/client
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=%h/.Xauthority
+# xprop başlıkları UTF-8 basmazsa FARABİ/MEBBİS başlık kontrolleri kaçar.
+Environment=LANG=C.UTF-8
+# Farabi'nin logs/farabi.log'unu iki süreç döndürmesin.
+Environment=FARABI_LOG_DIR=%h/farabi/client/logs/ders_gorsel
+Nice=10
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

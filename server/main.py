@@ -26,6 +26,7 @@ from sentence_transformers import CrossEncoder, SentenceTransformer
 import auth
 import client_durum
 import db
+import ders_gorsel
 import ders_hafizasi
 import dosya
 import icerik
@@ -172,6 +173,7 @@ app.include_router(client_durum.router)
 # ders_hafizasi taşıması (2026-08-18) — durum["hazir"]'a bağlı değil, yalnızca
 # yedekler/ders_kaydi/ dosyalarını okur, RAG modeli gerekmez.
 app.include_router(ders_hafizasi.router)
+app.include_router(ders_gorsel.router)  # tahta ders görsel arşivi; tahta auth, AI yok
 # Open WebUI Farabi modları (2026-10-03) — kendi anahtarıyla korunur
 # (webui.webui_anahtari_dogrula), tahta auth'una bağlı DEĞİL.
 app.include_router(webui.router)

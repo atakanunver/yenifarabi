@@ -51,5 +51,9 @@
   "derslik": "10-A",
   "sunucu_url": "http://127.0.0.1:8000",
   "ders_kipi": "ogretmenli",
-  "tahta_anahtari": ""
+  "tahta_anahtari": "",
+  "ders_gorsel": {
+    "enabled": false,
+    "aralik_sn": 5
+  }
 }
