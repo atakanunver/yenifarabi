@@ -76,7 +76,7 @@ paketi, öğrenci verisi değil); dizin yoksa yol hiç bağlanmaz.
 - `gorsel` zinciri: `mistral/pixtral-12b-2409` → `mistral/mistral-medium-latest`
   → `nvidia/meta/llama-3.2-11b-vision-instruct`. **NVIDIA bu ağdan
   güvenilmez** (410/timeout). openrouter anahtarı yok.
-- Ollama (`gemma4:12b`, tek model): sistem mesajı olmayan isteklere
+- Ollama (`farabi` takma adı = `qwen3.8:27b`, tek model): sistem mesajı olmayan isteklere
   `saglayicilar.py` Farabi promptunu (`ollama/farabi_sistem.txt`) ekler;
   prompt değişince `farabi-api` restart gerekir (modül açılışta okur).
   Düşünme her çağrıda kapalı olmalı: yerel API `"think": False`, `/v1`

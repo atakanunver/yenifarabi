@@ -42,7 +42,7 @@ BIRIMLER: dict[str, dict] = {
     "farabi-yoklama-dashboard": {"ad": "Yoklama panosu (bu sayfa)", "tur": "servis",
                                  "eylemler": ("yeniden-baslat",), "ders_uyarisi": False,
                                  "aciklama": "Sayfa birkaç saniye bağlantıyı kaybeder, sonra kendiliğinden döner."},
-    "ollama": {"ad": "Ollama (gemma4:12b)", "tur": "servis", "eylemler": ("yeniden-baslat", "hata-temizle"),
+    "ollama": {"ad": "Ollama (farabi = qwen3.8:27b)", "tur": "servis", "eylemler": ("yeniden-baslat", "hata-temizle"),
                "ders_uyarisi": True, "aciklama": "Model yeniden yüklenir (~1 dk); Atos ve soru üretimi bekler."},
     "pm2-anythingllm": {"ad": "Atos (AnythingLLM)", "tur": "servis", "eylemler": _S, "ders_uyarisi": True,
                         "aciklama": "PM2 süreçleri (sunucu + belge işleyici) yeniden başlar; Atos sohbetleri bağlantıyı kaybeder."},

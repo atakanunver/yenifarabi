@@ -1,4 +1,4 @@
-"""soruhavuzu/uretici.py — bir kaynak biriminden yerel Ollama (gemma4:12b) ve/veya AGY (gemini-3.8-flash-low) ile çoktan seçmeli sorular."""
+"""soruhavuzu/uretici.py — bir kaynak biriminden yerel Ollama (`farabi` takma adı) ve/veya AGY (gemini-3.8-flash-low) ile çoktan seçmeli sorular."""
 
 import json
 import re
@@ -7,7 +7,7 @@ from pathlib import Path
 
 import httpx
 
-MODEL = "gemma4:12b"
+MODEL = "farabi"  # Ollama takma adı (şu an qwen3.8:27b); model değişimi: ollama cp <model> farabi
 AGY_BIN = "/home/ata/.local/bin/agy"
 AGY_MODEL = "gemini-3.8-flash-low"
 AGY_SEMA = Path(__file__).with_name("agy_uret_sema.json")

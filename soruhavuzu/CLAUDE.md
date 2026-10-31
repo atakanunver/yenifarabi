@@ -1,7 +1,7 @@
 # soruhavuzu
 
 Oyunlar (Sınıf Arenası vb.) için hazır soru havuzu: ders kitapları, kazanım
-testleri ve YKS çıkmış sorularından **yerel Ollama** (gemma4:12b) ile soru
+testleri ve YKS çıkmış sorularından **yerel Ollama** (`farabi` takma adı = qwen3.8:27b) ile soru
 üretir, ayrı PostgreSQL veritabanına (`soru_havuzu`) yazar; üretim bitince
 **AGY** (Antigravity) tüm havuzu bir kez denetler. Plan:
 `docs/superpowers/plans/2026-10-05-soru-havuzu.md`; kararlar kök

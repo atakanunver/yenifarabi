@@ -80,7 +80,7 @@ templates.env.globals["stil_surum"] = int(os.path.getmtime("static/stil.css"))
 _DURDUR_BAYRAKLARI: dict[str, threading.Event] = {}
 
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
-OLLAMA_MODEL = "gemma4:12b"
+OLLAMA_MODEL = "farabi"  # Ollama takma adı (şu an qwen3.8:27b)
 
 
 def ollama_mesaj_duzelt(taslak: str) -> str:

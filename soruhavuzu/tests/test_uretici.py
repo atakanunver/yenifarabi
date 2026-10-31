@@ -82,7 +82,7 @@ def test_istem_think_kapali_ve_json():
     finally:
         uretici.httpx.Client = eski
     assert yakalanan["think"] is False and yakalanan["format"] == "json"
-    assert yakalanan["model"] == "gemma4:12b"
+    assert yakalanan["model"] == "farabi"
     assert yakalanan["options"]["num_predict"] == 2048
 
 
