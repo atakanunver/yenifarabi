@@ -267,9 +267,10 @@ def olustur_servis_sinifi():
                     .reshape((rgb.height(), rgb.bytesPerLine()))[:, : rgb.width() * 3]
                     .reshape((rgb.height(), rgb.width(), 3))
                 )
-                del rgb
+                # arr, rgb'nin belleğine bakan görünüm (sip.voidptr sahipliği tutmaz):
+                # kopya rgb serbest bırakılmadan önce alınmalı.
                 pil_im = Image.fromarray(arr.copy(), "RGB")
-                del arr
+                del arr, rgb
 
                 webp_bayt = webp_kodla(pil_im, max_genislik=960, kalite=60)
                 del pil_im
