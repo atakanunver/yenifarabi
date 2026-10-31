@@ -88,7 +88,7 @@ function proxyAlani(m) {
   const onay = el('div', 'sunucu-onay gizli');
   const soru = el('span', null, `${m.ad} için proxy ${hedef === 'ac' ? 'açılsın' : 'kapatılsın'} mı?` +
     (m.anahtar === 'farabi' ? ' (Ollama yeniden başlar — ders saatindeyse 17:05\'e ertelenir)' : ''));
-  const evet = el('button', 'dugme dugme-tehlike-dolu dugme-kucuk', 'Evet');
+  const evet = el('button', 'dugme dugme-birincil dugme-kucuk', 'Evet');
   const vazgec = el('button', 'dugme dugme-ikincil dugme-kucuk', 'Vazgeç');
   evet.type = vazgec.type = 'button';
   onay.append(soru, evet, vazgec);

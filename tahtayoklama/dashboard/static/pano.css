@@ -693,25 +693,6 @@ thead th.sinif-baslik { z-index: 15; }
 .tiklanabilir:hover .pill-alinmadi { transform: translateY(-1px); box-shadow: var(--renk-golge); }
 .tetikleniyor { opacity: 0.5; pointer-events: none; }
 
-/* ---------- Toast ---------- */
-.toast {
-  position: fixed;
-  bottom: 1.75rem;
-  right: 1.75rem;
-  background: var(--renk-metin);
-  color: white;
-  padding: 0.8rem 1.3rem;
-  border-radius: var(--yaricap);
-  font-size: 0.88rem;
-  font-weight: 500;
-  box-shadow: var(--renk-golge-yukseltilmis);
-  transition: opacity 0.25s, transform 0.25s;
-  transform: translateY(0);
-  max-width: 360px;
-  z-index: 50;
-}
-.toast.hata { background: var(--renk-kirmizi); }
-.toast.gizli { opacity: 0; pointer-events: none; transform: translateY(8px); }
 
 /* ---------- Giriş sayfası ---------- */
 .giris-sarici {
