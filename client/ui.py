@@ -1775,6 +1775,8 @@ class MainWindow(QMainWindow):
         ("▶  DEVAM ET", "devam",
          "Derse devam et. Tek cümleyle bağla ve sürdür; sınıfa ne yaptığınızı "
          "sorma."),
+        ("🔍  SORUYU ÇÖZ", "soru_coz",
+         "Ekrandaki soruyu oku ve adım adım çöz."),
     ]
 
     def _build_ogretmen_paneli(self) -> QGridLayout:

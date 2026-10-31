@@ -58,6 +58,15 @@ def test_ekran_okuma_komutu_negatif(metin):
     assert main._ekran_okuma_komutu_mu(metin) is False
 
 
+def test_soruyu_coz_dugmesi_ekran_iscisini_tetikler():
+    """Öğretmen panelindeki SORUYU ÇÖZ düğmesinin metni, _on_teacher_command içinde
+    modele düz metin yerine ekran okuma işçisini tetiklemeli."""
+    pytest.importorskip("PyQt6")
+    import ui
+    metin = dict((a, m) for _, a, m in ui.MainWindow.OGRETMEN_KOMUTLARI)["soru_coz"]
+    assert main._ekran_okuma_komutu_mu(f"[ÖĞRETMEN KOMUTU] {metin}") is True
+
+
 # ── _ETIKET_RE ────────────────────────────────────────────────────────────
 
 def test_etiket_re_ekrani_temizler():
