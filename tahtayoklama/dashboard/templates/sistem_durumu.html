@@ -1,90 +1,69 @@
 {% extends "taban.html" %}
-{% block baslik_etiketi %}Sistem Durumu — Yoklama ve Yönetim Paneli{% endblock %}
-{% block baslik %}Sistem Durumu{% endblock %}
+{% block baslik_etiketi %}Sistem durumu — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Sistem durumu{% endblock %}
 
 {% block ust_sag %}
-<span id="son-guncelleme-durum"></span>
+<span id="son-guncelleme-durum" class="zaman-yazi"></span>
 {% endblock %}
 
 {% block icerik %}
-<p class="rapor-aciklama">Farabi sunucusunun donanım ve servis durumu — salt
+<p class="ipucu">Farabi sunucusunun donanım ve servis durumu — salt
    izleme, buradan hiçbir servise müdahale edilmez. Donanım ölçümleri 15
    saniyede, servis yanıt/sağlık yoklamaları ve dış makineler 60 saniyede bir
    alınır; sayfa 15 saniyede bir yenilenir.</p>
 
-<h2>Farabi sağlık özeti</h2>
-<div class="saglik-ozet" id="saglik-ozet">
-  <div class="saglik-kutu saglik-yukleniyor"><span class="saglik-kutu-ad">Okunuyor…</span></div>
+<h2 class="bolum-basligi">Farabi sağlık özeti</h2>
+<div class="ozet-serit alt-bosluk" id="saglik-ozet">
+  <div class="ozet-kutu saglik-yukleniyor"><span class="ozet-etiket">Okunuyor…</span></div>
 </div>
 
-<div class="durum-izgara" id="durum-izgara">
-  <div class="durum-kart">
-    <svg class="ikon durum-kart-simge"><use href="#ik-termometre"/></svg>
-    <div class="durum-kart-govde">
-      <span class="durum-kart-baslik">CPU sıcaklığı</span>
-      <span class="durum-kart-deger" id="deger-cpu">—</span>
-      <span class="durum-kart-alt" id="alt-cpu">Okunuyor…</span>
-    </div>
+<div class="ozet-serit alt-bosluk" id="durum-izgara">
+  <div class="ozet-kutu">
+    <span class="ozet-etiket">CPU sıcaklığı</span>
+    <strong id="deger-cpu">—</strong>
+    <span class="ozet-alt" id="alt-cpu">Okunuyor…</span>
   </div>
-  <div class="durum-kart">
-    <svg class="ikon durum-kart-simge"><use href="#ik-nabiz"/></svg>
-    <div class="durum-kart-govde">
-      <span class="durum-kart-baslik">CPU kullanımı</span>
-      <span class="durum-kart-deger" id="deger-cpu-kullanim">—</span>
-      <span class="durum-kart-alt" id="alt-cpu-kullanim">Okunuyor…</span>
-    </div>
+  <div class="ozet-kutu">
+    <span class="ozet-etiket">CPU kullanımı</span>
+    <strong id="deger-cpu-kullanim">—</strong>
+    <span class="ozet-alt" id="alt-cpu-kullanim">Okunuyor…</span>
   </div>
-  <div class="durum-kart" id="kart-bellek">
-    <svg class="ikon durum-kart-simge"><use href="#ik-cip"/></svg>
-    <div class="durum-kart-govde">
-      <span class="durum-kart-baslik">Bellek (RAM)</span>
-      <span class="durum-kart-deger" id="deger-bellek">—</span>
-      <span class="durum-kart-alt" id="alt-bellek">Okunuyor…</span>
-    </div>
+  <div class="ozet-kutu" id="kart-bellek">
+    <span class="ozet-etiket">Bellek (RAM)</span>
+    <strong id="deger-bellek">—</strong>
+    <span class="ozet-alt" id="alt-bellek">Okunuyor…</span>
   </div>
-  <div class="durum-kart" id="kart-disk">
-    <svg class="ikon durum-kart-simge"><use href="#ik-disk"/></svg>
-    <div class="durum-kart-govde">
-      <span class="durum-kart-baslik">Disk</span>
-      <span class="durum-kart-deger" id="deger-disk">—</span>
-      <span class="durum-kart-alt" id="alt-disk">Okunuyor…</span>
-    </div>
+  <div class="ozet-kutu" id="kart-disk">
+    <span class="ozet-etiket">Disk</span>
+    <strong id="deger-disk">—</strong>
+    <span class="ozet-alt" id="alt-disk">Okunuyor…</span>
   </div>
-  <div class="durum-kart">
-    <svg class="ikon durum-kart-simge"><use href="#ik-disk"/></svg>
-    <div class="durum-kart-govde">
-      <span class="durum-kart-baslik">Disk G/Ç</span>
-      <span class="durum-kart-deger" id="deger-diskio">—</span>
-      <span class="durum-kart-alt" id="alt-diskio">Okunuyor…</span>
-    </div>
+  <div class="ozet-kutu">
+    <span class="ozet-etiket">Disk G/Ç</span>
+    <strong id="deger-diskio">—</strong>
+    <span class="ozet-alt" id="alt-diskio">Okunuyor…</span>
   </div>
-  <div class="durum-kart" id="kart-calisma">
-    <svg class="ikon durum-kart-simge"><use href="#ik-saat"/></svg>
-    <div class="durum-kart-govde">
-      <span class="durum-kart-baslik">Çalışma süresi</span>
-      <span class="durum-kart-deger" id="deger-calisma">—</span>
-      <span class="durum-kart-alt" id="alt-calisma">Yük ortalaması okunuyor…</span>
-    </div>
+  <div class="ozet-kutu" id="kart-calisma">
+    <span class="ozet-etiket">Çalışma süresi</span>
+    <strong id="deger-calisma">—</strong>
+    <span class="ozet-alt" id="alt-calisma">Yük ortalaması okunuyor…</span>
   </div>
 </div>
 
-<h2>Ekran kartları (GPU)</h2>
-<div class="durum-izgara" id="gpu-izgara">
-  <div class="durum-kart">
-    <svg class="ikon durum-kart-simge"><use href="#ik-katman"/></svg>
-    <div class="durum-kart-govde">
-      <span class="durum-kart-baslik">Okunuyor…</span>
-      <span class="durum-kart-deger">—</span>
-    </div>
+<h2 class="bolum-basligi">Ekran kartları (GPU)</h2>
+<div class="ozet-serit alt-bosluk" id="gpu-izgara">
+  <div class="ozet-kutu">
+    <span class="ozet-etiket">Okunuyor…</span>
+    <strong>—</strong>
   </div>
 </div>
 
-<h2>Servisler</h2>
-<p class="rapor-aciklama">Process = systemd birimi ayakta mı; Sağlık = servis
+<h2 class="bolum-basligi">Servisler</h2>
+<p class="ipucu">Process = systemd birimi ayakta mı; Sağlık = servis
    gerçekten yanıt veriyor mu (HTTP, PostgreSQL için SQL, chrony için NTP).
    CPU tek çekirdeğe göre yüzdedir.</p>
-<div class="tablo-sarici servis-tablo-sarici">
-  <table class="servis-tablo">
+<div class="tablo-kutu">
+  <table class="tablo">
     <thead><tr>
       <th>Servis</th><th>Process</th><th>Sağlık</th><th>Yanıt</th><th>Port</th>
       <th>PID</th><th>CPU</th><th>RAM</th><th>Çalışma</th>
@@ -93,14 +72,14 @@
   </table>
 </div>
 
-<h2>Tahtalar</h2>
-<p class="rapor-aciklama">Her tahtanın istemcisi dakikada bir donanım ölçümü
+<h2 class="bolum-basligi">Tahtalar</h2>
+<p class="ipucu">Her tahtanın istemcisi dakikada bir donanım ölçümü
    gönderir. Bellek doldu = çekirdeğin bellek yetmediği için bir programı
    (çoğunlukla tarayıcıyı) zorla kapatma sayısı, tahta açıldığından beri.
    Dokunmatik kopma = USB bağlantısının koptuğu sayı. Sıcaklık: şu an / son 24
    saatin en yükseği.</p>
-<div class="tablo-sarici servis-tablo-sarici">
-  <table class="servis-tablo">
+<div class="tablo-kutu">
+  <table class="tablo tablo-sik">
     <thead><tr>
       <th>Tahta</th><th>Durum</th><th>Sıcaklık</th><th>Boş bellek</th><th>Takas</th>
       <th>Yük</th><th>Bellek doldu</th><th>Dokunmatik</th><th>Açık kalma</th><th>Uyarılar</th>
@@ -109,40 +88,40 @@
   </table>
 </div>
 
-<h2>Ağ ve dış makineler</h2>
-<p class="rapor-aciklama">60 saniyede bir yoklanır. SMS köprüsü için yalnızca
+<h2 class="bolum-basligi">Ağ ve dış makineler</h2>
+<p class="ipucu">60 saniyede bir yoklanır. SMS köprüsü için yalnızca
    Müdür PC'deki proxy portuna bağlanılır; modeme hiç bağlanılmaz (modem tek
    oturum kabul ediyor, gönderimle çakışmasın). TTS makinesinin CPU/RAM/GPU
    bilgisi bu makineden okunamıyor — sağlık uç noktası yalnızca "ok" dönüyor.</p>
-<div class="servis-listesi" id="uzak-listesi"><p class="rapor-aciklama">Okunuyor…</p></div>
+<div class="servis-listesi" id="uzak-listesi"><p class="ipucu">Okunuyor…</p></div>
 
 <div class="iki-sutun">
   <section>
-    <h2>Yapay zekâ (Ollama)</h2>
-    <div class="bilgi-kart" id="ai-kart"><p class="rapor-aciklama">Okunuyor…</p></div>
+    <h2 class="bolum-basligi">Yapay zekâ (Ollama)</h2>
+    <div class="bilgi-kutu" id="ai-kart"><p class="ipucu">Okunuyor…</p></div>
   </section>
   <section>
-    <h2>Veritabanı (PostgreSQL)</h2>
-    <div class="bilgi-kart" id="db-kart"><p class="rapor-aciklama">Okunuyor…</p></div>
+    <h2 class="bolum-basligi">Veritabanı (PostgreSQL)</h2>
+    <div class="bilgi-kutu" id="db-kart"><p class="ipucu">Okunuyor…</p></div>
   </section>
 </div>
 
-<h2>RAG performansı</h2>
-<p class="rapor-aciklama">Gerçek istekler — Farabi RAG API'sinin her soruda
+<h2 class="bolum-basligi">RAG performansı</h2>
+<p class="ipucu">Gerçek istekler — Farabi RAG API'sinin her soruda
    yazdığı <code>metrik</code> tablosundan, başarılı (ok) cevapların medyanı.
    Embedding ve vektör arama tek süre olarak kaydediliyor; bağlam oluşturma
    ayrıca ölçülmüyor.</p>
-<div class="bilgi-kart" id="rag-kart"><p class="rapor-aciklama">Okunuyor…</p></div>
+<div class="bilgi-kutu" id="rag-kart"><p class="ipucu">Okunuyor…</p></div>
 
-<h2>Son 30 dakika</h2>
-<p class="rapor-aciklama">Sunucu açıldığından beri bellekte tutulur (en çok 30
+<h2 class="bolum-basligi">Son 30 dakika</h2>
+<p class="ipucu">Sunucu açıldığından beri bellekte tutulur (en çok 30
    dk); dashboard yeniden başlatılınca sıfırlanır. Noktanın üstüne gelince
    değer ve saat görünür.</p>
-<div class="trend-izgara" id="trend-izgara"><p class="rapor-aciklama">Okunuyor…</p></div>
+<div class="trend-izgara" id="trend-izgara"><p class="ipucu">Okunuyor…</p></div>
 
-<h2>Ollama modelleri (diskte)</h2>
-<div class="model-rozet-listesi" id="model-listesi">
-  <span class="rapor-aciklama">Okunuyor…</span>
+<h2 class="bolum-basligi">Ollama modelleri (diskte)</h2>
+<div class="rozet-liste" id="model-listesi">
+  <span class="ipucu">Okunuyor…</span>
 </div>
 <div class="trend-ipucu gizli" id="trend-ipucu" role="status"></div>
 {% endblock %}
@@ -165,8 +144,9 @@ function ms(deger) {
   if (deger == null) return '—';
   return deger >= 1000 ? (deger / 1000).toFixed(2) + ' sn' : Math.round(deger) + ' ms';
 }
+const DURUM_ROZET = { ok: 'rozet-yesil', uyari: 'rozet-amber', yavas: 'rozet-amber', hata: 'rozet-kirmizi' };
 function rozet(durum, metin) {
-  return `<span class="durum-rozet durum-${durum}"><span class="mini-durum-nokta ${DURUM_NOKTA[durum] || 'nokta-gri'}"></span>${kacis(metin || DURUM_ETIKET[durum] || durum)}</span>`;
+  return `<span class="rozet ${DURUM_ROZET[durum] || 'rozet-gri'}">${kacis(metin || DURUM_ETIKET[durum] || durum)}</span>`;
 }
 
 // ---- Sağlık özeti ----
@@ -178,7 +158,7 @@ function ozetCiz(saglik) {
   document.getElementById('saglik-ozet').innerHTML = OZET_BOLUMLER.map(([anahtar, ad, ikon]) => {
     const b = saglik[anahtar] || { durum: 'hata', mesajlar: ['veri yok'] };
     const detay = b.mesajlar.length ? b.mesajlar.map(kacis).join('<br>') : 'Sorun yok';
-    return `<div class="saglik-kutu saglik-${b.durum}">
+    return `<div class="ozet-kutu saglik-${b.durum}">
       <div class="saglik-kutu-ust"><svg class="ikon"><use href="#${ikon}"/></svg><span class="saglik-kutu-ad">${ad}</span>${rozet(b.durum)}</div>
       <div class="saglik-kutu-detay">${detay}</div>
     </div>`;
@@ -189,14 +169,11 @@ function ozetCiz(saglik) {
 function gpuKartOlustur(g, eslesme) {
   const bellekYuzde = g.bellek_toplam_mb ? Math.round(100 * g.bellek_kullanim_mb / g.bellek_toplam_mb) : 0;
   const kullanan = Object.entries(eslesme || {}).filter(([, idx]) => String(idx) === String(g.index)).map(([b]) => b);
-  return `<div class="durum-kart">
-    <svg class="ikon durum-kart-simge"><use href="#ik-katman"/></svg>
-    <div class="durum-kart-govde">
-      <span class="durum-kart-baslik">GPU ${g.index} — ${kacis(g.ad)}</span>
-      <span class="durum-kart-deger">${birim(g.sicaklik_c, '°C')}</span>
-      <span class="durum-kart-alt">Kullanım %${g.kullanim_yuzde} · VRAM ${(g.bellek_kullanim_mb/1024).toFixed(1)}/${(g.bellek_toplam_mb/1024).toFixed(1)} GB (%${bellekYuzde})</span>
-      <span class="durum-kart-alt">${kullanan.length ? 'Atanan servis: ' + kullanan.map(kacis).join(', ') : 'Atanmış servis yok'}</span>
-    </div>
+  return `<div class="ozet-kutu">
+    <span class="ozet-etiket">GPU ${g.index} — ${kacis(g.ad)}</span>
+    <strong>${birim(g.sicaklik_c, '°C')}</strong>
+    <span class="ozet-alt">Kullanım %${g.kullanim_yuzde} · VRAM ${(g.bellek_kullanim_mb/1024).toFixed(1)}/${(g.bellek_toplam_mb/1024).toFixed(1)} GB (%${bellekYuzde})</span>
+    <span class="ozet-alt">${kullanan.length ? 'Atanan servis: ' + kullanan.map(kacis).join(', ') : 'Atanmış servis yok'}</span>
   </div>`;
 }
 
@@ -244,14 +221,14 @@ function tahtaSatirOlustur(t) {
   const dokunmatik = s.dokunmatik_var == null ? '—'
     : (s.dokunmatik_var ? 'Var' : 'Yok') + ` <span class="soluk">· ${s.dokunmatik_kopma ?? 0} kopma</span>`;
   const uyarilar = (t.uyarilar || []).length
-    ? t.uyarilar.map(u => rozet(u.seviye, u.mesaj)).join(' ')
+    ? '<div class="rozet-liste">' + t.uyarilar.map(u => rozet(u.seviye, u.mesaj)).join('') + '</div>'
     : '<span class="soluk">—</span>';
   return `<tr>
     <th scope="row">${kacis(t.tahta_ad)}</th>
     <td>${tahtaDurumRozeti(t)}</td>
     <td>${sic}</td>
-    <td>${birim(s.bellek_bos_mb, ' MB')}</td>
-    <td>${birim(s.takas_mb, ' MB')}</td>
+    <td class="tek-satir">${birim(s.bellek_bos_mb, ' MB')}</td>
+    <td class="tek-satir">${birim(s.takas_mb, ' MB')}</td>
     <td>${s.yuk1 == null ? '—' : s.yuk1.toFixed(2)}</td>
     <td>${s.oom_sayisi == null ? '—' : s.oom_sayisi}</td>
     <td>${dokunmatik}</td>
@@ -319,10 +296,10 @@ function dbCiz(d) {
 // ---- RAG ----
 function ragCiz(d) {
   const el = document.getElementById('rag-kart');
-  if (!d.erisilebilir) { el.innerHTML = '<p class="rapor-aciklama">Veritabanına ulaşılamadığı için okunamadı.</p>'; return; }
+  if (!d.erisilebilir) { el.innerHTML = '<p class="ipucu">Veritabanına ulaşılamadığı için okunamadı.</p>'; return; }
   let r = d.rag_24s, pencere = 'son 24 saat';
   if (!r || !r.n_ok) { r = d.rag_7g; pencere = 'son 7 gün (24 saatte başarılı istek yok)'; }
-  if (!r || !r.n_ok) { el.innerHTML = '<p class="rapor-aciklama">Son 7 günde başarılı RAG isteği yok — öğrenci/öğretmen soru sordukça burada görünecek.</p>'; return; }
+  if (!r || !r.n_ok) { el.innerHTML = '<p class="ipucu">Son 7 günde başarılı RAG isteği yok — öğrenci/öğretmen soru sordukça burada görünecek.</p>'; return; }
   const asamalar = [
     ['Embedding + vektör arama', r.retrieval_p50],
     ['Rerank', r.rerank_p50],
@@ -459,7 +436,7 @@ async function durumGuncelle() {
   const gpuIzgara = document.getElementById('gpu-izgara');
   gpuIzgara.innerHTML = veri.gpu.length
     ? veri.gpu.map(g => gpuKartOlustur(g, veri.gpu_eslesme)).join('')
-    : '<p class="rapor-aciklama">GPU bulunamadı (nvidia-smi yanıt vermedi).</p>';
+    : '<p class="ipucu">GPU bulunamadı (nvidia-smi yanıt vermedi).</p>';
 
   document.getElementById('servis-tablo-govde').innerHTML = veri.servisler.map(servisSatirOlustur).join('');
 
@@ -471,7 +448,7 @@ async function durumGuncelle() {
   const uzak = veri.uzak_servisler || [];
   document.getElementById('uzak-listesi').innerHTML = uzak.length
     ? uzak.map(uzakSatirOlustur).join('')
-    : '<p class="rapor-aciklama">İlk yoklama bekleniyor.</p>';
+    : '<p class="ipucu">İlk yoklama bekleniyor.</p>';
 
   aiCiz(veri.ai);
   dbCiz(veri.veritabani);
@@ -480,11 +457,11 @@ async function durumGuncelle() {
 
   const modelListesi = document.getElementById('model-listesi');
   if (veri.ollama_modelleri === null) {
-    modelListesi.innerHTML = '<span class="rapor-aciklama">Ollama API\'ye ulaşılamadı.</span>';
+    modelListesi.innerHTML = '<span class="ipucu">Ollama API\'ye ulaşılamadı.</span>';
   } else if (veri.ollama_modelleri.length === 0) {
-    modelListesi.innerHTML = '<span class="rapor-aciklama">Diskte model yok.</span>';
+    modelListesi.innerHTML = '<span class="ipucu">Diskte model yok.</span>';
   } else {
-    modelListesi.innerHTML = veri.ollama_modelleri.map(m => `<span class="model-rozet">${kacis(m)}</span>`).join('');
+    modelListesi.innerHTML = veri.ollama_modelleri.map(m => `<span class="rozet rozet-mavi rozet-mono">${kacis(m)}</span>`).join('');
   }
 
   SON_GUNCELLEME_DURUM.textContent = 'Ölçüm: ' + saat(veri.olcum_zamani);
