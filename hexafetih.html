@@ -10,6 +10,7 @@
   <script src="/static/vendor/confetti.browser-1.6.0.js"></script>
   <script src="/static/hata.js"></script>
   <script src="/static/sonuc.js"></script>
+  <script src="/static/soru-bildir.js"></script>
   <style>
     body {
       font-family: 'Inter', sans-serif;
@@ -105,6 +106,9 @@
 
       <!-- Sağ Butonlar -->
       <div class="flex items-center gap-1.5">
+        <a href="/ozet" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 text-xs font-bold transition flex items-center gap-1" title="Sınıflar Arası Skor Tablosu">
+          📊 Skorlar
+        </a>
         <button onclick="sistemModalAc()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs transition flex items-center gap-1" title="Sistem Sağlığı">
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
           <span class="hidden md:inline">Sistem</span>
@@ -195,7 +199,10 @@
         <div id="modal-saldiri-badge" class="hidden px-3 py-0.5 rounded-full bg-rose-950/80 text-rose-300 border border-rose-500/50 text-xs font-bold animate-pulse">
           ⚔️ DÜŞMAN BÖLGESİNE SALDIRI
         </div>
-        <button onclick="soruModalKapat()" class="text-slate-400 hover:text-white text-lg p-1">✕</button>
+        <button onclick="guvenliSoruModalKapat()" title="Soruyu Kapat (Onay Gerektirir)" class="text-slate-400 hover:text-rose-400 text-xs px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700 hover:border-rose-500/50 transition flex items-center gap-1">
+          <span>✕</span>
+          <span>İptal</span>
+        </button>
       </div>
 
       <!-- Soru Alanı -->
@@ -352,9 +359,15 @@
       <h2 class="font-gaming text-2xl font-black text-amber-400 mb-1">FETİH TAMAMLANDI!</h2>
       <p class="text-xs text-slate-400 mb-6">Arenanın tartışmasız lideri belirlendi</p>
       
-      <div id="kazanan-karti" class="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 mb-6">
+      <div id="kazanan-karti" class="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 mb-4">
         <div id="kazanan-takim-adi" class="font-gaming text-xl font-black text-amber-300 mb-1">Mavi Takım</div>
         <div id="kazanan-detay" class="text-xs text-slate-300">8 Bölge • 1450 Puan</div>
+      </div>
+
+      <!-- JSON Skor Kayıt Rozeti -->
+      <div class="mb-6 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-950/70 border border-emerald-500/50 text-emerald-300 text-xs font-semibold">
+        <span>💾</span>
+        <span>Takım puanları ve oyuncu skorları JSON dosyasına kaydedildi</span>
       </div>
 
       <div class="flex justify-center gap-3">
@@ -700,6 +713,7 @@
       seviyeBadge.textContent = (d.seviye === 3 ? '⭐⭐⭐ Başkent' : (d.seviye === 2 ? '⭐⭐ 2. Seviye' : '⭐ 1. Seviye'));
       konuBaslik.textContent = d.konu;
       soruMetni.textContent = d.soru.soru_metni;
+      if (window.soruBildir) soruBildir.ayarla(d.soru.sid, oyunVerisi.sinif);
       kaynakText.textContent = `📖 Kaynak: ${d.soru.kaynak || 'MEB Müfredatı'}`;
       document.getElementById('dogru-cevap-metni').textContent = d.soru.dogru_cevap;
 
@@ -753,8 +767,15 @@
     }
 
     function soruModalKapat() {
+      if (window.soruBildir) soruBildir.gizle();
       document.getElementById('soru-modal').classList.add('hidden');
       seciliDugum = null;
+    }
+
+    function guvenliSoruModalKapat() {
+      if (confirm("Bu soruyu yanıtlamadan ve puan almadan kapatmak istediğinize emin misiniz? (Petek sahipsiz kalır)")) {
+        soruModalKapat();
+      }
     }
 
     function cevabiGoster() {

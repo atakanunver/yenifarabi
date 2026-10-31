@@ -1608,6 +1608,8 @@ DERS_KONULARI_VE_SORULAR: dict[str, list[dict[str, Any]]] = {   'din': [   {   '
                      'a': '7',
                      'kaynak': 'MEB Fizik 10, s. 210'}]}
 
+DERS_KONULARI_VE_SORULAR["gorsel_sanatlar"] = DERS_KONULARI_VE_SORULAR["sanat"]
+
 
 def normalize_ders_adi(s: str) -> str:
     if not s:
@@ -1615,7 +1617,7 @@ def normalize_ders_adi(s: str) -> str:
     return turkce.kapsam_anahtari(s)
 
 
-def haritayi_hazirla(ders_adi: str, sinif: int = 9) -> list[dict[str, Any]]:
+def haritayi_hazirla(ders_adi: str, sinif: int = 9, sube: str = "") -> list[dict[str, Any]]:
     """Belirtilen ders için 19 peteklik harita düğümlerini sorularıyla birleştirir.
     Soru havuzunda (AGY onaylı) o ders+sınıf için yeterli soru varsa her petek farklı
     bir havuz sorusu alır; yoksa statik soru listesi kullanılır."""
@@ -1639,7 +1641,7 @@ def haritayi_hazirla(ders_adi: str, sinif: int = 9) -> list[dict[str, Any]]:
         soru_listesi = DERS_KONULARI_VE_SORULAR.get(ders_temiz, DERS_KONULARI_VE_SORULAR["biyoloji"])
 
     grid = piksel_koordinatlari()
-    havuzdan = havuz.petek_sorulari(ders_key, sinif, len(grid))
+    havuzdan = havuz.petek_sorulari(ders_key, sinif, len(grid), sube=sube)
     if havuzdan:
         soru_listesi = havuzdan
     dugumler = []
@@ -1659,6 +1661,7 @@ def haritayi_hazirla(ders_adi: str, sinif: int = 9) -> list[dict[str, Any]]:
             "tip": geo["tip"],
             "konu": soru_bilgi["konu"],
             "soru": {
+                "sid": soru_bilgi.get("sid"),
                 "soru_metni": soru_bilgi["q"],
                 "secenekler": soru_bilgi["secenekler"],
                 "dogru_cevap": soru_bilgi["a"],

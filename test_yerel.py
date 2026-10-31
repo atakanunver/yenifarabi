@@ -277,3 +277,208 @@ def test_kullanilan_lucide_ikonlari_pakette():
     kullanilan = set(re.findall(r'data-lucide["\']?[=,] ?["\']([a-z0-9-]+)["\']', metin))  # attribute + setAttribute(...)
     assert "volume-x" in kullanilan
     assert kullanilan <= paketli, kullanilan - paketli
+
+
+def test_karekod_icerikli_ollama_yaniti_reddedilir(monkeypatch):
+    import asyncio
+    import json
+    import httpx
+    import soru_uretici
+
+    sahte_karekod_seti = [
+        {
+            "id": "kat_1",
+            "name": "Biyoloji Kavramları",
+            "questions": [
+                {"points": 100, "q": "Karekod okutularak ulaşılan simülasyon nedir?", "a": "Hücre zarı", "kaynak": "MEB Biyoloji 9, s. 12"},
+                {"points": 200, "q": "Soru 2", "a": "Cevap 2", "kaynak": "MEB Biyoloji 9, s. 12"},
+                {"points": 300, "q": "Soru 3", "a": "Cevap 3", "kaynak": "MEB Biyoloji 9, s. 12"},
+                {"points": 400, "q": "Soru 4", "a": "Cevap 4", "kaynak": "MEB Biyoloji 9, s. 12"},
+            ]
+        },
+        {"id": "kat_2", "name": "K2", "questions": [{"points": 100, "q": "q", "a": "a"}]},
+        {"id": "kat_3", "name": "K3", "questions": [{"points": 100, "q": "q", "a": "a"}]},
+        {"id": "kat_4", "name": "K4", "questions": [{"points": 100, "q": "q", "a": "a"}]},
+    ]
+
+    class SahteYanit:
+        status_code = 200
+        def json(self):
+            return {"message": {"content": json.dumps(sahte_karekod_seti)}}
+
+    class SahteClient:
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *args):
+            pass
+        async def post(self, url, **kwargs):
+            return SahteYanit()
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: SahteClient())
+
+    sonuc = asyncio.run(soru_uretici.ollama_soru_uret("Biyoloji", 9, "Hücre"))
+    assert sonuc is None, "Karekod içeren Ollama seti elenmeli ve None dönmeli"
+
+
+def test_ogrenci_no_karisik_tip_siralamasi():
+    import takim_kurucu
+    ogrenciler = [
+        {"no": 10, "ad_soyad": "Onuncu", "cinsiyet": "Erkek"},
+        {"no": "5", "ad_soyad": "Besinci", "cinsiyet": "Erkek"},
+        {"no": "12-A", "ad_soyad": "Metinli", "cinsiyet": "Kız"},
+        {"no": None, "ad_soyad": "Numarasiz", "cinsiyet": "Kız"},
+        {"no": 2, "ad_soyad": "Ikinci", "cinsiyet": "Erkek"},
+    ]
+    takimlar = takim_kurucu.takimlari_olustur(ogrenciler, "Matematik", takim_sayisi=2)
+    for t in takimlar:
+        nos = [o.get("no") for o in t["ogrenciler"]]
+        assert len(nos) > 0
+
+
+def test_havuz_ders_adi_kapsam_anahtari_normalize():
+    import havuz
+    yakalanan = []
+
+    def sahte_sorgu(sql, p):
+        yakalanan.append((sql, p))
+        return []
+
+    # Büyük harfli Türkçe ders adı gönderildiğinde veritabanına kanonik küçük harf gitmeli
+    havuz._cek("Biyoloji", 9, "", sahte_sorgu)
+    assert yakalanan[0][1][0] == "biyoloji"
+
+    yakalanan.clear()
+    havuz._cek("İngilizce", 10, "", sahte_sorgu)
+    assert yakalanan[0][1][0] == "ingilizce"
+
+
+def test_siniflar_arasi_skorlar_hesaplama():
+    import sonuc_deposu
+    res = sonuc_deposu.siniflar_arasi_skorlar(gun=365)
+    assert "siniflar" in res
+    assert "toplam_oyun" in res
+    assert "toplam_dogru_soru" in res
+    if res["siniflar"]:
+        top_sinif = res["en_cok_soru_cevaplayan_sinif"]
+        assert top_sinif is not None
+        assert top_sinif["sira"] == 1
+        assert top_sinif["dogru_soru"] >= 0
+
+
+def test_siniflar_arasi_api_ve_saglik_alias():
+    # Sınıflar arası liderlik API kontrolü
+    r1 = client.get("/api/arena/siniflar-arasi?gun=30")
+    assert r1.status_code == 200
+    veri1 = r1.json()
+    assert "siniflar" in veri1
+    assert "ogrenciler_genel" in veri1
+
+    # /api/saglik takma adı kontrolü
+    r2 = client.get("/api/saglik")
+    assert r2.status_code == 200
+    assert "servisler" in r2.json()
+
+
+def test_roster_db_fallback(sahte_dunya, monkeypatch):
+    """Roster JSON dosyası yoksa veya boşsa, YOKLAMA_DB ogrenciler tablosundan okur."""
+    import sqlite3
+    bos_roster = sahte_dunya / "bos_roster"
+    bos_roster.mkdir()
+    monkeypatch.setattr(server, "ROSTER_DIR", bos_roster)
+
+    test_db = sahte_dunya / "test_pano.db"
+    conn = sqlite3.connect(test_db)
+    conn.execute("CREATE TABLE siniflar (id INTEGER PRIMARY KEY, ad TEXT)")
+    conn.execute("CREATE TABLE ogrenciler (id INTEGER PRIMARY KEY, sinif_id INTEGER, no INTEGER, ad_soyad TEXT, cinsiyet TEXT, aktif INTEGER)")
+    conn.execute("CREATE TABLE yoklama_onbellek (id INTEGER PRIMARY KEY, tarih TEXT, sinif TEXT, ders_no INTEGER, yok_isimleri TEXT, izinli_isimleri TEXT)")
+    conn.execute("INSERT INTO siniflar (id, ad) VALUES (1, '9-A')")
+    conn.execute("INSERT INTO ogrenciler (sinif_id, no, ad_soyad, cinsiyet, aktif) VALUES (1, 101, 'Ayşe Yılmaz', 'Kız', 1)")
+    conn.execute("INSERT INTO ogrenciler (sinif_id, no, ad_soyad, cinsiyet, aktif) VALUES (1, 102, 'Mehmet Kaya', 'Erkek', 1)")
+    conn.execute("INSERT INTO yoklama_onbellek (tarih, sinif, ders_no, yok_isimleri, izinli_isimleri) VALUES ('2026-10-13', '9-A', 1, '[\"Mehmet Kaya\"]', '[]')")
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setattr(server, "YOKLAMA_DB", test_db)
+
+    tum, mevcut, devamsiz = server._ogrencileri_ve_yoklamayi_getir("9-A", ders_no=1)
+    assert len(tum) == 2
+    assert len(mevcut) == 1
+    assert len(devamsiz) == 1
+    assert mevcut[0]["ad_soyad"] == "Ayşe Yılmaz"
+    assert devamsiz[0]["ad_soyad"] == "Mehmet Kaya"
+
+
+def test_gorsel_sanatlar_esleme_ve_oturum():
+    """Görsel Sanatlar ders adı çözümleme ve oyun haritası/oturum entegrasyonu."""
+    assert server._ders_anahtari("Görsel Sanatlar") == "gorsel_sanatlar"
+    assert server._ders_anahtari("Görsel Sanatlar ve Müzik") == "gorsel_sanatlar"
+    
+    # Oturum API testi
+    res = client.get("/api/arena/oturum?sinif=9-A&ders=Görsel+Sanatlar")
+    assert res.status_code == 200
+    veri = res.json()
+    assert veri["ders_adi"] == "Görsel Sanatlar"
+    assert len(veri["sorular"]) == 4
+
+    # HexaFetih harita testi
+    import fetih_motoru
+    harita = fetih_motoru.haritayi_hazirla("Görsel Sanatlar", 9)
+    assert len(harita) == 19
+
+
+
+
+
+
+
+# ---------- Soru hatalı bildirimi (okul portalına köprü) ----------
+class _SahteYanit:
+    def __init__(self, kod):
+        self.status_code = kod
+
+
+def _sahte_istemci(kod=200, hata=False, kayit=None):
+    class _C:
+        def __init__(self, **kw):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def post(self, url, json=None, headers=None):
+            if hata:
+                raise server.httpx.ConnectError("kapalı")
+            if kayit is not None:
+                kayit.append((url, json, headers))
+            return _SahteYanit(kod)
+
+    return _C
+
+
+def test_soru_bildir_anahtarsiz_kapali(monkeypatch):
+    monkeypatch.setattr(server, "_okul_soru_anahtari", lambda: "")
+    r = client.post("/api/arena/soru-bildir", json={"sid": 5, "tur": "sacma", "sube": "9-A"})
+    assert r.status_code == 503 and r.json()["durum"] == "kapali"
+
+
+def test_soru_bildir_okula_iletir_ve_okul_kapaliysa_bozulmaz(monkeypatch):
+    kayit = []
+    monkeypatch.setattr(server, "_okul_soru_anahtari", lambda: "k")
+    monkeypatch.setattr(server.httpx, "AsyncClient", _sahte_istemci(200, kayit=kayit))
+    r = client.post("/api/arena/soru-bildir", json={"sid": 5, "tur": "sacma", "sube": "9-A"})
+    assert r.status_code == 200 and r.json() == {"durum": "ok"}
+    assert kayit[0][1] == {"soru_id": 5, "tur": "sacma", "sube": "9-A"} and kayit[0][2] == {"X-Soru-Anahtar": "k"}
+    monkeypatch.setattr(server.httpx, "AsyncClient", _sahte_istemci(400))
+    assert client.post("/api/arena/soru-bildir", json={"sid": 5, "tur": "x", "sube": "9-A"}).status_code == 400
+    monkeypatch.setattr(server.httpx, "AsyncClient", _sahte_istemci(hata=True))
+    r = client.post("/api/arena/soru-bildir", json={"sid": 5, "tur": "sacma", "sube": "9-A"})
+    assert r.status_code == 503 and r.json()["durum"] == "hata"
+
+
+def test_sayfalar_soru_bildir_betigini_yukler_ve_betik_var():
+    for sayfa in ("sinif_arena.html", "hexafetih.html", "duello.html"):
+        assert "/static/soru-bildir.js" in (KOK / sayfa).read_text(encoding="utf-8")
+    assert client.get("/static/soru-bildir.js").status_code == 200

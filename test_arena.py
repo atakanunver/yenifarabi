@@ -211,6 +211,22 @@ def test_fetih_hamle_api():
     # Sahip değişmemeli (hala Takım 0 olmalı)
     assert hamle_saldiri_hata.json()["yeni_sahip"] == 0
 
+    # 3. Zaten sahip olunan bölgeye tekrar hamle yapılırsa puan ve kombo verilmemeli
+    hamle_tekrar = client.post(
+        "/api/fetih/hamle",
+        json={
+            "dugum_id": 7,
+            "takim_index": 0,
+            "dogru_mu": True,
+            "saldiri_mi": False,
+            "harita": h_data["harita"],
+        },
+    )
+    assert hamle_tekrar.status_code == 200
+    assert hamle_tekrar.json()["puan_degisimi"] == 0
+    assert hamle_tekrar.json()["kombo_bonus"] == 0
+    assert "zaten" in hamle_tekrar.json()["mesaj"]
+
 
 def test_tum_derslerin_soru_bankasi():
     """Tüm 14 ders için hem HexaFetih hem Sınıf Arenası soru havuzunun tam ve geçerli olduğunu doğrular."""
@@ -254,7 +270,7 @@ def test_tum_derslerin_soru_bankasi():
 
 
 def test_duello_endpoints():
-    """Tahta Düellosu HTML ve API uç noktalarını doğrular."""
+    """Tahta Düellosu HTML, soru hazırlama (karıştırma) ve JSON skor API'lerini doğrular."""
     from fastapi.testclient import TestClient
     client = TestClient(server.app)
 
@@ -262,6 +278,7 @@ def test_duello_endpoints():
     res = client.get("/duello")
     assert res.status_code == 200
     assert "TAHTA DÜELLOSU" in res.text
+    assert "liderlikModal" in res.text
 
     # 2. Oturum API
     res_oturum = client.get("/api/duello/oturum?sinif=10-A&ders=Biyoloji")
@@ -270,11 +287,123 @@ def test_duello_endpoints():
     assert veri["durum"] == "ok"
     assert len(veri["ogrenciler"]) > 0
     assert len(veri["sorular"]) == 10
+    assert "skorlar" in veri
 
-    # 3. Soru API
-    res_soru = client.get("/api/duello/sorular?ders=Biyoloji&sinif=10&adet=10")
-    assert res_soru.status_code == 200
-    veri_soru = res_soru.json()
-    assert veri_soru["durum"] == "ok"
-    assert len(veri_soru["sorular"]) == 10
+    # 3. Farklı derslerde (İngilizce, Matematik, Tarih) soru ve şık kontrolü
+    for d in ["İngilizce", "Matematik", "Tarih", "Biyoloji"]:
+        res_soru = client.get(f"/api/duello/sorular?ders={d}&sinif=10&adet=10")
+        assert res_soru.status_code == 200
+        veri_soru = res_soru.json()
+        assert veri_soru["durum"] == "ok"
+        assert len(veri_soru["sorular"]) == 10
+
+        dogru_indexler = set()
+        for s in veri_soru["sorular"]:
+            sec = s["secenekler"]
+            assert len(sec) == 4
+            # Şıklarda sahte/boş metin olmamalı ("B şıkkı", "C şıkkı" vb.)
+            for metin in sec:
+                assert "şıkkı" not in str(metin).lower(), f"Sahte şık tespit edildi: {metin}"
+                assert len(str(metin).strip()) > 0
+            # Doğru cevap şıklar arasında olmalı
+            assert s["a"] in sec
+            assert sec[s["dogru_index"]] == s["a"]
+            dogru_indexler.add(s["dogru_index"])
+
+        # Doğru şık A, B, C, D arasında dağılmış olmalı (sürekli A olamaz)
+        assert len(dogru_indexler) > 1, f"Tüm sorular aynı şıkka ({dogru_indexler}) denk geldi!"
+
+    # 4. JSON Skor Kaydetme API Testi
+    skor_istek = {
+        "sinif": "10-A",
+        "ders": "İngilizce",
+        "sol_oyuncu": "Ahmet Yılmaz",
+        "sol_puan": 40,
+        "sag_oyuncu": "Zeynep Çelik",
+        "sag_puan": 20,
+        "kazanan": "Ahmet Yılmaz",
+        "seri": 1,
+    }
+    res_kayit = client.post("/api/duello/skor_kaydet", json=skor_istek)
+    assert res_kayit.status_code == 200
+    kayit_veri = res_kayit.json()
+    assert kayit_veri["durum"] == "ok"
+    assert kayit_veri["sol_oyuncu"]["toplam_puan"] >= 40
+    assert kayit_veri["sol_oyuncu"]["galibiyet"] >= 1
+
+    # 5. JSON Skor Listeleme API Testi
+    res_liste = client.get("/api/duello/skorlar?sinif=10-A")
+    assert res_liste.status_code == 200
+    liste_veri = res_liste.json()
+    assert liste_veri["durum"] == "ok"
+    assert len(liste_veri["liderlik"]) >= 2
+    lider_isimler = [o["ad"] for o in liste_veri["liderlik"]]
+    assert "Ahmet Yılmaz" in lider_isimler
+    assert "Zeynep Çelik" in lider_isimler
+
+
+def test_genel_json_skorlari_ve_guvenli_kapatma():
+    """Tüm oyunların JSON skor tablosu kaydını ve güvenli arayüz kontrollerini doğrular."""
+    import json
+    from pathlib import Path
+
+    # 1. POST /api/arena/sonuc-kaydet ile takım ve öğrenci puanı kaydet
+    sonuc_istek = {
+        "oyun": "sinif_arena",
+        "sinif": "9-A",
+        "ders": "Biyoloji",
+        "katilimcilar": [
+            {
+                "ad": "Mitokondriler",
+                "puan": 450,
+                "tur": "takim",
+                "kazanan": True,
+                "uyeler": ["Ali Veli", "Ayşe Can"],
+            },
+            {
+                "ad": "Ribozomlar",
+                "puan": 300,
+                "tur": "takim",
+                "kazanan": False,
+                "uyeler": ["Can Demir", "Zeynep Bal"],
+            },
+        ],
+    }
+    res_kaydet = client.post("/api/arena/sonuc-kaydet", json=sonuc_istek)
+    assert res_kaydet.status_code == 200
+    assert res_kaydet.json()["durum"] == "ok"
+
+    # 2. JSON dosyasının varlığı ve içeriği
+    import sonuc_deposu
+    json_dosya = sonuc_deposu.json_skor_dosyasi()
+    assert json_dosya.exists(), f"{json_dosya} dosyası oluşturulmadı!"
+    with open(json_dosya, encoding="utf-8") as f:
+        skor_veri = json.load(f)
+    assert "siniflar" in skor_veri
+    assert "9-A" in skor_veri["siniflar"]
+    assert "Mitokondriler" in skor_veri["siniflar"]["9-A"]["takimlar"]
+
+    # 3. GET /api/arena/skorlar?sinif=9-A endpoint kontrolü
+    res_skorlar = client.get("/api/arena/skorlar?sinif=9-A")
+    assert res_skorlar.status_code == 200
+    api_skor = res_skorlar.json()
+    assert api_skor["durum"] == "ok"
+    assert len(api_skor["takim_liderlik"]) >= 1
+    assert any(t["ad"] == "Mitokondriler" for t in api_skor["takim_liderlik"])
+
+    # 4. Arayüz Dosyalarının Güvenlik ve Görev Çubuğu Uyumluluğu
+    duello_html = Path("/home/ata/arenasinif/duello.html").read_text(encoding="utf-8")
+    assert "safe-tahta-bottom" in duello_html, "duello.html içinde akıllı tahta güvenli alanı tanımlanmamış!"
+    assert "duelloKayitRozeti" in duello_html, "duello.html içinde JSON kayıt rozeti eksik!"
+    assert "pb-20" in duello_html, "duello.html içinde başlat çubuğu payı eksik!"
+
+    hexafetih_html = Path("/home/ata/arenasinif/hexafetih.html").read_text(encoding="utf-8")
+    assert "guvenliSoruModalKapat" in hexafetih_html, "hexafetih.html soru kapatmada onay mekanizması eksik!"
+    assert "JSON dosyasına kaydedildi" in hexafetih_html, "hexafetih.html zafer ekranında kayıt rozeti eksik!"
+
+    sinif_arena_html = Path("/home/ata/arenasinif/sinif_arena.html").read_text(encoding="utf-8")
+    assert "confirmCloseQuestionModal" in sinif_arena_html, "sinif_arena.html soru kapatmada onay eksik!"
+    assert "JSON puan tablosuna kaydedildi" in sinif_arena_html, "sinif_arena.html podyum ekranında kayıt rozeti eksik!"
+
+
 

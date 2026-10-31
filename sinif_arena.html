@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/static/tailwind.css">
   <script src="/static/vendor/confetti.browser-1.6.0.js"></script>
   <script src="/static/vendor/lucide-lite-1.52.0.min.js"></script>
+  <script src="/static/soru-bildir.js"></script>
   <script src="/static/hata.js"></script>
   <script src="/static/sonuc.js"></script>
 
@@ -95,6 +96,10 @@
 
       <!-- Global Utility Buttons -->
       <div class="flex items-center gap-2">
+        <a href="/ozet" class="touch-btn p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 transition flex items-center gap-1.5" title="Sınıflar Arası Skor Tablosu">
+          <i data-lucide="trophy" class="w-5 h-5 text-amber-400"></i>
+          <span class="text-xs font-semibold hidden xl:inline">Skorlar</span>
+        </a>
         <button onclick="openDiagnosticModal()" id="btn-diagnostic" class="touch-btn p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition flex items-center gap-1.5" title="Sistem Sağlığı ve Loglar">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" id="health-indicator-dot"></span>
           <i data-lucide="activity" class="w-5 h-5 text-emerald-400"></i>
@@ -415,8 +420,9 @@
 
         <!-- Close / Skip Button -->
         <div class="flex justify-end pt-1">
-          <button onclick="closeQuestionModal()" class="touch-btn text-sm text-slate-400 hover:text-white px-4 py-2 rounded-xl">
-            Soruyu Kapat (Puan Verme)
+          <button onclick="confirmCloseQuestionModal()" class="touch-btn text-xs sm:text-sm text-slate-400 hover:text-rose-400 px-4 py-2 rounded-xl transition flex items-center gap-1.5">
+            <span>✕</span>
+            <span>Soruyu Kapat (Puan Verme)</span>
           </button>
         </div>
       </div>
@@ -524,6 +530,10 @@
           Tebrikler Şampiyon!
         </h2>
         <p class="text-slate-400 text-sm mt-2">Sınıf Arenası yarışması başarıyla tamamlandı.</p>
+        <div class="mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-semibold">
+          <span>💾</span>
+          <span>Sonuçlar ve takım sıralaması JSON puan tablosuna kaydedildi (veri/oyun_skorlari.json)</span>
+        </div>
       </div>
 
       <!-- Podium list -->
@@ -898,6 +908,7 @@
       const q = cat.questions[qIndex];
 
       activeQuestion = { catIndex, qIndex, data: q, catName: cat.name, basePoints: q.points };
+      if (window.soruBildir) soruBildir.ayarla(q.sid, oyunVerisi.sinif);
       jokerMultiplier = 1;
 
       document.getElementById('modal-category-badge').innerText = cat.name;
@@ -1004,12 +1015,19 @@
 
     function closeQuestionModal() {
       soundManager.playClick();
+      if (window.soruBildir) soruBildir.gizle();
       if (activeQuestion) {
         categories[activeQuestion.catIndex].questions[activeQuestion.qIndex].answered = true;
         renderJeopardyBoard();
       }
       document.getElementById('question-modal').classList.add('hidden');
       activeQuestion = null;
+    }
+
+    function confirmCloseQuestionModal() {
+      if (confirm("Bu soruyu herhangi bir takıma puan vermeden kapatmak istediğinize emin misiniz?")) {
+        closeQuestionModal();
+      }
     }
 
     function resetBoardQuestions() {
@@ -1668,8 +1686,10 @@
     }
 
     function closePodiumModal() {
-      document.getElementById('podium-modal').classList.add('hidden');
-      soundManager.playClick();
+      if (confirm("Podyum ekranını kapatıp oyun tahtasına dönmek istediğinize emin misiniz?")) {
+        document.getElementById('podium-modal').classList.add('hidden');
+        soundManager.playClick();
+      }
     }
 
     function triggerConfettiLoop() {

@@ -68,3 +68,77 @@ def test_yalnizca_onayli_sorgulanir():
 
     havuz.jeopardy_seti("matematik", 12, sorgu=kaydet)
     assert "durum = 'onayli'" in yakalanan[0]
+
+
+def test_jeopardy_farkli_konu_ayni_kaynak_yedegi():
+    # 4 farklı kaynak, her birinde 4 farklı konu adı ama 4 zorluk seviyesi var
+    satirlar = []
+    idx = 0
+    for kid in range(1, 5):
+        kaynak_adi = f"Biyoloji 9, s. {kid * 10}"
+        for z in (1, 2, 3, 4):
+            idx += 1
+            satirlar.append((
+                idx,
+                f"Alt Konu {idx}",  # Her sorunun konusu farklı
+                z,
+                f"Soru {idx}",
+                f"Cevap {idx}",
+                ["A", "B", "C", "D"],
+                0,
+                kaynak_adi
+            ))
+    s = havuz.jeopardy_seti("biyoloji", 9, sorgu=_sahte(satirlar))
+    assert s is not None and len(s) == 4
+    assert all(len(k["questions"]) == 4 for k in s)
+    assert [q["points"] for q in s[0]["questions"]] == [100, 200, 300, 400]
+
+
+def test_sube_normalize():
+    assert havuz.sube_normalize("9a") == "9-A"
+    assert havuz.sube_normalize("9-a") == "9-A"
+    assert havuz.sube_normalize("9/A") == "9-A"
+    assert havuz.sube_normalize("10B") == "10-B"
+    assert havuz.sube_normalize("11-c") == "11-C"
+    assert havuz.sube_normalize("") == ""
+
+
+def test_sube_ile_sorgulama_kullanilmamislari_onceler():
+    yakalanan = []
+
+    def sorgu(sql, p):
+        yakalanan.append((sql, p))
+        return []
+
+    havuz.jeopardy_seti("matematik", 9, sorgu=sorgu, sube="9a")
+    assert len(yakalanan) > 0
+    sql, p = yakalanan[0]
+    assert "soru_kullanim WHERE sube = %s" in sql
+    assert "9-A" in p
+
+
+def test_petek_ve_duello_sube_aktarir():
+    yakalanan = []
+
+    def sorgu(sql, p):
+        yakalanan.append((sql, p))
+        return [_satir("Konu", 1, i) for i in range(25)]
+
+    p = havuz.petek_sorulari("fizik", 9, 19, sorgu=sorgu, sube="9b")
+    assert p and len(p) == 19
+    sql, params = yakalanan[0]
+    assert "soru_kullanim WHERE sube = %s" in sql
+    assert "9-B" in params
+
+
+
+
+def test_sorulara_havuz_kimligi_eklenir():
+    """'Soru hatalı' bildirimi için tahtaya soru kimliği (sid) gider."""
+    ciftler = [(k, z) for k in ("Log", "Türev", "İntegral", "Limit") for z in (1, 2, 3, 4)]
+    satirlar = [_satir(k, z, 100 + i) for i, (k, z) in enumerate(ciftler)]
+    s = havuz.jeopardy_seti("matematik", 12, sorgu=_sahte(satirlar))
+    assert {q["sid"] for k in s for q in k["questions"]} <= {100 + i for i in range(16)}
+    assert all(isinstance(q["sid"], int) for k in s for q in k["questions"])
+    petek = havuz.petek_sorulari("matematik", 12, 10, sorgu=_sahte(satirlar))
+    assert all(isinstance(q["sid"], int) for q in petek)

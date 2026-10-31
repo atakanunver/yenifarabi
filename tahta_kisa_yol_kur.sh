@@ -12,6 +12,8 @@ ARENA_PNG="$DIR/arena-icon.png"
 ARENA_SVG="$DIR/arena-icon.svg"
 FETIH_PNG="$DIR/fetih-icon.png"
 FETIH_SVG="$DIR/fetih-icon.svg"
+DUELLO_PNG="$DIR/duello-icon.png"
+DUELLO_SVG="$DIR/duello-icon.svg"
 OYUNLAR_PNG="$DIR/oyunlar-icon.png"
 OYUNLAR_SVG="$DIR/oyunlar-icon.svg"
 YOKLAMA_PNG="$DIR/yoklama-icon.png"
@@ -30,6 +32,8 @@ kur_tahta() {
     $SSH_SCRIPT "$tahta" "cat > ~/.local/share/icons/arena-icon.svg" < "$ARENA_SVG"
     $SSH_SCRIPT "$tahta" "cat > ~/.local/share/icons/fetih-icon.png" < "$FETIH_PNG"
     $SSH_SCRIPT "$tahta" "cat > ~/.local/share/icons/fetih-icon.svg" < "$FETIH_SVG"
+    $SSH_SCRIPT "$tahta" "cat > ~/.local/share/icons/duello-icon.png" < "$DUELLO_PNG"
+    $SSH_SCRIPT "$tahta" "cat > ~/.local/share/icons/duello-icon.svg" < "$DUELLO_SVG"
     $SSH_SCRIPT "$tahta" "cat > ~/.local/share/icons/oyunlar-icon.png" < "$OYUNLAR_PNG"
     $SSH_SCRIPT "$tahta" "cat > ~/.local/share/icons/oyunlar-icon.svg" < "$OYUNLAR_SVG"
     $SSH_SCRIPT "$tahta" "cat > ~/.local/share/icons/yoklama-icon.png" < "$YOKLAMA_PNG"
@@ -108,7 +112,7 @@ Name=Tahta Düellosu
 GenericName=Çark & Hızlı Cevap Maratonu
 Comment=Farabi.local İki Kişilik Dokunmatik Tahta Düellosu
 Exec=google-chrome --app=http://farabi.local:8030/duello --user-data-dir=/home/ogretmen/.config/arena-chrome --start-maximized --no-first-run --no-default-browser-check
-Icon=/home/ogretmen/.local/share/icons/arena-icon.png
+Icon=/home/ogretmen/.local/share/icons/duello-icon.png
 Terminal=false
 Categories=Education;Game;
 StartupNotify=true
@@ -116,7 +120,7 @@ EOF
 
         chmod +x ~/Masaüstü/OYUNLAR/Tahta-Duellosu.desktop
         gio set ~/Masaüstü/OYUNLAR/Tahta-Duellosu.desktop metadata::trusted true 2>/dev/null || true
-        gio set ~/Masaüstü/OYUNLAR/Tahta-Duellosu.desktop metadata::custom-icon file:///home/ogretmen/.local/share/icons/arena-icon.png 2>/dev/null || true
+        gio set ~/Masaüstü/OYUNLAR/Tahta-Duellosu.desktop metadata::custom-icon file:///home/ogretmen/.local/share/icons/duello-icon.png 2>/dev/null || true
 
         if [ -d ~/Desktop/OYUNLAR ]; then
             cp ~/Masaüstü/OYUNLAR/Sinif-Arenasi.desktop ~/Desktop/OYUNLAR/Sinif-Arenasi.desktop 2>/dev/null || true
@@ -184,6 +188,20 @@ Categories=Education;Game;
 StartupNotify=true
 EOF
 
+    cat > ~/Desktop/OYUNLAR/Tahta-Duellosu.desktop <<EOF
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Tahta Düellosu
+GenericName=Çark & Hızlı Cevap Maratonu
+Comment=Farabi.local İki Kişilik Dokunmatik Tahta Düellosu
+Exec=google-chrome --app=http://farabi.local:8030/duello --user-data-dir=$HOME/.config/arena-chrome --start-maximized --no-first-run --no-default-browser-check
+Icon=$HOME/.local/share/icons/duello-icon.png
+Terminal=false
+Categories=Education;Game;
+StartupNotify=true
+EOF
+
     chmod +x ~/Desktop/OYUNLAR/*.desktop
     if [ -d ~/Masaüstü ]; then
         cp -r ~/Desktop/OYUNLAR ~/Masaüstü/ 2>/dev/null || true
@@ -197,7 +215,7 @@ kur_yerel
 HEDEF="${1:---tum-tahtalar}"
 if [ "$HEDEF" = "--tum-tahtalar" ]; then
     echo "🚀 Açık olan tüm tahtalara dağıtılıyor..."
-    for t in 9-A 9-B 10-A 11-B 12-A 12-B fenlab; do
+    for t in 9-A 9-B 10-A 11-A 11-B 12-A 12-B fenlab; do
         kur_tahta "$t" || echo "⚠️ $t kurulumunda hata oluştu, devam ediliyor."
     done
 else

@@ -10,6 +10,7 @@
   <script src="/static/vendor/confetti.browser-1.6.0.js"></script>
   <script src="/static/hata.js"></script>
   <script src="/static/sonuc.js"></script>
+  <script src="/static/soru-bildir.js"></script>
   <style>
     body {
       font-family: 'Inter', sans-serif;
@@ -56,6 +57,14 @@
       border-top: 36px solid #facc15;
       filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6));
     }
+
+    /* Akıllı Tahta Görev Çubuğu / Başlat Menüsü Güvenli Alanı */
+    :root {
+      --safe-bottom: clamp(52px, 7vh, 84px);
+    }
+    .safe-tahta-bottom {
+      padding-bottom: var(--safe-bottom) !important;
+    }
   </style>
 </head>
 <body class="h-full flex flex-col bg-slate-950 text-slate-100 selection:bg-none">
@@ -88,6 +97,9 @@
 
     <!-- Sağ Araçlar -->
     <div class="flex items-center gap-2">
+      <button onclick="liderlikModalAc()" title="Liderlik ve Skor Tablosu (JSON)" class="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-sm font-bold flex items-center gap-1.5 transition">
+        <span>🏆</span> Skorlar
+      </button>
       <button onclick="carkiGoster()" title="Düello Çarkını Aç" class="px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-300 text-sm font-bold flex items-center gap-1.5 transition">
         <span>🎡</span> Çark
       </button>
@@ -103,74 +115,74 @@
   <!-- =================================================================== -->
   <!-- 1. EKRAN: BÜYÜK DÜELLO ÇARKI (KURA EKRANI)                           -->
   <!-- =================================================================== -->
-  <section id="carkEkrani" class="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+  <section id="carkEkrani" class="flex-1 flex flex-col items-center justify-between p-3 sm:p-5 pb-20 md:pb-24 safe-tahta-bottom relative overflow-y-auto">
     <!-- Arka plan parlama efektleri -->
     <div class="absolute -top-32 -left-32 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
     <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-red-600/20 rounded-full blur-3xl pointer-events-none"></div>
 
-    <div class="max-w-6xl w-full flex flex-col items-center gap-6 z-10">
+    <div class="max-w-6xl w-full flex flex-col items-center gap-3 sm:gap-5 z-10 my-auto">
       
       <!-- Başlık ve Durum -->
       <div class="text-center">
-        <h2 id="carkBaslik" class="text-3xl md:text-4xl font-black font-gaming tracking-wide text-amber-400">
+        <h2 id="carkBaslik" class="text-2xl sm:text-3xl md:text-4xl font-black font-gaming tracking-wide text-amber-400">
           DÜELLO ÇARKI: YARIŞMACILARI SEÇ!
         </h2>
-        <p id="carkAltMetin" class="text-slate-400 text-base mt-1">
+        <p id="carkAltMetin" class="text-slate-400 text-xs sm:text-sm mt-1">
           Çarkı çevirerek Sol (Mavi) ve Sağ (Kırmızı) köşedeki yarışmacıları belirleyin.
         </p>
       </div>
 
       <!-- Çark ve Eşleşme Alanı -->
-      <div class="flex flex-col lg:flex-row items-center justify-center gap-12 w-full">
+      <div class="flex flex-col lg:flex-row items-center justify-center gap-4 sm:gap-6 lg:gap-8 w-full">
         
         <!-- Sol Seçilen (Mavi) -->
-        <div class="w-72 flex flex-col items-center p-5 rounded-2xl bg-blue-950/40 border-2 border-blue-500/40 shadow-xl relative">
-          <div class="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-black mb-2 shadow-lg glow-blue">
+        <div class="w-60 sm:w-64 md:w-72 flex flex-col items-center p-3 sm:p-4 rounded-2xl bg-blue-950/40 border-2 border-blue-500/40 shadow-xl relative">
+          <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg sm:text-xl font-black mb-1 sm:mb-2 shadow-lg glow-blue">
             L
           </div>
-          <span class="text-xs font-bold text-blue-400 tracking-wider">SOL KÖŞE (MAVİ)</span>
-          <h3 id="carkSolOyuncuAd" class="text-xl font-black text-white mt-1 text-center min-h-[1.75rem]">
+          <span class="text-[11px] sm:text-xs font-bold text-blue-400 tracking-wider">SOL KÖŞE (MAVİ)</span>
+          <h3 id="carkSolOyuncuAd" class="text-lg sm:text-xl font-black text-white mt-0.5 text-center min-h-[1.75rem]">
             Henüz Seçilmedi
           </h3>
-          <div id="carkSolStreakBadge" class="mt-2 text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full hidden">
+          <div id="carkSolStreakBadge" class="mt-1 text-[11px] sm:text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full hidden">
             🔥 0 Seri Galibiyet
           </div>
         </div>
 
         <!-- Çark Çerçevesi -->
         <div class="relative flex flex-col items-center">
-          <div class="pointer z-20 -mb-3"></div>
-          <div class="relative w-[340px] h-[340px] md:w-[420px] md:h-[420px] rounded-full p-2 bg-gradient-to-br from-amber-500 via-rose-500 to-indigo-600 shadow-2xl flex items-center justify-center">
-            <canvas id="carkCanvas" width="400" height="400" class="rounded-full shadow-inner bg-slate-900"></canvas>
+          <div class="pointer z-20 -mb-2"></div>
+          <div class="relative w-[260px] h-[260px] sm:w-[300px] sm:h-[300px] md:w-[340px] md:h-[340px] rounded-full p-2 bg-gradient-to-br from-amber-500 via-rose-500 to-indigo-600 shadow-2xl flex items-center justify-center">
+            <canvas id="carkCanvas" width="400" height="400" class="w-full h-full rounded-full shadow-inner bg-slate-900"></canvas>
             <!-- Çark Merkez Rozeti -->
-            <button onclick="carkiCevir()" id="carkMerkezBtn" class="absolute w-20 h-20 rounded-full bg-slate-900 border-4 border-amber-400 text-amber-300 font-gaming font-black text-lg flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition z-10 glow-gold">
+            <button onclick="carkiCevir()" id="carkMerkezBtn" class="absolute w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-900 border-2 sm:border-4 border-amber-400 text-amber-300 font-gaming font-black text-sm sm:text-base flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition z-10 glow-gold">
               ÇEVİR
             </button>
           </div>
         </div>
 
         <!-- Sağ Seçilen (Kırmızı) -->
-        <div class="w-72 flex flex-col items-center p-5 rounded-2xl bg-red-950/40 border-2 border-red-500/40 shadow-xl relative">
-          <div class="w-12 h-12 rounded-full bg-red-600 text-white flex items-center justify-center text-xl font-black mb-2 shadow-lg glow-red">
+        <div class="w-60 sm:w-64 md:w-72 flex flex-col items-center p-3 sm:p-4 rounded-2xl bg-red-950/40 border-2 border-red-500/40 shadow-xl relative">
+          <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-600 text-white flex items-center justify-center text-lg sm:text-xl font-black mb-1 sm:mb-2 shadow-lg glow-red">
             R
           </div>
-          <span class="text-xs font-bold text-red-400 tracking-wider">SAĞ KÖŞE (KIRMIZI)</span>
-          <h3 id="carkSagOyuncuAd" class="text-xl font-black text-white mt-1 text-center min-h-[1.75rem]">
+          <span class="text-[11px] sm:text-xs font-bold text-red-400 tracking-wider">SAĞ KÖŞE (KIRMIZI)</span>
+          <h3 id="carkSagOyuncuAd" class="text-lg sm:text-xl font-black text-white mt-0.5 text-center min-h-[1.75rem]">
             Henüz Seçilmedi
           </h3>
-          <div id="carkSagStreakBadge" class="mt-2 text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full hidden">
+          <div id="carkSagStreakBadge" class="mt-1 text-[11px] sm:text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full hidden">
             🔥 0 Seri Galibiyet
           </div>
         </div>
 
       </div>
 
-      <!-- Aksiyon Butonları -->
-      <div class="flex items-center gap-4 mt-2">
-        <button onclick="carkiCevir()" id="carkCevirAnaBtn" class="px-8 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-gaming font-black text-xl tracking-wider shadow-lg hover:scale-105 active:scale-95 transition flex items-center gap-3">
+      <!-- Aksiyon Butonları (Görev çubuğu üstünde güvenli konum) -->
+      <div class="flex items-center justify-center gap-3 sm:gap-4 mt-2 mb-4 sm:mb-6">
+        <button onclick="carkiCevir()" id="carkCevirAnaBtn" class="px-6 py-2.5 sm:px-8 sm:py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-gaming font-black text-base sm:text-lg tracking-wider shadow-lg hover:scale-105 active:scale-95 transition flex items-center gap-2 sm:gap-3">
           <span>🎡</span> ÇARKI ÇEVİR
         </button>
-        <button onclick="arenayaGec()" id="duelloyuBaslatBtn" class="px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-gaming font-black text-xl tracking-wider shadow-lg hover:scale-105 active:scale-95 transition flex items-center gap-3 opacity-50 pointer-events-none">
+        <button onclick="arenayaGec()" id="duelloyuBaslatBtn" class="px-6 py-2.5 sm:px-8 sm:py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-gaming font-black text-base sm:text-lg tracking-wider shadow-lg hover:scale-105 active:scale-95 transition flex items-center gap-2 sm:gap-3 opacity-50 pointer-events-none">
           <span>⚔️</span> DÜELLOYU BAŞLAT!
         </button>
       </div>
@@ -184,77 +196,82 @@
   <section id="arenaEkrani" class="flex-1 flex flex-row relative overflow-hidden hidden">
 
     <!-- SOL OYUNCU (MAVİ KÖŞE) -->
-    <div id="solKosePanel" class="w-1/4 h-full bg-gradient-to-b from-blue-950/40 via-slate-950 to-blue-950/50 border-r-2 border-blue-600/40 p-6 flex flex-col justify-between relative transition-all duration-300">
+    <div id="solKosePanel" class="w-1/4 h-full bg-gradient-to-b from-blue-950/40 via-slate-950 to-blue-950/50 border-r-2 border-blue-600/40 p-3 sm:p-4 pb-20 md:pb-24 safe-tahta-bottom flex flex-col justify-between relative transition-all duration-300">
       
       <!-- Sol Üst: Profil & Skor -->
-      <div class="flex flex-col items-center gap-2">
-        <div class="w-16 h-16 rounded-2xl bg-blue-600/30 border-2 border-blue-400 flex items-center justify-center text-3xl shadow-lg glow-blue">
+      <div class="flex flex-col items-center gap-1 sm:gap-2">
+        <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-blue-600/30 border-2 border-blue-400 flex items-center justify-center text-2xl sm:text-3xl shadow-lg glow-blue">
           👤
         </div>
         <div class="text-center">
-          <span class="text-xs font-bold text-blue-400 tracking-widest uppercase">SOL KÖŞE</span>
-          <h2 id="arenaSolAd" class="text-2xl font-black text-white font-gaming truncate max-w-[200px]">Ahmet</h2>
-          <div id="solStreakDisplay" class="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full inline-block mt-1">
+          <span class="text-[11px] font-bold text-blue-400 tracking-widest uppercase">SOL KÖŞE</span>
+          <h2 id="arenaSolAd" class="text-lg sm:text-xl md:text-2xl font-black text-white font-gaming truncate max-w-[180px]">Ahmet</h2>
+          <div id="solStreakDisplay" class="text-[10px] sm:text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full inline-block mt-0.5">
             🔥 0 Seri Galibiyet
           </div>
         </div>
-        <div class="mt-2 bg-slate-900/80 border border-blue-500/40 px-6 py-2 rounded-xl text-center">
-          <span class="text-xs text-slate-400 font-semibold block">PUAN</span>
-          <span id="arenaSolSkor" class="text-4xl font-black text-blue-400 font-gaming">0</span>
+        <div class="mt-1 bg-slate-900/80 border border-blue-500/40 px-4 py-1.5 rounded-xl text-center">
+          <span class="text-[10px] text-slate-400 font-semibold block">PUAN</span>
+          <span id="arenaSolSkor" class="text-2xl sm:text-3xl font-black text-blue-400 font-gaming">0</span>
         </div>
       </div>
 
       <!-- Sol Orta/Alt: ŞIKLAR (Basınca burada açılır) -->
-      <div id="solSiklarAlani" class="flex flex-col gap-3 my-auto transition-all duration-300 opacity-20 pointer-events-none">
-        <div class="text-center text-xs font-bold text-blue-400 tracking-wider mb-1">
+      <div id="solSiklarAlani" class="flex flex-col gap-2 my-auto transition-all duration-300 opacity-20 pointer-events-none">
+        <div class="text-center text-[11px] font-bold text-blue-400 tracking-wider mb-0.5">
           CEVAP ŞIKLARI
         </div>
-        <button onclick="cevapVer('sol', 0)" id="solSik0" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-blue-500/50 hover:bg-blue-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
-          <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 font-black">A</span>
+        <button onclick="cevapVer('sol', 0)" id="solSik0" class="h-11 sm:h-13 px-3 rounded-xl bg-slate-900/90 border-2 border-blue-500/50 hover:bg-blue-600/30 text-left font-bold text-sm sm:text-base flex items-center gap-2 sm:gap-3 transition">
+          <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 font-black text-sm">A</span>
           <span class="sik-metin truncate text-slate-200">Seçenek A</span>
         </button>
-        <button onclick="cevapVer('sol', 1)" id="solSik1" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-blue-500/50 hover:bg-blue-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
-          <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 font-black">B</span>
+        <button onclick="cevapVer('sol', 1)" id="solSik1" class="h-11 sm:h-13 px-3 rounded-xl bg-slate-900/90 border-2 border-blue-500/50 hover:bg-blue-600/30 text-left font-bold text-sm sm:text-base flex items-center gap-2 sm:gap-3 transition">
+          <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 font-black text-sm">B</span>
           <span class="sik-metin truncate text-slate-200">Seçenek B</span>
         </button>
-        <button onclick="cevapVer('sol', 2)" id="solSik2" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-blue-500/50 hover:bg-blue-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
-          <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 font-black">C</span>
+        <button onclick="cevapVer('sol', 2)" id="solSik2" class="h-11 sm:h-13 px-3 rounded-xl bg-slate-900/90 border-2 border-blue-500/50 hover:bg-blue-600/30 text-left font-bold text-sm sm:text-base flex items-center gap-2 sm:gap-3 transition">
+          <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 font-black text-sm">C</span>
           <span class="sik-metin truncate text-slate-200">Seçenek C</span>
         </button>
-        <button onclick="cevapVer('sol', 3)" id="solSik3" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-blue-500/50 hover:bg-blue-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
-          <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 font-black">D</span>
+        <button onclick="cevapVer('sol', 3)" id="solSik3" class="h-11 sm:h-13 px-3 rounded-xl bg-slate-900/90 border-2 border-blue-500/50 hover:bg-blue-600/30 text-left font-bold text-sm sm:text-base flex items-center gap-2 sm:gap-3 transition">
+          <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 font-black text-sm">D</span>
           <span class="sik-metin truncate text-slate-200">Seçenek D</span>
         </button>
       </div>
 
-      <!-- Sol Alt: DEV MAVİ BUZZER BUTONU -->
-      <div class="flex flex-col items-center">
-        <button onclick="buzzerBas('sol')" id="solBuzzerBtn" class="buzzer-btn w-full h-24 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 text-white font-gaming font-black text-2xl tracking-wider border-4 border-blue-300 shadow-2xl flex items-center justify-center gap-3 glow-blue">
+      <!-- Sol Alt: DEV MAVİ BUZZER BUTONU (Görev çubuğu üstünde güvenli konum) -->
+      <div class="flex flex-col items-center w-full">
+        <button onclick="buzzerBas('sol')" id="solBuzzerBtn" class="buzzer-btn w-full h-16 sm:h-20 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 text-white font-gaming font-black text-xl sm:text-2xl tracking-wider border-2 sm:border-4 border-blue-300 shadow-2xl flex items-center justify-center gap-2 sm:gap-3 glow-blue">
           <span>🔔</span> BAS!
         </button>
-        <span class="text-[11px] text-slate-400 mt-1 font-semibold">Cevap vermek için dokun (veya 'A' tuşu)</span>
+        <span class="text-[10px] sm:text-[11px] text-slate-400 mt-1 font-semibold">Dokun veya 'A' tuşu</span>
       </div>
 
     </div>
 
     <!-- ORTA ALAN (SORU & 30 SANİYELİK DEV SAYAÇ) -->
-    <div class="w-2/4 h-full flex flex-col justify-between p-6 relative">
+    <div class="w-2/4 h-full flex flex-col justify-between p-3 sm:p-4 pb-20 md:pb-24 safe-tahta-bottom relative">
       
       <!-- Orta Üst: Maraton Durumu (Soru x/10) -->
-      <div class="flex items-center justify-between bg-slate-900/70 border border-slate-800 px-6 py-2 rounded-xl">
+      <div class="flex items-center justify-between bg-slate-900/70 border border-slate-800 px-4 py-1.5 rounded-xl">
         <div class="flex items-center gap-2">
-          <span class="text-amber-400 font-black text-sm">MARATON:</span>
-          <span id="maratonSoruNo" class="font-gaming font-black text-lg text-white">SORU 1 / 10</span>
+          <span class="text-amber-400 font-black text-xs sm:text-sm">MARATON:</span>
+          <span id="maratonSoruNo" class="font-gaming font-black text-base sm:text-lg text-white">SORU 1 / 10</span>
         </div>
-        <div id="soruKaynakRozet" class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-          Onaylı MEB Havuzu
+        <div class="flex items-center gap-2">
+          <div id="soruKaynakRozet" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+            Onaylı MEB Havuzu
+          </div>
+          <button onclick="macBitti()" title="Düelloyu erken sonlandır ve skorları JSON dosyasına kaydet" class="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/40 border border-rose-500/40 text-rose-300 transition">
+            ⏹️ Bitir
+          </button>
         </div>
       </div>
 
       <!-- Orta Merkez: 30 Saniyelik Dev Dairesel Sayaç -->
       <div class="flex flex-col items-center justify-center relative my-auto">
         
-        <div class="relative w-44 h-44 flex items-center justify-center">
+        <div class="relative w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 flex items-center justify-center">
           <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
             <!-- Arka Halka -->
             <circle cx="50" cy="50" r="42" fill="none" stroke="#1e293b" stroke-width="8"></circle>
@@ -262,85 +279,85 @@
             <circle id="sayacCember" cx="50" cy="50" r="42" fill="none" stroke="#38bdf8" stroke-width="8" stroke-dasharray="264" stroke-dashoffset="0" stroke-linecap="round" class="transition-all duration-100"></circle>
           </svg>
           <div class="absolute flex flex-col items-center">
-            <span id="sayacSayi" class="text-6xl font-black font-gaming tracking-tight text-white">30</span>
-            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest -mt-1">SANİYE</span>
+            <span id="sayacSayi" class="text-4xl sm:text-5xl font-black font-gaming tracking-tight text-white">30</span>
+            <span class="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-widest -mt-1">SANİYE</span>
           </div>
         </div>
 
         <!-- Soru Kartı -->
-        <div class="w-full mt-6 bg-slate-900/90 border-2 border-slate-800 rounded-2xl p-6 shadow-2xl relative text-center">
-          <span id="soruKonuBadge" class="inline-block text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full mb-3">
+        <div class="w-full mt-3 sm:mt-4 bg-slate-900/90 border-2 border-slate-800 rounded-2xl p-4 sm:p-5 shadow-2xl relative text-center">
+          <span id="soruKonuBadge" class="inline-block text-[11px] sm:text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-full mb-2">
             Genel Biyoloji
           </span>
-          <p id="soruMetni" class="text-xl md:text-2xl font-bold text-slate-100 leading-relaxed min-h-[5rem] flex items-center justify-center">
+          <p id="soruMetni" class="text-lg sm:text-xl md:text-2xl font-bold text-slate-100 leading-relaxed min-h-[4rem] flex items-center justify-center">
             Soru yükleniyor...
           </p>
         </div>
 
         <!-- Durum Bildirim Çubuğu -->
-        <div id="arenaDurumMesaji" class="mt-4 px-6 py-2 rounded-full bg-slate-900 border border-slate-700 text-sm font-bold text-slate-300 tracking-wide text-center">
+        <div id="arenaDurumMesaji" class="mt-2 sm:mt-3 px-4 py-1.5 sm:px-6 sm:py-2 rounded-full bg-slate-900 border border-slate-700 text-xs sm:text-sm font-bold text-slate-300 tracking-wide text-center">
           Soruyu ilk bilen köşesindeki butona bassın!
         </div>
 
       </div>
 
       <!-- Orta Alt: İlerleme Çubuğu -->
-      <div class="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800">
+      <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
         <div id="maratonBar" class="bg-gradient-to-r from-blue-500 via-amber-400 to-rose-500 h-full w-[10%] transition-all duration-300"></div>
       </div>
 
     </div>
 
     <!-- SAĞ OYUNCU (KIRMIZI KÖŞE) -->
-    <div id="sagKosePanel" class="w-1/4 h-full bg-gradient-to-b from-red-950/40 via-slate-950 to-red-950/50 border-l-2 border-red-600/40 p-6 flex flex-col justify-between relative transition-all duration-300">
+    <div id="sagKosePanel" class="w-1/4 h-full bg-gradient-to-b from-red-950/40 via-slate-950 to-red-950/50 border-l-2 border-red-600/40 p-3 sm:p-4 pb-20 md:pb-24 safe-tahta-bottom flex flex-col justify-between relative transition-all duration-300">
       
       <!-- Sağ Üst: Profil & Skor -->
-      <div class="flex flex-col items-center gap-2">
-        <div class="w-16 h-16 rounded-2xl bg-red-600/30 border-2 border-red-400 flex items-center justify-center text-3xl shadow-lg glow-red">
+      <div class="flex flex-col items-center gap-1 sm:gap-2">
+        <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-red-600/30 border-2 border-red-400 flex items-center justify-center text-2xl sm:text-3xl shadow-lg glow-red">
           👤
         </div>
         <div class="text-center">
-          <span class="text-xs font-bold text-red-400 tracking-widest uppercase">SAĞ KÖŞE</span>
-          <h2 id="arenaSagAd" class="text-2xl font-black text-white font-gaming truncate max-w-[200px]">Zeynep</h2>
-          <div id="sagStreakDisplay" class="text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full inline-block mt-1">
+          <span class="text-[11px] font-bold text-red-400 tracking-widest uppercase">SAĞ KÖŞE</span>
+          <h2 id="arenaSagAd" class="text-lg sm:text-xl md:text-2xl font-black text-white font-gaming truncate max-w-[180px]">Zeynep</h2>
+          <div id="sagStreakDisplay" class="text-[10px] sm:text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full inline-block mt-0.5">
             🔥 0 Seri Galibiyet
           </div>
         </div>
-        <div class="mt-2 bg-slate-900/80 border border-red-500/40 px-6 py-2 rounded-xl text-center">
-          <span class="text-xs text-slate-400 font-semibold block">PUAN</span>
-          <span id="arenaSagSkor" class="text-4xl font-black text-red-400 font-gaming">0</span>
+        <div class="mt-1 bg-slate-900/80 border border-red-500/40 px-4 py-1.5 rounded-xl text-center">
+          <span class="text-[10px] text-slate-400 font-semibold block">PUAN</span>
+          <span id="arenaSagSkor" class="text-2xl sm:text-3xl font-black text-red-400 font-gaming">0</span>
         </div>
       </div>
 
       <!-- Sağ Orta/Alt: ŞIKLAR (Basınca burada açılır) -->
-      <div id="sagSiklarAlani" class="flex flex-col gap-3 my-auto transition-all duration-300 opacity-20 pointer-events-none">
-        <div class="text-center text-xs font-bold text-red-400 tracking-wider mb-1">
+      <div id="sagSiklarAlani" class="flex flex-col gap-2 my-auto transition-all duration-300 opacity-20 pointer-events-none">
+        <div class="text-center text-[11px] font-bold text-red-400 tracking-wider mb-0.5">
           CEVAP ŞIKLARI
         </div>
-        <button onclick="cevapVer('sag', 0)" id="sagSik0" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-red-500/50 hover:bg-red-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
-          <span class="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0 font-black">A</span>
+        <button onclick="cevapVer('sag', 0)" id="sagSik0" class="h-11 sm:h-13 px-3 rounded-xl bg-slate-900/90 border-2 border-red-500/50 hover:bg-red-600/30 text-left font-bold text-sm sm:text-base flex items-center gap-2 sm:gap-3 transition">
+          <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0 font-black text-sm">A</span>
           <span class="sik-metin truncate text-slate-200">Seçenek A</span>
         </button>
-        <button onclick="cevapVer('sag', 1)" id="sagSik1" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-red-500/50 hover:bg-red-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
-          <span class="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0 font-black">B</span>
+        <button onclick="cevapVer('sag', 1)" id="sagSik1" class="h-11 sm:h-13 px-3 rounded-xl bg-slate-900/90 border-2 border-red-500/50 hover:bg-red-600/30 text-left font-bold text-sm sm:text-base flex items-center gap-2 sm:gap-3 transition">
+          <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0 font-black text-sm">B</span>
           <span class="sik-metin truncate text-slate-200">Seçenek B</span>
         </button>
-        <button onclick="cevapVer('sag', 2)" id="sagSik2" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-red-500/50 hover:bg-red-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
-          <span class="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0 font-black">C</span>
+        <button onclick="cevapVer('sag', 2)" id="sagSik2" class="h-11 sm:h-13 px-3 rounded-xl bg-slate-900/90 border-2 border-red-500/50 hover:bg-red-600/30 text-left font-bold text-sm sm:text-base flex items-center gap-2 sm:gap-3 transition">
+          <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0 font-black text-sm">C</span>
           <span class="sik-metin truncate text-slate-200">Seçenek C</span>
         </button>
-        <button onclick="cevapVer('sag', 3)" id="sagSik3" class="h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-red-500/50 hover:bg-red-600/30 text-left font-bold text-lg flex items-center gap-3 transition">
-          <span class="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0 font-black">D</span>
+        <button onclick="cevapVer('sag', 3)" id="sagSik3" class="h-11 sm:h-13 px-3 rounded-xl bg-slate-900/90 border-2 border-red-500/50 hover:bg-red-600/30 text-left font-bold text-sm sm:text-base flex items-center gap-2 sm:gap-3 transition">
+          <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0 font-black text-sm">D</span>
           <span class="sik-metin truncate text-slate-200">Seçenek D</span>
         </button>
       </div>
 
-      <!-- Sağ Alt: DEV KIRMIZI BUZZER BUTONU -->
-      <div class="flex flex-col items-center">
-        <button onclick="buzzerBas('sag')" id="sagBuzzerBtn" class="buzzer-btn w-full h-24 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 active:from-red-700 text-white font-gaming font-black text-2xl tracking-wider border-4 border-red-300 shadow-2xl flex items-center justify-center gap-3 glow-red">
+      <!-- Sağ Alt: DEV KIRMIZI BUZZER BUTONU (Görev çubuğu üstünde güvenli konum) -->
+      <div class="flex flex-col items-center w-full">
+        <button onclick="buzzerBas('sag')" id="sagBuzzerBtn" class="buzzer-btn w-full h-16 sm:h-20 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 active:from-red-700 text-white font-gaming font-black text-xl sm:text-2xl tracking-wider border-2 sm:border-4 border-red-300 shadow-2xl flex items-center justify-center gap-2 sm:gap-3 glow-red">
           <span>🔔</span> BAS!
         </button>
-        <span class="text-[11px] text-slate-400 mt-1 font-semibold">Cevap vermek için dokun (veya 'L' tuşu)</span>
+        <span class="text-[10px] sm:text-[11px] text-slate-400 mt-1 font-semibold">Dokun veya 'L' tuşu</span>
       </div>
 
     </div>
@@ -385,6 +402,12 @@
         </div>
       </div>
 
+      <!-- JSON Skor Kayıt Rozeti -->
+      <div id="duelloKayitRozeti" class="mb-5 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-bold">
+        <span>💾</span>
+        <span>Sonuçlar ve galibiyet serisi JSON puan tablosuna kaydedildi (veri/duello_skorlar.json)</span>
+      </div>
+
       <!-- Butonlar -->
       <div class="flex items-center gap-4 w-full">
         <button onclick="yeniRakipCevir()" class="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-gaming font-black text-lg tracking-wider shadow-lg transition">
@@ -427,7 +450,54 @@
           <button onclick="ayarlariKaydetVeYenile()" class="px-5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm">
             Kaydet & Uygula
           </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =================================================================== -->
+  <!-- 5. MODAL: LİDERLİK VE SKOR TABLOSU (JSON VERİSİ)                    -->
+  <!-- =================================================================== -->
+  <div id="liderlikModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center z-50 p-6 hidden">
+    <div class="max-w-2xl w-full bg-slate-900 border-2 border-amber-500/40 rounded-3xl p-6 flex flex-col shadow-2xl max-h-[85vh] overflow-hidden">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-3">
+          <span class="text-3xl">🏆</span>
+          <div>
+            <h3 class="text-2xl font-black font-gaming text-amber-400">DÜELLO LİDERLİK TABLOSU</h3>
+            <p id="liderlikSinifMetni" class="text-xs text-slate-400 font-semibold">Kalıcı JSON Dosyası: veri/duello_skorlar.json</p>
+          </div>
         </div>
+        <button onclick="liderlikModalKapat()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition">
+          ✕
+        </button>
+      </div>
+
+      <!-- Tablo Alanı -->
+      <div class="flex-1 overflow-y-auto my-4 pr-1">
+        <table class="w-full text-left text-sm">
+          <thead class="text-xs uppercase text-slate-400 border-b border-slate-800 sticky top-0 bg-slate-900">
+            <tr>
+              <th class="py-2.5 px-3">Sıra</th>
+              <th class="py-2.5 px-3">Öğrenci</th>
+              <th class="py-2.5 px-3 text-center">Toplam Puan</th>
+              <th class="py-2.5 px-3 text-center">G / M</th>
+              <th class="py-2.5 px-3 text-center">En İyi Seri</th>
+            </tr>
+          </thead>
+          <tbody id="liderlikTabloGovde" class="divide-y divide-slate-800/60 font-semibold">
+            <!-- Dinamik doldurulacak -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Alt Butonlar -->
+      <div class="flex items-center justify-between pt-3 border-t border-slate-800">
+        <a href="/ozet" class="text-xs text-amber-400 hover:text-amber-300 underline font-bold flex items-center gap-1">
+          📊 Sınıflar Arası Skor Tablosu ➔
+        </a>
+        <button onclick="liderlikModalKapat()" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm transition">
+          Kapat
+        </button>
       </div>
     </div>
   </div>
@@ -521,6 +591,7 @@
     let sinifDuzeyi = 10;
     let tumOgrenciler = [];
     let secilebilirOgrenciler = [];
+    let liderlikVerisi = [];
     
     // Oyuncular
     let solOyuncu = null; // { ad, skor, streak }
@@ -585,6 +656,12 @@
 
         // Sorular
         sorular = data.sorular || [];
+
+        // Skorlar (JSON verisi)
+        if (data.skorlar && data.skorlar.liderlik) {
+          liderlikVerisi = data.skorlar.liderlik;
+          liderlikTablosunuGuncelle();
+        }
 
         // Modal selectlerini doldur
         modalSelectDoldur(data.tum_siniflar, data.tum_dersler);
@@ -756,10 +833,13 @@
       const secilenOgrenci = secilebilirOgrenciler[secilenIdx];
 
       if (carkHedefKose === 'sol') {
-        solOyuncu = { ad: secilenOgrenci, skor: 0, streak: 0 };
+        const stat = ogrenciSkorBul(secilenOgrenci);
+        const baslangicStreak = stat ? (stat.mevcut_seri || 0) : 0;
+        const toplamP = stat ? stat.toplam_puan : 0;
+        solOyuncu = { ad: secilenOgrenci, skor: 0, streak: baslangicStreak };
         document.getElementById('carkSolOyuncuAd').innerText = secilenOgrenci;
         document.getElementById('carkSolStreakBadge').classList.remove('hidden');
-        document.getElementById('carkSolStreakBadge').innerText = `🔥 ${solOyuncu.streak} Seri Galibiyet`;
+        document.getElementById('carkSolStreakBadge').innerText = `🔥 ${solOyuncu.streak} Seri (Toplam: ${toplamP} P)`;
         
         // Havuzdan çıkar (aynı kişi iki köşeye seçilmesin)
         secilebilirOgrenciler.splice(secilenIdx, 1);
@@ -768,10 +848,13 @@
         document.getElementById('carkAltMetin').innerText = 'Şimdi Sağ Köşe (Kırmızı) için çarkı çevirin.';
 
       } else {
-        sagOyuncu = { ad: secilenOgrenci, skor: 0, streak: 0 };
+        const stat = ogrenciSkorBul(secilenOgrenci);
+        const baslangicStreak = stat ? (stat.mevcut_seri || 0) : 0;
+        const toplamP = stat ? stat.toplam_puan : 0;
+        sagOyuncu = { ad: secilenOgrenci, skor: 0, streak: baslangicStreak };
         document.getElementById('carkSagOyuncuAd').innerText = secilenOgrenci;
         document.getElementById('carkSagStreakBadge').classList.remove('hidden');
-        document.getElementById('carkSagStreakBadge').innerText = `🔥 ${sagOyuncu.streak} Seri Galibiyet`;
+        document.getElementById('carkSagStreakBadge').innerText = `🔥 ${sagOyuncu.streak} Seri (Toplam: ${toplamP} P)`;
 
         secilebilirOgrenciler.splice(secilenIdx, 1);
 
@@ -822,7 +905,7 @@
 
     async function sorulariGetir() {
       try {
-        const res = await fetch(`/api/duello/sorular?ders=${encodeURIComponent(aktifDers)}&sinif=${sinifDuzeyi}&adet=10`);
+        const res = await fetch(`/api/duello/sorular?ders=${encodeURIComponent(aktifDers)}&sinif=${sinifDuzeyi}&adet=10&sube=${encodeURIComponent(aktifSinif)}`);
         const data = await res.json();
         if (data.sorular && data.sorular.length >= 5) {
           sorular = data.sorular;
@@ -835,11 +918,13 @@
 
     function soruyuYukle() {
       if (aktifSoruIndex >= 10 || aktifSoruIndex >= sorular.length) {
+        if (window.soruBildir) soruBildir.gizle();
         macBitti();
         return;
       }
 
       const s = sorular[aktifSoruIndex];
+      if (window.soruBildir) soruBildir.ayarla(s.sid, aktifSinif);
       soruCevaplandi = false;
       cevapHakkiKose = null;
 
@@ -856,7 +941,7 @@
           const btn = document.getElementById(`${kose}Sik${i}`);
           if (btn) {
             btn.querySelector('.sik-metin').innerText = metin;
-            btn.className = `h-16 px-4 rounded-xl bg-slate-900/90 border-2 border-${kose === 'sol' ? 'blue' : 'red'}-500/50 hover:bg-${kose === 'sol' ? 'blue' : 'red'}-600/30 text-left font-bold text-lg flex items-center gap-3 transition`;
+            btn.className = `h-11 sm:h-13 px-3 rounded-xl bg-slate-900/90 border-2 border-${kose === 'sol' ? 'blue' : 'red'}-500/50 hover:bg-${kose === 'sol' ? 'blue' : 'red'}-600/30 text-left font-bold text-sm sm:text-base flex items-center gap-2 sm:gap-3 transition`;
           }
         });
       });
@@ -953,9 +1038,9 @@
       clearInterval(sayacTimer);
 
       const s = sorular[aktifSoruIndex];
-      const secilenMetin = (s.secenekler || [])[sikIndex];
-      const dogruCevapMetin = s.a || s.dogru_cevap || (s.secenekler && s.secenekler[s.dogru_index]);
-      const dogruMu = (secilenMetin && dogruCevapMetin && secilenMetin.trim() === dogruCevapMetin.trim()) || (s.dogru_index === sikIndex);
+      const secilenMetin = String((s.secenekler || [])[sikIndex] || '').trim();
+      const dogruCevapMetin = String(s.a || s.dogru_cevap || (s.secenekler && s.secenekler[s.dogru_index]) || '').trim();
+      const dogruMu = (s.dogru_index === sikIndex) || (secilenMetin.length > 0 && secilenMetin.toLowerCase() === dogruCevapMetin.toLowerCase());
 
       const tiklananBtn = document.getElementById(`${kose}Sik${sikIndex}`);
 
@@ -1072,7 +1157,78 @@
         document.getElementById('macBitisMetin').innerText = 'Dostluk kazandı! Her iki oyuncu da harika yarıştı.';
       }
 
+      // JSON Dosyasına Skoru Kaydet
+      const kazananAd = kazananKose === 'sol' ? solOyuncu.ad : (kazananKose === 'sag' ? sagOyuncu.ad : null);
+      const kazananSeri = kazananKose === 'sol' ? solOyuncu.streak : (kazananKose === 'sag' ? sagOyuncu.streak : 0);
+      skoruKaydet(solOyuncu.ad, solOyuncu.skor, sagOyuncu.ad, sagOyuncu.skor, kazananAd, kazananSeri);
+
       document.getElementById('macBitisModal').classList.remove('hidden');
+    }
+
+    async function skoruKaydet(solAd, solPuan, sagAd, sagPuan, kazananAd, seri) {
+      try {
+        const resp = await fetch('/api/duello/skor_kaydet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sinif: aktifSinif,
+            ders: aktifDers,
+            sol_oyuncu: solAd,
+            sol_puan: solPuan,
+            sag_oyuncu: sagAd,
+            sag_puan: sagPuan,
+            kazanan: kazananAd,
+            seri: seri || 0
+          })
+        });
+        const sonuc = await resp.json();
+        if (sonuc.durum === 'ok') {
+          liderlikVerisi = sonuc.liderlik || [];
+          liderlikTablosunuGuncelle();
+        }
+      } catch (e) {
+        console.warn('JSON skor kaydetme hatası:', e);
+      }
+    }
+
+    function ogrenciSkorBul(ad) {
+      if (!liderlikVerisi || !liderlikVerisi.length || !ad) return null;
+      return liderlikVerisi.find(o => o.ad.trim().toLowerCase() === ad.trim().toLowerCase());
+    }
+
+    function liderlikModalAc() {
+      document.getElementById('liderlikSinifMetni').innerText = `${aktifSinif} Sınıfı • Kalıcı JSON Kaydı (veri/duello_skorlar.json)`;
+      liderlikTablosunuGuncelle();
+      document.getElementById('liderlikModal').classList.remove('hidden');
+    }
+
+    function liderlikModalKapat() {
+      document.getElementById('liderlikModal').classList.add('hidden');
+    }
+
+    function liderlikTablosunuGuncelle() {
+      const tbody = document.getElementById('liderlikTabloGovde');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      if (!liderlikVerisi || !liderlikVerisi.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400">Henüz kayıtlı maç skoru bulunmamaktadır.</td></tr>`;
+        return;
+      }
+
+      liderlikVerisi.forEach((o, i) => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-800/40 transition';
+        const siraRozet = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : `${i + 1}.`));
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 font-gaming text-amber-400 font-bold">${siraRozet}</td>
+          <td class="py-2.5 px-3 text-white font-bold">${o.ad}</td>
+          <td class="py-2.5 px-3 text-center text-emerald-400 font-bold">${o.toplam_puan} Puan</td>
+          <td class="py-2.5 px-3 text-center text-slate-300">${o.galibiyet || 0}G / ${o.oyun_sayisi || 0}M</td>
+          <td class="py-2.5 px-3 text-center text-amber-300 font-bold">🔥 ${o.en_iyi_seri || 0} Seri</td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
     function yeniRakipCevir() {

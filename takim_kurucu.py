@@ -180,6 +180,19 @@ def takim_isimleri_getir(ders_adi: str, adet: int = 4) -> list[dict[str, str]]:
     return secilen
 
 
+def _ogrenci_no_anahtari(o: dict[str, Any]) -> tuple[int, int, str]:
+    """Öğrenci numaralarını karışık tiplerde (int, str, None) güvenle sıralar."""
+    raw = o.get("no")
+    if raw is None or raw == "":
+        return (2, 0, "")
+    if isinstance(raw, int):
+        return (0, raw, "")
+    s = str(raw).strip()
+    if s.isdigit():
+        return (0, int(s), s)
+    return (1, 0, s)
+
+
 def takimlari_olustur(
     ogrenciler: list[dict[str, Any]],
     ders_adi: str = "",
@@ -227,6 +240,6 @@ def takimlari_olustur(
 
     # Her takımdaki öğrencileri numaralarına göre sırala
     for t in takimlar:
-        t["ogrenciler"].sort(key=lambda o: o.get("no", 0))
+        t["ogrenciler"].sort(key=_ogrenci_no_anahtari)
 
     return takimlar

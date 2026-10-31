@@ -29,6 +29,8 @@ import takim_kurucu
 import fetih_motoru
 import havuz
 import sonuc_deposu
+import duello_deposu
+import duello_motoru
 import turkce
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -79,8 +81,10 @@ TUM_DERSLER = [
     "Felsefe",
     "Din Kültürü ve Ahlak Bilgisi",
     "İngilizce",
+    "Almanca",
     "Bilişim Teknolojileri ve Yazılım",
     "Sağlık Bilgisi ve Trafik Kültürü",
+    "Görsel Sanatlar",
     "Görsel Sanatlar ve Müzik",
     "Genel Kültür",
 ]
@@ -211,6 +215,26 @@ def _ogrencileri_ve_yoklamayi_getir(sinif: str, ders_no: int) -> tuple[list[dict
         except Exception as e:
             log.warning("Roster okuma hatası: %s", e)
 
+    # Roster dosyasında öğrenci bulunamazsa, doğrudan YOKLAMA_DB (ogrenciler tablosu) yedeğine bak
+    if not tum_ogrenciler and YOKLAMA_DB.exists():
+        try:
+            conn_roster = sqlite3.connect(YOKLAMA_DB)
+            cur_r = conn_roster.cursor()
+            cur_r.execute(
+                "SELECT o.no, o.ad_soyad, o.cinsiyet FROM ogrenciler o "
+                "JOIN siniflar s ON o.sinif_id = s.id "
+                "WHERE s.ad = ? AND o.aktif = 1 ORDER BY o.no",
+                (sinif,),
+            )
+            for r_no, r_ad, r_cin in cur_r.fetchall():
+                ogrenci_dict = {"no": r_no, "ad_soyad": r_ad}
+                if r_cin:
+                    ogrenci_dict["cinsiyet"] = r_cin
+                tum_ogrenciler.append(ogrenci_dict)
+            conn_roster.close()
+        except Exception as e:
+            log.warning("YOKLAMA_DB ogrenciler okuma hatası: %s", e)
+
     devamsiz_isimler = set()
     bugun_str = datetime.now(ISTANBUL_TZ).date().isoformat()
 
@@ -297,8 +321,10 @@ async def oturum_bilgisi(request: Request, sinif: str | None = None, ders: str |
     # Takımları oluştur
     takimlar = takim_kurucu.takimlari_olustur(mevcut_ogrenciler, ders_adi, takim_sayisi=4)
 
-    # Hazır soruları al (0 sn bekleme)
-    sorular = soru_uretici.hazir_sorulari_getir(ders_adi)
+    # Soru havuzundan anında 16 soru seti (yalnızca AGY onaylı); yoksa hazır statik set
+    ders_anahtari = _ders_anahtari(ders_adi)
+    havuz_seti = havuz.jeopardy_seti(ders_anahtari, sinif_duzeyi, sube=secilen_sinif)
+    sorular = havuz_seti or soru_uretici.hazir_sorulari_getir(ders_adi)
 
     # Kalıcı log kaydı
     logger.log_oturum(
@@ -339,6 +365,44 @@ class SoruUretIstek(BaseModel):
     kazanim: bool = False  # True: konu bir haftalık kazanım metnidir (havuzda anahtar kelimeyle aranır)
 
 
+OKUL_SORU_BILDIRIM_URL = "http://127.0.0.1:9090/api/soru-bildirim"
+OKUL_GIZLI = Path("/home/ata/farabi/okul/config/gizli.json")  # "soru_havuzu_anahtar" (repoda tutulmaz)
+
+
+def _okul_soru_anahtari() -> str:
+    try:
+        return json.loads(OKUL_GIZLI.read_text(encoding="utf-8")).get("soru_havuzu_anahtar", "")
+    except (OSError, ValueError):
+        return ""
+
+
+class SoruBildirIstek(BaseModel):
+    sid: int
+    tur: str
+    sube: str = ""
+
+
+@app.post("/api/arena/soru-bildir")
+async def soru_bildir(istek: SoruBildirIstek):
+    """Tahtadaki sorunun hatalı olduğunu okul portalına (smual.app) bildirir; kimlik yok, şube düzeyinde.
+    Okul kapalıysa oyun bozulmaz: yalnızca 'kaydedilemedi' döner."""
+    anahtar = _okul_soru_anahtari()
+    if not anahtar:
+        return JSONResponse({"durum": "kapali", "mesaj": "Bildirim şu an kaydedilemiyor."}, status_code=503)
+    try:
+        async with httpx.AsyncClient(timeout=5) as c:
+            r = await c.post(
+                OKUL_SORU_BILDIRIM_URL,
+                json={"soru_id": istek.sid, "tur": istek.tur, "sube": istek.sube},
+                headers={"X-Soru-Anahtar": anahtar},
+            )
+    except httpx.HTTPError:
+        return JSONResponse({"durum": "hata", "mesaj": "Bildirim şu an kaydedilemiyor."}, status_code=503)
+    if r.status_code == 200:
+        return {"durum": "ok"}
+    return JSONResponse({"durum": "hata", "mesaj": "Bildirim kabul edilmedi."}, status_code=400)
+
+
 @app.post("/api/arena/soru-uret")
 async def soru_uret(request: Request, istek: SoruUretIstek):
     """MEB RAG ve yerel Ollama (qwen3.8:27b) ile canlı Jeopardy seti üretir."""
@@ -348,7 +412,7 @@ async def soru_uret(request: Request, istek: SoruUretIstek):
 
     # 0. Soru havuzu (yalnızca AGY onaylı) — anında; yoksa canlı RAG+Ollama
     ders_anahtari = _ders_anahtari(istek.ders)
-    havuz_seti = havuz.jeopardy_seti(ders_anahtari, sinif_duzeyi, istek.konu, kazanim=istek.kazanim)
+    havuz_seti = havuz.jeopardy_seti(ders_anahtari, sinif_duzeyi, istek.konu, kazanim=istek.kazanim, sube=istek.sinif)
     if havuz_seti:
         gecen_sn = time.perf_counter() - t0
         logger.log_soru_uret(ip=istemci_ip, sinif=istek.sinif, ders=istek.ders, konu=istek.konu,
@@ -404,7 +468,9 @@ class TakimYenileIstek(BaseModel):
 async def takim_yenile(request: Request, istek: TakimYenileIstek):
     """Mevcut öğrencileri belirtilen sayıda takıma yeniden dengeli dağıtır."""
     istemci_ip = request.client.host if request.client else "127.0.0.1"
-    _, mevcut_ogrenciler, _ = _ogrencileri_ve_yoklamayi_getir(istek.sinif, ders_no=1)
+    simdi = datetime.now(ISTANBUL_TZ)
+    ders_no, _ = _simdiki_ders_bilgisi(simdi)
+    _, mevcut_ogrenciler, _ = _ogrencileri_ve_yoklamayi_getir(istek.sinif, ders_no=ders_no)
     takimlar = takim_kurucu.takimlari_olustur(mevcut_ogrenciler, istek.ders, istek.takim_sayisi)
 
     logger.log_takim_yenile(
@@ -481,6 +547,7 @@ class SonucIstek(BaseModel):
 
 
 @app.post("/api/arena/sonuc")
+@app.post("/api/arena/sonuc-kaydet")
 async def sonuc_kaydet(request: Request, istek: SonucIstek):
     """Biten oyunun sonucunu yerel veri/sonuclar.db'ye yazar (veri makineden çıkmaz)."""
     try:
@@ -507,12 +574,38 @@ async def ozet_api(sinif: str | None = None, gun: int = Query(7, ge=1, le=365)):
         raise HTTPException(status_code=500, detail="Özet okunamadı")
 
 
+@app.get("/api/arena/siniflar-arasi")
+async def siniflar_arasi_skor_api(gun: int = Query(30, ge=1, le=365)):
+    """Sınıflar arası liderlik tablosu: en çok soru cevaplayan sınıf ve okul geneli şampiyonlar."""
+    try:
+        return sonuc_deposu.siniflar_arasi_skorlar(gun=gun)
+    except Exception as e:
+        logger.log_hata("siniflar_arasi_skor_api", "Sınıflar arası özet okunamadı", e)
+        raise HTTPException(status_code=500, detail="Sınıflar arası özet okunamadı")
+
+
+@app.get("/api/arena/skorlar")
+async def arena_skorlar_api(sinif: str | None = None):
+    """Tüm oyunların takım ve öğrenci puan tablolarını (JSON) döner."""
+    try:
+        return sonuc_deposu.json_skorlari_getir(sinif)
+    except Exception as e:
+        logger.log_hata("arena_skorlar_api", "Skorlar okunamadı", e)
+        raise HTTPException(status_code=500, detail="Skorlar okunamadı")
+
+
 @app.get("/ozet", response_class=HTMLResponse)
 async def ozet_page():
     """Salt okunur katılım/skor özet sayfası."""
     if not HTML_OZET_DOSYASI.exists():
         raise HTTPException(status_code=404, detail="ozet.html bulunamadı.")
     return HTML_OZET_DOSYASI.read_text(encoding="utf-8")
+
+
+@app.get("/api/saglik", include_in_schema=False)
+async def saglik_kontrolu_alias():
+    """/api/arena/saglik için geriye dönük uyumlu takma ad."""
+    return await saglik_kontrolu()
 
 
 @app.get("/api/arena/saglik")
@@ -635,7 +728,7 @@ async def fetih_oturum(request: Request, sinif: str | None = None, ders: str | N
     takimlar = takim_kurucu.takimlari_olustur(mevcut_ogrenciler, ders_adi, takim_sayisi=4)
 
     # 19 Peteklik dinamik haritayı hazırla
-    harita = fetih_motoru.haritayi_hazirla(ders_adi, sinif_duzeyi_coz(secilen_sinif))
+    harita = fetih_motoru.haritayi_hazirla(ders_adi, sinif_duzeyi_coz(secilen_sinif), sube=secilen_sinif)
 
     logger.log_olay(
         olay="FETIH_OTURUM",
@@ -689,25 +782,30 @@ async def fetih_hamle(request: Request, istek: FetihHamleIstek):
 
     if istek.dogru_mu:
         # Doğru cevap verildi
-        if istek.saldiri_mi and eski_sahip is not None and eski_sahip != istek.takim_index:
+        if eski_sahip == istek.takim_index:
+            puan_degisimi = 0
+            mesaj = "Bu bölge zaten takımınıza ait."
+        elif eski_sahip is not None:
             # Başarılı Düşman Bölgesi Saldırısı (1.5x puan)
             hedef_dugum["sahip"] = istek.takim_index
             puan_degisimi = int(hedef_dugum.get("puan", 100) * 1.5)
             mesaj = f"Düşman bölgesi fethedildi! +{puan_degisimi} Puan"
+            kombo_boyutu = fetih_motoru.baglantili_kombo_hesapla(harita, istek.takim_index)
+            if kombo_boyutu >= 3:
+                kombo_bonus = 150
+                mesaj += f" | {kombo_boyutu}'lü Hat Kombo Bonusu! +150 Puan"
         else:
             # Boş bölge fethi
             hedef_dugum["sahip"] = istek.takim_index
             puan_degisimi = hedef_dugum.get("puan", 100)
             mesaj = f"Bölge fethedildi! +{puan_degisimi} Puan"
-
-        # Kombo Bağlantı Kontrolü (3 veya daha fazla bitişik petek)
-        kombo_boyutu = fetih_motoru.baglantili_kombo_hesapla(harita, istek.takim_index)
-        if kombo_boyutu >= 3:
-            kombo_bonus = 150
-            mesaj += f" | {kombo_boyutu}'lü Hat Kombo Bonusu! +150 Puan"
+            kombo_boyutu = fetih_motoru.baglantili_kombo_hesapla(harita, istek.takim_index)
+            if kombo_boyutu >= 3:
+                kombo_bonus = 150
+                mesaj += f" | {kombo_boyutu}'lü Hat Kombo Bonusu! +150 Puan"
     else:
         # Yanlış cevap verildi
-        if istek.saldiri_mi:
+        if istek.saldiri_mi or (eski_sahip is not None and eski_sahip != istek.takim_index):
             # Saldırı başarısız, saldıran takım puan kaybeder
             puan_degisimi = -50
             mesaj = "Saldırı püskürtüldü! -50 Puan ceza"
@@ -763,25 +861,8 @@ async def duello_oturum(request: Request, sinif: str | None = None, ders: str | 
 
     tum_ogrenciler, mevcut_ogrenciler, devamsiz_ogrenciler = _ogrencileri_ve_yoklamayi_getir(secilen_sinif, ders_no)
 
-    ders_anahtari = _ders_anahtari(ders_adi)
-    sorular = havuz.duello_sorulari(ders_anahtari, sinif_duzeyi, adet=10)
-    kaynak = "soru_havuzu" if sorular else "hazir"
-
-    if not sorular:
-        hazir = soru_uretici.hazir_sorulari_getir(ders_adi)
-        duz = []
-        for kat in (hazir or []):
-            for q in kat.get("questions", []):
-                duz.append({
-                    "konu": kat.get("name", "Genel"),
-                    "q": q.get("q", ""),
-                    "secenekler": [q.get("a", ""), "B şıkkı", "C şıkkı", "D şıkkı"],
-                    "a": q.get("a", ""),
-                    "kaynak": "MEB Hazır Soru",
-                })
-        import random
-        random.shuffle(duz)
-        sorular = duz[:10] if duz else []
+    sorular, kaynak = duello_motoru.duello_sorulari_hazirla(ders_adi, sinif_duzeyi, adet=10, sube=secilen_sinif)
+    skor_bilgisi = duello_deposu.skorlari_getir(secilen_sinif)
 
     return {
         "durum": "ok",
@@ -793,33 +874,91 @@ async def duello_oturum(request: Request, sinif: str | None = None, ders: str | 
         "tum_ogrenciler": tum_ogrenciler,
         "sorular": sorular,
         "kaynak": kaynak,
+        "skorlar": skor_bilgisi,
         "tum_siniflar": TUM_SINIFLAR,
         "tum_dersler": TUM_DERSLER,
     }
 
 
 @app.get("/api/duello/sorular")
-async def duello_sorular_api(ders: str = "Biyoloji", sinif: int = 9, adet: int = 10):
-    """Yeni bir düello maratonu için 10 soru döner."""
-    ders_anahtari = _ders_anahtari(ders)
-    sorular = havuz.duello_sorulari(ders_anahtari, sinif, adet=adet)
-    kaynak = "soru_havuzu" if sorular else "hazir"
-
-    if not sorular:
-        hazir = soru_uretici.hazir_sorulari_getir(ders)
-        duz = []
-        for kat in (hazir or []):
-            for q in kat.get("questions", []):
-                duz.append({
-                    "konu": kat.get("name", "Genel"),
-                    "q": q.get("q", ""),
-                    "secenekler": [q.get("a", ""), "B şıkkı", "C şıkkı", "D şıkkı"],
-                    "a": q.get("a", ""),
-                    "kaynak": "MEB Hazır Soru",
-                })
-        import random
-        random.shuffle(duz)
-        sorular = duz[:adet] if duz else []
-
+async def duello_sorular_api(ders: str = "Biyoloji", sinif: int = 9, adet: int = 10, sube: str = ""):
+    """Yeni bir düello maratonu için 10 soru döner (şıkları rastgele karıştırılmış, şubeye göre tekrarsız)."""
+    sorular, kaynak = duello_motoru.duello_sorulari_hazirla(ders, sinif, adet=adet, sube=sube)
     return {"durum": "ok", "kaynak": kaynak, "sorular": sorular}
+
+
+@app.get("/api/arena/sube-soru-istatistik")
+async def sube_soru_istatistik_api(sube: str = "9-A", ders: str = "", sinif: int = 0):
+    """Şubeye göre (örn. 9-A) soru kullanım ve kalan taze soru istatistiklerini döner."""
+    return havuz.sube_soru_istatistikleri(sube, ders, sinif)
+
+
+class DuelloSkorIstek(BaseModel):
+    sinif: str
+    ders: str
+    sol_oyuncu: str
+    sol_puan: int
+    sag_oyuncu: str
+    sag_puan: int
+    kazanan: str | None = None
+    seri: int = 0
+
+
+@app.post("/api/duello/skor_kaydet")
+async def duello_skor_kaydet(istek: DuelloSkorIstek):
+    """Düello maç sonucunu veri/duello_skorlar.json ve veri/duello_skorlar_<sinif>.json dosyalarına kaydeder."""
+    try:
+        sonuc = duello_deposu.skor_kaydet(
+            sinif=istek.sinif,
+            ders=istek.ders,
+            sol_oyuncu=istek.sol_oyuncu,
+            sol_puan=istek.sol_puan,
+            sag_oyuncu=istek.sag_oyuncu,
+            sag_puan=istek.sag_puan,
+            kazanan=istek.kazanan,
+            seri=istek.seri,
+        )
+
+        # Genel SQLite sonuc_deposu'na da yansıt (özet ekranı için)
+        try:
+            sonuc_deposu.kaydet(
+                oyun="duello",
+                sinif=istek.sinif,
+                ders=istek.ders,
+                katilimcilar=[
+                    {
+                        "ad": istek.sol_oyuncu,
+                        "puan": istek.sol_puan,
+                        "tur": "ogrenci",
+                        "kazanan": (istek.kazanan == istek.sol_oyuncu),
+                    },
+                    {
+                        "ad": istek.sag_oyuncu,
+                        "puan": istek.sag_puan,
+                        "tur": "ogrenci",
+                        "kazanan": (istek.kazanan == istek.sag_oyuncu),
+                    },
+                ],
+            )
+        except Exception as err:
+            logger.log_hata("duello_skor_kaydet", "sonuc_deposu kaydı hatası", err)
+
+        return sonuc
+    except Exception as e:
+        logger.log_hata("duello_skor_kaydet", "Skor kaydedilemedi", e)
+        raise HTTPException(status_code=400, detail=f"Skor kaydedilemedi: {e}")
+
+
+@app.get("/api/duello/skorlar")
+async def duello_skorlar_api(sinif: str | None = None):
+    """JSON dosyasından sınıf bazlı veya genel liderlik tablosunu döner."""
+    return duello_deposu.skorlari_getir(sinif)
+
+
+@app.post("/api/duello/skor_sifirla")
+async def duello_skor_sifirla_api(sinif: str | None = None):
+    """İsteğe bağlı sınıf skorlarını sıfırlar."""
+    basarili = duello_deposu.skorlari_sifirla(sinif)
+    return {"durum": "ok", "sinif": sinif or "Tümü", "sifirlandi": basarili}
+
 

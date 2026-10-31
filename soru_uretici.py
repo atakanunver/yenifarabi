@@ -46,6 +46,7 @@ KAPSAM_ESLEME: dict[str, str] = {   'biyoloji': 'biyoloji',
     'almanca': 'almanca',
     'yabancı dil': 'ingilizce',
     'bilişim teknolojileri ve yazılım': 'bilisim',
+    'bilişim teknolojileri': 'bilisim',
     'bilişim': 'bilisim',
     'bilgisayar bilimi': 'bilisim',
     'yazılım': 'bilisim',
@@ -56,9 +57,12 @@ KAPSAM_ESLEME: dict[str, str] = {   'biyoloji': 'biyoloji',
     'beden eğitimi': 'saglik',
     'beden eğitimi ve spor': 'saglik',
     'spor etkinlikleri': 'saglik',
-    'görsel sanatlar': 'sanat',
-    'müzik': 'sanat',
-    'sanat': 'sanat',
+    'ortak türk tarihi': 'tarih',
+    'görsel sanatlar': 'gorsel_sanatlar',
+    'görsel sanatlar ve müzik': 'gorsel_sanatlar',
+    'gorsel_sanatlar': 'gorsel_sanatlar',
+    'müzik': 'gorsel_sanatlar',
+    'sanat': 'gorsel_sanatlar',
     'rehberlik': 'genel',
     'sınav hazırlık çalışması': 'genel',
     'hedef fizik': 'fizik',
@@ -1855,6 +1859,8 @@ VARSAYILAN_SORULAR: dict[str, list[dict[str, Any]]] = {   'biyoloji': [   {   'i
                                         'kaynak': 'MEB Din Kültürü 11, s. 22',
                                         'answered': False}]}]}
 
+VARSAYILAN_SORULAR["gorsel_sanatlar"] = VARSAYILAN_SORULAR["sanat"]
+
 
 def _webui_anahtari() -> str:
     try:
@@ -1962,6 +1968,9 @@ async def ollama_soru_uret(
         "her kategoride 4 FARKLI ZORLUKTA (100, 200, 300, 400 puanlık) soru hazırla (toplam 16 soru). "
         "ÖNEMLİ KURAL: Tüm soru ve cevaplar İSTİSNASIZ sadece MEB Ders Kitaplarından türetilmelidir. "
         "Dış kaynak, internet veya genel kültür kaynağı KULLANMA. "
+        "YASAK: KESİNLİKLE karekod, QR kod, barkod, simülasyon aracı, web sitesi, link, video, sayfa numarası, "
+        "etkinlik yönergesi veya 'metne göre', 'şekildeki' gibi öğrencinin tahtada görmediği unsurlar hakkında soru ÜRETME. "
+        "Soru ve cevaplar doğrudan bilimsel/akademik konu kavramlarını ölçsün. "
         "Her sorunun 'kaynak' alanına mutlaka 'MEB <Ders> <Sınıf>, s. <Sayfa>' formatında resmi MEB kitap referansını yaz. "
         "Soru ve cevaplar kısa, net, tek cümle olsun. "
         "SADECE GEÇERLİ JSON DIZISI (Array) DÖNDÜR, hiçbir ek metin veya selamlama yazma."
@@ -2019,6 +2028,14 @@ JSON FORMATI:
 
                 parsed = json.loads(temiz)
                 if isinstance(parsed, list) and len(parsed) >= 4:
+                    # Karekod veya geçersiz içerik denetimi
+                    yasak_regex = re.compile(r"karekod|qr\s*kod|barkod", re.IGNORECASE)
+                    for cat in parsed[:4]:
+                        for q in cat.get("questions", []):
+                            if yasak_regex.search(q.get("q", "")) or yasak_regex.search(q.get("a", "")):
+                                log.warning("Ollama çıktısında karekod/QR tespit edildi, set reddedildi: %s", q.get("q"))
+                                return None
+
                     # Renk ve answered alanlarını garanti et
                     for idx, cat in enumerate(parsed[:4]):
                         cat["id"] = f"ai_kat_{idx+1}"
