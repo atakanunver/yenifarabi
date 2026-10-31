@@ -392,16 +392,16 @@ def test_genel_json_skorlari_ve_guvenli_kapatma():
     assert any(t["ad"] == "Mitokondriler" for t in api_skor["takim_liderlik"])
 
     # 4. Arayüz Dosyalarının Güvenlik ve Görev Çubuğu Uyumluluğu
-    duello_html = Path("/home/ata/arenasinif/duello.html").read_text(encoding="utf-8")
+    duello_html = Path("/home/ata/farabi/arenasinif/duello.html").read_text(encoding="utf-8")
     assert "safe-tahta-bottom" in duello_html, "duello.html içinde akıllı tahta güvenli alanı tanımlanmamış!"
     assert "duelloKayitRozeti" in duello_html, "duello.html içinde JSON kayıt rozeti eksik!"
     assert "pb-20" in duello_html, "duello.html içinde başlat çubuğu payı eksik!"
 
-    hexafetih_html = Path("/home/ata/arenasinif/hexafetih.html").read_text(encoding="utf-8")
+    hexafetih_html = Path("/home/ata/farabi/arenasinif/hexafetih.html").read_text(encoding="utf-8")
     assert "guvenliSoruModalKapat" in hexafetih_html, "hexafetih.html soru kapatmada onay mekanizması eksik!"
     assert "JSON dosyasına kaydedildi" in hexafetih_html, "hexafetih.html zafer ekranında kayıt rozeti eksik!"
 
-    sinif_arena_html = Path("/home/ata/arenasinif/sinif_arena.html").read_text(encoding="utf-8")
+    sinif_arena_html = Path("/home/ata/farabi/arenasinif/sinif_arena.html").read_text(encoding="utf-8")
     assert "confirmCloseQuestionModal" in sinif_arena_html, "sinif_arena.html soru kapatmada onay eksik!"
     assert "JSON puan tablosuna kaydedildi" in sinif_arena_html, "sinif_arena.html podyum ekranında kayıt rozeti eksik!"
 

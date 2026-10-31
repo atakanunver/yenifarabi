@@ -23,7 +23,7 @@ SQLITE = {
     "yoklama_pano.db": HOME / "farabi/tahtayoklama/dashboard/veri/yoklama_pano.db",
     "okul.db": HOME / "farabi/okul/veri/okul.db",
     "smssistemi.db": HOME / "farabi/smssistemi/veri/smssistemi.db",
-    "sonuclar.db": HOME / "arenasinif/veri/sonuclar.db",
+    "sonuclar.db": HOME / "farabi/arenasinif/veri/sonuclar.db",
 }
 PG_DB = ("farabi", "soru_havuzu", "okul_ana")
 # HOME'a gore kalip; yeni config dosyasi eklenince kendiliginden yedege girer. Repo PUBLIC, bu dosyalar git disi.

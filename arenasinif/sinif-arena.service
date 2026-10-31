@@ -5,8 +5,8 @@ After=network.target farabi-api.service ollama.service
 [Service]
 Type=simple
 User=ata
-WorkingDirectory=/home/ata/arenasinif
-ExecStart=/home/ata/arenasinif/venv/bin/uvicorn server:app --host 0.0.0.0 --port 8030
+WorkingDirectory=/home/ata/farabi/arenasinif
+ExecStart=/home/ata/farabi/arenasinif/venv/bin/python -m uvicorn server:app --host 0.0.0.0 --port 8030
 Restart=always
 RestartSec=3
 

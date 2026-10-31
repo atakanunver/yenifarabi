@@ -13,7 +13,7 @@ Sınıf akıllı tahtalarında sesli ders asistanı + aynı sunucuda okul operas
 servisleri (yoklama panosu, SMS). Monorepo; her alt projenin kendi `CLAUDE.md`'si
 var (client, server, tahtayoklama, smssistemi, tahtaayar, benchmark, mudur,
 soruhavuzu, kazanimtest, okul, kameralar, kiosk; `kelebek/` (sınav salon dağıtım paneli, :8050,
-systemd `farabi-kelebek`) ve `osym/` (ÖSYM/YKS rapor yükleyici, `osym` DB) ile `anythingllm/` için CLAUDE.md yok; Open WebUI kodu `_arsiv/openwebui/`, `_arsiv/webui-tema/`'dedir). Bu dosya: ortak kurallar + servisler arası resim.
+systemd `farabi-kelebek`; `kameralar/` ile birlikte git'te izlenmez, `.gitignore`'da) ve `osym/` (ÖSYM/YKS rapor yükleyici, `osym` DB), `arenasinif/` (tahta yarışma oyunları, :8030, systemd `sinif-arena`; kendi `DECISIONS.md`'si var) ile `anythingllm/` için CLAUDE.md yok; Open WebUI kodu `_arsiv/openwebui/`, `_arsiv/webui-tema/`'dedir). Bu dosya: ortak kurallar + servisler arası resim.
 
 - Kararlar/neden: `DECISIONS.md` (`grep "## <tarih>"`). Mimari (2026-09-13'te
   donmuş, çelişkide bu dosya esas): `docs/mimari.md`. Ağ envanteri, dağıtım,
@@ -33,7 +33,8 @@ systemd `farabi-kelebek`) ve `osym/` (ÖSYM/YKS rapor yükleyici, `osym` DB) ile
 - Ollama'da TEK model `gemma4:12b` (Gemma 4 12B Q4_K_M; tools/thinking/vision; 2026-10-25) (iki RTX 3060); başka model kurulmaz. TÜM istemciler aynı bağlamı
   kullanır: sunucu `OLLAMA_CONTEXT_LENGTH=49152` (drop-in `zz-baglam.conf`; farklı `num_ctx` modeli yeniden yükletir). 49152 tek karta (GPU0 ~9 GB) sığar, 65536 ikinci karta taşıp `farabi-embed` ile çakışır.
   Açılışta `/usr/local/bin/farabi-ollama-onyukle.sh` modeli yükler. Çağıran kod düşünmeyi kapatır (`think:false`; Gemma'da düşünme varsayılan AÇIK). `CUDA_DEVICE_ORDER=PCI_BUS_ID` şart.
-- Gömme + reranker Farabi'de `farabi-embed`'de (2026-10-25'ten beri, 2. RTX 3060, `127.0.0.1:8040`, `FARABI_EMBED_URL`); bilgehan yalnız ses düğümü.
+- Gömme + reranker servisi `farabi-embed` (2. RTX 3060, `127.0.0.1:8040`, `FARABI_EMBED_URL`) 2026-10-30'dan beri BİLEREK durdurulmuş ve disabled;
+  RAG kapalı (`server/main.py::RAG_AKTIF = False`). Açıkça istenmeden başlatma; RAG açılırsa önce bu servis açılır. bilgehan yalnız ses düğümü.
 - Ses Gemini Live'da, client'ta. Yerel STT/TTS/Pipecat KALICI İPTAL (2026-09-28).
 - Atos = AnythingLLM (Docker'sız, `/opt/anythingllm`, PM2 + `pm2-anythingllm.service`, port 8010, tek kullanıcı modu + erişim parolası; kurulum/yetenekler `anythingllm/`). Open WebUI 2026-10-25'te kaldırıldı, verisi `/mnt/farabi-data/farabi/arsiv/open-webui-atos-20261025.tgz`. Veri erişimi: aşağıdaki "Atos veri erişimi".
 - Okul ağı SSL-inceleme yapıyor: yeni venv'de certifi'ye MEB sertifikası eklenmeli;
@@ -54,6 +55,11 @@ systemd `farabi-kelebek`) ve `osym/` (ÖSYM/YKS rapor yükleyici, `osym` DB) ile
 | farabi-yoklama-dashboard | tahtayoklama/dashboard/ | 80 | yoklama, uzaktan yönetim, servisler |
 | farabi-smssistemi | smssistemi/ | 8020 | SMS, rehber, doğum günleri |
 | farabi-okul | okul/ | 9090 | dijital okul portalı, smual.app (Cloudflare Tunnel) |
+| farabi-kelebek | kelebek/ | 8050 | sınav salon dağıtım paneli |
+| farabi-embed | server/embed_servisi/ (server venv) | 127.0.0.1:8040 | gömme + rerank (bge-m3), 2. RTX 3060; 2026-10-30'dan beri bilerek kapalı (RAG kapalı) |
+| farabi-kameralar | kameralar/ | 8889 | mediamtx (WebRTC; RTSP/API yalnız 127.0.0.1), ffmpeg on-demand |
+| farabi-hareket | kameralar/hareket/ | — | hareket algılama + hareketsiz kayıt temizleme |
+| sinif-arena | arenasinif/ | 8030 | tahta yarışma oyunları (Sınıf Arenası, Düello, HexaFetih); unit kopyası `arenasinif/sinif-arena.service` |
 | ollama | — | 11434 | gemma4:12b |
 | pm2-anythingllm | /opt/anythingllm | 8010 | Atos (AnythingLLM; collector 8888) |
 Servisler arası bağ = HTTP + HMAC/paylaşılan anahtar. Tek DB istisnası: smssistemi
@@ -78,7 +84,7 @@ Akış: Atos agent yetenekleri `sql-sorgu` / `tablo-dosyasi` (`anythingllm/skill
   Yeni tablo = `okul_sql.py`'de sabit + `IZINLI_TABLOLAR` + `okul_bilgisi.py::sql` birleşimi + şema açıklaması.
 - SMS ve osym kaynakları yoksa sessizce atlanır (diğer tablolar çalışır); hata metinleri DSN/yol sızdırmaz (`SqlHatasi`).
 - Test: `cd tahtayoklama/dashboard && venv/bin/python -m unittest test_okul_sql`. Dashboard restart'ı ders saati dışında (08:00-17:00 TR dışı).
-- Bu çalışma dizininde `anythingllm/` sparse-checkout dışındadır (diskte yok; `git show HEAD:anythingllm/<dosya>` ya da `git sparse-checkout add anythingllm`).
+- Bu çalışma dizininde `anythingllm/` ve `kiosk/` sparse-checkout dışındadır (diskte yok; `git show HEAD:<dizin>/<dosya>` ya da `git sparse-checkout add <dizin>`).
 
 ## Komutlar
 | Proje | Test | Üretime alma |
@@ -88,9 +94,9 @@ Akış: Atos agent yetenekleri `sql-sorgu` / `tablo-dosyasi` (`anythingllm/skill
 | smssistemi | `venv/bin/python -m pytest -q` | `... restart farabi-smssistemi` |
 | okul | `cd okul && venv/bin/python -m pytest -q` | `... restart farabi-okul` |
 | client | tahtada: `server/tahta-ssh.sh <derslik> "cd ~/farabi/client && venv/bin/python -m pytest tests/ -q"` | GitHub push |
-- Diğer projeler: kelebek `cd kelebek && venv/bin/python -m pytest tests -q`; osym `cd osym && venv/bin/python -m unittest` (pytest YOK);
+- Diğer projeler: kelebek `cd kelebek && venv/bin/python -m pytest tests -q`; osym `cd osym && venv/bin/python -m unittest` (pytest YOK); arenasinif `cd arenasinif && venv/bin/python -m pytest -q`;
   soruhavuzu `server/venv/bin/python -m pytest soruhavuzu/tests -q`; tahtaayar `cd tahtaayar && python3 -m unittest test_tahta_fix_uygula -v`;
-  benchmark (pytest'e bağlı değil, DB'ye yazan betikler içerir) ve kameralar (test yok) için kendi `CLAUDE.md`'sine bak; kiosk `tests/` boş.
+  benchmark (pytest'e bağlı değil, DB'ye yazan betikler içerir) ve kameralar (test yok) için kendi `CLAUDE.md`'sine bak; kiosk testi `kiosk/tests/test_okul_panel.py` (sparse-checkout dışı).
 - Tek test: pytest projelerinde `venv/bin/python -m pytest tests/test_x.py::test_adi -q` (smssistemi'de `tests/` yok: `pytest test_x.py::test_adi -q`); dashboard'da (dizin `tahtayoklama/dashboard`, modül adı .py'siz) `venv/bin/python -m unittest test_uzaktan_ekran.TestUzaktanEkran.test_route_gecersiz_tahta`.
 - CRLF: `okul/` altındaki bazı dosyalar CRLF (`git ls-files --eol`); Python `open()` ile yeniden yazma, `newline=''` kullan ya da Edit aracı.
 - Tahta SSH: `server/tahta-ssh.sh [--admin] <derslik> "<komut>"`. Server logu

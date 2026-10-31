@@ -1,6 +1,6 @@
 """logger.py - Sınıf Arenası Kalıcı Loglama ve Hata Takip Motoru.
 
-Loglar /home/ata/arenasinif/logs/ altında toplanır:
+Loglar /home/ata/farabi/arenasinif/logs/ altında toplanır:
 - arena.log: Tüm erişimler, IP'ler, sınıf/ders eşleşmeleri, AI soru üretim süreleri.
 - arena_hata.log: Yalnızca sunucu ve akıllı tahta tarayıcısından gelen hatalar.
 RotatingFileHandler ile 10MB x 5 dosya sınırıyla disk şişmesini engeller.
