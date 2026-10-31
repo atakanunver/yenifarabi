@@ -1,51 +1,49 @@
 {% extends "taban.html" %}
-{% block baslik_etiketi %}Zamanlanmış Görevler — Farabi Panel{% endblock %}
-{% block baslik %}Zamanlanmış Görevler{% endblock %}
+{% block baslik_etiketi %}Zamanlanmış görevler — Farabi Panel{% endblock %}
+{% block baslik %}Zamanlanmış görevler{% endblock %}
 {% block ust_sag %}<button type="button" class="dugme dugme-ikincil" id="yenile"><svg class="ikon"><use href="#ik-yenile"/></svg> Yenile</button>{% endblock %}
 {% block icerik %}
-<div class="servis-sayfa">
-<section class="kpi-satir" aria-live="polite">
-  <div class="kpi"><span class="kpi-etiket">Farabi görevi</span><strong id="kpi-farabi">—</strong></div>
-  <div class="kpi"><span class="kpi-etiket">Eklenen görev</span><strong id="kpi-panel">—</strong></div>
-  <div class="kpi kpi-genis"><span class="kpi-etiket">Sıradaki görev</span><strong id="kpi-siradaki">—</strong></div>
-  <div class="kpi" id="ders-saati-rozeti" hidden><span class="rozet rozet-amber">Ders saati</span>
-    <span class="kpi-etiket">Derse etki eden işlemler ikinci onay ister</span></div>
+<section class="ozet-serit" aria-live="polite">
+  <div class="ozet-kutu"><span class="ozet-etiket">Farabi görevi</span><strong id="ozet-farabi">—</strong></div>
+  <div class="ozet-kutu"><span class="ozet-etiket">Eklenen görev</span><strong id="ozet-panel">—</strong></div>
+  <div class="ozet-kutu"><span class="ozet-etiket">Sıradaki görev</span><strong id="ozet-siradaki">—</strong></div>
+  <div class="ozet-kutu" id="ders-saati-rozeti" hidden><span class="rozet rozet-amber">Ders saati</span>
+    <span class="ozet-etiket">Derse etki eden işlemler ikinci onay ister</span></div>
 </section>
 
-<h2 class="bolum-baslik" id="farabi-baslik">Farabi görevleri</h2>
-<div class="tablo-sarici"><table class="servis-zaman-tablo" id="farabi-tablo" aria-labelledby="farabi-baslik">
+<h2 class="bolum-basligi" id="farabi-baslik">Farabi görevleri</h2>
+<div class="tablo-kutu"><table class="tablo" id="farabi-tablo" aria-labelledby="farabi-baslik">
   <thead><tr><th>Görev</th><th>Zaman</th><th>Sonraki</th><th>Etkin</th><th><span class="gorsel-gizli">Eylemler</span></th></tr></thead>
   <tbody><tr><td colspan="5"><div class="iskelet iskelet-satir"></div></td></tr></tbody>
 </table></div>
 
-<h2 class="bolum-baslik" id="panel-baslik">Eklenen görevler</h2>
-<p><button type="button" class="dugme" id="gorev-ekle"><svg class="ikon"><use href="#ik-arti"/></svg> Görev ekle</button></p>
-<div class="tablo-sarici"><table class="servis-zaman-tablo" id="panel-tablo" aria-labelledby="panel-baslik">
+<h2 class="bolum-basligi" id="panel-baslik">Eklenen görevler</h2>
+<div class="cip-satir"><button type="button" class="dugme" id="gorev-ekle"><svg class="ikon"><use href="#ik-arti"/></svg> Görev ekle</button></div>
+<div class="tablo-kutu"><table class="tablo" id="panel-tablo" aria-labelledby="panel-baslik">
   <thead><tr><th>Görev</th><th>Zaman</th><th>Sonraki</th><th>Etkin</th><th><span class="gorsel-gizli">Eylemler</span></th></tr></thead>
   <tbody><tr><td colspan="5"><div class="iskelet iskelet-satir"></div></td></tr></tbody>
 </table></div>
 
-<h2 class="bolum-baslik" id="tahta-baslik">Tahtalar (salt-okunur)</h2>
-<p class="soluk kucuk">Tahtalardaki ekran kapatma, gece yeniden başlatma ve cron kayıtları yalnızca gösterilir; buradan değiştirilemez.
+<h2 class="bolum-basligi" id="tahta-baslik">Tahtalar (salt-okunur)</h2>
+<p class="ipucu">Tahtalardaki ekran kapatma, gece yeniden başlatma ve cron kayıtları yalnızca gösterilir; buradan değiştirilemez.
   Windows (Müdür PC) görev zamanlayıcısı bu turda yönetilemiyor.</p>
-<div class="tablo-sarici"><table class="servis-zaman-tablo" id="tahta-tablo" aria-labelledby="tahta-baslik">
+<div class="tablo-kutu"><table class="tablo" id="tahta-tablo" aria-labelledby="tahta-baslik">
   <thead><tr><th>Tahta</th><th>Zamanlayıcılar</th></tr></thead>
   <tbody><tr><td colspan="2"><div class="iskelet iskelet-satir"></div></td></tr></tbody>
 </table></div>
 
 <details class="sistem-zamanlayicilar">
-  <summary class="bolum-baslik" id="sistem-baslik">Sistem (salt-okunur)</summary>
-  <div class="tablo-sarici"><table class="servis-zaman-tablo" id="sistem-tablo" aria-labelledby="sistem-baslik">
+  <summary class="bolum-basligi" id="sistem-baslik">Sistem (salt-okunur)</summary>
+  <div class="tablo-kutu"><table class="tablo" id="sistem-tablo" aria-labelledby="sistem-baslik">
     <thead><tr><th>Zamanlayıcı</th><th>Zaman</th><th>Sonraki</th><th>Son çalışma</th></tr></thead>
     <tbody><tr><td colspan="4"><div class="iskelet iskelet-satir"></div></td></tr></tbody>
   </table></div>
 </details>
-</div>
 
 <dialog class="pencere" id="onay-penceresi" aria-labelledby="onay-baslik">
   <h2 id="onay-baslik">Emin misiniz?</h2>
   <p id="onay-metin"></p>
-  <p class="uyari-not" id="onay-uyari" hidden><svg class="ikon"><use href="#ik-uyari"/></svg> <span></span></p>
+  <p class="serit serit-uyari" id="onay-uyari" hidden><svg class="ikon"><use href="#ik-uyari"/></svg> <span></span></p>
   <form method="dialog" class="pencere-dugmeler">
     <button class="dugme dugme-ikincil" value="iptal">Vazgeç</button>
     <button class="dugme" id="onay-evet" value="evet">Devam</button>
@@ -54,19 +52,19 @@
 
 <dialog class="pencere" id="form-penceresi" aria-labelledby="form-baslik">
   <h2 id="form-baslik">Görev</h2>
-  <form id="gorev-form" class="yeni-form" autocomplete="off">
-    <div id="alan-ad"><label>Görev adı <input type="text" id="f-ad" maxlength="40"></label></div>
-    <div id="alan-sablon"><label>Ne yapılsın?
-      <select id="f-sablon"></select></label></div>
-    <fieldset id="alan-tahta"><legend>Tahtalar</legend>
+  <form id="gorev-form" class="pencere-form" autocomplete="off">
+    <div class="form-alan" id="alan-ad"><label for="f-ad">Görev adı</label><input type="text" id="f-ad" maxlength="40"></div>
+    <div class="form-alan" id="alan-sablon"><label for="f-sablon">Ne yapılsın?</label>
+      <select id="f-sablon"></select></div>
+    <fieldset class="secenek-grup" id="alan-tahta"><legend>Tahtalar</legend>
       <label><input type="checkbox" id="f-hepsi"> Hepsi</label>
-      <div id="f-tahtalar"></div></fieldset>
-    <fieldset id="f-gunler"><legend>Günler</legend></fieldset>
-    <label>Saat <input type="time" id="f-saat" value="21:00"></label>
+      <div class="secenek-liste" id="f-tahtalar"></div></fieldset>
+    <fieldset class="secenek-grup" id="f-gunler"><legend>Günler</legend></fieldset>
+    <div class="form-alan"><label for="f-saat">Saat</label><input type="time" id="f-saat" value="21:00"></div>
     <details><summary>Gelişmiş ifade</summary>
-      <label>OnCalendar ifadesi (doluysa gün ve saatin yerine geçer)
-        <input type="text" id="f-ifade" maxlength="100" placeholder="Mon..Fri *-*-* 21:00:00 Europe/Istanbul"></label></details>
-    <p class="son-hata" id="f-hata" hidden></p>
+      <div class="form-alan"><label for="f-ifade">OnCalendar ifadesi (doluysa gün ve saatin yerine geçer)</label>
+        <input type="text" id="f-ifade" maxlength="100" placeholder="Mon..Fri *-*-* 21:00:00 Europe/Istanbul"></div></details>
+    <p class="form-hata" id="f-hata" hidden></p>
     <div class="pencere-dugmeler">
       <button type="button" class="dugme dugme-ikincil" id="f-vazgec">Vazgeç</button>
       <button type="submit" class="dugme" id="f-kaydet">Kaydet</button>
@@ -134,11 +132,11 @@
       var tr = el('tr'); tr.appendChild(el('td', null, g.birim));
       tr.appendChild(el('td', null, g.ifade || '—')); tr.appendChild(el('td', null, zaman(g.sonraki)));
       tr.appendChild(el('td', null, zaman(g.son_tetik))); return tr; }), 'Sistem zamanlayıcısı yok.', 4);
-    document.getElementById('kpi-farabi').textContent = f.filter(function (g) { return g.etkin; }).length + '/' + f.length + ' açık';
-    document.getElementById('kpi-panel').textContent = p.length;
+    document.getElementById('ozet-farabi').textContent = f.filter(function (g) { return g.etkin; }).length + '/' + f.length + ' açık';
+    document.getElementById('ozet-panel').textContent = p.length;
     var sirada = f.concat(p).filter(function (g) { return g.etkin && tarih(g.sonraki); })
       .sort(function (a, b) { return tarih(a.sonraki) - tarih(b.sonraki); })[0];
-    document.getElementById('kpi-siradaki').textContent = sirada ? sirada.birim.replace(/^farabi-gorev-/, '') + ' · ' + zaman(sirada.sonraki) : '—';
+    document.getElementById('ozet-siradaki').textContent = sirada ? sirada.birim.replace(/^farabi-gorev-/, '') + ' · ' + zaman(sirada.sonraki) : '—';
     document.getElementById('ders-saati-rozeti').hidden = !veri.ders_saati;
   }
   function yukle() {

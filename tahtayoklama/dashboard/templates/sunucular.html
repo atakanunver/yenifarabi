@@ -3,26 +3,26 @@
 {% block baslik %}Sunucular{% endblock %}
 
 {% block ust_sag %}
-<span id="son-guncelleme-durum"></span>
-<button type="button" class="sunucu-yenile" id="yenile-dugme" title="Şimdi yenile">
-  <svg class="ikon ikon-kucuk"><use href="#ik-yenile"/></svg> Yenile
+<span id="son-guncelleme-durum" class="zaman-yazi"></span>
+<button type="button" class="dugme dugme-ikincil" id="yenile-dugme" title="Şimdi yenile">
+  <svg class="ikon"><use href="#ik-yenile"/></svg> Yenile
 </button>
 {% endblock %}
 
 {% block icerik %}
-<p class="rapor-aciklama">Okul sunucularının donanım, servis ve proxy durumu.
+<p class="ipucu">Okul sunucularının donanım, servis ve proxy durumu.
    Ölçümler 60 saniye önbelleklidir; sayfa 60 saniyede bir yenilenir. Proxy
    açıkken makinenin apt/pip/curl/HuggingFace ve Ollama trafiği Müdür PC'nin
    Wi-Fi'sinden çıkar; GitHub SSH tüneli her zaman açıktır. Farabi'de ders
    saatinde (08:00–17:00) Ollama'nın yeniden başlatılması 17:05'e ertelenir.</p>
 
 <div class="sunucu-listesi" id="sunucu-listesi">
-  <p class="rapor-aciklama">Okunuyor…</p>
+  <p class="ipucu">Okunuyor…</p>
 </div>
 
-<h2>Özel servisler</h2>
+<h2 class="bolum-basligi">Özel servisler</h2>
 <div class="sunucu-listesi" id="ozel-listesi">
-  <p class="rapor-aciklama">Okunuyor…</p>
+  <p class="ipucu">Okunuyor…</p>
 </div>
 {% endblock %}
 
@@ -32,7 +32,7 @@ const LISTE = document.getElementById('sunucu-listesi');
 const OZEL = document.getElementById('ozel-listesi');
 const SON = document.getElementById('son-guncelleme-durum');
 const PROXY_ETIKET = { acik: 'Proxy açık', kapali: 'Proxy kapalı', kismi: 'Proxy kısmi' };
-const PROXY_RENK = { acik: 'nokta-yesil', kapali: 'nokta-gri', kismi: 'nokta-amber' };
+const PROXY_RENK = { acik: 'rozet-yesil', kapali: 'rozet-gri', kismi: 'rozet-amber' };
 let islemde = false;
 
 function el(etiket, sinif, metin) {
@@ -53,9 +53,9 @@ function sure(sn) {
 function gib(mib) { return (mib / 1024).toFixed(1) + ' GB'; }
 
 function olcum(baslik, deger, alt, durum) {
-  const k = el('div', 'sunucu-olcum' + (durum ? ' olcum-' + durum : ''));
-  k.append(el('span', 'durum-kart-baslik', baslik), el('span', 'sunucu-olcum-deger', deger));
-  if (alt) k.append(el('span', 'durum-kart-alt', alt));
+  const k = el('div', 'ozet-kutu ozet-kucuk' + (durum ? ' olcum-' + durum : ''));
+  k.append(el('span', 'ozet-etiket', baslik), el('strong', null, deger));
+  if (alt) k.append(el('span', 'ozet-alt', alt));
   return k;
 }
 
@@ -71,26 +71,25 @@ function cubuk(oran) {
 function proxyAlani(m) {
   const kutu = el('div', 'sunucu-proxy');
   const p = m.proxy || {};
-  const rozet = el('span', 'sunucu-rozet');
-  rozet.append(nokta(PROXY_RENK[p.durum] || 'nokta-gri'), document.createTextNode(PROXY_ETIKET[p.durum] || 'Proxy ?'));
+  const rozet = el('span', 'rozet ' + (PROXY_RENK[p.durum] || 'rozet-gri'), PROXY_ETIKET[p.durum] || 'Proxy ?');
   kutu.append(rozet);
   const parcalar = [];
   if (p.profil !== undefined) parcalar.push('sistem ' + (p.profil ? '✓' : '✗'));
   if (p.apt !== undefined) parcalar.push('apt ' + (p.apt ? '✓' : '✗'));
   if (p.ollama !== null && p.ollama !== undefined) parcalar.push('ollama ' + (p.ollama ? '✓' : '✗'));
-  if (parcalar.length) kutu.append(el('span', 'durum-kart-alt', parcalar.join(' · ')));
+  if (parcalar.length) kutu.append(el('span', 'ozet-alt', parcalar.join(' · ')));
   if (p.ollama_restart_bekliyor) kutu.append(el('span', 'sunucu-uyari-metin', 'Ollama restart 17:05\'te'));
   if (!m.proxy_dugmesi) return kutu;
 
   const hedef = p.durum === 'acik' ? 'kapat' : 'ac';
-  const dugme = el('button', 'sunucu-dugme', hedef === 'ac' ? 'Proxy aç' : 'Proxy kapat');
+  const dugme = el('button', 'dugme dugme-kucuk', hedef === 'ac' ? 'Proxy aç' : 'Proxy kapat');
   dugme.type = 'button';
   dugme.disabled = islemde;
   const onay = el('div', 'sunucu-onay gizli');
-  const soru = el('span', null, `${m.ad} için proxy ${hedef === 'ac' ? 'AÇILSIN' : 'KAPATILSIN'} mı?` +
+  const soru = el('span', null, `${m.ad} için proxy ${hedef === 'ac' ? 'açılsın' : 'kapatılsın'} mı?` +
     (m.anahtar === 'farabi' ? ' (Ollama yeniden başlar — ders saatindeyse 17:05\'e ertelenir)' : ''));
-  const evet = el('button', 'sunucu-dugme sunucu-dugme-onay', 'Evet');
-  const vazgec = el('button', 'sunucu-dugme sunucu-dugme-ikincil', 'Vazgeç');
+  const evet = el('button', 'dugme dugme-birincil dugme-kucuk', 'Evet');
+  const vazgec = el('button', 'dugme dugme-ikincil dugme-kucuk', 'Vazgeç');
   evet.type = vazgec.type = 'button';
   onay.append(soru, evet, vazgec);
   dugme.addEventListener('click', () => { onay.classList.remove('gizli'); dugme.classList.add('gizli'); });
@@ -164,7 +163,7 @@ function makineKarti(m) {
     olcum('Fan hızı', fanlar.length ? `${Math.max(...fanlar.map(f => f.rpm))} rpm` : '—',
       fanlar.length ? fanlar.map(f => `${f.ad.replace(/^\S+ /, '')} ${f.rpm}`).join(' · ') : 'okunamadı (sensör yok / betik eski)'),
     olcum('Çalışma', sure(m.uptime_sn), m.cpu_model || ''),
-    olcum('Saat (NTP)', m.ntp && m.ntp.senkron ? 'Senkron' : 'Senkron DEĞİL', m.ntp ? m.ntp.leap : '',
+    olcum('Saat (NTP)', m.ntp && m.ntp.senkron ? 'Senkron' : 'Senkron değil', m.ntp ? m.ntp.leap : '',
       m.ntp && m.ntp.senkron ? null : 'hata'),
   );
   kart.append(izgara);
@@ -212,12 +211,12 @@ function chatterboxKarti(c) {
   const s = c.sayaclar || {};
   const izgara = el('div', 'sunucu-olcumler');
   izgara.append(
-    olcum('Model', c.model_yuklu ? 'Yüklü' : 'YÜKLÜ DEĞİL', `ses: ${c.referans_ses}`, c.model_yuklu ? null : 'hata'),
+    olcum('Model', c.model_yuklu ? 'Yüklü' : 'Yüklü değil', `ses: ${c.referans_ses}`, c.model_yuklu ? null : 'hata'),
     olcum('Çalışma', sure(c.calisma_suresi_sn), `yanıt ${c.ms} ms`),
     olcum('Üretim', String(s.uretim ?? 0), `${s.istek ?? 0} istek · ${s.onbellek_hit ?? 0} önbellekten`),
     olcum('Ort. süre', c.ort_uretim_sn != null ? c.ort_uretim_sn + ' sn' : '—',
       c.ort_rtf != null ? `RTF ${c.ort_rtf} (son ${c.son_uretim_sayisi})` : 'henüz üretim yok'),
-    olcum('Kuyruk kesilen', String(s.kuyruk_kesilen ?? 0), c.kuyruk_temizleme ? 'boğulma temizliği açık' : 'temizlik KAPALI',
+    olcum('Kuyruk kesilen', String(s.kuyruk_kesilen ?? 0), c.kuyruk_temizleme ? 'boğulma temizliği açık' : 'temizlik kapalı',
       c.kuyruk_temizleme ? null : 'uyari'),
     olcum('Hata', String(s.hata ?? 0), c.son_hata ? 'son: ' + c.son_hata : 'hata yok', s.hata ? 'hata' : null),
   );

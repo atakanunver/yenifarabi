@@ -45,10 +45,10 @@ templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk
 
 _SINIF_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 _DURUM_ETIKETI = {
-    "eksik": ("Eksik", "pill-yok"),
-    "orta": ("Orta", "pill-alinmadi"),
-    "guclu": ("Güçlü", "pill-tam"),
-    "az_veri": ("Az veri", "pill-ulasilamaz"),
+    "eksik": ("Eksik", "rozet-kirmizi"),
+    "orta": ("Orta", "rozet-amber"),
+    "guclu": ("Güçlü", "rozet-yesil"),
+    "az_veri": ("Az veri", "rozet-gri"),
 }
 
 
@@ -211,7 +211,7 @@ def gorunum_olustur(rapor: dict, roster: dict[str, str] | None) -> dict:
         oran = _sayi(o.get("oran"))
         detay = []
         for k in _sozluk_listesi(o.get("kazanimlar")):
-            etiket, sinif = _DURUM_ETIKETI.get(_metin(k.get("durum")), ("—", "pill-ulasilamaz"))
+            etiket, sinif = _DURUM_ETIKETI.get(_metin(k.get("durum")), ("—", "rozet-gri"))
             detay.append({
                 "ders": _metin(k.get("ders")),
                 "satir": _metin(k.get("kazanim_satiri")),

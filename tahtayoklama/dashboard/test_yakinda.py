@@ -20,10 +20,9 @@ def _istek(yol, sorgu=b""):
 class TestYakinda(unittest.TestCase):
     def test_menudeki_b_yollari_tanimli(self):
         yollar = {f"/b/{ad}" for ad in yakinda.BOLUMLER}
-        for ust in menu.MENU:
-            for o in ust.get("ogeler", []):
-                if o.get("href", "").startswith("/b/"):
-                    self.assertIn(o["href"], yollar, o["href"])
+        for o in [s for a in menu.ALANLAR for s in a["sayfalar"]] + menu.AYARLAR:
+            if o.get("href", "").startswith("/b/"):
+                self.assertIn(o["href"], yollar, o["href"])
 
     def test_oturumsuz_giris_sayfasina(self):
         for ad in yakinda.BOLUMLER:

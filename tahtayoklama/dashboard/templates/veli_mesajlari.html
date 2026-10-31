@@ -1,11 +1,11 @@
 {% extends "taban.html" %}
-{% block baslik_etiketi %}Velilerden Gelen Mesajlar — Yoklama ve Yönetim Paneli{% endblock %}
-{% block baslik %}Velilerden Gelen Mesajlar{% endblock %}
+{% block baslik_etiketi %}Velilerden gelen mesajlar — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Velilerden gelen mesajlar{% endblock %}
 {% block ust_sag %}
-<a class="dugme dugme-ikincil dugme-kucuk" href="/veli-mesajlari" aria-pressed="{{ 'false' if engellenen else 'true' }}">Gelen</a>
-<a class="dugme dugme-ikincil dugme-kucuk" href="/veli-mesajlari?engellenen=1" aria-pressed="{{ 'true' if engellenen else 'false' }}">Engellenenler</a>
+<a class="cip{{ '' if engellenen else ' secili' }}" href="/veli-mesajlari" aria-pressed="{{ 'false' if engellenen else 'true' }}">Gelen</a>
+<a class="cip{{ ' secili' if engellenen else '' }}" href="/veli-mesajlari?engellenen=1" aria-pressed="{{ 'true' if engellenen else 'false' }}">Engellenenler</a>
 {% if not engellenen %}
-<a class="dugme dugme-ikincil dugme-kucuk" href="{{ '/veli-mesajlari' if sadece_okunmamis else '/veli-mesajlari?okunmamis=1' }}"
+<a class="cip{{ ' secili' if sadece_okunmamis else '' }}" href="{{ '/veli-mesajlari' if sadece_okunmamis else '/veli-mesajlari?okunmamis=1' }}"
    {% if sadece_okunmamis %}aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>
   <svg class="ikon"><use href="#ik-{{ 'onay' if sadece_okunmamis else 'zil' }}"/></svg>
   {{ 'Tüm mesajlar' if sadece_okunmamis else 'Yalnızca okunmamışlar' }}</a>
@@ -14,15 +14,15 @@
 
 {% block icerik %}
 {% if ulasilamiyor %}
-<section class="kr-bos vm-uyari" role="alert">
+<section class="bos-durum vm-uyari" role="alert">
   <svg class="ikon ikon-buyuk"><use href="#ik-uyari"/></svg>
-  <p class="kr-bos-baslik">Mesaj servisine ulaşılamıyor</p>
+  <p class="bos-durum-baslik">Mesaj servisine ulaşılamıyor</p>
   <p>SMS servisi kapalı olabilir ya da bağlantı anahtarı tanımlı değil. Birazdan sayfayı yenileyin.</p>
 </section>
 {% elif not mesajlar %}
-<section class="kr-bos">
+<section class="bos-durum">
   <svg class="ikon ikon-buyuk"><use href="#ik-zil"/></svg>
-  <p class="kr-bos-baslik">{{ 'Engellenen mesaj yok' if engellenen else ('Okunmamış mesaj yok' if sadece_okunmamis else 'Henüz mesaj yok') }}</p>
+  <p class="bos-durum-baslik">{{ 'Engellenen mesaj yok' if engellenen else ('Okunmamış mesaj yok' if sadece_okunmamis else 'Henüz mesaj yok') }}</p>
   <p>{{ "Engellenen mesajlar 7 gün sonra silinir." if engellenen else "Velilerin okul numarasına gönderdiği SMS'ler burada listelenir." }}</p>
 </section>
 {% else %}
@@ -35,7 +35,7 @@
         <strong>{{ m.ad }}</strong>{% if m.alt %}<span class="vm-alt">{{ m.alt }}</span>{% endif %}
       </div>
       <div class="vm-etiketler">
-        {% if m.cikis %}<span class="rozet rozet-kirmizi"><svg class="ikon ikon-kucuk"><use href="#ik-uyari"/></svg>ÇIKIŞ TALEBİ</span>{% endif %}
+        {% if m.cikis %}<span class="rozet rozet-kirmizi"><svg class="ikon ikon-kucuk"><use href="#ik-uyari"/></svg>Çıkış talebi</span>{% endif %}
         {% if engellenen %}<span class="rozet rozet-gri">{{ 'Elle engellendi' if m.spam_neden == 'engelli' else ('Sistem numarası' if m.spam_neden == 'sistem numarası' else (m.spam_neden or 'Spam')) }}</span>
         {% elif m.okundu %}<span class="rozet rozet-gri">Okundu</span>{% else %}<span class="rozet rozet-amber">Okunmadı</span>{% endif %}
         <time class="vm-zaman">{{ m.zaman }}</time>

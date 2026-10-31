@@ -2,35 +2,11 @@
 {% block baslik_etiketi %}Acil Durum Yönetimi — Farabi Panel{% endblock %}
 {% block baslik %}Acil Durum Yönetimi{% endblock %}
 {% block icerik %}
-<style>
-  .acil-kap { max-width: 1000px; display: grid; gap: 18px; }
-  .acil-blok { background: rgba(127,127,127,.08); border: 1px solid rgba(127,127,127,.25); border-radius: 12px; padding: 16px; }
-  .acil-blok h2 { margin: 0 0 12px; font-size: 18px; }
-  #durum { font-size: 20px; font-weight: 700; padding: 16px; border-radius: 12px; background: #1b5e20; color: #fff; }
-  #durum.aktif { background: #b00020; animation: yanip 1.2s infinite; }
-  @keyframes yanip { 50% { opacity: .75; } }
-  .acil-mod { display: flex; align-items: center; gap: 10px; font-size: 17px; padding: 10px 12px; border-radius: 8px; background: #3a2f00; color: #ffe08a; margin-bottom: 12px; }
-  .acil-mod.gercek { background: #4a0010; color: #ffd0d8; }
-  .acil-mod input { width: 22px; height: 22px; }
-  .acil-dugmeler { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
-  .acil-dugme { border: 0; border-radius: 12px; padding: 22px 10px; color: #fff; font-size: 22px; font-weight: 800; cursor: pointer; }
-  .acil-dugme:disabled, .ikincil:disabled { opacity: .5; cursor: wait; }
-  .satir { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-  .ikincil { border: 0; border-radius: 10px; padding: 12px 16px; font-size: 16px; cursor: pointer; background: #555; color: #fff; }
-  .ikincil.sari { background: #b58900; color: #000; font-weight: 700; font-size: 18px; }
-  .ikincil.kirmizi { background: #8b0000; }
-  select { font-size: 16px; padding: 10px; border-radius: 8px; max-width: 100%; }
-  table { width: 100%; border-collapse: collapse; }
-  td, th { padding: 6px 8px; border-bottom: 1px solid rgba(127,127,127,.3); text-align: left; font-size: 14px; vertical-align: top; }
-  .ok { color: #4caf50; } .hata { color: #ff6b6b; }
-  .onizleme a { display: inline-block; padding: 8px 12px; border-radius: 8px; color: #fff; text-decoration: none; margin: 0 6px 6px 0; }
-  .not { font-size: 13px; opacity: .8; }
-</style>
 <div class="acil-kap">
-  <div id="durum">Durum yükleniyor…</div>
+  <div id="durum" class="acil-durum">Durum yükleniyor…</div>
 
   <section class="acil-blok">
-    <h2>Alarm ver</h2>
+    <h2 class="bolum-basligi">Alarm ver</h2>
     <label class="acil-mod" id="mod-kutu"><input type="checkbox" id="tatbikat" checked>
       <span id="mod-yazi"></span></label>
     <div class="acil-dugmeler">
@@ -38,49 +14,49 @@
       <button type="button" class="acil-dugme" style="background: {{ t.renk }}" data-tur="{{ anahtar }}" data-ad="{{ t.baslik }}">{{ t.baslik }}</button>
       {% endfor %}
     </div>
-    <p class="not">Siren (~8 sn) → anons → SMS → tüm tahtalarda talimat ekranı. 112'yi aramak ve kapıları kilitlemek yine insanların işidir.</p>
+    <p class="ipucu">Siren (~8 sn) → anons → SMS → tüm tahtalarda talimat ekranı. 112'yi aramak ve kapıları kilitlemek yine insanların işidir.</p>
   </section>
 
   <section class="acil-blok">
-    <h2>Yanlış alarm / kapatma</h2>
-    <div class="satir">
-      <button type="button" class="ikincil sari" id="yanlis">YANLIŞ ALARM — İPTAL ET</button>
+    <h2 class="bolum-basligi">Yanlış alarm / kapatma</h2>
+    <div class="cip-satir">
+      <button type="button" class="dugme dugme-ikincil acil-sari" id="yanlis">Yanlış alarm, iptal et</button>
       <label><input type="checkbox" id="yanlis-anons" checked> Hoparlörden "Tehlike geçti" çal</label>
-      <button type="button" class="ikincil" id="ekran-kapat">Yalnız tahta ekranlarını kapat</button>
+      <button type="button" class="dugme dugme-ikincil" id="ekran-kapat">Yalnız tahta ekranlarını kapat</button>
     </div>
-    <p class="not">İptal: ses durur, tüm ekranlar kapanır, alarmı alanlara "YANLIŞ ALARM" SMS'i gider.</p>
+    <p class="ipucu">İptal: ses durur, tüm ekranlar kapanır, alarmı alanlara "Yanlış alarm" SMS'i gider.</p>
   </section>
 
   <section class="acil-blok">
-    <h2>Zil — siren ve anonslar</h2>
-    <div class="satir">
-      <button type="button" class="ikincil kirmizi" data-zil="siren">🚨 Siren çal</button>
-      <button type="button" class="ikincil" data-zil="durdur">⏹ Sesi durdur</button>
+    <h2 class="bolum-basligi">Zil — siren ve anonslar</h2>
+    <div class="cip-satir">
+      <button type="button" class="dugme dugme-tehlike-dolu" data-zil="siren">🚨 Siren çal</button>
+      <button type="button" class="dugme dugme-ikincil" data-zil="durdur">⏹ Sesi durdur</button>
       <select id="anons-sec"><option value="">Anonslar yükleniyor…</option></select>
-      <button type="button" class="ikincil" id="anons-cal">▶ Anonsu çal</button>
+      <button type="button" class="dugme dugme-ikincil" id="anons-cal">▶ Anonsu çal</button>
     </div>
-    <p class="not">Ses seviyesi zildeki "Sesli anons" ayarıdır. Yeni anons zil panelinden (/anons) üretilip onaylanır.</p>
+    <p class="ipucu">Ses seviyesi zildeki "Sesli anons" ayarıdır. Yeni anons zil panelinden (/anons) üretilip onaylanır.</p>
   </section>
 
   <section class="acil-blok">
-    <h2>Tahtadan alarm (masaüstü "ACİL ALARM" + PIN)</h2>
-    <div class="satir">
+    <h2 class="bolum-basligi">Tahtadan alarm (masaüstü "Acil alarm" + PIN)</h2>
+    <div class="cip-satir">
       <span id="tahta-mod">…</span>
-      <button type="button" class="ikincil" id="tahta-mod-degistir">Değiştir</button>
+      <button type="button" class="dugme dugme-ikincil" id="tahta-mod-degistir">Değiştir</button>
     </div>
-    <p class="not">Tatbikat: SMS yalnız 2 yöneticiye, ekranlarda TATBİKAT yazar. Gerçek: SMS tüm personele.</p>
+    <p class="ipucu">Tatbikat: SMS yalnız 2 yöneticiye, ekranlarda "Tatbikat" yazar. Gerçek: SMS tüm personele.</p>
   </section>
 
-  <section class="acil-blok onizleme">
-    <h2>Tahta ekranı önizleme</h2>
+  <section class="acil-blok acil-onizleme">
+    <h2 class="bolum-basligi">Tahta ekranı önizleme</h2>
     {% for anahtar, t in turler.items() %}<a href="/acil/ekran?tur={{ anahtar }}&tatbikat=1" target="_blank" rel="noopener" style="background: {{ t.renk }}">{{ t.baslik }}</a>{% endfor %}
   </section>
 
-  <section class="acil-blok" id="sonuc-blok" hidden><h2 id="sonuc-baslik">Sonuç</h2><table id="sonuc"></table></section>
+  <section class="acil-blok" id="sonuc-blok" hidden><h2 class="bolum-basligi" id="sonuc-baslik">Sonuç</h2><div class="tablo-kutu"><table class="tablo" id="sonuc"></table></div></section>
 
   <section class="acil-blok">
-    <h2>Son olaylar</h2>
-    <table><thead><tr><th>Zaman</th><th>Olay</th><th>Kaynak</th><th>Ayrıntı</th></tr></thead><tbody id="olaylar"></tbody></table>
+    <h2 class="bolum-basligi">Son olaylar</h2>
+    <div class="tablo-kutu"><table class="tablo"><thead><tr><th>Zaman</th><th>Olay</th><th>Kaynak</th><th>Ayrıntı</th></tr></thead><tbody id="olaylar"></tbody></table></div>
   </section>
 </div>
 {% endblock %}
@@ -88,7 +64,7 @@
 <script>
 const $ = id => document.getElementById(id);
 let turler = {}, tahtaTatbikat = true;
-const OLAY_ADLARI = {yanlis_alarm: 'YANLIŞ ALARM İPTALİ', ekranlari_kapat: 'Ekranlar kapatıldı', tahta_modu: 'Tahta alarm modu',
+const OLAY_ADLARI = {yanlis_alarm: 'Yanlış alarm iptali', ekranlari_kapat: 'Ekranlar kapatıldı', tahta_modu: 'Tahta alarm modu',
   tahta_alarm_yanlis_pin: 'Tahta: yanlış PIN', ekran_kapat_tahtadan: 'Tahtadan ekran kapatıldı',
   ekran_kapat_yanlis_pin: 'Ekran kapatma: yanlış PIN', zil_siren: 'Siren çalındı', zil_durdur: 'Ses durduruldu', zil_anons: 'Anons çalındı', guvenlik_uyari: 'Güvenlik: yönetime haber'};
 const olayAdi = t => (turler[t] && turler[t].baslik) || OLAY_ADLARI[t] || t;
@@ -97,8 +73,8 @@ const saat = z => (z || '').replace('T', ' ').slice(0, 19);
 function modYaz() {
   const t = $('tatbikat').checked;
   $('mod-kutu').classList.toggle('gercek', !t);
-  $('mod-yazi').textContent = t ? 'TATBİKAT modu — SMS yalnız 2 yöneticiye, ekranlarda "TATBİKAT" yazar'
-                                : 'GERÇEK OLAY — SMS tüm personele gider';
+  $('mod-yazi').textContent = t ? 'Tatbikat modu — SMS yalnız 2 yöneticiye, ekranlarda "Tatbikat" yazar'
+                                : 'Gerçek olay — SMS tüm personele gider';
 }
 $('tatbikat').addEventListener('change', modYaz); modYaz();
 
@@ -113,7 +89,7 @@ function sonucGoster(baslik, k) {
   const tb = $('sonuc'); tb.replaceChildren();
   [...(k.kanallar || []).map(x => [x.kanal, x]), ...(k.tahtalar || []).map(x => ['Tahta ' + x.tahta, x])].forEach(([ad, x]) => {
     const tr = document.createElement('tr');
-    tr.append(td(ad), td(x.basarili ? '✔' : '✖', x.basarili ? 'ok' : 'hata'), td(x.detay || ''));
+    tr.append(td(ad), td(x.basarili ? '✔' : '✖', x.basarili ? 'acil-ok' : 'acil-hata'), td(x.detay || ''));
     tb.appendChild(tr);
   });
   yenile();
@@ -127,7 +103,7 @@ async function calistir(baslik, url, govde) {
 }
 
 document.querySelectorAll('.acil-dugme').forEach(d => d.addEventListener('click', () => {
-  const t = $('tatbikat').checked, mod = t ? 'TATBİKAT' : 'GERÇEK OLAY';
+  const t = $('tatbikat').checked, mod = t ? 'Tatbikat' : 'Gerçek olay';
   if (!confirm(d.dataset.ad + ' başlatılsın mı? (' + mod + ')')) return;
   calistir(d.dataset.ad + (t ? ' (tatbikat)' : ''), '/api/acil/tetikle', {tur: d.dataset.tur, tatbikat: t});
 }));
@@ -147,7 +123,7 @@ $('anons-cal').addEventListener('click', () => {
 });
 $('tahta-mod-degistir').addEventListener('click', async () => {
   const yeni = !tahtaTatbikat;
-  if (!confirm('Tahtadan alarm ' + (yeni ? 'TATBİKAT' : 'GERÇEK (SMS tüm personele)') + ' moduna alınsın mı?')) return;
+  if (!confirm('Tahtadan alarm ' + (yeni ? 'tatbikat' : 'gerçek (SMS tüm personele)') + ' moduna alınsın mı?')) return;
   try { await istek('/api/acil/tahta-modu', {tatbikat: yeni}); } catch (e) { alert(e.message); }
   yenile();
 });
@@ -163,10 +139,10 @@ async function yenile() {
   try {
     const d = await istek('/api/acil/durum');
     turler = d.turler; tahtaTatbikat = d.tahta_alarm_tatbikat;
-    $('tahta-mod').textContent = 'Şu an: ' + (tahtaTatbikat ? '🟡 TATBİKAT' : '🔴 GERÇEK');
+    $('tahta-mod').textContent = 'Şu an: ' + (tahtaTatbikat ? '🟡 Tatbikat' : '🔴 Gerçek');
     const a = d.aktif, kutu = $('durum');
     kutu.classList.toggle('aktif', !!a);
-    kutu.textContent = a ? '⚠ AKTİF ALARM: ' + olayAdi(a.tur) + (a.tatbikat ? ' (tatbikat)' : '') + ' — ' + saat(a.zaman) + ' — ' + (a.istemci_ip || '')
+    kutu.textContent = a ? '⚠ Aktif alarm: ' + olayAdi(a.tur) + (a.tatbikat ? ' (tatbikat)' : '') + ' — ' + saat(a.zaman) + ' — ' + (a.istemci_ip || '')
                          : '✔ Aktif alarm yok';
     const tb = $('olaylar'); tb.replaceChildren();
     d.olaylar.forEach(o => {

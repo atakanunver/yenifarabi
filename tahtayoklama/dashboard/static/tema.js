@@ -2,7 +2,9 @@
 // Sayfa boyanmadan önceki uygulama (FOUC önleme) taban.html <head>'indeki satır içi betikte.
 (function () {
   var ANAHTAR = "farabi_yoklama_tema";
-  var TEMALAR = ["argon", "argon-koyu", "koyu", "black", "material", "material-koyu"];
+  // Tek kaynak menu.TEMALAR: taban.html listeyi window.FARABI_TEMALAR ile verir; yoksa bu yedek liste.
+  var TEMALAR = window.FARABI_TEMALAR || ["sade-koyu", "kurumsal", "lacivert", "argon", "argon-koyu", "material", "material-koyu", "black", "koyu"];
+  var VARSAYILAN = "sade-koyu";
   // 2026-10-23: klasik/yumuşak kaldırıldı; eski kayıtlar Argon açığa eşlenir.
   var ESKI = { klasik: "argon", yumusak: "argon" };
 
@@ -10,9 +12,7 @@
     var kayitli = null;
     try { kayitli = localStorage.getItem(ANAHTAR); } catch (e) { /* kapalı depolama */ }
     if (ESKI[kayitli]) kayitli = ESKI[kayitli];
-    if (TEMALAR.indexOf(kayitli) !== -1) return kayitli;
-    // Kayıt yoksa sistem tercihi (2026-10-23; önceki varsayılan Taş Tahta idi).
-    return window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "argon-koyu" : "argon";
+    return TEMALAR.indexOf(kayitli) !== -1 ? kayitli : VARSAYILAN;
   }
 
   function temaUygula(tema) {
@@ -32,6 +32,11 @@
     });
   }
   window.farabiTemaUygula = temaUygula;
+  // Tema döngü düğmesi: listeyi sırayla gezer.
+  window.farabiTemaSonraki = function () {
+    var i = TEMALAR.indexOf(document.documentElement.dataset.tema);
+    temaUygula(TEMALAR[(i + 1) % TEMALAR.length]);
+  };
 
   document.addEventListener("DOMContentLoaded", function () {
     temaUygula(aktifTemaGetir());

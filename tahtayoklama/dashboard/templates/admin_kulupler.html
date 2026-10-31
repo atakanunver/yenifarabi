@@ -2,39 +2,106 @@
 {% block baslik_etiketi %}Kulüp listeleri — Yoklama ve Yönetim Paneli{% endblock %}
 {% block baslik %}Kulüp listeleri{% endblock %}
 
-{% block icerik %}
-<p class="rapor-aciklama">Kulüp listesi, "tahta" sütunundaki sınıfın tahtasında yoklama ekranındaki açılır listede görünür.
-  Değişiklik tahtaya en geç 10 dakikada kendiliğinden ulaşır.</p>
-<div class="tablo-sarici">
-  <table class="admin-tablo">
-    <thead><tr><th>Kulüp</th><th>Danışman</th><th>Tahta (sınıf)</th><th>Üye</th><th style="text-align: right;">İşlemler</th></tr></thead>
-    <tbody>
-      {% for k in kulupler %}
-      <tr>
-        <td><strong>{{ k.ad }}</strong> <span class="rapor-aciklama">{{ k.kod }}</span></td>
-        <td>{{ k.danisman or '—' }}</td>
-        <td>{% if k.sinif %}<span class="etiket">{{ k.sinif }}</span>{% else %}<span class="etiket etiket-uyari">atanmadı</span>{% endif %}</td>
-        <td><span class="etiket">{{ k.uyeler|length }} öğrenci</span></td>
-        <td style="text-align: right;">
-          <a href="/admin/kulupler/{{ k.kod }}" class="btn-ikincil">Üyeleri Düzenle <svg class="ikon ikon-kucuk"><use href="#ik-ok-sag"/></svg></a>
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="5">Henüz kulüp yok.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+{# Liste + sağda ayrıntı paneli (2026-10-30): satıra tıklayınca ?duzenle=<kod>, yeni kulüp ?yeni=1.
+   Paneldeki kaydet formu üyeleri gizli alanlarla taşır (POST ucu üye listesini komple değiştirir). #}
+{% set panel_acik = secili or yeni %}
 
-<h2>Yeni kulüp ekle</h2>
-<form method="post" action="/admin/kulupler" class="yeni-form">
-  <input type="text" name="ad" placeholder="ad (ör. Satranç Kulübü)" required maxlength="80">
-  <label>Tahta:
-    <select name="sinif">
+{% block ust_sag %}
+<a class="dugme" href="{{ adres(yeni=1) }}"><svg class="ikon" aria-hidden="true"><use href="#ik-arti"/></svg> Kulüp ekle</a>
+{% endblock %}
+
+{% macro alan(etiket, kimlik) %}
+<div class="form-alan">
+  <label for="{{ kimlik }}">{{ etiket }}</label>
+  {{ caller() }}
+</div>
+{% endmacro %}
+
+{% block icerik %}
+<p class="serit serit-bilgi"><span>Kulüp listesi, "tahta" sütunundaki sınıfın tahtasında yoklama ekranındaki açılır listede görünür.
+  Değişiklik tahtaya en geç 10 dakikada kendiliğinden ulaşır.</span></p>
+<div class="ayrinti-duzen{{ '' if panel_acik else ' panel-kapali' }}">
+  <div>
+    <div class="cip-satir">
+      <input type="search" class="ara-kutu" id="tablo-ara" aria-label="Ara" placeholder="Kulüp veya danışman…">
+    </div>
+    {% if kulupler %}
+    <div class="tablo-kutu"><table class="tablo" id="ana-tablo">
+      <thead><tr><th>Kulüp</th><th>Danışman</th><th>Tahta (sınıf)</th><th>Üye</th></tr></thead>
+      <tbody>
+      {% for k in kulupler %}{% set href = adres(duzenle=k.kod) %}
+      <tr class="tablo-satir tikla{{ ' secili' if secili and secili.kod == k.kod }}" data-href="{{ href }}" data-ara="{{ (k.ad ~ ' ' ~ (k.danisman or '') ~ ' ' ~ k.kod)|lower }}">
+        <td><a href="{{ href }}">{{ k.ad }}</a></td>
+        <td>{{ k.danisman or '—' }}</td>
+        <td class="tek-satir">{% if k.sinif %}<span class="rozet rozet-mavi">{{ k.sinif }}</span>{% else %}<span class="rozet rozet-amber">atanmadı</span>{% endif %}</td>
+        <td class="tek-satir"><span class="rozet rozet-gri">{{ k.uyeler|length }} öğrenci</span></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}
+    <p class="bos-durum">Henüz kulüp yok.</p>
+    {% endif %}
+  </div>
+
+  {% if panel_acik %}
+  <aside class="ayrinti-panel" id="kulup-panel" aria-labelledby="panel-baslik">
+    {% if secili %}
+    <h2 id="panel-baslik">{{ secili.ad }}</h2>
+    {% call alan('Kulüp adı', 'k-ad') %}<input form="kf" id="k-ad" type="text" name="ad" value="{{ secili.ad }}" required maxlength="80">{% endcall %}
+    {% call alan('Danışman', 'k-dan') %}<input form="kf" id="k-dan" type="text" name="danisman" value="{{ secili.danisman or '' }}" maxlength="80">{% endcall %}
+    {% call alan('Tahta (ders işlenecek sınıf)', 'k-sinif') %}<select form="kf" id="k-sinif" name="sinif">
+      <option value="">— hiçbir tahtada görünmez —</option>
+      {% for s in siniflar %}<option value="{{ s }}" {{ 'selected' if s == secili.sinif }}>{{ s }}</option>{% endfor %}
+    </select>{% endcall %}
+    <p>{{ secili.uyeler|length }} üye · kod: {{ secili.kod }}</p>
+    <div class="ayrinti-eylem">
+      <button type="submit" form="kf" class="dugme">Kaydet</button>
+      <a class="dugme dugme-ikincil" href="/admin/kulupler/{{ secili.kod }}">Üyeleri düzenle <svg class="ikon ikon-kucuk" aria-hidden="true"><use href="#ik-ok-sag"/></svg></a>
+      <a class="dugme dugme-ikincil" href="{{ adres() }}">Kapat</a>
+    </div>
+    <form id="kf" method="post" action="/admin/kulupler/{{ secili.kod }}" hidden>
+      {% for u in secili.uyeler %}
+      <input type="hidden" name="no" value="{{ u.no }}"><input type="hidden" name="ad_soyad" value="{{ u.ad_soyad }}"><input type="hidden" name="uye_sinif" value="{{ u.sinif or '' }}">
+      {% endfor %}
+    </form>
+    {% else %}
+    <h2 id="panel-baslik">Yeni kulüp</h2>
+    {% call alan('Kulüp adı (ör. Satranç Kulübü)', 'y-ad') %}<input form="yf" id="y-ad" type="text" name="ad" required maxlength="80">{% endcall %}
+    {% call alan('Tahta', 'y-sinif') %}<select form="yf" id="y-sinif" name="sinif">
       <option value="">— sonra seçilecek —</option>
       {% for s in siniflar %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
-    </select>
-  </label>
-  <button type="submit"><svg class="ikon"><use href="#ik-arti"/></svg> Ekle</button>
-</form>
+    </select>{% endcall %}
+    <div class="ayrinti-eylem">
+      <button type="submit" form="yf" class="dugme">Ekle</button>
+      <a class="dugme dugme-ikincil" href="{{ adres() }}">Vazgeç</a>
+    </div>
+    <form id="yf" method="post" action="/admin/kulupler" hidden></form>
+    {% endif %}
+  </aside>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+(function () {
+  var kutu = document.getElementById('tablo-ara');
+  if (kutu) {
+    var filtrele = function () {
+      var q = kutu.value.trim().toLocaleLowerCase('tr');
+      document.querySelectorAll('#ana-tablo .tablo-satir').forEach(function (satir) {
+        satir.hidden = !(satir.dataset.ara || '').includes(q);
+      });
+    };
+    kutu.addEventListener('input', filtrele);
+    filtrele();
+  }
+  document.querySelectorAll('#ana-tablo tr[data-href]').forEach(function (satir) {
+    satir.addEventListener('click', function (e) {
+      if (!e.target.closest('a')) window.location.href = satir.dataset.href;
+    });
+  });
+})();
+</script>
 {% endblock %}

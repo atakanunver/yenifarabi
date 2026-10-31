@@ -1,29 +1,35 @@
 {% extends "taban.html" %}
-{% block baslik_etiketi %}Yoklama Panosu — Yoklama ve Yönetim Paneli{% endblock %}
-{% block baslik %}Yoklama Panosu{% endblock %}
+{% block baslik_etiketi %}Ders ızgarası — Yoklama ve Yönetim Paneli{% endblock %}
+{# Başlık: "Bugün · Cuma 30 Ekim · 5. ders". Haftanın günü tarihten (Sakamoto; 0 = pazar);
+   ders kısmını aktifDersiGuncelle yazar (yalnız bugün, sayfa yenilenmeden güncel kalır). #}
+{% block baslik %}{% set gunler = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"] %}
+{%- set aylar = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"] %}
+{%- set y, a, g = tarih[:4] | int, tarih[5:7] | int, tarih[8:10] | int %}
+{%- set yy = y - (1 if a < 3 else 0) %}
+{%- set hg = (yy + yy // 4 - yy // 100 + yy // 400 + [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4][a - 1] + g) % 7 %}
+{%- if tarih == bugun %}Bugün · {% endif %}{{ gunler[hg] }} {{ g }} {{ aylar[a - 1] }}<span id="baslik-ders"></span>{% endblock %}
 
 {% block ust_sag %}
-<a href="/acil" class="pano-acil-dugme"><svg class="ikon"><use href="#ik-uyari"/></svg> ACİL DURUM</a>
 {% if siniflar %}
-<label>Tarih:
+<label class="pano-tarih">Tarih
   <input type="date" id="tarih-secici" value="{{ tarih }}" max="{{ bugun }}">
 </label>
 <span id="son-guncelleme" aria-live="off"></span>
-<button type="button" id="simdi-yenile" {% if tarih != bugun %}disabled{% endif %}>
+<button type="button" class="dugme dugme-ikincil" id="simdi-yenile" {% if tarih != bugun %}disabled{% endif %}>
   <svg class="ikon" aria-hidden="true"><use href="#ik-yenile"/></svg> Şimdi yenile
 </button>
 {% endif %}
 {% endblock %}
 
 {% block icerik %}
-<a id="acil-serit" class="acil-serit" href="/acil" hidden></a>
+<a id="acil-serit" class="serit serit-kritik" href="/acil" hidden></a>
 <script>
 (async function acilDurum() {
   try {
     const r = await fetch('/api/acil/durum'); if (!r.ok) return;
     const d = await r.json(), a = d.aktif, s = document.getElementById('acil-serit');
     s.hidden = !a;
-    if (a) s.textContent = '⚠ AKTİF ALARM: ' + ((d.turler[a.tur] || {}).baslik || a.tur) + (a.tatbikat ? ' (tatbikat)' : '') +
+    if (a) s.textContent = '⚠ Aktif alarm: ' + ((d.turler[a.tur] || {}).baslik || a.tur) + (a.tatbikat ? ' (tatbikat)' : '') +
       ' — ' + (a.zaman || '').slice(11, 16) + ' — ' + (a.istemci_ip || '') + ' · Yönetmek için tıklayın';
   } catch (e) {}
   setTimeout(acilDurum, 10000);
@@ -31,38 +37,26 @@
 </script>
 
 {% if siniflar %}
-<div class="pano-ozet" id="pano-ozet">
-  <div class="pano-ozet-kart">
-    <div class="pano-ozet-ikon ozet-ikon-sinif" aria-hidden="true"><svg class="ikon"><use href="#ik-kullanicilar"/></svg></div>
-    <div class="pano-ozet-bilgi">
-      <span class="pano-ozet-baslik">Aktif sınıflar</span>
-      <span class="pano-ozet-sayi" id="ozet-toplam-sinif">{{ siniflar|length }}</span>
-    </div>
+<!-- Durum şeridi ızgaranın üstünde; yalnızca /api/durum verisinden (sunucu durumu açılışta çekilmez, 2026-10-03).
+     Sorun yoksa mavi tek satır, eksik yoklama amber, ulaşılamayan tahta ya da veri hatası kırmızı. -->
+<section class="serit serit-bilgi" id="uyari-seridi" data-durum="yukleniyor" aria-labelledby="durum-baslik">
+  <div class="serit-govde">
+    <strong class="serit-baslik" id="durum-baslik" aria-live="polite">Durum yükleniyor…</strong>
+    <span class="serit-alt" id="durum-alt"></span>
+    <ul class="serit-liste" id="serit-liste" aria-label="Sorunlar" hidden></ul>
+    <button type="button" class="dugme dugme-ikincil dugme-kucuk" id="durum-tekrar" hidden>
+      <svg class="ikon" aria-hidden="true"><use href="#ik-yenile"/></svg> Tekrar dene
+    </button>
   </div>
-  <div class="pano-ozet-kart">
-    <div class="pano-ozet-ikon ozet-ikon-tam" aria-hidden="true"><svg class="ikon"><use href="#ik-onay"/></svg></div>
-    <div class="pano-ozet-bilgi">
-      <span class="pano-ozet-baslik">Eksiksiz dersler</span>
-      <span class="pano-ozet-sayi" id="ozet-tam-ders">—</span>
-    </div>
+  <div class="serit-sag">
+    <span id="serit-oran" title="Başlamış derslerde yoklaması alınan ders oranı">Yoklama <b id="ozet-yuzde">—</b></span>
+    · <span title="Devamsız öğrenci toplamı (her ders ayrı sayılır)"><b id="ozet-devamsiz">—</b> devamsız</span>
+    <span class="serit-ek">· <span id="ozet-tam-ders">—</span> tam, <span id="ozet-bekleyen-ders">—</span> bekleyen, <span id="ozet-toplam-sinif">{{ siniflar|length }}</span> sınıf</span>
+    <a class="serit-baglanti" href="/sistem-durumu">Sunucu durumu</a>
   </div>
-  <div class="pano-ozet-kart">
-    <div class="pano-ozet-ikon ozet-ikon-yok" aria-hidden="true"><svg class="ikon"><use href="#ik-kapat"/></svg></div>
-    <div class="pano-ozet-bilgi">
-      <span class="pano-ozet-baslik">Devamsız / izinli</span>
-      <span class="pano-ozet-sayi" id="ozet-yok-ders">—</span>
-    </div>
-  </div>
-  <div class="pano-ozet-kart" id="ozet-bekleyen-kart">
-    <div class="pano-ozet-ikon ozet-ikon-alinmadi" aria-hidden="true"><svg class="ikon"><use href="#ik-uyari"/></svg></div>
-    <div class="pano-ozet-bilgi">
-      <span class="pano-ozet-baslik">Bekleyen yoklama</span>
-      <span class="pano-ozet-sayi" id="ozet-bekleyen-ders">—</span>
-    </div>
-  </div>
-</div>
+</section>
 
-<div class="tablo-sarici" tabindex="0" aria-labelledby="tablo-baslik">
+<div class="tablo-kutu" tabindex="0" aria-labelledby="tablo-baslik">
   <table id="pano-tablo">
     <caption class="gorsel-gizli" id="tablo-baslik">Sınıf ve ders saatine göre yoklama durumu</caption>
     <thead>
@@ -70,10 +64,8 @@
         <th class="sinif-baslik" scope="col">Sınıf</th>
         {% for ders in ders_saatleri %}
         <th class="th-ders" scope="col" data-ders-no="{{ ders.no }}" data-baslangic="{{ ders.baslangic }}" data-bitis="{{ ders.bitis }}">
-          <div class="th-ders-ic">
-            <span class="ders-no">{{ ders.no }}. ders</span>
-            <span class="saat">{{ ders.baslangic }}</span>
-          </div>
+          <span class="ders-no">{{ ders.no }}<span class="gorsel-gizli">. ders</span><span class="th-simdi"></span></span>
+          <span class="saat">{{ ders.baslangic }}</span>
         </th>
         {% endfor %}
       </tr>
@@ -83,10 +75,10 @@
       <tr id="satir-{{ sinif.ad }}" data-sira="{{ loop.index0 }}">
         <th class="sinif-adi" scope="row"><span class="tahta-nokta" id="nokta-{{ sinif.ad }}" role="img" aria-label="Tahta durumu bilinmiyor" title="Tahta durumu bilinmiyor"></span>{{ sinif.ad }}</th>
         {% for ders in ders_saatleri %}
-        <td id="hucre-{{ sinif.ad }}-{{ ders.no }}" class="hucre durum-yukleniyor"
+        <td id="hucre-{{ sinif.ad }}-{{ ders.no }}" class="hucre hucre-yukleniyor"
             data-sinif="{{ sinif.ad }}" data-ders-no="{{ ders.no }}"
             {% if sinif.id in sinif_tahta %}data-tahta-id="{{ sinif_tahta[sinif.id] }}"{% endif %}>
-          <span class="pill">…</span>
+          <span class="hucre-iskelet" aria-hidden="true"></span>
         </td>
         {% endfor %}
       </tr>
@@ -94,32 +86,9 @@
     </tbody>
   </table>
 </div>
-
-<!-- Durum özeti: yalnızca /api/durum verisinden (sunucu durumu açılışta çekilmez, 2026-10-03) -->
-<section class="durum-ozet" id="uyari-seridi" data-durum="yukleniyor" aria-labelledby="durum-baslik">
-  <div class="durum-ozet-ust">
-    <span class="durum-ozet-ikon" aria-hidden="true"><svg class="ikon"><use href="#ik-nabiz"/></svg></span>
-    <div class="durum-ozet-metin">
-      <h2 class="durum-baslik" id="durum-baslik" aria-live="polite">Durum yükleniyor…</h2>
-      <p class="durum-alt" id="durum-alt"></p>
-    </div>
-    <button type="button" class="dugme dugme-ikincil" id="durum-tekrar" hidden>
-      <svg class="ikon" aria-hidden="true"><use href="#ik-yenile"/></svg> Tekrar dene
-    </button>
-    <a class="durum-baglanti" href="/sistem-durumu">Sunucu ve servisler <svg class="ikon" aria-hidden="true"><use href="#ik-ok-sag"/></svg></a>
-  </div>
-  <div class="pano-ilerleme" id="pano-ilerleme" hidden>
-    <div class="pano-ilerleme-cubuk" id="ilerleme-cubuk" role="progressbar" aria-labelledby="ilerleme-metin" aria-valuemin="0" aria-valuemax="100">
-      <span class="pano-ilerleme-dolu" id="ilerleme-dolu"></span>
-    </div>
-    <span class="pano-ilerleme-metin" id="ilerleme-metin"></span>
-  </div>
-  <ul class="sorun-liste" id="sorun-liste" aria-label="Sorunlar" hidden></ul>
-</section>
 {% else %}
-<section class="kr-bos">
-  <svg class="ikon ikon-buyuk" aria-hidden="true"><use href="#ik-kullanicilar"/></svg>
-  <h2 class="kr-bos-baslik">Panoda gösterilecek aktif sınıf yok</h2>
+<section class="bos-durum">
+  <h2>Panoda gösterilecek aktif sınıf yok</h2>
   <p>Sınıfları ekleyip tahtalara atadığınızda yoklama durumu burada görünür.</p>
   <a class="dugme dugme-ikincil" href="/admin/siniflar">Sınıflar ve tahtalar</a>
 </section>
@@ -157,12 +126,12 @@ function listeOku(json) {
 }
 
 const DURUM_BILGISI = {
-  alindi_tam:       { pill: 'pill-tam', ikon: '✓', metin: 'Tam' },
-  alinmadi:         { pill: 'pill-alinmadi', ikon: '⚠', metin: 'Yoklama alınmadı', tiklanabilir: true },
+  alindi_tam:       { rozet: 'rozet rozet-yesil', metin: 'Tam' },
+  alinmadi:         { rozet: 'rozet rozet-amber', metin: 'Alınmadı', tiklanabilir: true },
   henuz_baslamadi:  { bos: true },
   ders_yok_o_gun:   { bos: true },
-  tahta_ulasilamaz: { pill: 'pill-ulasilamaz', ikon: '⭘', metin: 'Tahta ulaşılamaz' },
-  tahta_atanmamis:  { pill: 'pill-atanmamis', ikon: null, metin: 'Tahta atanmadı' },
+  tahta_ulasilamaz: { rozet: 'rozet rozet-gri', metin: 'Tahta ulaşılamaz' },
+  tahta_atanmamis:  { rozet: 'rozet rozet-gri', metin: 'Tahta atanmadı' },
 };
 
 function noktalariGuncelle(harita) {
@@ -190,25 +159,18 @@ function hucreDoldur(hucre, satir) {
   const izinli = listeOku(satir.izinli_isimleri);
   // "Tam" YALNIZCA hem yok HEM izinli listesi boşsa (2026-09-28 hatası)
   const anahtar = satir.durum === 'alindi' ? (yok.length || izinli.length ? 'alindi_yok' : 'alindi_tam') : satir.durum;
-  const bilgi = DURUM_BILGISI[anahtar] || { pill: '', metin: satir.durum };
+  const bilgi = DURUM_BILGISI[anahtar] || { rozet: 'rozet', metin: satir.durum };
   const parcalar = [];
   if (anahtar === 'alindi_yok') {
+    // İsimler çerçevesiz metin; uzun liste hücrede aşağı sarar (yatay taşma yok)
     if (yok.length) {
-      const p = el('span', 'pill pill-yok');
-      p.append(el('span', null, '●'), ' ' + yok.join(', '));
-      p.firstChild.setAttribute('aria-hidden', 'true');
+      const p = el('span', 'isim');
+      p.append(el('span', 'gorsel-gizli', 'Devamsız: '), yok.join(', '));
       parcalar.push(p);
     }
-    if (izinli.length) parcalar.push(el('span', 'pill pill-izinli', 'İzinli: ' + izinli.join(', ')));
+    if (izinli.length) parcalar.push(el('span', 'isim-izinli', 'İzinli: ' + izinli.join(', ')));
   } else if (!bilgi.bos) {
-    const p = el('span', 'pill ' + bilgi.pill);
-    if (bilgi.ikon) {
-      const i = el('span', null, bilgi.ikon);
-      i.setAttribute('aria-hidden', 'true');
-      p.append(i, ' ');
-    }
-    p.append(bilgi.metin);
-    parcalar.push(p);
+    parcalar.push(el('span', bilgi.rozet, bilgi.metin));
   }
   // Durum boş olsa da ders programı her zaman görünür kalır
   const etiket = dersEtiketi(satir);
@@ -243,14 +205,21 @@ function aktifDersiGuncelle() {
   const bugunMu = !TARIH_SECICI.value || TARIH_SECICI.value === TARIH_SECICI.max;
   const simdi = new Date();
   const saat = String(simdi.getHours()).padStart(2, '0') + ':' + String(simdi.getMinutes()).padStart(2, '0');
+  let aktifNo = null;
   document.querySelectorAll('.th-ders').forEach(th => {
-    const aktifMi = bugunMu && th.dataset.baslangic && th.dataset.bitis &&
-      saat >= th.dataset.baslangic && saat <= th.dataset.bitis;
-    th.classList.toggle('aktif-ders-sutun', aktifMi);
-    let rozet = th.querySelector('.aktif-ders-rozet');
-    if (aktifMi && !rozet) th.querySelector('.th-ders-ic').appendChild(el('span', 'aktif-ders-rozet', 'Şu an'));
-    else if (!aktifMi && rozet) rozet.remove();
+    const aktifMi = !!(bugunMu && th.dataset.baslangic && th.dataset.bitis &&
+      saat >= th.dataset.baslangic && saat <= th.dataset.bitis);
+    if (aktifMi) aktifNo = th.dataset.dersNo;
+    th.classList.toggle('simdi-sutun', aktifMi);
+    const etiket = th.querySelector('.th-simdi');
+    const metin = aktifMi ? ' · şimdi' : '';
+    if (etiket.textContent !== metin) etiket.textContent = metin;
   });
+  // hucreDoldur sınıfı sıfırlar; sütun vurgusu her doldurmadan sonra burada yeniden verilir
+  document.querySelectorAll('#pano-tablo td.hucre').forEach(td => {
+    td.classList.toggle('hucre-simdi', td.dataset.dersNo === aktifNo);
+  });
+  metniYaz('baslik-ders', aktifNo ? ` · ${aktifNo}. ders` : '');
 }
 
 function hucreyiVurgula(o) {
@@ -264,22 +233,22 @@ function hucreyiVurgula(o) {
 const SORUN_AZAMI = 8;
 
 function sorunOgesi(o) {
-  const li = el('li', 'sorun-oge sorun-' + o.tur);
-  const git = el('button', 'sorun-git');
+  const li = el('li', 'serit-oge serit-oge-' + o.tur);
+  const git = el('button', 'serit-git');
   git.type = 'button';
-  git.append(el('strong', 'sorun-sinif', o.sinif), el('span', 'sorun-aciklama', o.aciklama));
+  git.append(el('strong', null, o.sinif), ' ' + o.aciklama);
   git.title = 'Tabloda göster';
   git.addEventListener('click', () => hucreyiVurgula(o));
   li.appendChild(git);
   const hucre = document.getElementById(`hucre-${o.sinif}-${o.dersNo}`);
   if (o.tur === 'yoklama' && hucre && hucre.dataset.tahtaId) {
-    const b = el('button', 'dugme dugme-ikincil dugme-kucuk sorun-eylem', 'Tahtada aç');
+    const b = el('button', 'dugme dugme-ikincil dugme-kucuk', 'Tahtada aç');
     b.type = 'button';
     b.setAttribute('aria-label', `${o.sinif} tahtasında yoklama ekranını aç`);
     b.addEventListener('click', () => uzaktanBaslat(hucre));
     li.appendChild(b);
   } else if (o.tur === 'tahta') {
-    const a = el('a', 'dugme dugme-ikincil dugme-kucuk sorun-eylem', 'Uzaktan yönetim');
+    const a = el('a', 'dugme dugme-ikincil dugme-kucuk', 'Uzaktan yönetim');
     a.href = '/admin/uzaktan';
     li.appendChild(a);
   }
@@ -298,7 +267,7 @@ function uyariSeriti(satirlar, bugunMu) {
   for (const s of satirlar) {
     if (s.durum === 'alinmadi') {
       alinmadi.push({ tur: 'yoklama', sinif: s.sinif, dersNo: s.ders_no,
-        aciklama: `${s.ders_no}. ders${s.ders_kisa_adi ? ' · ' + s.ders_kisa_adi : ''} · yoklama alınmadı` });
+        aciklama: `${s.ders_no}. ders${s.ders_kisa_adi ? ' ' + s.ders_kisa_adi : ''}` });
     } else if (s.durum === 'tahta_ulasilamaz') {
       const o = ulasilamaz.get(s.sinif);
       // yoklayici kaydı olmayan her derse bu durumu yazar; kesintinin başladığı ders bilinmez
@@ -324,9 +293,8 @@ function uyariSeriti(satirlar, bugunMu) {
     if (odak) odak.focus({ preventScroll: true });
   }
 
-  const kutu = document.getElementById('uyari-seridi');
   const sorunlar = [...ulasilamaz.values(), ...alinmadi];
-  kutu.dataset.durum = ulasilamaz.size ? 'kritik' : alinmadi.length ? 'uyari' : 'tamam';
+  seritDurumu(ulasilamaz.size ? 'kritik' : alinmadi.length ? 'uyari' : 'tamam');
   document.getElementById('durum-tekrar').hidden = true;
 
   const parca = [];
@@ -340,10 +308,18 @@ function uyariSeriti(satirlar, bugunMu) {
   if (atanmamis.size) alt.push(`${atanmamis.size} sınıfa tahta atanmamış.`);
   metniYaz('durum-alt', alt.join(' '));
 
-  const liste = document.getElementById('sorun-liste');
+  const liste = document.getElementById('serit-liste');
   liste.replaceChildren(...sorunlar.slice(0, SORUN_AZAMI).map(sorunOgesi));
-  if (sorunlar.length > SORUN_AZAMI) liste.appendChild(el('li', 'sorun-kalan', `+${sorunlar.length - SORUN_AZAMI} sorun daha — tabloda işaretli`));
+  if (sorunlar.length > SORUN_AZAMI) liste.appendChild(el('li', 'serit-kalan', `+${sorunlar.length - SORUN_AZAMI} daha, tabloda işaretli`));
   liste.hidden = !sorunlar.length;
+}
+
+// Şerit rengi: tahta sorunu ya da veri hatası kırmızı, eksik yoklama amber, sorun yoksa mavi tek satır
+const SERIT_RENGI = { kritik: 'serit-kritik', hata: 'serit-kritik', uyari: 'serit-uyari', tamam: 'serit-bilgi' };
+function seritDurumu(durum) {
+  const kutu = document.getElementById('uyari-seridi');
+  kutu.dataset.durum = durum;
+  kutu.className = 'serit ' + (SERIT_RENGI[durum] || 'serit-bilgi');
 }
 
 // yoklayici tahtaya ulaşamayınca başlamamış dersleri de tahta_ulasilamaz yazar; bugün için saate bak
@@ -355,29 +331,25 @@ function dersBasladiMi(dersNo, bugunMu) {
   return !!(th && th.dataset.baslangic && th.dataset.baslangic <= saat);
 }
 
-function ilerlemeyiGuncelle(alinan, bekleyen, bilinmeyen) {
-  const kap = document.getElementById('pano-ilerleme');
+// Şeridin sağı: başlamış derslerde yoklama yüzdesi (alınan / alınan + bekleyen + bilinmeyen)
+function oraniYaz(alinan, bekleyen, bilinmeyen) {
   const toplam = alinan + bekleyen + bilinmeyen;
-  kap.hidden = toplam === 0;
-  if (!toplam) return;
-  const yuzde = Math.round(100 * alinan / toplam);
-  kap.dataset.durum = bekleyen || bilinmeyen ? 'eksik' : 'tamam';
-  metniYaz('ilerleme-metin', `Başlamış derslerde yoklama: %${yuzde} (${alinan}/${toplam})` +
-    (bilinmeyen ? ` · ${bilinmeyen} ders tahtaya ulaşılamadığı için bilinmiyor` : ''));
-  document.getElementById('ilerleme-dolu').style.width = yuzde + '%';
-  document.getElementById('ilerleme-cubuk').setAttribute('aria-valuenow', yuzde);
+  metniYaz('ozet-yuzde', toplam ? `%${Math.round(100 * alinan / toplam)}` : '—');
+  document.getElementById('serit-oran').title = toplam
+    ? `Başlamış derslerde yoklama: ${alinan}/${toplam}` +
+      (bilinmeyen ? ` · ${bilinmeyen} ders tahtaya ulaşılamadığı için bilinmiyor` : '')
+    : 'Henüz başlamış ders yok';
 }
 
 function hataGoster() {
-  const kutu = document.getElementById('uyari-seridi');
-  kutu.dataset.durum = 'hata';
+  seritDurumu('hata');
   metniYaz('durum-baslik', 'Yoklama durumu alınamadı');
   metniYaz('durum-alt', SON_BASARILI
     ? `Bağlantı kesilmiş olabilir. Tablo ${SON_BASARILI} itibarıyla gösteriliyor.`
     : 'Bağlantı kesilmiş olabilir. Birazdan kendiliğinden yeniden denenecek.');
   document.getElementById('durum-tekrar').hidden = false;
-  document.querySelectorAll('.hucre.durum-yukleniyor').forEach(h => {
-    h.classList.remove('durum-yukleniyor');
+  document.querySelectorAll('.hucre.hucre-yukleniyor').forEach(h => {
+    h.classList.remove('hucre-yukleniyor');
     h.replaceChildren();
   });
 }
@@ -398,7 +370,8 @@ async function tabloyuGuncelle(ilkVeri) {
   }
   noktalariGuncelle(veri.tahta_acik);
   const bulunanlar = new Set();
-  let tam = 0, yokSayac = 0, bekleyen = 0, bilinmeyen = 0;
+  // devamsiz: devamsız öğrenci toplamı, her ders ayrı sayılır (izinliler hariç)
+  let tam = 0, yokSayac = 0, devamsiz = 0, bekleyen = 0, bilinmeyen = 0;
   const bugunMu = tarih === TARIH_SECICI.max;
   for (const satir of veri.satirlar) {
     const hucre = document.getElementById(`hucre-${satir.sinif}-${satir.ders_no}`);
@@ -406,21 +379,22 @@ async function tabloyuGuncelle(ilkVeri) {
     hucreDoldur(hucre, satir);
     bulunanlar.add(hucre.id);
     if (satir.durum === 'alindi') {
-      if (listeOku(satir.yok_isimleri).length || listeOku(satir.izinli_isimleri).length) yokSayac++;
+      const yokSayisi = listeOku(satir.yok_isimleri).length;
+      devamsiz += yokSayisi;
+      if (yokSayisi || listeOku(satir.izinli_isimleri).length) yokSayac++;
       else tam++;
     } else if (satir.durum === 'alinmadi') bekleyen++;
     else if (satir.durum === 'tahta_ulasilamaz' && dersBasladiMi(satir.ders_no, bugunMu)) bilinmeyen++;
   }
-  document.querySelectorAll('.hucre.durum-yukleniyor').forEach(h => {
-    if (!bulunanlar.has(h.id)) { h.classList.remove('durum-yukleniyor'); h.replaceChildren(); }
+  document.querySelectorAll('.hucre.hucre-yukleniyor').forEach(h => {
+    if (!bulunanlar.has(h.id)) { h.classList.remove('hucre-yukleniyor'); h.replaceChildren(); }
   });
 
   uyariSeriti(veri.satirlar, bugunMu);
-  document.getElementById('ozet-tam-ders').textContent = tam;
-  document.getElementById('ozet-yok-ders').textContent = yokSayac;
-  document.getElementById('ozet-bekleyen-ders').textContent = bekleyen;
-  document.getElementById('ozet-bekleyen-kart').classList.toggle('ozet-dikkat', bekleyen > 0);
-  ilerlemeyiGuncelle(tam + yokSayac, bekleyen, bilinmeyen);
+  metniYaz('ozet-tam-ders', String(tam));
+  metniYaz('ozet-devamsiz', String(devamsiz));
+  metniYaz('ozet-bekleyen-ders', String(bekleyen));
+  oraniYaz(tam + yokSayac, bekleyen, bilinmeyen);
 
   SON_BASARILI = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
   SON_GUNCELLEME.textContent = 'Son güncelleme: ' + new Date().toLocaleTimeString('tr-TR');

@@ -65,14 +65,16 @@ def _don(sekme: str, **q) -> RedirectResponse:
     )
 
 
-def _islem(request: Request, sekme: str, fn, ok: str, **geri):
-    """oturum -> tek transaction (fn) -> yayın -> yönlendirme. ValueError = kullanıcı hatası."""
+def _islem(request: Request, sekme: str, fn, ok: str, hatada: dict | None = None, **geri):
+    """oturum -> tek transaction (fn) -> yayın -> yönlendirme. ValueError = kullanıcı hatası.
+    `hatada`: yalnız hata yönlendirmesinde `geri`yi ezen parametreler (ör. yeni kayıtta `yeni=1`,
+    böylece ayrıntı paneli hatayla birlikte açık kalır)."""
     oturum_sarti(request)
     try:
         with veri.baglan() as c:
             fn(c)
     except ValueError as e:
-        return _don(sekme, hata=str(e), **geri)
+        return _don(sekme, hata=str(e), **{**geri, **(hatada or {})})
     uyari = _yayinla()
     return _don(sekme, mesaj=ok, uyari=uyari, **geri)
 
@@ -92,12 +94,23 @@ def sayfa(
     duzenle: str = "",
     pduzenle: str = "",
     psinif: str = "",
+    yeni: str = "",
     mesaj: str = "",
     hata: str = "",
     uyari: str = "",
 ):
     oturum_sarti(request)
+    suzgec = {"sekme": sekme, "sinif": sinif, "durum": durum, "gorev": gorev,
+              "pasifler": "1" if pasifler else "", "ara": ara}
+
+    def adres(**ek) -> str:
+        """Geçerli süzgeçleri koruyarak okul verisi adresi (ek=None o parametreyi düşürür)."""
+        q = {k: v for k, v in {**suzgec, **ek}.items() if v not in (None, "")}
+        return "/admin/okul-verisi?" + urlencode(q)
+
     ctx = {
+        "adres": adres,
+        "yeni": bool(yeni),
         "sekme": sekme,
         "mesaj": mesaj,
         "hata": hata,
@@ -171,8 +184,8 @@ def sayfa(
 @router.post("/sinif")
 async def sinif_ekle(request: Request):
     f = await request.form()
-    return _islem(
-        request, "ogrenci", lambda c: veri.sinif_ekle(c, f.get("ad")), "Sınıf eklendi."
+    return _islem(  # form "Yeni öğrenci" panelinde: dönüşte panel açık kalır
+        request, "ogrenci", lambda c: veri.sinif_ekle(c, f.get("ad")), "Sınıf eklendi.", yeni="1"
     )
 
 
@@ -195,6 +208,7 @@ async def ogrenci_kaydet(request: Request):
             yeni,
         ),
         "Öğrenci eklendi." if yeni else "Öğrenci güncellendi.",
+        hatada={"duzenle": None, "yeni": "1"} if yeni else None,
         duzenle=no,
     )
 
@@ -266,6 +280,8 @@ async def personel_kaydet(request: Request):
             f.get("eposta"),
         ),
         "Personel kaydedildi.",
+        hatada=None if pid else {"yeni": "1"},
+        pduzenle=str(pid) if pid else None,
     )
 
 

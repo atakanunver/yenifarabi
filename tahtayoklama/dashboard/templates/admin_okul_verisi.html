@@ -1,273 +1,293 @@
 {% extends "taban.html" %}
 {% block baslik_etiketi %}Okul verisi — Yoklama ve Yönetim Paneli{% endblock %}
-{% block baslik %}Okul verisi{% endblock %}
+{% block baslik %}{{ {'ogrenci': 'Öğrenciler ve veliler', 'personel': 'Personel', 'program': 'Ders programı', 'zil': 'Zil saatleri', 'denetim': 'Değişiklik günlüğü'}.get(sekme, 'Okul verisi') }}{% endblock %}
 
-{% block icerik %}
-{% macro kpi(href, etiket, sayi, alt, ikon, simge, secili=False) %}
-<a class="pano-ozet-kart kpi-tikla{{ ' kpi-secili' if secili }}" href="{{ href }}">
-  <div class="pano-ozet-ikon {{ ikon }}" aria-hidden="true"><svg class="ikon"><use href="#{{ simge }}"/></svg></div>
-  <div class="pano-ozet-bilgi">
-    <span class="pano-ozet-baslik">{{ etiket }}</span>
-    <span class="pano-ozet-sayi">{{ sayi }}</span>
-    <span class="kpi-alt">{{ alt }}</span>
-  </div>
-</a>
-{% endmacro %}
-{% if mesaj %}<p class="etiket">{{ mesaj }}</p>{% endif %}
-{% if hata %}<p class="etiket etiket-uyari">{{ hata }}</p>{% endif %}
-{% if uyari %}<p class="etiket etiket-uyari">{{ uyari }}</p>{% endif %}
+{# Sekmeler sol menüde (menu.py). Liste + sağda ayrıntı paneli (2026-10-30): satıra tıklayınca
+   ?duzenle=<okul_no> / ?pduzenle=<id>, yeni kayıt ?yeni=1; süzgeçler adres() ile korunur. Panel
+   alanları formun dışında durur ve form="..." ile bağlanır (iç içe form yok; panelin boşlukları geçerli). #}
+{% set panel_acik = (duzenlenen or yeni) if sekme == 'ogrenci' else (pduzenlenen or yeni) if sekme == 'personel' else False %}
 
-<p class="rapor-aciklama">
-  Öğrenci, veli, personel, ders programı ve zil saatlerinin <strong>tek kaynağı</strong> burasıdır.
-  Kaydedince yoklama, SMS rehberi, okul portalı ve tahtaların JSON dosyaları otomatik güncellenir;
-  başka yerden elle düzenlemeyin (bir sonraki yayında üzerine yazılır).
-  Son yayın: {% if son_yayin.zaman %}{{ son_yayin.zaman }} — {{ 'başarılı' if son_yayin.ok else 'BAŞARISIZ' }}
-  <span class="sinif-etiket">({{ son_yayin.durum }})</span>{% else %}{{ son_yayin.durum }}{% endif %}
-</p>
-<form method="post" action="/admin/okul-verisi/yayinla" class="yeni-form">
-  <button type="submit">Yayınla (yeniden dene)</button>
-</form>
-
-<p>
-  {% for k, ad in [('ogrenci','Öğrenci ve veli'),('personel','Personel'),('program','Ders programı'),('zil','Zil saatleri'),('denetim','Denetim günlüğü')] %}
-  <a href="/admin/okul-verisi?sekme={{ k }}" class="btn-ikincil"{% if sekme == k %} aria-current="page" style="font-weight:700"{% endif %}>{{ ad }}</a>
-  {% endfor %}
-</p>
-
-{% if sekme == 'ogrenci' %}
-<h2>Sınıflar</h2>
-<p>
-  {% for s in siniflar %}<a class="etiket" href="/admin/okul-verisi?sekme=ogrenci&sinif={{ s.ad }}">{{ s.ad }} · {{ s.ogrenci_sayisi }}</a> {% endfor %}
-</p>
-<form method="post" action="/admin/okul-verisi/sinif" class="yeni-form">
-  <input type="text" name="ad" placeholder="yeni sınıf (ör. 10-B)" required pattern="(9|10|11|12)-[A-Za-z0-9]{1,3}">
-  <button type="submit">Sınıf ekle</button>
-</form>
-
-<details id="ogrenci-form" class="form-kutu" {% if duzenlenen %}open{% endif %}>
-<summary>{% if duzenlenen %}Öğrenciyi düzenle — {{ duzenlenen.okul_no }}{% else %}Yeni öğrenci ekle{% endif %}</summary>
-<form method="post" action="/admin/okul-verisi/ogrenci" class="yeni-form">
-  <input type="hidden" name="yeni" value="{{ '0' if duzenlenen else '1' }}">
-  <input type="number" name="okul_no" placeholder="okul no" min="1" max="99998" required
-         value="{{ duzenlenen.okul_no if duzenlenen }}" {% if duzenlenen %}readonly{% endif %}>
-  <input type="text" name="ad_soyad" placeholder="ad soyad" required maxlength="100" value="{{ duzenlenen.ad_soyad if duzenlenen }}">
-  <select name="sinif" required>
-    {% for s in siniflar %}<option value="{{ s.ad }}" {% if duzenlenen and duzenlenen.sinif == s.ad or (not duzenlenen and sinif == s.ad) %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
-  </select>
-  <select name="cinsiyet">
-    <option value="">cinsiyet —</option>
-    <option value="Erkek" {% if duzenlenen and duzenlenen.cinsiyet == 'Erkek' %}selected{% endif %}>Erkek</option>
-    <option value="Kız" {% if duzenlenen and duzenlenen.cinsiyet == 'Kız' %}selected{% endif %}>Kız</option>
-  </select>
-  <input type="tel" name="telefon" placeholder="öğrenci tel (isteğe bağlı)" value="{{ duzenlenen.telefon or '' if duzenlenen }}">
-  <input type="date" name="dogum_tarihi" value="{{ duzenlenen.dogum_tarihi or '' if duzenlenen }}">
-  <button type="submit">{{ 'Kaydet' if duzenlenen else 'Öğrenci ekle' }}</button>
-  {% if duzenlenen %}<a href="/admin/okul-verisi?sekme=ogrenci" class="btn-ikincil">Vazgeç</a>{% endif %}
-</form>
-</details>
-
-{% if duzenlenen %}
-<h3>Veliler</h3>
-<div class="tablo-sarici"><table class="admin-tablo">
-  <thead><tr><th>Ad soyad</th><th>Telefon</th><th>Yakınlık</th><th></th></tr></thead>
-  <tbody>
-  {% for v in veliler %}
-  <tr>
-    {# <tr> içine <form> konamaz: alanlar form="..." ile son hücredeki forma bağlanır #}
-    <td><input form="vf{{ v.id }}" type="text" name="ad_soyad" value="{{ v.ad_soyad }}" required maxlength="100"></td>
-    <td><input form="vf{{ v.id }}" type="tel" name="telefon" value="{{ v.telefon or '' }}"></td>
-    <td><input form="vf{{ v.id }}" type="text" name="yakinlik" value="{{ v.yakinlik or '' }}" maxlength="30"></td>
-    <td style="text-align:right">
-      <form id="vf{{ v.id }}" method="post" action="/admin/okul-verisi/veli" style="display:inline">
-        <input type="hidden" name="okul_no" value="{{ duzenlenen.okul_no }}"><input type="hidden" name="veli_id" value="{{ v.id }}">
-        <button type="submit">Kaydet</button>
-      </form>
-      <form method="post" action="/admin/okul-verisi/veli/{{ duzenlenen.okul_no }}/{{ v.id }}/sil" style="display:inline"><button type="submit" class="btn-ikincil">Bağı sil</button></form>
-      {% if v.bagli > 1 %}<br><span class="sinif-etiket">{{ v.bagli }} öğrenciye bağlı — değişiklik hepsini etkiler</span>{% endif %}
-    </td>
-  </tr>
-  {% else %}<tr><td colspan="4"><span class="sinif-etiket">— veli kaydı yok —</span></td></tr>
-  {% endfor %}
-  </tbody>
-</table></div>
-<form method="post" action="/admin/okul-verisi/veli" class="yeni-form">
-  <input type="hidden" name="okul_no" value="{{ duzenlenen.okul_no }}">
-  <input type="text" name="ad_soyad" placeholder="veli ad soyad" required maxlength="100">
-  <input type="tel" name="telefon" placeholder="telefon">
-  <input type="text" name="yakinlik" placeholder="Anne / Baba …" maxlength="30">
-  <button type="submit">Veli ekle</button>
+{% block ust_sag %}
+{% set tek_kaynak = 'Öğrenci, veli, personel, ders programı ve zil saatlerinin tek kaynağı burasıdır. Kaydedince yoklama, SMS rehberi, okul portalı ve tahtaların JSON dosyaları otomatik güncellenir; başka yerden elle düzenlemeyin (bir sonraki yayında üzerine yazılır).' %}
+{% if son_yayin.ok %}
+<span class="durum-yazi" title="{{ tek_kaynak }} Son yayın: {{ son_yayin.durum }}">● Yayınlandı {{ son_yayin.zaman[:5] }}</span>
+{% elif son_yayin.ok == False %}
+<span class="durum-yazi hata" title="{{ tek_kaynak }} Hata: {{ son_yayin.durum }}">● Yayın başarısız {{ son_yayin.zaman[:5] }}</span>
+{% else %}
+<span class="durum-yazi uyari" title="{{ tek_kaynak }}">● Henüz yayın yapılmadı</span>
+{% endif %}
+{% if not son_yayin.ok %}
+<form method="post" action="/admin/okul-verisi/yayinla">
+  <button type="submit" class="dugme dugme-ikincil">Yayınla (yeniden dene)</button>
 </form>
 {% endif %}
+{% if sekme == 'ogrenci' %}
+<a class="dugme" href="{{ adres(yeni=1) }}"><svg class="ikon" aria-hidden="true"><use href="#ik-arti"/></svg> Öğrenci ekle</a>
+{% elif sekme == 'personel' %}
+<a class="dugme" href="{{ adres(yeni=1) }}"><svg class="ikon" aria-hidden="true"><use href="#ik-arti"/></svg> Personel ekle</a>
+{% endif %}
+{% endblock %}
 
-<div class="pano-ozet">
-  {{ kpi('/admin/okul-verisi?sekme=ogrenci', 'Aktif öğrenci', ozet.aktif, 'Tüm liste', 'ozet-ikon-sinif', 'ik-kullanicilar', not durum) }}
-  {{ kpi('/admin/okul-verisi?sekme=ogrenci&durum=eksik_tel', 'Telefonsuz', ozet.telefonsuz, 'Filtrelemek için tıkla', 'ozet-ikon-alinmadi', 'ik-uyari', durum == 'eksik_tel') }}
-  {{ kpi('/admin/okul-verisi?sekme=ogrenci&durum=pasif', 'Pasif', ozet.pasif, 'Geri alınabilir', 'ozet-ikon-yok', 'ik-kapat', durum == 'pasif') }}
+{% macro alan(etiket, kimlik, eksik=False) %}
+<div class="form-alan{{ ' eksik' if eksik }}">
+  <label for="{{ kimlik }}">{{ etiket }}</label>
+  {{ caller() }}
 </div>
-<form method="get" action="/admin/okul-verisi" class="yeni-form filtre-bar">
+{% endmacro %}
+
+{% block icerik %}
+{% if mesaj %}<p class="serit serit-bilgi" role="status">{{ mesaj }}</p>{% endif %}
+{% if uyari %}<p class="serit serit-uyari" role="alert">{{ uyari }}</p>{% endif %}
+{% if hata and not panel_acik %}<p class="serit serit-kritik" role="alert">{{ hata }}</p>{% endif %}
+
+{% if sekme == 'ogrenci' %}
+<form method="get" action="/admin/okul-verisi" class="cip-satir" id="suzgec">
   <input type="hidden" name="sekme" value="ogrenci">
-  <label>Sınıf <select name="sinif" onchange="this.form.submit()"><option value="">Tüm sınıflar</option>{% for s in siniflar %}<option value="{{ s.ad }}" {% if sinif == s.ad %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}</select></label>
-  <label>Durum <select name="durum" onchange="this.form.submit()">
-    <option value="">Tümü</option>
-    <option value="eksik_tel" {% if durum == 'eksik_tel' %}selected{% endif %}>Telefonsuz</option>
-    <option value="pasif" {% if durum == 'pasif' %}selected{% endif %}>Pasif</option>
-  </select></label>
+  {% if durum %}<input type="hidden" name="durum" value="{{ durum }}">{% endif %}
+  <a class="cip{{ ' secili' if not durum }}" href="{{ adres(durum=None) }}">Aktif <b>{{ ozet.aktif }}</b></a>
+  <a class="cip{{ ' secili' if durum == 'eksik_tel' }}" href="{{ adres(durum='eksik_tel') }}">Telefonsuz <b>{{ ozet.telefonsuz }}</b></a>
+  <a class="cip{{ ' secili' if durum == 'pasif' }}" href="{{ adres(durum='pasif') }}">Pasif <b>{{ ozet.pasif }}</b></a>
+  <div class="form-alan"><select name="sinif" aria-label="Sınıf" onchange="this.form.submit()">
+    <option value="">Tüm sınıflar</option>
+    {% for s in siniflar %}<option value="{{ s.ad }}" {% if sinif == s.ad %}selected{% endif %}>{{ s.ad }} · {{ s.ogrenci_sayisi }}</option>{% endfor %}
+  </select></div>
   <label><input type="checkbox" name="pasifler" value="1" onchange="this.form.submit()" {% if pasifler %}checked{% endif %}> pasifler de</label>
-  <label class="filtre-ara">Hızlı arama <input type="search" name="ara" id="tablo-ara" placeholder="Ad veya okul no ile anlık filtrele…" value="{{ ara }}"></label>
+  <input type="search" class="ara-kutu" name="ara" id="tablo-ara" aria-label="Ara" placeholder="Ad veya okul no…" value="{{ ara }}">
 </form>
-<div class="tablo-sarici"><table class="admin-tablo" id="ana-tablo">
-  <thead><tr><th>No</th><th>Ad soyad</th><th>Sınıf</th><th>Telefon</th><th>Durum</th><th></th></tr></thead>
-  <tbody>
-  {% for o in ogrenciler %}
-  <tr class="tablo-satir {{ '' if o.aktif else 'pasif' }}" data-ara="{{ (o.ad_soyad ~ ' ' ~ o.okul_no)|lower }}">
-    <td>{{ o.okul_no }}</td><td><strong>{{ o.ad_soyad }}</strong></td><td>{% if o.sinif %}<span class="pill pill-kucuk pill-izinli">{{ o.sinif }}</span>{% else %}—{% endif %}</td>
-    <td>{% if o.telefon %}{{ o.telefon }}{% else %}<span class="pill pill-kucuk pill-alinmadi">Telefonsuz</span>{% endif %}</td>
-    <td>{% if o.aktif %}<span class="pill pill-kucuk pill-tam">Aktif</span>{% else %}<span class="pill pill-kucuk pill-atanmamis">Pasif</span>{% endif %}</td>
-    <td style="text-align:right">
-      <a class="btn-ikincil" href="/admin/okul-verisi?sekme=ogrenci&duzenle={{ o.okul_no }}#ogrenci-form">Düzenle · veliler</a>
-      {% if o.aktif %}
-      <form method="post" action="/admin/okul-verisi/ogrenci/{{ o.okul_no }}/pasif" style="display:inline"><button type="submit" class="btn-ikincil">Pasifleştir</button></form>
-      {% else %}
-      <form method="post" action="/admin/okul-verisi/ogrenci/{{ o.okul_no }}/geri" style="display:inline"><button type="submit" class="btn-ikincil">Geri al</button></form>
-      {% endif %}
-    </td>
-  </tr>
-  {% else %}<tr><td colspan="6"><span class="sinif-etiket">— kayıt yok —</span></td></tr>
-  {% endfor %}
-  </tbody>
-</table></div>
-<p class="rapor-aciklama">Pasifleştirme: öğrenci yoklama listesinden ve SMS rehberinden çıkar; okul portalındaki geçmiş
-  kayıtları (ödev, onay) silinmez.</p>
+
+<div class="ayrinti-duzen{{ '' if panel_acik else ' panel-kapali' }}">
+  <div>
+    {% if ogrenciler %}
+    <div class="tablo-kutu"><table class="tablo" id="ana-tablo">
+      <thead><tr><th class="sayi">No</th><th>Ad soyad</th><th>Sınıf</th><th>Telefon</th><th>Durum</th></tr></thead>
+      <tbody>
+      {% for o in ogrenciler %}{% set href = adres(duzenle=o.okul_no) %}
+      <tr class="tablo-satir tikla{{ ' secili' if duzenlenen and duzenlenen.okul_no == o.okul_no }}{{ '' if o.aktif else ' pasif' }}" data-href="{{ href }}" data-ara="{{ (o.ad_soyad ~ ' ' ~ o.okul_no)|lower }}">
+        <td class="sayi tek-satir">{{ o.okul_no }}</td>
+        <td><a href="{{ href }}">{{ o.ad_soyad }}</a></td>
+        <td>{{ o.sinif or '—' }}</td>
+        <td class="tek-satir">{% if o.telefon %}{{ o.telefon }}{% else %}<span class="rozet rozet-amber">Telefonsuz</span>{% endif %}</td>
+        <td class="tek-satir">{% if o.aktif %}<span class="rozet rozet-yesil">Aktif</span>{% else %}<span class="rozet rozet-gri">Pasif</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}
+    <p class="bos-durum">Bu süzgeçte kayıt yok.</p>
+    {% endif %}
+  </div>
+
+  {% if panel_acik %}{% set d = duzenlenen %}
+  <aside class="ayrinti-panel" id="ogrenci-form" aria-labelledby="panel-baslik">
+    <h2 id="panel-baslik">{% if d %}{{ d.ad_soyad }} · {{ d.okul_no }}{% else %}Yeni öğrenci{% endif %}</h2>
+    {% if hata %}<p class="form-hata" role="alert">{{ hata }}</p>{% endif %}
+    {% call alan('Okul no', 'o-no') %}<input form="of" id="o-no" type="number" name="okul_no" min="1" max="99998" required value="{{ d.okul_no if d }}" {% if d %}readonly{% endif %}>{% endcall %}
+    {% call alan('Ad soyad', 'o-ad') %}<input form="of" id="o-ad" type="text" name="ad_soyad" required maxlength="100" value="{{ d.ad_soyad if d }}">{% endcall %}
+    {% call alan('Sınıf', 'o-sinif') %}<select form="of" id="o-sinif" name="sinif" required>
+      {% for s in siniflar %}<option value="{{ s.ad }}" {% if d and d.sinif == s.ad or (not d and sinif == s.ad) %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}
+    </select>{% endcall %}
+    {% call alan('Cinsiyet', 'o-cins') %}<select form="of" id="o-cins" name="cinsiyet">
+      <option value="">—</option>
+      <option value="Erkek" {% if d and d.cinsiyet == 'Erkek' %}selected{% endif %}>Erkek</option>
+      <option value="Kız" {% if d and d.cinsiyet == 'Kız' %}selected{% endif %}>Kız</option>
+    </select>{% endcall %}
+    {% call alan('Öğrenci telefonu', 'o-tel', d and d.aktif and not d.telefon) %}<input form="of" id="o-tel" type="tel" name="telefon" value="{{ d.telefon or '' if d }}">{% endcall %}
+    {% call alan('Doğum tarihi', 'o-dogum') %}<input form="of" id="o-dogum" type="date" name="dogum_tarihi" value="{{ d.dogum_tarihi or '' if d }}">{% endcall %}
+    <div class="ayrinti-eylem">
+      <button type="submit" form="of" class="dugme">{{ 'Kaydet' if d else 'Öğrenci ekle' }}</button>
+      <a class="dugme dugme-ikincil" href="{{ adres() }}">Vazgeç</a>
+      {% if d and d.aktif %}<button type="submit" form="op" class="dugme dugme-tehlike" title="Öğrenci yoklama listesinden ve SMS rehberinden çıkar; okul portalındaki geçmiş kayıtları (ödev, onay) silinmez.">Pasifleştir</button>
+      {% elif d %}<button type="submit" form="op" class="dugme dugme-ikincil">Geri al</button>{% endif %}
+    </div>
+    <form id="of" method="post" action="/admin/okul-verisi/ogrenci" hidden><input type="hidden" name="yeni" value="{{ '0' if d else '1' }}"></form>
+    {% if d %}<form id="op" method="post" action="/admin/okul-verisi/ogrenci/{{ d.okul_no }}/{{ 'pasif' if d.aktif else 'geri' }}" hidden></form>{% endif %}
+
+    {% if d %}
+    <h3>Veliler</h3>
+    {% for v in veliler %}
+    {% call alan('Veli ad soyad', 'v' ~ v.id ~ '-ad') %}<input form="vf{{ v.id }}" id="v{{ v.id }}-ad" type="text" name="ad_soyad" value="{{ v.ad_soyad }}" required maxlength="100">{% endcall %}
+    {% call alan('Telefon', 'v' ~ v.id ~ '-tel', not v.telefon) %}<input form="vf{{ v.id }}" id="v{{ v.id }}-tel" type="tel" name="telefon" value="{{ v.telefon or '' }}">{% endcall %}
+    {% call alan('Yakınlık', 'v' ~ v.id ~ '-yak') %}<input form="vf{{ v.id }}" id="v{{ v.id }}-yak" type="text" name="yakinlik" value="{{ v.yakinlik or '' }}" maxlength="30">{% endcall %}
+    <div class="ayrinti-eylem">
+      <button type="submit" form="vf{{ v.id }}" class="dugme dugme-ikincil dugme-kucuk">Veliyi kaydet</button>
+      {% if v.bagli > 1 %}<span class="rozet rozet-amber" title="Değişiklik bağlı tüm öğrencileri etkiler">{{ v.bagli }} öğrenciye bağlı</span>{% endif %}
+      <button type="submit" form="vs{{ v.id }}" class="dugme dugme-tehlike dugme-kucuk">Bağı sil</button>
+    </div>
+    <form id="vf{{ v.id }}" method="post" action="/admin/okul-verisi/veli" hidden>
+      <input type="hidden" name="okul_no" value="{{ d.okul_no }}"><input type="hidden" name="veli_id" value="{{ v.id }}">
+    </form>
+    <form id="vs{{ v.id }}" method="post" action="/admin/okul-verisi/veli/{{ d.okul_no }}/{{ v.id }}/sil" hidden></form>
+    {% else %}
+    <p class="bos-durum">Veli kaydı yok.</p>
+    {% endfor %}
+    <h3>Veli ekle</h3>
+    {% call alan('Veli ad soyad', 'vy-ad') %}<input form="vy" id="vy-ad" type="text" name="ad_soyad" required maxlength="100">{% endcall %}
+    {% call alan('Telefon', 'vy-tel') %}<input form="vy" id="vy-tel" type="tel" name="telefon">{% endcall %}
+    {% call alan('Yakınlık', 'vy-yak') %}<input form="vy" id="vy-yak" type="text" name="yakinlik" placeholder="Anne / Baba …" maxlength="30">{% endcall %}
+    <div class="ayrinti-eylem"><button type="submit" form="vy" class="dugme dugme-ikincil dugme-kucuk">Veli ekle</button></div>
+    <form id="vy" method="post" action="/admin/okul-verisi/veli" hidden><input type="hidden" name="okul_no" value="{{ d.okul_no }}"></form>
+    {% else %}
+    <h3>Sınıf ekle</h3>
+    {% call alan('Listede olmayan sınıf (ör. 10-B)', 's-ad') %}<input form="sf" id="s-ad" type="text" name="ad" required pattern="(9|10|11|12)-[A-Za-z0-9]{1,3}">{% endcall %}
+    <div class="ayrinti-eylem"><button type="submit" form="sf" class="dugme dugme-ikincil dugme-kucuk">Sınıf ekle</button></div>
+    <form id="sf" method="post" action="/admin/okul-verisi/sinif" hidden></form>
+    {% endif %}
+  </aside>
+  {% endif %}
+</div>
 
 {% elif sekme == 'personel' %}
-<div class="pano-ozet">
-  {{ kpi('/admin/okul-verisi?sekme=personel', 'Aktif personel', ozet.aktif, 'Tüm liste', 'ozet-ikon-sinif', 'ik-kullanicilar', not durum) }}
-  {{ kpi('/admin/okul-verisi?sekme=personel&durum=eksik_tel', 'Telefonsuz', ozet.telefonsuz, 'Filtrelemek için tıkla', 'ozet-ikon-alinmadi', 'ik-uyari', durum == 'eksik_tel') }}
-  {{ kpi('/admin/okul-verisi?sekme=personel&durum=eksik_tc', 'TC eksik', ozet.tc_eksik, 'Filtrelemek için tıkla', 'ozet-ikon-alinmadi', 'ik-uyari', durum == 'eksik_tc') }}
-  {{ kpi('/admin/okul-verisi?sekme=personel&durum=eksik_eposta', 'E-posta eksik', ozet.eposta_eksik, 'Filtrelemek için tıkla', 'ozet-ikon-alinmadi', 'ik-uyari', durum == 'eksik_eposta') }}
-  {{ kpi('/admin/okul-verisi?sekme=personel&durum=pasif', 'Pasif', ozet.pasif, 'Geri alınabilir', 'ozet-ikon-yok', 'ik-kapat', durum == 'pasif') }}
-</div>
-<details id="personel-form" class="form-kutu" {% if pduzenlenen %}open{% endif %}>
-<summary>{% if pduzenlenen %}Personeli düzenle{% else %}Yeni personel ekle{% endif %}</summary>
-<form method="post" action="/admin/okul-verisi/personel" class="yeni-form">
-  <input type="hidden" name="id" value="{{ pduzenlenen.id if pduzenlenen }}">
-  <input type="text" name="ad_soyad" placeholder="ad soyad" required maxlength="100" value="{{ pduzenlenen.ad_soyad if pduzenlenen }}">
-  <input type="tel" name="telefon" placeholder="telefon" value="{{ pduzenlenen.telefon or '' if pduzenlenen }}">
-  <select name="gorev">
-    {% for g in ['ogretmen','yonetici','diger'] %}<option value="{{ g }}" {% if pduzenlenen and pduzenlenen.gorev == g %}selected{% endif %}>{{ g }}</option>{% endfor %}
-  </select>
-  <input type="text" name="brans" placeholder="branş" maxlength="60" value="{{ pduzenlenen.brans or '' if pduzenlenen }}">
-  <input type="date" name="dogum_tarihi" value="{{ pduzenlenen.dogum_tarihi or '' if pduzenlenen }}">
-  <input type="text" name="tc_kimlik" placeholder="TC kimlik no" inputmode="numeric" pattern="[0-9]{11}" maxlength="11" value="{{ pduzenlenen.tc_kimlik or '' if pduzenlenen }}">
-  <input type="email" name="eposta" placeholder="e-posta" maxlength="100" value="{{ pduzenlenen.eposta or '' if pduzenlenen }}">
-  <button type="submit">{{ 'Kaydet' if pduzenlenen else 'Personel ekle' }}</button>
-  {% if pduzenlenen %}<a href="/admin/okul-verisi?sekme=personel" class="btn-ikincil">Vazgeç</a>{% endif %}
-</form>
-</details>
-<form method="get" action="/admin/okul-verisi" class="yeni-form filtre-bar">
+{% set gorev_adi = {'ogretmen': 'Öğretmen', 'yonetici': 'Yönetici', 'diger': 'Diğer'} %}
+<form method="get" action="/admin/okul-verisi" class="cip-satir" id="suzgec">
   <input type="hidden" name="sekme" value="personel">
-  <label>Görev <select name="gorev" onchange="this.form.submit()">
-    <option value="">Tümü</option>
-    {% for g in ['ogretmen','yonetici','diger'] %}<option value="{{ g }}" {% if gorev == g %}selected{% endif %}>{{ g }}</option>{% endfor %}
-  </select></label>
-  <label>Durum <select name="durum" onchange="this.form.submit()">
-    <option value="">Tümü</option>
-    <option value="eksik_tel" {% if durum == 'eksik_tel' %}selected{% endif %}>Telefonsuz</option>
-    <option value="eksik_tc" {% if durum == 'eksik_tc' %}selected{% endif %}>TC eksik</option>
-    <option value="eksik_eposta" {% if durum == 'eksik_eposta' %}selected{% endif %}>E-posta eksik</option>
-    <option value="pasif" {% if durum == 'pasif' %}selected{% endif %}>Pasif</option>
-  </select></label>
+  {% if durum %}<input type="hidden" name="durum" value="{{ durum }}">{% endif %}
+  <a class="cip{{ ' secili' if not durum }}" href="{{ adres(durum=None) }}">Aktif <b>{{ ozet.aktif }}</b></a>
+  <a class="cip{{ ' secili' if durum == 'eksik_tel' }}" href="{{ adres(durum='eksik_tel') }}">Telefonsuz <b>{{ ozet.telefonsuz }}</b></a>
+  <a class="cip{{ ' secili' if durum == 'eksik_tc' }}" href="{{ adres(durum='eksik_tc') }}">TC eksik <b>{{ ozet.tc_eksik }}</b></a>
+  <a class="cip{{ ' secili' if durum == 'eksik_eposta' }}" href="{{ adres(durum='eksik_eposta') }}">E-posta eksik <b>{{ ozet.eposta_eksik }}</b></a>
+  <a class="cip{{ ' secili' if durum == 'pasif' }}" href="{{ adres(durum='pasif') }}">Pasif <b>{{ ozet.pasif }}</b></a>
+  <div class="form-alan"><select name="gorev" aria-label="Görev" onchange="this.form.submit()">
+    <option value="">Tüm görevler</option>
+    {% for g, ad in gorev_adi.items() %}<option value="{{ g }}" {% if gorev == g %}selected{% endif %}>{{ ad }}</option>{% endfor %}
+  </select></div>
   <label><input type="checkbox" name="pasifler" value="1" onchange="this.form.submit()" {% if pasifler %}checked{% endif %}> pasifler de</label>
-  <label class="filtre-ara">Hızlı arama <input type="search" id="tablo-ara" placeholder="Ad soyad ile anlık filtrele…"></label>
+  <input type="search" class="ara-kutu" id="tablo-ara" aria-label="Ara" placeholder="Ad soyad…">
 </form>
-<div class="tablo-sarici"><table class="admin-tablo" id="ana-tablo">
-  <thead><tr><th>Ad soyad</th><th>Görev</th><th>Branş</th><th>Telefon</th><th>E-posta</th><th>Doğum</th><th>Durum</th><th></th></tr></thead>
-  <tbody>
-  {% for p in personel %}
-  <tr class="tablo-satir {{ '' if p.aktif else 'pasif' }}" data-ara="{{ p.ad_soyad|lower }}">
-    <td><strong>{{ p.ad_soyad }}</strong></td><td><span class="pill pill-kucuk {{ 'pill-tam' if p.gorev == 'yonetici' else 'pill-izinli' }}">{{ p.gorev }}</span></td><td>{{ p.brans or '—' }}</td>
-    <td>{% if p.telefon %}{{ p.telefon }}{% else %}<span class="pill pill-kucuk pill-alinmadi">Telefonsuz</span>{% endif %}</td>
-    <td>{% if p.eposta %}{{ p.eposta }}{% else %}<span class="pill pill-kucuk pill-alinmadi">Eksik</span>{% endif %}</td>
-    <td>{{ p.dogum_tarihi or '—' }}</td>
-    <td>{% if p.aktif %}<span class="pill pill-kucuk pill-tam">Aktif</span>{% else %}<span class="pill pill-kucuk pill-atanmamis">Pasif</span>{% endif %}{% if p.aktif and (not p.tc_kimlik or not p.eposta) %} <span class="pill pill-kucuk pill-alinmadi" title="{{ 'TC' if not p.tc_kimlik }}{{ ', ' if not p.tc_kimlik and not p.eposta }}{{ 'e-posta' if not p.eposta }} eksik">Eksik</span>{% endif %}</td>
-    <td style="text-align:right">
-      <a class="btn-ikincil" href="/admin/okul-verisi?sekme=personel&pduzenle={{ p.id }}#personel-form">Düzenle</a>
-      {% if p.aktif %}<form method="post" action="/admin/okul-verisi/personel/{{ p.id }}/pasif" style="display:inline"><button type="submit" class="btn-ikincil">Pasifleştir</button></form>
-      {% else %}<form method="post" action="/admin/okul-verisi/personel/{{ p.id }}/geri" style="display:inline"><button type="submit" class="btn-ikincil">Geri al</button></form>{% endif %}
-    </td>
-  </tr>
-  {% endfor %}
-  </tbody>
-</table></div>
+
+<div class="ayrinti-duzen{{ '' if panel_acik else ' panel-kapali' }}">
+  <div>
+    {% if personel %}
+    <div class="tablo-kutu"><table class="tablo" id="ana-tablo">
+      <thead><tr><th>Ad soyad</th><th>Görev</th><th>Branş</th><th>Telefon</th><th>Durum</th></tr></thead>
+      <tbody>
+      {% for p in personel %}{% set href = adres(pduzenle=p.id) %}
+      <tr class="tablo-satir tikla{{ ' secili' if pduzenlenen and pduzenlenen.id == p.id }}{{ '' if p.aktif else ' pasif' }}" data-href="{{ href }}" data-ara="{{ p.ad_soyad|lower }}">
+        <td><a href="{{ href }}">{{ p.ad_soyad }}</a></td>
+        <td class="tek-satir">{{ gorev_adi.get(p.gorev, p.gorev) }}</td>
+        <td>{{ p.brans or '—' }}</td>
+        <td class="tek-satir">{% if p.telefon %}{{ p.telefon }}{% else %}<span class="rozet rozet-amber">Telefonsuz</span>{% endif %}</td>
+        <td class="tek-satir">{% if p.aktif %}<span class="rozet rozet-yesil">Aktif</span>{% else %}<span class="rozet rozet-gri">Pasif</span>{% endif %}
+          {%- if p.aktif and (not p.tc_kimlik or not p.eposta) %} <span class="rozet rozet-amber" title="{{ 'TC' if not p.tc_kimlik }}{{ ', ' if not p.tc_kimlik and not p.eposta }}{{ 'e-posta' if not p.eposta }} eksik">Eksik</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}
+    <p class="bos-durum">Bu süzgeçte kayıt yok.</p>
+    {% endif %}
+  </div>
+
+  {% if panel_acik %}{% set d = pduzenlenen %}{% set eksik_isaret = d and d.aktif %}
+  <aside class="ayrinti-panel" id="personel-form" aria-labelledby="panel-baslik">
+    <h2 id="panel-baslik">{{ d.ad_soyad if d else 'Yeni personel' }}</h2>
+    {% if hata %}<p class="form-hata" role="alert">{{ hata }}</p>{% endif %}
+    {% call alan('Ad soyad', 'p-ad') %}<input form="pf" id="p-ad" type="text" name="ad_soyad" required maxlength="100" value="{{ d.ad_soyad if d }}">{% endcall %}
+    {% call alan('Görev', 'p-gorev') %}<select form="pf" id="p-gorev" name="gorev">
+      {% for g, ad in gorev_adi.items() %}<option value="{{ g }}" {% if d and d.gorev == g %}selected{% endif %}>{{ ad }}</option>{% endfor %}
+    </select>{% endcall %}
+    {% call alan('Branş', 'p-brans') %}<input form="pf" id="p-brans" type="text" name="brans" maxlength="60" value="{{ d.brans or '' if d }}">{% endcall %}
+    {% call alan('Telefon', 'p-tel', eksik_isaret and not d.telefon) %}<input form="pf" id="p-tel" type="tel" name="telefon" value="{{ d.telefon or '' if d }}">{% endcall %}
+    {% call alan('TC kimlik no', 'p-tc', eksik_isaret and not d.tc_kimlik) %}<input form="pf" id="p-tc" type="text" name="tc_kimlik" inputmode="numeric" pattern="[0-9]{11}" maxlength="11" value="{{ d.tc_kimlik or '' if d }}">{% endcall %}
+    {% call alan('E-posta', 'p-eposta', eksik_isaret and not d.eposta) %}<input form="pf" id="p-eposta" type="email" name="eposta" maxlength="100" value="{{ d.eposta or '' if d }}">{% endcall %}
+    {% call alan('Doğum tarihi', 'p-dogum') %}<input form="pf" id="p-dogum" type="date" name="dogum_tarihi" value="{{ d.dogum_tarihi or '' if d }}">{% endcall %}
+    <div class="ayrinti-eylem">
+      <button type="submit" form="pf" class="dugme">{{ 'Kaydet' if d else 'Personel ekle' }}</button>
+      <a class="dugme dugme-ikincil" href="{{ adres() }}">Vazgeç</a>
+      {% if d and d.aktif %}<button type="submit" form="pp" class="dugme dugme-tehlike">Pasifleştir</button>
+      {% elif d %}<button type="submit" form="pp" class="dugme dugme-ikincil">Geri al</button>{% endif %}
+    </div>
+    <form id="pf" method="post" action="/admin/okul-verisi/personel" hidden><input type="hidden" name="id" value="{{ d.id if d }}"></form>
+    {% if d %}<form id="pp" method="post" action="/admin/okul-verisi/personel/{{ d.id }}/{{ 'pasif' if d.aktif else 'geri' }}" hidden></form>{% endif %}
+  </aside>
+  {% endif %}
+</div>
 
 {% elif sekme == 'program' %}
-<h2>Ders programı</h2>
-<form method="get" action="/admin/okul-verisi" class="yeni-form">
+<form method="get" action="/admin/okul-verisi" class="cip-satir">
   <input type="hidden" name="sekme" value="program">
-  <select name="psinif" onchange="this.form.submit()">{% for s in siniflar %}<option value="{{ s.ad }}" {% if psinif == s.ad %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}</select>
+  <div class="form-alan"><label for="psinif">Sınıf</label>
+    <select id="psinif" name="psinif" onchange="this.form.submit()">{% for s in siniflar %}<option value="{{ s.ad }}" {% if psinif == s.ad %}selected{% endif %}>{{ s.ad }}</option>{% endfor %}</select></div>
 </form>
 <form method="post" action="/admin/okul-verisi/program">
   <input type="hidden" name="sinif" value="{{ psinif }}">
-  <div class="tablo-sarici"><table class="admin-tablo program-tablo">
-    <thead><tr><th>Ders</th>{% for g, ad in gunler.items() %}<th>{{ ad }}</th>{% endfor %}</tr></thead>
+  <div class="tablo-kutu"><table class="tablo">
+    <thead><tr><th class="sayi">Ders</th>{% for g, ad in gunler.items() %}<th>{{ ad }}</th>{% endfor %}</tr></thead>
     <tbody>
     {% for n in ders_nolar %}
-    <tr><td><strong>{{ n }}</strong></td>
-      {% for g in gunler %}<td><input type="text" name="h_{{ g }}_{{ n }}" value="{{ hucre.get((g, n), '') }}" maxlength="80"></td>{% endfor %}
+    <tr><td class="sayi">{{ n }}</td>
+      {% for g in gunler %}<td><div class="form-alan"><input type="text" name="h_{{ g }}_{{ n }}" aria-label="{{ gunler[g] }} {{ n }}. ders" value="{{ hucre.get((g, n), '') }}" maxlength="80"></div></td>{% endfor %}
     </tr>
     {% endfor %}
     </tbody>
   </table></div>
-  <p><button type="submit">Programı kaydet</button></p>
+  <div class="ayrinti-eylem"><button type="submit" class="dugme">Programı kaydet</button></div>
 </form>
-<p class="rapor-aciklama">Ders adları küçük harfe çevrilir. Hücreyi boşaltmak o dersi siler. 12. sınıflarda sınav hazırlık
-  saatleri "hedef fizik / hedef kimya …" biçiminde yazılmalı (yoklama ve kazanım eşlemesi bu adları kullanır).</p>
+<p class="serit"><span>Ders adları küçük harfe çevrilir. Hücreyi boşaltmak o dersi siler. 12. sınıflarda sınav hazırlık
+  saatleri "hedef fizik / hedef kimya …" biçiminde yazılmalı (yoklama ve kazanım eşlemesi bu adları kullanır).</span></p>
 
 {% elif sekme == 'zil' %}
-<h2>Zil saatleri</h2>
 <form method="post" action="/admin/okul-verisi/zil">
-  <div class="tablo-sarici"><table class="admin-tablo">
-    <thead><tr><th>Ders</th><th>Başlangıç</th><th>Bitiş</th></tr></thead>
+  <div class="cip-satir">
+    {% call alan('Ders süresi (dk)', 'z-ders') %}<input id="z-ders" type="number" name="ders_suresi" min="10" max="120" value="{{ zil_ayar.get('ders_suresi_dk', 40) }}" required>{% endcall %}
+    {% call alan('Teneffüs (dk)', 'z-ten') %}<input id="z-ten" type="number" name="teneffus" min="0" max="60" value="{{ zil_ayar.get('teneffus_dk', 10) }}" required>{% endcall %}
+    <button type="submit" class="dugme">Kaydet</button>
+  </div>
+  <div class="tablo-kutu"><table class="tablo">
+    <thead><tr><th class="sayi">Ders</th><th>Başlangıç</th><th>Bitiş</th></tr></thead>
     <tbody>
     {% for n in range(1, 11) %}
     {% set s = zil_satirlar | selectattr('ders_no', 'equalto', n) | list | first %}
-    <tr><td><strong>{{ n }}</strong></td>
-      <td><input type="time" name="b{{ n }}" value="{{ s.baslangic if s else '' }}"></td>
-      <td><input type="time" name="e{{ n }}" value="{{ s.bitis if s else '' }}"></td></tr>
+    <tr><td class="sayi">{{ n }}</td>
+      <td><div class="form-alan"><input type="time" name="b{{ n }}" aria-label="{{ n }}. ders başlangıç" value="{{ s.baslangic if s else '' }}"></div></td>
+      <td><div class="form-alan"><input type="time" name="e{{ n }}" aria-label="{{ n }}. ders bitiş" value="{{ s.bitis if s else '' }}"></div></td></tr>
     {% endfor %}
     </tbody>
   </table></div>
-  <p class="yeni-form">
-    Ders süresi (dk) <input type="number" name="ders_suresi" min="10" max="120" value="{{ zil_ayar.get('ders_suresi_dk', 40) }}" required>
-    Teneffüs (dk) <input type="number" name="teneffus" min="0" max="60" value="{{ zil_ayar.get('teneffus_dk', 10) }}" required>
-    <button type="submit">Kaydet</button>
-  </p>
 </form>
-<p class="rapor-aciklama">Boş bırakılan satırlar silinir. Öğle arası, iki ders arasındaki en büyük boşluk olarak hesaplanır.
-  Zil makinesi (.230) ayrı bir kaynaktan çalışıyor; o hâlâ kendi panelinden güncellenir.</p>
+<p class="serit"><span>Boş bırakılan satırlar silinir. Öğle arası, iki ders arasındaki en büyük boşluk olarak hesaplanır.
+  Zil makinesi (.230) ayrı bir kaynaktan çalışıyor; o hâlâ kendi panelinden güncellenir.</span></p>
 
 {% elif sekme == 'denetim' %}
-<h2>Son işlemler</h2>
-<div class="tablo-sarici"><table class="admin-tablo">
+{% if denetim %}
+<div class="tablo-kutu"><table class="tablo">
   <thead><tr><th>Zaman</th><th>İşlem</th><th>Hedef</th><th>Kim</th></tr></thead>
-  <tbody>{% for d in denetim %}<tr><td>{{ d.zaman.strftime('%d.%m.%Y %H:%M:%S') }}</td><td>{{ d.islem }}</td><td>{{ d.hedef }}</td><td>{{ d.kim }}</td></tr>{% else %}<tr><td colspan="4">— kayıt yok —</td></tr>{% endfor %}</tbody>
+  <tbody>{% for d in denetim %}<tr><td>{{ d.zaman.strftime('%d.%m.%Y %H:%M:%S') }}</td><td>{{ d.islem }}</td><td>{{ d.hedef }}</td><td>{{ d.kim }}</td></tr>{% endfor %}</tbody>
 </table></div>
+{% else %}
+<p class="bos-durum">Henüz kayıt yok.</p>
+{% endif %}
 {% endif %}
 {% endblock %}
 
 {% block script %}
 <script>
 (function () {
+  // Anlık arama: yalnız görünen listeyi süzer (öğrencide Enter sunucuda da arar)
   const kutu = document.getElementById('tablo-ara');
-  if (!kutu) return;
-  function filtrele() {
-    const q = kutu.value.trim().toLocaleLowerCase('tr');
-    document.querySelectorAll('#ana-tablo .tablo-satir').forEach(function (satir) {
-      satir.hidden = !(satir.dataset.ara || '').includes(q);
-    });
+  if (kutu) {
+    const filtrele = function () {
+      const q = kutu.value.trim().toLocaleLowerCase('tr');
+      document.querySelectorAll('#ana-tablo .tablo-satir').forEach(function (satir) {
+        satir.hidden = !(satir.dataset.ara || '').includes(q);
+      });
+    };
+    kutu.addEventListener('input', filtrele);
+    filtrele();
   }
-  kutu.addEventListener('input', filtrele);
-  filtrele();
+  // Satıra tıklayınca panel açılır; sayfa yeniden üretilse de liste kaydırma konumu korunur
+  const ANAHTAR = 'okul-verisi-kaydirma';
+  const sakla = function () { try { sessionStorage.setItem(ANAHTAR, String(window.scrollY)); } catch (e) {} };
+  let y = null;
+  try { y = sessionStorage.getItem(ANAHTAR); sessionStorage.removeItem(ANAHTAR); } catch (e) {}
+  if (y !== null) window.scrollTo(0, Number(y) || 0);
+  document.querySelectorAll('#ana-tablo tr[data-href]').forEach(function (satir) {
+    satir.addEventListener('click', function (e) {
+      sakla();
+      if (!e.target.closest('a')) window.location.href = satir.dataset.href;
+    });
+  });
+  const duzen = document.querySelector('.ayrinti-duzen');
+  if (duzen) duzen.addEventListener('submit', sakla);
 })();
 </script>
 {% endblock %}

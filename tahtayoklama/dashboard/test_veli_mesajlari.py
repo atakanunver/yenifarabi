@@ -144,7 +144,7 @@ class TestRota(AnahtarDosyasi):
         self.anahtar_yaz()
         with patch("urllib.request.urlopen", return_value=_yanit({"mesajlar": MSJ})):
             html = self._sayfa(True).body.decode()
-        self.assertIn("ÇIKIŞ TALEBİ", html)
+        self.assertIn("Çıkış talebi", html)
         self.assertIn("Bilinmeyen numara …9876", html)
         self.assertIn("&lt;b&gt;x&lt;/b&gt;", html)  # metin kaçışlı
         self.assertLess(html.index("Çocuğumu"), html.index("Merhaba"))

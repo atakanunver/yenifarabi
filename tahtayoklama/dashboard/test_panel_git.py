@@ -49,9 +49,8 @@ class TestPanelGit(unittest.TestCase):
         self.assertEqual(h.exception.status_code, 404)
 
     def test_menu_dogrudan_adrese_degil_rotaya_gider(self):
-        ogeler = [o for u in menu.MENU for o in [u, *u.get("ogeler", [])]]
-        hrefler = {o["ad"]: o["href"] for o in ogeler if "href" in o}
-        for ad, k in (("Zil paneli", "zil"), ("Bilgehan Paneli", "bilgehan"), ("Kiosk Paneli", "kiosk"), ("Pano Paneli", "pano")):
+        hrefler = {s["ad"]: s["href"] for a in menu.ALANLAR for s in a["sayfalar"]}
+        for ad, k in (("Zil paneli", "zil"), ("Bilgehan paneli", "bilgehan"), ("Kiosk paneli", "kiosk"), ("Pano paneli", "pano")):
             self.assertEqual(hrefler[ad], f"/panel-git/{k}")
 
 

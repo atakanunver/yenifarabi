@@ -2,92 +2,149 @@
 {% block baslik_etiketi %}Sınıflar ve tahtalar — Yoklama ve Yönetim Paneli{% endblock %}
 {% block baslik %}Sınıflar ve tahtalar{% endblock %}
 
-{% block icerik %}
-<h2>Sınıflar</h2>
-<div class="tablo-sarici">
-  <table class="admin-tablo">
-    <thead>
-      <tr><th>Sınıf</th><th>Öğrenci</th><th>Bağlı tahta</th><th style="text-align: right;">İşlemler</th></tr>
-    </thead>
-    <tbody>
-      {% for s in siniflar %}
-      <tr class="{{ 'pasif' if not s.aktif else '' }}">
-        <td><strong>{{ s.ad }}</strong></td>
-        <td><span class="etiket">{{ s.ogrenci_sayisi }} öğrenci</span></td>
-        <td>
-          {% for t in s.tahtalar %}<span class="etiket">{{ t }}</span> {% else %}<span class="sinif-etiket">— atanmadı —</span>{% endfor %}
-        </td>
-        <td style="text-align: right;">
-          <a href="/admin/siniflar/{{ s.id }}/ogrenciler" class="btn-ikincil">
-            Öğrencileri Düzenle <svg class="ikon ikon-kucuk"><use href="#ik-ok-sag"/></svg>
-          </a>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-<form method="post" action="/admin/siniflar" class="yeni-form">
-  <input type="text" name="ad" placeholder="yeni sınıf (ör. 10-B)" required pattern="[A-Za-z0-9_-]+">
-  <button type="submit"><svg class="ikon"><use href="#ik-arti"/></svg> Sınıf ekle</button>
-</form>
+{# Liste + sağda ayrıntı paneli (2026-10-30): satıra tıklayınca ?duzenle=<sinif_id>; boş ekleme ?yeni=sinif|tahta.
+   Tahtalar tablosundaki "Yükle" formları (atama + SSH ile liste yazma) eskisiyle aynı uca gider. #}
+{% set panel_acik = secili or yeni %}
 
-<h2 id="tahtalar">Tahtalar</h2>
-<p class="rapor-aciklama">Fiziksel tahtayı <strong>IP adresinden</strong> tanıyın (oda tabelası yanılabilir, IP yanılmaz),
-   listesini seçip "Yükle"ye basın — liste o anda SSH ile o tahtaya yazılır. Tahtada <em>Yoklama</em> açıksa yeni
-   liste, uygulama kapatılıp açılınca görünür. Kulüp listeleri ayrı: <a href="/admin/kulupler">Kulüp listeleri</a>.</p>
-<div class="tablo-sarici">
-  <table class="admin-tablo">
-    <thead>
-      <tr><th>Tahta</th><th>IP</th><th>MAC</th><th>Yüklü liste</th><th>Liste yükle</th></tr>
-    </thead>
-    <tbody>
+{% block ust_sag %}
+<a class="dugme dugme-ikincil" href="{{ adres(yeni='sinif') }}"><svg class="ikon" aria-hidden="true"><use href="#ik-arti"/></svg> Sınıf ekle</a>
+<a class="dugme" href="{{ adres(yeni='tahta') }}#tahtalar"><svg class="ikon" aria-hidden="true"><use href="#ik-arti"/></svg> Tahta ekle</a>
+{% endblock %}
+
+{% macro alan(etiket, kimlik) %}
+<div class="form-alan">
+  <label for="{{ kimlik }}">{{ etiket }}</label>
+  {{ caller() }}
+</div>
+{% endmacro %}
+
+{% macro yukle_formu(t, onek) %}
+<form method="post" action="/admin/tahtalar/{{ t.id }}" class="satir-eylem">
+  <div class="form-alan">
+    <select name="sinif_id" aria-label="{{ t.ad }} için liste">
+      <option value="">— liste seçme —</option>
+      {% for s in aktif_siniflar %}
+      <option value="{{ s.id }}" {{ 'selected' if s.id == t.sinif_id else '' }}>{{ s.ad }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <label><input type="checkbox" name="aktif" {{ 'checked' if t.aktif else '' }}> aktif</label>
+  <button type="submit" class="dugme dugme-kucuk">Yükle</button>
+</form>
+{% endmacro %}
+
+{% block icerik %}
+<div class="ayrinti-duzen{{ '' if panel_acik else ' panel-kapali' }}">
+  <div>
+    <div class="cip-satir">
+      <input type="search" class="ara-kutu" id="tablo-ara" aria-label="Ara" placeholder="Sınıf veya tahta…">
+    </div>
+    <h2>Sınıflar</h2>
+    <div class="tablo-kutu"><table class="tablo" id="ana-tablo">
+      <thead><tr><th>Sınıf</th><th>Öğrenci</th><th>Bağlı tahta</th></tr></thead>
+      <tbody>
+      {% for s in siniflar %}{% set href = adres(duzenle=s.id) %}
+      <tr class="tablo-satir tikla{{ ' secili' if secili and secili.id == s.id }}{{ '' if s.aktif else ' pasif' }}" data-href="{{ href }}" data-ara="{{ (s.ad ~ ' ' ~ s.tahtalar|join(' '))|lower }}">
+        <td><a href="{{ href }}">{{ s.ad }}</a></td>
+        <td class="tek-satir"><span class="rozet rozet-gri">{{ s.ogrenci_sayisi }} öğrenci</span></td>
+        <td>{% for t in s.tahtalar %}<span class="rozet rozet-mavi">{{ t }}</span> {% else %}<span class="rozet rozet-amber">atanmadı</span>{% endfor %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" class="bos-durum">Henüz sınıf yok.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+
+    <h2 id="tahtalar">Tahtalar</h2>
+    <p class="serit serit-bilgi"><span>Fiziksel tahtayı <strong>IP adresinden</strong> tanıyın (oda tabelası yanılabilir, IP yanılmaz),
+      listesini seçip "Yükle"ye basın. Liste o anda SSH ile o tahtaya yazılır. Tahtada <em>Yoklama</em> açıksa yeni
+      liste, uygulama kapatılıp açılınca görünür. Kulüp listeleri ayrı: <a href="/admin/kulupler">Kulüp listeleri</a>.</span></p>
+    <div class="tablo-kutu"><table class="tablo" id="tahta-tablo">
+      <thead><tr><th>Tahta</th><th>IP</th><th>MAC</th><th>Yüklü liste</th><th>Liste yükle</th></tr></thead>
+      <tbody>
       {% for t in tahtalar %}
-      <tr class="{{ 'pasif' if not t.aktif else '' }}">
-        <td><strong>{{ t.ad }}</strong></td>
-        <td class="mono">{{ t.ip }}</td>
-        <td class="mono">{{ t.mac or '—' }}</td>
+      <tr class="tablo-satir{{ '' if t.aktif else ' pasif' }}" data-ara="{{ (t.ad ~ ' ' ~ t.ip ~ ' ' ~ (t.sinif_adi or ''))|lower }}">
+        <td class="tek-satir">{{ t.ad }}</td>
+        <td class="tek-satir">{{ t.ip }}</td>
+        <td class="tek-satir">{{ t.mac or '—' }}</td>
+        <td class="tek-satir">{% if t.sinif_adi %}<span class="rozet rozet-mavi">{{ t.sinif_adi }}</span>{% else %}<span class="rozet rozet-amber">atanmadı</span>{% endif %}</td>
         <td>
-          {% if t.sinif_adi %}<span class="etiket">{{ t.sinif_adi }}</span>{% else %}<span class="sinif-etiket">— atanmadı —</span>{% endif %}
-        </td>
-        <td>
-          <form method="post" action="/admin/tahtalar/{{ t.id }}" class="satir-form">
-            <select name="sinif_id">
-              <option value="">— liste seçme —</option>
-              {% for s in aktif_siniflar %}
-              <option value="{{ s.id }}" {{ 'selected' if s.id == t.sinif_id else '' }}>{{ s.ad }}</option>
-              {% endfor %}
-            </select>
-            <label class="aktif-kutu"><input type="checkbox" name="aktif" {{ 'checked' if t.aktif else '' }}> aktif</label>
-            <button type="submit">Yükle</button>
-          </form>
+          {{ yukle_formu(t) }}
           {% if sonuc and sonuc_tahta_id == t.id %}
-          <div class="senkron-sonuc-tek {{ 'basarili' if sonuc.basarili else 'hatali' }}" id="sonuc-alani">
-            {{ 'Yüklendi.' if sonuc.basarili else 'BAŞARISIZ — ' + sonuc.detay }}
-          </div>
+          <p class="{{ 'serit serit-bilgi' if sonuc.basarili else 'form-hata' }}" role="status" id="sonuc-alani">
+            {{ 'Yüklendi.' if sonuc.basarili else 'Başarısız: ' + sonuc.detay }}
+          </p>
           {% endif %}
         </td>
       </tr>
       {% endfor %}
-    </tbody>
-  </table>
-</div>
+      </tbody>
+    </table></div>
+  </div>
 
-<details class="yeni-tahta">
-  <summary>Yeni tahta ekle</summary>
-  <form method="post" action="/admin/tahtalar" class="yeni-form">
-    <input type="text" name="ad" placeholder="ad (ör. lab1)" required pattern="[A-Za-z0-9_-]+">
-    <input type="text" name="ip" placeholder="IP" required>
-    <input type="text" name="ssh_kullanici" placeholder="ssh kullanıcı" value="ogretmen">
-    <input type="text" name="python_yolu" placeholder="python yolu" value="/home/ogretmen/tahtayoklama/venv/bin/python">
-    <button type="submit"><svg class="ikon"><use href="#ik-arti"/></svg> Ekle</button>
-  </form>
-</details>
+  {% if panel_acik %}
+  <aside class="ayrinti-panel" id="sinif-panel" aria-labelledby="panel-baslik">
+    {% if secili %}
+    <h2 id="panel-baslik">{{ secili.ad }}</h2>
+    <p>{{ secili.ogrenci_sayisi }} öğrenci{{ '' if secili.aktif else ' · pasif sınıf' }}</p>
+    <div class="ayrinti-eylem">
+      <a href="/admin/siniflar/{{ secili.id }}/ogrenciler" class="dugme dugme-ikincil">Öğrencileri düzenle <svg class="ikon ikon-kucuk" aria-hidden="true"><use href="#ik-ok-sag"/></svg></a>
+      <a class="dugme dugme-ikincil" href="{{ adres() }}">Kapat</a>
+    </div>
+    <h3>Bağlı tahta</h3>
+    {% for t in tahtalar if t.sinif_id == secili.id %}
+    <p><strong>{{ t.ad }}</strong> · {{ t.ip }}{{ '' if t.aktif else ' · pasif' }}</p>
+    {{ yukle_formu(t) }}
+    {% else %}
+    <p class="bos-durum">Bu sınıfa tahta atanmadı. Atamak için aşağıdaki tahtalar tablosunda tahtanın listesini seçip "Yükle"ye basın.</p>
+    {% endfor %}
+    {% elif yeni == 'sinif' %}
+    <h2 id="panel-baslik">Yeni sınıf</h2>
+    {% call alan('Sınıf adı (ör. 10-B)', 's-ad') %}<input form="sf" id="s-ad" type="text" name="ad" required pattern="[A-Za-z0-9_-]+">{% endcall %}
+    <div class="ayrinti-eylem">
+      <button type="submit" form="sf" class="dugme">Sınıf ekle</button>
+      <a class="dugme dugme-ikincil" href="{{ adres() }}">Vazgeç</a>
+    </div>
+    <form id="sf" method="post" action="/admin/siniflar" hidden></form>
+    {% else %}
+    <h2 id="panel-baslik">Yeni tahta</h2>
+    {% call alan('Ad (ör. lab1)', 't-ad') %}<input form="tf" id="t-ad" type="text" name="ad" required pattern="[A-Za-z0-9_-]+">{% endcall %}
+    {% call alan('IP', 't-ip') %}<input form="tf" id="t-ip" type="text" name="ip" required>{% endcall %}
+    {% call alan('SSH kullanıcı', 't-ssh') %}<input form="tf" id="t-ssh" type="text" name="ssh_kullanici" value="ogretmen">{% endcall %}
+    {% call alan('Python yolu', 't-py') %}<input form="tf" id="t-py" type="text" name="python_yolu" value="/home/ogretmen/tahtayoklama/venv/bin/python">{% endcall %}
+    <div class="ayrinti-eylem">
+      <button type="submit" form="tf" class="dugme">Ekle</button>
+      <a class="dugme dugme-ikincil" href="{{ adres() }}">Vazgeç</a>
+    </div>
+    <form id="tf" method="post" action="/admin/tahtalar" hidden></form>
+    {% endif %}
+  </aside>
+  {% endif %}
+</div>
 {% endblock %}
 
 {% block script %}
 <script>
-var sonucAlani = document.getElementById('sonuc-alani');
-if (sonucAlani) sonucAlani.scrollIntoView({ block: 'center' });
+(function () {
+  var sonucAlani = document.getElementById('sonuc-alani');
+  if (sonucAlani) sonucAlani.scrollIntoView({ block: 'center' });
+  // Anlık arama: sınıf ve tahta satırlarını süzer
+  var kutu = document.getElementById('tablo-ara');
+  if (kutu) {
+    var filtrele = function () {
+      var q = kutu.value.trim().toLocaleLowerCase('tr');
+      document.querySelectorAll('#ana-tablo .tablo-satir, #tahta-tablo .tablo-satir').forEach(function (satir) {
+        satir.hidden = !(satir.dataset.ara || '').includes(q);
+      });
+    };
+    kutu.addEventListener('input', filtrele);
+    filtrele();
+  }
+  document.querySelectorAll('#ana-tablo tr[data-href]').forEach(function (satir) {
+    satir.addEventListener('click', function (e) {
+      if (!e.target.closest('a')) window.location.href = satir.dataset.href;
+    });
+  });
+})();
 </script>
 {% endblock %}

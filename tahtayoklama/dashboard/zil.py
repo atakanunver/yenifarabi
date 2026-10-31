@@ -46,6 +46,15 @@ def gun_adi_buyuk(gun: date | None = None) -> str:
     return _GUN_ADLARI_BUYUK[gun.isoweekday()]
 
 
+# Cümle düzeni (2026-10-30, yeni üst çubuk): .capitalize() "İ"yi "i̇" yapar, sabit sözlük.
+_GUN_ADLARI = {1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma", 6: "Cumartesi", 7: "Pazar"}
+
+
+def gun_adi(gun: date | None = None) -> str:
+    gun = gun or simdi_istanbul().date()
+    return _GUN_ADLARI[gun.isoweekday()]
+
+
 @lru_cache(maxsize=1)
 def _zil_yukle() -> dict:
     return json.loads(ZIL_DOSYASI.read_text(encoding="utf-8"))
