@@ -1,99 +1,97 @@
 {% extends "taban.html" %}
-{% block baslik_etiketi %}Uzaktan Yönetim — Yoklama ve Yönetim Paneli{% endblock %}
-{% block baslik %}Tahta Yönetimi{% endblock %}
+{% block baslik_etiketi %}Tahta yönetimi — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Tahta yönetimi{% endblock %}
 
 {% block ust_sag %}
-<span id="son-guncelleme-uzaktan" class="son-guncelleme-etiket"></span>
-<button type="button" id="durum-yenile-btn" class="sunucu-yenile" title="Tahta durumlarını tara">
-  <svg class="ikon ikon-kucuk"><use href="#ik-yenile"/></svg> Durumu Yenile
+<span id="son-guncelleme-uzaktan" class="zaman-yazi"></span>
+<button type="button" id="durum-yenile-btn" class="dugme dugme-ikincil" title="Tahta durumlarını tara">
+  <svg class="ikon"><use href="#ik-yenile"/></svg> Durumu yenile
 </button>
 {% endblock %}
 
 {% block icerik %}
-<p class="uyari-not">Aşağıdaki işlemler fiziksel tahtaları gerçek zamanlı
+<div class="serit serit-uyari"><span>Aşağıdaki işlemler fiziksel tahtaları gerçek zamanlı
    etkiler (ekranı karartma, uygulama açma/kapatma, duvar kağıdı
    değiştirme). Bir işlemi çalıştırmadan önce doğru tahtaları seçtiğinden
-   emin ol.</p>
+   emin ol.</span></div>
 
-<div class="uz-secim-cubugu">
-  <button type="button" id="tumunu-sec" class="btn-ikincil">Tümünü Seç</button>
-  <button type="button" id="secimi-kaldir" class="btn-ikincil">Seçimi Kaldır</button>
+<div class="cip-satir">
+  <button type="button" id="tumunu-sec" class="dugme dugme-ikincil dugme-kucuk">Tümünü seç</button>
+  <button type="button" id="secimi-kaldir" class="dugme dugme-ikincil dugme-kucuk">Seçimi kaldır</button>
 </div>
 
 <form id="tahta-secim">
-  <div class="tablo-sarici">
-    <table class="admin-tablo" id="uzaktan-tablo">
+  <div class="tablo-kutu">
+    <table class="tablo tablo-sik" id="uzaktan-tablo">
       <thead>
         <tr>
-          <th style="width: 38px;"></th><th>Tahta</th><th>IP</th><th>Bağlantı</th>
-          <th>Oturum</th><th>Yoklama</th><th>Chrome</th><th>Ekran</th><th>Screenshot</th><th>Sistem Bilgisi</th>
+          <th><span class="gorsel-gizli">Seç</span></th><th>Tahta</th><th>IP</th><th>Bağlantı</th>
+          <th>Oturum</th><th>Yoklama</th><th>Chrome</th><th>Ekran</th><th>Ekran görüntüsü</th><th>Sistem bilgisi</th>
         </tr>
       </thead>
       <tbody>
         {% set oturum_etiket = {
-          'acik': ('Açık', 'pill-tam'),
-          'kilitli': ('Kilitli', 'pill-alinmadi'),
-          'giris_ekrani': ('Giriş ekranı', 'pill-alinmadi'),
-          'bilinmiyor': ('—', 'pill-ulasilamaz'),
-          'yukleniyor': ('Kontrol ediliyor…', 'pill-yukleniyor'),
+          'acik': ('Açık', 'rozet-yesil'),
+          'kilitli': ('Kilitli', 'rozet-amber'),
+          'giris_ekrani': ('Giriş ekranı', 'rozet-amber'),
+          'bilinmiyor': ('—', 'rozet-gri'),
+          'yukleniyor': ('Kontrol ediliyor…', 'rozet-gri'),
         } %}
         {% for t in tahtalar %}
         <tr id="satir-{{ t.ad }}">
-          <td><input type="checkbox" name="tahta" value="{{ t.ad }}"></td>
-          <td><strong>{{ t.ad }}</strong></td>
-          <td class="mono">{{ t.ip }}</td>
+          <td><input type="checkbox" name="tahta" value="{{ t.ad }}" aria-label="{{ t.ad }} seç"></td>
+          <td class="tek-satir"><strong>{{ t.ad }}</strong></td>
+          <td class="tek-satir mono">{{ t.ip }}</td>
           <td class="hucre-baglanti">
             {% if t.ulasilabilir is none %}
-            <span class="pill pill-yukleniyor">Kontrol ediliyor…</span>
+            <span class="rozet rozet-gri">Kontrol ediliyor…</span>
             {% else %}
-            <span class="pill {{ 'pill-tam' if t.ulasilabilir else 'pill-ulasilamaz' }}">{{ 'Açık' if t.ulasilabilir else 'Ulaşılamaz' }}</span>
+            <span class="rozet {{ 'rozet-yesil' if t.ulasilabilir else 'rozet-gri' }}">{{ 'Açık' if t.ulasilabilir else 'Ulaşılamaz' }}</span>
             {% endif %}
           </td>
           <td class="hucre-oturum">
-            {% set e = oturum_etiket.get(t.oturum, ('—', 'pill-ulasilamaz')) %}
-            <span class="pill {{ e[1] }}">{{ e[0] }}</span>
+            {% set e = oturum_etiket.get(t.oturum, ('—', 'rozet-gri')) %}
+            <span class="rozet {{ e[1] }}">{{ e[0] }}</span>
           </td>
           <td class="hucre-yoklama">
             {% if t.ulasilabilir is none %}
-            <span class="pill pill-yukleniyor">…</span>
+            <span class="rozet rozet-gri">…</span>
             {% else %}
-            <span class="pill {{ 'pill-tam' if t.yoklama else 'pill-yok' }}">{{ 'Açık' if t.yoklama else 'Kapalı' }}</span>
+            <span class="rozet {{ 'rozet-yesil' if t.yoklama else 'rozet-kirmizi' }}">{{ 'Açık' if t.yoklama else 'Kapalı' }}</span>
             {% endif %}
           </td>
           <td class="hucre-chrome">
             {% if t.ulasilabilir is none %}
-            <span class="pill pill-yukleniyor">…</span>
+            <span class="rozet rozet-gri">…</span>
             {% else %}
-            <span class="pill {{ 'pill-tam' if t.chrome else 'pill-yok' }}">{{ 'Açık' if t.chrome else 'Kapalı' }}</span>
+            <span class="rozet {{ 'rozet-yesil' if t.chrome else 'rozet-kirmizi' }}">{{ 'Açık' if t.chrome else 'Kapalı' }}</span>
             {% endif %}
           </td>
           <td class="hucre-ekran">
             {% if t.ulasilabilir is none %}
-            <span class="pill pill-yukleniyor">…</span>
+            <span class="rozet rozet-gri">…</span>
             {% else %}
-            <span class="pill {{ 'pill-alinmadi' if t.karartildi else 'pill-tam' }}">{{ 'Karartılmış' if t.karartildi else 'Normal' }}</span>
+            <span class="rozet {{ 'rozet-amber' if t.karartildi else 'rozet-yesil' }}">{{ 'Karartılmış' if t.karartildi else 'Normal' }}</span>
             {% endif %}
           </td>
           <td class="hucre-ss">
             {% if t.ulasilabilir %}
-            <a href="/admin/uzaktan/ekran-goruntusu/{{ t.ad }}?ham=1" target="_blank" rel="noopener noreferrer" class="ss-link-btn" title="{{ t.ad }} ekran görüntüsünü yeni sekmede aç">
-              <svg class="ikon"><use href="#ik-kamera"/></svg>
-              <span>Ekran Aç</span>
-              <svg class="ikon mini-ok"><use href="#ik-buyut"/></svg>
-            </a>
-            <button type="button" class="ss-link-btn duyuru-ekle-btn" data-tahta="{{ t.ad }}" title="{{ t.ad }} tahtasına duyuru yaz"><svg class="ikon"><use href="#ik-zil"/></svg><span>Duyuru ekle</span></button>
+            <div class="satir-eylem">
+              <a href="/admin/uzaktan/ekran-goruntusu/{{ t.ad }}?ham=1" target="_blank" rel="noopener noreferrer" class="dugme dugme-ikincil dugme-kucuk" title="{{ t.ad }} ekran görüntüsünü yeni sekmede aç"><svg class="ikon"><use href="#ik-kamera"/></svg><span>Ekranı aç</span></a>
+              <button type="button" class="dugme dugme-ikincil dugme-kucuk duyuru-ekle-btn" data-tahta="{{ t.ad }}" title="{{ t.ad }} tahtasına duyuru yaz"><svg class="ikon"><use href="#ik-zil"/></svg><span>Duyuru ekle</span></button>
+            </div>
             {% else %}
-            <span class="ss-link-pasif" title="{{ 'Kontrol ediliyor' if t.ulasilabilir is none else 'Tahta ulaşılamaz' }}">—</span>
+            <span class="soluk" title="{{ 'Kontrol ediliyor' if t.ulasilabilir is none else 'Tahta ulaşılamaz' }}">—</span>
             {% endif %}
           </td>
           <td class="hucre-sistem">
             {% if t.ulasilabilir is none %}
-            <span class="pill pill-yukleniyor">…</span>
+            <span class="rozet rozet-gri">…</span>
             {% elif t.ulasilabilir and t.cpu %}
             <span class="mono">{{ t.cpu }}</span><br>
-            <span class="sinif-etiket">{{ t.ram_gb }} GB RAM</span>
+            <span class="soluk kucuk">{{ t.ram_gb }} GB RAM</span>
             {% else %}
-            <span class="ss-link-pasif">—</span>
+            <span class="soluk">—</span>
             {% endif %}
           </td>
         </tr>
@@ -106,65 +104,63 @@
 {% if sonuclar %}
 <ul class="senkron-sonuc" id="sonuc-alani">
   {% for s in sonuclar %}
-  <li class="{{ 'basarili' if s.basarili else 'hatali' }}">{{ s.tahta or '—' }}: {{ 'OK' if s.basarili else 'HATA' }} — {{ s.detay }}</li>
+  <li class="serit {{ 'serit-bilgi' if s.basarili else 'serit-kritik' }}"><span>{{ s.tahta or '—' }}: {{ 'Tamam' if s.basarili else 'Hata' }} — {{ s.detay }}</span></li>
   {% endfor %}
 </ul>
 {% endif %}
 
-<h2>Toplu Eylemler</h2>
+<h2 class="bolum-basligi">Toplu eylemler</h2>
 <div class="uz-eylem-cubugu">
   <form class="uz-eylem-form" method="post" action="/admin/uzaktan/yoklama-ac">
-    <button type="submit"><svg class="ikon"><use href="#ik-onay"/></svg> Yoklama Aç</button>
+    <button type="submit" class="dugme dugme-ikincil"><svg class="ikon"><use href="#ik-onay"/></svg> Yoklama aç</button>
   </form>
   <form class="uz-eylem-form" method="post" action="/admin/uzaktan/yoklama-kapat">
-    <button type="submit"><svg class="ikon"><use href="#ik-kapat"/></svg> Yoklama Kapat</button>
+    <button type="submit" class="dugme dugme-ikincil"><svg class="ikon"><use href="#ik-kapat"/></svg> Yoklama kapat</button>
   </form>
   <form class="uz-eylem-form uz-eylem-url" method="post" action="/admin/uzaktan/web-ac">
-    <input type="text" name="url" placeholder="https://… web sayfası adresi">
-    <button type="submit"><svg class="ikon"><use href="#ik-dis"/></svg> Sayfa Aç</button>
+    <input type="text" name="url" placeholder="https://… web sayfası adresi" aria-label="Web sayfası adresi">
+    <button type="submit" class="dugme dugme-ikincil"><svg class="ikon"><use href="#ik-dis"/></svg> Sayfa aç</button>
   </form>
   <form class="uz-eylem-form" method="post" action="/admin/uzaktan/chrome-kapat">
-    <button type="submit"><svg class="ikon"><use href="#ik-kapat"/></svg> Chrome Kapat</button>
+    <button type="submit" class="dugme dugme-ikincil"><svg class="ikon"><use href="#ik-kapat"/></svg> Chrome kapat</button>
   </form>
   <form class="uz-eylem-form" method="post" action="/admin/uzaktan/ekran-karart">
-    <button type="submit"><svg class="ikon"><use href="#ik-ay"/></svg> Ekranı Karart</button>
+    <button type="submit" class="dugme dugme-ikincil"><svg class="ikon"><use href="#ik-ay"/></svg> Ekranı karart</button>
   </form>
   <form class="uz-eylem-form" method="post" action="/admin/uzaktan/ekran-kaldir">
-    <button type="submit"><svg class="ikon"><use href="#ik-gunes"/></svg> Karartmayı Kaldır</button>
+    <button type="submit" class="dugme dugme-ikincil"><svg class="ikon"><use href="#ik-gunes"/></svg> Karartmayı kaldır</button>
   </form>
   <form class="uz-eylem-form uz-eylem-dosya" method="post" action="/admin/uzaktan/duvar-kagidi" enctype="multipart/form-data">
-    <label class="dosya-yukle-etiket">
-      <input type="file" name="dosya" accept="image/*">
-    </label>
-    <button type="submit"><svg class="ikon"><use href="#ik-resim"/></svg> Duvar Kağıdı Değiştir</button>
+    <input type="file" name="dosya" accept="image/*" aria-label="Duvar kağıdı dosyası">
+    <button type="submit" class="dugme dugme-ikincil"><svg class="ikon"><use href="#ik-resim"/></svg> Duvar kağıdını değiştir</button>
   </form>
   <form class="uz-eylem-form" method="post" action="/admin/uzaktan/yeniden-baslat"
-        data-onay="Seçili tahtalar YENİDEN BAŞLATILACAK (açık uygulamalar kapanır). Emin misin?">
-    <button type="submit" class="uz-tehlike"><svg class="ikon"><use href="#ik-yenile"/></svg> Yeniden Başlat</button>
+        data-onay="Seçili tahtalar yeniden başlatılacak (açık uygulamalar kapanır). Emin misin?">
+    <button type="submit" class="dugme dugme-tehlike-dolu"><svg class="ikon"><use href="#ik-yenile"/></svg> Yeniden başlat</button>
   </form>
 </div>
 
-<h2 id="duyuru">Tahta duyuru</h2>
+<h2 class="bolum-basligi" id="duyuru">Tahta duyuru</h2>
 <div class="uz-eylem-cubugu">
   <form class="uz-eylem-form uz-duyuru-form" id="duyuru-form" method="post" action="/admin/uzaktan/duyuru">
-    <textarea name="mesaj" rows="2" maxlength="300" required placeholder="Duyuru metni (en çok 300 karakter)"></textarea>
-    <select name="tip" title="Duyuru tipi">
+    <textarea name="mesaj" rows="2" maxlength="300" required placeholder="Duyuru metni (en çok 300 karakter)" aria-label="Duyuru metni"></textarea>
+    <select name="tip" title="Duyuru tipi" aria-label="Duyuru tipi">
       <option value="bilgi">Bilgi — mavi, sessiz, 10 sn</option>
       <option value="idare">İdare — sarı, ding + sesli okuma, 15 sn</option>
       <option value="acil">Acil — kırmızı, 3× sesli okuma, elle kapanır</option>
     </select>
     <label class="uz-duyuru-etiket"><input type="checkbox" name="sesli_oku" value="1"> Sesli oku</label>
     <label class="uz-duyuru-etiket"><input type="checkbox" name="tum_okul" value="1"> Tüm okul</label>
-    <button type="submit"><svg class="ikon"><use href="#ik-zil"/></svg> Duyuru gönder</button>
+    <button type="submit" class="dugme"><svg class="ikon"><use href="#ik-zil"/></svg> Duyuru gönder</button>
   </form>
   <form class="uz-eylem-form uz-genel-form" method="post" action="/admin/uzaktan/duyuru-kapat">
-    <button type="submit"><svg class="ikon"><use href="#ik-kapat"/></svg> Duyuru ekranlarını kapat</button>
+    <button type="submit" class="dugme dugme-ikincil"><svg class="ikon"><use href="#ik-kapat"/></svg> Duyuru ekranlarını kapat</button>
   </form>
 </div>
-<p class="canli-bilgi">Duyuru yukarıda seçili tahtalara gider ("Tüm okul" işaretliyse hepsine). Tahtalar birkaç saniyede bir sorar; açık programları kapatmak için "Chrome Kapat" eylemini kullan.</p>
+<p class="ipucu">Duyuru yukarıda seçili tahtalara gider ("Tüm okul" işaretliyse hepsine). Tahtalar birkaç saniyede bir sorar; açık programları kapatmak için "Chrome kapat" eylemini kullan.</p>
 
-<h2>Canlı ekranlar</h2>
-<p class="canli-bilgi" id="canli-bilgi">Açık tahtaların ekranı 30 saniyede bir yenilenir; büyütmek için görüntüye tıkla, eylemler için sağ tıkla.</p>
+<h2 class="bolum-basligi">Canlı ekranlar</h2>
+<p class="ipucu" id="canli-bilgi">Açık tahtaların ekranı 30 saniyede bir yenilenir; büyütmek için görüntüye tıkla, eylemler için sağ tıkla.</p>
 <div class="canli-ekranlar" id="canli-ekranlar"></div>
 <div class="sag-menu" id="sag-menu" role="menu" hidden>
   <div class="sag-menu-baslik" id="sag-menu-baslik"></div>
@@ -242,49 +238,49 @@ async function tahtaDurumlariniGetir(yenile = false) {
 
       const baglantiCell = satir.querySelector('.hucre-baglanti');
       if (baglantiCell) {
-        baglantiCell.innerHTML = `<span class="pill ${t.ulasilabilir ? 'pill-tam' : 'pill-ulasilamaz'}">${t.ulasilabilir ? 'Açık' : 'Ulaşılamaz'}</span>`;
+        baglantiCell.innerHTML = `<span class="rozet ${t.ulasilabilir ? 'rozet-yesil' : 'rozet-gri'}">${t.ulasilabilir ? 'Açık' : 'Ulaşılamaz'}</span>`;
       }
 
       const oturumCell = satir.querySelector('.hucre-oturum');
       if (oturumCell) {
         let e = {
-          'acik': ['Açık', 'pill-tam'],
-          'kilitli': ['Kilitli', 'pill-alinmadi'],
-          'giris_ekrani': ['Giriş ekranı', 'pill-alinmadi']
-        }[t.oturum] || ['—', 'pill-ulasilamaz'];
-        oturumCell.innerHTML = `<span class="pill ${e[1]}">${e[0]}</span>`;
+          'acik': ['Açık', 'rozet-yesil'],
+          'kilitli': ['Kilitli', 'rozet-amber'],
+          'giris_ekrani': ['Giriş ekranı', 'rozet-amber']
+        }[t.oturum] || ['—', 'rozet-gri'];
+        oturumCell.innerHTML = `<span class="rozet ${e[1]}">${e[0]}</span>`;
       }
 
       const yoklamaCell = satir.querySelector('.hucre-yoklama');
       if (yoklamaCell) {
-        yoklamaCell.innerHTML = `<span class="pill ${t.yoklama ? 'pill-tam' : 'pill-yok'}">${t.yoklama ? 'Açık' : 'Kapalı'}</span>`;
+        yoklamaCell.innerHTML = `<span class="rozet ${t.yoklama ? 'rozet-yesil' : 'rozet-kirmizi'}">${t.yoklama ? 'Açık' : 'Kapalı'}</span>`;
       }
 
       const chromeCell = satir.querySelector('.hucre-chrome');
       if (chromeCell) {
-        chromeCell.innerHTML = `<span class="pill ${t.chrome ? 'pill-tam' : 'pill-yok'}">${t.chrome ? 'Açık' : 'Kapalı'}</span>`;
+        chromeCell.innerHTML = `<span class="rozet ${t.chrome ? 'rozet-yesil' : 'rozet-kirmizi'}">${t.chrome ? 'Açık' : 'Kapalı'}</span>`;
       }
 
       const ekranCell = satir.querySelector('.hucre-ekran');
       if (ekranCell) {
-        ekranCell.innerHTML = `<span class="pill ${t.karartildi ? 'pill-alinmadi' : 'pill-tam'}">${t.karartildi ? 'Karartılmış' : 'Normal'}</span>`;
+        ekranCell.innerHTML = `<span class="rozet ${t.karartildi ? 'rozet-amber' : 'rozet-yesil'}">${t.karartildi ? 'Karartılmış' : 'Normal'}</span>`;
       }
 
       const ssCell = satir.querySelector('.hucre-ss');
       if (ssCell) {
         if (t.ulasilabilir) {
-          ssCell.innerHTML = `<a href="/admin/uzaktan/ekran-goruntusu/${t.ad}?ham=1" target="_blank" rel="noopener noreferrer" class="ss-link-btn" title="${t.ad} ekran görüntüsünü yeni sekmede aç"><svg class="ikon"><use href="#ik-kamera"/></svg><span>Ekran Aç</span><svg class="ikon mini-ok"><use href="#ik-buyut"/></svg></a><button type="button" class="ss-link-btn duyuru-ekle-btn" data-tahta="${t.ad}" title="${t.ad} tahtasına duyuru yaz"><svg class="ikon"><use href="#ik-zil"/></svg><span>Duyuru ekle</span></button>`;
+          ssCell.innerHTML = `<div class="satir-eylem"><a href="/admin/uzaktan/ekran-goruntusu/${t.ad}?ham=1" target="_blank" rel="noopener noreferrer" class="dugme dugme-ikincil dugme-kucuk" title="${t.ad} ekran görüntüsünü yeni sekmede aç"><svg class="ikon"><use href="#ik-kamera"/></svg><span>Ekranı aç</span></a><button type="button" class="dugme dugme-ikincil dugme-kucuk duyuru-ekle-btn" data-tahta="${t.ad}" title="${t.ad} tahtasına duyuru yaz"><svg class="ikon"><use href="#ik-zil"/></svg><span>Duyuru ekle</span></button></div>`;
         } else {
-          ssCell.innerHTML = `<span class="ss-link-pasif" title="Tahta ulaşılamaz">—</span>`;
+          ssCell.innerHTML = `<span class="soluk" title="Tahta ulaşılamaz">—</span>`;
         }
       }
 
       const sistemCell = satir.querySelector('.hucre-sistem');
       if (sistemCell) {
         if (t.ulasilabilir && t.cpu) {
-          sistemCell.innerHTML = `<span class="mono">${t.cpu}</span><br><span class="sinif-etiket">${t.ram_gb} GB RAM</span>`;
+          sistemCell.innerHTML = `<span class="mono">${t.cpu}</span><br><span class="soluk kucuk">${t.ram_gb} GB RAM</span>`;
         } else {
-          sistemCell.innerHTML = `<span class="ss-link-pasif">—</span>`;
+          sistemCell.innerHTML = `<span class="soluk">—</span>`;
         }
       }
     }
@@ -326,7 +322,7 @@ function canliEkranlariKur(adlar) {
     kart.querySelector('strong').textContent = ad;
     canliKap.appendChild(kart);
   }
-  if (!adlar.length) canliKap.innerHTML = '<p class="canli-bilgi">Şu an açık tahta yok.</p>';
+  if (!adlar.length) canliKap.innerHTML = '<p class="ipucu">Şu an açık tahta yok.</p>';
   else canliKap.querySelectorAll(':scope > p').forEach(p => p.remove());
 }
 
@@ -419,7 +415,7 @@ sagMenu.addEventListener('click', e => {
     });
     dosya.click();
   } else if (yol === 'yeniden-baslat') {
-    if (confirm(`${ad} YENİDEN BAŞLATILACAK (açık uygulamalar kapanır). Emin misin?`)) tahtayaGonder(yol, ad);
+    if (confirm(`${ad} yeniden başlatılacak (açık uygulamalar kapanır). Emin misin?`)) tahtayaGonder(yol, ad);
   } else {
     tahtayaGonder(yol, ad);
   }
