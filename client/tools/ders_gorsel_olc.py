@@ -124,7 +124,8 @@ def main(argv=None):
     ort_cpu = sum(cpu) / len(cpu) if cpu else None
     kararlar = {
         'cpu': esik_karari(ort_cpu, args.cpu_esik),
-        'rss_artis': esik_karari(max(rss) - rss[0] if rss else None, args.rss_esik),
+        # Ayrı süreç: bayrak açık/kapalı farkı sürecin toplam RSS'idir, pencere içi artış değil.
+        'rss': esik_karari(max(rss) if rss else None, args.rss_esik),
         'grab': esik_karari(log['grab_p95'], args.grab_esik),
     }
     sonuc = {
