@@ -1,4 +1,4 @@
-"""İki arena ayrı kalır: smual.app (bireysel, okul.db) ve tahta Sınıf Arenası (/home/ata/arenasinif, kendi sonuç DB'si).
+"""İki arena ayrı kalır: smual.app (bireysel, okul.db) ve tahta Sınıf Arenası (/home/ata/farabi/arenasinif, kendi sonuç DB'si).
 
 Ortak olan yalnızca salt-okunur soru havuzudur; okul tarafı havuza yazmaz ve tahta arenasının verisine/koduna dokunmaz.
 """
