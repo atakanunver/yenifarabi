@@ -15,6 +15,8 @@
   <label for="ders_no">Ders saati</label>
   <select id="ders_no" name="ders_no"><option value="">—</option>{% for n in range(1, 11) %}<option value="{{ n }}" {{ 'selected' if s.ders_no == n }}>{{ n }}. ders</option>{% endfor %}</select>
   {% else %}
+  <label for="bitis">Son gün <span class="soluk kucuk">(isteğe bağlı, deneme haftası için)</span></label>
+  <input id="bitis" name="bitis" type="date" value="{{ s.bitis or '' }}">
   <fieldset class="duzeyler">
     <legend>Sınıf düzeyleri <span class="soluk kucuk">(hiçbiri = tüm okul)</span></legend>
     {% set secili = s.duzeyler.split(',') if s.duzeyler else [] %}

@@ -3,7 +3,8 @@
 {% block icerik %}
 <h1>Gönderim kaydı</h1>
 {% if not d %}
-<div class="kart uyari"><p>{{ hata }}</p></div>
+<div class="kart uyari"><p>{{ hata }}</p>
+  <p>Gönderimi az önce başlattıysan bu normaldir: SMS'ler arka planda gönderilir, kayıt birkaç saniye içinde oluşur. <a href="">Yenile</a>. Kayıt görünmeden tekrar gönderme; çift SMS gider.</p></div>
 {% else %}
 <section class="kart">
   <p style="white-space:pre-wrap">{{ d.mesaj }}</p>

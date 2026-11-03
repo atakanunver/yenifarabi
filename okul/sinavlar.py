@@ -1,7 +1,7 @@
 """Sınav takvimi: yazılılar (görevli öğretmen, kendi sınıf-dersi) ve genel deneme sınavları (düzey bazlı)."""
 
 import sqlite3
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import yetki
 import zaman
@@ -23,6 +23,19 @@ def _tarih(s: str) -> str:
         return datetime.strptime((s or "").strip(), "%Y-%m-%d").strftime("%Y-%m-%d")
     except ValueError:
         raise SinavHatasi("Sınav tarihini seçin.") from None
+
+
+def _bitis(s, tarih: str) -> str | None:
+    """Deneme haftasının son günü (isteğe bağlı); başlangıçtan önce olamaz."""
+    if not (s or "").strip():
+        return None
+    try:
+        b = date.fromisoformat(s.strip()).isoformat()
+    except ValueError:
+        raise SinavHatasi("Bitiş tarihi geçersiz.") from None
+    if b < tarih:
+        raise SinavHatasi("Bitiş tarihi başlangıçtan önce olamaz.")
+    return None if b == tarih else b
 
 
 def _ders_no(s) -> int | None:
@@ -72,20 +85,22 @@ def yazili_ekle(
     return cur.lastrowid
 
 
-def deneme_ekle(conn, k, baslik, tarih, duzeyler, aciklama="") -> int:
+def deneme_ekle(conn, k, baslik, tarih, duzeyler, aciklama="", bitis="") -> int:
     if k["rol"] not in ("ogretmen", "yonetici"):
         raise YetkiYok("Deneme sınavı giremezsiniz.")
     baslik = (baslik or "").strip()
     if not baslik:
         raise SinavHatasi("Deneme sınavının adını yazın (ör. 1. TYT Denemesi).")
+    tarih = _tarih(tarih)
     cur = conn.execute(
-        "INSERT INTO sinav (yazar_id, tur, baslik, duzeyler, tarih, aciklama, olusturma)"
-        " VALUES (?, 'deneme', ?, ?, ?, ?, ?)",
+        "INSERT INTO sinav (yazar_id, tur, baslik, duzeyler, tarih, bitis, aciklama, olusturma)"
+        " VALUES (?, 'deneme', ?, ?, ?, ?, ?, ?)",
         (
             k["id"],
             baslik[:120],
             _duzeyler(duzeyler),
-            _tarih(tarih),
+            tarih,
+            _bitis(bitis, tarih),
             (aciklama or "").strip()[:1000],
             zaman.simdi_str(),
         ),
@@ -105,7 +120,8 @@ def duzenleyebilir(k, s) -> bool:
 
 
 def guncelle(
-    conn, k, sinav_id: int, tarih, ders_no=None, aciklama="", baslik="", duzeyler=None
+    conn, k, sinav_id: int, tarih, ders_no=None, aciklama="", baslik="", duzeyler=None,
+    bitis="",
 ) -> None:
     s = getir(conn, sinav_id)
     if not duzenleyebilir(k, s):
@@ -113,11 +129,13 @@ def guncelle(
     if s["tur"] == "deneme":
         if not (baslik or "").strip():
             raise SinavHatasi("Deneme sınavının adını yazın.")
+        tarih = _tarih(tarih)
         conn.execute(
-            "UPDATE sinav SET baslik = ?, tarih = ?, duzeyler = ?, aciklama = ? WHERE id = ?",
+            "UPDATE sinav SET baslik = ?, tarih = ?, bitis = ?, duzeyler = ?, aciklama = ? WHERE id = ?",
             (
                 baslik.strip()[:120],
-                _tarih(tarih),
+                tarih,
+                _bitis(bitis, tarih),
                 _duzeyler(duzeyler or []),
                 (aciklama or "").strip()[:1000],
                 sinav_id,
@@ -156,7 +174,7 @@ def sinif_sinavlari(
     sql = "SELECT s.*, u.ad_soyad AS yazar FROM sinav s JOIN kullanici u ON u.id = s.yazar_id"
     params: list = []
     if baslangic:
-        sql += " WHERE s.tarih >= ?"
+        sql += " WHERE COALESCE(s.bitis, s.tarih) >= ?"  # süren deneme haftası düşmesin
         params.append(baslangic)
     seviye = sinif_seviyesi(sinif)
     return [
@@ -173,7 +191,7 @@ def ogretmen_sinavlari(conn, k, baslangic: str) -> list[sqlite3.Row]:
     """Öğretmen: kendi girdikleri + görevli sınıflarının yazılıları + tüm denemeler. Yönetici: hepsi."""
     satirlar = conn.execute(
         "SELECT s.*, u.ad_soyad AS yazar FROM sinav s JOIN kullanici u ON u.id = s.yazar_id"
-        " WHERE s.tarih >= ? ORDER BY s.tarih, s.ders_no IS NULL, s.ders_no",
+        " WHERE COALESCE(s.bitis, s.tarih) >= ? ORDER BY s.tarih, s.ders_no IS NULL, s.ders_no",
         (baslangic,),
     ).fetchall()
     if k["rol"] == "yonetici":
@@ -188,6 +206,52 @@ def ogretmen_sinavlari(conn, k, baslangic: str) -> list[sqlite3.Row]:
 
 def kalan_gun(tarih: str) -> int:
     return (date.fromisoformat(tarih) - zaman.simdi().date()).days
+
+
+def yaklasan_denemeler(conn, gun: int = 3) -> list[sqlite3.Row]:
+    """Başlangıcına `gun` gün ya da daha az kalmış veya haftası süren denemeler (pano + tahta)."""
+    bugun = zaman.simdi().date()
+    return conn.execute(
+        "SELECT * FROM sinav WHERE tur = 'deneme' AND tarih <= ? AND COALESCE(bitis, tarih) >= ?"
+        " ORDER BY tarih, id",
+        ((bugun + timedelta(days=gun)).isoformat(), bugun.isoformat()),
+    ).fetchall()
+
+
+AYLAR = ("Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos",
+         "Eylül", "Ekim", "Kasım", "Aralık")
+
+
+def _gun_ay(t: str) -> str:
+    d = date.fromisoformat(t)
+    return f"{d.day} {AYLAR[d.month - 1]}"
+
+
+def deneme_araligi(tarih: str, bitis: str | None) -> str:
+    """'9–15 Kasım', '31 Mayıs – 6 Haziran' ya da tek gün '9 Kasım'."""
+    son = bitis or tarih
+    bas, bit = date.fromisoformat(tarih), date.fromisoformat(son)
+    if bas == bit:
+        return _gun_ay(tarih)
+    if bas.month == bit.month:
+        return f"{bas.day}–{_gun_ay(son)}"
+    return f"{_gun_ay(tarih)} – {_gun_ay(son)}"
+
+
+def deneme_durumu(s) -> str:
+    """'9–15 Kasım · 3 gün kaldı' / 'bugün başlıyor' / 'sürüyor, son gün 15 Kasım'."""
+    son = s["bitis"] or s["tarih"]
+    aralik = deneme_araligi(s["tarih"], s["bitis"])
+    g = kalan_gun(s["tarih"])
+    if g > 0:
+        durum = f"{g} gün kaldı"
+    elif g == 0:
+        durum = "bugün başlıyor"
+    elif kalan_gun(son) == 0:
+        durum = "son gün bugün"
+    else:
+        durum = f"sürüyor, son gün {_gun_ay(son)}"
+    return f"{aralik} · {durum}"
 
 
 YKS_AY_GUN = (6, 20)  # YKS her yıl yaklaşık 19-20 Haziran'da yapılır

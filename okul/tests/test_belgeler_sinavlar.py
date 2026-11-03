@@ -250,3 +250,63 @@ def test_ogretmen_listesi(conn, ornek, yeni_kullanici, saat):
         == 3
     )
     assert sinavlar.kalan_gun("2026-10-14") == 2
+
+
+def test_deneme_haftasi_bitis_ve_yaklasan(conn, ornek, saat):
+    from datetime import datetime
+
+    hoca = _k(conn, ornek["ogretmen"])
+    with pytest.raises(sinavlar.SinavHatasi):
+        sinavlar.deneme_ekle(conn, hoca, "x", "2026-11-09", ["11"], bitis="2026-11-08")
+    sid = sinavlar.deneme_ekle(
+        conn, hoca, "MEBİ 3. YKS Denemesi", "2026-11-09", ["11", "12"], bitis="2026-11-15"
+    )
+    assert sinavlar.getir(conn, sid)["bitis"] == "2026-11-15"
+
+    def yaklasan():
+        return [s["baslik"] for s in sinavlar.yaklasan_denemeler(conn)]
+
+    saat["an"] = datetime(2026, 11, 5, 9, 0)  # noqa: DTZ001 — 4 gün kala: yok
+    assert yaklasan() == []
+    saat["an"] = datetime(2026, 11, 6, 9, 0)  # noqa: DTZ001 — 3 gün kala
+    assert yaklasan() == ["MEBİ 3. YKS Denemesi"]
+    assert sinavlar.deneme_durumu(sinavlar.getir(conn, sid)) == "9–15 Kasım · 3 gün kaldı"
+    saat["an"] = datetime(2026, 11, 12, 9, 0)  # noqa: DTZ001 — hafta ortası
+    assert yaklasan() == ["MEBİ 3. YKS Denemesi"]
+    assert sinavlar.deneme_durumu(sinavlar.getir(conn, sid)) == "9–15 Kasım · sürüyor, son gün 15 Kasım"
+    # süren deneme takvimden düşmez, 9-10'a görünmez
+    assert [s["baslik"] for s in sinavlar.sinif_sinavlari(conn, "11-A", "2026-11-12")] == [
+        "MEBİ 3. YKS Denemesi"
+    ]
+    assert sinavlar.sinif_sinavlari(conn, "9-A", "2026-11-12") == []
+    saat["an"] = datetime(2026, 11, 15, 9, 0)  # noqa: DTZ001
+    assert sinavlar.deneme_durumu(sinavlar.getir(conn, sid)).endswith("son gün bugün")
+    saat["an"] = datetime(2026, 11, 16, 9, 0)  # noqa: DTZ001 — bitti
+    assert yaklasan() == []
+
+
+def test_mebi_takvim_betigi_idempotent(conn, ornek, yeni_kullanici, monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    spec = importlib.util.spec_from_file_location(
+        "mebi_takvim_ekle", Path(__file__).resolve().parent.parent / "scripts" / "mebi_takvim_ekle.py"
+    )
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    yeni_kullanici(conn, "yonetici", "Atakan", "atakan")
+    conn.execute("INSERT INTO ogrenci (okul_no, ad_soyad, sinif) VALUES (9901, 'X Y', '11-A'), (9902, 'Z W', '9-A')")
+    conn.commit()
+    gonderilen = []
+    monkeypatch.setattr(m.push, "gonder", lambda c, idler, tur: gonderilen.append((set(idler), tur)) or {})
+    assert m.main(["--kuru"]) == 0
+    assert conn.execute("SELECT COUNT(*) FROM sinav").fetchone()[0] == 0
+    assert m.main([]) == 0
+    assert m.main([]) == 0
+    satir = conn.execute("SELECT * FROM sinav WHERE baslik = 'MEBİ 11. YKS Denemesi'").fetchone()
+    assert (satir["tarih"], satir["bitis"], satir["duzeyler"]) == ("2027-05-31", "2027-06-06", "11,12")
+    assert conn.execute("SELECT COUNT(*) FROM sinav").fetchone()[0] == 12
+    duyurular = conn.execute("SELECT hedef, metin FROM duyuru").fetchall()
+    assert [d["hedef"] for d in duyurular] == ["11-A"]
+    assert "11. Deneme: 31 Mayıs – 6 Haziran 2027" in duyurular[0]["metin"]
+    assert len(gonderilen) == 2 and gonderilen[1][0] == set()

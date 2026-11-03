@@ -289,6 +289,7 @@ async def deneme_ekle(
             str(form.get("tarih", "")),
             form.getlist("duzey"),
             str(form.get("aciklama", "")),
+            str(form.get("bitis", "")),
         )
     except sinavlar.SinavHatasi as e:
         return _sinav_sayfasi(request, conn, k, 422, str(e))
@@ -329,6 +330,7 @@ async def sinav_guncelle(
             str(form.get("aciklama", "")),
             str(form.get("baslik", "")),
             form.getlist("duzey"),
+            str(form.get("bitis", "")),
         )
     except sinavlar.YetkiYok:
         raise HTTPException(404) from None

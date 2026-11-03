@@ -42,6 +42,8 @@
     <input id="d_baslik" name="baslik" type="text" required maxlength="120" placeholder="Örn. 1. TYT Denemesi">
     <label for="d_tarih">Tarih</label>
     <input id="d_tarih" name="tarih" type="date" min="{{ bugun }}" required>
+    <label for="d_bitis">Son gün <span class="soluk kucuk">(isteğe bağlı, deneme haftası için)</span></label>
+    <input id="d_bitis" name="bitis" type="date" min="{{ bugun }}">
     <fieldset class="duzeyler">
       <legend>Hangi sınıf düzeyleri? <span class="soluk kucuk">(hiçbiri seçilmezse tüm okul)</span></legend>
       {% for d in duzeyler %}<label class="sik"><input type="checkbox" name="duzey" value="{{ d }}"> {{ d }}. sınıflar</label>{% endfor %}

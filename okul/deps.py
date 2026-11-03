@@ -69,7 +69,7 @@ TEMPLATES.env.globals["avatar_svg"] = avatar.svg
 TEMPLATES.env.globals["OYUN_NAV"] = True  # öğrenci alt menüsü oyun odaklı (yalnızca bu kodu çalıştıran süreçte)
 
 
-KANAL_ADLARI = {"web": "Okul web sitesi", "instagram": "Instagram", "youtube": "YouTube"}
+KANAL_ADLARI = {"web": "Okul web sitesi", "instagram": "Instagram", "youtube": "YouTube", "tanitim": "Tanıtım sayfamız"}
 
 
 def _kanallar(rol: str | None = None) -> list[dict]:

@@ -63,7 +63,8 @@ def gorevler(conn: sqlite3.Connection, ogrenci: sqlite3.Row, kilit: dict | None 
         g = (datetime.strptime(s["tarih"], "%Y-%m-%d").date() - simdi.date()).days  # noqa: DTZ007
         liste.append({
             "tur": "sinav", "baslik": f"{s['baslik']} yaklaşıyor",
-            "alt": ("Bugün" if g == 0 else ("Yarın" if g == 1 else f"{g} gün sonra")) + " · kısa bir tekrar iyi gelir",
+            "alt": ("Sürüyor" if g < 0 else "Bugün" if g == 0 else ("Yarın" if g == 1 else f"{g} gün sonra"))
+            + " · kısa bir tekrar iyi gelir",
             "href": "/ogrenci/sinavlar", "acil": g <= 1,
         })
         break  # tek sınav hatırlatması yeter

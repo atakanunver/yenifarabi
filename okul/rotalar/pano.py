@@ -14,6 +14,7 @@ import belirli_gunler
 import db
 import maraton
 import oduller
+import sinavlar
 import zaman
 from ayarlar import AYAR
 from fastapi import APIRouter, HTTPException, Request
@@ -98,6 +99,18 @@ def _dogum_ogesi() -> dict | None:
     return {"baslik": "DOĞUM GÜNÜ", "metin": f"{adlar} — doğum gününüz kutlu olsun!"}
 
 
+def _deneme_ogeleri(denemeler) -> list[dict]:
+    """Zamanı yaklaşan / haftası süren denemeler (ör. MEBİ YKS) için pano öğeleri."""
+    return [
+        {
+            "baslik": d["baslik"],
+            "metin": f"{sinavlar.deneme_durumu(d)}"
+            + (f" — {d['aciklama']}" if d["aciklama"] else ""),
+        }
+        for d in denemeler
+    ]
+
+
 @router.get("/api/pano", include_in_schema=False)
 async def pano(request: Request):
     if not _lan_mi(request):
@@ -112,6 +125,10 @@ async def pano(request: Request):
             (simdi, simdi),
         ).fetchall()
         birinci = _maraton_birincisi(conn)
+        try:
+            denemeler = sinavlar.yaklasan_denemeler(conn)
+        except Exception:  # noqa: BLE001 — sınav kaynağı pano ucunu düşürmesin
+            denemeler = []
         try:
             odul_ogeleri = oduller.kiosk_ogeleri(conn)  # yalnızca cuma/pazartesi dolu
         except Exception:  # noqa: BLE001 — ödül hesabı pano ucunu düşürmesin
@@ -133,6 +150,7 @@ async def pano(request: Request):
         dogum_ogesi = None
     if dogum_ogesi:
         duyuru.insert(0, dogum_ogesi)
+    duyuru[0:0] = _deneme_ogeleri(denemeler)
     try:
         gunler = belirli_gunler.bugun()
     except Exception:  # noqa: BLE001 — belirli gün kaynağı pano ucunu düşürmesin
@@ -142,4 +160,16 @@ async def pano(request: Request):
         "program": program,
         "zil": zil,
         "belirli_gunler": gunler,
+        # Tahta teneffüs hatırlatması (tahtayoklama/dashboard/deneme_hatirlatma.py) okur.
+        "yaklasan_denemeler": [
+            {
+                "baslik": d["baslik"],
+                "tarih": d["tarih"],
+                "bitis": d["bitis"],
+                "duzeyler": d["duzeyler"],
+                "aciklama": d["aciklama"],
+                "durum": sinavlar.deneme_durumu(d),
+            }
+            for d in denemeler
+        ],
     }

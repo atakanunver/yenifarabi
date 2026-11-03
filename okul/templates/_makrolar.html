@@ -39,6 +39,8 @@
 {% macro sinav_satiri(s, kalan, yonet=False, csrf='') -%}
 {% set ay = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'][s.tarih[5:7]|int - 1] %}
 {% set g = kalan(s.tarih) %}
+{% set son = s.bitis if s.bitis else '' %}
+{% set ay_son = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'][son[5:7]|int - 1] if son else '' %}
 <li class="sinav">
   <span class="takvim{{ ' yakin' if g <= 3 }}"><b>{{ s.tarih[8:10]|int }}</b>{{ ay }}</span>
   <div class="sinav-govde">
@@ -46,6 +48,7 @@
     <span class="soluk kucuk">
       {% if s.tur == 'yazili' %}{{ s.sinif }} · {{ s.ders|baslik }}{% else %}{{ 'Tüm okul' if not s.duzeyler else (s.duzeyler.split(',')|join('., ') ~ '. sınıflar') }}{% endif %}
       {% if s.ders_no %} · {{ s.ders_no }}. ders{% endif %}
+      {% if son %} · {{ s.tarih[8:10]|int }}{{ (' ' ~ ay) if ay != ay_son }}–{{ son[8:10]|int }} {{ ay_son }}{% endif %}
     </span>
     {% if s.aciklama %}<br><span class="kucuk">{{ s.aciklama }}</span>{% endif %}
     {% if yonet %}
@@ -56,7 +59,7 @@
     {% endif %}
   </div>
   <span class="sag">
-    <span class="etiket {{ 'kirmizi' if g <= 3 else 'sari' }}">{{ 'Bugün' if g == 0 else ('Yarın' if g == 1 else (g ~ ' gün')) }}</span>
+    <span class="etiket {{ 'kirmizi' if g <= 3 else 'sari' }}">{{ 'Sürüyor' if g < 0 else ('Bugün' if g == 0 else ('Yarın' if g == 1 else (g ~ ' gün'))) }}</span>
   </span>
 </li>
 {%- endmacro %}

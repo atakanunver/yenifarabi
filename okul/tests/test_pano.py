@@ -41,3 +41,21 @@ def test_belirli_gunler_hata_panoyu_dusurmez(conn, ornek, saat, monkeypatch):
     monkeypatch.setattr(pano.belirli_gunler, "bugun", patla)
     r = _istemci("192.168.23.254").get("/api/pano")
     assert r.status_code == 200 and r.json()["belirli_gunler"] == []
+
+
+def test_yaklasan_deneme_panoda(conn, ornek, saat):
+    from datetime import datetime
+
+    import sinavlar
+
+    hoca = conn.execute("SELECT * FROM kullanici WHERE id = ?", (ornek["ogretmen"],)).fetchone()
+    sinavlar.deneme_ekle(conn, hoca, "MEBİ 3. YKS Denemesi", "2026-11-09", ["11", "12"],
+                         "mebi.eba.gov.tr", bitis="2026-11-15")
+    saat["an"] = datetime(2026, 11, 5, 9, 0)  # noqa: DTZ001
+    j = _istemci("192.168.23.254").get("/api/pano").json()
+    assert j["yaklasan_denemeler"] == [] and j["duyurular"] == []
+    saat["an"] = datetime(2026, 11, 8, 9, 0)  # noqa: DTZ001
+    j = _istemci("192.168.23.254").get("/api/pano").json()
+    assert j["duyurular"][0] == {"baslik": "MEBİ 3. YKS Denemesi",
+                                 "metin": "9–15 Kasım · 1 gün kaldı — mebi.eba.gov.tr"}
+    assert j["yaklasan_denemeler"][0]["duzeyler"] == "11,12"
