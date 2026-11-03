@@ -145,6 +145,8 @@ tahtayoklama/dashboard/config/tahta_tokenlari.json
 # Tahta tarafı istemci ayarı (düz token) ve durum dosyası — dev kopyada olursa
 tahtayoklama/istemci.json
 tahtayoklama/data/.istemci_durum.json
+tahtayoklama/data/.kilit_son_kayit
+tahtayoklama/data/.kilit_son_kayit.tmp
 tahtayoklama/dashboard/config/okul.json
 
 # Orkestra (delege.sh) görev kartları ve dış ajan sonuçları — public repoya gitmez
@@ -194,3 +196,11 @@ tahtayoklama/dashboard/config/panel_giris.json
 
 # Kelebek: kendi git deposu var (ayrı sürümlenir)
 kelebek/
+# okul3d: kendi git deposu var (özel, atakanunver/okul3d)
+okul3d/
+
+# 165 MB HGM Küre (exe/dll); public repoya girmesin
+tahtamasaustuduzeni/HGM KUR/
+
+# Farabi Atlas: kendi git deposu var (public, atakanunver/farabi-atlas)
+tahtaatlasfarabi/
