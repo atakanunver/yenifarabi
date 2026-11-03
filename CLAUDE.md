@@ -14,8 +14,8 @@ servisleri (yoklama panosu, SMS). Monorepo. Bu dosya: ortak kurallar + servisler
   Ders görsel arşivi kodu: `client/ders_gorsel_servis.py` + `client/core/ders_gorsel.py` (tahta, `systemd --user`
   `farabi-ders-gorsel`, bayrak `ders_gorsel.enabled`, pilot 10-A) → `server/ders_gorsel.py` (`POST /api/ders-gorsel`,
   arşiv `/mnt/farabi-data/farabi/ders_gorselleri/`). Gece analizi PLANLANDI (henüz yok).
-- Git'te izlenmeyenler (`.gitignore`): `kelebek/`, `kameralar/`. ⚠️ Bu yüzden `git sparse-checkout set/reapply`
-  ÇALIŞTIRMA: koni dışındaki yok sayılan dizinleri (canlı `kelebek/`, `kameralar/`) silebilir.
+- Git'te izlenmeyenler (`.gitignore`): `kelebek/`, `kameralar/`, `tahtaatlasfarabi/`. ⚠️ Bu yüzden `git sparse-checkout set/reapply`
+  ÇALIŞTIRMA: koni dışındaki yok sayılan dizinleri (canlı `kelebek/`, `kameralar/`, `tahtaatlasfarabi/` + `var/atlas.db`) silebilir.
 - Open WebUI kodu `_arsiv/openwebui/`, `_arsiv/webui-tema/`'dedir.
 
 - Kararlar/neden: `DECISIONS.md` (`grep "## <tarih>"`). Mimari (2026-09-13'te
@@ -71,6 +71,7 @@ servisleri (yoklama panosu, SMS). Monorepo. Bu dosya: ortak kurallar + servisler
 | farabi-hareket | kameralar/hareket/ | — | hareket algılama + hareketsiz kayıt temizleme |
 | farabi-okul3d | okul3d/ (ayrı özel git deposu) | 192.168.23.20:8095, 8096 | 3D dijital ikiz + oda adları API'si (`sunucu.py`, stdlib); unit kopyası `okul3d/systemd/` |
 | sinif-arena | arenasinif/ | 8030 | tahta yarışma oyunları (Sınıf Arenası, Düello, HexaFetih); unit kopyası `arenasinif/sinif-arena.service` |
+| farabi-atlas | tahtaatlasfarabi/ (ayrı PUBLIC git deposu `atakanunver/farabi-atlas`, `.gitignore`'da) | 8099 | harita/küre + 5 coğrafya oyunu, `/kure/`, girişsiz; kendi `var/atlas.db`'si, okul DB'sinden bağımsız; kendi `CLAUDE.md`'si; unit kopyası `deploy/farabi-atlas.service` |
 | ollama | — | 11434 | qwen3.8:27b (`farabi` takma adı) |
 | pm2-anythingllm | /opt/anythingllm | 8010 | Atos (AnythingLLM; collector 8888) |
 Servisler arası bağ = HTTP + HMAC/paylaşılan anahtar. Tek DB istisnası: smssistemi
