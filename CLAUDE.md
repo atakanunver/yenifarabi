@@ -69,6 +69,7 @@ servisleri (yoklama panosu, SMS). Monorepo. Bu dosya: ortak kurallar + servisler
 | farabi-embed | server/embed_servisi/ (server venv) | 127.0.0.1:8040 | gömme + rerank (bge-m3), 2. RTX 3060; 2026-10-30'dan beri bilerek kapalı (RAG kapalı) |
 | farabi-kameralar | kameralar/ | 8889 | mediamtx (WebRTC; RTSP/API yalnız 127.0.0.1), ffmpeg on-demand |
 | farabi-hareket | kameralar/hareket/ | — | hareket algılama + hareketsiz kayıt temizleme |
+| farabi-okul3d | okul3d/ (ayrı özel git deposu) | 192.168.23.20:8095, 8096 | 3D dijital ikiz + oda adları API'si (`sunucu.py`, stdlib); unit kopyası `okul3d/systemd/` |
 | sinif-arena | arenasinif/ | 8030 | tahta yarışma oyunları (Sınıf Arenası, Düello, HexaFetih); unit kopyası `arenasinif/sinif-arena.service` |
 | ollama | — | 11434 | qwen3.8:27b (`farabi` takma adı) |
 | pm2-anythingllm | /opt/anythingllm | 8010 | Atos (AnythingLLM; collector 8888) |
