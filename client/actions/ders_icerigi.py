@@ -2,18 +2,8 @@
 actions/ders_icerigi.py — Öğretmenin verdiği derse/konuya ait kitap sayfalarını
 sunucudan (server/icerik.py) getirir.
 
-Server-taşıma (2026-08-14): eşleştirme mantığı (_bolum_bul, kelime-örtüşme
-sayfa seçimi, sembol şüphesi, kitap özeti, kırpma) artık BURADA değil,
-`server/icerik.py::ders_icerigi_endpoint`'te — "Brain karar verir, Client
-görüntüler" ilkesi, kitap_sorusu.py'nin RAG çağrısıyla aynı ruhta. Bu dosya
-artık yalnızca HTTP çağrısı + sessiz fallback yapıyor.
-
-NOT: `_norm`, `_kelimeler`, `_ders_eslesir`, `gorunen_ad`, `ders_kodu` BURADA
-KALDI (silinmedi) — `actions/kitap_sorusu.py` hâlâ `_ders_eslesir`'i import
-ediyor (client'ın kendi kitap listesi eşleşmesi için, bkz. o dosya). Bunlar
-saf metin fonksiyonları, dosya I/O'su yok, client'ta kalmalarının bir
-maliyeti yok — yeniden adlandırmayın/imzasını değiştirmeyin, kitap_sorusu.py
-sessizce bozulur.
+Eşleştirme ve sayfa seçimi sunucuda yapılır; bu modül HTTP çağrısını
+ve sunucuya ulaşılamadığında sınırlı devam davranışını sağlar.
 """
 
 import re

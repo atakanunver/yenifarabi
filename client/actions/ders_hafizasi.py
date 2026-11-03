@@ -10,13 +10,8 @@ dosyalarına bakıyor. Bu dosya yalnızca HTTP çağrısı yapıyor; "süren otu
 hariç tut" kuralı da server'a taşındı — bu tahta yalnızca kendi güncel
 dosya adını bildiriyor, hariç tutma işini server yapıyor.
 
-`ders_icerigi` ile farkı: `ders_icerigi` KİTAPTAN konu anlatımı getirir; bu
-araç kitaba hiç bakmaz. `kitap_sorusu` ile farkı: o da sunucuya gider ama
-RAG'a (kitap içeriğine); bu, bu tahtanın kendi geçmiş ders kayıtlarına gider.
-
-Bu araç SORU SUNUM PROTOKOLÜ'ne tabi DEĞİLDİR (bir soru sunmuyor, bir bilgi
-sorgusuna cevap veriyor) — `kitap_sorusu` gibi hemen cevap verir, sessizlik
-beklemez.
+`ders_icerigi` kitap içeriğini getirir; bu araç yalnızca bu tahtanın
+geçmiş ders kayıtlarına bakar. Geçmiş ders sorularını hemen yanıtlar.
 """
 
 import requests

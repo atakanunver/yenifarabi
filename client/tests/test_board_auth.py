@@ -3,10 +3,8 @@ client/tests/test_board_auth.py — FAZ 1 (IMPLEMENT): tahta kimlik anahtarı.
 
 Ağsız: core.tahta.tahta_anahtari()/auth_headers() saf config-okuma
 fonksiyonları (test_program.py'nin CONFIG_PATH monkeypatch deseniyle aynı).
-Ayrıca: server 401 döndürdüğünde MEVCUT "sınırlı devam" davranışının
-bozulmadığını (regresyon) iki farklı hata-işleme deseniyle doğrular —
-`kitap_sorusu.py` (raise_for_status → except) ve `pdf_sayfa.py` (açık
-status_code kontrolü) — actions/*.py'deki iki farklı üsluptan biri.
+Ayrıca sunucudan 401 geldiğinde PDF sayfası aracının hata metniyle
+sınırlı şekilde devam ettiğini doğrular.
 """
 
 import sys
@@ -64,14 +62,6 @@ class TestSunucu401SessizceKarsilanir:
     """Kritik davranış (FAZ 1 raporu §11/§25): auth hatası dersi asla
     kesmemeli — mevcut try/except → sınırlı-devam deseni 401'i de KAPSAMALI,
     özel bir dal AÇILMAMALI."""
-
-    def test_kitap_sorusu_401de_sinirli_devam_doner(self, monkeypatch):
-        import actions.kitap_sorusu as m
-        monkeypatch.setattr(m, "_KITAP_ONBELLEK",
-                             [{"id": 1, "dosya_adi": "biyoloji-9.pdf", "sinif": 9, "ders": "Biyoloji"}])
-        monkeypatch.setattr(m.requests, "post", lambda *a, **kw: _Sahte401Yaniti())
-        sonuc = m.kitap_sorusu(parameters={"soru": "test?", "ders": "biyoloji", "sinif": "9"})
-        assert sonuc == m._SINIRLI_DEVAM
 
     def test_pdf_sayfa_401de_hata_metni_doner_raise_etmez(self, monkeypatch):
         import actions.pdf_sayfa as m

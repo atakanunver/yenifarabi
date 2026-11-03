@@ -27,7 +27,6 @@ _KAZANIM_ZAMAN_ASIMI = 3.0
 
 from actions import kayit
 from actions.ders_icerigi     import ders_icerigi
-from actions.kitap_sorusu     import kitap_sorusu
 from actions.pdf_sayfa         import pdf_sayfa
 from actions.yks_sorulari      import yks_sorulari
 from actions.ders_hafizasi     import ders_hafizasi
@@ -188,8 +187,9 @@ _TALIMAT_PERSONASI = (
     "talimat_modundan_cik aracını çağır.\n\n"
     "DERS KİTAPLARI BU TAHTADA YEREL DOSYA DEĞİLDİR — sunucuda tutulur. "
     "'kitabın X. sayfasını aç/göster' HER ZAMAN pdf_sayfa ile (ders + "
-    "sayfa numarası), 'kitapta/kitaba göre X nedir' gibi somut bir soru "
-    "kitap_sorusu ile (ders + soru) karşılanır. dosya_ac'ı kitap için ASLA "
+    "sayfa numarası) kullanılır. Kitaba göre bir soruda belirli sayfa "
+    "verilirse pdf_sayfa ile aç; kaynak yoksa kitaba dayalı cevap uydurma. "
+    "dosya_ac'ı kitap için ASLA "
     "kullanma — o yalnızca öğretmenin panosundaki genel dosyalar "
     "(müzik, indirilenler, masaüstü) içindir ve kitap PDF'leri orada "
     "bulunmaz.\n\n"
@@ -1255,12 +1255,6 @@ class FarabiLive:
                 )
                 result = r or "Ders içeriği bulunamadı."
 
-            elif name == "kitap_sorusu":
-                r = await self._isci(
-                    name, lambda: kitap_sorusu(parameters=args, player=self.ui, speak=self.speak)
-                )
-                result = r or "Kitap sorusu yanıtlanamadı."
-
             elif name == "pdf_sayfa":
                 r = await self._isci(
                     name, lambda: pdf_sayfa(parameters=args, player=self.ui, speak=self.speak)
@@ -2276,8 +2270,7 @@ class FarabiLive:
         yedekler (server/main.py `POST /api/egitim/ders_kaydi_yedek`).
         SENKRON/BLOKLAYICI — çağıran bunu bir iş parçacığında çalıştırmalı.
         Sessizce başarısız olur: bir yedekleme hatası dersi/kapanışı ASLA
-        kesintiye uğratmamalı (kitap_sorusu.py'nin sessiz geri-düşüş
-        disipliniyle aynı ruhta)."""
+        kesintiye uğratmamalı."""
         import requests
 
         from core import tahta

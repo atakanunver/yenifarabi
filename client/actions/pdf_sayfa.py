@@ -20,9 +20,7 @@ gösterdikten sonra `GET /api/egitim/pdf_sayfa_metni` ile AYNI kitap+sayfanın
 gerçek metnini de ayrıca çekip modele dönen metne ekliyor — görüntü
 endpoint'inin kendi sözleşmesi (PNG) bilerek değiştirilmedi, bu ikinci,
 ayrı bir çağrı. Metin gelmezse (taranmış sayfa, kitap dizinde yok, vb.)
-sessizce atlanır ve modele açıkça "içerik uydurma" uyarısı gider — RAG
-Kuralları'ndaki "cevap sadece retrieval sonucundan üretilir" ilkesiyle
-tutarlı, `ders_icerigi`'nin `_SINIRLI_DEVAM` deseniyle aynı ruhta.
+sessizce atlanır ve modele açıkça "içerik uydurma" uyarısı gider.
 """
 
 from pathlib import Path

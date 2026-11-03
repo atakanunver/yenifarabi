@@ -202,8 +202,8 @@ class TestTalimatModu:
         beklenen = {d["name"] for d in kayit.bildirimler(main.KIP_TALIMAT, haric=haric)}
         assert adlar == beklenen
         assert {"web_ac", "uygulama_ac", "dosya_ac", "pencere_kapat",
-                "talimat_modundan_cik", "pdf_sayfa", "yks_sorulari",
-                "kitap_sorusu"} <= adlar
+                "pdf_sayfa", "yks_sorulari"} <= adlar
+        assert ("talimat_modundan_cik" in adlar) == (not main.tahta.sade_mod())
         # Normal ders araçları bu modda görünmemeli (web_search/youtube_video/eba/yoklama_al sade modda talimatta da açık).
         assert "ders_icerigi" not in adlar and "ders_hafizasi" not in adlar
 
@@ -254,13 +254,13 @@ class TestTalimatModu:
         f.ui = _SahteUI(talimat_modu=True)
 
         cfg1 = f._build_config()
-        assert cfg1.system_instruction == main._TALIMAT_PERSONASI
+        assert cfg1.system_instruction == main._talimat_personasi()
 
         f.ui.talimat_modu = False
         cfg2 = f._build_config()
-        assert cfg2.system_instruction != main._TALIMAT_PERSONASI
+        assert cfg2.system_instruction != main._talimat_personasi()
         assert f._ders_kipi == main.KIP_OGRETMENLI
 
         f.ui.talimat_modu = True
         cfg3 = f._build_config()
-        assert cfg3.system_instruction == main._TALIMAT_PERSONASI
+        assert cfg3.system_instruction == main._talimat_personasi()

@@ -17,14 +17,14 @@ adını verebilecek en yerinde isimdir.
 
 Sınıftaki akıllı tahtada çalışır, öğrencilerle sesli konuşur, tahtadaki soruyu
 görerek anlatır. **Hangi ders** olduğunu okul programından bilir; **konu ve
-kazanımı** öğretmenin adını yazar veya söyler. Cevabı doğrudan vermek yerine öğrenciye
+kazanımı** öğretmen yazar veya söyler; varsa yıllık plandaki kazanım öneri olarak sunulur. Cevabı doğrudan vermek yerine öğrenciye
 ilk adımı sordurur — öğrenci iki kez takılırsa üçüncüde çözümü gösterir.
 
 | Yetenek | Açıklama |
 |---|---|
 | 🎙️ Sesli ders | Gemini Live ile düşük gecikmeli, kesintisiz konuşma — varsayılan Türkçe, isteğe bağlı tamamen İngilizce/Almanca (bkz. altta) |
 | 🗓️ Ders programı | Açılışta sınıf, kaçıncı ders ve ders adını duyurur — sınıfa sormaz |
-| ✏️ Konu / kazanım | Öğretmen yazar veya söyler; gelmeden yoklama ve anlatım başlamaz |
+| ✏️ Konu / kazanım | Öğretmen yazar veya söyler; sunucudaki yıllık plan kazanımı önerilebilir, öğretmen girdisi gelmeden yoklama ve anlatım başlamaz |
 | 📚 Kitap sayfaları | Öğretmen konu verdikten sonra ilgili ders kitabı sayfalarını getirir |
 | 📝 Çıkmış sorular | Konuyla ilgili YKS (TYT/AYT) sorusunu arşivden bulur; soruyu ve şıkları
 okur, **çözmeye kalkışmaz** — öğrenciden cevap ya da öğretmenden talimat gelmeden anlatmaz |
@@ -35,7 +35,6 @@ okur, **çözmeye kalkışmaz** — öğrenciden cevap ya da öğretmenden talim
 | ⏰ Zil farkındalığı | Kaçıncı derste olduğunu, teneffüsü, öğle arasını bilir |
 | 🎛️ Öğretmen paneli | **DURDUR** · **DEVAM ET** · **⏹ DERSİ BİTİR** (çift dokunuş) · yazılan her şey talimat |
 | 📝 Ders kaydı | Konuşulanların VE öğretmenin yazılı talimatlarının dosyaya kaydı (ses kaydı yok); ders sonunda sunucuya yedeklenir |
-| ❓ Kitap sorusu | Somut soruyu sunucudaki RAG'a sorar; yalnızca kitaptan, kaynak sayfasıyla cevap (`s. 84`, tablodan geldiyse `s. 84 (tablo)`) |
 | 🧠 Ders hafızası | Bu tahtada işlenmiş geçmiş dersleri hatırlar (sunucudaki yedek kayıtlardan) |
 | 📐 GeoGebra | Canlı GeoGebra penceresinde çizim/hesap (kilitli `chrome --app`) |
 | 🖥️ Ekranı oku | Tahtanın KENDİ ekranındaki soruyu görüntü olarak modele verir (kamera yok) |
@@ -43,15 +42,20 @@ okur, **çözmeye kalkışmaz** — öğrenciden cevap ya da öğretmenden talim
 
 ## Ders dili
 
-Varsayılan Türkçe. Öğretmen **DERSİ BAŞLAT**'a basmadan önce panelden
+Ders kipleri açıkken varsayılan Türkçe. Öğretmen **DERSİ BAŞLAT**'a basmadan önce panelden
 **🇬🇧 İngilizce** ya da **🇩🇪 Almanca** seçebilir — dersin tamamı (açılış selamı
 dahil) o dilde işlenir. Seçim yalnızca ders başlamadan önce yapılabilir;
 canlı bağlantı kurulduktan sonra dil değiştirilemez (Gemini Live'ın bir
 teknik sınırı), bu yüzden düğmeler DERSİ BAŞLAT'a basılınca kilitlenir.
 
-## İki ders kipi
+## Çalışma kipleri
 
-Okulda her ders aynı değil:
+Varsayılan **sade modda** yalnızca öğretmen talimat modu kullanılır; ders
+kipleri ve ders dili seçimi kapalıdır. `config/api_keys.json` içinde
+`"sade_mod": false` ayarlanırsa ders kipleri ve ilgili arayüz açılır. Dosya
+veya alan eksikse sade mod açık kabul edilir.
+
+Ders kipleri açıldığında okulda her ders aynı değil:
 
 - **Öğretmenli** (varsayılan) — sınıfta bir öğretmen ve ~20 öğrenci var. Düzen
   öğretmenin; Farabi içeriğe odaklanır, öğretmene "kıymetli öğretmenim" der.
@@ -63,12 +67,15 @@ Okulda her ders aynı değil:
 
 ```
 ders_programi.json  →  ders adı + saat     →  açılışta duyurulur
-öğretmen (yazı/ses) →  konu + kazanım      →  çerçeve tamamlanır
+sunucu yıllık planı →  kazanım önerisi     →  varsa öğretmene sunulur
+öğretmen (yazı/ses) →  konu veya kazanım   →  ders çerçevesi belirlenir
 ders_icerigi        →  kitap sayfaları     →  iskelet (çerçeve kaynağı değil)
 ```
 
-Farabi yıllık plan Excel'inden otomatik kazanım çıkarmaz ve sınıfa
-"hangi dersteyiz / nerede kalmıştık" diye sormaz. Öğrenci hafızası (`save_memory`)
+Farabi ders başında sınıf ve ders saatine göre sunucudan haftanın yıllık plan
+kazanımını isteyebilir. Bu bilgi öneridir; öğretmen konu veya kazanım verirse
+onun girdisi esas alınır. Sunucuya ulaşılamazsa öğretmenden bilgi alınarak
+devam edilir. Farabi sınıfa "hangi dersteyiz / nerede kalmıştık" diye sormaz. Öğrenci hafızası (`save_memory`)
 yoktur — tahta sınıfça paylaşılır.
 
 ## Öğretim ilkesi
@@ -118,7 +125,7 @@ olarak basar.
 
 Tahtadaki bu uygulama yalnızca **arayüz + Gemini Live ses oturumu**dur.
 Ağır işlerin hepsi okul sunucusunda (`farabi.local`, depodaki `server/`):
-kitap/YKS içeriği, sayfa görüntüsü, RAG soru-cevap, bulut metin/görsel
+kitap/YKS içeriği, sayfa görüntüsü, bulut metin/görsel
 sağlayıcıları, dosya işleme, geçmiş ders hafızası. Tahtanın kendi kitap/YKS
 deposu **yoktur**; yalnızca `icerik/onbellek/` altında küçük, silinebilir
 önbellekler durur. Sunucuya ulaşılamazsa araçlar sessizce kısıtlayıcı bir
@@ -131,6 +138,8 @@ yoksa sunucu 401 döner.
 
 ```
 main.py                 Live oturumu, araç dağıtımı, ses döngüleri, ders açılışı
+ders_gorsel_servis.py   isteğe bağlı bağımsız ekran gözlemcisi
+systemd/                ekran gözlemcisi için kullanıcı servisi
 ui.py                   PyQt6 arayüz (üç kolonlu HUD, öğretmen paneli, kalem/silgi)
 setup.py                pip kurulumu
 farabi_start.sh         venv içinden main.py'yi başlatır
@@ -141,7 +150,6 @@ dersgiriscikis.png      okulun zil çizelgesi fotoğrafı
 actions/                modelin çağırdığı araçlar; tek kayıt kaynağı kayit.py
   kayit.py                ARAÇ KAYDI — bildirim, zaman aşımı, kip, çalışma biçimi
   ders_icerigi.py         konu anlatımı için kitap sayfa metni (sunucu)
-  kitap_sorusu.py         RAG ile kaynaklı soru-cevap (sunucu)
   pdf_sayfa.py            kitap sayfasının görüntüsü + metni (sunucu)
   yks_sorulari.py         çıkmış YKS sorusu, sayfa görüntüsü olarak (sunucu)
   ders_hafizasi.py        bu tahtadaki geçmiş dersler (sunucu)
@@ -160,6 +168,7 @@ core/
   prompt.txt              öğretmen personası (v2.0) — kullanıcıya ait
   vision_prompt.txt, prompteski.txt   kodda okunmuyor, kullanıcıya ait — silinmez
   ders_motoru.py          ders motoru — deterministik durum makinesi
+  ders_gorsel.py          ekran değişimi, gizlilik ve gönderim mantığı
   olaylar.py              tahta içi olay veri yolu
   program.py              ders programı: sınıf × gün × saat → ders (+ kip)
   zil.py                  zil çizelgesi ve ders saati durumu
@@ -212,7 +221,7 @@ pip install pytest && python -m pytest tests/ -q     # yalnızca geliştirme
 `config/api_keys.json` elle oluşturulur (`api_keys.example.json`'dan) —
 **hiçbir arayüz bu dosyayı yazmaz**. Alanlar: `gemini_api_keys`, `derslik`
 (örn. `"9-A"`, tahtadan tahtaya kopyalanmaz), `sunucu_url`, `tahta_anahtari`,
-`ders_kipi`, `mikrofon`, `os_system`. Ortak alanlar (Gemini anahtarı,
+`ders_kipi`, `sade_mod`, `ders_gorsel`, `mikrofon`, `os_system`. Ortak alanlar (Gemini anahtarı,
 `mikrofon`, `sunucu_url`) sunucudan `server/config_dagit.sh` ile dağıtılır.
 `zil.json` ve `ders_programi.json` da gitignore'lu, aynı yolla gelir.
 
@@ -223,9 +232,28 @@ sunucunun sağlayıcı havuzundan geçer; bulut anahtarları tahtada durmaz.
 Oturumu öğretmen **DERSİ BAŞLAT** ile açar (çift dokunuş); boşta kalan
 oturum 15 dakikada kapanır.
 
+## İsteğe bağlı ders görseli servisi
+
+`ders_gorsel_servis.py`, ana uygulamadan bağımsız çalışan bir X11 ekran
+gözlemcisidir. `config/api_keys.json` içinde `ders_gorsel.enabled` değeri
+`true` yapılarak etkinleştirilir; eksik veya kapalıysa servis işlem
+yapmadan çıkar. `aralik_sn` 4–10 saniye aralığında olmalıdır; geçersiz değer
+5 saniyeye döner. Servisi çalıştırmak ayrıca kurulum gerektirir; örnek systemd
+kullanıcı birimi `systemd/` dizinindedir ve içindeki yollar kurulumla eşleşmelidir.
+
+Servis uygun aktif pencerede kararlı ekran değişikliklerini küçültülmüş WebP
+olarak sunucunun `/api/ders-gorsel` uç noktasına gönderir. Farabi, masaüstü ve
+panel pencereleri ile başlığında yoklama, e-Okul veya MEBBİS geçen pencereler
+filtrelenir. Gönderimler arasında en az 30 saniye vardır; ders başına en çok
+20 başarılı gönderim yapılır. Bu özellik ekranı okumak için öğretmenin ayrıca
+başlattığı işlemden bağımsızdır.
+
 ## Kitap ve YKS içeriği
 
-Kitap PDF'leri, sayfa metinleri, YKS arşivi ve RAG indeksi **sunucuda**
+Kitaba dayalı RAG soru-cevap kapalıdır. Kitap sayfası gösterme, kitap metni
+getirme ve YKS araması ayrı sunucu uçlarını kullanır.
+
+Kitap PDF'leri, sayfa metinleri ve YKS arşivi **sunucuda**
 hazırlanır ve tutulur (`/mnt/farabi-data/farabi/`, PostgreSQL + pgvector).
 Tahtaya bir şey kopyalanmaz; yeni bir kitap sunucuya eklendiğinde bütün
 tahtalar onu hemen görür. Hazırlama betikleri `tools/` altında ama sunucuda

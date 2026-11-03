@@ -98,40 +98,6 @@ ARACLAR: list[Arac] = [
         cikti="markdown",
     ),
     Arac(
-        ad="kitap_sorusu",
-        aciklama=(
-            "Answers a concrete question against the textbook via the server's "
-            "RAG pipeline (retrieval + rerank + threshold + LLM + number-check) — "
-            "NOT a topic walkthrough. Call this when a student or teacher asks a "
-            "specific factual question 'kitapta ne yazıyor', 'kitaba göre', or "
-            "any question that should be answered strictly from the book with a "
-            "citable source. Do NOT use this to fetch pages for explaining a "
-            "topic — that is ders_icerigi's job. The answer is already source- "
-            "checked by the server: read it back as given, do not add or "
-            "invent anything beyond it. If the server has no matching book or "
-            "is unreachable, this returns a limiting instruction — follow it "
-            "silently, do not tell the class about a technical problem."
-        ),
-        parametreler={
-            "type": "OBJECT",
-            "properties": {
-                "soru":  {"type": "STRING", "description": "The student's/teacher's exact question."},
-                "ders":  {"type": "STRING", "description": "Subject from the timetable, e.g. 'biyoloji'. REQUIRED — without it the tool refuses to guess a book (avoids answering a physics question from the biology book)."},
-                "sinif": {"type": "STRING", "description": "Grade, e.g. '9' or '10'."},
-            },
-            "required": ["soru", "ders"],
-        },
-        izin="mufredat.oku",
-        maliyet="dusuk",
-        zaman_asimi=16.0,          # server'ın kendi GET(5s)+POST(10s) toplamı + pay
-        # Öğretmen talimat modunda da açık (2026-08-23, gerçek sınıf testi
-        # sonrası eklendi — öğretmen kitaba dayalı tek soru bekliyordu) —
-        # tek soruya kaynaklı tek cevap, ders anlatımı değil; pdf_sayfa/
-        # yks_sorulari ile aynı gerekçe.
-        kip=KIP_HEPSI + (KIP_TALIMAT,),
-        cikti="metin",
-    ),
-    Arac(
         ad="pdf_sayfa",
         aciklama=(
             "Shows one SPECIFIC page number from the current textbook on "
@@ -141,8 +107,7 @@ ARACLAR: list[Arac] = [
             "specific page, e.g. '9. sayfayı göster/yansıt', 'kitabın 15. "
             "sayfasını aç'. No topic/theme matching happens here — this is "
             "purely a page-number lookup. Do NOT use this for topic "
-            "narration (that's ders_icerigi) or answering a question "
-            "(that's kitap_sorusu). The tool result now also includes the "
+            "narration (that's ders_icerigi). The tool result also includes the "
             "page's real text when available (labeled SAYFA METNİ) — base "
             "any narration strictly on that text, never invent page content "
             "if it's missing."
@@ -218,10 +183,8 @@ ARACLAR: list[Arac] = [
         aciklama=(
             "Recalls what was covered in a PAST lesson on this board — 'geçen ders "
             "ne işlemiştik', 'nereye kadar gelmiştik' style questions. Reads Farabi's "
-            "OWN local lesson records (logs/ders/*.txt on this board), NOT the "
-            "textbook and NOT the server RAG — do not confuse with ders_icerigi "
-            "(textbook topic walkthrough) or kitap_sorusu (sourced Q&A against the "
-            "book). Call with 'konu' (+ optionally 'ders') to find a specific past "
+            "board’s past lesson records backed up on the server, not the textbook. "
+            "Do not confuse with ders_icerigi (textbook topic walkthrough). Call with 'konu' (+ optionally 'ders') to find a specific past "
             "topic; call with NEITHER to recall the most recent past lesson in "
             "general. Never recalls the CURRENT lesson (excluded automatically). "
             "Returns the raw past transcript for you to paraphrase into a short, "
@@ -578,14 +541,14 @@ ARACLAR: list[Arac] = [
             "message a moment later, tagged [EKRAN] — you do NOT get it in "
             "this call's result. Call when the teacher or a student asks "
             "about 'ekrandaki soru/yazı/görsel' without it coming from "
-            "ders_icerigi/pdf_sayfa/kitap_sorusu (e.g. something manually "
+            "ders_icerigi/pdf_sayfa (e.g. something manually "
             "opened, drawn, or pasted on screen). This call returns "
             "IMMEDIATELY with a short acknowledgement — do NOT answer yet "
             "and do NOT guess what is on screen; wait for the [EKRAN] "
             "message before describing anything. If the screen shows "
             "personal/administrative data (attendance, e-Okul, MEBBİS) it "
             "will not be captured — you will be told this instead, say so "
-            "plainly. Prefer kitap_sorusu/ders_icerigi for textbook "
+            "plainly. Prefer ders_icerigi for textbook "
             "content — this is for reading whatever is ACTUALLY on screen "
             "right now, sight-unseen."
         ),
