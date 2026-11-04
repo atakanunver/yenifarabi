@@ -23,6 +23,7 @@ gösterilemez — yalnızca metin ve tablo gelir. Video için `youtube_video` va
 Beyaz listeyi genişletmek: IZINLI_ALANLAR'a alan adı ekle.
 """
 
+import os
 import re
 from urllib.parse import urlparse, quote
 
@@ -51,6 +52,9 @@ IZINLI_ALANLAR = {
 
 MAX_KARAKTER = 6000            # ders_icerigi ile aynı bütçe (~1.500 token)
 ZAMAN_ASIMI  = 12
+# Okul ağı SSL-inceleme yapıyor (sertifika veren: MEB-CERT-TTVPN); MEB sertifikaları sistem paketinde, venv'in
+# certifi'sinde yok → requests "self-signed certificate in certificate chain" verir (2026-11-04, 9-B Vikipedi).
+_SISTEM_CA = "/etc/ssl/certs/ca-certificates.crt"
 
 _TEMIZLE = ("script", "style", "nav", "header", "footer", "aside", "form",
             "noscript", "iframe", "button", "svg")
@@ -155,6 +159,7 @@ def site_goster(parameters: dict | None = None, player=None, speak=None, **_) ->
                 "Accept-Language": "tr-TR,tr;q=0.9",
             },
             allow_redirects=True,
+            verify=_SISTEM_CA if os.path.exists(_SISTEM_CA) else True,
         )
         # Yönlendirme beyaz listenin dışına çıkmış olabilir — tekrar denetle
         son_izinli, son_alan = _izinli(yanit.url)
