@@ -172,7 +172,8 @@ def _kelime_eslesir(a: str, b: str) -> bool:
 
 
 def _kumede_var(q: str, kume) -> bool:
-    return q in kume or any(_kelime_eslesir(q, t) for t in kume)
+    # Sayfadaki kısa kelime uzun sorguyu yakalamasın: 'tur' (TRANSLATION ENG.-TUR., "kaç tür") ~ 'turev' değil.
+    return q in kume or any(_kelime_eslesir(q, t) for t in kume if len(t) >= min(len(q), 5))
 
 
 def _soru_sayfasi_mi(govde: str) -> bool:

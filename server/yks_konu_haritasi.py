@@ -40,14 +40,16 @@ def _norm_kisa(s: str) -> str:
 
 
 def _bantlar(sayfa) -> list[tuple[float, float, str]]:
-    """Sayfadaki (y0, x0, metin) konu bandı span'leri — beyaz, kalın, küçük punto, üst bölge."""
+    """Sayfadaki (y0, x0, metin) konu bandı span'leri — beyaz, küçük punto. Bant sayfanın ortasında da
+    başlayabilir (2026-11-04: AYT_EA s.165'te y=370'te "Türev"; eski y<120 sınırı Logaritma…Türev'i kaçırıp
+    hepsini "Trigonometrik" sanıyordu). Başlık kalın, "• alt konu" satırları normal yazı."""
     cikti = []
     for blok in sayfa.get_text("dict")["blocks"]:
         for satir in blok.get("lines", []):
             for sp in satir["spans"]:
                 m = sp["text"].strip()
-                if (sp["color"] == 16777215 and "Bold" in sp["font"]
-                        and 8 < sp["size"] < 11 and sp["bbox"][1] < 120 and len(m) > 3):
+                if (sp["color"] == 16777215 and ("Bold" in sp["font"] or m.startswith("•"))
+                        and 8 < sp["size"] < 11 and sp["bbox"][1] < 700 and len(m) > 3):
                     cikti.append((sp["bbox"][1], sp["bbox"][0], m))
     cikti.sort()
     return cikti
@@ -104,6 +106,7 @@ def dosya_haritasi(pdf: Path) -> dict:
             toc_sayfa.setdefault(sayfa, []).append(baslik)
 
     bant_sayfa: dict[int, list[str]] = {}
+    orta_bant: set[int] = set()
     sinir_adayi = None  # TOC'ta 'cevap anahtarı' yoksa: sondaki ders-adı bantları
     for i in range(n):
         sp = _bantlar(d[i])
@@ -116,6 +119,8 @@ def dosya_haritasi(pdf: Path) -> dict:
             etk.extend(_temizle(e))
         if etk:
             bant_sayfa[i + 1] = etk
+            if sp[0][0] >= 120:
+                orta_bant.add(i + 1)  # sayfanın üstü hâlâ önceki konu
     if cevap is None:
         cevap = sinir_adayi
 
@@ -126,10 +131,11 @@ def dosya_haritasi(pdf: Path) -> dict:
         if s in ders_adi_sayfalari:
             tasinan = []
         yeni = bant_sayfa.get(s) or toc_sayfa.get(s)
+        onceki = tasinan if s in orta_bant else []
         if yeni:
             tasinan = list(dict.fromkeys(yeni))
         if tasinan:
-            sayfa_konu[str(s)] = tasinan
+            sayfa_konu[str(s)] = list(dict.fromkeys(onceki + tasinan))
     return {"sayfa_konu": sayfa_konu, "cevap_anahtari_baslangic": cevap}
 
 

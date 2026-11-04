@@ -274,3 +274,17 @@ def test_kelime_eslesmesi_ek_toleransi():
     assert not yks._kelime_eslesir("aci", "aciklama")
     assert not yks._kelime_eslesir("tarih", "tarla")
     assert not yks._kelime_eslesir("dort", "dortgen")  # 4 harfli kök yanlış pozitifi
+
+
+def test_kisa_sayfa_kelimesi_uzun_konuyu_yakalamaz(izole_arsiv, sahte_kayit, monkeypatch):
+    # 2026-11-04: konu='türev' → YDT çeviri sayfası (etiket "TRANSLATION (ENG.-TUR.)", 'tur'~'turev') döndü.
+    _metin_dosyasi_yaz(izole_arsiv, "y.txt", {
+        10: "2019-YDT translation kaç tür çeviri" + SIK,
+        20: "2019-AYT f fonksiyonunun türevi" + SIK,
+    })
+    _harita_yaz(izole_arsiv, {"y": {
+        "sayfa_konu": {"10": ["TRANSLATION (ENG.-TUR.)"], "20": ["Türev"]},
+        "cevap_anahtari_baslangic": None}}, monkeypatch)
+    yanit = yks.yks_sorusu_endpoint(yks.YksIstek(derslik="9-A", konu="türev", adet=3))
+    assert yanit.status == "ok" and yanit.sayfa == 20 and yanit.toplam == 1
+    assert yks._kumede_var("aci", {"acilari"})  # kısa sorgu → uzun sayfa kelimesi hâlâ eşleşir
