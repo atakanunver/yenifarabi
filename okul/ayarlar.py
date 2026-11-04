@@ -30,6 +30,7 @@ class Ayarlar:
     # Acil durum: dashboard (:80) makine API'si; anahtar config/gizli.json "acil_makine_anahtar" (boşsa butonlar basılamaz)
     acil_url: str = "http://127.0.0.1"
     acil_anahtar: str = ""
+    atlas_url: str = "http://127.0.0.1:8099"  # Farabi Atlas (tahtaatlasfarabi/, ayrı servis); portal /kure + /api/atlas proxy'si
     # Web Push (VAPID): config/gizli.json; boşsa bildirim özelliği kapalı (push.py)
     vapid_ozel: str = ""
     vapid_acik: str = ""
