@@ -153,10 +153,9 @@ def test_kapat_yalniz_biten_hafta_ve_degismez(conn, ornek, yeni_kullanici, saat)
 def test_kiosk_gunleri(conn, ornek, yeni_kullanici, saat):
     a, _ = _ogr(conn, yeni_kullanici, 850, "11-B", "Elif Yıldız Kaya")
     _etkinlik(conn, a, 4)
-    for gun in (13, 14, 15, 18):  # salı..çarşamba..persembe..pazar: kiosk boş
+    for gun in (13, 14, 15, 18):  # salı..pazar: içinde bulunulan haftada kazanan yok → boş (geçici durum pano testinde)
         saat["an"] = datetime(2026, 10, 12) + timedelta(days=gun - 12, hours=10)
-        if saat["an"].weekday() not in (0, 4):
-            assert oduller.kiosk_ogeleri(conn) == []
+        assert oduller.kiosk_ogeleri(conn) == []
     saat["an"] = datetime(2026, 10, 12, 10)  # pazartesi: geçen hafta kesin
     o = oduller.kiosk_ogeleri(conn)
     assert [x["baslik"] for x in o][0].startswith("GEÇEN HAFTANIN ÇALIŞKANLARI: EN ÇOK ETKİNLİK")
@@ -217,7 +216,8 @@ def test_pano_ucu_cuma_ve_pazartesi(conn, ornek, yeni_kullanici, saat):
     app.include_router(pano.router)
     c = TestClient(app, client=("192.168.23.254", 5555))
     saat["an"] = datetime(2026, 10, 14, 10)  # çarşamba
-    assert not [d for d in c.get("/api/pano").json()["duyurular"] if "HAFTA" in d["baslik"]]
+    d = c.get("/api/pano").json()["duyurular"]  # hafta içi de geçici durum görünür
+    assert d[0]["baslik"].startswith("HAFTANIN ÇALIŞKANLARI (GEÇİCİ)")
     saat["an"] = datetime(2026, 10, 16, 10)  # cuma
     d = c.get("/api/pano").json()["duyurular"]
     assert d[0]["baslik"].startswith("HAFTANIN ÇALIŞKANLARI (GEÇİCİ)") and "Can A. (9-B)" in d[0]["metin"]

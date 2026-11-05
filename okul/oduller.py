@@ -199,15 +199,18 @@ def _liste(xs: list[dict], ayrinti) -> str:
 
 
 def kiosk_ogeleri(conn: sqlite3.Connection) -> list[dict]:
-    """Kiosk duyuruları: CUMA geçici durum (içinde bulunulan hafta), PAZARTESİ kesin sonuç (geçen hafta). Diğer günler boş.
+    """Kiosk duyuruları: PAZARTESİ kesin sonuç (geçen hafta), diğer günler geçici durum (içinde bulunulan hafta; kazanan yoksa
+    boş, yalnız cuma "henüz kimse yok" teşvik mesajı).
     Kişisel veri yalnızca kısa ad + sınıf. Pazartesi geçen haftayı (henüz yazılmadıysa) kaydeder."""
     simdi = zaman.simdi()
     gun = simdi.weekday()
-    if gun == 4:
+    if gun != 0:
         s = siralama(conn, hafta_basi(simdi))
         baslik = "HAFTANIN ÇALIŞKANLARI (GEÇİCİ)"
         ek = " Sonuçlar pazartesi kesinleşir."
         if not (s["etkinlik"] or s["istikrar"] or s["sinif"] or s["maraton"]):
+            if gun != 4:
+                return []
             return [{"baslik": "HAFTALIK ÇALIŞMA ÖDÜLÜ", "metin": (
                 f"Bu hafta henüz ödül şartını (en az {MIN_ETKINLIK} etkinlik) sağlayan yok. Bugün Günlük Görev, Hızlı Mod "
                 "ya da test ödeviyle yarışa katıl! Haftanın en çok etkinlik yapanına ve Soru Maratonu birincisine 1'er Nescafe kahve.")}]
@@ -228,8 +231,6 @@ def kiosk_ogeleri(conn: sqlite3.Connection) -> list[dict]:
         ek = " Tebrikler!"
         if not any(s.values()):
             return []  # pazartesi kazananı yoksa ekranda olumsuz mesaj yok
-    else:
-        return []
     ogeler = []
     if s["etkinlik"]:
         ogeler.append({"baslik": f"{baslik}: EN ÇOK ETKİNLİK", "metin":
