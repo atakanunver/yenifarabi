@@ -1,13 +1,13 @@
 """Haftalık ödüller: kiosk duyurusu + rozet + haftanın Nescafe'si (yalnızca öğrenciler, 12. sınıf DAHİL).
 
 Dört kategori (hafta = pazartesi-pazar):
-  etkinlik  A: en çok sayılan etkinlik (Günlük Görev + Hızlı Mod turu + test ödevi). Nescafe bu kategoridedir.
+  etkinlik  A: en çok sayılan etkinlik (Günlük Görev + Hızlı Mod turu + test ödevi). Nescafe etkinlik ve maraton kategorilerindedir.
   istikrar  C: etkinlik yaptığı farklı gün sayısı.
   sinif     D: sınıfın katılım oranı (en az bir etkinlik yapan öğrenci / sınıf mevcudu).
-  maraton   B: Soru Maratonu haftalık birincisi (en iyi 3 maratonun puan toplamı, `maraton.liderlik`). Rozet + kiosk; kahve yok.
+  maraton   B: Soru Maratonu haftalık birincisi (en iyi 3 maratonun puan toplamı, `maraton.liderlik`). Rozet + kiosk + 1 Nescafe.
 Hile/yarış önlemi: Hızlı Mod günde en çok 2 tur sayılır; Maraton turu >= 60 sn, Günlük Görev >= 30 sn sürmüşse sayılır
 (rastgele tıklayıp bitirilen turlar sayılmaz). Eşik altı katılımda o kategori için ödül verilmez.
-Beraberlik: tüm ölçütleri eşit olanların hepsi ödül alır; tek kahve için idare karar verir (yönetici ekranı).
+Beraberlik: tüm ölçütleri eşit olanların hepsi ödül alır; kahveyi kimlerin alacağına idare karar verir (yönetici ekranı).
 12. sınıf Günlük Görev'e erişemez (dondurma); onlar için Hızlı Mod ve test ödevi sayılır.
 Hafta bittikten sonra sonuç `odul` tablosuna BİR KEZ yazılır; geçmiş hafta yeniden hesaplanmaz/değişmez.
 """
@@ -166,7 +166,7 @@ def kapat(conn: sqlite3.Connection, hb: str) -> int:
                         f"{x['gun']} farklı gün, {x['etkinlik']} etkinlik", 0, simdi)
     for x in s["maraton"]:
         eklenen += _yaz(conn, hb, "maraton", x["kid"], x["sinif"], x["toplam"],
-                        f"Soru Maratonu: en iyi {x['adet']} turda {x['toplam']} puan", 0, simdi)
+                        f"Soru Maratonu: en iyi {x['adet']} turda {x['toplam']} puan", 1, simdi)
     for x in s["sinif"]:
         eklenen += _yaz(conn, hb, "sinif", None, x["sinif"], x["oran"],
                         f"%{x['oran']} katılım ({x['katilan']}/{x['mevcut']})", 0, simdi)
@@ -210,7 +210,7 @@ def kiosk_ogeleri(conn: sqlite3.Connection) -> list[dict]:
         if not (s["etkinlik"] or s["istikrar"] or s["sinif"] or s["maraton"]):
             return [{"baslik": "HAFTALIK ÇALIŞMA ÖDÜLÜ", "metin": (
                 f"Bu hafta henüz ödül şartını (en az {MIN_ETKINLIK} etkinlik) sağlayan yok. Bugün Günlük Görev, Hızlı Mod "
-                "ya da test ödeviyle yarışa katıl! Haftanın en çok etkinlik yapanına 1 Nescafe kahve.")}]
+                "ya da test ödeviyle yarışa katıl! Haftanın en çok etkinlik yapanına ve Soru Maratonu birincisine 1'er Nescafe kahve.")}]
     elif gun == 0:
         hb = onceki_hafta(hafta_basi(simdi))
         kapat(conn, hb)
@@ -239,7 +239,7 @@ def kiosk_ogeleri(conn: sqlite3.Connection) -> list[dict]:
                        _liste(s["istikrar"], lambda x: f"{x['gun']} farklı gün") + "." + ek})
     if s["maraton"]:
         ogeler.append({"baslik": f"{baslik}: SORU MARATONU BİRİNCİSİ", "metin":
-                       _liste(s["maraton"], lambda x: f"{x['toplam']} puan") + "." + ek})
+                       _liste(s["maraton"], lambda x: f"{x['toplam']} puan") + ". Nescafe kahve ödülü!" + ek})
     if s["sinif"]:
         ogeler.append({"baslik": f"{baslik}: EN KATILIMCI SINIF", "metin":
                        " ve ".join(f"{x['sinif']} — %{x['oran']} katılım" for x in s["sinif"]) + "." + ek})

@@ -147,7 +147,7 @@ def test_kapat_yalniz_biten_hafta_ve_degismez(conn, ornek, yeni_kullanici, saat)
     k = oduller.kayitli(conn, HB)
     assert [r["kullanici_id"] for r in k if r["kategori"] == "etkinlik"] == [a]
     assert [r["kahve"] for r in k if r["kategori"] == "etkinlik"] == [1]
-    assert all(r["kahve"] == 0 for r in k if r["kategori"] != "etkinlik")
+    assert all(r["kahve"] == 0 for r in k if r["kategori"] not in ("etkinlik", "maraton"))
 
 
 def test_kiosk_gunleri(conn, ornek, yeni_kullanici, saat):
@@ -249,7 +249,7 @@ def test_maraton_birincisi_hafta_siniri_ve_odul(conn, ornek, yeni_kullanici, saa
     assert [(x["kid"], x["toplam"]) for x in s["maraton"]] == [(a, 600)]
     assert oduller.kapat(conn, HB) >= 1
     r = [r for r in oduller.kayitli(conn, HB) if r["kategori"] == "maraton"]
-    assert [(x["kullanici_id"], x["deger"], x["kahve"]) for x in r] == [(a, 600, 0)]
+    assert [(x["kullanici_id"], x["deger"], x["kahve"]) for x in r] == [(a, 600, 1)]
     assert "600 puan" in r[0]["ayrinti"]
     assert any(o["ad"] == "Maraton Birincisi" for o in oduller.ogrenci_oduller(
         conn, conn.execute("SELECT * FROM ogrenci WHERE kullanici_id = ?", (a,)).fetchone()))
