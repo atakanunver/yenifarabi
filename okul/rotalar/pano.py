@@ -12,7 +12,6 @@ from datetime import date, timedelta
 
 import belirli_gunler
 import db
-import maraton
 import oduller
 import sinavlar
 import zaman
@@ -72,24 +71,6 @@ def _lan_mi(request: Request) -> bool:
     return ip.is_private
 
 
-def _maraton_birincisi(conn) -> dict | None:
-    """Bu haftanın Soru Maratonu birincisi (uygulamadaki liderlikle aynı sıralama)."""
-    lider = maraton.liderlik(conn)
-    if not lider:
-        return None
-    b = lider[0]
-    r = conn.execute(
-        "SELECT COALESCE(SUM(m.dogru), 0) AS dogru, COUNT(*) AS adet FROM maraton m"
-        f" WHERE m.kullanici_id = ? AND m.bitis >= ? AND {maraton._TAMAM}",
-        (b["kullanici_id"], maraton.hafta_basi()),
-    ).fetchone()
-    return {
-        "baslik": "SORU MARATONU BİRİNCİSİ",
-        "metin": f"{b['ad']} ({b['sinif']}) — bu hafta {r['adet']} maratonda "
-        f"{r['dogru']} doğru, en iyi {b["adet"]} maratonu {b["toplam"]} puan. Tebrikler!",
-    }
-
-
 def _dogum_ogesi() -> dict | None:
     """Bugün (pazartesi: hafta sonu dahil) doğum günü olanlar için kutlama; kimse yoksa None."""
     kisiler = dogum.bugunun_dogumlari(zaman.simdi().date())
@@ -124,7 +105,6 @@ async def pano(request: Request):
             " ORDER BY yayin DESC, id DESC LIMIT 20",
             (simdi, simdi),
         ).fetchall()
-        birinci = _maraton_birincisi(conn)
         try:
             denemeler = sinavlar.yaklasan_denemeler(conn)
         except Exception:  # noqa: BLE001 — sınav kaynağı pano ucunu düşürmesin
@@ -141,8 +121,6 @@ async def pano(request: Request):
     except Exception:  # noqa: BLE001 — pano ucu uygulamayı düşürmesin
         program, zil = {"siniflar": {}}, None
     duyuru = [{"baslik": r["baslik"], "metin": r["metin"]} for r in satirlar]
-    if birinci:
-        duyuru.insert(0, birinci)
     duyuru[0:0] = odul_ogeleri
     try:
         dogum_ogesi = _dogum_ogesi()

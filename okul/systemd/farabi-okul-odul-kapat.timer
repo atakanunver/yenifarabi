@@ -1,0 +1,9 @@
+[Unit]
+Description=Dijital Okul: haftalık ödül kapanışı — her gün 06:00 (sunucu saati); hafta zaten kapalıysa bir şey yapmaz
+
+[Timer]
+OnCalendar=*-*-* 06:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
