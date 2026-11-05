@@ -301,14 +301,20 @@ def hafta_basi() -> str:
     return (d - timedelta(days=d.weekday())).isoformat() + " 00:00:00"
 
 
-def liderlik(conn: sqlite3.Connection, sinif: str | None = None) -> list[dict]:
-    """Bu hafta (pazartesiden beri) her öğrencinin EN İYİ 3 maratonunun toplamı. sinif verilirse yalnız o şube."""
+def liderlik(conn: sqlite3.Connection, sinif: str | None = None, hafta: str | None = None) -> list[dict]:
+    """Bu hafta (pazartesiden beri) her öğrencinin EN İYİ 3 maratonunun toplamı. sinif verilirse yalnız o şube.
+    hafta ('YYYY-MM-DD' pazartesi) verilirse o haftanın (pazartesi-pazar) sonucu."""
     sorgu = (
         "SELECT m.kullanici_id, m.puan, o.ad_soyad, o.sinif FROM maraton m"
         " JOIN ogrenci o ON o.kullanici_id = m.kullanici_id"
         f" WHERE m.bitis >= ? AND {_TAMAM}"
     )
-    arg: list = [hafta_basi()]
+    if hafta:
+        bas = f"{hafta} 00:00:00"
+        sorgu += " AND m.bitis < ?"
+        arg: list = [bas, (datetime.strptime(hafta, "%Y-%m-%d") + timedelta(days=7)).strftime("%Y-%m-%d 00:00:00")]  # noqa: DTZ007
+    else:
+        arg = [hafta_basi()]
     if sinif:
         sorgu += " AND o.sinif = ?"
         arg.append(sinif)

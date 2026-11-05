@@ -73,12 +73,12 @@
   <p class="kucuk soluk">Bu hafta (geçici) · {{ gecici.katilan_ogrenci }} / {{ gecici.toplam_ogrenci }} öğrenci etkinlik yaptı. Kesin sonuç hafta bitince yazılır; kiosk'ta cuma geçici, pazartesi kesin gösterilir.</p>
   {% for kod, ad in kategoriler.items() %}
     <p><b>{{ ad }}:</b>
-    {% for x in gecici[kod] %}{% if kod == 'sinif' %}{{ x.sinif }} (%{{ x.oran }}){% else %}{{ x.ad }} ({{ x.sinif }}) — {{ x.etkinlik if kod == 'etkinlik' else x.gun ~ ' gün' }}{% endif %}{% if x.sinif in benim %} <span class="etiket mor">sınıfım</span>{% endif %}{{ ', ' if not loop.last }}{% else %}<span class="soluk">henüz kimse şartı sağlamadı</span>{% endfor %}</p>
+    {% for x in gecici[kod] %}{% if kod == 'sinif' %}{{ x.sinif }} (%{{ x.oran }}){% else %}{{ x.ad }} ({{ x.sinif }}) — {% if kod == 'etkinlik' %}{{ x.etkinlik }}{% elif kod == 'maraton' %}{{ x.toplam }} puan{% else %}{{ x.gun ~ ' gün' }}{% endif %}{% endif %}{% if x.sinif in benim %} <span class="etiket mor">sınıfım</span>{% endif %}{{ ', ' if not loop.last }}{% else %}<span class="soluk">henüz kimse şartı sağlamadı</span>{% endfor %}</p>
   {% endfor %}
   <h3>Geçen hafta ({{ onceki_hafta|tarih }})</h3>
   {% for r in onceki %}
     <p><b>{{ kategoriler[r.kategori] }}:</b> {% if r.kategori == 'sinif' %}{{ r.sinif }}{% else %}{{ r.ad_soyad }} ({{ r.sinif }}){% endif %}{% if r.sinif in benim %} <span class="etiket mor">sınıfım</span>{% endif %} <span class="kucuk soluk">{{ r.ayrinti }}</span></p>
   {% else %}<p class="soluk">Geçen haftanın sonucu henüz kesinleşmedi ya da kimse şartı sağlamadı.</p>{% endfor %}
-  <p class="kucuk soluk">Şartlar: en çok etkinlik en az {{ min_etkinlik }}, en istikrarlı en az {{ min_gun }} farklı gün, en katılımcı sınıf için sınıfta en az {{ min_katilan }} katılımcı. Kazananı sınıfta kutlayabilirsiniz.</p>
+  <p class="kucuk soluk">Şartlar: en çok etkinlik en az {{ min_etkinlik }}, en istikrarlı en az {{ min_gun }} farklı gün, Soru Maratonu birincisi haftanın en yüksek Maraton puanı, en katılımcı sınıf için sınıfta en az {{ min_katilan }} katılımcı. Kazananı sınıfta kutlayabilirsiniz.</p>
 </section>
 {% endblock %}

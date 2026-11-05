@@ -845,12 +845,34 @@ ALTER TABLE kullanici ADD COLUMN eposta TEXT;
 SEMA_V38 = """
 ALTER TABLE sinav ADD COLUMN bitis TEXT;
 """
+# Haftalık ödüle 'maraton' (Soru Maratonu haftalık birincisi) kategorisi: CHECK genişletilir (tabloyu yeniden kur).
+SEMA_V39 = """
+ALTER TABLE odul RENAME TO odul_eski;
+DROP INDEX odul_hafta_idx;
+CREATE TABLE odul (
+    id            INTEGER PRIMARY KEY,
+    hafta_basi    TEXT NOT NULL,
+    kategori      TEXT NOT NULL CHECK (kategori IN ('etkinlik', 'istikrar', 'sinif', 'maraton')),
+    anahtar       TEXT NOT NULL,
+    kullanici_id  INTEGER REFERENCES kullanici(id),
+    sinif         TEXT,
+    deger         INTEGER NOT NULL,
+    ayrinti       TEXT NOT NULL DEFAULT '',
+    kahve         INTEGER NOT NULL DEFAULT 0,
+    kahve_teslim  TEXT,
+    zaman         TEXT NOT NULL,
+    UNIQUE (hafta_basi, kategori, anahtar)
+);
+INSERT INTO odul SELECT * FROM odul_eski;
+DROP TABLE odul_eski;
+CREATE INDEX odul_hafta_idx ON odul(hafta_basi);
+"""
 
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
     SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27, SEMA_V28, SEMA_V29, SEMA_V30, SEMA_V31, SEMA_V32, SEMA_V33, SEMA_V34,
-    SEMA_V35, SEMA_V36, SEMA_V37, SEMA_V38,
+    SEMA_V35, SEMA_V36, SEMA_V37, SEMA_V38, SEMA_V39,
 ]
 
 

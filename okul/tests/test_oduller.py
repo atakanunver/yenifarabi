@@ -228,3 +228,63 @@ def test_kazanansiz_hafta_da_kapanir(conn, ornek, yeni_kullanici, saat):
     a, _ = _ogr(conn, yeni_kullanici, 895)
     _etkinlik(conn, a, 5)  # hafta kapandıktan sonra gelen veri
     assert oduller.kapat(conn, HB) == 0 and oduller.kayitli(conn, HB) == []
+
+
+def _puanli(conn, kid, gun, puan, saat="16:00:00"):
+    _maraton(conn, kid, gun, saat=saat)
+    conn.execute("UPDATE maraton SET puan = ? WHERE id = (SELECT max(id) FROM maraton)", (puan,))
+    conn.commit()
+
+
+def test_maraton_birincisi_hafta_siniri_ve_odul(conn, ornek, yeni_kullanici, saat):
+    a, _ = _ogr(conn, yeni_kullanici, 860, "9-A", "Ali Veli Aslan")
+    b, _ = _ogr(conn, yeni_kullanici, 861, "10-B")
+    _puanli(conn, a, "2026-10-06", 300)
+    _puanli(conn, a, "2026-10-07", 200, "17:00:00")
+    _puanli(conn, a, "2026-10-08", 100, "18:00:00")
+    _puanli(conn, a, "2026-10-09", 50, "19:00:00")  # en iyi 3'e girmez: 600
+    _puanli(conn, b, "2026-10-08", 590)
+    _puanli(conn, b, "2026-10-13", 9999)  # sonraki hafta: bu haftaya sayılmaz
+    s = oduller.siralama(conn, HB)
+    assert [(x["kid"], x["toplam"]) for x in s["maraton"]] == [(a, 600)]
+    assert oduller.kapat(conn, HB) >= 1
+    r = [r for r in oduller.kayitli(conn, HB) if r["kategori"] == "maraton"]
+    assert [(x["kullanici_id"], x["deger"], x["kahve"]) for x in r] == [(a, 600, 0)]
+    assert "600 puan" in r[0]["ayrinti"]
+    assert any(o["ad"] == "Maraton Birincisi" for o in oduller.ogrenci_oduller(
+        conn, conn.execute("SELECT * FROM ogrenci WHERE kullanici_id = ?", (a,)).fetchone()))
+
+
+def test_maraton_beraberlikte_hepsi_ve_terk_sayilmaz(conn, ornek, yeni_kullanici, saat):
+    a, _ = _ogr(conn, yeni_kullanici, 870)
+    b, _ = _ogr(conn, yeni_kullanici, 871)
+    c, _ = _ogr(conn, yeni_kullanici, 872)
+    _puanli(conn, a, "2026-10-06", 400)
+    _puanli(conn, b, "2026-10-07", 400)
+    _maraton(conn, c, "2026-10-07", terk=True)
+    conn.execute("UPDATE maraton SET puan = 900 WHERE kullanici_id = ?", (c,))
+    conn.commit()
+    assert {x["kid"] for x in oduller.siralama(conn, HB)["maraton"]} == {a, b}
+
+
+def test_maraton_kiosk_pazartesi(conn, ornek, yeni_kullanici, saat):
+    a, _ = _ogr(conn, yeni_kullanici, 880, "11-B", "Elif Yıldız Kaya")
+    _puanli(conn, a, "2026-10-07", 450)
+    saat["an"] = datetime(2026, 10, 12, 10)
+    o = [x for x in oduller.kiosk_ogeleri(conn) if "MARATON" in x["baslik"]]
+    assert len(o) == 1 and "Elif Yıldız K. (11-B)" in o[0]["metin"] and "450 puan" in o[0]["metin"]
+
+
+def test_v39_gocu_eski_odulleri_korur(tmp_path):
+    import sqlite3
+
+    import db
+    c = sqlite3.connect(tmp_path / "x.db")
+    for i in range(38):
+        c.executescript(f"BEGIN;\n{db.GOCLER[i]}\nPRAGMA user_version = {i + 1};\nCOMMIT;")
+    c.execute("INSERT INTO odul (hafta_basi, kategori, anahtar, deger, zaman) VALUES ('2026-10-05', 'sinif', '|9-A', 50, 't')")
+    c.commit()
+    c.executescript(f"BEGIN;\n{db.SEMA_V39}\nPRAGMA user_version = 39;\nCOMMIT;")
+    assert c.execute("SELECT count(*) FROM odul").fetchone()[0] == 1
+    c.execute("INSERT INTO odul (hafta_basi, kategori, anahtar, deger, zaman) VALUES ('2026-10-05', 'maraton', '1|', 5, 't')")
+    assert c.execute("SELECT name FROM sqlite_master WHERE name = 'odul_hafta_idx'").fetchone()

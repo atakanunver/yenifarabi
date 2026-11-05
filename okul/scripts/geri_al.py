@@ -20,6 +20,28 @@ from pathlib import Path
 
 # user_version N'den N-1'e inmek için çalışan betik. Yeni göç eklenince buraya da eklenir.
 GERI = {
+    39: """
+DELETE FROM odul WHERE kategori = 'maraton';
+ALTER TABLE odul RENAME TO odul_yeni;
+DROP INDEX odul_hafta_idx;
+CREATE TABLE odul (
+    id            INTEGER PRIMARY KEY,
+    hafta_basi    TEXT NOT NULL,
+    kategori      TEXT NOT NULL CHECK (kategori IN ('etkinlik', 'istikrar', 'sinif')),
+    anahtar       TEXT NOT NULL,
+    kullanici_id  INTEGER REFERENCES kullanici(id),
+    sinif         TEXT,
+    deger         INTEGER NOT NULL,
+    ayrinti       TEXT NOT NULL DEFAULT '',
+    kahve         INTEGER NOT NULL DEFAULT 0,
+    kahve_teslim  TEXT,
+    zaman         TEXT NOT NULL,
+    UNIQUE (hafta_basi, kategori, anahtar)
+);
+INSERT INTO odul SELECT * FROM odul_yeni;
+DROP TABLE odul_yeni;
+CREATE INDEX odul_hafta_idx ON odul(hafta_basi);
+""",
     38: """
 ALTER TABLE sinav DROP COLUMN bitis;
 """,
