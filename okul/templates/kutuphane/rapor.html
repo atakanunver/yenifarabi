@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block baslik %}Raporlar — Kütüphane{% endblock %}
+{% block icerik %}
+{% include "kutuphane/_ust.html" %}
+<h1>Kütüphane raporları</h1>
+<p class="kart sari kucuk">Buradaki sayılar <b>ödünç işlemi</b> sayısıdır; kitabın okunduğunu göstermez.</p>
+<section class="kart">
+  <p class="ktp-sayilar"><span><b>{{ r.eser }}</b> eser</span><span><b>{{ r.nusha }}</b> nüsha</span><span><b>{{ r.rafta }}</b> rafta</span>
+    <span><b>{{ r.oduncte }}</b> ödünçte</span><span><b>{{ r.geciken }}</b> gecikmiş</span><span><b>{{ r.hasarli }}</b> hasarlı</span><span><b>{{ r.kayip }}</b> kayıp</span><span><b>{{ r.toplam_odunc }}</b> toplam ödünç</span></p>
+  <div class="tuslar"><a class="tus" href="/kutuphane/rapor.xlsx">Excel'e aktar</a></div>
+</section>
+{% set enb = (r.gunluk|map(attribute=1)|max) or 1 %}
+<section class="kart">
+  <h2>Son 30 gün (günlük ödünç)</h2>
+  <div class="ktp-cubuklar" role="img" aria-label="Son 30 günün günlük ödünç sayıları">
+    {% for g, n in r.gunluk %}<span title="{{ g|tarih }}: {{ n }}" style="height:{{ (n / enb * 100)|round }}%"></span>{% endfor %}
+  </div>
+</section>
+<div class="izgara ktp-ikili">
+  <section class="kart"><h2>Aylık</h2>{% if r.aylik %}<ul class="liste">{% for a, n in r.aylik %}<li><span>{{ a }}</span><span class="sag"><b>{{ n }}</b></span></li>{% endfor %}</ul>{% else %}<p class="bos">Veri yok.</p>{% endif %}</section>
+  <section class="kart"><h2>Sınıflara göre</h2>{% if r.siniflar %}<ul class="liste">{% for s, n in r.siniflar %}<li><span>{{ s }}</span><span class="sag"><b>{{ n }}</b></span></li>{% endfor %}</ul>{% else %}<p class="bos">Veri yok.</p>{% endif %}</section>
+  <section class="kart"><h2>En çok ödünç alan öğrenciler</h2>{% if r.ogrenciler %}<ol class="liste">{% for a, s, n in r.ogrenciler %}<li><span>{{ a }} <span class="soluk kucuk">{{ s }}</span></span><span class="sag"><b>{{ n }}</b></span></li>{% endfor %}</ol>{% else %}<p class="bos">Veri yok.</p>{% endif %}</section>
+  <section class="kart"><h2>Popüler kitaplar</h2>{% if r.kitaplar %}<ol class="liste">{% for b, n in r.kitaplar %}<li><span>{{ b }}</span><span class="sag"><b>{{ n }}</b></span></li>{% endfor %}</ol>{% else %}<p class="bos">Veri yok.</p>{% endif %}</section>
+  <section class="kart"><h2>Popüler yazarlar</h2>{% if r.yazarlar %}<ol class="liste">{% for y, n in r.yazarlar %}<li><span>{{ y }}</span><span class="sag"><b>{{ n }}</b></span></li>{% endfor %}</ol>{% else %}<p class="bos">Veri yok.</p>{% endif %}</section>
+  <section class="kart"><h2>Hiç ödünç alınmamış ({{ r.hic_alinmamis|length }})</h2>{% if r.hic_alinmamis %}<ul class="liste">{% for x in r.hic_alinmamis[:30] %}<li><a href="/kutuphane/kitap/{{ x.id }}">{{ x.baslik }}</a></li>{% endfor %}</ul>{% if r.hic_alinmamis|length > 30 %}<p class="kucuk soluk">Tamamı Excel raporunda.</p>{% endif %}{% else %}<p class="bos">Her kitap en az bir kez alınmış.</p>{% endif %}</section>
+</div>
+{% endblock %}

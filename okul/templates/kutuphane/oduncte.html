@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block baslik %}{{ 'Gecikenler' if geciken else 'Ödünçteki Kitaplar' }} — Kütüphane{% endblock %}
+{% block icerik %}
+{% include "kutuphane/_ust.html" %}
+<h1>{{ 'Gecikenler' if geciken else 'Ödünçteki kitaplar' }}</h1>
+<p class="tuslar"><a class="tus {{ 'ikincil' if geciken }} kucuk" href="/kutuphane/oduncte">Tümü</a><a class="tus {{ 'ikincil' if not geciken }} kucuk" href="/kutuphane/oduncte?geciken=1">Yalnızca gecikenler</a></p>
+<section class="kart">
+  {% if liste %}
+  <div class="tablo-kap"><table>
+    <thead><tr><th>Kitap</th><th>Öğrenci</th><th>Veriliş</th><th>Son tarih</th><th class="sayi">Gecikme</th></tr></thead>
+    <tbody>{% for x in liste %}<tr>
+      <td><b>{{ x.baslik }}</b><br><span class="soluk kucuk">{{ x.demirbas }}</span></td>
+      <td>{{ x.ad_soyad }}<br><span class="soluk kucuk">{{ x.sinif }} · {{ x.okul_no }}</span></td>
+      <td>{{ x.verilis|tarih(false) }}</td><td>{{ x.son_tarih|tarih }}</td>
+      <td class="sayi">{% if x.gecikme_gun %}<span class="etiket kirmizi">{{ x.gecikme_gun }} gün</span>{% else %}—{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="bos">{{ 'Geciken kitap yok.' if geciken else 'Ödünçte kitap yok.' }}</p>{% endif %}
+</section>
+{% if ayirtmalar and not geciken %}
+<section class="kart">
+  <h2>Ayırtmalar</h2>
+  <ul class="liste">{% for a in ayirtmalar %}<li><span><b>{{ a.baslik }}</b><br><span class="soluk kucuk">{{ a.ad_soyad }} ({{ a.sinif }})</span></span>
+    <span class="sag">{% if a.durum == 'hazir' %}<span class="etiket mor">Ayrıldı · {{ a.demirbas }}</span><br><span class="kucuk soluk">{{ a.hazir_bitis|tarih }}'e kadar</span>{% else %}<span class="etiket">Sırada {{ a.sira }}.</span>{% endif %}</span></li>{% endfor %}</ul>
+</section>
+{% endif %}
+<p class="kucuk"><a href="/kutuphane/rapor.xlsx">Excel olarak indir</a></p>
+{% endblock %}

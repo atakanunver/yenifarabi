@@ -1,0 +1,65 @@
+/* Kütüphane: laptopta geniş panel, telefonda büyük dokunma alanı. Renkler tema değişkenlerinden. */
+.sayfa:has(.ktp-nav) { max-width: 1100px; }
+.ktp-nav { display: flex; gap: .4rem; overflow-x: auto; margin: 0 0 .8rem; padding-bottom: .2rem; }
+.ktp-nav a { flex: none; padding: .45rem .8rem; border-radius: 999px; background: var(--mavi-acik); color: var(--mavi); text-decoration: none; font-weight: 600; font-size: .9rem; }
+.ktp-nav a[aria-current] { background: var(--mavi); color: #fff; }
+.ktp-ana { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; margin-bottom: 1rem; }
+@media (min-width: 760px) { .ktp-ana { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.ktp-buyuk { display: flex; flex-direction: column; justify-content: center; gap: .3rem; min-height: 96px; padding: .9rem; border-radius: var(--yaricap);
+  background: var(--alan); border: 1px solid var(--kenar); box-shadow: var(--golge); color: var(--murekkep); text-decoration: none; font-weight: 700; font-size: 1.05rem; }
+.ktp-buyuk > span { font-size: 1.7rem; line-height: 1; }
+.ktp-buyuk b { font-size: 1.3rem; color: var(--mavi); }
+.ktp-buyuk.ver { background: var(--mavi); border-color: var(--mavi); color: #fff; }
+.ktp-buyuk.al { background: var(--yesil); border-color: var(--yesil); color: #fff; }
+.ktp-buyuk.geciken b { color: var(--kirmizi); }
+.ktp-sayilar { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; margin: 0; }
+.ktp-sayilar b { font-size: 1.25rem; }
+.ktp-islem { max-width: 640px; }
+.ktp-video { position: relative; overflow: hidden; border-radius: 12px; background: #000; aspect-ratio: 4 / 3; max-height: 55vh; }
+.ktp-video video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ktp-cerceve { position: absolute; inset: 22% 10%; border: 3px solid rgba(255, 255, 255, .85); border-radius: 10px; box-shadow: 0 0 0 999px rgba(0, 0, 0, .25); }
+.ktp-kamera select { min-height: 44px; }
+.ktp-elle { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .5rem; margin-top: .6rem; }
+.ktp-elle label { flex: 1 1 14rem; margin: 0; }
+.ktp-elle input { font-size: 1.15rem; letter-spacing: .03em; }
+.ktp-secim { display: grid; gap: .5rem; margin-top: .6rem; }
+.ktp-secim button { display: flex; align-items: center; gap: .6rem; width: 100%; min-height: 56px; padding: .6rem .8rem; text-align: left; border-radius: 12px;
+  border: 2px solid var(--kenar); background: var(--alan); color: var(--murekkep); font: inherit; cursor: pointer; }
+.ktp-secim button[aria-pressed="true"] { border-color: var(--mavi); background: var(--mavi-acik); }
+.ktp-secim button:disabled { opacity: .55; cursor: not-allowed; }
+.ktp-secim .buyuk { font-size: 1.25rem; font-weight: 800; letter-spacing: .03em; }
+.ktp-secim .sag { margin-left: auto; text-align: right; }
+.ktp-onay { min-height: 60px; font-size: 1.15rem; }
+.ktp-ozet { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: .25rem .8rem; }
+.ktp-ozet dt { color: var(--soluk); }
+.ktp-ozet dd { margin: 0; font-weight: 600; }
+#sonuc.tamam { border-color: var(--yesil); background: var(--yesil-acik); color: var(--yesil); font-weight: 700; }
+#sonuc.olmadi { border-color: var(--kirmizi); background: var(--kirmizi-acik); color: var(--hata-yazi); font-weight: 700; }
+.ktp-ayir { display: block; margin-top: .5rem; padding: .7rem; border-radius: 10px; background: var(--mor-acik); color: var(--mor-koyu); }
+.ktp-form { display: grid; gap: .2rem .9rem; }
+@media (min-width: 700px) { .ktp-form { grid-template-columns: 1fr 1fr; } .ktp-form .genis { grid-column: 1 / -1; } }
+.ktp-ara-satir { display: flex; gap: .5rem; }
+.ktp-ara-satir input { flex: 1; }
+.ktp-durum { display: flex; gap: .3rem; align-items: center; }
+.ktp-durum select { min-height: 34px; padding: .2rem .4rem; }
+.ktp-yetkili { display: grid; gap: .3rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); }
+.ktp-yetkili label, .ktp-onay-kutu { display: flex; align-items: center; gap: .5rem; font-weight: 500; }
+.ktp-ikili { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+.ktp-cubuklar { display: flex; align-items: flex-end; gap: 2px; height: 120px; }
+.ktp-cubuklar span { flex: 1; min-height: 2px; background: var(--mavi); border-radius: 3px 3px 0 0; }
+/* Etiketler: ekranda önizleme, yazdırırken A4'te 3×7 (63,5 × 38,1 mm, yaygın 21'li etiket kâğıdı). */
+.ktp-etiketler { display: grid; grid-template-columns: repeat(auto-fill, 63.5mm); gap: 0; justify-content: center; }
+.ktp-etiket { width: 63.5mm; height: 38.1mm; box-sizing: border-box; padding: 2.5mm; display: flex; align-items: center; gap: 2.5mm;
+  background: #fff; color: #000; border: 1px dashed #bbb; overflow: hidden; break-inside: avoid; }
+.ktp-etiket .qr { flex: none; width: 30mm; height: 30mm; }
+.ktp-etiket .qr svg { width: 100%; height: 100%; }
+.ktp-etiket .yazi { display: flex; flex-direction: column; gap: 1mm; min-width: 0; }
+.ktp-etiket b { font-size: 16pt; letter-spacing: .04em; }
+.ktp-etiket small { font-size: 7pt; line-height: 1.15; overflow: hidden; }
+@media print {
+  @page { size: A4; margin: 10.7mm 7.2mm; }
+  .ust, .acil-serit, .alt-menu, nav, .ktp-yazdirma-disi, footer { display: none !important; }
+  body, .sayfa { background: #fff !important; margin: 0 !important; padding: 0 !important; max-width: none !important; }
+  .ktp-etiketler { grid-template-columns: repeat(3, 63.5mm); justify-content: start; }
+  .ktp-etiket { border-color: transparent; }
+}

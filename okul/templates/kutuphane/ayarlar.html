@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block baslik %}Kütüphane ayarları — Dijital Okul{% endblock %}
+{% block icerik %}
+{% include "kutuphane/_ust.html" %}
+<h1>Kütüphane ayarları</h1>
+{% if kaydedildi %}<p class="kart bilgi" role="status">Kaydedildi.</p>{% endif %}
+{% if hata %}<p class="hata" role="alert">{{ hata }}</p>{% endif %}
+<form class="kart" method="post" action="/kutuphane/ayarlar">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="ktp-form">
+    <label>Ödünç süresi (gün)<input name="odunc_gun" type="number" min="{{ sinir.odunc_gun[0] }}" max="{{ sinir.odunc_gun[1] }}" value="{{ ayar.odunc_gun }}" required></label>
+    <label>Öğrenci başına en çok kitap<input name="ogrenci_limit" type="number" min="{{ sinir.ogrenci_limit[0] }}" max="{{ sinir.ogrenci_limit[1] }}" value="{{ ayar.ogrenci_limit }}" required></label>
+  </div>
+  <label class="ktp-onay-kutu"><input type="checkbox" name="hatirlatma" value="1"{% if ayar.hatirlatma %} checked{% endif %}> Teslim tarihi hatırlatması (son 2 gün öğrenci ana ekranında)</label>
+  <p class="kucuk soluk">Yeni süre yalnızca bundan sonra verilen kitaplara uygulanır.</p>
+  <h2>Ödünç/iade yapabilen öğretmenler</h2>
+  <p class="kucuk soluk">Yöneticiler her zaman yapabilir. İşaretsiz öğretmenler yalnızca kataloğu görür.</p>
+  {% if ogretmenler %}<div class="ktp-yetkili">{% for o in ogretmenler %}<label><input type="checkbox" name="yetkili" value="{{ o.id }}"{% if o.yetkili %} checked{% endif %}> {{ o.ad_soyad }}</label>{% endfor %}</div>
+  {% else %}<p class="bos">Öğretmen hesabı yok.</p>{% endif %}
+  <div class="tuslar"><button class="tus tam">Kaydet</button></div>
+</form>
+{% endblock %}

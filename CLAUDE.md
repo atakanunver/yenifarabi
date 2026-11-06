@@ -151,7 +151,6 @@ Log >1000 satır/>200 KB ise boyutu bildir, tamamını okumadan sor (grep/tail s
 Log, hata avında birincil kanıttır; varsayımla debug etme.
 
 ## Çalışma kuralları (kalıcı)
-- Analiz/rapor/özet için yeni .md/.pdf oluşturma; cevabı sohbette ver.
 - Kalıcı bilgi: `DECISIONS.md`'ye tek satır ("tarih | karar | neden").
 - README.md'yi yalnızca Atakan isterse güncelle.
 - Kod değişikliğinde tüm dosyayı değil, değişen fonksiyon/bloğu göster.

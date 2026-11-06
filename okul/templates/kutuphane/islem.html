@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block baslik %}{{ 'Kitap Ver' if mod == 'ver' else 'Kitap Al' }} — Kütüphane{% endblock %}
+{% block icerik %}
+{% include "kutuphane/_ust.html" %}
+<h1>{{ 'Kitap Ver' if mod == 'ver' else 'Kitap Al (iade)' }}</h1>
+<div id="ktp-islem" class="ktp-islem" data-mod="{{ mod }}" data-csrf="{{ csrf }}">
+  <section class="kart" aria-labelledby="adim1">
+    <h2 id="adim1">1. Kitabı okut</h2>
+    {% include "kutuphane/_kamera.html" %}
+    <p id="kod-durum" class="kucuk" role="status" aria-live="polite"></p>
+    <div id="nusha-liste"></div>
+  </section>
+  {% if mod == 'ver' %}
+  <section class="kart" id="adim-ogrenci" hidden aria-labelledby="adim2">
+    <h2 id="adim2">2. Öğrenciyi seç</h2>
+    <label for="ogrenci-q">Okul no ya da ad</label>
+    <input id="ogrenci-q" type="search" inputmode="search" autocomplete="off" placeholder="ör. 101 ya da Ali">
+    <div id="ogrenci-liste" class="ktp-secim" role="list"></div>
+  </section>
+  {% endif %}
+  <section class="kart" id="adim-onay" hidden aria-labelledby="adim3">
+    <h2 id="adim3">{{ '3. Onayla' if mod == 'ver' else '2. Teslim al' }}</h2>
+    <div id="ozet"></div>
+    <div class="tuslar"><button type="button" class="tus tam ktp-onay" id="onay-tus">{{ 'Ödünç ver' if mod == 'ver' else 'Teslim al' }}</button>
+      <button type="button" class="tus ikincil tam" id="vazgec-tus">Vazgeç / yeni kitap</button></div>
+  </section>
+  <p id="sonuc" class="kart" role="alert" hidden></p>
+  {% if mod == 'ver' %}<p class="kucuk soluk">Ödünç süresi {{ ayar.odunc_gun }} gün · öğrenci başına en çok {{ ayar.ogrenci_limit }} kitap.</p>{% endif %}
+</div>
+<script src="/static/kutuphane-kamera.js?v=1" defer></script>
+<script src="/static/kutuphane-islem.js?v=1" defer></script>
+{% endblock %}

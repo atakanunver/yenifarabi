@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block baslik %}Excel'den aktar — Kütüphane{% endblock %}
+{% block icerik %}
+{% include "kutuphane/_ust.html" %}
+<h1>Excel'den toplu kitap aktarma</h1>
+{% if hata %}<p class="hata" role="alert">{{ hata }}</p>{% endif %}
+{% if sonuc %}<section class="kart bilgi" role="status">
+  <p><b>{{ sonuc.eklenen }}</b> nüsha eklendi{% if sonuc.atlanan %}, <b>{{ sonuc.atlanan|length }}</b> satır atlandı{% endif %}.</p>
+  {% if sonuc.sifir_supheli %}<p class="kart sari kucuk">{{ sonuc.sifir_supheli }} satırda demirbaş Excel'de <b>sayı</b> olarak kayıtlıydı; baştaki sıfırlar Excel'de silinmiş olabilir. Demirbaş sütununu <b>Metin</b> biçimine çevirip yeniden yükleyin (kayıtlı olanlar tekrar eklenmez).</p>{% endif %}
+  {% if sonuc.isbn_gecersiz %}<details><summary>{{ sonuc.isbn_gecersiz|length }} satırda ISBN geçersizdi; bu kitaplar ISBN'siz kaydedildi</summary><ul class="kucuk">{% for no, i in sonuc.isbn_gecersiz[:200] %}<li>Satır {{ no }}: {{ i }}</li>{% endfor %}</ul></details>{% endif %}
+  {% if sonuc.atlanan %}<details><summary>Atlanan satırlar</summary><ul class="kucuk">{% for no, m in sonuc.atlanan[:200] %}<li>Satır {{ no }}: {{ m }}</li>{% endfor %}</ul></details>{% endif %}
+</section>{% endif %}
+<form class="kart" method="post" action="/kutuphane/ice-aktar" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <p>Sütunlar: <b>ISBN, Demirbas, BaskiYili, Baslik, BasimSayisi, Yayinevi</b> (isteğe bağlı: Yazar, Tur, Raf). Demirbas ve Baslik zorunlu.</p>
+  <p class="kucuk soluk">Aynı ISBN'li satırlar tek esere bağlanır. Zaten kayıtlı demirbaşlar atlanır; dosyayı ikinci kez yüklemek kopya oluşturmaz.</p>
+  <label for="dosya">Excel dosyası (.xlsx, en çok 5 MB)</label>
+  <input id="dosya" name="dosya" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+  <div class="tuslar"><button class="tus">Yükle</button><a class="tus ikincil" href="/kutuphane/sablon.xlsx">Örnek şablonu indir</a></div>
+</form>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block baslik %}Kitap Ekle — Kütüphane{% endblock %}
+{% block icerik %}
+{% include "kutuphane/_ust.html" %}
+<h1>Kitap Ekle</h1>
+{% if eklenen %}<div class="kart bilgi" role="status"><p><b>{{ eklenen.baslik }}</b> eklendi · demirbaş <b>{{ eklenen.demirbas }}</b></p>
+  <div class="tuslar"><a class="tus ikincil kucuk" href="/kutuphane/etiket?bas={{ eklenen.demirbas|urlencode }}">Etiketini yazdır</a>
+  <a class="tus ikincil kucuk" href="/kutuphane/kitap/{{ eklenen.kitap_id }}">Nüshaları gör</a></div></div>{% endif %}
+{% if hata %}<p class="hata" role="alert">{{ hata }}</p>{% endif %}
+<section class="kart">
+  <h2>ISBN'i okut (isteğe bağlı)</h2>
+  <p class="kucuk soluk">Kitabın arkasındaki barkodu okutun; bu eser kayıtlıysa bilgiler dolar, yalnızca yeni demirbaşı yazarsınız.</p>
+  {% include "kutuphane/_kamera.html" %}
+  <p id="isbn-durum" class="kucuk" role="status"></p>
+</section>
+<form class="kart" method="post" action="/kutuphane/ekle" id="ekle-form" data-csrf="{{ csrf }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="ktp-form">
+    <label>ISBN<input name="isbn" value="{{ form.isbn }}" inputmode="numeric" maxlength="20" autocomplete="off"></label>
+    <label>Demirbaş no *<input name="demirbas" value="{{ form.demirbas }}" required maxlength="30" autocomplete="off" placeholder="ör. 03244"></label>
+    <label class="genis">Başlık *<input name="baslik" value="{{ form.baslik }}" required maxlength="300"></label>
+    <label>Yazar<input name="yazar" value="{{ form.yazar }}" maxlength="300"></label>
+    <label>Yayınevi<input name="yayinevi" value="{{ form.yayinevi }}" maxlength="300"></label>
+    <label>Baskı yılı<input name="baski_yili" value="{{ form.baski_yili }}" inputmode="numeric" maxlength="4"></label>
+    <label>Basım sayısı<input name="basim_sayisi" value="{{ form.basim_sayisi }}" maxlength="40" placeholder="ör. 3.Basım"></label>
+    <label>Tür<input name="tur" value="{{ form.tur }}" maxlength="100" placeholder="ör. Roman"></label>
+    <label>Dolap / raf<input name="raf" value="{{ form.raf }}" maxlength="100" placeholder="ör. A-3"></label>
+  </div>
+  <p class="kucuk soluk">Demirbaş numarası aynen saklanır (baştaki sıfırlar korunur). ISBN eseri, demirbaş fiziksel nüshayı gösterir.</p>
+  <div class="tuslar"><button class="tus tam">Kaydet</button></div>
+</form>
+<p class="kucuk"><a href="/kutuphane/ice-aktar">Çok kitap mı var? Excel'den toplu aktarın →</a></p>
+<script src="/static/kutuphane-kamera.js?v=1" defer></script>
+<script src="/static/kutuphane-ekle.js?v=1" defer></script>
+{% endblock %}

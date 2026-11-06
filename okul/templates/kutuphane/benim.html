@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block baslik %}Kütüphanem — Dijital Okul{% endblock %}
+{% block icerik %}
+<link rel="stylesheet" href="/static/kutuphane.css?v=1">
+<h1>📚 {{ 'Kütüphane' if k.rol == 'veli' else 'Kütüphanem' }}</h1>
+{% if veri is none %}<p class="kart bos">Hesabınıza bağlı öğrenci yok.</p>{% else %}
+{% for a in veri.ayirtmalar if a.durum == 'hazir' %}<p class="kart bilgi" role="status"><b>{{ a.baslik }}</b> {{ 'senin' if k.rol == 'ogrenci' else 'öğrenciniz' }} için ayrıldı. {{ a.hazir_bitis|tarih }} tarihine kadar kütüphaneden alınmalı.</p>{% endfor %}
+<section class="kart">
+  <h2>{{ 'Elimdeki kitaplar' if k.rol == 'ogrenci' else 'Ödünç aldığı kitaplar' }}</h2>
+  {% if veri.aktif %}
+  <ul class="liste">{% for x in veri.aktif %}<li><span><b>{{ x.baslik }}</b><br><span class="soluk kucuk">Son teslim {{ x.son_tarih|tarih }} · alındı {{ x.verilis|tarih(false) }}</span></span>
+    <span class="sag">{% if x.gecikme_gun %}<span class="etiket kirmizi">{{ x.gecikme_gun }} gün gecikti</span>{% elif x.uyari %}<span class="etiket sari">{{ 'Bugün son gün' if x.kalan_gun == 0 else x.kalan_gun ~ ' gün kaldı' }}</span>{% else %}<span class="etiket">{{ x.kalan_gun }} gün</span>{% endif %}</span></li>{% endfor %}</ul>
+  {% else %}<p class="bos">Şu an ödünç alınmış kitap yok.</p>{% endif %}
+</section>
+{% if veri.ayirtmalar %}
+<section class="kart">
+  <h2>Ayırtmalar</h2>
+  <ul class="liste">{% for a in veri.ayirtmalar %}<li><span><b>{{ a.baslik }}</b><br><span class="soluk kucuk">{% if a.durum == 'hazir' %}Hazır · {{ a.hazir_bitis|tarih }}'e kadar{% else %}Sırada {{ a.sira }}.{% endif %}</span></span>
+    {% if k.rol == 'ogrenci' %}<form class="sag" method="post" action="/kutuphane/ayirtma/{{ a.id }}/iptal"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="tus ikincil kucuk">İptal</button></form>{% endif %}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+{% if k.rol == 'ogrenci' %}<p class="tuslar"><a class="tus tam" href="/kutuphane/katalog">📚 Kataloğa göz at</a></p>{% endif %}
+{% if veri.gecmis %}
+<section class="kart">
+  <h2>Geçmiş</h2>
+  <ul class="liste">{% for x in veri.gecmis %}<li><span>{{ x.baslik }}<br><span class="soluk kucuk">{{ x.verilis|tarih(false) }} – {{ x.iade|tarih(false) }}</span></span>{% if x.gecikme_gun %}<span class="sag"><span class="etiket kirmizi">{{ x.gecikme_gun }} gün geç</span></span>{% endif %}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+{% endif %}
+<p class="kucuk"><a href="/{{ k.rol }}">← Ana sayfa</a></p>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block baslik %}Kütüphane — Dijital Okul{% endblock %}
+{% block icerik %}
+{% include "kutuphane/_ust.html" %}
+<h1>Kütüphane</h1>
+<div class="ktp-ana">
+  <a class="ktp-buyuk ver" href="/kutuphane/ver"><span aria-hidden="true">📤</span>Kitap Ver</a>
+  <a class="ktp-buyuk al" href="/kutuphane/al"><span aria-hidden="true">📥</span>Kitap Al</a>
+  <a class="ktp-buyuk" href="/kutuphane/ekle"><span aria-hidden="true">➕</span>Kitap Ekle</a>
+  <a class="ktp-buyuk" href="/kutuphane/katalog"><span aria-hidden="true">📚</span>Kitap Listesi</a>
+  <a class="ktp-buyuk" href="/kutuphane/oduncte"><span aria-hidden="true">📖</span>Ödünçteki Kitaplar <b>{{ ozet.oduncte }}</b></a>
+  <a class="ktp-buyuk{% if ozet.geciken %} geciken{% endif %}" href="/kutuphane/oduncte?geciken=1"><span aria-hidden="true">⏰</span>Gecikenler <b>{{ ozet.geciken }}</b></a>
+  <a class="ktp-buyuk" href="/kutuphane/rapor"><span aria-hidden="true">📊</span>Raporlar</a>
+</div>
+<section class="kart">
+  <p class="ktp-sayilar"><span><b>{{ ozet.eser }}</b> eser</span><span><b>{{ ozet.nusha }}</b> nüsha</span><span><b>{{ ozet.rafta }}</b> rafta</span><span><b>{{ ayirtma }}</b> ayırtma</span></p>
+  <div class="tuslar">
+    <a class="tus ikincil kucuk" href="/kutuphane/ice-aktar">Excel'den aktar</a>
+    <a class="tus ikincil kucuk" href="/kutuphane/etiket">Etiket yazdır</a>
+    {% if k.rol == 'yonetici' %}<a class="tus ikincil kucuk" href="/kutuphane/ayarlar">Ayarlar ve yetkiler</a>{% endif %}
+  </div>
+</section>
+<section class="kart">
+  <h2>Son işlemler</h2>
+  {% if son %}
+  <ul class="liste">
+    {% for x in son %}<li><span><b>{{ x.baslik }}</b> · {{ x.demirbas }}<br><span class="soluk kucuk">{{ x.ad_soyad }} ({{ x.sinif }}) · {% if x.iade %}iade {{ x.iade|tarih }}{% else %}verildi {{ x.verilis|tarih }}{% endif %}</span></span>
+      <span class="sag">{% if x.iade %}<span class="etiket yesil">İade</span>{% elif x.gecikme_gun %}<span class="etiket kirmizi">{{ x.gecikme_gun }} gün gecikme</span>{% else %}<span class="etiket">Ödünçte</span>{% endif %}</span></li>{% endfor %}
+  </ul>
+  {% else %}<p class="bos">Henüz işlem yok.</p>{% endif %}
+</section>
+{% endblock %}

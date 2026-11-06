@@ -13,6 +13,7 @@ import denemeler
 import duyurular
 import gunun_bilgisi
 import kisisel
+import kutuphane
 import maraton
 import oduller
 import odevler
@@ -85,6 +86,7 @@ def ana(
         tesekkur=tesekkur.ozet(conn, o),
         belirli_gunler=belirli_gunler.bugun(),
         gunun_bilgisi=gunun_bilgisi.bugun(),
+        kutuphane_kart=kutuphane.kutuphanem(conn, o["id"]),
     )
 
 

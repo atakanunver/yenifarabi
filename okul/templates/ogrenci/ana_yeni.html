@@ -66,6 +66,7 @@
 </section>
 {% endif %}
 {% if bilmece is defined and (bilmece.bugun or bilmece.onceki) %}{% set b = bilmece %}{% include "_bilmece.html" %}{% endif %}
+{% if kutuphane_kart is defined and kutuphane_kart %}{% include "kutuphane/_kart.html" %}{% endif %}
 
 <section class="kart bugun-kart" aria-labelledby="bugun-b">
   <h2 id="bugun-b">Bugün ne yapacağım?</h2>

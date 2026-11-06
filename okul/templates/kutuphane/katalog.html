@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block baslik %}Kitap Listesi — Kütüphane{% endblock %}
+{% block icerik %}
+{% if gorevli %}{% include "kutuphane/_ust.html" %}{% else %}<link rel="stylesheet" href="/static/kutuphane.css?v=1">{% endif %}
+<h1>Kütüphane kataloğu</h1>
+<form class="kart ktp-ara" method="get" action="/kutuphane/katalog" role="search">
+  <label for="q">Kitap, yazar, yayınevi ya da ISBN</label>
+  <div class="ktp-ara-satir"><input id="q" name="q" type="search" value="{{ q }}" maxlength="80"><button class="tus">Ara</button></div>
+</form>
+<section class="kart">
+  {% if kitaplar %}
+  <ul class="liste">
+    {% for x in kitaplar %}<li><a class="satir" href="/kutuphane/kitap/{{ x.id }}"><span><b>{{ x.baslik }}</b><br><span class="soluk kucuk">{{ x.yazar or 'Yazar yok' }}{% if x.yayinevi %} · {{ x.yayinevi }}{% endif %}</span></span>
+      <span class="sag">{% if x.rafta %}<span class="etiket yesil">Rafta {{ x.rafta }}</span>{% elif x.nusha %}<span class="etiket sari">Ödünçte</span>{% else %}<span class="etiket">Nüsha yok</span>{% endif %}{% if gorevli %}<br><span class="soluk kucuk">{{ x.nusha }} nüsha</span>{% endif %}</span></a></li>{% endfor %}
+  </ul>
+  {% if kitaplar|length >= 100 %}<p class="kucuk soluk">İlk 100 sonuç gösteriliyor; aramayı daraltın.</p>{% endif %}
+  {% else %}<p class="bos">{% if q %}Aramanıza uyan kitap yok.{% else %}Katalogda henüz kitap yok.{% endif %}</p>{% endif %}
+</section>
+{% if k.rol == 'ogrenci' %}<p class="kucuk"><a href="/kutuphane/benim">← Kütüphanem</a></p>{% endif %}
+{% endblock %}

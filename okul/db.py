@@ -868,11 +868,75 @@ DROP TABLE odul_eski;
 CREATE INDEX odul_hafta_idx ON odul(hafta_basi);
 """
 
+# Kütüphane: eser (ISBN/başlık/yayınevi) + fiziksel nüsha (demirbaş barkodu). Baskı yılı ve basım sayısı nüshada,
+# çünkü aynı ISBN'in farklı nüshaları farklı basımlar olabilir. Demirbaş TEXT: baştaki sıfır korunur ("03244").
+SEMA_V40 = """
+CREATE TABLE kitap (
+    id         INTEGER PRIMARY KEY,
+    isbn       TEXT,
+    baslik     TEXT NOT NULL,
+    yazar      TEXT NOT NULL DEFAULT '',
+    yayinevi   TEXT NOT NULL DEFAULT '',
+    tur        TEXT NOT NULL DEFAULT '',
+    kapak      TEXT,
+    olusturma  TEXT NOT NULL
+);
+CREATE UNIQUE INDEX kitap_isbn_idx ON kitap(isbn) WHERE isbn IS NOT NULL;
+CREATE TABLE nusha (
+    id            INTEGER PRIMARY KEY,
+    kitap_id      INTEGER NOT NULL REFERENCES kitap(id),
+    demirbas      TEXT NOT NULL UNIQUE,
+    baski_yili    INTEGER,
+    basim_sayisi  TEXT NOT NULL DEFAULT '',
+    raf           TEXT NOT NULL DEFAULT '',
+    durum         TEXT NOT NULL DEFAULT 'saglam' CHECK (durum IN ('saglam', 'hasarli', 'kayip')),
+    olusturma     TEXT NOT NULL
+);
+CREATE INDEX nusha_kitap_idx ON nusha(kitap_id);
+-- Ödünç/iade yapabilen öğretmenler (yönetici her zaman yapabilir); listede olmayan öğretmen yalnızca kataloğu görür.
+CREATE TABLE kutuphane_yetkili (
+    kullanici_id  INTEGER PRIMARY KEY REFERENCES kullanici(id) ON DELETE CASCADE,
+    olusturma     TEXT NOT NULL
+);
+-- Ödünç kaydı silinmez (denetim izi); iade = NULL aktif ödünç. Kısmi tekil indeks aynı nüshanın aynı anda
+-- ikinci kez verilmesini veritabanı düzeyinde engeller.
+CREATE TABLE odunc (
+    id          INTEGER PRIMARY KEY,
+    nusha_id    INTEGER NOT NULL REFERENCES nusha(id),
+    ogrenci_id  INTEGER NOT NULL REFERENCES ogrenci(id),
+    veren_id    INTEGER NOT NULL REFERENCES kullanici(id),
+    verilis     TEXT NOT NULL,
+    son_tarih   TEXT NOT NULL,
+    iade        TEXT,
+    alan_id     INTEGER REFERENCES kullanici(id)
+);
+CREATE UNIQUE INDEX odunc_aktif_nusha ON odunc(nusha_id) WHERE iade IS NULL;
+CREATE INDEX odunc_ogrenci_idx ON odunc(ogrenci_id, iade);
+-- Yönetim panelinden değişen ayarlar (odunc_gun, ogrenci_limit, hatirlatma); satır yoksa koddaki varsayılan.
+CREATE TABLE kutuphane_ayar (
+    anahtar  TEXT PRIMARY KEY,
+    deger    INTEGER NOT NULL
+);
+-- Eser düzeyinde sıra: bekliyor → (bir nüsha iade edilince) hazir (nüsha bu öğrenciye ayrılır, süreli) → tamam/iptal/doldu.
+CREATE TABLE ayirtma (
+    id          INTEGER PRIMARY KEY,
+    kitap_id    INTEGER NOT NULL REFERENCES kitap(id),
+    ogrenci_id  INTEGER NOT NULL REFERENCES ogrenci(id),
+    durum       TEXT NOT NULL DEFAULT 'bekliyor' CHECK (durum IN ('bekliyor', 'hazir', 'tamam', 'iptal', 'doldu')),
+    nusha_id    INTEGER REFERENCES nusha(id),
+    olusturma   TEXT NOT NULL,
+    hazir_bitis TEXT,
+    kapanis     TEXT
+);
+CREATE UNIQUE INDEX ayirtma_acik ON ayirtma(kitap_id, ogrenci_id) WHERE durum IN ('bekliyor', 'hazir');
+CREATE UNIQUE INDEX ayirtma_hazir_nusha ON ayirtma(nusha_id) WHERE durum = 'hazir';
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
     SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27, SEMA_V28, SEMA_V29, SEMA_V30, SEMA_V31, SEMA_V32, SEMA_V33, SEMA_V34,
-    SEMA_V35, SEMA_V36, SEMA_V37, SEMA_V38, SEMA_V39,
+    SEMA_V35, SEMA_V36, SEMA_V37, SEMA_V38, SEMA_V39, SEMA_V40,
 ]
 
 

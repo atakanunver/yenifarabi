@@ -65,6 +65,7 @@ TEMPLATES.env.globals["TEMALAR"] = tema.TEMALAR
 # Yeni modül bağlantıları: yalnızca bu kodu çalıştıran süreçte tanımlı (şablonlarda `MODULLER is defined`).
 TEMPLATES.env.globals["push_etkin"] = push.etkin_mi  # VAPID ayarlıysa bildirim bağlantıları görünür
 TEMPLATES.env.globals["MODULLER"] = True
+TEMPLATES.env.globals["KUTUPHANE"] = True  # kütüphane bağlantıları yalnızca rotaları yüklü süreçte görünür
 TEMPLATES.env.globals["avatar_svg"] = avatar.svg
 TEMPLATES.env.globals["OYUN_NAV"] = True  # öğrenci alt menüsü oyun odaklı (yalnızca bu kodu çalıştıran süreçte)
 

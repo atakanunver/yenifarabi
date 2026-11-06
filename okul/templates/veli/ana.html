@@ -81,6 +81,7 @@
 <section class="kart veli-eylemler">
   <a class="tus tam veli-tus" href="/kutu">✉ Okula mesaj yazın</a>
   <a class="tus tam ikincil veli-tus" href="/veli/onaylar?ogr={{ cocuk.id }}">📋 Onay bekleyen belgeler</a>
+  {% if KUTUPHANE is defined %}<a class="tus tam ikincil veli-tus" href="/kutuphane/benim?ogr={{ cocuk.id }}">📚 Kütüphane kitapları</a>{% endif %}
 </section>
 
 <h2 class="veli-baslik">Ayrıntılar</h2>

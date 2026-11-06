@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block baslik %}Etiketler — Kütüphane{% endblock %}
+{% block icerik %}
+<div class="ktp-yazdirma-disi">
+{% include "kutuphane/_ust.html" %}
+<h1>Demirbaş etiketleri</h1>
+<form class="kart" method="get" action="/kutuphane/etiket">
+  <p class="kucuk soluk">QR kodun içinde <b>{{ onek }}</b> + demirbaş vardır; okutunca doğrudan o nüsha bulunur, ISBN ile karışmaz.</p>
+  <div class="ktp-form">
+    <label>İlk demirbaş<input name="bas" value="{{ bas }}" maxlength="30" required></label>
+    <label>Son demirbaş<input name="bit" value="{{ bit }}" maxlength="30" placeholder="boşsa tek etiket"></label>
+  </div>
+  <div class="tuslar"><button class="tus ikincil">Göster</button>{% if nushalar %}<button type="button" class="tus" data-yazdir>Yazdır ({{ nushalar|length }})</button>{% endif %}</div>
+  {% if nushalar|length >= 600 %}<p class="kucuk soluk">En çok 600 etiket gösterilir; aralığı bölün.</p>{% endif %}
+</form>
+{% if bas and not nushalar %}<p class="kart bos">Bu aralıkta nüsha yok.</p>{% endif %}
+</div>
+<div class="ktp-etiketler" data-onek="{{ onek }}">
+  {% for n in nushalar %}<div class="ktp-etiket"><span class="qr" data-kod="{{ onek }}{{ n.demirbas }}"></span><span class="yazi"><b>{{ n.demirbas }}</b><small>{{ n.baslik[:40] }}</small><small>Ş.M.U.A.L Kütüphanesi</small></span></div>{% endfor %}
+</div>
+<script src="/static/vendor/zxing-0.21.3.min.js" defer></script>
+<script src="/static/kutuphane-etiket.js?v=1" defer></script>
+{% endblock %}

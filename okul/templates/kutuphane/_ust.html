@@ -1,0 +1,8 @@
+<link rel="stylesheet" href="/static/kutuphane.css?v=1">
+<nav class="ktp-nav" aria-label="Kütüphane">
+  <a href="/kutuphane"{% if request.url.path == '/kutuphane' %} aria-current="page"{% endif %}>📚 Kütüphane</a>
+  <a href="/kutuphane/ver"{% if request.url.path == '/kutuphane/ver' %} aria-current="page"{% endif %}>Ver</a>
+  <a href="/kutuphane/al"{% if request.url.path == '/kutuphane/al' %} aria-current="page"{% endif %}>Al</a>
+  <a href="/kutuphane/katalog"{% if request.url.path.startswith('/kutuphane/katalog') %} aria-current="page"{% endif %}>Liste</a>
+  <a href="/kutuphane/oduncte"{% if request.url.path == '/kutuphane/oduncte' %} aria-current="page"{% endif %}>Ödünçteki</a>
+</nav>

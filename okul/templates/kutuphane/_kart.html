@@ -1,0 +1,9 @@
+{# Öğrenci/veli ana ekranı "Kütüphanem" kartı. kutuphane_kart: kutuphane.kutuphanem() sonucu. #}
+<section class="kart{% if kutuphane_kart.aktif|selectattr('uyari')|list or kutuphane_kart.aktif|selectattr('gecikme_gun')|list %} sari{% endif %}" aria-labelledby="ktp-kart-b">
+  <h2 id="ktp-kart-b">📚 Kütüphanem <a href="/kutuphane/benim">Tümü</a></h2>
+  {% for a in kutuphane_kart.ayirtmalar if a.durum == 'hazir' %}<p class="kucuk"><b>{{ a.baslik }}</b> senin için ayrıldı · {{ a.hazir_bitis|tarih }}'e kadar al.</p>{% endfor %}
+  {% for x in kutuphane_kart.aktif %}<p class="kucuk" style="margin:.3rem 0"><b>{{ x.baslik }}</b> ·
+    {% if x.gecikme_gun %}<span class="etiket kirmizi">{{ x.gecikme_gun }} gün gecikti</span>{% elif x.uyari %}<span class="etiket sari">{{ 'Bugün son gün' if x.kalan_gun == 0 else 'Teslime ' ~ x.kalan_gun ~ ' gün kaldı' }}</span>{% else %}son teslim {{ x.son_tarih|tarih }}{% endif %}</p>
+  {% else %}<p class="kucuk soluk" style="margin:.3rem 0">Elinde kütüphane kitabı yok.</p>{% endfor %}
+  {% if k.rol == 'ogrenci' %}<p class="kucuk" style="margin:.5rem 0 0"><a href="/kutuphane/katalog">Kataloğa göz at, kitap ayırt →</a></p>{% endif %}
+</section>
