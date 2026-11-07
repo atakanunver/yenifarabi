@@ -4,11 +4,11 @@
 {% include "kutuphane/_ust.html" %}
 <h1>{{ 'Kitap Ver' if mod == 'ver' else 'Kitap Al (iade)' }}</h1>
 <div id="ktp-islem" class="ktp-islem" data-mod="{{ mod }}" data-csrf="{{ csrf }}">
+  <p id="kod-durum" class="kucuk" role="status" aria-live="polite"></p>
+  <div id="nusha-liste"></div>
   <section class="kart" aria-labelledby="adim1">
     <h2 id="adim1">1. Kitabı okut</h2>
     {% include "kutuphane/_kamera.html" %}
-    <p id="kod-durum" class="kucuk" role="status" aria-live="polite"></p>
-    <div id="nusha-liste"></div>
   </section>
   {% if mod == 'ver' %}
   <section class="kart" id="adim-ogrenci" hidden aria-labelledby="adim2">

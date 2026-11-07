@@ -10,8 +10,8 @@
 <section class="kart">
   <h2>ISBN'i okut (isteğe bağlı)</h2>
   <p class="kucuk soluk">Kitabın arkasındaki barkodu okutun; bu eser kayıtlıysa bilgiler dolar, yalnızca yeni demirbaşı yazarsınız.</p>
-  {% include "kutuphane/_kamera.html" %}
   <p id="isbn-durum" class="kucuk" role="status"></p>
+  {% include "kutuphane/_kamera.html" %}
 </section>
 <form class="kart" method="post" action="/kutuphane/ekle" id="ekle-form" data-csrf="{{ csrf }}">
   <input type="hidden" name="csrf" value="{{ csrf }}">
