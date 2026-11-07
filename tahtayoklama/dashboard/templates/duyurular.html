@@ -1,0 +1,105 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Duyurular — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Duyurular{% endblock %}
+
+{% block icerik %}
+{% set tipler = {'bilgi': ('Bilgi', 'rozet-mavi'), 'idare': ('İdare', 'rozet-amber'), 'acil': ('Acil', 'rozet-kirmizi')} %}
+{% set durumlar = {'etkin': ('Ekranda', 'rozet-yesil'), 'doldu': ('Süresi doldu', 'rozet-gri'), 'kapatildi': ('Kapatıldı', 'rozet-gri')} %}
+
+{% if sonuclar %}
+<ul class="senkron-sonuc" id="sonuc-alani">
+  {% for s in sonuclar %}
+  <li class="serit {{ 'serit-bilgi' if s.basarili else 'serit-kritik' }}"><span>{{ s.tahta or '—' }}: {{ 'Tamam' if s.basarili else 'Hata' }} — {{ s.detay }}</span></li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<h2 class="bolum-basligi" id="tahta">Tahta duyurusu</h2>
+<form class="uz-eylem-form uz-duyuru-form" method="post" action="/duyurular/tahta">
+  <textarea name="mesaj" rows="2" maxlength="300" required placeholder="Duyuru metni (en çok 300 karakter)" aria-label="Duyuru metni"></textarea>
+  <select name="tip" title="Duyuru tipi" aria-label="Duyuru tipi">
+    <option value="bilgi">Bilgi — mavi, sessiz, 10 sn</option>
+    <option value="idare">İdare — sarı, ding + sesli okuma, 15 sn</option>
+    <option value="acil">Acil — kırmızı, 3× sesli okuma, elle kapanır</option>
+  </select>
+  <label class="uz-duyuru-etiket"><input type="checkbox" name="sesli_oku" value="1"> Sesli oku</label>
+  <button type="submit" class="dugme"><svg class="ikon"><use href="#ik-zil"/></svg> Duyuru gönder</button>
+  <fieldset class="cip-satir" aria-label="Hedef tahtalar">
+    <label class="uz-duyuru-etiket"><input type="checkbox" name="tum_okul" value="1"> <b>Tüm okul</b></label>
+    {% for t in tahtalar %}<label class="uz-duyuru-etiket"><input type="checkbox" name="tahta" value="{{ t }}"> {{ t }}</label>{% endfor %}
+  </fieldset>
+</form>
+<form class="uz-eylem-form uz-genel-form" method="post" action="/duyurular/tahta-kapat">
+  <button type="submit" class="dugme dugme-ikincil"><svg class="ikon"><use href="#ik-kapat"/></svg> Duyuru ekranlarını kapat</button>
+</form>
+
+<h3>Son 2 gün</h3>
+{% if gecmis %}
+<div class="tablo-kutu"><table class="tablo">
+  <thead><tr><th>Zaman</th><th>Tip</th><th>Hedef</th><th>Mesaj</th><th>Durum</th></tr></thead>
+  <tbody>
+    {% for g in gecmis %}
+    <tr>
+      <td>{{ g.zaman }}</td>
+      <td><span class="rozet {{ tipler[g.tip][1] }}">{{ tipler[g.tip][0] }}</span></td>
+      <td>{{ 'Tüm okul' if g.hedefler == 'tum-okul' else g.hedefler }}</td>
+      <td>{{ g.mesaj }}</td>
+      <td><span class="rozet {{ durumlar[g.durum][1] }}">{{ durumlar[g.durum][0] }}</span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p class="ipucu">Son 2 günde tahta duyurusu yok. Yukarıdaki formdan gönderebilirsin.</p>
+{% endif %}
+
+<h2 class="bolum-basligi" id="hatirlatma">Otomatik hatırlatmalar</h2>
+<p class="ipucu">Okul sınav takvimindeki denemeler başlangıca 3 gün kala hafta bitene kadar ilk teneffüs ve öğle arası başında ilgili sınıfların tahtasına gider (mavi, sessiz).
+  {% if sonraki %}Sonraki gönderim zamanı: <b>{{ sonraki }}</b>.{% endif %}</p>
+{% if pano is none %}
+<p class="ipucu">Okul portalına ulaşılamadı; hatırlatmalar şu an gönderilemiyor.</p>
+{% elif denemeler %}
+<div class="tablo-kutu"><table class="tablo">
+  <thead><tr><th>Deneme</th><th>Durum</th><th>Tahtalar</th></tr></thead>
+  <tbody>
+    {% for d in denemeler %}
+    <tr><td>{{ d.baslik }}</td><td>{{ d.durum }}</td><td>{{ d.siniflar|join(', ') or '—' }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p class="ipucu">Şu an penceresi açık deneme yok. Denemeleri <a href="{{ smual_url }}/ogretmen/sinavlar" target="_blank" rel="noopener">smual.app sınav takviminden</a> girebilirsin.</p>
+{% endif %}
+
+<h2 class="bolum-basligi" id="smual">smual.app duyuruları</h2>
+{% if smual is none %}
+<p class="ipucu">Okul portalı verisi okunamadı.</p>
+{% elif smual %}
+<div class="tablo-kutu"><table class="tablo">
+  <thead><tr><th>Yayın</th><th>Başlık</th><th>Hedef</th><th>Bitiş</th><th>Yazan</th></tr></thead>
+  <tbody>
+    {% for d in smual %}
+    <tr><td>{{ d.yayin[5:] }}</td><td>{{ d.baslik }}</td><td>{{ d.hedefler|join(', ') }}</td><td>{{ d.bitis or 'Süresiz' }}</td><td>{{ d.yazar }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p class="ipucu">Yayında duyuru yok.</p>
+{% endif %}
+<p class="ipucu"><a href="{{ smual_url }}/ogretmen/duyuru" target="_blank" rel="noopener"><svg class="ikon ikon-kucuk"><use href="#ik-dis"/></svg> smual.app'te duyuru yaz</a></p>
+
+<h2 class="bolum-basligi" id="pano">Kiosk panosu</h2>
+<p class="ipucu">Giriş panosunda şu an dönen duyurular (okul geneli duyurular, yaklaşan denemeler, ödül, doğum günü). Nöbetçi, slayt ve diğer içerik <a href="/panel-git/pano" target="_blank" rel="noopener">Pano panelinde</a>.</p>
+{% if pano is none %}
+<p class="ipucu">Okul portalına ulaşılamadı.</p>
+{% elif pano.duyurular %}
+<div class="tablo-kutu"><table class="tablo">
+  <thead><tr><th>Başlık</th><th>Metin</th></tr></thead>
+  <tbody>
+    {% for d in pano.duyurular %}<tr><td>{{ d.baslik }}</td><td>{{ d.metin }}</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p class="ipucu">Panoda şu an duyuru yok.</p>
+{% endif %}
+{% endblock %}

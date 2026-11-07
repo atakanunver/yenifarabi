@@ -174,7 +174,7 @@ def test_soru_api_akisi(lan_istemci, conn, ornek, monkeypatch):
     sinifpdf.soru_iste(conn, k, pid, "2", "4", True)
     assert lan_istemci.get("/api/soru-istek").status_code == 404  # anahtarsız
     liste = lan_istemci.get("/api/soru-istek", headers=h).json()["istekler"]
-    assert [(i["id"], i["soru_bas"], i["soru_bit"], i["sinif"]) for i in liste] == [(pid, 2, 4, "9-A")]
+    assert liste == []  # Eski istekler artık otomatik üreticiye verilmez.
     r = lan_istemci.get(f"/api/soru-istek/{pid}/pdf", headers=h)
     assert r.status_code == 200 and r.content.startswith(b"%PDF-")
     assert lan_istemci.post(f"/api/soru-istek/{pid}/sonuc", json={"durum": "isleniyor"}, headers=h).status_code == 200
@@ -196,13 +196,13 @@ def test_takili_isleniyor_yeniden_siraya_girer(conn, ornek):
     assert [r["id"] for r in sinifpdf.bekleyen_istekler(conn)] == [pid]
 
 
-def test_web_pdf_yukle_soru_istegiyle(istemci, conn, ornek):
+def test_web_otomatik_soru_uretimi_kapali(istemci, conn, ornek):
     csrf = giris(istemci, "hoca", "hoca-sifre")
     r = istemci.post("/ogretmen/pdf", data={"csrf": csrf, "secim": "9-A|matematik", "soru_uret": "1", "kvkk": "1"},
                      files={"dosya": ("s.pdf", PDF, "application/pdf")}, follow_redirects=False)
-    assert r.status_code == 303
-    assert conn.execute("SELECT soru_durum FROM sinif_pdf").fetchone()[0] == "bekliyor"
-    r = istemci.post("/ogretmen/pdf", data={"csrf": csrf, "secim": "9-A|matematik", "soru_uret": "1"},  # KVKK yok
-                     files={"dosya": ("s.pdf", PDF + b"2", "application/pdf")})
-    assert r.status_code == 200 and "soru havuzu isteği alınamadı" in r.text
-    assert "sırada" in istemci.get("/ogretmen/pdf").text
+    assert r.status_code == 410
+    assert conn.execute("SELECT count(*) FROM sinif_pdf").fetchone()[0] == 0
+    _, pid = _pdf(conn, ornek)
+    r = istemci.post(f"/ogretmen/pdf/{pid}/soru", data={"csrf": csrf, "kvkk": "1"})
+    assert r.status_code == 410
+    assert "Bu PDF'ten soru üret" not in istemci.get("/ogretmen/pdf").text

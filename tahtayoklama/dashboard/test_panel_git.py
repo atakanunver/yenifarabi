@@ -50,6 +50,7 @@ class TestPanelGit(unittest.TestCase):
 
     def test_menu_dogrudan_adrese_degil_rotaya_gider(self):
         hrefler = {s["ad"]: s["href"] for a in menu.ALANLAR for s in a["sayfalar"]}
+        hrefler[menu.ZIL["ad"]] = menu.ZIL["href"]  # üst çubukta sabit kısa yol
         for ad, k in (("Zil paneli", "zil"), ("Bilgehan paneli", "bilgehan"), ("Kiosk paneli", "kiosk"), ("Pano paneli", "pano")):
             self.assertEqual(hrefler[ad], f"/panel-git/{k}")
 

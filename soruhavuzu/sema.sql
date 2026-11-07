@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS soru (
     soru             text NOT NULL,
     kisa_cevap       text NOT NULL,
     secenekler       jsonb NOT NULL,            -- 4 metin
-    dogru_index      smallint NOT NULL CHECK (dogru_index BETWEEN 0 AND 3),
+    dogru_index      smallint NOT NULL CHECK (dogru_index >= 0 AND dogru_index < jsonb_array_length(secenekler) AND dogru_index < 8),
     zorluk           smallint NOT NULL CHECK (zorluk BETWEEN 1 AND 4),
     kaynak           text NOT NULL,
     durum            text NOT NULL DEFAULT 'uretildi'
@@ -63,3 +63,13 @@ CREATE INDEX IF NOT EXISTS geri_bildirim_soru_idx ON soru_geri_bildirim (soru_id
 ALTER TABLE soru ADD COLUMN IF NOT EXISTS kazanim_siniflandirma_at timestamptz;
 ALTER TABLE soru DROP CONSTRAINT IF EXISTS soru_kazanim_kaynak_check;
 ALTER TABLE soru ADD CONSTRAINT soru_kazanim_kaynak_check CHECK (kazanim_kaynak IN ('uretim', 'etiket', 'llm'));
+
+-- Arşiv sorularının görseli de veritabanı yedeğine girer.
+CREATE TABLE IF NOT EXISTS soru_gorsel (
+    soru_id bigint PRIMARY KEY REFERENCES soru(id) ON DELETE CASCADE,
+    icerik bytea NOT NULL,
+    mime text NOT NULL CHECK (mime IN ('image/png', 'image/jpeg', 'image/webp')),
+    kaynak_sha256 text NOT NULL,
+    kaynak_sayfa integer NOT NULL CHECK (kaynak_sayfa > 0),
+    olusturma timestamptz NOT NULL DEFAULT now()
+);

@@ -1,0 +1,19 @@
+{
+  "active": true,
+  "hubId": "sms-gonder",
+  "name": "SMS Gönder",
+  "schema": "skill-1.0.0",
+  "version": "1.0.0",
+  "description": "Sınıf velilerine, öğrencilerine veya personele SMS taslağı hazırla ve kullanıcı onay ekranında onaylarsa gönder. Sınıf ve mesajı kullanıcıdan öğren. Tüm okul gönderimi SMS arayüzünden yapılır.",
+  "author": "Farabi",
+  "license": "MIT",
+  "setup_args": {
+    "SMS_API_KEY": {"type":"string", "required":true, "input":{"type":"text", "default":"", "placeholder":"", "hint":"SMS araç API anahtarı"}, "value":"__SMS_ANAHTAR__"}
+  },
+  "examples": [{"prompt":"9-A velilerine yarın toplantı olduğunu bildir", "call":"{\"tur\":\"veli\",\"sinif\":\"9-A\",\"metin\":\"Yarın toplantı vardır.\"}"}],
+  "entrypoint": {"file":"handler.js", "params": {
+    "tur":{"description":"veli, ogrenci veya personel", "type":"string"},
+    "sinif":{"description":"Sınıf adı; personel için boş", "type":"string"},
+    "metin":{"description":"Gönderilecek SMS metni", "type":"string"}
+  }}
+}

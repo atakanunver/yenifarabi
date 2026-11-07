@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block baslik %}Yarışlar · Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/ogretmen/liderlik">← Yarışmalar ve liderlik</a></p>
+<h1>Haftanın yarışları</h1>
+<p class="soluk">{{ hafta_basi|tarih }} haftası · Sıralamalar güncel sonuçlara göre değişir.</p>
+<p><a class="tus ikincil kucuk" href="/ogretmen/liderlik/maraton">Sıralamayı yenile</a></p>
+<section class="kart" aria-labelledby="xp-yarisi">
+  <h2 id="xp-yarisi">Haftalık XP yarışı</h2>
+  {% if xp.ilk %}
+  <p>{% if xp.ilk|length > 1 and xp.ilk[0].deger == xp.ilk[1].deger %}<b>Zirvede eşitlik</b> · {% endif %}<b>1. {{ xp.ilk[0].ad }}</b> · {{ xp.ilk[0].sinif }} · <b>{{ xp.ilk[0].deger }} XP</b>{% if xp.ilk|length > 1 and xp.ilk[0].deger > xp.ilk[1].deger %} <span class="soluk">· en yakın takipçisiyle {{ xp.ilk[0].deger - xp.ilk[1].deger }} XP fark</span>{% endif %}</p>
+  {% else %}<p class="bos">Bu hafta henüz XP kazanan öğrenci yok.</p>{% endif %}
+  <p class="kucuk soluk">Günlük Görev ve Hızlı Mod · {{ xp.katilan }} katılımcı{% if xp.katilan > xp.ilk|length %} · ilk {{ xp.ilk|length }} gösteriliyor{% endif %}</p>
+  {% if xp.ilk %}<div class="tablo-kap"><table>
+    <thead><tr><th class="sayi">Sıra</th><th>Öğrenci</th><th>Sınıf</th><th class="sayi">XP</th></tr></thead>
+    <tbody>{% for d in xp.ilk %}<tr><td class="sayi">{{ d.sira }}</td><td>{{ d.ad }}</td><td>{{ d.sinif }}</td><td class="sayi">{{ d.deger }}</td></tr>{% endfor %}</tbody>
+  </table></div>{% endif %}
+</section>
+<section class="kart" aria-labelledby="katilimcilar">
+  <h2 id="katilimcilar">Soru Maratonu</h2>
+  {% if liste %}<p>{% if liste|length > 1 and liste[0].toplam == liste[1].toplam %}<b>Zirvede eşit puan</b> · {% endif %}<b>1. {{ liste[0].ad }}</b> · {{ liste[0].sinif }} · <b>{{ liste[0].toplam }} puan</b>{% if liste|length > 1 and liste[0].toplam > liste[1].toplam %} <span class="soluk">· en yakın takipçisiyle {{ liste[0].toplam - liste[1].toplam }} puan fark</span>{% endif %}</p>{% endif %}
+  <p class="kucuk soluk">{{ liste|length }} katılımcı · Her öğrencinin en iyi {{ en_iyi }} tamamlanmış maratonunun toplamı.</p>
+  <div class="tablo-kap"><table>
+    <thead><tr><th class="sayi">Sıra</th><th>Öğrenci</th><th>Sınıf</th><th class="sayi">Puan</th><th class="sayi">Sayılan maraton</th></tr></thead>
+    <tbody>
+      {% for d in liste %}
+      <tr><td class="sayi">{{ d.sira }}</td><td>{{ d.ad }}</td><td>{{ d.sinif }}</td><td class="sayi">{{ d.toplam }}</td><td class="sayi">{{ d.adet }}</td></tr>
+      {% else %}<tr><td colspan="5" class="bos">Bu hafta henüz tamamlanan maraton yok.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

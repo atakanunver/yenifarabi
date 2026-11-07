@@ -30,14 +30,14 @@ def istem(paket: list[dict]) -> str:
                 f"\n### KAYNAK {s['birim_id']}\n{s['birim_metin'][:METIN_AZAMI]}"
             )
         secenekler = " | ".join(
-            f"{'ABCD'[i]}) {x}" for i, x in enumerate(s["secenekler"])
+            f"{'ABCDE'[i]}) {x}" for i, x in enumerate(s["secenekler"])
         )
         bloklar.append(
             f"- id={s['id']} (kaynak {s['birim_id']}, {s['ders']} {s['sinif']}. sınıf, "
             f"zorluk {s['zorluk']}): {s['soru']}\n  Şıklar: {secenekler}\n"
             + (f"  Kazanım: {s['kazanim_metin']}\n" if s.get("kazanim_metin") else "")
             +
-            f"  Doğru: {'ABCD'[s['dogru_index']]} / kısa cevap: {s['kisa_cevap']}"
+            f"  Doğru: {'ABCDE'[s['dogru_index']]} / kısa cevap: {s['kisa_cevap']}"
         )
     return (
         "Sen bir MEB lise soru denetçisisin. Aşağıdaki her soruyu müfredatına ve ilgili KAYNAK metne göre denetle.\n"

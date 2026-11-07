@@ -228,3 +228,13 @@ def test_uret_kazanim_motor_agy_dogrudan_agy_cagirir(monkeypatch):
     sorular = uretici.uret_kazanim(kazanim, kaynak, motor="agy", agy_model="gemini-3.8-flash-low")
     assert len(sorular) == 1
     assert cagri == ["gemini-3.8-flash-low"]
+
+
+def test_bes_secenekli_soru_gecerli():
+    from soruhavuzu import uretici
+    s = {"soru": "Soru?", "kisa_cevap": "cevap", "secenekler": list("abcde"), "dogru_index": 4, "zorluk": 2}
+    assert uretici._gecerli(s)
+    assert uretici._gecerli({**s, "secenekler": list("abcd"), "dogru_index": 3})
+    assert not uretici._gecerli({**s, "secenekler": list("abcd"), "dogru_index": 4})
+    assert not uretici._gecerli({**s, "secenekler": list("abcdef")})
+    assert not uretici._gecerli({**s, "secenekler": ["a", "a", "b", "c", "d"]})

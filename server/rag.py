@@ -166,25 +166,271 @@ def _sayilar_kaynakta_mi(cevap: str, kaynak_metin: str) -> bool:
 
 class RagMotoru:
     def __init__(self, embed_model, reranker, ollama_host: str = "127.0.0.1:11434",
-                 model: str = "gemma4:12b"):
+                 model: str = "farabi"):
         self.embed_model = embed_model
         self.reranker = reranker
         self.ollama_host = ollama_host
         self.model = model
 
-    def _ilk_k_getir(self, conn, kitap_id: int, vektor, k: int):
+    def _ilk_k_getir(self, conn, kitap_id: int, vektor, k: int,
+                     kazanim_kod: str | None = None):
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT id, sayfa_no, metin, embedding <=> %s AS mesafe
-                FROM chunk_egitim
-                WHERE kitap_id = %s
+            if kazanim_kod:
+                cur.execute(
+                    """
+                    SELECT id, sayfa_no, metin, embedding <=> %s AS mesafe
+                    FROM chunk_egitim
+                    WHERE kitap_id = %s AND kazanim_kod = %s
+                    ORDER BY mesafe
+                    LIMIT %s
+                    """,
+                    (vektor, kitap_id, kazanim_kod, k),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT id, sayfa_no, metin, embedding <=> %s AS mesafe
+                    FROM chunk_egitim
+                    WHERE kitap_id = %s
+                    ORDER BY mesafe
+                    LIMIT %s
+                    """,
+                    (vektor, kitap_id, k),
+                )
+            return cur.fetchall()  # [(id, sayfa_no, metin, mesafe), ...]
+
+    # ── Kazanım Katmanı (Hedef → Kanıt → Araç, mimari.md §12.1) ───────────
+
+    def hedef_getir(self, conn, *, sinif: int | None = None, ders: str | None = None,
+                    kazanim_kod: str | None = None, unite: str | None = None,
+                    arama: str | None = None, limit: int = 50) -> list[dict]:
+        """Hedef (kazanim tablosu) filtreleme sorgusu — mimari.md §12.1.
+        MEB öğretim programı kazanımlarını (kod, sınıf, ders, ünite, metin)
+        filtreler. Ders anlatımının çerçevesini belirler.
+        """
+        kosullar = []
+        parametreler = []
+        if sinif is not None:
+            kosullar.append("sinif = %s")
+            parametreler.append(sinif)
+        if ders:
+            kosullar.append("ders ILIKE %s")
+            parametreler.append(ders)
+        if kazanim_kod:
+            kosullar.append("kod = %s")
+            parametreler.append(kazanim_kod)
+        if unite:
+            kosullar.append("unite ILIKE %s")
+            parametreler.append(f"%{unite}%")
+        if arama:
+            kosullar.append("metin ILIKE %s")
+            parametreler.append(f"%{arama}%")
+
+        where = ("WHERE " + " AND ".join(kosullar)) if kosullar else ""
+        sql = f"""
+            SELECT kod, sinif, ders, unite, metin
+            FROM kazanim
+            {where}
+            ORDER BY kod
+            LIMIT %s
+        """
+        parametreler.append(limit)
+        with conn.cursor() as cur:
+            cur.execute(sql, tuple(parametreler))
+            satirlar = cur.fetchall()
+
+        return [
+            {
+                "kod": r[0],
+                "sinif": r[1],
+                "ders": r[2],
+                "unite": r[3],
+                "metin": r[4],
+                "tur": "hedef",
+            }
+            for r in satirlar
+        ]
+
+    def kanit_getir(self, conn, soru_veya_vektor: str | list[float] | None = None, *,
+                    sinif: int | None = None, ders: str | None = None,
+                    konu: str | None = None, test_no: int | None = None,
+                    soru_no: int | None = None, sadece_cevapli: bool = False,
+                    k: int = TOP_N, esik: float | None = None) -> list[dict]:
+        """Kanıt (kazanim_test_soru tablosu) filtreleme ve benzerlik sorgusu — mimari.md §12.1.
+        Öğrencinin kazanımı edindiğini gösterecek MEB ÖDSGM test sorularını
+        vektör benzerliği ve/veya filtreler (sınıf, ders, konu vb.) ile getirir.
+        """
+        vektor = None
+        if soru_veya_vektor is not None:
+            if isinstance(soru_veya_vektor, str):
+                soru_temiz = soru_veya_vektor.replace("\xad", "").strip()
+                vektor = self.embed_model.encode(soru_temiz, normalize_embeddings=True)
+            else:
+                vektor = soru_veya_vektor
+
+        kosullar = []
+        parametreler = []
+
+        if vektor is not None:
+            kosullar.append("embedding IS NOT NULL")
+        if sinif is not None:
+            kosullar.append("sinif = %s")
+            parametreler.append(sinif)
+        if ders:
+            kosullar.append("ders ILIKE %s")
+            parametreler.append(ders)
+        if konu:
+            kosullar.append("konu ILIKE %s")
+            parametreler.append(f"%{konu}%")
+        if test_no is not None:
+            kosullar.append("test_no = %s")
+            parametreler.append(test_no)
+        if soru_no is not None:
+            kosullar.append("soru_no = %s")
+            parametreler.append(soru_no)
+        if sadece_cevapli:
+            kosullar.append("cevap IS NOT NULL AND btrim(cevap) != ''")
+
+        where = ("WHERE " + " AND ".join(kosullar)) if kosullar else ""
+
+        if vektor is not None:
+            sql = f"""
+                SELECT id, kaynak_dosya, sinif, ders, konu, test_no, soru_no,
+                       soru_metni, secenekler, cevap, embedding <=> %s AS mesafe
+                FROM kazanim_test_soru
+                {where}
                 ORDER BY mesafe
                 LIMIT %s
-                """,
-                (vektor, kitap_id, k),
+            """
+            sorgu_parametreleri = [vektor] + parametreler + [k]
+        else:
+            sql = f"""
+                SELECT id, kaynak_dosya, sinif, ders, konu, test_no, soru_no,
+                       soru_metni, secenekler, cevap, NULL AS mesafe
+                FROM kazanim_test_soru
+                {where}
+                ORDER BY test_no, soru_no, id
+                LIMIT %s
+            """
+            sorgu_parametreleri = parametreler + [k]
+
+        with conn.cursor() as cur:
+            cur.execute(sql, tuple(sorgu_parametreleri))
+            satirlar = cur.fetchall()
+
+        sonuclar = []
+        for r in satirlar:
+            mesafe = r[10]
+            skor = round(1 - float(mesafe), 4) if mesafe is not None else None
+            if esik is not None and skor is not None and skor < esik:
+                continue
+            sec = r[8]
+            if isinstance(sec, str):
+                try:
+                    sec = json.loads(sec)
+                except (ValueError, TypeError):
+                    pass
+            sonuclar.append({
+                "id": r[0],
+                "kaynak_dosya": r[1],
+                "sinif": r[2],
+                "ders": r[3],
+                "konu": r[4],
+                "test_no": r[5],
+                "soru_no": r[6],
+                "soru_metni": r[7],
+                "secenekler": sec,
+                "cevap": r[9],
+                "skor": skor,
+                "tur": "kanit",
+            })
+        return sonuclar
+
+    def arac_getir(self, conn, kitap_id: int, soru_veya_vektor: str | list[float], *,
+                   k: int = TOP_K, kazanim_kod: str | None = None,
+                   tablo_dahil: bool = True) -> list[dict]:
+        """Araç (chunk_egitim ve chunk_tablo) filtreleme sorgusu — mimari.md §12.1.
+        Hedefe ulaşmak ve Kanıt'ı çözebilecek yetkinliği kazandırmak için
+        kullanılan ders kitabı içeriklerini ve tablolarını filtreler.
+        """
+        if isinstance(soru_veya_vektor, str):
+            soru_temiz = soru_veya_vektor.replace("\xad", "").strip()
+            vektor = self.embed_model.encode(soru_temiz, normalize_embeddings=True)
+        else:
+            vektor = soru_veya_vektor
+
+        metin_adaylar = self._ilk_k_getir(conn, kitap_id, vektor, k, kazanim_kod=kazanim_kod)
+        sonuclar = []
+        for c in metin_adaylar:
+            mesafe = c[3]
+            skor = round(1 - float(mesafe), 4) if mesafe is not None else None
+            sonuclar.append({
+                "id": c[0],
+                "sayfa": c[1],
+                "metin": c[2],
+                "mesafe": mesafe,
+                "skor": skor,
+                "tur": "metin",
+                "kazanim_kod": kazanim_kod,
+            })
+
+        if tablo_dahil and TABLO_KAYNAGI and kazanim_kod is None:
+            try:
+                tablo_adaylar = self._tablo_getir(conn, kitap_id, vektor, TOP_K_TABLO)
+                for c in tablo_adaylar:
+                    mesafe = c[3]
+                    skor = round(1 - float(mesafe), 4) if mesafe is not None else None
+                    sonuclar.append({
+                        "id": c[0],
+                        "sayfa": c[1],
+                        "metin": c[2],
+                        "mesafe": mesafe,
+                        "skor": skor,
+                        "tur": "tablo",
+                        "kazanim_kod": None,
+                    })
+            except Exception:  # noqa: BLE001
+                conn.rollback()
+
+        sonuclar.sort(key=lambda x: x["mesafe"] if x["mesafe"] is not None else 999.0)
+        return sonuclar[:k]
+
+    def uclu_sorgula(self, conn, soru: str, *,
+                     sinif: int | None = None, ders: str | None = None,
+                     kitap_id: int | None = None, kazanim_kod: str | None = None,
+                     k_hedef: int = 5, k_kanit: int = 3, k_arac: int = TOP_N) -> dict:
+        """Üçlü tasarım (Hedef, Kanıt, Araç) entegre filtreleme sorgusu — mimari.md §12.1.
+
+        1. Hedef (kazanim): Öğrencinin edineceği beceri/kazanım çerçevesi.
+        2. Kanıt (kazanim_test_soru): Kazanımın edinildiğini gösteren değerlendirme soruları.
+        3. Araç (chunk_egitim/chunk_tablo): Öğrenmeyi sağlayan ders kitabı kaynakları.
+        """
+        # 1. Hedef
+        hedefler = self.hedef_getir(
+            conn, sinif=sinif, ders=ders, kazanim_kod=kazanim_kod, arama=soru, limit=k_hedef
+        )
+        if not hedefler and kazanim_kod:
+            hedefler = self.hedef_getir(
+                conn, sinif=sinif, ders=ders, kazanim_kod=kazanim_kod, limit=k_hedef
             )
-            return cur.fetchall()  # [(id, sayfa_no, metin, mesafe), ...]
+
+        # 2. Kanıt
+        kanitlar = self.kanit_getir(
+            conn, soru, sinif=sinif, ders=ders, k=k_kanit
+        )
+
+        # 3. Araç
+        araclar = []
+        if kitap_id is not None:
+            araclar = self.arac_getir(
+                conn, kitap_id, soru, k=k_arac, kazanim_kod=kazanim_kod
+            )
+
+        return {
+            "hedef": hedefler,
+            "kanit": kanitlar,
+            "arac": araclar,
+        }
 
     def _tablo_getir(self, conn, kitap_id: int, vektor, k: int):
         """chunk_tablo'dan ilk-K aday. `_ilk_k_getir` ile AYNI şekle
@@ -373,7 +619,8 @@ class RagMotoru:
 
     def sorgula(self, conn, kitap_id: int, soru: str, *,
                 sinif: int | None = None, ders: str | None = None,
-                tahta_id: int | None = None) -> dict:
+                tahta_id: int | None = None,
+                kazanim_kod: str | None = None) -> dict:
         """Dönen dict: status, answer, sources ([{chunk_id, sayfa}]), latency_ms."""
         t0 = time.perf_counter()
 
@@ -393,8 +640,8 @@ class RagMotoru:
             # tam metnin kendisi, tablo adaylarında kırpılmışı).
             adaylar = [(*c[:4], "metin",
                         c[2][:RERANK_METIN_KARAKTER] if RERANK_METIN_KARAKTER else c[2])
-                       for c in self._ilk_k_getir(conn, kitap_id, vektor, TOP_K)]
-            if TABLO_KAYNAGI:
+                       for c in self._ilk_k_getir(conn, kitap_id, vektor, TOP_K, kazanim_kod=kazanim_kod)]
+            if TABLO_KAYNAGI and kazanim_kod is None:
                 # Tablo tarafı BAĞIMSIZ sarmalı: chunk_tablo yoksa/boşsa/
                 # sorgu patlarsa RAG'ın metin yolu HİÇ etkilenmemeli
                 # (mimari.md §2 — "Farabi asla dersi bozmaz"). Bu, aynı

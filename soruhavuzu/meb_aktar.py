@@ -56,23 +56,13 @@ def meb_sorulari_aktar(kuru: bool = False) -> dict:
             hatali += 1
             continue
 
-        # 5 şıkkı (A-E) 4 şıkka indirgeme
-        if cevap in ["A", "B", "C", "D"]:
-            secim = [secenekler.get(k, "").strip() for k in ["A", "B", "C", "D"] if secenekler.get(k)]
-            if len(secim) < 4 and "E" in secenekler:
-                secim.append(secenekler["E"].strip())
-        else:  # cevap == 'E'
-            secim = [dogru_metin]
-            for k in ["A", "B", "C", "D"]:
-                val = secenekler.get(k, "").strip()
-                if val and val != dogru_metin and len(secim) < 4:
-                    secim.append(val)
+        # Şık sayısını kaynak belirler (4 veya 5); şık atılmaz
+        secim = [secenekler[k].strip() for k in "ABCDE" if secenekler.get(k, "").strip()]
 
         if len(secim) < 4 or dogru_metin not in secim:
             hatali += 1
             continue
 
-        secim = secim[:4]
         try:
             dogru_idx = secim.index(dogru_metin)
         except ValueError:

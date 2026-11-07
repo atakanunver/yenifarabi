@@ -7,12 +7,14 @@ set -euo pipefail
 AD="$(cd "$(dirname "$0")" && pwd)"
 HEDEF=/opt/anythingllm/storage/plugins/agent-skills
 OKUL_JSON=/home/ata/farabi/tahtayoklama/dashboard/config/okul.json
+SMS_JSON=/home/ata/farabi/smssistemi/config/arac.json
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
-python3 - "$AD" "$TMP" "$OKUL_JSON" <<'PY'
+python3 - "$AD" "$TMP" "$OKUL_JSON" "$SMS_JSON" <<'PY'
 import json, shutil, sys, pathlib
-ad, tmp, okul = map(pathlib.Path, sys.argv[1:4])
+ad, tmp, okul, sms = map(pathlib.Path, sys.argv[1:5])
 sema = (ad / "sema_aciklamasi.txt").read_text(encoding="utf-8")
 anahtar = json.loads(okul.read_text(encoding="utf-8"))["anahtar"]
+sms_anahtar = json.loads(sms.read_text(encoding="utf-8"))["anahtar"]
 for d in (ad / "skills").iterdir():
     if not d.is_dir():
         continue
@@ -20,7 +22,7 @@ for d in (ad / "skills").iterdir():
     shutil.copytree(d, hedef)
     pj = hedef / "plugin.json"
     if pj.exists():
-        pj.write_text(pj.read_text(encoding="utf-8").replace("__SEMA__", json.dumps(sema, ensure_ascii=False)[1:-1]).replace("__ANAHTAR__", anahtar), encoding="utf-8")
+        pj.write_text(pj.read_text(encoding="utf-8").replace("__SEMA__", json.dumps(sema, ensure_ascii=False)[1:-1]).replace("__ANAHTAR__", json.dumps(anahtar, ensure_ascii=False)[1:-1]).replace("__SMS_ANAHTAR__", json.dumps(sms_anahtar, ensure_ascii=False)[1:-1]), encoding="utf-8")
 PY
 sudo mkdir -p "$HEDEF"
 sudo cp -r "$TMP"/. "$HEDEF"/

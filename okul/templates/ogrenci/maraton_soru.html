@@ -20,17 +20,23 @@
   </div>
   <p class="soru-no">Soru {{ soru.sira }} / 10{% if soru.konu %} · {{ soru.konu }}{% endif %}</p>
   <h1 class="soru-metni">{{ soru.soru }}</h1>
+  {% set gorsel_yok = soru.soru == 'Soruyu görselden inceleyiniz.' and not soru.gorsel_var %}
+  {% if soru.gorsel_var %}
+  <img class="soru-gorsel" src="/soru-gorsel/{{ soru.soru_id }}" alt="Soru ve seçeneklerin görseli">
+  {% elif gorsel_yok %}
+  <p class="not" role="alert">Soru görseli yüklenemedi. Lütfen sayfayı yenileyin.</p>
+  {% endif %}
 
   <form method="post" action="/ogrenci/maraton/{{ m.id }}/cevap" id="cevap-formu" class="siklar">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <input type="hidden" name="sira" value="{{ soru.sira }}">
     {% for s in soru.secenekler %}
-    <button class="sik" name="sec" value="{{ loop.index0 }}"><b>{{ 'ABCDEFGH'[loop.index0] }}</b><span>{{ s }}</span></button>
+    <button class="sik" name="sec" value="{{ loop.index0 }}"{{ " disabled" if gorsel_yok }}><b>{{ 'ABCDEFGH'[loop.index0] }}</b><span>{{ s }}</span></button>
     {% endfor %}
   </form>
   {% set gec_url = "/ogrenci/maraton/" ~ m.id ~ "/gec" %}{% include "ogrenci/_soru_hatali.html" %}
   <p class="oyun-mesaj kucuk" id="mesaj" role="status" aria-live="polite" hidden></p>
-  <script src="/static/maraton.js?v=4" defer></script>
+  <script src="/static/maraton.js?v=5" defer></script>
   {% endif %}
 </div>
 {% endblock %}

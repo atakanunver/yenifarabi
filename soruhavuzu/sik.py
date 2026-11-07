@@ -6,10 +6,10 @@ göre sıralamak dağılımı dengeler. Konuma atıf yapan şıklar ("A ve B", "
 import hashlib
 import re
 
-ATIF = re.compile(r"^(yalnız )?[A-D]( ve | - |, )[A-D]", re.IGNORECASE)
+ATIF = re.compile(r"^(yalnız )?[A-E]( ve | - |, )[A-E]", re.IGNORECASE)
 ATIF_KELIME = re.compile(r"(yukarıdakiler|hepsi|hiçbiri|tümü|her ikisi)", re.IGNORECASE)
 # "A) Mitokondri" gibi harf önekli şıklar: sıra değişirse önek konumla çelişir
-HARF_ONEK = re.compile(r"^\s*[A-Da-d][\).]\s")
+HARF_ONEK = re.compile(r"^\s*[A-Ea-e][\).]\s")
 SAYISAL = re.compile(r"^\s*-?[0-9]+([.,][0-9]+)?\s*[%°a-zA-ZçğıöşüÇĞİÖŞÜ²³/ ]{0,8}$")
 SAYI = re.compile(r"-?[0-9]+(?:[.,][0-9]+)?")
 

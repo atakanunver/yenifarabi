@@ -77,6 +77,7 @@ html { scroll-padding-top: 4rem; }  /* #duyuru gibi çapalar yapışkan çubuğu
   padding: 0.35rem 0.6rem; border-radius: var(--yaricap);
   color: var(--renk-ust-aktif); font-weight: 600; text-decoration: none; white-space: nowrap;
 }
+.ust-zil { margin-right: var(--bosluk-2); flex-shrink: 0; }
 .ust-zaman {
   padding: 0 var(--bosluk-2); white-space: nowrap; font-size: var(--punto-kucuk);
   color: var(--renk-ust-metin); opacity: 0.68; font-variant-numeric: tabular-nums;
@@ -933,3 +934,7 @@ label.pano-tarih {
     transition: none !important; animation: none !important;
   }
 }
+.menu-eylem { font: inherit; text-align: left; cursor: pointer; border: 0; width: 100%; background: transparent; color: inherit; }
+.menu-eylem:hover { background: var(--renk-yuzey-2); }
+.sol-menu .menu-eylem { color: var(--renk-metin-soluk); }
+.sol-menu .menu-eylem:hover { background: var(--renk-yuzey); color: var(--renk-metin); }

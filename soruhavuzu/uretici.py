@@ -104,10 +104,10 @@ def _gecerli(s: dict) -> bool:
             and isinstance(s.get("kisa_cevap"), str)
             and s["kisa_cevap"].strip().lstrip(":;-–. ").strip()  # temizlenince boş kalan cevap geçersiz
             and isinstance(s.get("secenekler"), list)
-            and len(s["secenekler"]) == 4
+            and len(s["secenekler"]) in (4, 5)
             and all(isinstance(x, str) and x.strip() for x in s["secenekler"])
-            and len({x.strip() for x in s["secenekler"]}) == 4
-            and int(s.get("dogru_index")) in range(4)
+            and len({x.strip() for x in s["secenekler"]}) == len(s["secenekler"])
+            and int(s.get("dogru_index")) in range(len(s["secenekler"]))
             and int(s.get("zorluk")) in range(1, 5)
             and not SEKIL.search(s["soru"])
         )

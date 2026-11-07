@@ -1,9 +1,43 @@
 {# Öğrenci ana ekranı (sadeleştirilmiş). Bağlam: ogrenci, bugun{gorevler,fazla_odev,tamamlanan,arena}, seviye|None, hafta{hedef,yapilan,yuzde,tamamlandi},
-   arena_acik(bool), dersler, duyurular, ders_ozeti, kazanim_erisildi, simdi, sinavlar, kalan, maraton, deneme_sayisi, yks{tarih,kalan}|None. #}
+   arena_acik(bool), dersler, devamsiz(int|None, son 14 gün 'yok' günü), yerlesimler(Kelebek: tarih,ders_no,ders,salon,koltuk,sutun,sira), duyurular, ders_ozeti, kazanim_erisildi, simdi, sinavlar, kalan, maraton, deneme_sayisi, yks{tarih,kalan}|None. #}
 {% extends "base.html" %}
 {% from "_makrolar.html" import kaynak_yok, odev_durum, sinav_satiri %}
 {% block icerik %}
+<link rel="stylesheet" href="/static/ogrenci-ana.css?v=1">
+{# yeni bağlam değişkenleri restart öncesi tanımsız olabilir #}
+{% set dv = devamsiz|default(none) %}{% set yerler = yerlesimler|default([]) %}
+<div class="ogr-ana">
 {% include "_ana_ekran.html" %}
+{% include "_saat.html" %}
+
+<section class="ogr-serit" aria-labelledby="serit-b">
+  <div class="serit-ust"><h2 id="serit-b">Bugünkü dersler</h2><a href="/ogrenci/program">Program</a></div>
+  {% if dersler is none %}{{ kaynak_yok("Ders programı") }}
+  {% elif dersler %}<ul class="serit-liste">{% for no, ders in dersler %}<li class="serit-ders"><span class="saat">{{ no }}</span><span class="serit-ad">{{ ders|baslik }}</span></li>{% endfor %}</ul>
+  {% else %}<p class="bos">Bugün ders yok.</p>{% endif %}
+</section>
+
+<div class="ogr-pills">
+  {% if dv is none %}<a class="pill" href="/ogrenci/devamsizlik">Devamsızlığım <b>›</b></a>
+  {% elif dv == 0 %}<a class="pill yesil" href="/ogrenci/devamsizlik">Devamsızlık yok <b>✓</b><span>son 14 gün</span></a>
+  {% else %}<a class="pill sari" href="/ogrenci/devamsizlik">Devamsızlık <b>{{ dv }} gün</b><span>son 14 gün</span></a>{% endif %}
+  {% if yerler %}{% set y0 = yerler[0] %}<a class="pill mor" href="#sinav-yer">Sınav yerin <b>{{ y0.salon }}</b><span>{{ y0.tarih|tarih(false) }}</span></a>{% endif %}
+</div>
+
+{% if yerler %}
+<section class="kart" id="sinav-yer" aria-labelledby="yer-b">
+  <h2 id="yer-b">Sınav yerin</h2>
+  <ul class="liste yer-liste">
+  {% for y in yerler[:3] %}
+    <li>
+      <span><b>{{ y.ders|baslik }}</b><br><span class="soluk kucuk">{{ y.tarih|tarih(false) }} · {{ y.ders_no }}. ders</span></span>
+      <span class="sag"><span class="etiket mor">{{ y.salon }}</span><br><span class="kucuk">Sütun {{ y.sutun }} · Sıra {{ y.sira }}</span></span>
+    </li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 {% if arena_acik and seviye %}
 <div class="arena oyun-alani">
   <div class="hero">
@@ -29,7 +63,7 @@
     </a>
     <a class="oyun-kutu hizli" href="/ogrenci/maraton">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>
-      <b>Hızlı Mod</b>
+      <b>Hızlı Mod · Soru Maratonu</b>
       <span class="kucuk">10 soru · 80 sn</span>
     </a>
     <a class="oyun-kutu sudoku" href="/ogrenci/sudoku">
@@ -55,7 +89,7 @@
 <div class="ana-ust">
   <h1>Merhaba, <span class="fosfor">{{ ogrenci.ad_soyad.split(' ')[0] }}</span></h1>
 </div>
-<section class="kart"><div class="tuslar"><a class="tus ikincil" href="/ogrenci/maraton">Hızlı Mod · 10 soru</a></div></section>
+<section class="kart"><div class="tuslar"><a class="tus ikincil" href="/ogrenci/maraton">Hızlı Mod · Soru Maratonu · 10 soru</a></div></section>
 {% endif %}
 
 {% if (bilmece is defined and (bilmece.bugun or bilmece.onceki)) or (tesekkur is defined and tesekkur.son) %}<link rel="stylesheet" href="/static/mikro.css?v=1">{% endif %}
@@ -93,7 +127,7 @@
       {% if hafta.hedef is not none %}<span class="oran-cubuk" role="progressbar" aria-label="Haftalık hedef" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ hafta.yuzde }}"><i style="width: {{ hafta.yuzde }}%"></i></span>{% endif %}
     </a>
     <div class="tuslar">
-      <a class="tus ikincil" href="/ogrenci/maraton">Hızlı Mod · 10 soru</a>
+      <a class="tus ikincil" href="/ogrenci/maraton">Hızlı Mod · Soru Maratonu · 10 soru</a>
       <a class="tus ikincil" href="/ogrenci/calisma">Çalış</a>
       {% if arena_acik %}<a class="tus ikincil" href="/ogrenci/arena/liderlik">Liderlik</a>{% endif %}
     </div>
@@ -128,14 +162,6 @@
   </ul>
 </section>
 
-<div class="izgara iki">
-<section class="kart">
-  <h2>Bugünkü dersler <a href="/ogrenci/program">Program</a></h2>
-  {% if dersler is none %}{{ kaynak_yok("Ders programı") }}
-  {% elif dersler %}<ul class="liste">{% for no, ders in dersler %}<li><span class="saat">{{ no }}</span>{{ ders|baslik }}</li>{% endfor %}</ul>
-  {% else %}<p class="bos">Bugün ders yok.</p>{% endif %}
-  <p class="kucuk" style="margin:.5rem 0 0"><a href="/ogrenci/devamsizlik">Devamsızlığım</a></p>
-</section>
 <section class="kart">
   <h2>Yaklaşan sınavlar <a href="/ogrenci/sinavlar">Takvim</a></h2>
   <ul class="liste sinavlar">
@@ -143,9 +169,7 @@
   {% else %}<li class="bos">Önümüzdeki 14 günde sınav yok.</li>{% endfor %}
   </ul>
 </section>
-</div>
 
-{% include "_saat.html" %}
 {# EBA kartı: dış bağlantı, okul.css'e dokunmadan yalnızca mevcut sınıflar + satır içi düzen #}
 <section class="kart">
   <a href="https://eba.gov.tr/" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;text-decoration:none;color:inherit">
@@ -162,4 +186,5 @@
 {% endif %}
 {% include "_belirli_gunler.html" %}
 {% include "_gunun_bilgisi.html" %}
+</div>
 {% endblock %}

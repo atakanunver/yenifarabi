@@ -72,6 +72,8 @@ def ana(
         arena_acik=arena_acik,
         avatar_cfg=avatar.getir(conn, k["id"]) if arena_acik else None,
         dersler=ortak.bugunku_dersler(o["sinif"]),
+        devamsiz=ortak.devamsiz_gun_sayisi(o),
+        yerlesimler=ortak.sinav_yerlesimleri(o),
         odevler=ortak.bekleyen_odevler(conn, o)[:4],
         duyurular=duyurular.gorunur_duyurular(conn, k, 3),
         ders_ozeti=ortak.ders_ozeti(ozet),

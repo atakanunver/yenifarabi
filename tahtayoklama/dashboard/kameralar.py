@@ -38,6 +38,7 @@ KAMERA_KAYITLARI: dict[str, tuple[str, bool]] = {
     "arkataraf_ham": ("Yan Bahçe / Arka Taraf", False),
     "disbina_kaliteli_ham": ("Dış Bina Girişi", True),
     "rsvideo_250": ("Basket Sahası / Dış 1", True),
+    "wc_girisi": ("WC Girişi", True),
 }
 
 
@@ -165,7 +166,7 @@ async def api_kamera_video(request: Request, kamera: str, dosya: str):
             "+faststart",
             str(gecici),
         ]
-        r = subprocess.run(komut, timeout=25, check=False)
+        r = subprocess.run(komut, timeout=60, check=False)
         if r.returncode != 0 or not gecici.is_file() or gecici.stat().st_size == 0:
             gecici.unlink(missing_ok=True)
             return FileResponse(kaynak, media_type="video/mp4", filename=dosya)

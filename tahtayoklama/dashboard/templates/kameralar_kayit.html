@@ -94,7 +94,7 @@
 <header>
   <a class="geri" href="/">← Panele dön</a>
   <h1>📼 Harekete Duyarlı Kamera Kayıtları</h1>
-  <span class="rozet">Yalnız hareket algılanan dakikalar saklanır (10 gün)</span>
+  <span class="rozet">Yalnız hareket sırasında kayıt alınır; kayıtlar 15 gün saklanır</span>
   <a class="geri" style="margin-left:auto" href="/kameralar">🎥 Canlı DVR Kameralar →</a>
   <a class="geri" href="/kameralar-ip">IP Kameralar →</a>
 </header>
@@ -215,7 +215,7 @@ function saatSec(s) {
 
 function listeyiCiz() {
   filtrelenmis = seciliSaat ? tumKayitlar.filter(k => k.saat_grup === seciliSaat) : tumKayitlar;
-  kayitSayac.textContent = `${filtrelenmis.length} hareketli dakika`;
+  kayitSayac.textContent = `${filtrelenmis.length} hareket kaydı`;
   kayitListesi.innerHTML = filtrelenmis.map((k, idx) => `
     <div class="kayit-oge ${idx === aktifIndeks ? "secili" : ""}" data-idx="${idx}" onclick="kayitOynat(${idx})">
       <span>🕒 ${k.saat}</span>

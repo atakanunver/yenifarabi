@@ -1,5 +1,9 @@
 # soruhavuzu
 
+> **2026-11-07 kullanıcı kararı:** Otomatik soru üretimi iptal; havuz, hazır sorular ve orijinal görselleri için arşiv olacak. RAG/gömme servisi asla açılmayacak. `soru-havuzu-uret.timer` disabled. Görsel arşiv çalışması ayrı çalışma alanında hazırlanıyor; henüz canlıya alınmadı.
+
+> **2026-11-07 ilk kontrol (zamanlayıcı daha sonra kapatıldı):** `soru-havuzu-uret.timer` açık olsa da servis 2026-11-02'den beri başarısız: mükerrer eleme kapalı `bilgehan.local:8040` gömme servisine bağlanmaya çalışıp bağlantı reddi alıyor (`tekrar._gomucu`, `calistir.uret`). RAG/gömme servisini yeniden açma; çalışmanın sürdüğü varsayılmamalı.
+
 Oyunlar (Sınıf Arenası vb.) için hazır soru havuzu: ders kitapları, kazanım
 testleri ve YKS çıkmış sorularından **yerel Ollama** (`farabi` takma adı = qwen3.8:27b) ile soru
 üretir, ayrı PostgreSQL veritabanına (`soru_havuzu`) yazar; üretim bitince
@@ -37,3 +41,7 @@ testleri ve YKS çıkmış sorularından **yerel Ollama** (`farabi` takma adı =
 ## LLM ile kazanım sınıflandırma (2026-10-10)
 - `python -m soruhavuzu.calistir siniflandir [--kuru] [--limit N] [--zorla]`: kazanımsız onaylı soruları aynı sınıf+ders kazanımlarından gömmeyle en yakın 5 adaya indirip Ollama'ya sorar (parti 8); `kazanim_kaynak='llm'`, `kazanim_siniflandirma_at` ile kaldığı yerden devam eder (bozuk yanıt 3 denemede çözülmezse parti işaretlenir). Şema değişti: `kur` bir kez çalıştırılmalı.
 - `uret` bütün kazanımlar bitince (denetimden önce) bunu pencere kontrolüyle çağırır.
+
+## 2026-11-07 — Hazır soru arşivi canlıda
+
+MEBİ TYT 2. deneme 125 soru, cevap ve görselleriyle arşive aktarıldı. `soru_gorsel` PostgreSQL içinde yedeklenir; `tyt_pdf_hazirla.py` ve `tyt_arsive_aktar.py` bu belirli PDF biçimine özel doğrulamalı araçlardır. 284 eski şekil atıflı kayıt görselleri doğrulanana kadar askıda kalır. Otomatik üretim ve gömme servisi açılmaz.

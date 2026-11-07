@@ -144,7 +144,7 @@ async def lifespan(app: FastAPI):
             if reranker is not None:
                 reranker.predict([("ısınma sorgusu", "ısınma için örnek kaynak metni.")])
             print(f"Isınma tamamlandı ({time.perf_counter() - _t0:.1f}sn) — gömme {UZAK_EMBED_URL or EMBED_DEVICE} hazır.")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"UYARI: ısınma sorgusu başarısız oldu ({type(e).__name__}: {e}) — ilk gerçek istek yavaş olabilir.")
 
     else:
@@ -200,6 +200,7 @@ class SoruIstek(BaseModel):
     # bir GPU çağrısını hiç yapmadan reddetmek daha doğrusu — gerçek bir
     # sınıf sorusu birkaç cümleyi aşmaz.
     soru: str = Field(..., max_length=500)
+    kazanim_kod: str | None = None
 
 
 class Kaynak(BaseModel):
@@ -328,7 +329,9 @@ def soru_sor(istek: SoruIstek):
             # RAG kapalı ya da reranker yüklenmedi (2026-10-03 kararı C) —
             # tahta yolu reranker'sız çalışmaz; bugünkü davranış korunur.
             return SoruYanit(status="hata", latency_ms=0, request_id=request_id)
-        sonuc = durum["motor"].sorgula(conn, istek.kitap_id, istek.soru, sinif=sinif, ders=ders)
+        sonuc = durum["motor"].sorgula(
+            conn, istek.kitap_id, istek.soru, sinif=sinif, ders=ders, kazanim_kod=istek.kazanim_kod
+        )
 
     kaynaklar = [
         Kaynak(book=kitap_adi, page=k["sayfa"], chunk_id=k["chunk_id"],
@@ -354,10 +357,9 @@ def kitaplar_listesi():
     → ders_programi → sinif_kitap) geçilebilir."""
     if not durum["hazir"]:
         raise HTTPException(status_code=503, detail="Sunucu henüz hazır değil")
-    with db.baglanti() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT id, dosya_yolu, sinif, ders FROM kitap ORDER BY id")
-            rows = cur.fetchall()
+    with db.baglanti() as conn, conn.cursor() as cur:
+        cur.execute("SELECT id, dosya_yolu, sinif, ders FROM kitap ORDER BY id")
+        rows = cur.fetchall()
     return [
         KitapBilgisi(id=r[0], dosya_adi=r[1].rsplit("/", 1)[-1], sinif=r[2], ders=r[3])
         for r in rows

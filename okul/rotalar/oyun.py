@@ -118,6 +118,7 @@ def oyna(
         "secenekler": json.loads(s["secenekler"]),
         "kalan": maraton.kalan_sn(s),
         "soru_id": s["soru_id"],
+        "gorsel_var": s["soru_id"] in havuz.gorselli([s["soru_id"]]),
         "pas_kalan": maraton.pas_kalan(conn, maraton_id),
     }
     return render(
@@ -222,8 +223,10 @@ def sonuc(
     sira = next(
         (d["sira"] for d in maraton.liderlik(conn) if d["kullanici_id"] == k["id"]), None
     )
+    gorselli = havuz.gorselli([s["soru_id"] for s in satirlar])
     return render(
-        request, "ogrenci/maraton_sonuc.html", m=m, satirlar=satirlar,
+        request, "ogrenci/maraton_sonuc.html", m=m, satirlar=satirlar, gorselli=gorselli,
+        sallama=maraton.sallama_mi(conn, maraton_id),
         bildirilen={s["soru_id"] for s in satirlar if soru_bildirim.bildirdi_mi(conn, k["id"], s["soru_id"])},
         ders_ad=havuz.ders_adi(m["ders"]), kareler=maraton.ilerleme(conn, maraton_id),
         okul_sira=sira, seri=maraton.seri(conn, k["id"]), soru_sayisi=maraton.SORU_SAYISI,

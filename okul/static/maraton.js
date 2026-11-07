@@ -74,8 +74,8 @@
         var kare = kareler[parseInt(form.elements.sira.value, 10) - 1];
         if (kare) kare.className = j.dogru ? "dolu" : "eksik";
         if (puanEl) puanEl.textContent = j.toplam;
-        uyar(j.sure_doldu ? "Süre doldu" : (j.dogru ? "Doğru! +" + j.puan : "Yanlış") + (j.gayret_xp ? " · +" + j.gayret_xp + " gayret XP" : ""), false);
-        setTimeout(function () { location.href = j.sonraki; }, 1200);
+        uyar(j.sure_doldu ? "Süre doldu" : (j.dogru ? "Doğru! +" + j.puan : "Yanlış") + (j.bonus_kapali ? " · Soruyu okumadan hızlı cevap: hız puanı yok" : "") + (j.tekrar_uyari ? " · Bu soruyu " + j.yanlis_sayisi + ". kez yanlış yaptın: anlayarak çözmediğin görülüyor, konuyu tekrar et. −" + j.ceza + " puan" : "") + (j.gayret_xp ? " · +" + j.gayret_xp + " gayret XP" : ""), false);
+        setTimeout(function () { location.href = j.sonraki; }, j.tekrar_uyari ? 4500 : 1200);
       })
       .catch(function () {
         uyar("Bağlantı sorunu. Cevabın gönderilemedi.", true);

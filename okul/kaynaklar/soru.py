@@ -6,9 +6,15 @@ Tekrar engeli okul.db'de, öğrenci bazlıdır (maraton.py).
 
 import random
 
+from kaynaklar import KaynakHatasi
 from kaynaklar.kazanim import _baglan
 
 MIN_SORU = 10
+# Lise müfredatında olmayan ama TYT'de bulunan branşlar: her düzeyden öğrenciye açık (havuzda sinif=12 kayıtlı).
+SINIFSIZ_DERSLER = ["turkce"]
+# Çıkmış (özgün görselli arşiv) soru önce gelir; kendi içinde ve geri kalanı rastgele.
+_ARSIV_ONCE = "EXISTS (SELECT 1 FROM soru_gorsel g WHERE g.soru_id = soru.id) DESC, random()"
+_SINIF = "(sinif = %s OR ders = ANY(%s))"
 
 GORUNEN_AD = {
     "matematik": "Matematik",
@@ -22,7 +28,7 @@ GORUNEN_AD = {
     "ingilizce": "İngilizce",
     "almanca": "Almanca",
     "felsefe": "Felsefe",
-    "turkce": "Türkçe",
+    "turkce": "Türkçe (TYT)",
     "gorsel_sanatlar": "Görsel Sanatlar",
     "muzik": "Müzik",
     "beden": "Beden Eğitimi",
@@ -32,6 +38,8 @@ GORUNEN_AD = {
 _FILTRE = (
     "durum = 'onayli' AND secenekler IS NOT NULL AND dogru_index IS NOT NULL"
     " AND jsonb_array_length(secenekler) >= 2"
+    # Metni yalnız "görselden incele" olan soru, görseli yoksa cevaplanamaz: hiç seçilmesin.
+    " AND (soru <> 'Soruyu görselden inceleyiniz.' OR EXISTS (SELECT 1 FROM soru_gorsel g WHERE g.soru_id = soru.id))"
 )
 
 
@@ -46,9 +54,9 @@ def dersler(sinif: int) -> list[tuple[str, int]]:
     """[(ders_kodu, onaylı soru sayısı)] — en az MIN_SORU sorusu olanlar, alfabetik."""
     with _baglan() as c, c.cursor() as cur:
         cur.execute(
-            f"SELECT ders, count(*) FROM soru WHERE sinif = %s AND {_FILTRE}"
+            f"SELECT ders, count(*) FROM soru WHERE {_SINIF} AND {_FILTRE}"
             " GROUP BY ders HAVING count(*) >= %s ORDER BY ders",
-            (sinif, MIN_SORU),
+            (sinif, SINIFSIZ_DERSLER, MIN_SORU),
         )
         return [(r[0], r[1]) for r in cur.fetchall()]
 
@@ -81,16 +89,16 @@ def sorular(
     yasak = list(yasak or []) or [0]
     with _baglan() as c, c.cursor() as cur:
         cur.execute(
-            f"SELECT {_SUTUN} FROM soru WHERE sinif = %s AND ders = %s AND {_FILTRE}"
-            " AND id <> ALL(%s) AND id <> ALL(%s) ORDER BY random() LIMIT %s",
-            (sinif, ders, haric, yasak, n),
+            f"SELECT {_SUTUN} FROM soru WHERE {_SINIF} AND ders = %s AND {_FILTRE}"
+            f" AND id <> ALL(%s) AND id <> ALL(%s) ORDER BY {_ARSIV_ONCE} LIMIT %s",
+            (sinif, SINIFSIZ_DERSLER, ders, haric, yasak, n),
         )
         sonuc = [_satir(r) for r in cur.fetchall()]
         if len(sonuc) < n and haric:
             cur.execute(
-                f"SELECT {_SUTUN} FROM soru WHERE sinif = %s AND ders = %s AND {_FILTRE}"
+                f"SELECT {_SUTUN} FROM soru WHERE {_SINIF} AND ders = %s AND {_FILTRE}"
                 " AND id = ANY(%s) AND id <> ALL(%s)",
-                (sinif, ders, haric, yasak),
+                (sinif, SINIFSIZ_DERSLER, ders, haric, yasak),
             )
             eski = [_satir(r) for r in cur.fetchall()]
             random.shuffle(eski)
@@ -99,6 +107,28 @@ def sorular(
             sonuc += eski[: n - len(sonuc)]
     random.shuffle(sonuc)
     return sonuc
+
+
+def secili(idler: list[int], sinif: int, ders: str) -> list[dict]:
+    """Verilen id'lerden hâlâ onaylı olup bu sınıf/derse uyanlar (tekrar soruları için)."""
+    with _baglan() as c, c.cursor() as cur:
+        cur.execute(
+            f"SELECT {_SUTUN} FROM soru WHERE {_SINIF} AND ders = %s AND {_FILTRE} AND id = ANY(%s)",
+            (sinif, SINIFSIZ_DERSLER, ders, list(idler)),
+        )
+        return [_satir(r) for r in cur.fetchall()]
+
+
+def gorselli(idler: list[int]) -> set[int]:
+    """idler içinden soru_gorsel kaydı olanlar; havuza ulaşılamazsa boş küme (görsel gösterilmez)."""
+    if not idler:
+        return set()
+    try:
+        with _baglan() as c, c.cursor() as cur:
+            cur.execute("SELECT soru_id FROM soru_gorsel WHERE soru_id = ANY(%s)", (list(idler),))
+            return {r[0] for r in cur.fetchall()}
+    except KaynakHatasi:
+        return set()
 
 
 def getir(idler: list[int]) -> dict[int, dict]:

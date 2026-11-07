@@ -127,6 +127,21 @@ def test_dogru_cevap_hizli_puan_ve_akis(istemci, ornek, saat):
     assert cevapla(istemci, csrf, mid, 5, 2).status_code == 409
 
 
+def test_besinci_secenek_puanlanir(istemci, ornek, saat, conn):
+    csrf = giris(istemci, "101", "ali-sifre")
+    mid = baslat(istemci, csrf)
+    conn.execute(
+        "UPDATE maraton_soru SET secenekler=?, dogru_index=4 WHERE maraton_id=? AND sira=1",
+        (json.dumps(["a", "b", "c", "d", "e"]), mid),
+    )
+    conn.commit()
+    sayfa = istemci.get(f"/ogrenci/maraton/{mid}")
+    assert sayfa.status_code == 200 and 'dogru_index' not in sayfa.text
+    saat["an"] += timedelta(seconds=5)
+    sonuc = cevapla(istemci, csrf, mid, 1, 4).json()
+    assert sonuc["dogru"] and sonuc["dogru_index"] == 4 and sonuc["puan"] == 325
+
+
 def test_sure_asimi_sunucuda(istemci, ornek, saat, conn):
     csrf = giris(istemci, "101", "ali-sifre")
     mid = baslat(istemci, csrf)
@@ -155,7 +170,7 @@ def test_formla_tum_maraton_ve_sonuc(istemci, ornek, saat):
         assert r.status_code == 303
     assert r.headers["location"].endswith("/sonuc")
     s = istemci.get(f"/ogrenci/maraton/{mid}/sonuc")
-    assert s.status_code == 200 and "3400" in s.text and "10</b> / 10" in s.text
+    assert s.status_code == 200 and "1000" in s.text and "10</b> / 10" in s.text  # anlık cevap: yalnız temel puan
     assert istemci.get(f"/ogrenci/maraton/{mid}", follow_redirects=False).status_code == 303
 
 
@@ -307,8 +322,8 @@ def test_ana_sayfa_karti(istemci, ornek):
 
 def test_sw_ve_css_surumu(istemci):
     sw = istemci.get("/sw.js").text
-    assert "okul-v53" in sw and "/static/maraton.js?v=4" in sw and "okul.css?v=32" in sw
-    assert "okul.css?v=32" in istemci.get("/giris").text
+    assert "okul-v56" in sw and "/static/maraton.js?v=5" in sw and "okul.css?v=34" in sw
+    assert "okul.css?v=34" in istemci.get("/giris").text
 
 
 def test_ayni_soru_iki_kez_puanlanmaz(conn, ornek, monkeypatch, saat):
@@ -365,3 +380,177 @@ def test_pas_hakki_ve_hatali_soru(istemci, ornek, saat, conn):
     # başkası geçemez
     csrf2 = giris(istemci, "201", "ayse-sifre")
     assert gec(istemci, csrf2, mid, 5).status_code == 404
+
+
+def _soru_ayarla(conn, mid, metin, secenekler, dogru):
+    conn.execute(
+        "UPDATE maraton_soru SET soru=?, secenekler=?, dogru_index=? WHERE maraton_id=? AND sira=1",
+        (metin, json.dumps(secenekler), dogru, mid),
+    )
+    conn.commit()
+
+
+def test_gorselli_bes_secenekli_soru_gorseli_gosterir(istemci, ornek, conn, monkeypatch):
+    monkeypatch.setattr(soru, "gorselli", lambda idler: set(idler))
+    csrf = giris(istemci, "101", "ali-sifre")
+    mid = baslat(istemci, csrf)
+    _soru_ayarla(conn, mid, "Soruyu görselden inceleyiniz.", [f"{h} seçeneği" for h in "ABCDE"], 4)
+    sayfa = istemci.get(f"/ogrenci/maraton/{mid}").text
+    assert 'class="soru-gorsel"' in sayfa and "<b>E</b>" in sayfa and "disabled" not in sayfa
+
+
+def test_gorselsiz_soruda_img_yok(istemci, ornek, conn, monkeypatch):
+    monkeypatch.setattr(soru, "gorselli", lambda idler: set())
+    csrf = giris(istemci, "101", "ali-sifre")
+    mid = baslat(istemci, csrf)
+    sayfa = istemci.get(f"/ogrenci/maraton/{mid}").text
+    assert "soru-gorsel" not in sayfa and "disabled" not in sayfa
+
+
+def test_gorseli_olmayan_yer_tutucu_soru_kilitlenir(istemci, ornek, conn, monkeypatch):
+    monkeypatch.setattr(soru, "gorselli", lambda idler: set())
+    csrf = giris(istemci, "101", "ali-sifre")
+    mid = baslat(istemci, csrf)
+    _soru_ayarla(conn, mid, "Soruyu görselden inceleyiniz.", ["A", "B", "C", "D", "E"], 0)
+    sayfa = istemci.get(f"/ogrenci/maraton/{mid}").text
+    assert "soru-gorsel" not in sayfa and "Soru görseli yüklenemedi" in sayfa and sayfa.count(" disabled") == 5
+
+
+def test_havuz_filtresi_gorselsiz_yer_tutucuyu_dislar():
+    assert "soru_gorsel" in soru._FILTRE and "Soruyu görselden inceleyiniz." in soru._FILTRE
+
+
+def test_turkce_ayri_brans_ve_arsiv_once():
+    assert soru.ders_adi("turkce") == "Türkçe (TYT)" and soru.ders_adi("edebiyat") == "Edebiyat"
+    assert "turkce" in soru.SINIFSIZ_DERSLER and "edebiyat" not in soru.SINIFSIZ_DERSLER
+    assert soru._ARSIV_ONCE.startswith("EXISTS") and "soru_gorsel" in soru._ARSIV_ONCE
+
+
+def test_okuma_tabani():
+    assert maraton.okuma_tabani("Kısa soru?") < 4
+    assert maraton.okuma_tabani(" ".join(["kelime"] * 45)) == 6
+    assert maraton.okuma_tabani(maraton.YER_TUTUCU) == 7
+    assert maraton.puan_hesapla(True, 1, bonus=False) == 100 and maraton.puan_hesapla(False, 1, bonus=False) == 0
+
+
+def test_okumadan_hizli_cevap_hiz_puani_almaz(istemci, ornek, saat):
+    csrf = giris(istemci, "101", "ali-sifre")
+    mid = baslat(istemci, csrf)
+    istemci.get(f"/ogrenci/maraton/{mid}")
+    j = cevapla(istemci, csrf, mid, 1, 2).json()  # süre geçmedi (0 sn)
+    assert j["dogru"] and j["puan"] == 100 and j["bonus_kapali"]
+
+
+def test_seri_freni_turun_kalanini_kapatir(istemci, ornek, saat):
+    csrf = giris(istemci, "101", "ali-sifre")
+    mid = baslat(istemci, csrf)
+    for sira in (1, 2, 3):  # üç ardışık anlık cevap (doğru/yanlış fark etmez)
+        istemci.get(f"/ogrenci/maraton/{mid}")
+        cevapla(istemci, csrf, mid, sira, 0)
+    istemci.get(f"/ogrenci/maraton/{mid}")
+    saat["an"] += timedelta(seconds=10)  # 4. soruda normal süre okunsa bile
+    j = cevapla(istemci, csrf, mid, 4, 2).json()
+    assert j["dogru"] and j["puan"] == 100 and j["bonus_kapali"]
+
+
+def test_yeterince_okuyan_tam_puan_alir(istemci, ornek, saat):
+    csrf = giris(istemci, "101", "ali-sifre")
+    mid = baslat(istemci, csrf)
+    istemci.get(f"/ogrenci/maraton/{mid}")
+    saat["an"] += timedelta(seconds=10)
+    j = cevapla(istemci, csrf, mid, 1, 2).json()
+    assert j["puan"] == 100 + 70 * 3 and not j["bonus_kapali"]
+
+
+def test_sallama_turu_isaretlenir(istemci, ornek, saat):
+    csrf = giris(istemci, "101", "ali-sifre")
+    mid = baslat(istemci, csrf)
+    for sira in range(1, 11):  # hepsi anlık ve yanlış
+        istemci.get(f"/ogrenci/maraton/{mid}")
+        cevapla(istemci, csrf, mid, sira, 0)
+    assert "sallama gibi" in istemci.get(f"/ogrenci/maraton/{mid}/sonuc").text
+
+
+def test_dusunerek_cozen_sallama_sayilmaz(istemci, ornek, saat):
+    csrf = giris(istemci, "101", "ali-sifre")
+    mid = baslat(istemci, csrf)
+    for sira in range(1, 11):  # yavaş ve yanlış: kötü ama sallama değil
+        istemci.get(f"/ogrenci/maraton/{mid}")
+        saat["an"] += timedelta(seconds=10)
+        cevapla(istemci, csrf, mid, sira, 0)
+    assert "sallama gibi" not in istemci.get(f"/ogrenci/maraton/{mid}/sonuc").text
+
+
+def _gecmis_yanlis(conn, kid, soru_id, kez, ders="matematik", dogru_sonra=False):
+    """Öğrencinin geçmişine `kez` adet bitmiş turda yanlış cevaplanmış soru yazar."""
+    for i in range(kez + int(dogru_sonra)):
+        mid = conn.execute(
+            "INSERT INTO maraton(kullanici_id,sinif,duzey,ders,basla,bitis) VALUES(?,'9-A',9,?,?,?)",
+            (kid, ders, f"2026-11-0{i + 1} 08:00:00", f"2026-11-0{i + 1} 08:10:00"),
+        ).lastrowid
+        cevap = 2 if (dogru_sonra and i == kez) else 0
+        conn.execute(
+            "INSERT INTO maraton_soru(maraton_id,sira,soru_id,soru,secenekler,dogru_index,gosterim,cevap,cevap_zamani)"
+            " VALUES (?,1,?,'Eski soru','[\"a\",\"b\",\"c\",\"d\"]',2,?,?,?)",
+            (mid, soru_id, f"2026-11-0{i + 1} 08:00:00", cevap, f"2026-11-0{i + 1} 08:00:30"),
+        )
+    conn.commit()
+
+
+def test_yanlis_havuzu_dogru_cozulmusu_icermez(conn, ornek):
+    kid = ornek["ogr1_k"]
+    _gecmis_yanlis(conn, kid, 501, 2)
+    _gecmis_yanlis(conn, kid, 502, 1, dogru_sonra=True)
+    assert maraton.yanlis_havuzu(conn, kid, "matematik", []) == [501]
+    assert maraton.yanlis_havuzu(conn, kid, "matematik", [501]) == []
+    assert maraton.yanlis_havuzu(conn, kid, "fizik", []) == []
+
+
+def test_yanlis_soru_yeni_turda_tekrar_gelir(istemci, ornek, conn, havuz, monkeypatch):
+    kid = ornek["ogr1_k"]
+    _gecmis_yanlis(conn, kid, 9005, 1)
+    tekrar = {"id": 9005, "konu": "K", "soru": "Eski soru", "secenekler": ["a", "b", "c", "d"], "dogru_index": 2, "kaynak": "x"}
+    monkeypatch.setattr(soru, "secili", lambda idler, sinif, ders: [tekrar] if 9005 in idler else [])
+    csrf = giris(istemci, "101", "ali-sifre")
+    mid = baslat(istemci, csrf)
+    idler = [r[0] for r in conn.execute("SELECT soru_id FROM maraton_soru WHERE maraton_id=?", (mid,))]
+    assert len(idler) == 10 and 9005 in idler and len(set(idler)) == 10
+
+
+def test_ucuncu_yanlista_uyari_ve_ceza(istemci, ornek, conn, saat):
+    kid = ornek["ogr1_k"]
+    _gecmis_yanlis(conn, kid, 7777, 2)
+    csrf = giris(istemci, "101", "ali-sifre")
+    mid = baslat(istemci, csrf)
+    conn.execute("UPDATE maraton_soru SET soru_id=7777 WHERE maraton_id=? AND sira=1", (mid,))
+    conn.execute("UPDATE maraton SET puan=200 WHERE id=?", (mid,))
+    conn.commit()
+    istemci.get(f"/ogrenci/maraton/{mid}")
+    saat["an"] += timedelta(seconds=10)
+    j = cevapla(istemci, csrf, mid, 1, 0).json()
+    assert not j["dogru"] and j["tekrar_uyari"] and j["yanlis_sayisi"] == 3 and j["ceza"] == 50
+    assert j["puan"] == -50 and j["toplam"] == 150
+
+
+def test_ceza_tur_puanini_sifirin_altina_indirmez(istemci, ornek, conn, saat):
+    kid = ornek["ogr1_k"]
+    _gecmis_yanlis(conn, kid, 7778, 2)
+    csrf = giris(istemci, "101", "ali-sifre")
+    mid = baslat(istemci, csrf)
+    conn.execute("UPDATE maraton_soru SET soru_id=7778 WHERE maraton_id=? AND sira=1", (mid,))
+    conn.commit()
+    istemci.get(f"/ogrenci/maraton/{mid}")
+    j = cevapla(istemci, csrf, mid, 1, 0).json()
+    assert j["tekrar_uyari"] and j["ceza"] == 0 and j["toplam"] == 0
+
+
+def test_ikinci_yanlista_ceza_yok(istemci, ornek, conn, saat):
+    kid = ornek["ogr1_k"]
+    _gecmis_yanlis(conn, kid, 7779, 1)
+    csrf = giris(istemci, "101", "ali-sifre")
+    mid = baslat(istemci, csrf)
+    conn.execute("UPDATE maraton_soru SET soru_id=7779 WHERE maraton_id=? AND sira=1", (mid,))
+    conn.commit()
+    istemci.get(f"/ogrenci/maraton/{mid}")
+    j = cevapla(istemci, csrf, mid, 1, 0).json()
+    assert not j["tekrar_uyari"] and j["ceza"] == 0 and j["puan"] == 0

@@ -3,6 +3,8 @@
 {% include "_ana_ekran.html" %}
 <p><a class="tus ikincil" href="/static/farabi-kilavuz.html">Farabi kullanma kılavuzu</a></p>
 <link rel="stylesheet" href="/static/kokpit.css?v=1">
+<link rel="stylesheet" href="/static/rol-ana.css?v=1">
+<div class="rol-ana">
 {% if canli_ders is defined and canli_ders %}
 {% set c = canli_ders %}
 {% set devam = canli_durum == 'devam' %}
@@ -39,8 +41,13 @@
 <script src="/static/ders-kart.js?v=1" defer></script>
 {% endif %}
 
+<div class="rol-pills">
+  {% if bugun_gorev is defined and bugun_gorev.gorevler %}<a class="pill" href="#bugun-gorev">Bugünkü görev <b>{{ bugun_gorev.gorevler|length }}{{ '+' if bugun_gorev.fazla }}</b></a>{% endif %}
+  {% if okunmamis_duyurular is defined and okunmamis_duyurular %}<a class="pill sari" href="/duyurular">Okunmamış duyuru <b>{{ okunmamis_duyurular|length }}</b></a>{% endif %}
+  {% if inceleme_kart is defined and inceleme_kart %}<a class="pill mor" href="/ogretmen/inceleme">Günün 5 sorusu <b>{{ inceleme_kart.yapilan }}/{{ inceleme_kart.toplam }}</b></a>{% endif %}
+</div>
 {% if bugun_gorev is defined %}
-<section class="kart bugun-kart">
+<section class="kart bugun-kart" id="bugun-gorev">
   <h2>✅ Bugün neler yapayım?</h2>
   {% if bugun_gorev.gorevler %}
   <ul class="liste gorevler">
@@ -99,6 +106,7 @@
 </section>
 <section class="kart">
   <h2>🏆 Yarışmalar bu hafta</h2>
+  <p><a class="tus ikincil" href="/ogretmen/liderlik/maraton">XP ve Soru Maratonu yarışları</a></p>
   {% if liderlik_pano is defined and liderlik_pano %}
   <ul class="liste">
   {% for s in liderlik_pano %}
@@ -113,17 +121,17 @@
   <h2>📅 Bugünkü Derslerim ({{ gun_adi }})</h2>
   <ul class="liste">
   {% for d in bugunku_dersler %}
-    <li style="display:block; {% if d.aktif %}background:rgba(142,68,173,0.06); border-radius:6px; padding:.5rem; margin:-.1rem 0;{% endif %}">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
+    <li class="ders-satir-ogr{{ ' aktif' if d.aktif }}">
+      <div class="ders-satir-ust">
         <div>
           <span class="etiket {% if d.aktif %}mor{% endif %}">{{ d.no }}. Ders</span>
           <b>{{ d.sinif }}</b> · {{ d.ders|baslik }}
-          {% if d.aktif %}<span class="etiket yesil" style="margin-left:.3rem; font-size:.7rem;">Şu an</span>{% endif %}
+          {% if d.aktif %}<span class="etiket yesil">Şu an</span>{% endif %}
         </div>
         {% if d.saat %}<span class="soluk kucuk">{{ d.saat }}</span>{% endif %}
       </div>
       {% if d.kazanim %}
-        <div class="soluk kucuk" style="margin-top:.25rem; padding-left:.2rem; line-height:1.35;">
+        <div class="soluk kucuk ders-satir-not">
           🎯 <b>Kazanım:</b> {{ d.kazanim }}
         </div>
       {% endif %}
@@ -198,4 +206,5 @@
 </section>
 {% include "_belirli_gunler.html" %}
 {% include "_gunun_bilgisi.html" %}
+</div>
 {% endblock %}

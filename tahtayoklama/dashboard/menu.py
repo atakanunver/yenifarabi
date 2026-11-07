@@ -51,6 +51,8 @@ ALANLAR: list[dict] = [
             {"ad": "Rapor", "href": "/admin/rapor", "ikon": "grafik"},
             {"ad": "Aylık özet", "href": "/aylik-ozet", "ikon": "grafik"},
             {"ad": "Kulüp yoklaması", "href": "/kulup-yoklama", "ikon": "kullanicilar"},
+            {"ad": "3D Okul Menüsü", "href": "http://192.168.23.20:8095/", "ikon": "tahta", "yeni_sekme": True},
+            {"ad": "Nöbetçiyi çağır", "href": "#", "eylem": "nobetci-cagir", "ikon": "zil"},
         ],
     },
     {
@@ -73,7 +75,12 @@ ALANLAR: list[dict] = [
             {"ad": "Yoklama SMS", "href": "/yoklama-sms-git", "ikon": "log", "yeni_sekme": True},
             {"ad": "SMS otomasyonu", "href": "/otomasyon-git", "ikon": "kaydirici", "yeni_sekme": True},
             {"ad": "Doğum günleri", "href": "/dogum", "ikon": "pasta", "yeni_sekme": True},
-            {"ad": "Tahta duyuru", "href": "/admin/uzaktan#duyuru", "ikon": "zil"},
+        ],
+    },
+    {
+        "ad": "Duyurular", "anahtar": "duyurular", "kisayol": "d", "ikon": "zil",
+        "sayfalar": [
+            {"ad": "Duyurular", "href": "/duyurular", "ikon": "zil"},
         ],
     },
     {
@@ -102,7 +109,6 @@ ALANLAR: list[dict] = [
             {"ad": "Servis yönetimi", "href": "/servisler", "ikon": "sunucu"},
             {"ad": "Zamanlanmış görevler", "href": "/zamanlanmis-gorevler", "ikon": "saat"},
             {"ad": "Sunucular", "href": "/sunucular", "ikon": "katman"},
-            {"ad": "Zil paneli", "href": "/panel-git/zil", "ikon": "zil", "yeni_sekme": True},
             {"ad": "Pano paneli", "href": "/panel-git/pano", "ikon": "tahta", "yeni_sekme": True},
             {"ad": "Kiosk paneli", "href": "/panel-git/kiosk", "ikon": "sunucu", "yeni_sekme": True},
             {"ad": "Bilgehan paneli", "href": "/panel-git/bilgehan", "ikon": "sunucu", "yeni_sekme": True},
@@ -110,6 +116,8 @@ ALANLAR: list[dict] = [
     },
 ]
 
+# Zil paneli üst çubukta solda sabit kısa yol (2026-11-01, Atakan isteği; Sistem alanından çıktı).
+ZIL: dict = {"ad": "Zil paneli", "kisayol": "z", "ikon": "zil", "href": "/panel-git/zil", "yeni_sekme": True}
 ACIL: dict = {"ad": "Acil durum", "kisayol": "a", "ikon": "uyari", "href": "/acil"}
 ATOS: dict = {"ad": "Atos yapay zekâ", "kisayol": "t", "ikon": "yildiz", "href": "atos", "yeni_sekme": True}
 AYARLAR: list[dict] = [
@@ -162,6 +170,7 @@ def menu_agaci(yol: str, sorgu: str = "") -> dict:
         "aktif_alan": aktif_alan,
         "sayfalar": aktif_alan["sayfalar"] if aktif_alan else [],
         "konum": [aktif_alan["ad"], aktif_sayfa["ad"]] if aktif_alan else [],
+        "zil": copy.deepcopy(ZIL),
         "acil": copy.deepcopy(ACIL),
         "atos": copy.deepcopy(ATOS),
         "ayarlar": copy.deepcopy(AYARLAR),

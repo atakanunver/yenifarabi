@@ -4,7 +4,7 @@ import app
 import auth
 import db
 import pytest
-from fastapi import Request
+from fastapi import HTTPException, Request
 
 
 @pytest.fixture
@@ -31,10 +31,20 @@ async def test_duzenleme_okul_no_ve_veli_rolunu_korur(test_db):
     veli = db.kisi_ekle(test_db, "Veli", "05554445566", a, "veli",
                         ogrenci_kisi_id=ogr, veli_rol="anne")
 
-    await app.rehber_kisi_duzenle(_istek(test_db), ogr, ad_soyad="Ogr", telefon="05551112233",
-                                  sinif_id=b, tur="ogrenci", ogrenci_kisi_id=None)
-    await app.rehber_kisi_duzenle(_istek(test_db), veli, ad_soyad="Veli", telefon="05554445566",
-                                  sinif_id=b, tur="veli", ogrenci_kisi_id=str(ogr))
+    # okul_ana kesmesi (2026-10-23): yazma yolu kapatıldı, 410 döner
+    with pytest.raises(HTTPException) as exc:
+        await app.rehber_kisi_duzenle(_istek(test_db), ogr, ad_soyad="Ogr", telefon="05551112233",
+                                      sinif_id=b, tur="ogrenci", ogrenci_kisi_id=None)
+    assert exc.value.status_code == 410
+
+    with pytest.raises(HTTPException) as exc:
+        await app.rehber_kisi_duzenle(_istek(test_db), veli, ad_soyad="Veli", telefon="05554445566",
+                                      sinif_id=b, tur="veli", ogrenci_kisi_id=str(ogr))
+    assert exc.value.status_code == 410
+
+    # DB katmanında okul_no ve veli_rol değerlerinin korunması
+    db.kisi_guncelle(test_db, ogr, "Ogr", "05551112233", b, "ogrenci", None, okul_no=160)
+    db.kisi_guncelle(test_db, veli, "Veli", "05554445566", b, "veli", ogr, veli_rol="anne")
 
     o = test_db.execute("SELECT sinif_id, okul_no FROM kisiler WHERE id = ?", (ogr,)).fetchone()
     v = test_db.execute("SELECT veli_rol FROM kisiler WHERE id = ?", (veli,)).fetchone()

@@ -64,6 +64,8 @@ async def pdf_yukle(
     k=Depends(OGRETMEN_POST),
     conn: sqlite3.Connection = Depends(db_conn),
 ):
+    if soru_uret:
+        raise HTTPException(410, "PDF'ten otomatik soru üretimi kaldırıldı; soru arşivi kullanılıyor.")
     sinif, _, d = secim.partition("|")
     ders = tr_kucuk((d or ders).strip())
     try:
@@ -77,12 +79,6 @@ async def pdf_yukle(
         return _liste(request, conn, k, 422, hata=str(e))
     analitik.istekten(request, "ogretmen_pdf_gonder", str(pdf_id))
     arka.add_task(push.pdf_bildir, sinif.strip(), k["id"])
-    if soru_uret:
-        try:
-            sinifpdf.soru_iste(conn, k, pdf_id, soru_bas, soru_bit, bool(kvkk))
-        except (sinifpdf.PdfHatasi, PermissionError) as e:
-            # PDF sınıfa gitti; yalnızca soru havuzu isteği reddedildi: öğretmen listeden tekrar isteyebilir
-            return _liste(request, conn, k, uyari=f"PDF gönderildi ama soru havuzu isteği alınamadı: {e or 'yetki yok'}")
     return RedirectResponse(f"/ogretmen/pdf/{pdf_id}/odev", status_code=303)
 
 
@@ -96,14 +92,7 @@ def pdf_soru_iste(
     k=Depends(OGRETMEN_POST),
     conn: sqlite3.Connection = Depends(db_conn),
 ):
-    try:
-        sinifpdf.soru_iste(conn, k, pdf_id, soru_bas, soru_bit, bool(kvkk))
-    except PermissionError:
-        raise HTTPException(404) from None
-    except sinifpdf.PdfHatasi as e:
-        return _liste(request, conn, k, 422, hata=str(e))
-    analitik.istekten(request, "ogretmen_pdf_soru", str(pdf_id))
-    return RedirectResponse("/ogretmen/pdf", status_code=303)
+    raise HTTPException(410, "PDF'ten otomatik soru üretimi kaldırıldı; soru arşivi kullanılıyor.")
 
 
 @router.post("/ogretmen/pdf/{pdf_id}/sil")

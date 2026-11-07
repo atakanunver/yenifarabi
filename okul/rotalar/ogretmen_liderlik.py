@@ -54,6 +54,16 @@ def genel(
     )
 
 
+@router.get("/maraton")
+def maraton_katilimcilari(request: Request, k=Depends(OGRETMEN), conn: sqlite3.Connection = Depends(db_conn)):
+    """Öğrencilerin okul sıralamasında da görünen kısa adlarla haftalık katılımcılar."""
+    return render(
+        request, "ogretmen/maraton_katilimcilari.html", liste=maraton.liderlik(conn),
+        hafta_basi=maraton.hafta_basi()[:10], en_iyi=maraton.EN_IYI,
+        xp=oduller.liderlik(conn, oduller.hafta_basi())["xp"],
+    )
+
+
 @router.get("/{sinif}")
 def sinif_tablosu(
     sinif: str, request: Request, donem: str = "hafta", k=Depends(OGRETMEN), conn: sqlite3.Connection = Depends(db_conn)

@@ -115,7 +115,7 @@ def _servis_anahtari(request: Request) -> None:
 def api_istekler(request: Request, conn: sqlite3.Connection = Depends(db_conn)):
     """Soru havuzuna katkı için sırada bekleyen öğretmen PDF'leri (kişi/öğretmen bilgisi dönmez)."""
     _servis_anahtari(request)
-    return JSONResponse({"istekler": [dict(r) for r in sinifpdf.bekleyen_istekler(conn)]})
+    return JSONResponse({"istekler": []})
 
 
 @router.get("/api/soru-istek/{pdf_id}/pdf")

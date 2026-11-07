@@ -480,6 +480,12 @@ class YoklamaPenceresi(QWidget):
         self.tam_ekran_dugmesi.clicked.connect(self._tam_ekrani_degistir)
         ust.addWidget(self.tam_ekran_dugmesi)
 
+        self.kapat_dugmesi = QPushButton("✕ Kapat")
+        self.kapat_dugmesi.setMinimumSize(120, 50)
+        self.kapat_dugmesi.setStyleSheet("font-size: 12pt;")
+        self.kapat_dugmesi.clicked.connect(self.close)
+        ust.addWidget(self.kapat_dugmesi)
+
         ana.addLayout(ust)
 
         # Bu haftanın kazanımı — başlığın altında tek satır, küçük punto.

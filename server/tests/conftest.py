@@ -85,6 +85,10 @@ class _SahteImlec:
             self._sonuc = list(self._b.idari_belge_satirlari)
         elif "FROM kitap" in sql:
             self._sonuc = list(self._b.kitap_satirlari)
+        elif "FROM kazanim_test_soru" in sql:
+            self._sonuc = list(self._b.kanit_satirlari)
+        elif "FROM kazanim" in sql:
+            self._sonuc = list(self._b.hedef_satirlari)
         else:                                    # INSERT (metrik / soru_log)
             self._sonuc = []
 
@@ -107,6 +111,7 @@ class SahteBaglanti:
     def __init__(self, metin_satirlari=(), tablo_satirlari=(),
                  tablo_patlat: Exception | None = None, *,
                  idari_satirlari=(), idari_belge_satirlari=(), kitap_satirlari=(),
+                 hedef_satirlari=(), kanit_satirlari=(),
                  patlat_sql: str | None = None, patlat: Exception | None = None):
         self.metin_satirlari = list(metin_satirlari)
         self.tablo_satirlari = list(tablo_satirlari)
@@ -114,6 +119,8 @@ class SahteBaglanti:
         self.idari_satirlari = list(idari_satirlari)
         self.idari_belge_satirlari = list(idari_belge_satirlari)
         self.kitap_satirlari = list(kitap_satirlari)
+        self.hedef_satirlari = list(hedef_satirlari)
+        self.kanit_satirlari = list(kanit_satirlari)
         self.patlat_sql = patlat_sql      # bu alt dizeyi içeren SQL `patlat`ı fırlatır
         self.patlat = patlat
         self.sorgular = []        # [(sql, params), ...]

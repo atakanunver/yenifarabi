@@ -11,7 +11,7 @@ import odevler
 import sinavlar
 import zaman
 from ayarlar import AYAR
-from kaynaklar import KaynakHatasi, kazanim, program, yoklama
+from kaynaklar import KaynakHatasi, kazanim, kelebek, program, yoklama
 
 
 def bugunku_dersler(sinif: str) -> list[tuple[int, str]] | None:
@@ -57,6 +57,23 @@ def devamsizlik(ogrenci: sqlite3.Row, gun: int | None = None):
         return yoklama.devamsizlik(ogrenci["okul_no"], ogrenci["sinif"], baslangic)
     except KaynakHatasi:
         return None
+
+
+def devamsiz_gun_sayisi(ogrenci: sqlite3.Row, gun: int = 14) -> int | None:
+    """Son `gun` günde 'yok' yazılan farklı gün sayısı; kaynak yoksa None."""
+    kayitlar = devamsizlik(ogrenci, gun)
+    if kayitlar is None:
+        return None
+    return len({d.tarih for d in kayitlar if d.tur == "yok"})
+
+
+def sinav_yerlesimleri(ogrenci: sqlite3.Row, gun: int = 14) -> list[kelebek.Yerlesim]:
+    """Önümüzdeki `gun` günün Kelebek yerleşimleri; kaynak yoksa boş (kart gizli kalır)."""
+    bugun = zaman.simdi().date()
+    try:
+        return kelebek.yaklasan(ogrenci["okul_no"], bugun.isoformat(), (bugun + timedelta(days=gun)).isoformat())
+    except KaynakHatasi:
+        return []
 
 
 def devamsizlik_gunlere_gore(kayitlar) -> list[tuple[str, list]]:

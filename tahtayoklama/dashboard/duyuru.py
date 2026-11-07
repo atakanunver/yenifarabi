@@ -92,6 +92,41 @@ def olustur(conn, hedefler: list[str], mesaj: str, tip: str, sesli_oku: bool,
     return idler
 
 
+async def formdan_gonder(form, tahta_adlari: list[str]) -> list[dict]:
+    """Panel formundan (mesaj, tip, sesli_oku, tum_okul, tahta[]) duyuru yazar.
+    `tahta_adlari` geçerli tahta adlarıdır (istemciden gelen ad yalnızca bunlarla eşleşirse
+    hedef olur). Dönen: tahta başına {tahta, basarili, detay} (uzaktan denetim biçimi)."""
+    import asyncio
+
+    if form.get("tum_okul"):
+        hedefler = [TUM_OKUL]
+    else:
+        secilen = set(form.getlist("tahta"))
+        hedefler = [t for t in tahta_adlari if t in secilen]
+    tip = form.get("tip", "bilgi")
+    sesli = bool(form.get("sesli_oku"))
+    try:
+        mesaj = mesaj_temizle(form.get("mesaj"))
+        if not hedefler:
+            raise DuyuruHatasi("Hiçbir tahta seçilmedi.")
+        if tip not in TIPLER:
+            raise DuyuruHatasi("Geçersiz duyuru tipi.")
+    except DuyuruHatasi as hata:
+        return [{"tahta": None, "basarili": False, "detay": str(hata)}]
+    ses = None
+    if sesli and OKUMA_SAYISI[tip] > 0:
+        ses = await asyncio.to_thread(tts_uret, mesaj)
+    conn = db.baglanti()
+    try:
+        olustur(conn, hedefler, mesaj, tip, sesli, ses)
+    finally:
+        conn.close()
+    detay = "Duyuru gönderildi (tahta birkaç saniye içinde gösterir)."
+    if sesli and OKUMA_SAYISI[tip] > 0 and ses is None:
+        detay = "Duyuru gönderildi, ancak ses üretilemedi; sessiz gösterilecek."
+    return [{"tahta": h, "basarili": True, "detay": detay} for h in hedefler]
+
+
 def eskileri_buda(conn) -> None:
     """2 günden eski satırları ve hiçbir satırın göstermediği ses dosyalarını siler."""
     conn.execute("DELETE FROM duyuru WHERE olusturma < datetime('now', '-2 days')")

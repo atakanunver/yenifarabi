@@ -1,0 +1,32 @@
+/* Öğretmen / veli / yönetici ana ekranları — yalnızca bu sayfalarda yüklenir, .rol-ana altına kapsanır.
+   Öğrenci ana ekranıyla (ogrenci-ana.css) aynı bileşen dili: hap, ≥44px hedef, 8pt ritim. Yalnızca tema değişkenleri. */
+
+.rol-ana .rol-pills { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; }
+.rol-ana .pill {
+  display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; padding: .5rem 1rem;
+  border-radius: 999px; border: 1px solid var(--cizgi); background: var(--mavi-acik); color: var(--mavi);
+  font-size: .9rem; font-weight: 600; text-decoration: none;
+}
+.rol-ana .pill span { font-size: .75rem; font-weight: 500; opacity: .85; }
+.rol-ana .pill.yesil { background: var(--yesil-acik); color: var(--yesil); }
+.rol-ana .pill.sari { background: var(--sari-bg); color: var(--sari-yazi); border-color: var(--sari-kenar); }
+.rol-ana .pill.kirmizi { background: var(--kirmizi-acik); color: var(--kirmizi); }
+.rol-ana .pill.mor { background: var(--mor-acik); color: var(--mor-koyu); }
+
+/* kısayollar: iki sütunlu karo ızgarası */
+.rol-ana .kisayollar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; margin: 0 0 1rem; }
+.rol-ana .kisayollar .tus { flex: none; min-height: 56px; justify-content: flex-start; text-align: left; line-height: 1.25; padding: .5rem 1rem; }
+@media (min-width: 640px) { .rol-ana .kisayollar { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* öğretmen: bugünkü dersler */
+.rol-ana .ders-satir-ogr { display: block; padding: .5rem 0; }
+.rol-ana .ders-satir-ogr.aktif { background: var(--mor-acik); border-radius: 12px; padding: .5rem 1rem; margin: 0 -1rem; }
+.rol-ana .ders-satir-ust { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+.rol-ana .ders-satir-not { margin-top: .25rem; line-height: 1.35; }
+.rol-ana .kart > h2 a, .rol-ana .satir { min-height: 44px; }
+.rol-ana .kart > h2 a { display: inline-flex; align-items: center; padding: 0 .5rem; }
+.rol-ana .tus { min-height: 44px; }
+
+/* veli: büyük yazı düzeni korunur, hapların hedefi büyür */
+html.veli .rol-ana .pill { min-height: 3rem; font-size: 1rem; }
+html.veli .rol-ana .pill span { font-size: .85rem; }

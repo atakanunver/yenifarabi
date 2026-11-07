@@ -119,6 +119,15 @@ def yoklama_ortami(tmp_path, monkeypatch, qapp):
 # ----------------------------------------------------------------------
 
 
+class TestKapatDugmesi:
+    def test_kapat_dugmesi_pencereyi_kapatir(self, yoklama_ortami):
+        pencere = yoklama.YoklamaPenceresi()
+        pencere.show()
+        assert pencere.isVisible()
+        pencere.kapat_dugmesi.click()
+        assert not pencere.isVisible()
+
+
 class TestOtomatikKayitKaldirildi:
     def test_manuel_kaydet_dosya_yazar(self, yoklama_ortami):
         pencere = yoklama.YoklamaPenceresi()

@@ -19,6 +19,20 @@
   }
   window.farabiToast = toast;
 
+  document.addEventListener('click', function (e) {
+    var dugme = e.target.closest('[data-eylem="nobetci-cagir"]');
+    if (!dugme || dugme.disabled) return;
+    dugme.disabled = true;
+    fetch('/api/guvenlik/nobetci-cagir', { method: 'POST' })
+      .then(function (r) {
+        if (r.status === 401) { window.location.href = '/giris'; throw new Error('Oturum süresi dolmuş.'); }
+        if (!r.ok) throw new Error('Çağrı gönderilemedi.');
+        toast('Nöbetçi çağrısı güvenlik ekranına gönderildi.');
+      })
+      .catch(function (err) { toast(err.message || 'Nöbetçi çağrısı gönderilemedi.'); })
+      .finally(function () { dugme.disabled = false; });
+  });
+
   // ---- Açılır menüler (<details>: ayar menüsü, Eğitim/Güvenlik alanları) ----
   // JS'siz de açılır; burada yalnız dışarı tıklama / Esc ile kapanma ve tek seferde tek açık menü.
   // Çekmecede alan listeleri açık durur (sekmenin altındaki sayfa listesi), onlara dokunulmaz.
@@ -221,4 +235,14 @@
     });
     if (window.location.pathname.indexOf('/sistem-durumu') === 0) baslat();
   }
+})();
+
+/* Menü tık sayacı (2026-11-01, menu_analitik.py): [data-menu] bağlantısına tıklanınca href'i
+   sunucuya bildirir (sendBeacon: sayfa değişse de gider). Kişi/IP bilgisi gönderilmez. */
+(function () {
+  if (!navigator.sendBeacon) return;
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[data-menu]');
+    if (a) navigator.sendBeacon('/api/menu-tik', new Blob([a.getAttribute('data-menu')], { type: 'text/plain' }));
+  }, true);
 })();

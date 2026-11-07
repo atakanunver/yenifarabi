@@ -6,7 +6,7 @@
 #
 # Kullanım:   sudo ./setup_anythingllm.sh            (root ya da sudo yetkili kullanıcı)
 # Ayarlar (ortam değişkeniyle ezilebilir):
-#   ATOS_PORT=8010  ATOS_MODEL=gemma4:12b  ATOS_CTX=49152  ATOS_PAROLA=...   (parola VARSAYILAN YOK: vermezsen sorar)
+#   ATOS_PORT=8010  ATOS_MODEL=farabi  ATOS_CTX=49152  ATOS_PAROLA=...   (parola VARSAYILAN YOK: vermezsen sorar)
 #
 # REHBERDEKİ VARSAYIMLARDAN DÜZELTMELER (resmî repo/BARE_METAL.md'den doğrulandı):
 #  - `yarn install` + `yarn build` kökte YETMEZ: kökte `build` yok. Gerçek akış: her alt projede `yarn install`,
@@ -24,7 +24,7 @@
 set -euo pipefail
 
 PORT="${ATOS_PORT:-8010}"
-MODEL="${ATOS_MODEL:-gemma4:12b}"
+MODEL="${ATOS_MODEL:-farabi}"
 CTX="${ATOS_CTX:-49152}"          # Ollama num_ctx olarak gider; sunucu OLLAMA_CONTEXT_LENGTH ile AYNI olmalı
 SURUM="${ATOS_SURUM:-v1.18.0}"
 KULLANICI=anythingllm

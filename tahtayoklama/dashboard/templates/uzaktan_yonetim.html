@@ -434,9 +434,8 @@ sagMenu.addEventListener('keydown', e => {
 canliEkranlariKur({{ tahtalar | selectattr('ulasilabilir') | map(attribute='ad') | list | tojson }});{% endif %}
 canliDongu();
 
-{% if yukleniyor %}
-tahtaDurumlariniGetir(false);
-{% endif %}
+// Sayfa acilinca onceki gorunumu goster, ardindan durumu yeniden denetle.
+tahtaDurumlariniGetir(true);
 
 const yenileBtn = document.getElementById('durum-yenile-btn');
 if (yenileBtn) {

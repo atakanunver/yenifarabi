@@ -565,37 +565,8 @@ async def duyuru_gonder_route(request: Request):
     tahta_istemci üzerinden birkaç sn içinde çeker (bkz. duyuru.py)."""
     _dogrula(request)
     form = await request.form()
-    secilenler = set(form.getlist("tahta"))
-    if form.get("tum_okul"):
-        hedefler = [duyuru.TUM_OKUL]
-    else:
-        hedefler = [t["ad"] for t in tahta_kaydi.tahtalari_yukle() if t["ad"] in secilenler]
-    tip = form.get("tip", "bilgi")
-    sesli = bool(form.get("sesli_oku"))
-    try:
-        mesaj = duyuru.mesaj_temizle(form.get("mesaj"))
-        if not hedefler:
-            raise duyuru.DuyuruHatasi("Hiçbir tahta seçilmedi.")
-        if tip not in duyuru.TIPLER:
-            raise duyuru.DuyuruHatasi("Geçersiz duyuru tipi.")
-    except duyuru.DuyuruHatasi as hata:
-        return await _duyuru_sonuc_sayfasi(
-            request, [{"tahta": None, "basarili": False, "detay": str(hata)}]
-        )
-    ses = None
-    if sesli and duyuru.OKUMA_SAYISI[tip] > 0:
-        ses = await asyncio.to_thread(duyuru.tts_uret, mesaj)
-    conn = db.baglanti()
-    try:
-        duyuru.olustur(conn, hedefler, mesaj, tip, sesli, ses)
-    finally:
-        conn.close()
-    detay = "Duyuru gönderildi (tahta birkaç saniye içinde gösterir)."
-    if sesli and duyuru.OKUMA_SAYISI[tip] > 0 and ses is None:
-        detay = "Duyuru gönderildi, ancak ses üretilemedi; sessiz gösterilecek."
-    return await _duyuru_sonuc_sayfasi(
-        request, [{"tahta": h, "basarili": True, "detay": detay} for h in hedefler]
-    )
+    tahtalar = [t["ad"] for t in tahta_kaydi.tahtalari_yukle()]
+    return await _duyuru_sonuc_sayfasi(request, await duyuru.formdan_gonder(form, tahtalar))
 
 
 @router.post("/uzaktan/duyuru-kapat", response_class=HTMLResponse)

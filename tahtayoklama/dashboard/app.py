@@ -27,6 +27,8 @@ import ajan_api
 import okul_bilgisi
 import auth
 import db
+import deneme_hatirlatma
+import duyurular_panel
 import ders_programi
 import kazanim_rapor
 import servis_yonetimi
@@ -96,7 +98,7 @@ async def _polling_dongusu() -> None:
                 )
                 if tam:
                     son_tam_tarama = simdi_mono
-            except Exception as e:  # poller asla tüm servisi düşürmemeli
+            except Exception as e:  # noqa: BLE001 - poller asla tüm servisi düşürmemeli
                 print(f"[polling] hata: {e}")
             finally:
                 conn.close()
@@ -118,9 +120,12 @@ async def lifespan(app: FastAPI):
     # Sistem Durumu ölçümleri tek arka plan görevinde toplanır; /api/sistem-durumu
     # önbellekten okur (bkz. sistem_durumu.py docstring'i).
     durum_gorevi = asyncio.create_task(sistem_durumu.toplayici_dongusu())
+    # Yaklaşan deneme (MEBİ YKS vb.) teneffüs hatırlatması; kaynak okul /api/pano.
+    deneme_gorevi = asyncio.create_task(deneme_hatirlatma.dongu())
     yield
     gorev.cancel()
     durum_gorevi.cancel()
+    deneme_gorevi.cancel()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -153,6 +158,7 @@ app.include_router(acil.router)
 app.include_router(bugun.router)
 app.include_router(aylik_ozet.router)
 app.include_router(guvenlik.router)
+app.include_router(duyurular_panel.router)
 app.include_router(yakinda.router)
 
 

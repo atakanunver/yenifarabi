@@ -10,6 +10,10 @@
   </div>
   {% if soru.konu %}<p class="soru-no">{{ soru.konu }}</p>{% endif %}
   <h1 class="soru-metni" id="soru-metni" tabindex="-1">{{ soru.soru }}</h1>
+  {% if soru.soru_id %}
+  {% if soru.soru == 'Soruyu görselden inceleyiniz.' %}<p id="gorsel-hatasi" class="not" role="alert" hidden>Soru görseli yüklenemedi. Lütfen sayfayı yenileyin.</p>{% endif %}
+  <img class="soru-gorsel" src="/soru-gorsel/{{ soru.soru_id }}" alt="Soru ve seçeneklerin görseli" onerror="this.hidden=true;{% if soru.soru == 'Soruyu görselden inceleyiniz.' %}document.getElementById('gorsel-hatasi').hidden=false;document.querySelectorAll('#cevap-formu button[name=sec]').forEach(b=>b.disabled=true);{% endif %}">
+  {% endif %}
 
   <form method="post" action="/ogrenci/arena/{{ tur.id }}/cevap" id="cevap-formu" class="siklar" aria-labelledby="soru-metni">
     <input type="hidden" name="csrf" value="{{ csrf }}">

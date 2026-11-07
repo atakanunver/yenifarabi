@@ -27,6 +27,13 @@ servisleri (yoklama panosu, SMS). Monorepo. Bu dosya: ortak kurallar + servisler
   Çalışma dizini tek: hangi dal checkout'taysa servisler onu koşar; dal değiştirmek de canlı kodu değiştirir.
   Özellik dalında çalışırken (örn. `atos-anythingllm-gemma`) master'a merge edilmeden restart canlıya o dalı alır.
 
+## Canlı durum ve 2026-11-07 kararları
+- **2026-11-07 yeni kullanıcı kararı:** RAG ve gömme servisi hiçbir zaman açılmayacak; soru havuzu hazır sorular ve görsellerden oluşan arşiv olacak, otomatik soru üretimi iptal edildi. `soru-havuzu-uret.timer` kapatıldı. Eski "üretim zamanlayıcısını kapatma" yönergesi geçersiz.
+- NAS yedeği haftalık pazar 03:30 TR'ye taşındı; eksik betik bağlantısı `server/yedek/farabi_yedek.py` kaynağına kuruldu. İlk yeni zamanlı yedek 2026-11-08 03:30; henüz uçtan uca doğrulanmadı.
+- `farabi-yedek.timer` etkin, ancak servis 2026-11-04'ten beri `~/farabi-yedek/farabi-yedek.py` bulunamadığı için başarısız. Son başarılı NAS yedeği 2026-11-03; repo kaynağı `server/yedek/farabi_yedek.py`. Yedekleme düzeltilip uçtan uca doğrulanana dek çalışıyor varsayma.
+- `soru-havuzu-uret.timer` etkin, ancak 2026-11-02'den beri kapalı `bilgehan.local:8040` gömme servisine bağlantı reddiyle duruyor (`soruhavuzu/tekrar.py`). RAG/gömme servisini geri açma; üretim akışı ayrı düzeltilmeli.
+- Ollama aktif, `farabi` modeli diskte, fakat 2026-11-07 08:18 TR kontrolünde bellekte model yoktu. Süresiz yükleme ayarına rağmen boşalmanın nedeni araştırılmalı; aşağıdaki sürekli yüklü bilgisi o an için geçerli değil.
+
 ## Mevcut durum (kalıcı)
 - `farabi-idari-yukle.timer` KALICI KAPALI (2026-10-10), açıkça istenmeden açma.
   `kazanim-test*` üç zamanlayıcı SİLİNDİ (2026-10-14); kazanım testi KALICI İPTAL (2026-10-24),

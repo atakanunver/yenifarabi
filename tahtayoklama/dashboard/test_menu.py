@@ -19,6 +19,7 @@ def _sayfalar():
 def _hrefler():
     yield from (s["href"] for s in _sayfalar())
     yield menu.ACIL["href"]
+    yield menu.ZIL["href"]
     yield menu.ATOS["href"]
     yield from (o["href"] for o in menu.AYARLAR if o.get("href"))
 
@@ -26,8 +27,8 @@ def _hrefler():
 class TestMenu(unittest.TestCase):
     def test_alan_sirasi(self):
         self.assertEqual([a["ad"] for a in menu.ALANLAR],
-                         ["Yoklama", "Öğrenci ve personel", "İletişim", "Eğitim", "Güvenlik", "Sistem"])
-        self.assertEqual([a["kisayol"] for a in menu.ALANLAR], list("ypieks"))
+                         ["Yoklama", "Öğrenci ve personel", "İletişim", "Duyurular", "Eğitim", "Güvenlik", "Sistem"])
+        self.assertEqual([a["kisayol"] for a in menu.ALANLAR], list("ypideks"))
 
     def test_tum_sayfalar_menude(self):
         hrefler = {h.split("#")[0] for h in _hrefler()}
@@ -56,7 +57,7 @@ class TestMenu(unittest.TestCase):
         self.assertEqual(veli["sayac"], "veli")
 
     def test_kisayollar_benzersiz(self):
-        harfler = [a["kisayol"] for a in menu.ALANLAR] + [menu.ACIL["kisayol"], menu.ATOS["kisayol"]]
+        harfler = [a["kisayol"] for a in menu.ALANLAR] + [menu.ACIL["kisayol"], menu.ATOS["kisayol"], menu.ZIL["kisayol"]]
         self.assertEqual(len(harfler), len(set(harfler)))
 
     def test_aktif_isaretleme(self):
@@ -105,7 +106,7 @@ class TestMenu(unittest.TestCase):
         yol = menu.STATIK_DIZINI / "pano.css"
         st = os.stat(yol)
         try:
-            os.utime(yol, (st.st_atime, st.st_mtime + 86400))
+            os.utime(yol, (st.st_atime, time.time() + 86400))  # en yeni static dosyadan da yeni
             menu._surum_onbellek.clear()
             s2 = menu.menu_agaci("/")["surum"]
         finally:
@@ -159,7 +160,7 @@ class TestMenu(unittest.TestCase):
     def test_ust_cubukta_alti_alan(self):
         html = self._render("/admin/rapor")
         sekmeler = re.findall(r'<(?:a|summary) class="alan-sekme"[^>]*>', html)
-        self.assertEqual(len(sekmeler), 6)
+        self.assertEqual(len(sekmeler), 7)
         for etiket, alan in zip(sekmeler, menu.ALANLAR):
             if alan.get("acilir"):  # açılır alan: sekme <summary>, sayfalar panelde
                 self.assertTrue(etiket.startswith("<summary"), alan["ad"])
@@ -188,7 +189,7 @@ class TestMenu(unittest.TestCase):
         # Alan sekmeleri ve sol menü düz <a href>: JS olmadan da gezinilir.
         html = self._render("/servisler")
         acilir = [a for a in menu.ALANLAR if a.get("acilir")]
-        self.assertEqual(len(re.findall(r'<a class="alan-sekme"[^>]*href="[^"]+"', html)), 6 - len(acilir))
+        self.assertEqual(len(re.findall(r'<a class="alan-sekme"[^>]*href="[^"]+"', html)), len(menu.ALANLAR) - len(acilir))
         self.assertEqual(len(re.findall(r'<details class="alan-acilir"', html)), len(acilir))  # <details> JS'siz açılır
         sol = self._sol_menu(html)
         self.assertNotIn("<button", sol)

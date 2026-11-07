@@ -10,6 +10,7 @@
 <section class="kart" id="s{{ s.sira }}">
   <p class="kucuk soluk">{{ s.sira }}. soru{% if s.konu %} · {{ s.konu }}{% endif %}{% if s.kaynak %} · {{ s.kaynak }}{% endif %}</p>
   <p>{{ s.soru }}</p>
+  {% if s.soru_id %}<img class="soru-gorsel" src="/soru-gorsel/{{ s.soru_id }}" alt="Soru görseli" onerror="this.hidden=true">{% endif %}
   <ul class="siklar-ozet">
   {% for sk in s.secenekler %}
     <li class="{{ 'dogru' if loop.index0 == s.dogru_index }}"><b>{{ 'ABCDEFGH'[loop.index0] }}</b> {{ sk }}{% if loop.index0 == s.dogru_index %} <span class="kucuk">(işaretli doğru cevap)</span>{% endif %}</li>

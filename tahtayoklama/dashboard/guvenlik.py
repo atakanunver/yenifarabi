@@ -177,6 +177,13 @@ def _hareket_durumu() -> dict:
 async def durum(request: Request):
     _dogrula(request)
     aktif = acil.aktif_alarm(acil.son_olaylar())
+    conn = db.baglanti()
+    try:
+        cagri = conn.execute(
+            "SELECT id, mesaj FROM nobetci_cagrisi ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    finally:
+        conn.close()
     return JSONResponse(
         {
             "aktif": {
@@ -189,9 +196,28 @@ async def durum(request: Request):
             else None,
             "kameralar": await asyncio.to_thread(_kamera_durumu),
             "hareket": _hareket_durumu(),
+            "nobetci_cagrisi": dict(cagri) if cagri else None,
             "simdi": time.time(),
         }
     )
+
+
+@router.post("/api/guvenlik/nobetci-cagir")
+async def nobetci_cagir(request: Request):
+    """Yalnız dashboard yönetici oturumu çağrı oluşturabilir."""
+    conn = db.baglanti()
+    try:
+        if not auth.dogrula(request, conn):
+            raise HTTPException(401, "Yönetici oturumu geçersiz.")
+        conn.execute("DELETE FROM nobetci_cagrisi WHERE olusturma < datetime('now', '-7 days')")
+        cur = conn.execute(
+            "INSERT INTO nobetci_cagrisi (mesaj) VALUES (?)", ("Nöbetçi İdare Odasına",)
+        )
+        conn.commit()
+        cagri_id = cur.lastrowid
+    finally:
+        conn.close()
+    return JSONResponse({"basarili": True, "id": cagri_id})
 
 
 def _ozet(kayit: dict) -> dict:

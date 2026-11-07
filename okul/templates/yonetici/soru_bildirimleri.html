@@ -14,6 +14,7 @@
       <b>#{{ s.soru_id }}</b>{% if q %} · {{ q.sinif }}. sınıf {{ q.ders|baslik }} · <span class="etiket">{{ q.durum }}</span>{% endif %}
       {% if s.soru_id in gizli %}<span class="etiket kirmizi">Gizlendi</span>{% endif %}<br>
       {% if q %}{{ q.soru[:160] }}{{ '…' if q.soru|length > 160 }}<br>{% endif %}
+      {% if q %}<img class="soru-gorsel" src="/soru-gorsel/{{ s.soru_id }}" alt="Soru görseli" onerror="this.hidden=true">{% endif %}
       <span class="soluk kucuk">{% for r, n in s.roller.items() %}{{ n }} {{ {'ogrenci': 'öğrenci', 'ogretmen': 'öğretmen', 'yonetici': 'yönetici', 'tahta': 'tahta'}[r] }}{{ ', ' if not loop.last }}{% endfor %} ·
         {% for t, n in s.turler.items() %}{{ turler[t] }}: {{ n }}{{ ' · ' if not loop.last }}{% endfor %}</span>
     </span>

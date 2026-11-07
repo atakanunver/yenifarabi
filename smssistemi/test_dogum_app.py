@@ -1,14 +1,11 @@
 """Doğum günleri web route ve SSO entegrasyonu birim testleri."""
 
-import pytest
-from unittest.mock import MagicMock
-from fastapi import Request
-from fastapi.responses import RedirectResponse
-
 import app
 import auth
 import db
-import dogum_mantik
+import pytest
+from fastapi import HTTPException, Request
+from fastapi.responses import RedirectResponse
 
 
 @pytest.fixture
@@ -71,13 +68,17 @@ async def test_dogum_ayarlar_kaydet(test_db):
 
 @pytest.mark.anyio
 async def test_dogum_kisi_tarih_kaydet(test_db):
+    """okul_ana kesmesi (2026-10-23): yazma yolu kapatıldı, 410 döner."""
     s9a = db.sinif_ekle(test_db, "9-A")
     k_id = db.kisi_ekle(test_db, "Ali Yılmaz", None, s9a, "ogrenci")
 
     req = _sahte_oturum_request(test_db)
-    resp = await app.dogum_kisi_tarih_kaydet(req, kisi_id=k_id, dogum_tarihi="2009-03-15")
-    assert resp.headers["location"] == "/dogum-gunleri?mesaj=tarih_kaydedildi"
+    with pytest.raises(HTTPException) as exc:
+        await app.dogum_kisi_tarih_kaydet(req, kisi_id=k_id, dogum_tarihi="2009-03-15")
+    assert exc.value.status_code == 410
 
+    # Doğrudan DB güncelleme fonksiyonu test edilir
+    db.kisi_dogum_tarihi_guncelle(test_db, k_id, "2009-03-15")
     k = test_db.execute("SELECT dogum_tarihi FROM kisiler WHERE id = ?", (k_id,)).fetchone()
     assert k["dogum_tarihi"] == "2009-03-15"
 

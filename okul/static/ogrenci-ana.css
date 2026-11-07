@@ -1,0 +1,43 @@
+/* Öğrenci ana ekranı (ogrenci/ana_yeni.html) — yalnızca bu sayfada yüklenir, .ogr-ana altına kapsanır.
+   Renkler tema değişkenlerinden (okul.css/temalar.css); 8pt ritim, ≥44px dokunma hedefi. */
+
+.ogr-ana .saat-kart { padding: 1.5rem 1rem; gap: 1rem; margin-bottom: 1rem; box-shadow: 0 12px 28px -16px rgba(75, 31, 111, .9); }
+.ogr-ana .saat-durum { font-size: 1rem; padding: .5rem 1rem; }
+
+/* ders şeridi: yatay kaydırma, kartlar hizaya oturur */
+.ogr-serit { margin: 0 0 1rem; }
+.serit-ust { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .5rem; }
+.serit-ust h2 { margin: 0; }
+.serit-ust a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 .5rem; font-size: .9rem; font-weight: 600; }
+.serit-liste {
+  display: flex; gap: .5rem; list-style: none; margin: 0 -1rem; padding: 0 1rem .5rem;
+  overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 1rem; -webkit-overflow-scrolling: touch;
+}
+.serit-ders {
+  flex: none; scroll-snap-align: start; min-width: 8.5rem; max-width: 12rem; min-height: 64px;
+  display: flex; align-items: center; gap: .5rem; padding: .5rem 1rem .5rem .5rem;
+  background: var(--kart); border: 1px solid var(--cizgi); border-radius: var(--yaricap); box-shadow: var(--golge);
+}
+.serit-ad { font-weight: 600; font-size: .95rem; line-height: 1.25; overflow-wrap: anywhere; }
+
+/* bilgi hapları */
+.ogr-pills { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; }
+.pill {
+  display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; padding: .5rem 1rem;
+  border-radius: 999px; border: 1px solid var(--cizgi); background: var(--mavi-acik); color: var(--mavi);
+  font-size: .9rem; font-weight: 600; text-decoration: none;
+}
+.pill span { font-size: .75rem; font-weight: 500; opacity: .85; }
+.pill.yesil { background: var(--yesil-acik); color: var(--yesil); }
+.pill.sari { background: var(--sari-bg); color: var(--sari-yazi); border-color: var(--sari-kenar); }
+.pill.mor { background: var(--mor-acik); color: var(--mor-koyu); }
+
+/* sınav yeri */
+.yer-liste .sag { line-height: 1.6; }
+
+/* dokunma hedefleri: sayfadaki kart başlığı bağlantıları ve satırlar */
+.ogr-ana .kart > h2 a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 .5rem; }
+.ogr-ana .liste a.satir { min-height: 44px; }
+.ogr-ana .tus { min-height: 44px; }
+
+@media (min-width: 640px) { .serit-liste { margin: 0; padding: 0 0 .5rem; } }

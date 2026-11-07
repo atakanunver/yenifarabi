@@ -3,6 +3,8 @@
 {% block icerik %}
 {% include "_ana_ekran.html" %}
 {% include "_saat.html" %}
+<link rel="stylesheet" href="/static/rol-ana.css?v=1">
+<div class="rol-ana">
 {% if not cocuk %}
 <div class="kart bilgi">
   <h1>Hoş geldiniz</h1>
@@ -13,6 +15,13 @@
   {{ vesikalik(cocuk.kullanici_id, cocuk_foto, cocuk.ad_soyad, 64) }}
   <div><h1 style="margin:0"><span class="fosfor">{{ cocuk.ad_soyad }}</span></h1>
   <p class="soluk" style="margin:.2rem 0 0">{{ cocuk.sinif }} · Okul no {{ cocuk.okul_no }}</p></div>
+</div>
+
+<div class="rol-pills">
+  {% if bugun_yok is defined and bugun_yok %}<a class="pill sari" href="/veli/devamsizlik?ogr={{ cocuk.id }}">Bugün devamsızlık <b>{{ bugun_yok|length }} ders</b></a>
+  {% elif bugun_yok is defined %}<a class="pill yesil" href="/veli/devamsizlik?ogr={{ cocuk.id }}">Bugün devamsızlık yok <b>✓</b></a>{% endif %}
+  {% if odevler %}<a class="pill" href="/veli/odevler?ogr={{ cocuk.id }}">Bekleyen ödev <b>{{ odevler|length }}{{ '+' if odevler|length >= 4 }}</b></a>{% endif %}
+  {% if sinavlar %}<a class="pill mor" href="/veli/sinavlar?ogr={{ cocuk.id }}">Yaklaşan sınav <b>{{ sinavlar|length }}</b></a>{% endif %}
 </div>
 
 {# Büyük yazılı, sade düzen (yaşlı velilerin de rahat kullanması için): önce "şimdi", sonra "yapılması gerekenler", "bugün/yarın". #}
@@ -145,4 +154,5 @@
 {% endif %}
 {% include "_belirli_gunler.html" %}
 {% include "_gunun_bilgisi.html" %}
+</div>
 {% endblock %}

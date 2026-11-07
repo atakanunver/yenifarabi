@@ -216,7 +216,7 @@ async def gonder(
     numaralar: str = Form(""),
     mesaj: str = Form(...),
     bekleme_sn: float = Form(2.0),
-    csv_dosya: UploadFile | None = File(None),
+    csv_dosya: UploadFile | None = File(None),  # noqa: B008
 ):
     conn = db.baglanti()
     try:
@@ -283,7 +283,7 @@ async def api_mesaj_duzelt(request: Request):
     try:
         body = await request.json()
         taslak = body.get("taslak", "")
-    except Exception:
+    except Exception:  # noqa: BLE001
         form = await request.form()
         taslak = form.get("taslak", "")
 
@@ -295,7 +295,7 @@ async def api_mesaj_duzelt(request: Request):
         # urllib senkron (30 sn'ye kadar) — thread'e alınmazsa tüm 8020 donar.
         duzeltilmis = await asyncio.to_thread(ollama_mesaj_duzelt, taslak)
         return JSONResponse({"duzeltilmis": duzeltilmis})
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return JSONResponse({"hata": f"Yapay zeka servisi yanıt vermedi: {e}"}, status_code=502)
 
 
@@ -514,7 +514,7 @@ async def rehber_yukle(
     request: Request,
     sinif_id: int = Form(...),
     tur: str = Form(...),
-    dosya: UploadFile = File(...),
+    dosya: UploadFile = File(...),  # noqa: B008
 ):
     # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/rehber/yukle)
     raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
@@ -717,7 +717,7 @@ def _otomasyon_sayfasi(
     if secili is not None:
         try:
             derleme = otomasyon.devamsizlar_derle(conn, ders_no=secili["ders_no"], sablon=secili["sablon"])
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             hata = f"Yoklama panosu verisi okunamadı: {exc}"
             derleme = _bos_derleme(secili["ders_no"])
 

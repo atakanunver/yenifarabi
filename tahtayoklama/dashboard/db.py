@@ -14,6 +14,23 @@ DB_YOLU = Path(os.environ.get("FARABI_PANEL_DB")
                or Path(__file__).resolve().parent / "veri" / "yoklama_pano.db")
 
 SEMA = """
+-- Menü kullanım sayacı (2026-11-01, menu_analitik.py): gün × menü href'i × tür; kişi/IP YOK.
+CREATE TABLE IF NOT EXISTS menu_sayac (
+    gun   TEXT NOT NULL,
+    href  TEXT NOT NULL,
+    tur   TEXT NOT NULL CHECK (tur IN ('acilis', 'tik')),
+    adet  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (gun, href, tur)
+);
+
+-- Güvenlik ekranına nöbetçi çağrısı: yönetici panelinden üretilir, güvenlik
+-- ekranı durum sorgusunda alır. Kayıtlar bir haftadan eskiyse yeni çağrıda silinir.
+CREATE TABLE IF NOT EXISTS nobetci_cagrisi (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mesaj TEXT NOT NULL,
+    olusturma TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS siniflar (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     ad            TEXT NOT NULL UNIQUE,

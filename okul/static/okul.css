@@ -256,11 +256,11 @@ td.sayi, th.sayi { text-align: right; font-variant-numeric: tabular-nums; }
   padding-bottom: env(safe-area-inset-bottom);
 }
 .sekmeler a {
-  flex: 1; max-width: 120px; display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: .5rem .2rem .55rem; text-decoration: none; color: var(--soluk); font-size: .7rem; font-weight: 600;
+  flex: 1; max-width: 120px; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  padding: .5rem .2rem; text-decoration: none; color: var(--soluk); font-size: .75rem; font-weight: 600;
 }
 .sekmeler svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.sekmeler a.aktif { color: var(--mavi); }
+.sekmeler a.aktif { color: var(--mavi); background: var(--mavi-acik); border-radius: 12px; }
 .sekmeler a.aktif svg { stroke-width: 2.3; }
 
 /* yazdırma: ilk şifre listesi */
@@ -648,3 +648,6 @@ tr.ben td { background: rgba(122, 63, 168, .10); }
 .deneme-cubuk .d { background: var(--yesil); }
 .deneme-cubuk .y { background: var(--kirmizi); }
 .deneme-cubuk .b { background: var(--kenar2); }
+
+/* Soru arşivindeki şekil, grafik ve görseller */
+.soru-gorsel:not([hidden]) { display:block; max-width:100%; height:auto; margin:1rem auto; background:#fff; }

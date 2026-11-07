@@ -263,7 +263,7 @@ def sonuc(
         return RedirectResponse(f"/ogrenci/arena/{tur_id}", status_code=303)
     satirlar = [
         {
-            "sira": s["sira"], "soru": s["soru"], "konu": s["konu"],
+            "sira": s["sira"], "soru": s["soru"], "konu": s["konu"], "soru_id": s["soru_id"],
             "secenekler": json.loads(s["secenekler"]), "dogru_index": s["dogru_index"],
             "cevap": s["cevap"],
         }

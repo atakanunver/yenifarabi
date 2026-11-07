@@ -250,3 +250,18 @@ def test_odev_sonuc_havuz_sorusunda_isaretle_dugmesi(istemci, conn, ornek, saat)
     h = istemci.get(f"/ogretmen/odev/{od}").text
     assert h.count("data-isaretle ") == 5 and 'data-soru-id="55"' in h  # yalnızca havuz kaynaklı soruda, 5 sebep
     assert "/static/soru-isaretle.js" in h
+
+
+def test_yaris_penceresi_xp_maraton_ve_yetki(istemci, conn, ornek, sinif9, saat):
+    _maraton(conn, sinif9["cem"], "9-A", 80)
+    _maraton(conn, ornek["ogr2_k"], "9-B", 95)
+    for kullanici, sifre in (("hoca", "hoca-sifre"), ("mudur", "mudur-sifre")):
+        giris(istemci, kullanici, sifre)
+        r = istemci.get("/ogretmen/liderlik/maraton")
+        assert r.status_code == 200
+        assert "Haftalık XP yarışı" in r.text and "Soru Maratonu" in r.text
+        assert "Ayşe K." in r.text and "Cem D." in r.text
+        assert "Ayşe Kaya" not in r.text and "Cem Demir" not in r.text
+        assert "95 puan" in r.text and "90 XP" in r.text
+    giris(istemci, "101", "ali-sifre")
+    assert istemci.get("/ogretmen/liderlik/maraton").status_code == 404
