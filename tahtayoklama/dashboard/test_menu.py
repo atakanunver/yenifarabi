@@ -240,6 +240,9 @@ class TestMenu(unittest.TestCase):
             yol, _, sorgu = ilk.partition("?")
             sol = self._sol_menu(self._render(yol, sorgu.encode()))
             for sayfa in alan["sayfalar"]:
+                if sayfa.get("eylem"):  # bağlantı değil düğme (ör. Nöbetçiyi çağır)
+                    self.assertIn(f'data-eylem="{sayfa["eylem"]}"', sol, sayfa["ad"])
+                    continue
                 self.assertIn(f'href="{sayfa["href"]}"', sol, sayfa["ad"])
 
     def test_gun_adi_cumle_duzeni(self):
