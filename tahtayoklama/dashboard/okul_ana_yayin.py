@@ -8,9 +8,11 @@ ROLLBACK eder, böylece sayılar birebir doğrudur. Çıktıda kişisel veri yok
 Silme politikası: yoklama ve okulda kayıt SİLİNMEZ (yoklama: aktif=0; okul: 'yetim' sayılır),
 SMS rehberinde (FK yok, günlükler metin kopyası tutar) kayıt silinir.
 
-Kullanım:  python okul_ana_yayin.py            # kuru çalıştırma
+Kullanım:  export OKUL_ANA_DSN="$(venv/bin/python -c 'import okul_ana_veri as v; print(v.dsn())')"
+           python okul_ana_yayin.py            # kuru çalıştırma
            python okul_ana_yayin.py --uygula   # yaz
-Ortam:     OKUL_ANA_KOPYA=/dizin  → canlı yerine kopya dosyalara (prova) yaz.
+Ortam:     OKUL_ANA_DSN yoksa kaynak okul_ana_test (prova) olur; o zaman --uygula canlıya yazmaz.
+           OKUL_ANA_KOPYA=/dizin  → canlı yerine kopya dosyalara (prova) yaz.
 """
 
 import json
