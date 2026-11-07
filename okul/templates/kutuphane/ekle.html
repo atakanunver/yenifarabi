@@ -3,6 +3,7 @@
 {% block icerik %}
 {% include "kutuphane/_ust.html" %}
 <h1>Kitap Ekle</h1>
+<p id="isbn-durum" class="kucuk" role="status"></p>
 {% if eklenen %}<div class="kart bilgi" role="status"><p><b>{{ eklenen.baslik }}</b> eklendi · demirbaş <b>{{ eklenen.demirbas }}</b></p>
   <div class="tuslar"><a class="tus ikincil kucuk" href="/kutuphane/etiket?bas={{ eklenen.demirbas|urlencode }}">Etiketini yazdır</a>
   <a class="tus ikincil kucuk" href="/kutuphane/kitap/{{ eklenen.kitap_id }}">Nüshaları gör</a></div></div>{% endif %}
@@ -10,7 +11,6 @@
 <section class="kart">
   <h2>ISBN'i okut (isteğe bağlı)</h2>
   <p class="kucuk soluk">Kitabın arkasındaki barkodu okutun; bu eser kayıtlıysa bilgiler dolar, yalnızca yeni demirbaşı yazarsınız.</p>
-  <p id="isbn-durum" class="kucuk" role="status"></p>
   {% include "kutuphane/_kamera.html" %}
 </section>
 <form class="kart" method="post" action="/kutuphane/ekle" id="ekle-form" data-csrf="{{ csrf }}">
