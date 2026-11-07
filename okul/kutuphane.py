@@ -726,8 +726,14 @@ def rapor_xlsx(conn: sqlite3.Connection) -> bytes:
     return b.getvalue()
 
 
-def etiket_nushalari(conn: sqlite3.Connection, bas: str = "", bit: str = "", kitap_id: int | None = None) -> list[dict]:
-    """Etiket basılacak nüshalar: eser, ya da demirbaş aralığı (sayısal demirbaşlarda sayıya göre, sıfırlar korunur)."""
+def etiket_nushalari(
+    conn: sqlite3.Connection, bas: str = "", bit: str = "", kitap_id: int | None = None, ek: bool = False,
+) -> list[dict]:
+    """Etiket basılacak nüshalar: eser, demirbaş aralığı (sayısal demirbaşlarda sayıya göre, sıfırlar korunur) ya da
+    ek numaralı nüshalar ("6-2": eski listede bir barkoda düşen fazla kopyalar; fiziksel etiketlerinde ek numara yok)."""
+    if ek:
+        liste = [n for n in nushalar(conn, "1", ()) if re.fullmatch(r"\d+-\d+", n["demirbas"])]
+        return sorted(liste, key=lambda n: tuple(int(x) for x in n["demirbas"].split("-")))[:600]
     if kitap_id:
         return nushalar(conn, "k.id = ?", (kitap_id,))
     bas, bit = (bas or "").strip(), (bit or "").strip() or (bas or "").strip()

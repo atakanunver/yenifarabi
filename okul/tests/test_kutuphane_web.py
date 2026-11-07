@@ -154,6 +154,8 @@ def test_excel_yukle_indir_ve_etiket(c, conn, ornek, saat):
     assert wb["Nüshalar"]["A2"].value == "03244"
     t = c.get("/kutuphane/etiket", params={"bas": "03244"}).text
     assert 'data-kod="KTP-03244"' in t
+    kutuphane.nusha_ekle(conn, demirbas="03244-2", baslik="B")
+    assert 'data-kod="KTP-03244-2"' in c.get("/kutuphane/etiket", params={"ek": 1}).text
     assert "okunduğunu göstermez" in c.get("/kutuphane/rapor").text
 
 

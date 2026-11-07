@@ -374,3 +374,9 @@ def test_etiket_araligi_sifirlari_korur(conn):
     assert [n["demirbas"] for n in kutuphane.etiket_nushalari(conn, "3240", "3245")] == ["03240", "03241"]
     assert [n["demirbas"] for n in kutuphane.etiket_nushalari(conn, "03250")] == ["03250"]
     assert kutuphane.etiket_nushalari(conn) == []
+
+
+def test_etiket_ek_numarali_nushalar(conn):
+    for d in ("6", "6-2", "6-10", "1600-3", "A-3", "77"):
+        kutuphane.nusha_ekle(conn, demirbas=d, baslik="K")
+    assert [n["demirbas"] for n in kutuphane.etiket_nushalari(conn, ek=True)] == ["6-2", "6-10", "1600-3"]

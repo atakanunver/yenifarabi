@@ -178,12 +178,13 @@ async def ice_aktar(
 
 @router.get("/etiket")
 def etiket(
-    request: Request, bas: str = "", bit: str = "", kitap: int | None = None,
+    request: Request, bas: str = "", bit: str = "", kitap: int | None = None, ek: int = 0,
     k=Depends(PERSONEL), conn: sqlite3.Connection = Depends(db_conn),
 ):
     _gorevli(conn, k)
-    return render(request, "kutuphane/etiket.html", nushalar=kutuphane.etiket_nushalari(conn, bas[:30], bit[:30], kitap),
-                  bas=bas, bit=bit, onek=kutuphane.ETIKET_ONEK)
+    return render(request, "kutuphane/etiket.html",
+                  nushalar=kutuphane.etiket_nushalari(conn, bas[:30], bit[:30], kitap, ek=bool(ek)),
+                  bas=bas, bit=bit, ek=bool(ek), onek=kutuphane.ETIKET_ONEK)
 
 
 # ---- Liste / ödünçteki / rapor ----

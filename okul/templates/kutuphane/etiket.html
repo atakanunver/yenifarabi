@@ -10,10 +10,11 @@
     <label>İlk demirbaş<input name="bas" value="{{ bas }}" maxlength="30" required></label>
     <label>Son demirbaş<input name="bit" value="{{ bit }}" maxlength="30" placeholder="boşsa tek etiket"></label>
   </div>
-  <div class="tuslar"><button class="tus ikincil">Göster</button>{% if nushalar %}<button type="button" class="tus" data-yazdir>Yazdır ({{ nushalar|length }})</button>{% endif %}</div>
+  <div class="tuslar"><button class="tus ikincil">Göster</button><a class="tus ikincil" href="/kutuphane/etiket?ek=1">Ek numaralı nüshalar</a>{% if nushalar %}<button type="button" class="tus" data-yazdir>Yazdır ({{ nushalar|length }})</button>{% endif %}</div>
   {% if nushalar|length >= 600 %}<p class="kucuk soluk">En çok 600 etiket gösterilir; aralığı bölün.</p>{% endif %}
 </form>
-{% if bas and not nushalar %}<p class="kart bos">Bu aralıkta nüsha yok.</p>{% endif %}
+{% if ek %}<p class="kart kucuk">Ek numaralı nüshalar ({{ nushalar|length }}): eski listede aynı barkoda düşen fazla kopyalar (ör. 6-2). Fiziksel etiketlerinde ek numara yok; bu etiketleri yapıştırın.</p>{% endif %}
+{% if (bas or ek) and not nushalar %}<p class="kart bos">{% if ek %}Ek numaralı nüsha yok.{% else %}Bu aralıkta nüsha yok.{% endif %}</p>{% endif %}
 </div>
 <div class="ktp-etiketler" data-onek="{{ onek }}">
   {% for n in nushalar %}<div class="ktp-etiket"><span class="qr" data-kod="{{ onek }}{{ n.demirbas }}"></span><span class="yazi"><b>{{ n.demirbas }}</b><small>{{ n.baslik[:40] }}</small><small>Ş.M.U.A.L Kütüphanesi</small></span></div>{% endfor %}
