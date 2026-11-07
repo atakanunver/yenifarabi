@@ -7,6 +7,7 @@ Kaynak akışlar ~/farabi/kameralar/ altında (mediamtx + ffmpeg), hareket algı
   - /kameralar-kayit (harekete duyarlı geçmiş kayıtları tarih/saat seçerek izleme — 2026-10-27)
 """
 
+import asyncio
 import re
 import subprocess
 from pathlib import Path
@@ -166,7 +167,8 @@ async def api_kamera_video(request: Request, kamera: str, dosya: str):
             "+faststart",
             str(gecici),
         ]
-        r = subprocess.run(komut, timeout=60, check=False)
+        # ffmpeg 60 sn sürebilir; olay döngüsünde koşarsa tahta nabızları dahil tüm pano donar
+        r = await asyncio.to_thread(subprocess.run, komut, timeout=60, check=False)
         if r.returncode != 0 or not gecici.is_file() or gecici.stat().st_size == 0:
             gecici.unlink(missing_ok=True)
             return FileResponse(kaynak, media_type="video/mp4", filename=dosya)
