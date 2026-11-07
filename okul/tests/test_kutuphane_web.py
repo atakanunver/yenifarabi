@@ -78,6 +78,20 @@ def test_kitap_ekle_formu_ve_sifir(c, conn, ornek):
     assert c.get("/kutuphane/api/isbn", params={"isbn": "978-605-279-397-8"}).json()["kitap"]["yayinevi"] == "Can Yayınları"
 
 
+def test_api_isbn_internetten(c, conn, ornek, monkeypatch):
+    from kaynaklar import isbn as isbn_kaynak
+    _oturum(c, conn, ornek["yonetici"])
+    yanit = {"ISBN:9789750719387": {"title": "Hayvan Çiftliği", "authors": [{"name": "George Orwell"}],
+                                    "publishers": [{"name": "Can Yayınları"}]}}
+    monkeypatch.setattr(isbn_kaynak, "_get", lambda url: yanit if "openlibrary" in url else {})
+    v = c.get("/kutuphane/api/isbn", params={"isbn": "9789750719387"}).json()
+    assert v["kitap"] is None and v["dis"] == {"baslik": "Hayvan Çiftliği", "yazar": "George Orwell", "yayinevi": "Can Yayınları"}
+    monkeypatch.setattr(isbn_kaynak, "_get", lambda url: {"items": [{"volumeInfo": {"title": "X", "authors": ["Y"]}}]}
+                        if "googleapis" in url else {})
+    assert c.get("/kutuphane/api/isbn", params={"isbn": "9789750719387"}).json()["dis"]["baslik"] == "X"
+    assert c.get("/kutuphane/api/isbn", params={"isbn": "123"}).json()["dis"] is None
+
+
 def test_ogrenci_katalog_ayirt_kutuphanem(c, conn, ornek, saat):
     nid = kutuphane.nusha_ekle(conn, **ORNEK)
     kitap_id = kutuphane.demirbas_bul(conn, "03244")["kitap_id"]

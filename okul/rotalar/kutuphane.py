@@ -10,6 +10,7 @@ import yetki
 from deps import db_conn, istemci_ip, render, rol
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, Response
+from kaynaklar import isbn as isbn_kaynak
 
 router = APIRouter(prefix="/kutuphane")
 UYE = rol("ogrenci", "veli", "ogretmen", "yonetici")
@@ -79,7 +80,14 @@ def api_ogrenci(q: str = "", k=Depends(PERSONEL), conn: sqlite3.Connection = Dep
 @router.get("/api/isbn")
 def api_isbn(isbn: str = "", k=Depends(PERSONEL), conn: sqlite3.Connection = Depends(db_conn)):
     _gorevli(conn, k)
-    return {"kitap": kutuphane.kitap_isbn(conn, isbn[:20])}
+    kitap = kutuphane.kitap_isbn(conn, isbn[:20])
+    if kitap:
+        return {"kitap": kitap}
+    try:
+        temiz = kutuphane.isbn_normalize(isbn[:20])
+    except kutuphane.KutuphaneHatasi:
+        temiz = None
+    return {"kitap": None, "dis": isbn_kaynak.eser_bilgisi(temiz) if temiz else None}
 
 
 @router.post("/ver")

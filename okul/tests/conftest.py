@@ -10,6 +10,7 @@ import auth
 import db
 import zaman
 from ayarlar import AYAR
+from kaynaklar import isbn as isbn_kaynak
 
 
 @pytest.fixture(autouse=True)
@@ -26,6 +27,7 @@ def gecici_ortam(tmp_path, monkeypatch):
     monkeypatch.setattr(AYAR, "whatsapp_veli", "")  # gerçek davet bağlantıları gizli.json'da; testlere sızmaz
     monkeypatch.setattr(AYAR, "whatsapp_ogrenci", "")
     monkeypatch.setattr(AYAR, "soru_anahtar", "")
+    monkeypatch.setattr(isbn_kaynak, "_get", lambda url: {})  # testler internete (Open Library/Google) çıkmaz
     monkeypatch.setattr(AYAR, "duyuru_anahtar", "")
     monkeypatch.setattr(AYAR, "devamsizlik_anahtar", "")
     monkeypatch.setattr(AYAR, "kazanim_yolu", tmp_path / "kazanimlar.json")

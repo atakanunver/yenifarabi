@@ -1,4 +1,4 @@
-// Kitap Ekle: kamera ISBN okuyunca forma yazar; eser kayıtlıysa bilgileri doldurur (yalnızca boş alanları).
+// Kitap Ekle: kamera ISBN okuyunca forma yazar; eser kayıtlıysa (yoksa internetten bulunursa) bilgileri doldurur (yalnızca boş alanları).
 (function () {
   "use strict";
   var form = document.getElementById("ekle-form"), durum = document.getElementById("isbn-durum");
@@ -17,6 +17,9 @@
         if (v.kitap) {
           ["baslik", "yazar", "yayinevi", "tur"].forEach(function (a) { if (!form.elements[a].value) form.elements[a].value = v.kitap[a] || ""; });
           durum.textContent = "Bu eser kayıtlı: " + v.kitap.baslik + ". Yeni nüshanın demirbaş numarasını yazın.";
+        } else if (v.dis) {
+          ["baslik", "yazar", "yayinevi"].forEach(function (a) { if (!form.elements[a].value) form.elements[a].value = v.dis[a] || ""; });
+          durum.textContent = "İnternetten bulundu: " + v.dis.baslik + ". Bilgileri kontrol edip demirbaş numarasını yazın.";
         } else {
           durum.textContent = "Yeni eser: ISBN yazıldı, diğer bilgileri girin.";
         }
