@@ -82,6 +82,7 @@ tahtayoklama/data/kayitlar/
 mudur/*
 !mudur/*.py
 !mudur/CLAUDE.md
+!mudur/AGENTS.md
 
 # network.txt — 10 tahtanın IP/MAC/SSH bilgileri, etapadmin/ogretmen
 # şifrelerini AÇIK METİN içeriyor (2026-08-23) — .env ile aynı hassasiyette,
