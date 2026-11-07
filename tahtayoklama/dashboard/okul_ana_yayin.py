@@ -420,7 +420,11 @@ def _yayinla(uygula, hedefler):
 
 if __name__ == "__main__":
     uygula = "--uygula" in sys.argv
-    kaynak = f"KOPYA={KOPYA}" if KOPYA else "CANLI"
-    print(f"yayin [{kaynak}] {'UYGULA' if uygula else 'KURU'}")
+    hedef = f"KOPYA={KOPYA}" if KOPYA else "CANLI"
+    kaynak = "okul_ana (OKUL_ANA_DSN)" if os.environ.get("OKUL_ANA_DSN") else DB
+    # DSN'siz varsayılan kaynak prova DB'si: canlı depolara test verisi yazılmasın
+    if uygula and not KOPYA and not os.environ.get("OKUL_ANA_DSN") and DB == "okul_ana_test":
+        sys.exit("durdu: kaynak okul_ana_test (prova); canlıya yazmak için OKUL_ANA_DSN verin, prova için OKUL_ANA_KOPYA")
+    print(f"yayin [{hedef}] kaynak={kaynak} {'UYGULA' if uygula else 'KURU'}")
     for ad, say in yayinla(uygula).items():
         print(f"  {ad:8s} {say}")
