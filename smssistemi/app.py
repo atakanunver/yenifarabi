@@ -426,15 +426,6 @@ async def rehber_kisi_ekle(
 ):
     # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/rehber/kisi/ekle)
     raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
-    conn = db.baglanti()
-    try:
-        _oturum_sarti(request, conn)
-        tel = gonderim.normalize_phone(telefon) if telefon.strip() else None
-        ogr_id = int(ogrenci_kisi_id) if (tur == "veli" and ogrenci_kisi_id and ogrenci_kisi_id.strip().isdigit()) else None
-        db.kisi_ekle(conn, ad_soyad.strip(), tel, sinif_id, tur, ogr_id)
-    finally:
-        conn.close()
-    return RedirectResponse(f"/rehber?sinif_id={sinif_id}&tur={tur}", status_code=303)
 
 
 @app.post("/rehber/kisi/{kisi_id}/duzenle")
@@ -449,64 +440,24 @@ async def rehber_kisi_duzenle(
 ):
     # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/rehber/kisi/{kisi_id}/duzenle)
     raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
-    conn = db.baglanti()
-    try:
-        _oturum_sarti(request, conn)
-        tel = gonderim.normalize_phone(telefon) if telefon.strip() else None
-        ogr_id = int(ogrenci_kisi_id) if (tur == "veli" and ogrenci_kisi_id and ogrenci_kisi_id.strip().isdigit()) else None
-        # Formda okul_no / veli_rol alanı yok: mevcut değerleri koru (önceden düzenleme
-        # ikisini de NULL'luyordu; okul_no kazanım raporu SMS eşleşmesinin anahtarı).
-        eski = conn.execute(
-            "SELECT okul_no, veli_rol FROM kisiler WHERE id = ?", (kisi_id,)
-        ).fetchone()
-        db.kisi_guncelle(
-            conn, kisi_id, ad_soyad.strip(), tel, sinif_id, tur, ogr_id,
-            okul_no=eski["okul_no"] if eski else None,
-            veli_rol=eski["veli_rol"] if eski else None,
-        )
-    finally:
-        conn.close()
-    return RedirectResponse(f"/rehber?sinif_id={sinif_id}&tur={tur}", status_code=303)
 
 
 @app.post("/rehber/kisi/{kisi_id}/sil")
 async def rehber_kisi_sil(request: Request, kisi_id: int, sinif_id: int = Form(...), tur: str = Form(...)):
     # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/rehber/kisi/{kisi_id}/sil)
     raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
-    conn = db.baglanti()
-    try:
-        _oturum_sarti(request, conn)
-        db.kisi_sil(conn, kisi_id)
-    finally:
-        conn.close()
-    return RedirectResponse(f"/rehber?sinif_id={sinif_id}&tur={tur}", status_code=303)
 
 
 @app.post("/rehber/sinif/ekle")
 async def rehber_sinif_ekle(request: Request, ad: str = Form(...)):
     # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/rehber/sinif/ekle)
     raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
-    conn = db.baglanti()
-    try:
-        _oturum_sarti(request, conn)
-        db.sinif_ekle(conn, ad.strip())
-    finally:
-        conn.close()
-    return RedirectResponse("/rehber", status_code=303)
 
 
 @app.post("/rehber/sinif/{sinif_id}/sil")
 async def rehber_sinif_sil(request: Request, sinif_id: int):
     # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/rehber/sinif/{sinif_id}/sil)
     raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
-    conn = db.baglanti()
-    try:
-        _oturum_sarti(request, conn)
-        basarili = db.sinif_sil(conn, sinif_id)
-    finally:
-        conn.close()
-    mesaj = "" if basarili else "sinif_kullanimda"
-    return RedirectResponse(f"/rehber?mesaj={mesaj}", status_code=303)
 
 
 @app.post("/rehber/yukle")
@@ -518,64 +469,6 @@ async def rehber_yukle(
 ):
     # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/rehber/yukle)
     raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
-    ad_kucuk = (dosya.filename or "").lower()
-    if not ad_kucuk.endswith((".csv", ".xlsx", ".xlsm")):
-        return RedirectResponse("/rehber?mesaj=desteklenmeyen_format", status_code=303)
-
-    conn = db.baglanti()
-    try:
-        _oturum_sarti(request, conn)
-        icerik = await dosya.read()
-        satirlar = gonderim.rehber_dosyasindan_oku(dosya.filename, icerik, tur=tur)
-
-        eklendi = guncellendi = atlandi = eslesmedi = 0
-        for satir in satirlar:
-            ad_soyad = satir["ad_soyad"]
-            if not ad_soyad:
-                atlandi += 1
-                continue
-            hedef_sinif_id = sinif_id
-            if satir["sinif"]:
-                hedef_sinif_id = db.sinif_ekle(conn, satir["sinif"])
-            telefon = satir["telefon"] or None
-
-            ogrenci_kisi_id = None
-            if tur == "veli":
-                ogrenci_adi = (satir.get("ogrenci_adi") or "").strip()
-                if ogrenci_adi:
-                    ogr = db.kisi_bul_isimle(conn, ogrenci_adi, hedef_sinif_id, "ogrenci")
-                    if ogr is not None:
-                        ogrenci_kisi_id = ogr["id"]
-                    else:
-                        eslesmedi += 1
-
-            var_olan = db.kisi_bul_isimle(conn, ad_soyad, hedef_sinif_id, tur)
-            if var_olan is not None:
-                degisti = False
-                yeni_tel = var_olan["telefon"]
-                if telefon and telefon != var_olan["telefon"]:
-                    yeni_tel = telefon
-                    degisti = True
-                yeni_ogr_id = var_olan.get("ogrenci_kisi_id")
-                if tur == "veli" and ogrenci_kisi_id is not None and ogrenci_kisi_id != var_olan.get("ogrenci_kisi_id"):
-                    yeni_ogr_id = ogrenci_kisi_id
-                    degisti = True
-
-                if degisti:
-                    db.kisi_guncelle(conn, var_olan["id"], ad_soyad, yeni_tel, hedef_sinif_id, tur, yeni_ogr_id)
-                    guncellendi += 1
-                else:
-                    atlandi += 1
-            else:
-                db.kisi_ekle(conn, ad_soyad, telefon, hedef_sinif_id, tur, ogrenci_kisi_id)
-                eklendi += 1
-    finally:
-        conn.close()
-
-    return RedirectResponse(
-        f"/rehber?sinif_id={sinif_id}&tur={tur}&mesaj=yuklendi:{eklendi}:{guncellendi}:{atlandi}:{eslesmedi}",
-        status_code=303,
-    )
 
 
 @app.get("/api/rehber/telefonlar")
@@ -945,21 +838,6 @@ async def dogum_ice_aktar_sayfa(request: Request):
 async def dogum_ice_aktar_uygula(request: Request):
     # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/dogum-gunleri/ice-aktar)
     raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
-    conn = db.baglanti()
-    try:
-        _oturum_sarti(request, conn)
-        form = await request.form()
-        secilen_personeller = form.getlist("personel")
-        secilen_ayrilanlar = form.getlist("ayrilan")
-        dogum_mantik.aktarim_uygula(
-            conn,
-            secilen_personeller=secilen_personeller,
-            secilen_ayrilanlar=secilen_ayrilanlar,
-        )
-    finally:
-        conn.close()
-
-    return RedirectResponse("/dogum-gunleri?mesaj=aktarildi", status_code=303)
 
 
 @app.post("/dogum-gunleri/kisi/{kisi_id}/tarih")
@@ -970,18 +848,6 @@ async def dogum_kisi_tarih_kaydet(
 ):
     # okul_ana kesmesi 2026-10-23: yazma yolu kapatıldı (/dogum-gunleri/kisi/{kisi_id}/tarih)
     raise HTTPException(410, "Bu kayıt artık merkezi veriden yönetilir: Yoklama paneli → Okul verisi (/admin/okul-verisi). Buradan değişiklik yapılamaz.")
-    conn = db.baglanti()
-    try:
-        _oturum_sarti(request, conn)
-        satir = conn.execute("SELECT tur FROM kisiler WHERE id = ?", (kisi_id,)).fetchone()
-        if satir is None or satir["tur"] not in ("ogrenci", "personel"):
-            return RedirectResponse("/dogum-gunleri", status_code=303)
-        iso = dogum_tarihi.strip() if dogum_tarihi and dogum_tarihi.strip() else None
-        db.kisi_dogum_tarihi_guncelle(conn, kisi_id, iso)
-    finally:
-        conn.close()
-
-    return RedirectResponse("/dogum-gunleri?mesaj=tarih_kaydedildi", status_code=303)
 
 
 @app.post("/dogum-gunleri/ayarlar")
