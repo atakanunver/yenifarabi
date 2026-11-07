@@ -22,7 +22,9 @@ def sifre_hashle(sifre: str, tuz: bytes | None = None) -> str:
     return f"{tuz.hex()}${dk.hex()}"
 
 
-def sifre_dogrula(sifre: str, hash_str: str) -> bool:
+def sifre_dogrula(sifre: str, hash_str: str | None) -> bool:
+    if not hash_str:
+        return False
     try:
         tuz_hex, dk_hex = hash_str.split("$", 1)
     except ValueError:
