@@ -6,14 +6,20 @@
   ve tahtaya bir sonraki gönderim zamanı.
 - smual.app: yayındaki okul portalı duyuruları (okul.db, salt-okunur; aylik_ozet ile aynı istisna).
 - Kiosk panosu: okul /api/pano'nun şu an döndürdüğü duyurular.
+- Tek form: aynı metin tahtalara ve/veya smual.app'e (rol hedefli) gider; smual.app için
+  EBYS botunun kullandığı okul /api/duyuru-ekle ucu (push bildirimini okul gönderir).
+  Anahtar okul/config/gizli.json'dan salt-okunur okunur (kopyalanmaz). SMS bilerek yok.
 Okul kaynakları kapalıysa ilgili bölüm empty-state gösterir; sayfa düşmez.
 """
 
+import asyncio
 import json
 import sqlite3
+import urllib.error
 import urllib.request
 from contextlib import closing
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
@@ -34,6 +40,31 @@ templates.env.globals["menu_agaci"] = menu.menu_agaci
 templates.env.globals["gun_adi_buyuk"] = zil.gun_adi_buyuk
 
 HEDEF_ADI = {"okul": "Tüm okul", "ogrenci": "Öğrenciler", "veli": "Veliler", "ogretmen": "Öğretmenler"}
+SMUAL_HEDEFLER = ("ogrenci", "veli", "ogretmen")
+OKUL_DUYURU_URL = "http://127.0.0.1:9090/api/duyuru-ekle"
+OKUL_GIZLI = Path("/home/ata/farabi/okul/config/gizli.json")
+
+
+def smual_gonder(hedef: str, metin: str) -> dict:
+    """smual.app rol duyurusu (okul /api/duyuru-ekle). Dönen biçim formdan_gonder ile aynı."""
+    ad = f"smual.app · {HEDEF_ADI[hedef]}"
+    baslik = metin if len(metin) <= 60 else metin[:59] + "…"
+    try:
+        anahtar = json.loads(OKUL_GIZLI.read_text(encoding="utf-8"))["duyuru_anahtar"]
+        istek = urllib.request.Request(
+            OKUL_DUYURU_URL,
+            data=json.dumps({"hedef": hedef, "baslik": baslik, "metin": metin}).encode(),
+            headers={"Content-Type": "application/json", "X-Duyuru-Anahtar": anahtar},
+            method="POST",
+        )
+        with urllib.request.urlopen(istek, timeout=10) as yanit:
+            tamam = bool(json.load(yanit).get("tamam"))
+    except urllib.error.HTTPError as e:
+        return {"tahta": ad, "basarili": False, "detay": f"Portal reddetti (HTTP {e.code})."}
+    except (OSError, KeyError, ValueError) as e:
+        return {"tahta": ad, "basarili": False, "detay": f"Portala ulaşılamadı: {type(e).__name__}."}
+    detay = "Portalda yayında; uygulamayı kuranlara bildirim gidiyor." if tamam else "Portal kaydetmedi."
+    return {"tahta": ad, "basarili": tamam, "detay": detay}
 
 
 def pano_cek() -> dict | None:
@@ -132,7 +163,19 @@ async def duyurular_sayfa(request: Request):
 async def tahta_duyuru_gonder(request: Request):
     uzaktan_yonetim._dogrula(request)
     form = await request.form()
-    sonuclar = await duyuru.formdan_gonder(form, [t["ad"] for t in tahta_kaydi.tahtalari_yukle()])
+    smual = [h for h in SMUAL_HEDEFLER if h in form.getlist("smual_hedef")]
+    sonuclar = []
+    # yalnız smual.app seçildiyse tahta adımı atlanır; hiçbiri seçilmediyse formdan_gonder uyarır
+    if form.get("tum_okul") or form.getlist("tahta") or not smual:
+        sonuclar += await duyuru.formdan_gonder(form, [t["ad"] for t in tahta_kaydi.tahtalari_yukle()])
+    if smual:
+        try:
+            metin = duyuru.mesaj_temizle(form.get("mesaj"))
+        except duyuru.DuyuruHatasi as hata:
+            sonuclar.append({"tahta": "smual.app", "basarili": False, "detay": str(hata)})
+        else:
+            for h in smual:
+                sonuclar.append(await asyncio.to_thread(smual_gonder, h, metin))
     uzaktan_yonetim._denetim_yaz(request, "duyuru", sonuclar)
     return await _sayfa(request, sonuclar)
 
