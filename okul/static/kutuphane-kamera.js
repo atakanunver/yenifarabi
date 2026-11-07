@@ -32,6 +32,23 @@
     }).catch(function () { return null; });
   }
 
+  // Tuvaldeki görüntüyü çözer (fotoğraf ve canlı akış ortak); bulunamazsa null. ZXing yüklü olmalı.
+  var okuyucu = null, ipucu = null;
+  function tuvalCoz(tuval) {
+    var Z = window.ZXing;
+    if (!okuyucu) {
+      okuyucu = new Z.MultiFormatReader();
+      ipucu = new Map();
+      ipucu.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.CODE_128, Z.BarcodeFormat.QR_CODE]);
+      ipucu.set(Z.DecodeHintType.TRY_HARDER, true);
+    }
+    try {
+      return okuyucu.decode(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(tuval))), ipucu).getText();
+    } catch (e) {
+      return null;
+    }
+  }
+
   function hafiza(ad, deger) {
     try {
       if (deger === undefined) return localStorage.getItem(ad);
@@ -46,7 +63,7 @@
     var sec = kok.querySelector("[data-kamera-sec]"), durum = kok.querySelector("[data-kamera-durum]");
     var elle = kok.querySelector("[data-elle]");
     var foto = kok.querySelector("[data-foto]"), fotoDosya = kok.querySelector("[data-foto-dosya]");
-    var akis = null, zx = null, zamanlayici = 0, kilit = false, sonKod = "", sonZaman = 0, nesil = 0;
+    var akis = null, zamanlayici = 0, kilit = false, sonKod = "", sonZaman = 0, nesil = 0;
 
     function yaz(m) { durum.textContent = m; }
 
@@ -64,7 +81,6 @@
     function durdur() {
       nesil++;
       clearTimeout(zamanlayici);
-      if (zx) { try { zx.reset(); } catch (e) { /* yok say */ } zx = null; }
       if (akis) akis.getTracks().forEach(function (t) { t.stop(); });
       akis = null;
       video.srcObject = null;
@@ -98,7 +114,7 @@
       var benim = nesil;
       kilit = false;
       var v = cihazId ? { deviceId: { exact: cihazId } } : { facingMode: { ideal: "environment" } };
-      v.width = { ideal: 1280 }; v.height = { ideal: 720 };
+      v.width = { ideal: 1920 }; v.height = { ideal: 1080 }; // ince EAN çizgileri için yüksek çözünürlük
       yaz("Kamera açılıyor…");
       navigator.mediaDevices.getUserMedia({ audio: false, video: v }).then(function (s) {
         if (benim !== nesil) { s.getTracks().forEach(function (t) { t.stop(); }); return; }
@@ -108,6 +124,11 @@
         var oynat = video.play();
         if (oynat && oynat.catch) oynat.catch(function () { /* iOS: kullanıcı dokunuşuyla başlar */ });
         cihazlar();
+        // Yakın odak sınırı (yeni iPhone'lar ~20 cm): 2× yakınlaştırmayla kitap odak mesafesinde tutulurken barkod büyük görünür
+        var iz = s.getVideoTracks()[0], yetenek = iz && iz.getCapabilities ? iz.getCapabilities() : {};
+        if (yetenek.zoom && yetenek.zoom.max >= 1.5) {
+          iz.applyConstraints({ advanced: [{ zoom: Math.min(2, yetenek.zoom.max) }] }).catch(function () { /* desteklemiyor */ });
+        }
         return yerelDedektor().then(function (ded) {
           if (benim !== nesil) return;
           if (ded) {
@@ -124,12 +145,21 @@
           yaz("Okuyucu yükleniyor…");
           return zxingYukle().then(function () {
             if (benim !== nesil) return;
-            var Z = window.ZXing, ipucu = new Map();
-            ipucu.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.CODE_128, Z.BarcodeFormat.QR_CODE]);
-            ipucu.set(Z.DecodeHintType.TRY_HARDER, true);
-            zx = new Z.BrowserMultiFormatReader(ipucu, 200);
             yaz("Barkodu çerçeveye tutun (20-25 cm uzaktan, net görünene kadar).");
-            zx.decodeFromStream(s, video, function (sonuc) { if (sonuc && !kilit) bildir(sonuc.getText()); });
+            // Tüm kare yerine çerçeve bölgesi tam çözünürlükte taranır: küçülmeden çizgiler ayrışır, tarama da hızlanır
+            var tuval = document.createElement("canvas");
+            var tara = function () {
+              if (benim !== nesil) return;
+              if (!kilit && video.readyState >= 2 && video.videoWidth) {
+                var w = video.videoWidth, h = video.videoHeight, kw = Math.round(w * 0.9), kh = Math.round(h * 0.6);
+                tuval.width = kw; tuval.height = kh;
+                tuval.getContext("2d", { willReadFrequently: true }).drawImage(video, (w - kw) / 2, (h - kh) / 2, kw, kh, 0, 0, kw, kh);
+                var kod = tuvalCoz(tuval);
+                if (kod) bildir(kod);
+              }
+              zamanlayici = setTimeout(tara, 120);
+            };
+            tara();
           }, function () { yaz("Okuyucu yüklenemedi; numarayı elle yazın."); });
         });
       }).catch(function (e) {
@@ -149,22 +179,16 @@
       resim.onerror = function () { bitir("Fotoğraf açılamadı; numarayı elle yazın."); };
       resim.onload = function () {
         zxingYukle().then(function () {
-          var Z = window.ZXing, o = Math.min(1, FOTO_KENAR / Math.max(resim.naturalWidth, resim.naturalHeight));
+          var o = Math.min(1, FOTO_KENAR / Math.max(resim.naturalWidth, resim.naturalHeight));
           var tuval = document.createElement("canvas");
           tuval.width = Math.round(resim.naturalWidth * o); tuval.height = Math.round(resim.naturalHeight * o);
           tuval.getContext("2d").drawImage(resim, 0, 0, tuval.width, tuval.height);
           bitir();
-          var ipucu = new Map(), okuyucu = new Z.MultiFormatReader();
-          ipucu.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.CODE_128, Z.BarcodeFormat.QR_CODE]);
-          ipucu.set(Z.DecodeHintType.TRY_HARDER, true);
-          try {
-            var sonuc = okuyucu.decode(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(tuval))), ipucu);
-            kilit = false;
-            bildir(sonuc.getText(), true);
-            yaz("Okundu: " + sonuc.getText());
-          } catch (e) {
-            yaz("Fotoğrafta barkod bulunamadı. Barkod net ve fotoğrafı doldurmadan (20-25 cm) tekrar çekin.");
-          }
+          var kod = tuvalCoz(tuval);
+          if (!kod) { yaz("Fotoğrafta barkod bulunamadı. Barkod net ve fotoğrafı doldurmadan (20-25 cm) tekrar çekin."); return; }
+          kilit = false;
+          bildir(kod, true);
+          yaz("Okundu: " + kod);
         }, function () { bitir("Okuyucu yüklenemedi; numarayı elle yazın."); });
       };
       resim.src = url;
