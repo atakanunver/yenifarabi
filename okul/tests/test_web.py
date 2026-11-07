@@ -412,6 +412,8 @@ def test_ogretmen_test_verir_ogrenci_cozer(istemci, ornek, conn):
 
 
 def test_yonetici_excel_aktarimi(istemci, ornek, conn):
+    conn.execute("INSERT INTO ogrenci (okul_no, ad_soyad, sinif) VALUES (301, 'Zeynep Çelik', '10-A')")
+    conn.commit()
     csrf = giris(istemci, "mudur", "mudur-sifre")
     wb = openpyxl.Workbook()
     wb.active.append(ice_aktar.OGRENCI_BASLIK)
@@ -591,14 +593,16 @@ def test_yonetici_kullanici_ekler_ve_siler(istemci, ornek, conn):
         data={"csrf": csrf, "rol_": "yonetici", "ad_soyad": "Başka Biri", "kullanici_adi": "zkaya"},
     )
     assert r.status_code == 400
-    # öğrenci
+    # öğrenci (okul_ana yayınıyla hesapsız gelmiş)
+    conn.execute("INSERT INTO ogrenci (okul_no, ad_soyad, sinif) VALUES (777, 'Can Er', '9-A')")
+    conn.commit()
     r = istemci.post(
         "/yonetici/kullanici/ekle",
         data={"csrf": csrf, "rol_": "ogrenci", "ad_soyad": "Can Er", "okul_no": "777", "sinif": "9-A"},
     )
     assert r.status_code == 200 and "can123" in r.text
     assert conn.execute("SELECT 1 FROM ogrenci WHERE okul_no = 777").fetchone()
-    # geçersiz sınıf
+    # okul verisinde olmayan numaraya hesap açılmaz
     r = istemci.post(
         "/yonetici/kullanici/ekle",
         data={"csrf": csrf, "rol_": "ogrenci", "ad_soyad": "X Y", "okul_no": "778", "sinif": "zz"},

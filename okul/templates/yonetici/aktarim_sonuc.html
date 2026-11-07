@@ -19,6 +19,12 @@
 </section>
 {% endif %}
 
+{% if sonuc.merkezde_olmayan %}
+<div class="kart uyari yazdirma-gizle"><p><b>{{ sonuc.merkezde_olmayan|length }} öğrenci okul verisinde yok, hesap açılmadı.</b> Önce Yoklama paneli → Okul verisi'ne ekleyin, sonra dosyayı tekrar yükleyin.</p>
+  <ul>{% for o in sonuc.merkezde_olmayan %}<li>{{ o }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
 {% if sonuc.excelde_olmayan %}
 <details class="kart yazdirma-gizle"><summary><b>{{ sonuc.excelde_olmayan|length }} öğrenci bu dosyada yok</b> <span class="soluk kucuk">(silinmedi)</span></summary>
   <ul>{% for o in sonuc.excelde_olmayan %}<li>{{ o }}</li>{% endfor %}</ul>

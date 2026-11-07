@@ -57,6 +57,11 @@ def test_eksik_baslik_hatasi():
 
 
 def test_ogrenci_uygula_ekler_gunceller_ve_veli_baglar(conn, saat):
+    # öğrenciler okul_ana yayınıyla hesapsız gelir (kullanici_id NULL)
+    conn.executemany(
+        "INSERT INTO ogrenci (okul_no, ad_soyad, sinif) VALUES (?, ?, ?)",
+        [(101, "Ayşe Nur Yılmaz", "9-A"), (102, "Can Demir", "9-A")],
+    )
     o = ice_aktar.ogrenci_onizle(
         _xlsx(
             OGR,
@@ -92,16 +97,24 @@ def test_ogrenci_uygula_ekler_gunceller_ve_veli_baglar(conn, saat):
     assert len(s.yeni_veliler) == 2
 
     o2 = ice_aktar.ogrenci_onizle(
-        _xlsx(OGR, [[101, "Ayşe Nur Yılmaz", "10-A", None, None, None, None]])
+        _xlsx(
+            OGR,
+            [
+                [101, "Ayşe Nur Yılmaz", "10-A", None, None, None, None],
+                [999, "Okulda Yok", "9-A", None, None, None, None],
+            ],
+        )
     )
     s2 = ice_aktar.ogrenci_uygula(conn, o2.satirlar)
     assert (s2.eklenen, s2.guncellenen, s2.yeni_hesaplar) == (0, 1, [])
+    # sınıfın sahibi okul_ana: Excel'deki 10-A yazılmaz
     assert (
         conn.execute("SELECT sinif FROM ogrenci WHERE okul_no = 101").fetchone()[0]
-        == "10-A"
+        == "9-A"
     )
+    assert s2.merkezde_olmayan == ["999 Okulda Yok (9-A)"]
     assert s2.excelde_olmayan == ["102 Can Demir (9-A)"]
-    assert conn.execute("SELECT count(*) FROM ogrenci").fetchone()[0] == 2  # silmez
+    assert conn.execute("SELECT count(*) FROM ogrenci").fetchone()[0] == 2  # ne ekler ne siler
 
 
 def test_ogretmen_aktarimi(conn, saat):

@@ -46,6 +46,7 @@ class Sonuc:
     )  # ad, kullanıcı adı, ilk şifre
     yeni_veliler: list[tuple[str, str]] = field(default_factory=list)  # ad, telefon
     excelde_olmayan: list[str] = field(default_factory=list)
+    merkezde_olmayan: list[str] = field(default_factory=list)  # okul_ana'da yok: hesap açılmadı
 
 
 def sablon(baslik: list[str]) -> bytes:
@@ -161,28 +162,21 @@ def ogrenci_uygula(conn: sqlite3.Connection, satirlar: list[dict]) -> Sonuc:
             mevcut = conn.execute(
                 "SELECT * FROM ogrenci WHERE okul_no = ?", (r["okul_no"],)
             ).fetchone()
-            if mevcut:
-                conn.execute(
-                    "UPDATE ogrenci SET ad_soyad = ?, sinif = ? WHERE id = ?",
-                    (r["ad_soyad"], r["sinif"], mevcut["id"]),
-                )
-                conn.execute(
-                    "UPDATE kullanici SET ad_soyad = ? WHERE id = ?",
-                    (r["ad_soyad"], mevcut["kullanici_id"]),
-                )
-                ogrenci_id = mevcut["id"]
-                s.guncellenen += 1
-            else:
-                sifre = ilk_sifre(r["ad_soyad"])
+            # Kimlik (ad, sınıf) okul_ana'dan yayınla gelir; aktarım yalnız hesap açar ve veli bağlar.
+            if mevcut is None:
+                s.merkezde_olmayan.append(f"{r['okul_no']} {r['ad_soyad']} ({r['sinif']})")
+                continue
+            ogrenci_id = mevcut["id"]
+            if mevcut["kullanici_id"] is None:
+                sifre = ilk_sifre(mevcut["ad_soyad"])
                 kid = _kullanici_ekle(
-                    conn, "ogrenci", r["ad_soyad"], str(r["okul_no"]), sifre=sifre
+                    conn, "ogrenci", mevcut["ad_soyad"], str(r["okul_no"]), sifre=sifre
                 )
-                ogrenci_id = conn.execute(
-                    "INSERT INTO ogrenci (okul_no, ad_soyad, sinif, kullanici_id) VALUES (?, ?, ?, ?)",
-                    (r["okul_no"], r["ad_soyad"], r["sinif"], kid),
-                ).lastrowid
+                conn.execute("UPDATE ogrenci SET kullanici_id = ? WHERE id = ?", (kid, ogrenci_id))
                 s.eklenen += 1
-                s.yeni_hesaplar.append((r["ad_soyad"], str(r["okul_no"]), sifre))
+                s.yeni_hesaplar.append((mevcut["ad_soyad"], str(r["okul_no"]), sifre))
+            else:
+                s.guncellenen += 1
             for ad, tel in r["veliler"]:
                 veli = conn.execute(
                     "SELECT id FROM kullanici WHERE rol = 'veli' AND telefon = ?",

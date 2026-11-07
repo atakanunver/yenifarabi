@@ -197,15 +197,16 @@ def kullanici_ekle(
         if rol_ == "ogrenci":
             if not okul_no.strip().isdigit():
                 return hata("Okul numarası rakam olmalı.")
-            sn = ice_aktar._sinif(sinif)
-            if sn is None:
-                return hata("Sınıf geçersiz (örn. 9-A).")
-            if conn.execute(
-                "SELECT 1 FROM ogrenci WHERE okul_no = ?", (int(okul_no),)
-            ).fetchone():
-                return hata("Bu okul numarası zaten kayıtlı.")
+            mevcut = conn.execute(
+                "SELECT * FROM ogrenci WHERE okul_no = ?", (int(okul_no),)
+            ).fetchone()
+            if mevcut is None:
+                return hata("Bu okul numarası okul verisinde yok. Önce Yoklama paneli → Okul verisi'ne ekleyin.")
+            if mevcut["kullanici_id"] is not None:
+                return hata("Bu öğrencinin hesabı zaten var.")
+            ad = mevcut["ad_soyad"]  # ad ve sınıfın sahibi okul_ana (yayın)
             ice_aktar.ogrenci_uygula(
-                conn, [{"okul_no": int(okul_no), "ad_soyad": ad, "sinif": sn, "veliler": []}]
+                conn, [{"okul_no": int(okul_no), "ad_soyad": ad, "sinif": mevcut["sinif"], "veliler": []}]
             )
             kadi = str(int(okul_no))
         else:
