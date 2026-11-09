@@ -29,6 +29,7 @@ import auth
 import db
 import deneme_hatirlatma
 import duyurular_panel
+import gorsel_panel
 import ders_programi
 import kazanim_rapor
 import servis_yonetimi
@@ -159,6 +160,7 @@ app.include_router(bugun.router)
 app.include_router(aylik_ozet.router)
 app.include_router(guvenlik.router)
 app.include_router(duyurular_panel.router)
+app.include_router(gorsel_panel.router)
 app.include_router(yakinda.router)
 
 

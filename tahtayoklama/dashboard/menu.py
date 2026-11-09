@@ -32,6 +32,7 @@ BILGEHAN_PANELI = "http://bilgehan.local:9100/"  # okul-panel, Basic Auth
 KIOSK_PANELI = "http://kiosk.local:9100/"
 PANO_PANELI = "http://kiosk.local:9100/pano"  # pano içeriği: nöbetçi, slayt, bilgiler, YKS (okul-panel, Basic Auth)
 KIOSK_YUZ_PANELI = "http://kiosk.local:5050/"  # yuzpanel.service, kendi girişini ister
+CLIPROXY_PANELI = "http://farabi.local:8317/management.html"  # CLIProxyAPI yönetim; giriş anahtarı /opt/cliproxyapi/yonetim-anahtari.txt
 
 SMUAL_URL = "https://smual.app"
 SMUAL_YONETIM_URL = SMUAL_URL + "/yonetici"  # şifresiz giriş (SSO) sonraki aşamada
@@ -111,6 +112,8 @@ ALANLAR: list[dict] = [
             {"ad": "Sunucular", "href": "/sunucular", "ikon": "katman"},
             {"ad": "Pano paneli", "href": "/panel-git/pano", "ikon": "tahta", "yeni_sekme": True},
             {"ad": "Kiosk paneli", "href": "/panel-git/kiosk", "ikon": "sunucu", "yeni_sekme": True},
+            {"ad": "Görsel Oluşturma Paneli", "href": "/gorsel", "ikon": "resim"},
+            {"ad": "CLIProxyAPI (yönetim)", "href": CLIPROXY_PANELI, "ikon": "sunucu", "yeni_sekme": True},
             {"ad": "Bilgehan paneli", "href": "/panel-git/bilgehan", "ikon": "sunucu", "yeni_sekme": True},
         ],
     },

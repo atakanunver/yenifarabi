@@ -1,0 +1,9 @@
+[Unit]
+Description=Haftalık birincilerin kartı — Pazartesi 06:10
+
+[Timer]
+OnCalendar=Mon *-*-* 06:10:00 Europe/Istanbul
+Persistent=true
+
+[Install]
+WantedBy=timers.target

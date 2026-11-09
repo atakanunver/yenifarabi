@@ -1,0 +1,201 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Görsel Oluşturma Paneli — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}Görsel Oluşturma Paneli{% endblock %}
+
+{% block icerik %}
+<p class="serit serit-bilgi" role="note"><span>Yapay zekâ yalnız isimsiz arka planı üretir; öğrenci adı ve sınıfı bu sunucuda basılır, buluta gitmez.</span></p>
+<div id="gorsel-durum" class="serit serit-bilgi" role="status" aria-live="polite" hidden><span></span></div>
+
+<h2 class="bolum-basligi">Hafta birincileri</h2>
+<form class="uz-eylem-form" id="uret-form" onsubmit="return false">
+  <textarea id="prompt" rows="4" maxlength="2000" aria-label="Arka plan promptu">{{ varsayilan_prompt }}</textarea>
+  <span class="ipucu">Prompta otomatik eklenir: «iki ödül paneli, yazı ve harf yok, ortada ve panellerde yazı alanı boş».</span>
+  <fieldset class="cip-satir" aria-label="Eylemler">
+    <button type="button" class="dugme" data-uret="arka_plan"><svg class="ikon"><use href="#ik-resim"/></svg> Arka plan üret</button>
+    <button type="button" class="dugme dugme-ikincil" data-eylem="onizle"><svg class="ikon"><use href="#ik-resim"/></svg> Kartı önizle</button>
+    <button type="button" class="dugme dugme-ikincil" data-eylem="onayla"><svg class="ikon"><use href="#ik-yildiz"/></svg> Onayla</button>
+  </fieldset>
+  <span class="ipucu">Bugün kalan üretim hakkı: <b id="kalan">{{ ozet.kalan }}</b> / {{ ozet.sinir }}. Kartta kazananlar geçicidir (hafta kesinleşmemiş olabilir).</span>
+</form>
+
+<div class="cip-satir">
+  <figure>
+    <figcaption class="ipucu">Arka plan</figcaption>
+    <img id="arka-img" alt="Üretilen arka plan" style="max-width:100%;width:30rem" hidden>
+  </figure>
+  <figure>
+    <figcaption class="ipucu">Kart önizlemesi</figcaption>
+    <img id="kart-img" alt="Hafta birincileri kartı" style="max-width:100%;width:30rem" hidden>
+  </figure>
+</div>
+
+<h2 class="bolum-basligi">Görsel arşivi</h2>
+<p class="ipucu">Üretilen her görsel burada saklanır (veri/gorseller/). Haftalık birincilerin kartı Pazartesi sabahı otomatik buraya bırakılır; tahtalara yalnız sen, buradan seçerek gönderirsin.</p>
+<div id="galeri" class="cip-satir" role="list"><p class="ipucu">Arşiv boş.</p></div>
+<form class="uz-eylem-form" id="gonder-form" onsubmit="return false" hidden>
+  <img id="secili-img" alt="Seçili görsel" style="max-width:100%;width:20rem">
+  <p class="ipucu">Seçili: <b id="secili-ad"></b></p>
+  <fieldset class="cip-satir" aria-label="Tahta seçimi">
+    <label><input type="checkbox" id="hepsi"> Hepsini seç</label>
+    {% for t in tahtalar %}<label><input type="checkbox" name="tahta" value="{{ t }}"> {{ t }}</label>{% endfor %}
+  </fieldset>
+  <fieldset class="cip-satir" aria-label="Gönderim eylemleri">
+    <button type="button" class="dugme" data-onay="gonder"><svg class="ikon"><use href="#ik-tahta"/></svg> Seçili tahtalara gönder</button>
+    <button type="button" class="dugme dugme-ikincil uz-tehlike" data-onay="geri-al"><svg class="ikon"><use href="#ik-kapat"/></svg> Tahtalarda geri al</button>
+  </fieldset>
+  <div id="onay-kutu" class="serit serit-uyari" role="alertdialog" aria-live="assertive" hidden>
+    <span id="onay-metin"></span>
+    <button type="button" class="dugme" id="onay-evet">Evet</button>
+    <button type="button" class="dugme dugme-ikincil" id="onay-hayir">Vazgeç</button>
+  </div>
+  <div id="gonder-sonuc"></div>
+</form>
+
+<h3>Son gönderimler</h3>
+<div id="gunluk"><p class="ipucu">Henüz gönderim yok.</p></div>
+
+<h2 class="bolum-basligi">Serbest görsel</h2>
+<form class="uz-eylem-form" onsubmit="return false">
+  <textarea id="serbest-prompt" rows="3" maxlength="2000" placeholder="Ne çizilsin? (isim basılmaz)" aria-label="Serbest görsel promptu"></textarea>
+  <fieldset class="cip-satir" aria-label="Serbest görsel eylemleri">
+    <button type="button" class="dugme" data-uret="serbest"><svg class="ikon"><use href="#ik-resim"/></svg> Üret</button>
+    <a class="dugme dugme-ikincil" id="serbest-indir" href="#" hidden><svg class="ikon"><use href="#ik-indir"/></svg> İndir</a>
+  </fieldset>
+  <img id="serbest-img" alt="Serbest görsel" style="max-width:100%;width:30rem" hidden>
+</form>
+{% endblock %}
+
+{% block script %}
+<script>
+const durumKutu = document.getElementById('gorsel-durum');
+function bildir(m, hata) {
+  durumKutu.hidden = false;
+  durumKutu.className = 'serit ' + (hata ? 'serit-kritik' : 'serit-bilgi');
+  durumKutu.firstElementChild.textContent = m;
+}
+function resim(id, yol) {
+  const e = document.getElementById(id);
+  e.src = yol + (yol.includes('?') ? '&' : '?') + 't=' + Date.now();
+  e.hidden = false;
+}
+async function gonder(yol, govde) {
+  const y = await fetch(yol, { method: 'POST', body: govde, credentials: 'same-origin' });
+  let v = {};
+  try { v = await y.json(); } catch (_) { v = { ok: false, mesaj: 'Oturum süresi dolmuş olabilir (HTTP ' + y.status + ').' }; }
+  return v;
+}
+function gunlukYaz(liste) {
+  const k = document.getElementById('gunluk');
+  if (!liste.length) { k.innerHTML = '<p class="ipucu">Henüz gönderim yok.</p>'; return; }
+  const t = document.createElement('table'); t.className = 'tablo';
+  t.innerHTML = '<thead><tr><th>Zaman</th><th>Tahta</th><th>Sonuç</th></tr></thead>';
+  const g = document.createElement('tbody');
+  liste.forEach(s => {
+    const r = g.insertRow();
+    r.insertCell().textContent = (s.zaman || '').replace('T', ' ');
+    r.insertCell().textContent = s.tahta || '';
+    r.insertCell().textContent = s.ok ? 'Tamam' : 'Hata';
+  });
+  t.appendChild(g); k.replaceChildren(t);
+}
+let yoklama = null, aktifTur = null;
+async function durumYokla() {
+  const d = await (await fetch('/gorsel/durum', { credentials: 'same-origin' })).json();
+  document.getElementById('kalan').textContent = d.kalan;
+  gunlukYaz(d.gunluk);
+  if (d.is.durum === 'calisiyor') { bildir(d.is.mesaj); return; }
+  if (yoklama) {
+    clearInterval(yoklama); yoklama = null;
+    document.querySelectorAll('[data-uret]').forEach(b => b.disabled = false);
+    if (d.is.durum === 'hazir') {
+      bildir('Görsel hazır.');
+      if (aktifTur === 'serbest') {
+        resim('serbest-img', '/gorsel/arsiv/' + d.is.dosya);
+        const a = document.getElementById('serbest-indir'); a.href = '/gorsel/arsiv/' + d.is.dosya + '?indir=1'; a.hidden = false;
+      } else resim('arka-img', '/gorsel/arka-plan.png');
+      galeriYukle();
+    } else bildir(d.is.mesaj, true);
+  }
+}
+document.querySelectorAll('[data-uret]').forEach(b => b.addEventListener('click', async () => {
+  aktifTur = b.dataset.uret;
+  const f = new FormData();
+  f.set('tur', aktifTur);
+  f.set('prompt', document.getElementById(aktifTur === 'serbest' ? 'serbest-prompt' : 'prompt').value);
+  const v = await gonder('/gorsel/uret', f);
+  if (!v.ok) { bildir(v.mesaj, true); return; }
+  document.querySelectorAll('[data-uret]').forEach(x => x.disabled = true);
+  bildir(v.mesaj);
+  yoklama = setInterval(durumYokla, 2000);
+}));
+document.querySelectorAll('[data-eylem]').forEach(b => b.addEventListener('click', async () => {
+  const e = b.dataset.eylem;
+  if (e === 'onizle') {
+    const y = await fetch('/gorsel/onizleme.png', { credentials: 'same-origin' });
+    if (!y.ok) { bildir(await y.text(), true); return; }
+    resim('kart-img', '/gorsel/onizleme.png'); bildir('Önizleme hazır.'); return;
+  }
+  b.disabled = true; bildir('Çalışıyor…');
+  const v = await gonder('/gorsel/' + e, new FormData());
+  b.disabled = false;
+  bildir(v.mesaj + (v.hatalar && v.hatalar.length ? ' Hatalar: ' + v.hatalar.join('; ') : ''), !v.ok);
+  durumYokla();
+}));
+const TURLER = { 'hafta-kart': 'Hafta kartı', 'kart': 'Kart', 'arka-plan': 'Arka plan', 'onayli-arka-plan': 'Onaylı arka plan', 'serbest': 'Serbest' };
+let secili = null, bekleyen = null;
+const tahtaKutulari = () => [...document.querySelectorAll('input[name=tahta]')];
+async function galeriYukle() {
+  const g = (await (await fetch('/gorsel/arsiv', { credentials: 'same-origin' })).json()).gorseller;
+  const k = document.getElementById('galeri');
+  if (!g.length) { k.innerHTML = '<p class="ipucu">Arşiv boş.</p>'; return; }
+  k.replaceChildren(...g.map(x => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'dugme dugme-ikincil'; b.setAttribute('role', 'listitem');
+    b.setAttribute('aria-pressed', x.ad === secili ? 'true' : 'false');
+    const im = document.createElement('img');
+    im.src = '/gorsel/arsiv/' + encodeURIComponent(x.ad); im.alt = (TURLER[x.tur] || x.tur) + ' ' + x.tarih;
+    im.loading = 'lazy'; im.style.width = '10rem'; im.style.display = 'block';
+    const et = document.createElement('span'); et.className = 'ipucu';
+    et.textContent = (TURLER[x.tur] || x.tur) + ' · ' + x.tarih + ' ' + x.saat;
+    b.append(im, et);
+    b.addEventListener('click', () => sec(x.ad));
+    return b;
+  }));
+}
+function sec(ad) {
+  secili = ad; onayKapat();
+  document.getElementById('gonder-form').hidden = false;
+  document.getElementById('secili-ad').textContent = ad;
+  document.getElementById('secili-img').src = '/gorsel/arsiv/' + encodeURIComponent(ad);
+  document.getElementById('gonder-sonuc').replaceChildren();
+  document.querySelectorAll('#galeri button').forEach(b => b.setAttribute('aria-pressed', String(b.querySelector('img').src.endsWith(encodeURIComponent(ad)))));
+}
+function onayKapat() { bekleyen = null; document.getElementById('onay-kutu').hidden = true; }
+document.getElementById('hepsi').addEventListener('change', e => tahtaKutulari().forEach(c => c.checked = e.target.checked));
+document.querySelectorAll('[data-onay]').forEach(b => b.addEventListener('click', () => {
+  const secilen = tahtaKutulari().filter(c => c.checked).map(c => c.value);
+  if (b.dataset.onay === 'gonder' && !secilen.length) { bildir('Önce tahta seç.', true); return; }
+  bekleyen = b.dataset.onay;
+  document.getElementById('onay-metin').textContent = bekleyen === 'gonder'
+    ? secilen.length + ' tahtanın duvar kağıdı değişecek: ' + secilen.join(', ') + '. Gönderilsin mi?'
+    : 'Tüm tahtalarda önceki duvar kağıdına dönülsün mü?';
+  document.getElementById('onay-kutu').hidden = false;
+}));
+document.getElementById('onay-hayir').addEventListener('click', onayKapat);
+document.getElementById('onay-evet').addEventListener('click', async () => {
+  const islem = bekleyen; onayKapat();
+  if (!islem) return;
+  const f = new FormData();
+  if (islem === 'gonder') { f.set('dosya', secili); tahtaKutulari().filter(c => c.checked).forEach(c => f.append('tahta', c.value)); }
+  bildir('Çalışıyor…');
+  const v = await gonder('/gorsel/' + islem, f);
+  bildir(v.mesaj + (v.hatalar && v.hatalar.length ? ' Hatalar: ' + v.hatalar.join('; ') : ''), !v.ok);
+  const s = document.getElementById('gonder-sonuc'); s.replaceChildren();
+  (v.sonuclar || []).forEach(r => { const p = document.createElement('p'); p.textContent = r.tahta + ': ' + (r.ok ? 'Tamam' : 'Hata') + ' — ' + r.detay; s.append(p); });
+  durumYokla();
+});
+galeriYukle();
+{% if ozet.aday %}resim('arka-img', '/gorsel/arka-plan.png');{% endif %}
+gunlukYaz({{ ozet.gunluk|tojson }});
+</script>
+{% endblock %}

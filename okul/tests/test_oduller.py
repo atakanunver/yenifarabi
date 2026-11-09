@@ -288,3 +288,60 @@ def test_v39_gocu_eski_odulleri_korur(tmp_path):
     assert c.execute("SELECT count(*) FROM odul").fetchone()[0] == 1
     c.execute("INSERT INTO odul (hafta_basi, kategori, anahtar, deger, zaman) VALUES ('2026-10-05', 'maraton', '1|', 5, 't')")
     assert c.execute("SELECT name FROM sqlite_master WHERE name = 'odul_hafta_idx'").fetchone()
+
+
+def test_eski_istikrar_kayitlari_gizli_kiosk_ve_ogrenci(conn, ornek, yeni_kullanici, saat):
+    """İstikrar kategorisi kaldırıldı; eski haftalardan kalan 'istikrar' satırları değişmez ama hiçbir yerde görünmez."""
+    a, _ = _ogr(conn, yeni_kullanici, 897)
+    _etkinlik(conn, a, 3)
+    oduller.kapat(conn, HB)
+    conn.execute("INSERT INTO odul (hafta_basi, kategori, anahtar, kullanici_id, sinif, deger, ayrinti, kahve, zaman)"
+                 " VALUES (?, 'istikrar', 'x', ?, '9-A', 3, '3 farklı gün', 0, 't')", (HB, a))
+    conn.commit()
+    assert all(r["kategori"] != "istikrar" for r in oduller.kayitli(conn, HB))
+    ogr = conn.execute("SELECT * FROM ogrenci WHERE kullanici_id = ?", (a,)).fetchone()
+    assert all(x["kategori"] != "istikrar" for x in oduller.ogrenci_oduller(conn, ogr))
+    assert "istikrar" not in oduller.KATEGORILER and "istikrar" not in oduller.ROZET_AD
+    assert not any("İSTİKRAR" in o["baslik"] for o in oduller.kiosk_ogeleri(conn))
+
+
+def _odul_istemci(client=("192.168.23.254", 5555)):
+    app = FastAPI()
+    app.include_router(pano.router)
+    return TestClient(app, client=client)
+
+
+def test_odul_hafta_ucu_koruma(conn, ornek, yeni_kullanici, saat):
+    assert _odul_istemci().get("/api/odul/hafta", headers={"cf-ray": "x"}).status_code == 404
+    assert _odul_istemci().get("/api/odul/hafta", headers={"x-forwarded-for": "1.2.3.4"}).status_code == 404
+    assert _odul_istemci(("8.8.8.8", 1)).get("/api/odul/hafta").status_code == 404
+    assert _odul_istemci().get("/api/odul/hafta").status_code == 200
+    assert _odul_istemci().get("/api/odul/hafta?hb=sacma").status_code == 400
+
+
+def test_odul_hafta_ucu_kesin_tam_ad_ve_esitlik(conn, ornek, yeni_kullanici, saat):
+    a, _ = _ogr(conn, yeni_kullanici, 900, "9-A", "Ensar Ali Aksu")
+    b, _ = _ogr(conn, yeni_kullanici, 901, "10-B", "Can Yıldız Kaya")
+    _puanli(conn, a, "2026-10-06", 400)
+    _puanli(conn, b, "2026-10-07", 400)
+    c = _odul_istemci()
+    assert c.get("/api/odul/hafta").json() == {"hafta": HB, "kesin": False, "kategoriler": {"maraton": [], "etkinlik": []}}
+    oduller.kapat(conn, HB)
+    d = c.get("/api/odul/hafta").json()  # hb yok: geçen hafta (saat 12 Ekim)
+    assert d["hafta"] == HB and d["kesin"] is True
+    assert d["kategoriler"]["etkinlik"] == []
+    m = d["kategoriler"]["maraton"]
+    assert {x["ad_soyad"] for x in m} == {"Ensar Ali Aksu", "Can Yıldız Kaya"}
+    assert all(set(x) == {"ad_soyad", "sinif", "deger", "ayrinti"} and x["deger"] == 400 for x in m)
+
+
+def test_odul_hafta_ucu_gecici(conn, ornek, yeni_kullanici, saat):
+    a, _ = _ogr(conn, yeni_kullanici, 910, "9-A", "Ensar Ali Aksu")
+    _etkinlik(conn, a, 3, ("2026-10-12", "2026-10-13", "2026-10-14"))
+    _puanli(conn, a, "2026-10-13", 300)
+    saat["an"] = datetime(2026, 10, 14, 10)
+    d = _odul_istemci().get("/api/odul/hafta?hb=2026-10-12&gecici=1").json()
+    assert d["hafta"] == "2026-10-12" and d["kesin"] is False
+    e = d["kategoriler"]["etkinlik"]
+    assert e[0]["ad_soyad"] == "Ensar Ali Aksu" and e[0]["sinif"] == "9-A" and e[0]["deger"] >= 3
+    assert d["kategoriler"]["maraton"][0]["deger"] == 300

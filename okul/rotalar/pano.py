@@ -151,3 +151,42 @@ async def pano(request: Request):
             for d in denemeler
         ],
     }
+
+
+@router.get("/api/odul/hafta", include_in_schema=False)
+async def odul_hafta(request: Request, hb: str | None = None, gecici: int = 0):
+    """Haftalık ödül birincilerinin TAM adı (LAN; /api/pano ile aynı koruma). hb yoksa geçen hafta."""
+    if not _lan_mi(request):
+        raise HTTPException(404)
+    if hb is None:
+        hb = oduller.onceki_hafta(oduller.hafta_basi())
+    else:
+        try:
+            date.fromisoformat(hb)
+        except ValueError:
+            raise HTTPException(400, "hb YYYY-MM-DD olmalı") from None
+    kat: dict[str, list[dict]] = {"maraton": [], "etkinlik": []}
+    conn = db.baglanti()
+    try:
+        tam = {
+            r["kullanici_id"]: r["ad_soyad"]
+            for r in conn.execute("SELECT kullanici_id, ad_soyad FROM ogrenci WHERE kullanici_id IS NOT NULL")
+        }
+        if gecici:
+            s = oduller.siralama(conn, hb)
+            for x in s["etkinlik"]:
+                kat["etkinlik"].append({"ad_soyad": tam.get(x["kid"], x["ad"]), "sinif": x["sinif"],
+                                        "deger": x["etkinlik"], "ayrinti": f"{x['etkinlik']} etkinlik, {x['gun']} gün"})
+            for x in s["maraton"]:
+                kat["maraton"].append({"ad_soyad": tam.get(x["kid"], x["ad"]), "sinif": x["sinif"], "deger": x["toplam"],
+                                       "ayrinti": f"Soru Maratonu: en iyi {x['adet']} turda {x['toplam']} puan"})
+            kesin = False
+        else:
+            satirlar = [r for r in oduller.kayitli(conn, hb) if r["kategori"] in kat]
+            for r in satirlar:
+                kat[r["kategori"]].append({"ad_soyad": r["ad_soyad"], "sinif": r["sinif"],
+                                           "deger": r["deger"], "ayrinti": r["ayrinti"]})
+            kesin = bool(satirlar)
+    finally:
+        conn.close()
+    return {"hafta": hb, "kesin": kesin, "kategoriler": kat}
