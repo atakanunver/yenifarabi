@@ -176,6 +176,20 @@ async def gorsel_gonder(request: Request):
     }
 
 
+@router.post("/gorsel/sil")
+async def gorsel_sil(request: Request):
+    """Arşivden seçilen tek görseli siler (sayfa içi onaydan sonra çağrılır)."""
+    uzaktan_yonetim._dogrula(request)
+    form = await request.form()
+    try:
+        gorsel.arsivden_sil(str(form.get("dosya") or ""))
+    except gorsel.GorselHatasi as e:
+        _denetim(request, "gorsel_sil", False)
+        return _hata(str(e))
+    _denetim(request, "gorsel_sil", True)
+    return {"ok": True, "mesaj": "Görsel silindi."}
+
+
 @router.post("/gorsel/geri-al")
 async def gorsel_geri_al(request: Request):
     uzaktan_yonetim._dogrula(request)

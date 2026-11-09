@@ -337,6 +337,24 @@ class TestPanel(_Ortak):
             self.assertEqual(asyncio.run(gorsel_panel.gorsel_gonder(self._gonder_istegi("../x.png", ["a"]))).status_code, 400)
             sahte.assert_not_awaited()
 
+    def test_arsivden_sil(self):
+        a = gorsel.arsivle("serbest", _png())
+        b = gorsel.arsivle("arka-plan", _png())
+        gorsel.durum_guncelle(aday_arka_plan=str(b))
+        with mock.patch("uzaktan_yonetim._dogrula"), mock.patch("uzaktan_yonetim._denetim_yaz") as den:
+            v = asyncio.run(gorsel_panel.gorsel_sil(self._gonder_istegi(a.name, [])))
+            self.assertTrue(v["ok"])
+            self.assertFalse(a.exists())
+            self.assertTrue(b.exists())  # aynı gün klasörü dolu: kalır
+            self.assertEqual(den.call_args.args[1], "gorsel_sil")
+            # kullanımdaki aday, yol geçişi ve olmayan dosya silinmez
+            for ad in (b.name, "../x.png", a.name):
+                self.assertEqual(asyncio.run(gorsel_panel.gorsel_sil(self._gonder_istegi(ad, []))).status_code, 400, ad)
+            self.assertTrue(b.exists())
+        gorsel.durum_guncelle(aday_arka_plan=None)
+        gorsel.arsivden_sil(b.name)
+        self.assertFalse(b.parent.exists())  # boşalan gün klasörü kalkar
+
     def test_geri_al_her_tahta(self):
         sahte = mock.AsyncMock(side_effect=lambda a: {"tahta": a, "basarili": a != "b", "detay": "x"})
         with mock.patch("uzaktan_yonetim._dogrula"), \

@@ -380,6 +380,22 @@ def arsiv_yolu(ad: str) -> Path | None:
     return yol
 
 
+def arsivden_sil(ad: str) -> None:
+    """Arşivden tek görsel siler. Aday/onaylı arka plan (kart ve Pazartesi zamanlayıcısı kullanır) silinmez."""
+    yol = arsiv_yolu(ad)
+    if yol is None:
+        raise GorselHatasi("Görsel arşivde yok.")
+    durum = durum_oku()
+    for anahtar in ("aday_arka_plan", "onayli_arka_plan"):
+        if durum.get(anahtar) and Path(durum[anahtar]).resolve() == yol.resolve():
+            raise GorselHatasi("Bu görsel şu an arka plan olarak kullanılıyor; silinemez.")
+    yol.unlink()
+    try:
+        yol.parent.rmdir()  # gün klasörü boşaldıysa kaldır
+    except OSError:
+        pass
+
+
 def aday_kaydet(png: bytes) -> Path:
     yol = arsivle("arka-plan", png)
     durum_guncelle(aday_arka_plan=str(yol))

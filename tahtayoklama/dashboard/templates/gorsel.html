@@ -7,9 +7,15 @@
 <div id="gorsel-durum" class="serit serit-bilgi" role="status" aria-live="polite" hidden><span></span></div>
 
 <h2 class="bolum-basligi">Hafta birincileri</h2>
-<form class="uz-eylem-form" id="uret-form" onsubmit="return false">
-  <textarea id="prompt" rows="4" maxlength="2000" aria-label="Arka plan promptu">{{ varsayilan_prompt }}</textarea>
-  <span class="ipucu">Prompta otomatik eklenir: «iki ödül paneli, yazı ve harf yok, ortada ve panellerde yazı alanı boş».</span>
+<form class="gorsel-form" id="uret-form" onsubmit="return false">
+  <div class="form-alan">
+    <label for="prompt">Arka plan açıklaması</label>
+    <textarea id="prompt" rows="9" maxlength="2000" data-sayac="prompt-sayac">{{ varsayilan_prompt }}</textarea>
+    <div class="gorsel-alt-satir">
+      <span class="ipucu">Otomatik eklenir: «iki ödül paneli, yazı ve harf yok, ortada ve panellerde yazı alanı boş».</span>
+      <span class="ipucu gorsel-sayac" id="prompt-sayac" aria-live="off"></span>
+    </div>
+  </div>
   <fieldset class="cip-satir" aria-label="Eylemler">
     <button type="button" class="dugme" data-uret="arka_plan"><svg class="ikon"><use href="#ik-resim"/></svg> Arka plan üret</button>
     <button type="button" class="dugme dugme-ikincil" data-eylem="onizle"><svg class="ikon"><use href="#ik-resim"/></svg> Kartı önizle</button>
@@ -18,22 +24,22 @@
   <span class="ipucu">Bugün kalan üretim hakkı: <b id="kalan">{{ ozet.kalan }}</b> / {{ ozet.sinir }}. Kartta kazananlar geçicidir (hafta kesinleşmemiş olabilir).</span>
 </form>
 
-<div class="cip-satir">
+<div class="gorsel-onizleme">
   <figure>
     <figcaption class="ipucu">Arka plan</figcaption>
-    <img id="arka-img" alt="Üretilen arka plan" style="max-width:100%;width:30rem" hidden>
+    <img id="arka-img" alt="Üretilen arka plan" tabindex="0" title="Tam ekran için çift tıkla" hidden>
   </figure>
   <figure>
     <figcaption class="ipucu">Kart önizlemesi</figcaption>
-    <img id="kart-img" alt="Hafta birincileri kartı" style="max-width:100%;width:30rem" hidden>
+    <img id="kart-img" alt="Hafta birincileri kartı" tabindex="0" title="Tam ekran için çift tıkla" hidden>
   </figure>
 </div>
 
 <h2 class="bolum-basligi">Görsel arşivi</h2>
 <p class="ipucu">Üretilen her görsel burada saklanır (veri/gorseller/). Haftalık birincilerin kartı Pazartesi sabahı otomatik buraya bırakılır; tahtalara yalnız sen, buradan seçerek gönderirsin.</p>
-<div id="galeri" class="cip-satir" role="list"><p class="ipucu">Arşiv boş.</p></div>
-<form class="uz-eylem-form" id="gonder-form" onsubmit="return false" hidden>
-  <img id="secili-img" alt="Seçili görsel" style="max-width:100%;width:20rem">
+<div id="galeri" class="gorsel-galeri" role="list"><p class="ipucu">Arşiv boş.</p></div>
+<form class="gorsel-form" id="gonder-form" onsubmit="return false" hidden>
+  <img id="secili-img" class="gorsel-secili" alt="Seçili görsel" tabindex="0" title="Tam ekran için çift tıkla">
   <p class="ipucu">Seçili: <b id="secili-ad"></b></p>
   <fieldset class="cip-satir" aria-label="Tahta seçimi">
     <label><input type="checkbox" id="hepsi"> Hepsini seç</label>
@@ -41,6 +47,7 @@
   </fieldset>
   <fieldset class="cip-satir" aria-label="Gönderim eylemleri">
     <button type="button" class="dugme" data-onay="gonder"><svg class="ikon"><use href="#ik-tahta"/></svg> Seçili tahtalara gönder</button>
+    <button type="button" class="dugme dugme-ikincil uz-tehlike" data-onay="sil"><svg class="ikon"><use href="#ik-kapat"/></svg> Görseli arşivden sil</button>
     <button type="button" class="dugme dugme-ikincil uz-tehlike" data-onay="geri-al"><svg class="ikon"><use href="#ik-kapat"/></svg> Tahtalarda geri al</button>
   </fieldset>
   <div id="onay-kutu" class="serit serit-uyari" role="alertdialog" aria-live="assertive" hidden>
@@ -55,13 +62,17 @@
 <div id="gunluk"><p class="ipucu">Henüz gönderim yok.</p></div>
 
 <h2 class="bolum-basligi">Serbest görsel</h2>
-<form class="uz-eylem-form" onsubmit="return false">
-  <textarea id="serbest-prompt" rows="3" maxlength="2000" placeholder="Ne çizilsin? (isim basılmaz)" aria-label="Serbest görsel promptu"></textarea>
+<form class="gorsel-form" onsubmit="return false">
+  <div class="form-alan">
+    <label for="serbest-prompt">Ne çizilsin?</label>
+    <textarea id="serbest-prompt" rows="7" maxlength="2000" data-sayac="serbest-sayac" placeholder="Örn. Gün batımında deniz kenarında bir fener, sulu boya tarzı. (Öğrenci adı yazma; isim basılmaz.)"></textarea>
+    <div class="gorsel-alt-satir"><span class="ipucu">Ne kadar ayrıntı yazarsan sonuç o kadar isabetli olur: konu, renkler, tarz.</span><span class="ipucu gorsel-sayac" id="serbest-sayac" aria-live="off"></span></div>
+  </div>
   <fieldset class="cip-satir" aria-label="Serbest görsel eylemleri">
     <button type="button" class="dugme" data-uret="serbest"><svg class="ikon"><use href="#ik-resim"/></svg> Üret</button>
     <a class="dugme dugme-ikincil" id="serbest-indir" href="#" hidden><svg class="ikon"><use href="#ik-indir"/></svg> İndir</a>
   </fieldset>
-  <img id="serbest-img" alt="Serbest görsel" style="max-width:100%;width:30rem" hidden>
+  <img id="serbest-img" class="gorsel-secili" alt="Serbest görsel" tabindex="0" title="Tam ekran için çift tıkla" hidden>
 </form>
 {% endblock %}
 
@@ -98,6 +109,19 @@ function gunlukYaz(liste) {
   });
   t.appendChild(g); k.replaceChildren(t);
 }
+document.querySelectorAll('textarea[data-sayac]').forEach(t => {
+  const k = document.getElementById(t.dataset.sayac);
+  const yaz = () => { k.textContent = t.value.length + ' / ' + t.maxLength; };
+  t.addEventListener('input', yaz); yaz();
+});
+// Önizleme görsellerine çift tıklayınca (ya da Enter) tam ekran; Esc çıkarır
+function tamEkran(e) {
+  const im = e.target.closest('.gorsel-onizleme img, .gorsel-secili');
+  if (!im || !im.requestFullscreen) return;
+  if (document.fullscreenElement) document.exitFullscreen(); else im.requestFullscreen();
+}
+document.addEventListener('dblclick', tamEkran);
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('.gorsel-onizleme img, .gorsel-secili')) tamEkran(e); });
 let yoklama = null, aktifTur = null;
 async function durumYokla() {
   const d = await (await fetch('/gorsel/durum', { credentials: 'same-origin' })).json();
@@ -150,11 +174,11 @@ async function galeriYukle() {
   if (!g.length) { k.innerHTML = '<p class="ipucu">Arşiv boş.</p>'; return; }
   k.replaceChildren(...g.map(x => {
     const b = document.createElement('button');
-    b.type = 'button'; b.className = 'dugme dugme-ikincil'; b.setAttribute('role', 'listitem');
+    b.type = 'button'; b.className = 'gorsel-kutucuk'; b.setAttribute('role', 'listitem');
     b.setAttribute('aria-pressed', x.ad === secili ? 'true' : 'false');
     const im = document.createElement('img');
     im.src = '/gorsel/arsiv/' + encodeURIComponent(x.ad); im.alt = (TURLER[x.tur] || x.tur) + ' ' + x.tarih;
-    im.loading = 'lazy'; im.style.width = '10rem'; im.style.display = 'block';
+    im.loading = 'lazy';
     const et = document.createElement('span'); et.className = 'ipucu';
     et.textContent = (TURLER[x.tur] || x.tur) + ' · ' + x.tarih + ' ' + x.saat;
     b.append(im, et);
@@ -178,7 +202,9 @@ document.querySelectorAll('[data-onay]').forEach(b => b.addEventListener('click'
   bekleyen = b.dataset.onay;
   document.getElementById('onay-metin').textContent = bekleyen === 'gonder'
     ? secilen.length + ' tahtanın duvar kağıdı değişecek: ' + secilen.join(', ') + '. Gönderilsin mi?'
-    : 'Tüm tahtalarda önceki duvar kağıdına dönülsün mü?';
+    : bekleyen === 'sil'
+      ? secili + ' arşivden kalıcı olarak silinsin mi? (Tahtalardaki duvar kağıdı etkilenmez.)'
+      : 'Tüm tahtalarda önceki duvar kağıdına dönülsün mü?';
   document.getElementById('onay-kutu').hidden = false;
 }));
 document.getElementById('onay-hayir').addEventListener('click', onayKapat);
@@ -186,12 +212,16 @@ document.getElementById('onay-evet').addEventListener('click', async () => {
   const islem = bekleyen; onayKapat();
   if (!islem) return;
   const f = new FormData();
+  if (islem === 'sil') f.set('dosya', secili);
   if (islem === 'gonder') { f.set('dosya', secili); tahtaKutulari().filter(c => c.checked).forEach(c => f.append('tahta', c.value)); }
   bildir('Çalışıyor…');
   const v = await gonder('/gorsel/' + islem, f);
   bildir(v.mesaj + (v.hatalar && v.hatalar.length ? ' Hatalar: ' + v.hatalar.join('; ') : ''), !v.ok);
   const s = document.getElementById('gonder-sonuc'); s.replaceChildren();
   (v.sonuclar || []).forEach(r => { const p = document.createElement('p'); p.textContent = r.tahta + ': ' + (r.ok ? 'Tamam' : 'Hata') + ' — ' + r.detay; s.append(p); });
+  if (islem === 'sil' && v.ok) {
+    secili = null; document.getElementById('gonder-form').hidden = true; galeriYukle();
+  }
   durumYokla();
 });
 galeriYukle();
