@@ -38,8 +38,8 @@
 
 {% if siniflar %}
 <!-- Durum şeridi ızgaranın üstünde; yalnızca /api/durum verisinden (sunucu durumu açılışta çekilmez, 2026-10-03).
-     Sorun yoksa mavi tek satır, eksik yoklama amber, ulaşılamayan tahta ya da veri hatası kırmızı. -->
-<section class="serit serit-bilgi" id="uyari-seridi" data-durum="yukleniyor" aria-labelledby="durum-baslik">
+     Sorun yoksa GİZLİ (2026-11-10, Atakan isteği: kalabalık); eksik yoklama amber, ulaşılamayan tahta ya da veri hatası kırmızı. -->
+<section class="serit serit-bilgi" id="uyari-seridi" data-durum="yukleniyor" aria-labelledby="durum-baslik" hidden>
   <div class="serit-govde">
     <strong class="serit-baslik" id="durum-baslik" aria-live="polite">Durum yükleniyor…</strong>
     <span class="serit-alt" id="durum-alt"></span>
@@ -314,12 +314,13 @@ function uyariSeriti(satirlar, bugunMu) {
   liste.hidden = !sorunlar.length;
 }
 
-// Şerit rengi: tahta sorunu ya da veri hatası kırmızı, eksik yoklama amber, sorun yoksa mavi tek satır
+// Şerit rengi: tahta sorunu ya da veri hatası kırmızı, eksik yoklama amber; sorun yoksa şerit gizlenir
 const SERIT_RENGI = { kritik: 'serit-kritik', hata: 'serit-kritik', uyari: 'serit-uyari', tamam: 'serit-bilgi' };
 function seritDurumu(durum) {
   const kutu = document.getElementById('uyari-seridi');
   kutu.dataset.durum = durum;
   kutu.className = 'serit ' + (SERIT_RENGI[durum] || 'serit-bilgi');
+  kutu.hidden = durum === 'tamam';
 }
 
 // yoklayici tahtaya ulaşamayınca başlamamış dersleri de tahta_ulasilamaz yazar; bugün için saate bak

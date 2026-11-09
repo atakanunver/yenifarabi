@@ -27,8 +27,8 @@ def _hrefler():
 class TestMenu(unittest.TestCase):
     def test_alan_sirasi(self):
         self.assertEqual([a["ad"] for a in menu.ALANLAR],
-                         ["Tahtalar", "Yoklama", "Öğrenci ve personel", "İletişim", "Duyurular", "Eğitim", "Güvenlik", "Sistem"])
-        self.assertEqual([a["kisayol"] for a in menu.ALANLAR], list("hypideks"))
+                         ["Tahtalar", "Yoklama", "Öğrenci ve personel", "İletişim", "Duyurular", "Eğitim", "Güvenlik", "Sistem", "Favoriler"])
+        self.assertEqual([a["kisayol"] for a in menu.ALANLAR], list("hypideksf"))
 
     def test_tum_sayfalar_menude(self):
         hrefler = {h.split("#")[0] for h in _hrefler()}
@@ -160,7 +160,7 @@ class TestMenu(unittest.TestCase):
     def test_ust_cubukta_alti_alan(self):
         html = self._render("/admin/rapor")
         sekmeler = re.findall(r'<(?:a|summary) class="alan-sekme"[^>]*>', html)
-        self.assertEqual(len(sekmeler), 8)
+        self.assertEqual(len(sekmeler), 9)
         for etiket, alan in zip(sekmeler, menu.ALANLAR):
             if alan.get("acilir"):  # açılır alan: sekme <summary>, sayfalar panelde
                 self.assertTrue(etiket.startswith("<summary"), alan["ad"])
@@ -216,6 +216,7 @@ class TestMenu(unittest.TestCase):
         beklenen = {
             "egitim": {menu.SMUAL_URL, menu.SMUAL_YONETIM_URL, "/kelebek-git"},
             "guvenlik": {"/kameralar", "/kameralar-ip", "/kameralar-kayit", "/guvenlik", menu.KIOSK_YUZ_PANELI},
+            "favoriler": {menu.MEBBIS_URL, menu.EBYS_URL, menu.WHATSAPP_URL, menu.BIP_URL},
         }
         for anahtar, hrefler in beklenen.items():
             bas = html.find(f'<details class="alan-acilir" data-alan="{anahtar}"')
@@ -227,7 +228,7 @@ class TestMenu(unittest.TestCase):
 
     def test_her_sayfa_kabuktan_erisilir(self):
         # "/" kabuğunda: açılır alanların tüm sayfaları, diğer alanların ilk sayfası (sekme bağlantısı)
-        self.assertEqual({a["anahtar"] for a in menu.ALANLAR if a.get("acilir")}, {"egitim", "guvenlik"})
+        self.assertEqual({a["anahtar"] for a in menu.ALANLAR if a.get("acilir")}, {"egitim", "guvenlik", "favoriler"})
         html = self._render("/")
         for alan in menu.ALANLAR:
             for sayfa in (alan["sayfalar"] if alan.get("acilir") else alan["sayfalar"][:1]):

@@ -35,6 +35,11 @@ KIOSK_YUZ_PANELI = "http://kiosk.local:5050/"  # yuzpanel.service, kendi girişi
 DEBIAN_PANELI = "http://debian.local/#/dashboard"
 CLIPROXY_PANELI = "http://farabi.local:8317/management.html"  # CLIProxyAPI yönetim; giriş anahtarı /opt/cliproxyapi/yonetim-anahtari.txt
 
+MEBBIS_URL = "https://mebbis.meb.gov.tr"
+EBYS_URL = "https://ebys.meb.gov.tr"
+WHATSAPP_URL = "https://web.whatsapp.com"
+BIP_URL = "https://web.bip.com"
+
 SMUAL_URL = "https://smual.app"
 SMUAL_YONETIM_URL = SMUAL_URL + "/yonetici"  # şifresiz giriş (SSO) sonraki aşamada
 
@@ -123,6 +128,15 @@ ALANLAR: list[dict] = [
             {"ad": "Debian paneli", "href": DEBIAN_PANELI, "ikon": "sunucu", "yeni_sekme": True},
             {"ad": "Görsel Oluşturma Paneli", "href": "/gorsel", "ikon": "resim"},
             {"ad": "CLIProxyAPI (yönetim)", "href": CLIPROXY_PANELI, "ikon": "sunucu", "yeni_sekme": True},
+        ],
+    },
+    {
+        "ad": "Favoriler", "anahtar": "favoriler", "kisayol": "f", "ikon": "yildiz", "acilir": True,
+        "sayfalar": [
+            {"ad": "Mebbis", "href": MEBBIS_URL, "ikon": "yildiz", "yeni_sekme": True},
+            {"ad": "EBYS", "href": EBYS_URL, "ikon": "yildiz", "yeni_sekme": True},
+            {"ad": "WhatsApp", "href": WHATSAPP_URL, "ikon": "yildiz", "yeni_sekme": True},
+            {"ad": "BiP", "href": BIP_URL, "ikon": "yildiz", "yeni_sekme": True},
         ],
     },
 ]

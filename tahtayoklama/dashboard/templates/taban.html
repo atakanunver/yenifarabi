@@ -70,13 +70,12 @@
         {%- if s.sayac %}<span class="menu-sayac" data-sayac="{{ s.sayac }}" hidden></span>{% endif %}{{ dis_ikon(s) }}</a>
       {% endif %}
       {% endfor %}
+      <img class="sol-logo" src="/static/okul-logo.png" alt="Şehit Murat Ustaoğlu Anadolu Lisesi logosu" width="104" height="104">
     </nav>
     {% endif %}
   </div>
   <div class="ust-araclar">
-    <a class="ust-acil" href="{{ agac.acil.href }}" data-menu="{{ agac.acil.href }}" data-kisayol="{{ agac.acil.kisayol }}" title="{{ agac.acil.ad }}"{% if request.url.path == agac.acil.href %} aria-current="page"{% endif %}>
-      <svg class="ikon"><use href="#ik-{{ agac.acil.ikon }}"/></svg><span>{{ agac.acil.ad }}</span></a>
-    <a class="ust-atos" href="{{ baglanti(agac.atos) }}" data-menu="{{ agac.atos.href }}" data-kisayol="{{ agac.atos.kisayol }}" title="{{ agac.atos.ad }} (yeni sekmede açılır)" target="_blank" rel="noopener">
+    <a class="ust-atos ust-atos-buyuk" href="{{ baglanti(agac.atos) }}" data-menu="{{ agac.atos.href }}" data-kisayol="{{ agac.atos.kisayol }}" title="{{ agac.atos.ad }} (yeni sekmede açılır)" target="_blank" rel="noopener">
       <svg class="ikon"><use href="#ik-{{ agac.atos.ikon }}"/></svg><span>Atos</span></a>
     <span class="ust-zaman"><span class="ust-gun">{{ agac.gun }}</span> <span id="ust-saat"></span>{% if agac.ders %}<span class="ust-ders"> · {{ agac.ders }}</span>{% endif %}</span>
     <button type="button" class="ust-dugme" data-eylem="tema-dongu" aria-label="Temayı değiştir" title="Temayı değiştir">
@@ -103,6 +102,8 @@
         </div>
       </div>
     </details>
+    <a class="ust-acil" href="{{ agac.acil.href }}" data-menu="{{ agac.acil.href }}" data-kisayol="{{ agac.acil.kisayol }}" title="{{ agac.acil.ad }}"{% if request.url.path == agac.acil.href %} aria-current="page"{% endif %}>
+      <svg class="ikon"><use href="#ik-{{ agac.acil.ikon }}"/></svg><span>{{ agac.acil.ad }}</span></a>
   </div>
 </header>
 <div class="cekmece-ortu" id="cekmece-ortu" hidden></div>
