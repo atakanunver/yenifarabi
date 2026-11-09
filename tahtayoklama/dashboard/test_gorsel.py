@@ -176,6 +176,28 @@ class TestIstemci(_Ortak):
         with self.assertRaises(gorsel.GorselHatasi):
             gorsel.ai_arka_plan("  ")
 
+    def test_prompt_zenginlestir(self):
+        yakalanan = {}
+
+        def sahte(istek, timeout):
+            yakalanan.update(govde=json.loads(istek.data), timeout=timeout)
+            return _Yanit({"message": {"content": '<think>x</think>"Ayrıntılı fener prompt."'}})
+
+        with mock.patch("urllib.request.urlopen", sahte):
+            self.assertEqual(gorsel.prompt_zenginlestir(" fener "), "Ayrıntılı fener prompt.")
+        g = yakalanan["govde"]
+        self.assertEqual((g["model"], g["think"], g["stream"]), ("farabi", False, False))
+        self.assertEqual(g["messages"][1]["content"], "fener")
+        for kotu in ("  ", "x" * 1001):
+            with self.assertRaises(gorsel.GorselHatasi):
+                gorsel.prompt_zenginlestir(kotu)
+        with mock.patch("urllib.request.urlopen", side_effect=OSError("kapali")), \
+             self.assertRaises(gorsel.GorselHatasi):
+            gorsel.prompt_zenginlestir("fener")
+        with mock.patch("urllib.request.urlopen", lambda i, timeout: _Yanit({"message": {"content": " "}})), \
+             self.assertRaises(gorsel.GorselHatasi):
+            gorsel.prompt_zenginlestir("fener")
+
     def test_hafta_kazananlari_url(self):
         gorulen = []
 
@@ -388,6 +410,24 @@ class TestPanel(_Ortak):
                 gorsel.durum_guncelle(uretim={"tarih": gorsel.bugun(), "sayi": gorsel.GUNLUK_SINIR})
                 r = await gorsel_panel.gorsel_uret(req)
                 self.assertEqual(r.status_code, 429)
+
+        asyncio.run(kos())
+
+    def test_zenginlestir_rotasi(self):
+        async def kos():
+            req = _istek()
+            form = mock.Mock()
+            form.get = {"prompt": "fener"}.get
+            req.form = mock.AsyncMock(return_value=form)
+            with mock.patch("uzaktan_yonetim._dogrula"), mock.patch("uzaktan_yonetim._denetim_yaz") as den, \
+                 mock.patch.object(gorsel, "prompt_zenginlestir", return_value="uzun fener") as z:
+                v = await gorsel_panel.gorsel_zenginlestir(req)
+                self.assertEqual(v, {"ok": True, "prompt": "uzun fener"})
+                self.assertEqual(z.call_args.args[0], "fener")
+                self.assertEqual(den.call_args.args[1], "gorsel_zenginlestir")
+                z.side_effect = gorsel.GorselHatasi("kapalı")
+                r = await gorsel_panel.gorsel_zenginlestir(req)
+                self.assertEqual(r.status_code, 502)
 
         asyncio.run(kos())
 

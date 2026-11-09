@@ -104,6 +104,44 @@ def ai_arka_plan(prompt: str, boyut: str = "1536x1024") -> bytes:
     return png
 
 
+OLLAMA_SOHBET_URL = "http://127.0.0.1:11434/api/chat"
+OLLAMA_MODEL = "farabi"  # takma ad: başka adla istek ikinci modeli yükletir
+ZENGINLESTIR_SISTEM = (
+    "Kullanıcının kısa görsel fikrini, görsel üretim modeli için ayrıntılı tek paragraflık Türkçe bir "
+    "prompta dönüştür: konu, kompozisyon, renk paleti, ışık, tarz ve atmosfer. Kullanıcının fikrine "
+    "sadık kal, yeni konu ekleme. İstenmedikçe görsele yazı, harf, logo veya kişi adı ekleme. "
+    "Yalnızca prompt metnini yaz; açıklama, başlık veya tırnak ekleme. En çok 800 karakter."
+)
+
+
+def prompt_zenginlestir(metin: str) -> str:
+    """Kısa fikri yerel LLM ile ayrıntılı prompta çevirir (bulut yok; öğrenci verisi geçirilmez)."""
+    metin = (metin or "").strip()
+    if not metin:
+        raise GorselHatasi("Önce kısa bir fikir yaz.")
+    if len(metin) > 1000:
+        raise GorselHatasi("Zenginleştirmek için metin en çok 1000 karakter olabilir.")
+    govde = {
+        "model": OLLAMA_MODEL, "stream": False, "think": False,
+        "messages": [{"role": "system", "content": ZENGINLESTIR_SISTEM}, {"role": "user", "content": metin}],
+    }
+    istek = urllib.request.Request(
+        OLLAMA_SOHBET_URL, data=json.dumps(govde).encode(),
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    try:
+        with urllib.request.urlopen(istek, timeout=90) as yanit:
+            sonuc = json.load(yanit)["message"]["content"]
+    except urllib.error.HTTPError as e:
+        raise GorselHatasi(f"Yerel yapay zekâ reddetti (HTTP {e.code}).") from None
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        raise GorselHatasi(f"Yerel yapay zekâya ulaşılamadı ({type(e).__name__}).") from None
+    sonuc = re.sub(r"<think>.*?</think>", "", sonuc, flags=re.DOTALL).strip().strip('"“”')
+    if not sonuc:
+        raise GorselHatasi("Yapay zekâ boş yanıt verdi, tekrar dene.")
+    return sonuc[:2000]
+
+
 # --------------------------------------------------------------------
 # Okul ucundan kazananlar
 # --------------------------------------------------------------------

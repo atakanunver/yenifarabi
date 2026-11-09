@@ -161,7 +161,7 @@ html { scroll-padding-top: 4rem; }  /* #duyuru gibi çapalar yapışkan çubuğu
 .sol-oge .ikon-disa { margin-left: 0; }
 .sol-oge:focus-visible { outline: 2px solid var(--renk-birincil); outline-offset: -2px; }
 /* Okul logosu: sol menünün en altında (margin-top:auto itiler); çekmecede menü sonunda */
-.sol-logo { display: block; width: 6.5rem; max-width: 70%; height: auto; margin: auto auto 0; padding-top: var(--bosluk-4); }
+.sol-logo { display: block; width: 6rem; max-width: 70%; height: auto; opacity: 0.65; margin: auto auto 7.5rem; padding-top: var(--bosluk-4); }
 
 /* ---------- İçerik ve sayfa başlığı ---------- */
 /* pano.css'teki "main { max-width; margin: auto; width: 100% }" kuralını ezer */
@@ -963,6 +963,11 @@ label.pano-tarih {
 .gorsel-onizleme img { display: block; width: 100%; border-radius: var(--yaricap); }
 .gorsel-galeri { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: var(--bosluk-3); margin-bottom: var(--bosluk-4); }
 .gorsel-galeri > .ipucu { grid-column: 1 / -1; }
+.gorsel-ipuclari { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: var(--bosluk-3); max-width: 64rem; }
+.gorsel-ipuclari article { min-width: 0; padding: var(--bosluk-3) var(--bosluk-4); background: var(--renk-yuzey); border: 1px solid var(--renk-kenar); border-radius: var(--yaricap); }
+.gorsel-ipuclari h3 { margin: 0 0 var(--bosluk-1); font-size: var(--punto-govde); }
+.gorsel-ipuclari p { margin: 0 0 var(--bosluk-2); font-size: var(--punto-kucuk); line-height: 1.5; color: var(--renk-metin-soluk); }
+.gorsel-ipuclari .gorsel-ornek { margin-bottom: 0; color: var(--renk-metin); }
 .gorsel-kutucuk {
   display: flex; flex-direction: column; gap: var(--bosluk-2); min-width: 0; padding: var(--bosluk-2); text-align: left; cursor: pointer;
   border: 1px solid var(--renk-kenar); border-radius: var(--yaricap-buyuk); background: var(--renk-yuzey); color: var(--renk-metin);

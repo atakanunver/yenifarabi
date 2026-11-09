@@ -66,14 +66,71 @@
   <div class="form-alan">
     <label for="serbest-prompt">Ne çizilsin?</label>
     <textarea id="serbest-prompt" rows="7" maxlength="2000" data-sayac="serbest-sayac" placeholder="Örn. Gün batımında deniz kenarında bir fener, sulu boya tarzı. (Öğrenci adı yazma; isim basılmaz.)"></textarea>
-    <div class="gorsel-alt-satir"><span class="ipucu">Ne kadar ayrıntı yazarsan sonuç o kadar isabetli olur: konu, renkler, tarz.</span><span class="ipucu gorsel-sayac" id="serbest-sayac" aria-live="off"></span></div>
+    <div class="gorsel-alt-satir"><span class="ipucu">Kendin yaz ya da kısa bir fikir yazıp «Promptu zenginleştir»e bas; ayrıntılı hâlini üretmeden önce düzenleyebilirsin.</span><span class="ipucu gorsel-sayac" id="serbest-sayac" aria-live="off"></span></div>
   </div>
   <fieldset class="cip-satir" aria-label="Serbest görsel eylemleri">
     <button type="button" class="dugme" data-uret="serbest"><svg class="ikon"><use href="#ik-resim"/></svg> Üret</button>
+    <button type="button" class="dugme dugme-ikincil" id="zenginlestir" title="Kısa fikrini yerel yapay zekâ ayrıntılı prompta çevirir"><svg class="ikon"><use href="#ik-yildiz"/></svg> Promptu zenginleştir</button>
+    <button type="button" class="dugme dugme-ikincil" id="ornek-prompt" title="Rastgele bir örnek prompt yazar"><svg class="ikon"><use href="#ik-yenile"/></svg> Örnek prompt</button>
+    <button type="button" class="dugme dugme-ikincil" id="zenginlestir-geri" hidden>Geri al</button>
     <a class="dugme dugme-ikincil" id="serbest-indir" href="#" hidden><svg class="ikon"><use href="#ik-indir"/></svg> İndir</a>
   </fieldset>
   <img id="serbest-img" class="gorsel-secili" alt="Serbest görsel" tabindex="0" title="Tam ekran için çift tıkla" hidden>
 </form>
+
+<h2 class="bolum-basligi">İpuçları</h2>
+<div class="gorsel-ipuclari">
+  <article>
+    <h3>Yazı için boş alan bırak</h3>
+    <p>Afişe sonradan tarih veya saat yazacaksan boşluk iste.</p>
+    <p class="gorsel-ornek">Örn. “… üstte yazı için temiz boş alan (copy space) bırak.”</p>
+  </article>
+  <article>
+    <h3>İstemediklerini yaz</h3>
+    <p>Bozuk harf, logo ve filigran çıkmasın diye açıkça belirt.</p>
+    <p class="gorsel-ornek">Örn. “… görselde yazı, logo, filigran ve düşük kalite olmasın.”</p>
+  </article>
+  <article>
+    <h3>Işığı belirt</h3>
+    <p>Işık, görüntünün profesyonel görünmesini en çok etkileyen şeydir.</p>
+    <p class="gorsel-ornek">Örn. stüdyo ışığı (lüks ürün), altın saat ışığı (samimi sahne), güçlü kontrast ve neon kenar ışığı (etkinlik).</p>
+  </article>
+  <article>
+    <h3>Bir tarz seç</h3>
+    <p>Tarzı söylemezsen yapay zeka kendi bildiğini çizer.</p>
+    <p class="gorsel-ornek">Örn. minimalist grafik tasarım ve düz vektör; 3B kil illüstrasyon; Bauhaus veya İsviçre afiş tarzı.</p>
+  </article>
+  <article>
+    <h3>Yazıyı tırnak içinde iste</h3>
+    <p>Görselde geçmesini istediğin yazıyı çift tırnak içinde, kısa ve eksiksiz yaz. Bozuk çıkarsa görseli atmak yerine yalnız yazıyı düzelttir.</p>
+    <p class="gorsel-ornek">Örn. Üstte “Hoş geldiniz” yazan bir okul kapısı afişi.</p>
+  </article>
+  <article>
+    <h3>Ürün tanıtımı: mockup</h3>
+    <p>Kutu, şişe veya ambalaj üzerinde görünmesini istiyorsan “mockup” de.</p>
+    <p class="gorsel-ornek">Örn. “Okul kupası mockup, ambalaj tasarımı sunumu, beyaz zemin.”</p>
+  </article>
+  <article>
+    <h3>Patlatılmış görünüm</h3>
+    <p>Parçaları havada ayrılmış, montaj şeması gibi bir çizim için. İzometrik bakış açısı eğriliği önler; malzeme belirtmek parçaları ayırt ettirir.</p>
+    <p class="gorsel-ornek">Örn. “Akıllı telefonun patlatılmış görünüm şeması: pil, çip ve kamera lensleri havada ayrık, ince çizgili etiketler, izometrik, beyaz zemin.”</p>
+  </article>
+  <article>
+    <h3>Mavi ozalit (blueprint)</h3>
+    <p>Lacivert zeminde beyaz çizgilerle mühendislik çizimi hissi verir.</p>
+    <p class="gorsel-ornek">Örn. “1960'lar spor otomobilin teknik ozalit çizimi: koyu mavi zemin, ince ızgara, net beyaz çizgiler, üst-yan-ön görünüm, ölçü notları.”</p>
+  </article>
+  <article>
+    <h3>Kesit görünümü</h3>
+    <p>Nesnenin içini göstermek için ortadan kesilmiş çizim iste.</p>
+    <p class="gorsel-ornek">Örn. “Akıllı bir evin kesit illüstrasyonu: odalar, mobilya, güneş paneli ve tesisat görünür, izometrik, sade.”</p>
+  </article>
+  <article>
+    <h3>Botanik ve anatomik çizim</h3>
+    <p>Canlı yapıları eski ansiklopedi sayfası gibi parçalarına ayırır.</p>
+    <p class="gorsel-ornek">Örn. “Açmış bir gülün botanik ayrıştırma çizimi: taç yaprak, gövde ve kökler eski parşömen üzerinde, mürekkep çizgi ve suluboya, etiketli.”</p>
+  </article>
+</div>
 {% endblock %}
 
 {% block script %}
@@ -165,6 +222,43 @@ document.querySelectorAll('[data-eylem]').forEach(b => b.addEventListener('click
   bildir(v.mesaj + (v.hatalar && v.hatalar.length ? ' Hatalar: ' + v.hatalar.join('; ') : ''), !v.ok);
   durumYokla();
 }));
+// Serbest görsel: örnek prompt ve yapay zekâ ile zenginleştirme
+const ORNEKLER = [
+  'Gün batımında deniz kenarında yalnız bir fener, sulu boya tarzı, sıcak turuncu ve mor tonlar, üstte yazı için temiz boş alan.',
+  'Akıllı telefonun patlatılmış görünüm şeması: pil, çip ve kamera lensleri havada ayrık, ince çizgili etiketler, izometrik bakış, beyaz zemin.',
+  '1960\'lar spor otomobilin teknik ozalit çizimi: koyu mavi zemin, ince ızgara, net beyaz çizgiler, üst-yan-ön görünüm, ölçü notları.',
+  'Açmış bir gülün botanik ayrıştırma çizimi: taç yapraklar, gövde ve kökler eski parşömen üzerinde, mürekkep çizgi ve suluboya, etiketli.',
+  'Sınıfta fen deneyi yapan neşeli öğrenciler, 3B kil illüstrasyon tarzı, parlak canlı renkler, yumuşak stüdyo ışığı, yüz detayları sade.',
+  'Okul bahçesinde ilkbahar şenliği afişi arka planı: çiçek açmış ağaçlar, altın saat ışığı, minimalist düz vektör, yazı için geniş boş alan.',
+];
+const serbestPrompt = document.getElementById('serbest-prompt');
+const geriDugme = document.getElementById('zenginlestir-geri');
+let oncekiPrompt = null, sonOrnek = -1;
+function promptYaz(metin) {
+  serbestPrompt.value = metin;
+  serbestPrompt.dispatchEvent(new Event('input'));
+}
+document.getElementById('ornek-prompt').addEventListener('click', () => {
+  do { sonOrnek = Math.floor(Math.random() * ORNEKLER.length); } while (ORNEKLER.length > 1 && ORNEKLER[sonOrnek] === serbestPrompt.value);
+  oncekiPrompt = null; geriDugme.hidden = true;
+  promptYaz(ORNEKLER[sonOrnek]);
+});
+document.getElementById('zenginlestir').addEventListener('click', async e => {
+  const d = e.currentTarget, metin = serbestPrompt.value.trim();
+  if (!metin) { bildir('Önce kısa bir fikir yaz (ya da «Örnek prompt»a bas).', true); return; }
+  d.disabled = true; bildir('Prompt zenginleştiriliyor (~10-30 sn)…');
+  const f = new FormData(); f.set('prompt', metin);
+  let v;
+  try { v = await gonder('/gorsel/zenginlestir', f); } catch (_) { v = { ok: false, mesaj: 'Sunucuya ulaşılamadı.' }; }
+  d.disabled = false;
+  if (!v.ok) { bildir(v.mesaj, true); return; }
+  oncekiPrompt = serbestPrompt.value; geriDugme.hidden = false;
+  promptYaz(v.prompt); bildir('Prompt zenginleştirildi; düzenleyip «Üret»e basabilirsin.');
+});
+geriDugme.addEventListener('click', () => {
+  if (oncekiPrompt === null) return;
+  promptYaz(oncekiPrompt); oncekiPrompt = null; geriDugme.hidden = true;
+});
 const TURLER = { 'hafta-kart': 'Hafta kartı', 'kart': 'Kart', 'arka-plan': 'Arka plan', 'onayli-arka-plan': 'Onaylı arka plan', 'serbest': 'Serbest' };
 let secili = null, bekleyen = null;
 const tahtaKutulari = () => [...document.querySelectorAll('input[name=tahta]')];

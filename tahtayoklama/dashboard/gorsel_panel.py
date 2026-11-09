@@ -102,6 +102,18 @@ async def gorsel_uret(request: Request):
     return {"ok": True, "mesaj": _is["mesaj"]}
 
 
+@router.post("/gorsel/zenginlestir")
+async def gorsel_zenginlestir(request: Request):
+    uzaktan_yonetim._dogrula(request)
+    form = await request.form()
+    try:
+        prompt = await asyncio.to_thread(gorsel.prompt_zenginlestir, str(form.get("prompt") or ""))
+    except gorsel.GorselHatasi as e:
+        return _hata(str(e), 502)
+    _denetim(request, "gorsel_zenginlestir", True)
+    return {"ok": True, "prompt": prompt}
+
+
 @router.get("/gorsel/arsiv")
 async def gorsel_arsiv(request: Request):
     uzaktan_yonetim._dogrula(request)
