@@ -27,8 +27,8 @@ def _hrefler():
 class TestMenu(unittest.TestCase):
     def test_alan_sirasi(self):
         self.assertEqual([a["ad"] for a in menu.ALANLAR],
-                         ["Yoklama", "Öğrenci ve personel", "İletişim", "Duyurular", "Eğitim", "Güvenlik", "Sistem"])
-        self.assertEqual([a["kisayol"] for a in menu.ALANLAR], list("ypideks"))
+                         ["Tahtalar", "Yoklama", "Öğrenci ve personel", "İletişim", "Duyurular", "Eğitim", "Güvenlik", "Sistem"])
+        self.assertEqual([a["kisayol"] for a in menu.ALANLAR], list("hypideks"))
 
     def test_tum_sayfalar_menude(self):
         hrefler = {h.split("#")[0] for h in _hrefler()}
@@ -160,7 +160,7 @@ class TestMenu(unittest.TestCase):
     def test_ust_cubukta_alti_alan(self):
         html = self._render("/admin/rapor")
         sekmeler = re.findall(r'<(?:a|summary) class="alan-sekme"[^>]*>', html)
-        self.assertEqual(len(sekmeler), 7)
+        self.assertEqual(len(sekmeler), 8)
         for etiket, alan in zip(sekmeler, menu.ALANLAR):
             if alan.get("acilir"):  # açılır alan: sekme <summary>, sayfalar panelde
                 self.assertTrue(etiket.startswith("<summary"), alan["ad"])

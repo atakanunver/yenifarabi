@@ -46,6 +46,12 @@ SMUAL_YONETIM_URL = SMUAL_URL + "/yonetici"  # şifresiz giriş (SSO) sonraki a�
 _OKUL = "/admin/okul-verisi"
 ALANLAR: list[dict] = [
     {
+        "ad": "Tahtalar", "anahtar": "tahtalar", "kisayol": "h", "ikon": "tahta",
+        "sayfalar": [
+            {"ad": "Tahtalar", "href": "/admin/uzaktan", "ikon": "tahta"},
+        ],
+    },
+    {
         "ad": "Yoklama", "anahtar": "yoklama", "kisayol": "y", "ikon": "ev",
         "sayfalar": [
             {"ad": "Ders ızgarası", "href": "/", "ikon": "ev"},
@@ -107,7 +113,6 @@ ALANLAR: list[dict] = [
     {
         "ad": "Sistem", "anahtar": "sistem", "kisayol": "s", "ikon": "sunucu",
         "sayfalar": [
-            {"ad": "Tahtalar", "href": "/admin/uzaktan", "ikon": "tahta"},
             {"ad": "Sistem durumu", "href": "/sistem-durumu", "ikon": "nabiz"},
             {"ad": "Servis yönetimi", "href": "/servisler", "ikon": "sunucu"},
             {"ad": "Zamanlanmış görevler", "href": "/zamanlanmis-gorevler", "ikon": "saat"},
