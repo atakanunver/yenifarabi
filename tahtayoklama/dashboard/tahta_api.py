@@ -28,6 +28,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
 import db
+import ders_programi
 import devamsizlik_bildirim
 import duyuru
 import kulupler
@@ -248,6 +249,22 @@ def _kulup_rosterlari(sinif_ad: str | None) -> dict[str, str]:
             if sinif_ad is not None and k.get("sinif") == sinif_ad}
 
 
+def _ders_programi_metni(sinif_ad: str | None) -> str | None:
+    metin = _dosya_metni(DERS_PROGRAMI_DOSYASI)
+    try:
+        program = json.loads(metin)
+        if not isinstance(program.get("siniflar"), dict):
+            return metin
+        ogretmenler = json.loads(_dosya_metni(ders_programi.OGRETMEN_DOSYASI) or "{}")
+        ogretmen_programi = ogretmenler.get("program", {})
+        if isinstance(ogretmen_programi, dict):
+            program["ogretmenler"] = ({sinif_ad: ogretmen_programi.get(sinif_ad, {})}
+                                     if sinif_ad else ogretmen_programi)
+        return json.dumps(program, ensure_ascii=False, indent=2)
+    except (ValueError, TypeError, AttributeError):
+        return metin
+
+
 def yapilandirma_olustur(tahta: str) -> dict:
     """Roster, admin.py'nin SSH senkronuyla BAYT BAYT aynı üretilir
     (`_roster_payload_olustur`) — iki yol aynı dosyayı yazsın. Sınıfı
@@ -275,7 +292,7 @@ def yapilandirma_olustur(tahta: str) -> dict:
         "sinif": sinif_ad,
         "roster": roster,
         "zil": _dosya_metni(ZIL_DOSYASI),
-        "ders_programi": _dosya_metni(DERS_PROGRAMI_DOSYASI),
+        "ders_programi": _ders_programi_metni(sinif_ad),
         "kazanimlar": _kazanim_metni(sinif_ad),
         "kulupler": _kulup_rosterlari(sinif_ad),
     }

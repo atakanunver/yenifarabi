@@ -290,6 +290,24 @@ class TestTahtaApi(unittest.TestCase):
             self._istek(method="GET", basliklar={"If-None-Match": etag})))
         self.assertEqual(y2.status_code, 304)
 
+    def test_ders_programina_yalniz_atanmis_sinifin_ogretmenleri_eklenir(self):
+        tmp = Path(self._tmp.name)
+        program = tmp / "program.json"
+        ogretmenler = tmp / "ogretmenler.json"
+        program.write_text(json.dumps({"siniflar": {"9-A": {}}}), encoding="utf-8")
+        ogretmenler.write_text(json.dumps({"program": {
+            "9-A": {"pazartesi": {"1": ["Deniz Örnek"]}},
+            "9-B": {"pazartesi": {"1": ["Başka Öğretmen"]}},
+        }}, ensure_ascii=False), encoding="utf-8")
+        with patch.object(tahta_api, "DERS_PROGRAMI_DOSYASI", program), \
+             patch.object(tahta_api.ders_programi, "OGRETMEN_DOSYASI", ogretmenler), \
+             patch.object(tahta_api, "ZIL_DOSYASI", tmp / "zil.json"), \
+             patch.object(tahta_api, "_kulup_rosterlari", return_value={}):
+            data = json.loads(tahta_api.yapilandirma_olustur("9-A")["ders_programi"])
+            self.assertEqual(data["ogretmenler"], {"9-A": {"pazartesi": {"1": ["Deniz Örnek"]}}})
+            self.assertEqual(json.loads(tahta_api.yapilandirma_olustur("fenlab")["ders_programi"])
+                             ["ogretmenler"].keys(), {"9-A", "9-B"})
+
     def test_yapilandirma_atanmamis_tahta_roster_none(self):
         yanit = asyncio.run(tahta_api.yapilandirma(self._istek(TOKEN_F, method="GET")))
         govde = json.loads(yanit.body.decode())

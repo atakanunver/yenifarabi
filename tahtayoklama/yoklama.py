@@ -97,6 +97,7 @@ ZIL_DOSYASI = BASE_DIR / "data" / "zil.json"
 # tahta_istemci.py sunucudan çeker (2026-10-06). Yoksa/bozuksa başlıkta
 # ders adı gösterilmez — yoklama bundan hiç etkilenmez.
 DERS_PROGRAMI_DOSYASI = BASE_DIR / "data" / "ders_programi.json"
+OGRETMEN_PROGRAMI_DOSYASI = BASE_DIR / "ogretmen_programi.json"
 # Haftalık kazanım (yıllık planlardan, dashboard/scripts/kazanim_yukle.py
 # üretir, tahta_istemci.py çeker). Yoksa/bozuksa ikinci satır boş kalır.
 KAZANIM_DOSYASI = BASE_DIR / "data" / "kazanimlar.json"
@@ -178,9 +179,18 @@ def _zil_yukle() -> dict:
 def _ders_programi_yukle() -> dict:
     try:
         veri = json.loads(DERS_PROGRAMI_DOSYASI.read_text(encoding="utf-8"))
-        return veri if isinstance(veri, dict) else {}
     except (OSError, ValueError):
-        return {}
+        veri = {}
+    if not isinstance(veri, dict):
+        veri = {}
+    if "ogretmenler" not in veri:
+        try:
+            ogretmenler = json.loads(OGRETMEN_PROGRAMI_DOSYASI.read_text(encoding="utf-8"))
+            if isinstance(ogretmenler, dict):
+                veri["ogretmenler"] = ogretmenler
+        except (OSError, ValueError):
+            pass
+    return veri
 
 
 def _ders_adi_ham(program: dict, sinif: str, gun_no: int, ders_no: int) -> str | None:
@@ -207,6 +217,25 @@ def _ders_adi(program: dict, sinif: str, gun_no: int, ders_no: int) -> str | Non
         return "BOŞ"
     # Türkçe büyük harf: str.upper() 'i'yi 'I' yapar.
     return ham.replace("i", "İ").replace("ı", "I").upper()
+
+
+def _ogretmen_adi(program: dict, sinif: str, gun_no: int, ders_no: int) -> str | None:
+    try:
+        adlar = program.get("ogretmenler", {}).get(sinif, {}).get(
+            _GUN_ANAHTARLARI.get(gun_no), {}).get(str(ders_no), [])
+        return " / ".join(ad for ad in adlar if isinstance(ad, str) and ad.strip()) or None
+    except (AttributeError, TypeError):
+        return None
+
+
+def _kalan_dakika(zil: dict, ders_no: int, simdi: dtime) -> int:
+    for ders in zil.get("dersler", []):
+        if ders["no"] == ders_no:
+            bitis = _saat_ayristir(ders["bitis"])
+            saniye = (bitis.hour * 3600 + bitis.minute * 60
+                      - simdi.hour * 3600 - simdi.minute * 60 - simdi.second)
+            return max(0, (saniye + 59) // 60)
+    return 0
 
 
 def _kazanim_yukle() -> dict:
@@ -282,6 +311,10 @@ def _duzen_hesapla(genislik: int, yukseklik: int, ogrenci_sayisi: int) -> tuple[
     alana göre (MIN_KART_YUKSEKLIK..MAKS_KART_YUKSEKLIK arası) ayarlanır."""
     if ogrenci_sayisi <= 0 or genislik <= 0:
         return SUTUN_MIN, KART_HEDEF_GENISLIK, MAKS_KART_YUKSEKLIK
+
+    # Izgara kenar boşlukları ve gerekirse kaydırma çubuğu için pay bırak.
+    genislik = max(1, genislik - 36)
+    yukseklik = max(1, yukseklik - 24)
 
     sutun = genislik // (MIN_KART_GENISLIK + IZGARA_BOSLUK)
     sutun = max(SUTUN_MIN, min(SUTUN_MAKS, sutun, ogrenci_sayisi))
@@ -405,9 +438,17 @@ class OgrenciKarti(QPushButton):
     def _guncelle(self) -> None:
         # Kart kısaldığında (kalabalık sınıflarda tüm sınıf dikeyde de
         # sığsın diye) KART_FONT_PT metin taşabilir — yüksekliğe göre küçültülür.
-        font_pt = max(10, min(KART_FONT_PT, self.height() // 3))
+        font_pt = min(KART_FONT_PT, self.height() // 3)
         dolgu = 4 if self.height() < MAKS_KART_YUKSEKLIK else 10
-        ad_gosterim = _ad_sarmala(self.ad_soyad, self.width(), font_pt)
+        while True:
+            ad_gosterim = _ad_sarmala(self.ad_soyad, self.width(), font_pt)
+            font = QFont()
+            font.setPointSize(font_pt)
+            font.setBold(True)
+            satir_sayisi = ad_gosterim.count("\n") + 2
+            if font_pt <= 8 or QFontMetrics(font).height() * satir_sayisi <= self.height() - 2 * dolgu:
+                break
+            font_pt -= 1
         self.setText(f"{self.no}. {ad_gosterim}\n[ {DURUM_ETIKET[self.durum]} ]")
         # QPushButton:disabled seçicisi — teneffüste kartlar devre dışıyken
         # (bkz. YoklamaPenceresi._girisleri_ayarla) görünüşte de farklı
@@ -425,6 +466,7 @@ class YoklamaPenceresi(QWidget):
         super().__init__()
         self.setWindowTitle("Yoklama")
         self._kartlar: list[OgrenciKarti] = []
+        self._sutun_sayisi = None
         self._aktif_ders_no: int | None = None
         self._zil = _zil_yukle()
         self._ders_programi = _ders_programi_yukle()
@@ -461,9 +503,8 @@ class YoklamaPenceresi(QWidget):
         ust = QHBoxLayout()
         self.baslik_etiketi = QLabel("YOKLAMA")
         self.baslik_etiketi.setStyleSheet("font-size: 22pt; font-weight: bold;")
-        ust.addWidget(self.baslik_etiketi)
-
-        ust.addStretch()
+        self.baslik_etiketi.setWordWrap(True)
+        ana.addWidget(self.baslik_etiketi)
 
         ust.addWidget(QLabel("Sınıf:"))
         self.sinif_secici = QComboBox()
@@ -488,16 +529,31 @@ class YoklamaPenceresi(QWidget):
 
         ana.addLayout(ust)
 
-        # Bu haftanın kazanımı — başlığın altında tek satır, küçük punto.
-        # Uzunsa sağdan "…" ile kısaltılır; yatay boyut politikası Ignored
-        # ki uzun metin pencereyi/düzeni genişletmesin.
+        ders_satiri = QHBoxLayout()
+        self.ders_bilgisi = QLabel()
+        self.ders_bilgisi.setWordWrap(True)
+        self.ders_bilgisi.setStyleSheet("font-size: 14pt;")
+        ders_satiri.addWidget(self.ders_bilgisi, 2)
+
+        self.kalan_sure_etiketi = QLabel()
+        self.kalan_sure_etiketi.setWordWrap(True)
+        self.kalan_sure_etiketi.setStyleSheet("font-size: 20pt; font-weight: bold; color: #b00020;")
+        ders_satiri.addWidget(self.kalan_sure_etiketi, 3)
+        ana.addLayout(ders_satiri)
+
+        # Uzun kazanımlara kaydırarak erişilir; diğer düğmeler görünür kalır.
         self.kazanim_etiketi = QLabel("")
         self.kazanim_etiketi.setStyleSheet("font-size: 13pt; color: #555;")
+        self.kazanim_etiketi.setWordWrap(True)
         self.kazanim_etiketi.setSizePolicy(
             QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred
         )
         self.kazanim_etiketi.setVisible(False)
-        ana.addWidget(self.kazanim_etiketi)
+        self.kazanim_alani = QScrollArea()
+        self.kazanim_alani.setWidgetResizable(True)
+        self.kazanim_alani.setMaximumHeight(100)
+        self.kazanim_alani.setWidget(self.kazanim_etiketi)
+        ana.addWidget(self.kazanim_alani)
 
         self.ozet_etiketi = QLabel()
         self.ozet_etiketi.setStyleSheet("font-size: 14pt;")
@@ -558,7 +614,7 @@ class YoklamaPenceresi(QWidget):
 
     def _pencereyi_one_getir(self) -> None:
         if self.isMinimized():
-            self.showFullScreen()
+            self.setWindowState(self.windowState() & ~Qt.WindowState.WindowMinimized)
         self.raise_()
         self.activateWindow()
 
@@ -571,6 +627,10 @@ class YoklamaPenceresi(QWidget):
             ad = _ders_adi(self._ders_programi, sinif, simdi.isoweekday(), self._aktif_ders_no)
             if ad:
                 metin += f" · {ad}"
+            ogretmen = _ogretmen_adi(self._ders_programi, sinif, simdi.isoweekday(), self._aktif_ders_no)
+            kalan = _kalan_dakika(self._zil, self._aktif_ders_no, simdi.time())
+            self.ders_bilgisi.setText(f"Öğretmen: {ogretmen or 'Belirtilmemiş'}")
+            self.kalan_sure_etiketi.setText(f"Dersin bitmesine {kalan} dakika kaldı")
             kazanim = _kazanim(
                 self._kazanimlar, sinif,
                 _ders_adi_ham(self._ders_programi, sinif, simdi.isoweekday(), self._aktif_ders_no),
@@ -579,28 +639,15 @@ class YoklamaPenceresi(QWidget):
             self.baslik_etiketi.setText(metin)
         else:
             self.baslik_etiketi.setText("YOKLAMA — BOŞ")
+            self.ders_bilgisi.setText("Ders saati dışında")
+            self.kalan_sure_etiketi.clear()
         self._kazanim_metni = kazanim or ""
         self._kazanim_etiketini_ciz()
 
     def _kazanim_etiketini_ciz(self) -> None:
         metin = self._kazanim_metni
-        self.kazanim_etiketi.setVisible(bool(metin))
-        self.kazanim_etiketi.setToolTip("\n".join(f"Kazanım: {k}" for k in metin.split("\n")) if metin else "")
-        if not metin:
-            self.kazanim_etiketi.setText("")
-            return
-        # Her kazanım kendi satırında, en fazla 2 satır (haftada 2+ kazanım
-        # varsa — ör. matematik); fazlası ikinci satırın sonunda "(+N)".
-        genislik = max(200, self.width() - 40)
-        olcu = QFontMetrics(self.kazanim_etiketi.font())
-        kazanimlar = metin.split("\n")
-        satirlar = []
-        for i, k in enumerate(kazanimlar[:2]):
-            ek = f" (+{len(kazanimlar) - 2})" if i == 1 and len(kazanimlar) > 2 else ""
-            satir = olcu.elidedText(f"Kazanım: {k}", Qt.TextElideMode.ElideRight,
-                                    genislik - olcu.horizontalAdvance(ek))
-            satirlar.append(satir + ek)
-        self.kazanim_etiketi.setText("\n".join(satirlar))
+        self.kazanim_alani.setVisible(bool(metin))
+        self.kazanim_etiketi.setText("\n".join(f"Kazanım: {k}" for k in metin.split("\n")) if metin else "")
 
     # ------------------------------------------------------------------
     # Sınıf/ders yükleme
@@ -623,6 +670,7 @@ class YoklamaPenceresi(QWidget):
         for i in reversed(range(self.izgara.count())):
             self.izgara.itemAt(i).widget().setParent(None)
         self._kartlar = []
+        self._sutun_sayisi = None
 
         if not sinif:
             self.ozet_etiketi.setText(
@@ -647,6 +695,8 @@ class YoklamaPenceresi(QWidget):
         genislik = vp.width() or self.width() or KART_HEDEF_GENISLIK * SUTUN_MIN
         yukseklik = vp.height() or self.height()
         sutun, kart_genislik, kart_yukseklik = _duzen_hesapla(genislik, yukseklik, len(ogrenciler))
+        self._izgarayi_sifirla()
+        self._sutun_sayisi = sutun
 
         for idx, ogrenci in enumerate(ogrenciler):
             durum = onceki_durumlar.get(str(ogrenci["no"]), "var")
@@ -682,9 +732,24 @@ class YoklamaPenceresi(QWidget):
         if genislik <= 0 or yukseklik <= 0:
             return
         sutun, kart_genislik, kart_yukseklik = _duzen_hesapla(genislik, yukseklik, len(self._kartlar))
+        if sutun != self._sutun_sayisi:
+            for kart in self._kartlar:
+                kart.setParent(None)
+            self._izgarayi_sifirla()
+            self._sutun_sayisi = sutun
         for idx, kart in enumerate(self._kartlar):
             kart.boyut_ayarla(kart_genislik, kart_yukseklik)
             self.izgara.addWidget(kart, idx // sutun, idx % sutun)
+            kart.show()
+
+    def _izgarayi_sifirla(self) -> None:
+        eski = self._kaydirma.takeWidget()
+        if eski is not None:
+            eski.deleteLater()
+        icerik = QWidget()
+        self.izgara = QGridLayout(icerik)
+        self.izgara.setSpacing(IZGARA_BOSLUK)
+        self._kaydirma.setWidget(icerik)
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)

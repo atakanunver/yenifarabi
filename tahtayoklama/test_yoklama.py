@@ -103,6 +103,7 @@ def yoklama_ortami(tmp_path, monkeypatch, qapp):
     monkeypatch.setattr(yoklama, "ZIL_DOSYASI", zil_dosyasi)
     # Varsayılan: ders programı YOK (gerçek data/ dosyası testlere sızmasın).
     monkeypatch.setattr(yoklama, "DERS_PROGRAMI_DOSYASI", tmp_path / "ders_programi.json")
+    monkeypatch.setattr(yoklama, "OGRETMEN_PROGRAMI_DOSYASI", tmp_path / "ogretmen_programi.json")
     monkeypatch.setattr(yoklama, "KAZANIM_DOSYASI", tmp_path / "kazanimlar.json")
     monkeypatch.setattr(yoklama, "datetime", _SahteDatetime)
     _saat_ayarla(8, 20)
@@ -449,7 +450,7 @@ class TestKazanimSatiri:
         pencere = yoklama.YoklamaPenceresi()
         try:
             assert pencere._kazanim_metni == ""
-            assert pencere.kazanim_etiketi.isHidden()
+            assert pencere.kazanim_alani.isHidden()
         finally:
             pencere.close()
 
@@ -485,14 +486,77 @@ class TestKazanimSatiri:
         finally:
             pencere.close()
 
-    def test_uc_kazanimda_ikinci_satir_arti_sayisi(self, yoklama_ortami, tmp_path):
+    def test_uc_kazanim_tamami_gosterilir(self, yoklama_ortami, tmp_path):
         _program_yaz(tmp_path, self.PROGRAM)
         k = json.loads(json.dumps(self.KAZANIM))
         k["kazanimlar"]["9"]["ingilizce"]["3"] = "A\nB\nC"
         self._kazanim_yaz(tmp_path, k)
         pencere = yoklama.YoklamaPenceresi()
         try:
-            assert pencere.kazanim_etiketi.text() == "Kazanım: A\nKazanım: B (+1)"
+            assert pencere.kazanim_etiketi.text() == "Kazanım: A\nKazanım: B\nKazanım: C"
+        finally:
+            pencere.close()
+
+
+class TestDersBilgisiVePencere:
+    def test_ogretmen_ve_kalan_sure_ders_gecisinde_guncellenir(self, yoklama_ortami, tmp_path):
+        _program_yaz(tmp_path, {"siniflar": {"9-A": {"pazartesi": {"1": "matematik"}}},
+                                "ogretmenler": {"9-A": {"pazartesi": {"1": ["Deniz Örnek"]}}}})
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert "Deniz Örnek" in pencere.ders_bilgisi.text()
+            assert "30 dakika" in pencere.kalan_sure_etiketi.text()
+            _saat_ayarla(8, 49)
+            pencere._periyodik_kontrol()
+            assert "1 dakika" in pencere.kalan_sure_etiketi.text()
+            _saat_ayarla(8, 50)
+            pencere._periyodik_kontrol()
+            assert pencere.ders_bilgisi.text() == "Ders saati dışında"
+            assert not pencere.kalan_sure_etiketi.text()
+        finally:
+            pencere.close()
+
+    def test_yerel_ogretmen_programi_ve_sunucu_onceligi(self, yoklama_ortami, tmp_path):
+        (tmp_path / "ogretmen_programi.json").write_text(json.dumps({
+            "9-A": {"pazartesi": {"1": ["Yerel Öğretmen"]}}
+        }, ensure_ascii=False), encoding="utf-8")
+        _program_yaz(tmp_path, {"siniflar": {"9-A": {"pazartesi": {"1": "matematik"}}}})
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert "Yerel Öğretmen" in pencere.ders_bilgisi.text()
+        finally:
+            pencere.close()
+        _program_yaz(tmp_path, {"siniflar": {}, "ogretmenler": {
+            "9-A": {"pazartesi": {"1": ["Güncel Öğretmen"]}}}})
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert "Güncel Öğretmen" in pencere.ders_bilgisi.text()
+        finally:
+            pencere.close()
+
+    def test_boyut_degisiminde_dugmeler_ve_isaretleme_korunur(self, yoklama_ortami, qapp):
+        (yoklama.ROSTER_DIR / "9-A.json").write_text(json.dumps({
+            "sinif": "9-A", "ogrenciler": [{"no": n, "ad_soyad": f"Öğrenci {n}"}
+                                         for n in range(1, 21)],
+        }, ensure_ascii=False), encoding="utf-8")
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            pencere._kartlar[0].click()
+            pencere._tam_ekrani_degistir()
+            for en, boy in ((800, 600), (1360, 768)):
+                pencere.resize(en, boy)
+                qapp.processEvents()
+                pencere._izgarayi_yeniden_diz()
+                qapp.processEvents()
+                assert pencere._kartlar[0].durum == "yok"
+                for dugme in (pencere.kapat_dugmesi, pencere.tam_ekran_dugmesi, pencere.kaydet_dugmesi):
+                    assert pencere.rect().contains(dugme.mapTo(pencere, dugme.rect().bottomRight()))
+                assert all(k.isVisible() for k in pencere._kartlar)
+                assert pencere._kaydirma.horizontalScrollBar().maximum() == 0
+                if boy >= 768:
+                    assert pencere._kaydirma.verticalScrollBar().maximum() == 0
+            pencere._tam_ekrani_degistir()
+            assert pencere.isFullScreen()
         finally:
             pencere.close()
 
