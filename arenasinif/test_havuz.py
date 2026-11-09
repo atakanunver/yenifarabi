@@ -68,6 +68,8 @@ def test_yalnizca_onayli_sorgulanir():
 
     havuz.jeopardy_seti("matematik", 12, sorgu=kaydet)
     assert "durum = 'onayli'" in yakalanan[0]
+    havuz.jeopardy_seti("matematik", 12, sorgu=kaydet, sube="9a")
+    assert all("soru <> 'Soruyu görselden inceleyiniz.'" in s for s in yakalanan)  # görsel-yalnız soru tahtaya gelmez
 
 
 def test_jeopardy_farkli_konu_ayni_kaynak_yedegi():

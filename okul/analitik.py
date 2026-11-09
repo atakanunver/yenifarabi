@@ -74,6 +74,9 @@ OZELLIKLER = {
         "Öğretmen: sınıfa PDF gönderme", ("ogretmen",), True,
         "Öğretmenlere 'PDF gönder' ekranını ve PDF'ten foto teslimli ödev vermeyi kısa bir örnekle tanıt.",
     ),
+    "ogretmen_soru_katki": (
+        "Öğretmen: cevap anahtarlı soru katkısı", ("ogretmen",), False, "",
+    ),
     "odev_foto_yukle": (
         "Ödev fotoğrafı yükleme", ("ogrenci",), True,
         "Foto yüklemede zorlananlar varsa telefondan çekim/yükleme adımlarını sınıfta bir kez birlikte dene.",

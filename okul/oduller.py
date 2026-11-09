@@ -1,8 +1,7 @@
 """Haftalık ödüller: kiosk duyurusu + rozet + haftanın Nescafe'si (yalnızca öğrenciler, 12. sınıf DAHİL).
 
-Dört kategori (hafta = pazartesi-pazar):
+Üç kategori (hafta = pazartesi-pazar):
   etkinlik  A: en çok sayılan etkinlik (Günlük Görev + Hızlı Mod turu + test ödevi). Nescafe etkinlik ve maraton kategorilerindedir.
-  istikrar  C: etkinlik yaptığı farklı gün sayısı.
   sinif     D: sınıfın katılım oranı (en az bir etkinlik yapan öğrenci / sınıf mevcudu).
   maraton   B: Soru Maratonu haftalık birincisi (en iyi 3 maratonun puan toplamı, `maraton.liderlik`). Rozet + kiosk + 1 Nescafe.
 Hile/yarış önlemi: Hızlı Mod günde en çok 2 tur sayılır; Maraton turu >= 60 sn, Günlük Görev >= 30 sn sürmüşse sayılır
@@ -25,17 +24,14 @@ MARATON_GUNLUK_SAYILAN = 2
 MARATON_MIN_SN = 60
 GOREV_MIN_SN = 30
 MIN_ETKINLIK = 3  # A için alt sınır
-MIN_GUN = 3  # C için alt sınır
 MIN_KATILAN = 5  # D için sınıfta en az bu kadar katılımcı
 KATEGORILER = {
     "etkinlik": "En Çok Etkinlik",
-    "istikrar": "En İstikrarlı",
     "sinif": "En Katılımcı Sınıf",
     "maraton": "Soru Maratonu Birincisi",
 }
 ROZET_AD = {
     "etkinlik": "Haftanın Çalışkanı",
-    "istikrar": "Haftanın İstikrarlısı",
     "sinif": "Haftanın Sınıfı",
     "maraton": "Maraton Birincisi",
 }
@@ -125,12 +121,11 @@ def _en_iyiler(adaylar: list[dict], anahtar) -> list[dict]:
 
 
 def siralama(conn: sqlite3.Connection, hb: str) -> dict:
-    """Haftanın kazananları (kaydetmeden): {'etkinlik': [...], 'istikrar': [...], 'sinif': [...], 'maraton': [...], 'katilan_ogrenci', 'toplam_ogrenci'}."""
+    """Haftanın kazananları (kaydetmeden): {'etkinlik': [...], 'sinif': [...], 'maraton': [...], 'katilan_ogrenci', 'toplam_ogrenci'}."""
     veri = haftalik(conn, hb)
     ogr = _ogrenciler(conn)
     adaylar = list(veri.values())
     a = _en_iyiler([x for x in adaylar if x["etkinlik"] >= MIN_ETKINLIK], lambda x: (x["etkinlik"], x["gun"], x["dogru"]))
-    c = _en_iyiler([x for x in adaylar if x["gun"] >= MIN_GUN], lambda x: (x["gun"], x["etkinlik"], x["dogru"]))
     mevcut: dict[str, int] = {}
     for d in ogr.values():
         mevcut[d["sinif"]] = mevcut.get(d["sinif"], 0) + 1
@@ -145,7 +140,7 @@ def siralama(conn: sqlite3.Connection, hb: str) -> dict:
     mar = [x for x in maraton.liderlik(conn, hafta=hb) if x["kullanici_id"] in ogr and x["toplam"] > 0]
     b = [{"kid": x["kullanici_id"], "ad": x["ad"], "sinif": x["sinif"], "toplam": x["toplam"], "adet": x["adet"]}
          for x in _en_iyiler(mar, lambda x: x["toplam"])]
-    return {"etkinlik": a, "istikrar": c, "sinif": d_, "maraton": b, "katilan_ogrenci": len(adaylar), "toplam_ogrenci": len(ogr)}
+    return {"etkinlik": a, "sinif": d_, "maraton": b, "katilan_ogrenci": len(adaylar), "toplam_ogrenci": len(ogr)}
 
 
 def kapat(conn: sqlite3.Connection, hb: str) -> int:
@@ -161,9 +156,6 @@ def kapat(conn: sqlite3.Connection, hb: str) -> int:
     for x in s["etkinlik"]:
         eklenen += _yaz(conn, hb, "etkinlik", x["kid"], x["sinif"], x["etkinlik"],
                         f"{x['etkinlik']} etkinlik, {x['gun']} gün", 1, simdi)
-    for x in s["istikrar"]:
-        eklenen += _yaz(conn, hb, "istikrar", x["kid"], x["sinif"], x["gun"],
-                        f"{x['gun']} farklı gün, {x['etkinlik']} etkinlik", 0, simdi)
     for x in s["maraton"]:
         eklenen += _yaz(conn, hb, "maraton", x["kid"], x["sinif"], x["toplam"],
                         f"Soru Maratonu: en iyi {x['adet']} turda {x['toplam']} puan", 1, simdi)
@@ -185,7 +177,7 @@ def _yaz(conn, hb, kategori, kid, sinif, deger, ayrinti, kahve, simdi) -> int:
 def kayitli(conn: sqlite3.Connection, hb: str) -> list[sqlite3.Row]:
     return conn.execute(
         "SELECT od.*, o.ad_soyad FROM odul od LEFT JOIN ogrenci o ON o.kullanici_id = od.kullanici_id"
-        " WHERE od.hafta_basi = ? ORDER BY od.kategori, od.id",
+        " WHERE od.hafta_basi = ? AND od.kategori != 'istikrar' ORDER BY od.kategori, od.id",
         (hb,),
     ).fetchall()
 
@@ -208,7 +200,7 @@ def kiosk_ogeleri(conn: sqlite3.Connection) -> list[dict]:
         s = siralama(conn, hafta_basi(simdi))
         baslik = "HAFTANIN ÇALIŞKANLARI (GEÇİCİ)"
         ek = " Sonuçlar pazartesi kesinleşir."
-        if not (s["etkinlik"] or s["istikrar"] or s["sinif"] or s["maraton"]):
+        if not (s["etkinlik"] or s["sinif"] or s["maraton"]):
             if gun != 4:
                 return []
             return [{"baslik": "HAFTALIK ÇALIŞMA ÖDÜLÜ", "metin": (
@@ -221,8 +213,6 @@ def kiosk_ogeleri(conn: sqlite3.Connection) -> list[dict]:
         s = {
             "etkinlik": [{"ad": kisa_ad(r["ad_soyad"] or ""), "sinif": r["sinif"], "etkinlik": r["deger"], "gun": 0, "dogru": 0, "r": r}
                          for r in k if r["kategori"] == "etkinlik"],
-            "istikrar": [{"ad": kisa_ad(r["ad_soyad"] or ""), "sinif": r["sinif"], "gun": r["deger"], "etkinlik": 0, "dogru": 0, "r": r}
-                         for r in k if r["kategori"] == "istikrar"],
             "maraton": [{"ad": kisa_ad(r["ad_soyad"] or ""), "sinif": r["sinif"], "toplam": r["deger"], "r": r}
                         for r in k if r["kategori"] == "maraton"],
             "sinif": [{"sinif": r["sinif"], "oran": r["deger"], "r": r} for r in k if r["kategori"] == "sinif"],
@@ -235,9 +225,6 @@ def kiosk_ogeleri(conn: sqlite3.Connection) -> list[dict]:
     if s["etkinlik"]:
         ogeler.append({"baslik": f"{baslik}: EN ÇOK ETKİNLİK", "metin":
                        _liste(s["etkinlik"], lambda x: f"{x['etkinlik']} etkinlik") + ". Nescafe kahve ödülü!" + ek})
-    if s["istikrar"]:
-        ogeler.append({"baslik": f"{baslik}: EN İSTİKRARLI", "metin":
-                       _liste(s["istikrar"], lambda x: f"{x['gun']} farklı gün") + "." + ek})
     if s["maraton"]:
         ogeler.append({"baslik": f"{baslik}: SORU MARATONU BİRİNCİSİ", "metin":
                        _liste(s["maraton"], lambda x: f"{x['toplam']} puan") + ". Nescafe kahve ödülü!" + ek})
@@ -251,7 +238,7 @@ def ogrenci_oduller(conn: sqlite3.Connection, ogrenci: sqlite3.Row) -> list[dict
     """Öğrencinin kendi (yalnızca kendi) ödülleri: bireysel kazandıkları + katıldığı haftada kazanan sınıfı. En yeniden eskiye."""
     liste = []
     for r in conn.execute(
-        "SELECT * FROM odul WHERE kullanici_id = ? OR (kullanici_id IS NULL AND sinif = ?) ORDER BY hafta_basi DESC, id",
+        "SELECT * FROM odul WHERE kategori != 'istikrar' AND (kullanici_id = ? OR (kullanici_id IS NULL AND sinif = ?)) ORDER BY hafta_basi DESC, id",
         (ogrenci["kullanici_id"], ogrenci["sinif"]),
     ):
         if r["kullanici_id"] is None:  # sınıf ödülü: yalnızca o hafta etkinlik yapan sınıf üyesine

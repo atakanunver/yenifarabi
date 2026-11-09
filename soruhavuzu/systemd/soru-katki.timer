@@ -1,0 +1,9 @@
+[Unit]
+Description=Öğretmen soru katkısı turu — 2 dakikada bir
+
+[Timer]
+OnBootSec=3min
+OnUnitInactiveSec=2min
+
+[Install]
+WantedBy=timers.target

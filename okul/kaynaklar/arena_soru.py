@@ -8,7 +8,7 @@ Postgres'e yazılmaz (soru_kullanim / kullanim_sayisi arena'nın alanları).
 import random
 
 from kaynaklar.kazanim import _baglan
-from kaynaklar.soru import _FILTRE
+from kaynaklar.soru import _FILTRE, GORSEL_YER
 
 _SUTUN = (
     "s.id, s.konu, s.soru, s.secenekler, s.dogru_index, s.kazanim_id, k.kod, k.metin"
@@ -16,7 +16,7 @@ _SUTUN = (
 _KAYNAK = "soru s LEFT JOIN kazanim k ON k.id = s.kazanim_id"
 _F = _FILTRE.replace("durum", "s.durum").replace("secenekler", "s.secenekler").replace(
     "dogru_index", "s.dogru_index"
-)
+).replace("= soru.id", "= s.id")  # takma ad varken "soru.id" geçersiz (görsel EXISTS alt sorgusu)
 
 
 def _satir(r) -> dict:
@@ -40,12 +40,16 @@ def sorular(
     gorulme: dict[int, int] | None = None,
     yasak: list[int] | None = None,
     kazanim_id: int | None = None,
+    metinli: bool = False,
 ) -> list[dict]:
     """n rastgele soru; önce görülmemişler, yetmezse en az görülenlerle tamamlanır. yasak: bildirimle gizlenenler.
-    kazanim_id verilirse yalnızca o kazanıma bağlı sorular (yetmezse eksik döner)."""
+    kazanim_id verilirse yalnızca o kazanıma bağlı sorular (yetmezse eksik döner).
+    metinli: görsel göstermeyen yerler (ödev) için yalnız görselden çözülen sorular hariç."""
     haric = list(haric_ids)
     yasak = list(yasak or []) or [0]
     kz_sql, kz_par = (" AND s.kazanim_id = %s", (kazanim_id,)) if kazanim_id is not None else ("", ())
+    if metinli:
+        kz_sql += f" AND s.soru <> '{GORSEL_YER}'"
     with _baglan() as c, c.cursor() as cur:
         cur.execute(
             f"SELECT {_SUTUN} FROM {_KAYNAK} WHERE s.sinif = %s AND s.ders = %s AND {_F}{kz_sql}"

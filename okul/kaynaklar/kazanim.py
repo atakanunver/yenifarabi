@@ -103,6 +103,7 @@ def havuz_sorulari(seviye: int, ders: str, limit: int = 40, yasak: list[int] | N
             "SELECT s.id, s.konu, s.soru, s.secenekler, s.dogru_index, k.kod, k.metin"
             " FROM soru s LEFT JOIN kazanim k ON k.id = s.kazanim_id"
             " WHERE s.durum = 'onayli' AND s.sinif = %s AND s.ders = %s AND s.id <> ALL(%s)"
+            " AND s.soru <> 'Soruyu görselden inceleyiniz.'"  # ödev görsel göstermez
             " ORDER BY s.konu, s.kullanim_sayisi, s.id DESC LIMIT %s",
             (seviye, ders, list(yasak or []) or [0], limit),
         )

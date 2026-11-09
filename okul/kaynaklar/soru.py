@@ -35,6 +35,7 @@ GORUNEN_AD = {
     "bilisim": "Bilişim",
 }
 
+GORSEL_YER = "Soruyu görselden inceleyiniz."  # yalnız görselden çözülen arşiv sorusunun metni
 _FILTRE = (
     "durum = 'onayli' AND secenekler IS NOT NULL AND dogru_index IS NOT NULL"
     " AND jsonb_array_length(secenekler) >= 2"
@@ -159,3 +160,19 @@ def getir_tam(idler: list[int]) -> dict[int, dict]:
     with _baglan() as c, c.cursor() as cur:
         cur.execute(f"SELECT {_SUTUN} FROM soru WHERE id = ANY(%s) AND secenekler IS NOT NULL", (list(idler),))
         return {r[0]: _satir(r) for r in cur.fetchall()}
+
+
+def onay_bekleyenler(ciftler: list[tuple[int, str]], n: int = 300) -> list[dict]:
+    """Öğretmen onayı bekleyen LLM şıklı katkı soruları ('askida', anahtar 'ogretmen-acik:…'); (sınıf, ders) çiftleriyle."""
+    if not ciftler:
+        return []
+    kosul = " OR ".join(["(s.sinif = %s AND s.ders = %s)"] * len(ciftler))
+    with _baglan() as c, c.cursor() as cur:
+        cur.execute(
+            "SELECT s.id, s.konu, s.soru, s.secenekler, s.dogru_index, s.kaynak, s.sinif, s.ders, b.metin"
+            " FROM soru s JOIN kaynak_birim b ON b.id = s.birim_id"
+            f" WHERE s.durum = 'askida' AND b.anahtar LIKE 'ogretmen-acik:%%' AND ({kosul})"
+            " ORDER BY s.sinif, s.ders, s.id LIMIT %s",
+            [x for c_ in ciftler for x in c_] + [n],
+        )
+        return [{**_satir(r), "sinif": r[6], "ders": r[7], "kaynak_metin": r[8]} for r in cur.fetchall()]

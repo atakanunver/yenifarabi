@@ -50,7 +50,7 @@ def genel(
         maraton_siniflarim=[d for d in maraton_tum if d["sinif"] in set(benim)],
         siniflar=oduller.sinif_ozetleri(conn, hb), gecici=oduller.siralama(conn, hb), kategoriler=oduller.KATEGORILER,
         onceki_hafta=onceki, onceki=oduller.kayitli(conn, onceki),
-        min_etkinlik=oduller.MIN_ETKINLIK, min_gun=oduller.MIN_GUN, min_katilan=oduller.MIN_KATILAN,
+        min_etkinlik=oduller.MIN_ETKINLIK, min_katilan=oduller.MIN_KATILAN,
     )
 
 

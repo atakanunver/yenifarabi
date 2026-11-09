@@ -26,7 +26,7 @@ def liste(request: Request, k=Depends(rol("yonetici")), conn: sqlite3.Connection
     gecici = oduller.siralama(conn, simdi)
     return render(
         request, "yonetici/oduller.html", haftalar=haftalar, gecici=gecici, bu_hafta=simdi, kategoriler=oduller.KATEGORILER,
-        min_etkinlik=oduller.MIN_ETKINLIK, min_gun=oduller.MIN_GUN, min_katilan=oduller.MIN_KATILAN,
+        min_etkinlik=oduller.MIN_ETKINLIK, min_katilan=oduller.MIN_KATILAN,
     )
 
 

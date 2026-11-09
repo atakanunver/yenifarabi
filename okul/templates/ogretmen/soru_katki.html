@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block baslik %}Soru havuzuna katkı · Dijital Okul{% endblock %}
+{% block icerik %}
+<p class="kucuk"><a href="/ogretmen">← Ana sayfa</a></p>
+<h1>Soru havuzuna katkı</h1>
+<p class="soluk">Cevap anahtarlı çoktan seçmeli sorularınız birkaç dakika içinde Maraton, Bilgi Arenası ve Sınıf Arenası havuzuna girer.</p>
+{% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+{% if request.query_params.get('m') == 'sirada' %}<div class="not" role="status">PDF sıraya alındı. Birkaç dakika içinde sonucu aşağıda görürsünüz.</div>{% endif %}
+
+{% if not secenekler %}
+<div class="kart bilgi"><p>Size soru havuzunda karşılığı olan bir ders atanmamış (9-11. sınıf).</p></div>
+{% else %}
+<form class="kart" method="post" action="/ogretmen/soru-katki" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="secim">Sınıf düzeyi ve ders</label>
+  <select id="secim" name="secim">
+    {% for s, d in secenekler %}<option value="{{ s }}|{{ d }}">{{ s }}. sınıf · {{ adlar.get(d, d) }}</option>{% endfor %}
+  </select>
+  <label for="baslik">Başlık <span class="soluk kucuk">(boşsa dosya adı; konu olarak da görünür)</span></label>
+  <input id="baslik" name="baslik" type="text" maxlength="120" placeholder="Hücre bölünmesi tarama testi">
+  <label for="dosya">PDF <span class="soluk kucuk">(metin seçilebilir olmalı, taranmış PDF okunamaz; en fazla 10 MB)</span></label>
+  <input id="dosya" name="dosya" type="file" required accept=".pdf,application/pdf">
+  <label for="cevap">Cevap anahtarı <span class="soluk kucuk">(boş bırakırsanız PDF'in sonundaki anahtar aranır)</span></label>
+  <textarea id="cevap" name="cevap" rows="3" placeholder="1-A 2-C 3-B 4-D …  ya da  ACBD…"></textarea>
+  <p class="kucuk soluk">Sorular 1, 2, 3 … diye numaralı, şıklar A) B) C) D) (E) biçiminde olmalı. Soru sayısı anahtarla tutmazsa hiçbir soru eklenmez, nedeni aşağıda yazar. Açık uçlu (şıksız) sorular için okul yönetimine başvurun.</p>
+  <label class="kucuk"><input type="checkbox" name="onay" value="1"> Bu soruları havuzda kullanma iznim var; PDF'te öğrenci/veli kişisel verisi yok.</label>
+  <div class="tuslar"><button class="tus">Havuza gönder →</button></div>
+</form>
+{% endif %}
+
+<section class="kart" id="katkilar">
+  <h2>Gönderdiklerim</h2>
+  <ul class="liste">
+  {% for kt in katkilar %}
+    <li class="satir"><span>{{ kt.baslik }}<br><span class="soluk kucuk">{{ kt.sinif }}. sınıf · {{ adlar.get(kt.ders, kt.ders) }} · {{ kt.zaman|tarih }}</span></span>
+      <span class="sag">
+      {% if kt.durum == 'bitti' %}<span class="etiket yesil">{{ kt.eklenen }} soru havuzda</span>
+      {% elif kt.durum == 'hata' %}<span class="etiket kirmizi">Eklenmedi</span>
+      {% else %}<span class="etiket sari">Sırada</span>{% endif %}
+      </span>
+      {% if kt.not_metni %}<span class="kucuk soluk" style="display:block;">{{ kt.not_metni }}</span>{% endif %}</li>
+  {% else %}
+    <li class="bos">Henüz soru göndermediniz.</li>
+  {% endfor %}
+  </ul>
+</section>
+
+{% if bekleyen_sayi %}
+<section id="onay">
+<h2>Onayınızı bekleyen sorular ({{ bekleyen_sayi }})</h2>
+<p class="soluk">Açık uçlu sorulardan yapay zekâ ile şıklandırıldı. Doğru şık ve çeldiriciler uygunsa onaylayın; onaylanan soru birkaç dakika içinde oyunlara girer.</p>
+{% for s in bekleyenler %}
+<section class="kart">
+  <p class="kucuk soluk">{{ s.sinif }}. sınıf · {{ adlar.get(s.ders, s.ders) }}{% if s.konu %} · {{ s.konu }}{% endif %}{% if s.kaynak %} · {{ s.kaynak }}{% endif %}</p>
+  <p>{{ s.soru }}</p>
+  <ul class="siklar-ozet">
+  {% for sk in s.secenekler %}
+    <li class="{{ 'dogru' if loop.index0 == s.dogru_index }}"><b>{{ 'ABCDEFGH'[loop.index0] }}</b> {{ sk }}{% if loop.index0 == s.dogru_index %} <span class="kucuk">(doğru cevap)</span>{% endif %}</li>
+  {% endfor %}
+  </ul>
+  <details class="kucuk"><summary>Özgün soru ve çözüm</summary><p style="white-space:pre-line;">{{ s.kaynak_metin }}</p></details>
+  <form method="post" action="/ogretmen/soru-katki/karar">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="soru_id" value="{{ s.id }}">
+    <div class="tuslar">
+      <button class="tus kucuk" name="karar" value="onay">✅ Onayla</button>
+      <button class="tus ikincil kucuk" name="karar" value="red">🚫 Reddet</button>
+    </div>
+  </form>
+</section>
+{% endfor %}
+</section>
+{% endif %}
+{% endblock %}

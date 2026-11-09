@@ -10,8 +10,9 @@ from kaynaklar import KaynakHatasi, arena_soru, kazanim
 def istemci(monkeypatch):
     cagrilar = []
 
-    def sorular(sinif, ders, haric, n=5, gorulme=None, yasak=None, kazanim_id=None):
-        cagrilar.append({"sinif": sinif, "ders": ders, "haric": list(haric), "n": n, "kazanim_id": kazanim_id})
+    def sorular(sinif, ders, haric, n=5, gorulme=None, yasak=None, kazanim_id=None, metinli=False):
+        cagrilar.append({"sinif": sinif, "ders": ders, "haric": list(haric), "n": n, "kazanim_id": kazanim_id,
+                         "metinli": metinli})
         taban = 100 * sinif + len(haric)
         return [{"id": taban + i, "konu": f"Konu{i}", "soru": f"S{taban + i}?", "secenekler": ["a", "b", "c", "d"],
                  "dogru_index": 2, "kazanim_id": None, "kazanim_kod": None, "kazanim_metin": None} for i in range(n)]
@@ -49,6 +50,7 @@ def test_form_ve_atama(istemci, ornek, conn, saat):
     assert (o["sinif"], o["ders"], o["tur"], o["ogretmen_id"]) == ("9-A", "matematik", "test", ornek["ogretmen"])
     assert o["teslim"] == "2026-10-13 23:59:00"
     assert conn.execute("SELECT count(*) FROM odev_soru WHERE odev_id = ?", (oid,)).fetchone()[0] == 5
+    assert istemci.cagrilar[-1]["metinli"] is True  # ödev görsel göstermez: görsel-yalnız soru seçilmez
     # öğrenci ödev listesinde görür
     giris(istemci, "101", "ali-sifre")
     assert "Hızlı etkinlik" in istemci.get("/ogrenci/odevler").text

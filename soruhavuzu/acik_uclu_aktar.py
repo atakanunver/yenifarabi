@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Öğretmenin gönderdiği açık uçlu (çözümlü) soru PDF'ini çoktan seçmeli havuz sorusuna çevirir.
 
 Adımlar (kökten, server venv'i):

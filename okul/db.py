@@ -932,11 +932,38 @@ CREATE UNIQUE INDEX ayirtma_acik ON ayirtma(kitap_id, ogrenci_id) WHERE durum IN
 CREATE UNIQUE INDEX ayirtma_hazir_nusha ON ayirtma(nusha_id) WHERE durum = 'hazir';
 """
 
+# Öğretmen soru katkısı (2026-11-07): cevap anahtarlı çoktan seçmeli PDF kuyruğu (soruhavuzu `katki` turu işler)
+# ve LLM ile şıklandırılmış 'askida' havuz sorularına öğretmen onayı (havuza soruhavuzu uygular; okul yazmaz).
+SEMA_V41 = """
+CREATE TABLE soru_katki (
+    id           INTEGER PRIMARY KEY,
+    ogretmen_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    sinif        INTEGER NOT NULL CHECK (sinif BETWEEN 9 AND 12),
+    ders         TEXT NOT NULL,
+    baslik       TEXT NOT NULL,
+    dosya_adi    TEXT NOT NULL,
+    depo_adi     TEXT NOT NULL,
+    cevap        TEXT NOT NULL DEFAULT '',
+    durum        TEXT NOT NULL DEFAULT 'bekliyor' CHECK (durum IN ('bekliyor', 'isleniyor', 'bitti', 'hata')),
+    eklenen      INTEGER NOT NULL DEFAULT 0,
+    not_metni    TEXT,
+    zaman        TEXT NOT NULL,
+    islem_zaman  TEXT
+);
+CREATE TABLE soru_katki_karar (
+    soru_id      INTEGER PRIMARY KEY,
+    ogretmen_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    karar        TEXT NOT NULL CHECK (karar IN ('onay', 'red')),
+    zaman        TEXT NOT NULL,
+    uygulandi    TEXT
+);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
     SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27, SEMA_V28, SEMA_V29, SEMA_V30, SEMA_V31, SEMA_V32, SEMA_V33, SEMA_V34,
-    SEMA_V35, SEMA_V36, SEMA_V37, SEMA_V38, SEMA_V39, SEMA_V40,
+    SEMA_V35, SEMA_V36, SEMA_V37, SEMA_V38, SEMA_V39, SEMA_V40, SEMA_V41,
 ]
 
 

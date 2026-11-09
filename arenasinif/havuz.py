@@ -11,6 +11,8 @@ import turkce
 
 log = logging.getLogger("arena.havuz")
 SUTUNLAR = "id, konu, zorluk, soru, kisa_cevap, secenekler, dogru_index, kaynak"
+# Yalnız görselden çözülen arşiv soruları (metni yer tutucu, şıkları "A seçeneği") tahtada gösterilemez.
+TAHTADA = "soru <> 'Soruyu görselden inceleyiniz.'"
 RENKLER = [
     ("from-blue-600 to-indigo-600", "text-blue-400 bg-blue-500/20 border-blue-500/40"),
     (
@@ -79,7 +81,7 @@ def _cek(ders, sinif, konu, sorgu, limit=400, sube: str = ""):
     if temiz_sube:
         # Aynı sınıfta daha önce sorulmuş sorular en sona (1) atılır, sorulmamışlar önce (0) gelir
         sql = (
-            f"SELECT {SUTUNLAR} FROM soru WHERE durum = 'onayli' AND ders = %s AND sinif = %s "
+            f"SELECT {SUTUNLAR} FROM soru WHERE durum = 'onayli' AND {TAHTADA} AND ders = %s AND sinif = %s "
             + ("AND konu ILIKE %s " if konu else "")
             + "ORDER BY CASE WHEN id IN (SELECT soru_id FROM soru_kullanim WHERE sube = %s) THEN 1 ELSE 0 END, "
             + "kullanim_sayisi, random() LIMIT %s"
@@ -87,7 +89,7 @@ def _cek(ders, sinif, konu, sorgu, limit=400, sube: str = ""):
         p = (temiz_ders, sinif) + ((f"%{konu}%",) if konu else ()) + (temiz_sube, limit)
     else:
         sql = (
-            f"SELECT {SUTUNLAR} FROM soru WHERE durum = 'onayli' AND ders = %s AND sinif = %s "
+            f"SELECT {SUTUNLAR} FROM soru WHERE durum = 'onayli' AND {TAHTADA} AND ders = %s AND sinif = %s "
             + ("AND konu ILIKE %s " if konu else "")
             + "ORDER BY kullanim_sayisi, random() LIMIT %s"
         )
@@ -232,7 +234,7 @@ def sube_soru_istatistikleri(sube: str, ders: str = "", sinif: int = 0) -> dict:
         with psycopg2.connect(
             host="127.0.0.1", dbname="soru_havuzu", user="farabi", connect_timeout=3
         ) as c, c.cursor() as cur:
-            kosullar = ["s.durum = 'onayli'"]
+            kosullar = ["s.durum = 'onayli'", "s." + TAHTADA]
             param = []
             if temiz_ders:
                 kosullar.append("s.ders = %s")

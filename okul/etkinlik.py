@@ -66,7 +66,7 @@ def hizli_ata(
         return onceki["id"]
     seviye = int(sinif.split("-", 1)[0])
     ek = {"kazanim_id": kazanim["id"]} if kazanim else {}
-    sorular = arena_soru.sorular(seviye, havuz_ders, _atanmis_idler(conn, sinif), adet, yasak=soru_bildirim.gizli_idler(conn), **ek)
+    sorular = arena_soru.sorular(seviye, havuz_ders, _atanmis_idler(conn, sinif), adet, yasak=soru_bildirim.gizli_idler(conn), metinli=True, **ek)
     if len(sorular) < adet:
         raise EtkinlikHatasi(
             "Bu kazanım için havuzda yeterli onaylı soru yok." if kazanim else "Bu ders için havuzda yeterli onaylı soru yok."
