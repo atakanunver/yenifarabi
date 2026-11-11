@@ -14,10 +14,9 @@ PANO = (Path(__file__).parent / "templates" / "pano.html").read_text(encoding="u
 
 
 class TestUyariSeridi(unittest.TestCase):
-    def test_serit_ve_baglantisi_sablonda(self):
-        self.assertIn('id="uyari-seridi"', PANO)
-        self.assertIn('href="/sistem-durumu"', PANO)
-        self.assertIn("uyariSeriti(veri.satirlar", PANO)
+    def test_serit_sablonda_yok(self):  # 2026-11-11 Atakan: yalnız yoklama ızgarası
+        self.assertNotIn('id="uyari-seridi"', PANO)
+        self.assertIn("sorunluSatirlariUsteAl(veri.satirlar", PANO)
 
     def test_acilista_sunucu_durumu_cekilmez(self):  # 2026-10-03 kararı
         self.assertNotIn("/api/sistem-durumu", PANO)

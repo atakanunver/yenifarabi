@@ -33,10 +33,8 @@ class TestPanoSablon(unittest.TestCase):
     def setUp(self):
         self.html = _render()
 
-    def test_uyari_seridi_izgaranin_ustunde(self):
-        self.assertIn('id="uyari-seridi"', self.html)
-        self.assertLess(self.html.index('id="uyari-seridi"'), self.html.index('id="pano-tablo"'))
-        self.assertRegex(self.html, r'<section class="serit serit-bilgi[^"]*" id="uyari-seridi"')
+    def test_uyari_seridi_yok(self):  # 2026-11-11 Atakan: yalnız yoklama ızgarası
+        self.assertNotIn('id="uyari-seridi"', self.html)
 
     def test_uzun_isim_listesi_hucrede_metin(self):
         # Review Focus 1: devamsız isimler çerçevesiz metin, hücrede aşağı sarar; yatay taşma yok
@@ -52,12 +50,6 @@ class TestPanoSablon(unittest.TestCase):
 
     def test_kpi_ilk_ekrani_doldurmaz(self):
         self.assertNotIn("pano-ozet", self.html)
-        bas = self.html.index('<header class="sayfa-basligi">')
-        baslik = self.html[bas:self.html.index("</header>", bas)]
-        s_bas = self.html.index('id="uyari-seridi"')
-        serit = self.html[s_bas:self.html.index("</section>", s_bas)]
-        for kimlik in ("ozet-toplam-sinif", "ozet-tam-ders", "ozet-devamsiz", "ozet-bekleyen-ders"):
-            self.assertTrue(f'id="{kimlik}"' in baslik or f'id="{kimlik}"' in serit, kimlik)
 
     def test_baslik_bugun_gun_tarih(self):
         h1 = re.search(r"<h1>(.*?)</h1>", self.html, re.DOTALL).group(1)
@@ -71,8 +63,8 @@ class TestPanoSablon(unittest.TestCase):
     def test_degismeyenler_korunur(self):
         for parca in ('id="tarih-secici"', 'id="simdi-yenile"', 'id="son-guncelleme"', 'id="acil-serit"',
                       'id="hucre-9-A-1"', 'data-tahta-id="5"', 'data-sinif="9-A"', 'data-ders-no="1"',
-                      "/api/tahta/${hucre.dataset.tahtaId}/baslat", "Tahtada aç", "const ILK_DURUM",
-                      "function dersEtiketi", "/api/acil/durum", 'href="/sistem-durumu"'):
+                      "/api/tahta/${hucre.dataset.tahtaId}/baslat", "const ILK_DURUM",
+                      "function dersEtiketi", "/api/acil/durum"):
             self.assertIn(parca, self.html, parca)
         # Acil düğmesi kabukta; sayfada büyük harf yok
         self.assertNotIn("pano-acil-dugme", self.html)
