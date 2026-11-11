@@ -966,6 +966,7 @@ label.pano-tarih {
 .gorsel-ipuclari { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: var(--bosluk-3); max-width: 64rem; }
 .gorsel-ipuclari article { min-width: 0; padding: var(--bosluk-3) var(--bosluk-4); background: var(--renk-yuzey); border: 1px solid var(--renk-kenar); border-radius: var(--yaricap); }
 .gorsel-ipuclari h3 { margin: 0 0 var(--bosluk-1); font-size: var(--punto-govde); }
+.gorsel-ipuclari h3 small { font-weight: normal; color: var(--renk-metin-soluk); }
 .gorsel-ipuclari p { margin: 0 0 var(--bosluk-2); font-size: var(--punto-kucuk); line-height: 1.5; color: var(--renk-metin-soluk); }
 .gorsel-ipuclari .gorsel-ornek { margin-bottom: 0; color: var(--renk-metin); }
 .gorsel-kutucuk {
