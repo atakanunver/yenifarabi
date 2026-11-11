@@ -358,6 +358,7 @@ def yayin_json(uygula: bool) -> Say:
 
     say = Say()
     klasor = G.veri_dizini()
+    yazildi = False
     for ad, uret in G.DOSYALAR.items():
         yeni = uret().encode("utf-8")
         hedef = klasor / ad
@@ -371,6 +372,13 @@ def yayin_json(uygula: bool) -> Say:
             gecici = klasor / (ad + ".yeni")
             gecici.write_bytes(yeni)
             os.replace(gecici, hedef)
+            yazildi = True
+    if yazildi:  # dashboard bu dosyaları lru_cache'ler; restart beklemesin
+        import ders_programi
+        import zil
+
+        zil.yenile()
+        ders_programi.yenile()
     return say
 
 

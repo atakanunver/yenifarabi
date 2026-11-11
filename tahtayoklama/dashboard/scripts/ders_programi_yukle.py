@@ -210,8 +210,12 @@ def markdown_uret(siniflar: dict[str, dict[str, dict[str, str]]]) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--eski-kaynak", action="store_true", help="ESKİ (2026-10-24'ten beri tek kaynak okul_ana): yine de çalıştır.")
     parser.add_argument("--pdf", type=Path, default=VARSAYILAN_PDF_YOLU, help=f"Kaynak PDF (varsayılan: {VARSAYILAN_PDF_YOLU})")
     args = parser.parse_args()
+    if not args.eski_kaynak:
+        parser.exit(2, "ESKİ: zil/ders programının tek kaynağı okul_ana (panel /admin/okul-verisi → Yayınla).\n"
+                       "Bu betik okul_ana çıktısını ezer; yine de gerekiyorsa --eski-kaynak ile çalıştır.\n")
 
     if not args.pdf.exists():
         raise SystemExit(f"HATA: {args.pdf} bulunamadı.")

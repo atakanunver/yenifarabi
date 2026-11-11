@@ -21,18 +21,22 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 def yoklama_al(parameters: dict | None = None, player=None, speak=None, **_) -> str:
     log = getattr(player, "write_log", None) or (lambda *_a: None)
 
-    yoklama_yolu = BASE_DIR.parent / "tahtayoklama" / "yoklama.py"
-    if not yoklama_yolu.exists():
-        log(f"[Yoklama Al] Yoklama scripti bulunamadı: {yoklama_yolu}")
+    # 9-A tam klon: <repo>/tahtayoklama; diğer tahtalar sparse-checkout: ~/tahtayoklama
+    adaylar = [BASE_DIR.parent / "tahtayoklama", Path.home() / "tahtayoklama"]
+    klasor = next((k for k in adaylar if (k / "yoklama.py").exists()), None)
+    if klasor is None:
+        log(f"[Yoklama Al] Yoklama scripti bulunamadı: {[str(k) for k in adaylar]}")
         return "Yoklama programı bulunamadı, efendim."
+    yoklama_yolu = klasor / "yoklama.py"
+    # Kendi venv'i varsa onu kullan (9-A dışı); yoksa Farabi venv'i (PyQt6 var).
+    python = klasor / "venv" / "bin" / "python"
+    python = str(python) if python.exists() else sys.executable
 
     log("[Yoklama Al] Harici yoklama programı başlatılıyor…")
     try:
-        # sys.executable Farabi'nin kendi venv python'ını gösterir (PyQt6
-        # yüklüdür, tahtayoklama aynı venv'i paylaşıyor — bkz. CLAUDE.md).
         # Arka planda, non-blocking — sonucu okumuyoruz, yalnızca açıyoruz.
         subprocess.Popen(
-            [sys.executable, str(yoklama_yolu)],
+            [python, str(yoklama_yolu)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )

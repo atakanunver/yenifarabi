@@ -538,3 +538,16 @@ def test_gonderim_kayitlari_liste_detay_tekrar(ortam):
     assert aa.gonderim_tekrar("gA")["alici_sayisi"] == 1
     assert giden[0] == [("Veli", "5554445566", "Merhaba")]
     assert _kod(aa.gonderim_tekrar, "yok") == 404
+
+
+def test_taslak_ikinci_sahiplenme_404_ve_sinira_sayilir(ortam):
+    """Eşzamanlı ikinci onay: SELECT ikisinde de 'taslak' görse bile tek UPDATE kazanır."""
+    _veli_ekle(["05551112233"])
+    tid = _taslak()["taslak_id"]
+    conn = db.baglanti()
+    try:
+        aa._sahiplen(conn, "veli_taslaklari", tid)
+        assert _kod(aa._sahiplen, conn, "veli_taslaklari", tid) == 404
+        assert aa._bugun_giden(conn) == 1  # 'gonderiliyor' günlük sınıra sayılır
+    finally:
+        conn.close()

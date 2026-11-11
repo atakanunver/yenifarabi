@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS veli_taslaklari (
     metin TEXT NOT NULL,
     alici_sayisi INTEGER NOT NULL,
     olusturma TEXT NOT NULL,        -- TR yerel saat
-    durum TEXT NOT NULL DEFAULT 'taslak',    -- taslak|gonderildi
+    durum TEXT NOT NULL DEFAULT 'taslak',    -- taslak|gonderiliyor|gonderildi
     gonderim_id TEXT,
     tur TEXT NOT NULL DEFAULT 'veli',        -- veli|ogrenci (alıcı türü)
     test_telefon TEXT                        -- doluysa sınıf yerine yalnızca bu numara
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS kisisel_taslaklari (
     ogeler TEXT NOT NULL,           -- JSON: [{okul_no, metin_sablon}]
     alici_sayisi INTEGER NOT NULL,
     olusturma TEXT NOT NULL,        -- TR yerel saat
-    durum TEXT NOT NULL DEFAULT 'taslak',    -- taslak|gonderildi
+    durum TEXT NOT NULL DEFAULT 'taslak',    -- taslak|gonderiliyor|gonderildi
     gonderim_id TEXT,
     test_telefon TEXT,
     kime TEXT NOT NULL DEFAULT 'hepsi'       -- hepsi|veli|ogrenci
@@ -434,9 +434,23 @@ def _bugun_giden(conn) -> int:
     bugun = simdi().strftime("%Y-%m-%d")
     return conn.execute(
         "SELECT COALESCE(SUM(alici_sayisi), 0) FROM veli_taslaklari"
-        " WHERE durum = 'gonderildi' AND test_telefon IS NULL AND olusturma LIKE ?",
+        " WHERE durum IN ('gonderiliyor', 'gonderildi') AND test_telefon IS NULL AND olusturma LIKE ?",
         (bugun + "%",),
     ).fetchone()[0]
+
+
+def _sahiplen(conn, tablo: str, taslak_id: str) -> None:
+    """taslak → gonderiliyor, tek UPDATE ile: eşzamanlı ikinci onay 404 alır."""
+    cur = conn.execute(
+        f"UPDATE {tablo} SET durum = 'gonderiliyor' WHERE id = ? AND durum = 'taslak'",
+        (taslak_id,),
+    )
+    conn.commit()
+    if cur.rowcount != 1:
+        raise HTTPException(
+            status_code=404,
+            detail="Gönderilmemiş böyle bir taslak yok; yeni taslak oluştur.",
+        )
 
 
 def _taslak_gonder(taslak_id: str, tur: str, onay_sayisi: int | None = None) -> dict:
@@ -476,6 +490,7 @@ def _taslak_gonder(taslak_id: str, tur: str, onay_sayisi: int | None = None) -> 
                     "gönderildi. Yarın dene ya da yönetici sınırı değiştirsin."
                 ),
             )
+        _sahiplen(conn, "veli_taslaklari", t["id"])
         gid = gonder([(ad, tel, t["metin"]) for ad, tel in alicilar])
         conn.execute(
             "UPDATE veli_taslaklari SET durum = 'gonderildi', gonderim_id = ? WHERE id = ?",
@@ -669,6 +684,7 @@ def kisisel_gonder(istek: KisiselGonderIstek):
         liste, _, _ = _kisisel_alicilar(conn, json.loads(t["ogeler"]), t["test_telefon"], t["kime"])
         if not liste:
             raise HTTPException(status_code=404, detail="Alıcı kalmadı.")
+        _sahiplen(conn, "kisisel_taslaklari", t["id"])
         gid = gonder([(ad, tel, metin) for _, ad, tel, metin in liste])
         conn.execute(
             "UPDATE kisisel_taslaklari SET durum = 'gonderildi', gonderim_id = ? WHERE id = ?",

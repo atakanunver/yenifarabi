@@ -22,7 +22,7 @@ Okul idaresinin öğrenci/veli/personele toplu ve kişiselleştirilmiş SMS gön
 Farabi :8020 (FastAPI) --HTTP proxy (8080)--> Müdür PC WifiHttpProxy.exe --> Huawei modem 192.168.8.1:80
 ```
 - Farabi modeme gerçek IP'siyle (`config/modem.json::modem_ip`) konuşur, proxy yalnız taşır (`proxy_host/port/user/pass`). Eski `host`/`port` alanları okunmaz.
-- ⚠️ `WifiHttpProxy.exe` Müdür PC'de servis DEĞİL, elle çalıştırılan batch+exe; PC yeniden başlarsa kendiliğinden kalkmaz (kalıcılaştırılmadı).
+- Müdür PC'de proxy Windows servisi `WifiHttpProxySvc` (otomatik başlar; 2026-11-11 doğrulandı). Müdür PC kapalıysa SMS durur.
 - **Kasıtlı bağımsız:** `tahtayoklama/dashboard` ile kod/DB paylaşımı yok; `auth.py`/`db.py` dashboard'dakilerin satır satır bağımsız kopyasıdır (biri değişince diğeri güncellenmez, bilinçli). Bağ: pano menü linkleri + HMAC SSO (`/sms-git`, `/dogum`, `/otomasyon-git` -> `/sso?t=..&s=..`, token 30 sn, anahtar `config/sso.json`).
 - **TEK İSTİSNA:** `yoklama_kaynak.py` panonun `tahtayoklama/dashboard/veri/yoklama_pano.db`'sini `mode=ro` doğrudan okur (kullanıcılar: `yoklama_mantik.py` ve `otomasyon.py`). Panonun şemasını bilen tek modül; HTTP+HMAC'e geçilirse yalnız `gunun_satirlari` gövdesi değişir. ⚠️ Panonun `yoklama_onbellek` şeması değişirse sessizce kırılır; `test_yoklama_mantik.py::_PANO_SEMA` o şemanın kopyası, birlikte güncelle.
 - `db.py`: SQLite `veri/smssistemi.db`. `baglanti()` her çağrıda yeni bağlantı (WAL); her route kendi bağlantısını açıp `finally`'de kapatır, paylaşılmaz. Tablolar: `gonderimler` (`gonderim_id` ile gruplu), `oturumlar`, `siniflar` (9-A..12-B), `kisiler`, `ayarlar`, `otomasyon_kurallari`; `veli_taslaklari`, `kisisel_taslaklari` `arac_api.py`'de oluşturulur.

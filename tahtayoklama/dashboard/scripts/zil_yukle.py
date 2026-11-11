@@ -166,10 +166,14 @@ async def _dagit(tahtalar: dict[str, dict]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--eski-kaynak", action="store_true", help="ESKİ (2026-10-24'ten beri tek kaynak okul_ana): yine de çalıştır.")
     parser.add_argument("--saatler", type=Path, help="VARSAYILAN_SAATLER yerine kullanılacak [[no,baslangic,bitis],...] JSON dosyası.")
     parser.add_argument("--tahta", help="Yalnızca bu tahtaya dağıt (server/tahtalar.json'daki ad).")
     parser.add_argument("--no-dagit", action="store_true", help="Yalnızca data/zil.json'u üret/doğrula, tahtalara yazma.")
     args = parser.parse_args()
+    if not args.eski_kaynak:
+        parser.exit(2, "ESKİ: zil/ders programının tek kaynağı okul_ana (panel /admin/okul-verisi → Yayınla).\n"
+                       "Bu betik okul_ana çıktısını ezer; yine de gerekiyorsa --eski-kaynak ile çalıştır.\n")
 
     if args.saatler:
         ham = json.loads(args.saatler.read_text(encoding="utf-8"))

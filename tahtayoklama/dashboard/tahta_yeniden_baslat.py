@@ -11,6 +11,7 @@ stderr/stdout/IP asla dönmez.
 
 import time
 from datetime import datetime
+from datetime import time as dtime
 
 import ssh_istemci
 import zil
@@ -40,7 +41,10 @@ def ders_saatinde_mi(simdi: datetime | None = None) -> bool:
         simdi = simdi.astimezone(zil.ISTANBUL)
     ilk = zil.ilk_ders_saati()
     son = zil.son_ders_bitis_saati()
-    if ilk is None or son is None or not zil.okul_gunu_mu(simdi.date()):
+    if ilk is None or son is None:
+        # zil.json'da ders yok/bozuk: reboot'a izin verme, hafta içi 08:00-17:00 ders say
+        return simdi.weekday() < 5 and dtime(8) <= simdi.time() < dtime(17)
+    if not zil.okul_gunu_mu(simdi.date()):
         return False
     return ilk <= simdi.time().replace(second=0, microsecond=0) < son
 

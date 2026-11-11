@@ -71,7 +71,7 @@ sudo systemctl restart farabi-yoklama-dashboard.service   # YALNIZ ders saatleri
 - Yeniden başlatma: okul saatinde 409 (`ders_saatinde_mi`: ders günü ilk ders başı – son ders sonu, teneffüs/öğle DAHİL); tahta başına 120 sn bekleme (`BEKLEME_SN`). Tahtada `etapadmin` + `sudo -n /usr/bin/systemctl reboot`.
 
 ## Tahta envanteri ve atama
-- Esas kaynak `server/tahtalar.json` (IP DHCP ile değişir; hostname/MAC esas). Tahtalar: 9-A, 9-B, 10-A, 11-A, 11-B, 12-A, 12-B, fenlab; sınıf olmayan: tahta-234/235/236.
+- Esas kaynak `server/tahtalar.json` (IP DHCP ile değişir; hostname/MAC esas). Tahtalar: 9-A, 9-B, 10-A, 11-A, 11-B, 12-A, 12-B, fenlab, sporodasi; sınıf olmayan: fenlab, sporodasi, tahta-234/235/236.
 - **IP değişirse sessizce `tahta_ulasilamaz` birikir.** Güncellenecek yerler: `server/tahtalar.json`, dashboard `tahtalar` tablosu, `docs/runbook.md`.
 - `network.txt` ikincil, sapabilir; şüphede `tahtalar.json` + canlı doğrulama.
 - Atama tablosu `/admin/siniflar`'da (`admin._siniflar_sayfasi`). "Yükle" dışında atama yalnız dashboard SQLite'ını değiştirir; tahtaya dosya yazan TEK yol "Yükle" (`admin.py::_tahtaya_roster_gonder`, eski roster dosyalarını siler).

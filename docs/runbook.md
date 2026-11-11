@@ -17,12 +17,13 @@ buraya şifre yazılmaz.
    hedef listesi), 8'in **7'si** sınıf, 8.'si `fenlab`. Kalan 2 tahta
    (`.234`, `.236`) `server/tahtalar.json`'da `tahta-NNN` geçici
    adıyla kayıtlı, sınıfı atanmamış, client kurulu değil. Eski 9-B (`.239`,
-   MAC `…:5c:a9`) 2026-10-14'te söküldü; yerine `.235`'teki tahta 9-B oldu. Kurulum tarihleri
+   MAC `…:5c:a9`) 2026-10-14'te söküldü; yerine `.235`'teki tahta 9-B oldu. Eski 9-B donanımı 2026-10-18'den
+   beri spor odasında `sporodasi` (`.239`, sınıfsız). Kurulum tarihleri
    ve ayrıntıları DECISIONS.md'de.
 
    | Sınıf/Ad | IP             | Hostname  | Yoklama | Farabi client |
    |----------|----------------|-----------|---------|---------------|
-   | 9-A      | 192.168.23.245 | vestel9a  | evet (Farabi client venv'ini paylaşır) | evet (pilot; tam klon yapısı `~/farabi/repo`) |
+   | 9-A      | 192.168.23.249 | vestel9a  | evet (Farabi client venv'ini paylaşır) | evet (pilot; tam klon yapısı `~/farabi/repo`) |
    | 9-B      | 192.168.23.235 | vestel9b  | evet | evet (2026-10-14 tahta değişti, eski .239) |
    | 10-A     | 192.168.23.242 | vestel10a | evet | evet |
    | 11-A     | 192.168.23.228 | vestel11a | evet | evet |
@@ -30,6 +31,7 @@ buraya şifre yazılmaz.
    | 12-A     | 192.168.23.226 | vestel12a | evet | evet |
    | 12-B     | 192.168.23.240 | vestel12b | evet | evet |
    | fenlab   | 192.168.23.244 | fenlab    | evet (7 sınıfın rosterı birden; dashboard'da sınıf atanmamış) | evet |
+   | sporodasi | 192.168.23.239 | sporodasi | sınıfsız (fenlab gibi ortak; dashboard'da `sinif_id` NULL) | doğrulanmadı |
 
    ⚠️ **fenlab'ın `derslik` değeri `"fenlab"`** — Farabi sınıf düzeyini
    `derslik`ten çıkarıyor (`10-A` → 10. sınıf); `"fenlab"` bir düzeye
@@ -44,10 +46,10 @@ buraya şifre yazılmaz.
    `server/tahtalar.json` esas).
 
 2. **Kapıdaki yüz tanıma sistemi** (giriş yoklaması kiosk PC'si,
-   `192.168.23.254`, Debian 12) — bu repodaki hiçbir projeye BAĞLI DEĞİL,
+   `kiosk.local`, Debian 12) — bu repodaki hiçbir projeye BAĞLI DEĞİL,
    yalnızca envanter notu.
 
-3. **Farabi sunucu** (bu makine, `ata@farabi.local` / `192.168.23.252`,
+3. **Farabi sunucu** (bu makine, `ata@farabi.local` / `192.168.23.20` statik,
    Ubuntu 26.04, Ryzen 9 3900X, 2× RTX 3060, 64 GB RAM, sudo NOPASSWD) —
    tüm servisler burada, tahtalara buradan SSH ile bağlanılıyor.
 

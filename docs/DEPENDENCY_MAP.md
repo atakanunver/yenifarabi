@@ -1,5 +1,11 @@
 # BAĞIMLILIK HARİTASI (DEPENDENCY MAP)
 
+> ⚠️ **DOĞRULANMAMIŞ — LLM üretimi (2026-10-29 toplu belge seti).** 2026-11-11 kod kontrolünde bu setteki belgelerin
+> var olmayan dosyalara (`smssistemi/netgsm.py`, `server/services/stt_service.py`, `okul/rotalar/notlar.py`,
+> `tahtayoklama/ziller/zil.py`) ve projede olmayan teknolojilere (Netgsm, go2rtc, Whisper, Nginx, Flask, `/home/pi`)
+> atıf yaptığı görüldü. Kaynak değildir; bir bulguya göre iş yapmadan önce kodda doğrula. Esas: kök `AGENTS.md`,
+> `docs/mimari.md`, `docs/runbook.md`, `DECISIONS.md`.
+
 > **Belge Sürümü:** 1.0.0  
 > **Tarih:** 29 Ekim 2026  
 > **Kapsam:** Depo içi modül bağımlılıkları, kütüphaneler, harici servisler ve veri kaynakları haritası
