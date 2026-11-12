@@ -66,7 +66,8 @@ ALANLAR: list[dict] = [
             {"ad": "Kulüp yoklaması", "href": "/kulup-yoklama", "ikon": "kullanicilar"},
             {"ad": "3D Okul Menüsü", "href": "http://192.168.23.20:8095/", "ikon": "tahta", "yeni_sekme": True},
             {"ad": "Görsel Oluşturma Paneli", "href": "/gorsel", "ikon": "resim"},
-            {"ad": "Nöbetçiyi çağır", "href": "#", "eylem": "nobetci-cagir", "ikon": "zil"},
+            {"ad": "Nöbetçiyi Müdüre Çağır", "href": "#", "eylem": "nobetci-cagir:mudur", "ikon": "zil"},
+            {"ad": "Nöbetçiyi Müdür Yardımcısına Çağır", "href": "#", "eylem": "nobetci-cagir:yardimci", "ikon": "zil"},
         ],
     },
     {

@@ -981,3 +981,11 @@ label.pano-tarih {
 .gorsel-onizleme img, .gorsel-secili { cursor: zoom-in; }
 .gorsel-onizleme img:focus-visible, .gorsel-secili:focus-visible { outline: 2px solid var(--renk-birincil); outline-offset: 2px; }
 .gorsel-onizleme img:fullscreen, .gorsel-secili:fullscreen { width: 100vw; max-width: none; height: 100vh; object-fit: contain; border-radius: 0; cursor: zoom-out; }
+
+/* Nöbetçi çağrı düğmeleri: alt alta, düz dikdörtgen vurgu, tek satır */
+.menu-eylem[data-eylem^="nobetci-cagir:"] {
+  border: 1px solid var(--renk-birincil); border-radius: 0; background: var(--renk-birincil-zemin);
+  color: var(--renk-birincil); font-size: 0.7rem; font-weight: 600; white-space: nowrap; padding-inline: 0.4rem;
+}
+.menu-eylem[data-eylem^="nobetci-cagir:"]:hover { background: var(--renk-birincil); color: var(--renk-zemin); }
+.menu-eylem[data-eylem^="nobetci-cagir:"] .sol-metin { overflow: hidden; text-overflow: clip; }

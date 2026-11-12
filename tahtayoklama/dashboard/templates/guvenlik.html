@@ -229,6 +229,10 @@ function bip() {
 }
 
 const nobetciPopup = $("nobetci-popup");
+const NOBETCI_SESLERI = {
+  "Nöbetçi Müdür Odasına Gidin Lütfen": "nobetci-mudur.wav",
+  "Nöbetçi Müdür Yardımcısı Odasına Gidin Lütfen": "nobetci-yardimci.wav",
+};
 $("nobetci-kapat").addEventListener("click", () => nobetciPopup.close());
 let sonNobetciCagrisi = Number(oku("guvenlik_son_nobetci_cagrisi") || 0);
 function nobetciCagrisiGoster(cagri) {
@@ -238,7 +242,11 @@ function nobetciCagrisiGoster(cagri) {
   $("nobetci-mesaj").textContent = cagri.mesaj;
   nobetciPopup.showModal();
   bip();
-  if ("speechSynthesis" in window) {
+  const kayit = NOBETCI_SESLERI[cagri.mesaj];
+  if (kayit) {
+    // Bilgehan TTS ile bir kez üretilmiş kayıt (static/ses/)
+    new Audio("/static/ses/" + kayit).play().catch(() => {});
+  } else if ("speechSynthesis" in window) {
     const ses = new SpeechSynthesisUtterance(cagri.mesaj);
     ses.lang = "tr-TR";
     window.speechSynthesis.cancel();

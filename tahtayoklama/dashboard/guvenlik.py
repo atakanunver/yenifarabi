@@ -41,6 +41,10 @@ OTURUM_SN = (
     60 * 60
 )  # görevli kalkınca başkası kullanamasın: girişten 1 saat sonra şifre tekrar sorulur
 ALARMLAR = ("kilit", "tahliye", "yangin", "deprem")
+NOBETCI_HEDEFLERI = {
+    "mudur": "Nöbetçi Müdür Odasına Gidin Lütfen",
+    "yardimci": "Nöbetçi Müdür Yardımcısı Odasına Gidin Lütfen",
+}
 NEDENLER = {
     "supheli": "Şüpheli kişi / araç",
     "kavga": "Kavga / kargaşa",
@@ -205,13 +209,19 @@ async def durum(request: Request):
 @router.post("/api/guvenlik/nobetci-cagir")
 async def nobetci_cagir(request: Request):
     """Yalnız dashboard yönetici oturumu çağrı oluşturabilir."""
+    try:
+        hedef = (await request.json()).get("hedef")
+    except ValueError:
+        hedef = None
+    if hedef not in NOBETCI_HEDEFLERI:
+        raise HTTPException(400, "Geçersiz nöbetçi hedefi.")
     conn = db.baglanti()
     try:
         if not auth.dogrula(request, conn):
             raise HTTPException(401, "Yönetici oturumu geçersiz.")
         conn.execute("DELETE FROM nobetci_cagrisi WHERE olusturma < datetime('now', '-7 days')")
         cur = conn.execute(
-            "INSERT INTO nobetci_cagrisi (mesaj) VALUES (?)", ("Nöbetçi İdare Odasına",)
+            "INSERT INTO nobetci_cagrisi (mesaj) VALUES (?)", (NOBETCI_HEDEFLERI[hedef],)
         )
         conn.commit()
         cagri_id = cur.lastrowid

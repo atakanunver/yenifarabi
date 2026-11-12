@@ -20,10 +20,14 @@
   window.farabiToast = toast;
 
   document.addEventListener('click', function (e) {
-    var dugme = e.target.closest('[data-eylem="nobetci-cagir"]');
+    var dugme = e.target.closest('[data-eylem^="nobetci-cagir:"]');
     if (!dugme || dugme.disabled) return;
     dugme.disabled = true;
-    fetch('/api/guvenlik/nobetci-cagir', { method: 'POST' })
+    fetch('/api/guvenlik/nobetci-cagir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hedef: dugme.dataset.eylem.split(':')[1] })
+    })
       .then(function (r) {
         if (r.status === 401) { window.location.href = '/giris'; throw new Error('Oturum süresi dolmuş.'); }
         if (!r.ok) throw new Error('Çağrı gönderilemedi.');
