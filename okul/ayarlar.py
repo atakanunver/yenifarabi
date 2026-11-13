@@ -12,6 +12,7 @@ FARABI = KOK.parent
 class Ayarlar:
     db_yolu: Path = KOK / "veri" / "okul.db"
     dosya_dizini: Path = KOK / "veri" / "dosyalar"  # foto/plan — static DEĞİL, yetkili rotalardan sunulur
+    rapor_yolu: Path = KOK / "veri" / "analitik_rapor.json"  # yapay zekâ kullanım raporu (analitik_rapor.py), son rapor
     pano_db_yolu: Path = field(
         default=FARABI / "tahtayoklama" / "dashboard" / "veri" / "yoklama_pano.db"
     )

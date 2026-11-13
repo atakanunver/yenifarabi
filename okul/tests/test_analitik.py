@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta
 
 from fastapi.testclient import TestClient
@@ -269,3 +270,84 @@ def test_basarisiz_giris_ve_404_olay_uretmez(conn, yeni_kullanici, monkeypatch):
         assert c.get("/ogrenci").status_code == 404
     analitik.bosalt()
     assert [r["tur"] for r in _satirlar(conn)] == ["giris"]
+
+
+def test_rapor_topla_ve_uret_kisi_adi_gitmez(conn, yeni_kullanici, monkeypatch):
+    import analitik_rapor
+
+    kid = yeni_kullanici(conn, "ogrenci", "Gizli Öğrenci Adı")
+    conn.execute("INSERT INTO kutu_kayit (kullanici_id, tur, metin, olusturma) VALUES (?, 'dilek', ?, ?)", (kid, "x" * 300, zaman.simdi_str()))
+    conn.commit()
+    monkeypatch.setattr(analitik_rapor, "_log_ozeti", lambda: None)
+    gidenler = []
+    monkeypatch.setattr(analitik_rapor, "_llm", lambda s, u: gidenler.append(u) or "KULLANIM\n- test")
+    r = analitik_rapor.uret(conn)
+    assert r["metin"].startswith("KULLANIM") and "Gizli Öğrenci Adı" not in gidenler[0]
+    assert "x" * 101 not in gidenler[0]  # kutu alıntısı 100 karakterle sınırlı
+
+
+def test_rapor_dugmesi_yalniz_yonetici_ve_arka_plan(conn, yeni_kullanici, monkeypatch):
+    import analitik_rapor
+
+    monkeypatch.setattr(analitik_rapor, "_log_ozeti", lambda: None)
+    monkeypatch.setattr(analitik_rapor, "_llm", lambda s, u: "KULLANIM\n- <b>tamam</b>")
+    with _istemci(monkeypatch) as c:
+        _giris(c, conn, yeni_kullanici, "ogrenci", "ogrx")
+        assert c.post("/yonetici/analitik/rapor", data={"csrf": "x"}).status_code in (400, 404)
+    with _istemci(monkeypatch) as c:
+        _giris(c, conn, yeni_kullanici, "yonetici", "yonx")
+        assert c.post("/yonetici/analitik/rapor", data={}).status_code == 400  # CSRF'siz
+        csrf = re.search(r'name="csrf" value="([^"]+)"', c.get("/yonetici/analitik").text).group(1)
+        r = c.post("/yonetici/analitik/rapor", data={"csrf": csrf}, follow_redirects=False)
+        assert r.status_code == 303
+        s = c.get("/yonetici/analitik").text
+        assert "&lt;b&gt;tamam&lt;/b&gt;" in s and "<b>tamam</b>" not in s  # model çıktısı kaçışlanır
+
+
+def test_rapor_hatada_eski_rapor_korunur(conn, monkeypatch):
+    import analitik_rapor
+
+    monkeypatch.setattr(analitik_rapor, "_log_ozeti", lambda: None)
+    analitik_rapor._yaz({"zaman": "z", "aralik": ["a", "b"], "model": "m", "metin": "ESKI"})
+    monkeypatch.setattr(analitik_rapor, "_llm", lambda s, u: (_ for _ in ()).throw(OSError("ollama yok")))
+    assert analitik_rapor.uret_ve_kaydet() is True
+    assert analitik_rapor.oku()["metin"] == "ESKI" and "ollama yok" in analitik_rapor.son_hata()
+
+
+def test_rapor_karsilastirma_olcutleri_ve_onceki_rapor(conn, yeni_kullanici, monkeypatch):
+    import analitik_rapor
+
+    monkeypatch.setattr(analitik_rapor, "_log_ozeti", lambda: None)
+    simdi = zaman.simdi_str()
+    dun = (zaman.simdi() - timedelta(days=1)).strftime("%Y-%m-%d")
+    ogr = yeni_kullanici(conn, "ogretmen", "Öğretmen A")
+    yeni_kullanici(conn, "ogretmen", "Öğretmen B")
+    veli = yeni_kullanici(conn, "veli", "Veli A")
+    yeni_kullanici(conn, "veli", "Veli B")
+    for i in range(4):
+        kid = yeni_kullanici(conn, "ogrenci", f"Öğrenci {i}")
+        conn.execute("INSERT INTO ogrenci (okul_no, ad_soyad, sinif, kullanici_id) VALUES (?, ?, '9-A', ?)", (i + 1, f"Öğrenci {i}", kid))
+    conn.execute("INSERT INTO oturum (token_hash, kullanici_id, olusturma, son_gorulme) VALUES ('t1', ?, ?, ?)", (veli, simdi, simdi))
+    conn.execute("INSERT INTO push_abonelik (kullanici_id, uc_nokta, p256dh, auth, olusturma) VALUES (?, 'u1', 'p', 'a', ?)", (veli, simdi))
+    oid = conn.execute(
+        "INSERT INTO odev (ogretmen_id, sinif, ders, tur, baslik, teslim, olusturma) VALUES (?, '9-A', 'Mat', 'klasik', 'x', ?, ?)",
+        (ogr, dun, simdi),
+    ).lastrowid
+    conn.execute("INSERT INTO odev_teslim (odev_id, ogrenci_id, durum, zaman) VALUES (?, 1, 'yapti', ?)", (oid, simdi))
+    conn.commit()
+
+    v = analitik_rapor.topla(conn)
+    assert v["giris_orani_yuzde_rol"]["veli"] == 50
+    assert v["push_abonelik"]["abone_kisi_rol"] == {"veli": 1}
+    o = v["odev"]
+    assert (o["odev_veren_ogretmen"], o["kayitli_ogretmen"], o["teslim_orani_yuzde"]) == (1, 2, 25)
+    assert o["otomatik_hatirlatma_gonderilen_odev"] == 0
+    assert v["icerik_sayilari"]["bilmece_havuzu_aktif"] == 0
+
+    gidenler = []
+    monkeypatch.setattr(analitik_rapor, "_llm", lambda s, u: gidenler.append(u) or "KULLANIM\n- test")
+    analitik_rapor._yaz(analitik_rapor.uret(conn))
+    assert "onceki_rapor" not in gidenler[0]
+    analitik_rapor.uret(conn)
+    assert '"onceki_rapor"' in gidenler[1] and '"teslim_orani_yuzde": 25' in gidenler[1]
+    assert "Öğrenci 0" not in gidenler[1] and "Veli A" not in gidenler[1]

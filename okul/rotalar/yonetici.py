@@ -5,6 +5,7 @@ import sqlite3
 from datetime import timedelta
 
 import analitik
+import analitik_rapor
 import auth
 import belirli_gunler
 import duyurular
@@ -12,7 +13,7 @@ import ice_aktar
 import yetki
 import zaman
 from deps import ROL_ADLARI, db_conn, istemci_ip, render, rol
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import RedirectResponse, Response
 from kaynaklar import KaynakHatasi, sms, yoklama
 from metin import ilk_sifre, normalize_telefon, tr_kucuk
@@ -461,7 +462,20 @@ def kullanim_analitigi(
         siniflar=analitik.siniflar(conn),
         duzeyler=analitik.duzeyler(conn),
         az_veri=analitik.AZ_VERI,
+        rapor=analitik_rapor.oku(),
+        rapor_calisiyor=analitik_rapor.calisiyor(),
+        rapor_hata=analitik_rapor.son_hata(),
     )
+
+
+@router.post("/analitik/rapor")
+def analitik_rapor_uret(arka: BackgroundTasks, k=Depends(YONETICI_POST)):
+    """Yapay zekâ kullanım raporunu arka planda üretir (yerel model, ~1 dk); zaten çalışıyorsa yenisini başlatmaz."""
+    if not analitik_rapor.calisiyor():
+        arka.add_task(analitik_rapor.uret_ve_kaydet)
+    return RedirectResponse("/yonetici/analitik#rapor", status_code=303)
+
+
 # --- SMS paneli (smssistemi /api/arac üzerinden; 2026-10-21) -----------------
 
 SMS_TURLER = {

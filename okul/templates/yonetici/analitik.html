@@ -104,4 +104,21 @@
   <p class="kucuk soluk">Kural tabanlı yön göstericidir, kesin hüküm değildir.</p>
   {% else %}<p class="bos">Öneri üretmek için yeterli veri yok ya da belirgin bir sorun görünmüyor.</p>{% endif %}
 </section>
+
+<section class="kart" id="rapor">
+  <h2>Yapay zekâ raporu</h2>
+  {% if rapor_calisiyor %}<p class="bilgi">Rapor üretiliyor (yaklaşık 1–2 dakika). Sayfayı birazdan yenile.</p>
+  {% else %}
+  <form method="post" action="/yonetici/analitik/rapor">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="tus ikincil kucuk">{{ 'Raporu yeniden üret' if rapor else 'Rapor üret' }}</button>
+  </form>
+  {% endif %}
+  {% if rapor_hata %}<p class="hata">Son üretim başarısız: {{ rapor_hata }}</p>{% endif %}
+  {% if rapor %}
+  <p class="kucuk soluk">{{ rapor.zaman }} · {{ rapor.aralik[0]|tarih }} – {{ rapor.aralik[1]|tarih }} · yerel model ({{ rapor.model }})</p>
+  <div style="white-space: pre-wrap">{{ rapor.metin }}</div>
+  {% endif %}
+  <p class="kucuk soluk">Model yalnızca toplu sayıları görür (kişi adı yok); sayıları yorumlar, kesin hüküm değildir.</p>
+</section>
 {% endblock %}

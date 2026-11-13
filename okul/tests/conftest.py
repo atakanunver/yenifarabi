@@ -17,6 +17,7 @@ from kaynaklar import isbn as isbn_kaynak
 def gecici_ortam(tmp_path, monkeypatch):
     monkeypatch.setattr(AYAR, "db_yolu", tmp_path / "okul.db")
     monkeypatch.setattr(AYAR, "dosya_dizini", tmp_path / "dosyalar")
+    monkeypatch.setattr(AYAR, "rapor_yolu", tmp_path / "analitik_rapor.json")
     monkeypatch.setattr(AYAR, "pano_db_yolu", tmp_path / "pano.db")
     monkeypatch.setattr(AYAR, "sms_db_yolu", tmp_path / "sms.db")
     monkeypatch.setattr(AYAR, "kelebek_db_yolu", tmp_path / "kelebek.db")
