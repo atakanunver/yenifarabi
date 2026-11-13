@@ -29,7 +29,9 @@ portal_ogrenci, portal_odev, portal_odev_teslim, portal_sinav, portal_deneme*, p
 panel_* (yoklama panosu: panel_tahtalar, panel_tahta_nabiz, panel_tahta_saglik_gecmis, panel_uzaktan_denetim, panel_ogrenciler, panel_siniflar, panel_duyuru, panel_nobetci_cagrisi),
 sms_* (sms_veli_mesajlari, sms_veli_taslaklari, sms_kisisel_taslaklari, sms_otomasyon_kurallari, sms_hatirlatmalar, sms_engelli_gonderenler),
 kelebek_* (sınav salon dağıtımı: kelebek_dagitim, kelebek_dagitim_meta, kelebek_dagitim_salon, kelebek_haric_kural, kelebek_oturum_salon, kelebek_sabit_yer, kelebek_salon_ayar),
-arena_katilimci, arena_oyun (sınıf oyunları), atlas_session (atlas oyunu), wiki_articles. Parola özeti, oturum ve anahtar tabloları YOKTUR.
+arena_katilimci, arena_oyun (sınıf oyunları), atlas_session (atlas oyunu), wiki_articles.
+sh_* (soru havuzu: sh_soru 42 bin soru, sh_kazanim, sh_form_testi, sh_form_cevap, sh_kaynak_birim, sh_soru_geri_bildirim, sh_soru_kullanim, sh_soru_gorsel, sh_aylik_rapor),
+farabi_* (farabi_soru_log, farabi_tahta_durum, farabi_yks_gosterim, farabi_metrik, farabi_kitap, farabi_yillik_plan, farabi_kazanim, farabi_ogretmen, farabi_atos_hafiza ...). Parola özeti, oturum ve anahtar tabloları YOKTUR.
 
 İpuçları: devamsız adları için `SELECT y.tarih, y.sinif, j.value FROM yoklama_onbellek y, json_each(y.yok_isimleri) j
 WHERE y.durum='alindi'`; öğretmenin dersleri için `ogretmen_programi` (ad: `ara(ogretmen,'ayşe')`; aynı ad birden çok öğretmende olabilir);

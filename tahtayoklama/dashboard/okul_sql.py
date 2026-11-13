@@ -175,7 +175,7 @@ def pg_ek_tablolari(dsn: str, sorgu: str) -> dict[str, tuple[list[str], list[tup
                         "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=%s "
                         "AND udt_name <> 'vector' ORDER BY ordinal_position", (t,))
                         if r[0] not in yasak.get(t, ())]
-                    cur = c.execute(f'SELECT {", ".join(chr(34) + k + chr(34) for k in kolon)} FROM "{t}"')
+                    cur = c.execute(f'SELECT {", ".join(chr(34) + k + chr(34) for k in kolon)} FROM public."{t}"')  # atos_ro search_path = okul_ana
                     sonuc[ad] = (kolon, [tuple(_deger(v) for v in r) for r in cur.fetchall()])
         except Exception as e:  # noqa: BLE001 — DSN/parola hata metnine sızmasın
             raise SqlHatasi(f"{onek} veri tabanına ulaşılamadı.") from type(e)
