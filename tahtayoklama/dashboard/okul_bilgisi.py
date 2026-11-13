@@ -27,6 +27,7 @@ from pathlib import Path
 
 import db
 import ders_programi
+import dyk
 import okul_sql
 import zil
 from fastapi import APIRouter, HTTPException, Request
@@ -455,7 +456,8 @@ async def sql(request: Request):
             osym = okul_sql.osym_tablolari(ayar["osym_dsn"]) if ayar.get("osym_dsn") else {}
         except okul_sql.SqlHatasi:
             osym = {}
-        tablolar = {**okul_sql.pg_tablolari(dsn), **okul_sql.yoklama_tablolari(db.DB_YOLU), **sms, **osym, **okul_sql.tc_tablosu(TC_DIZINI), **_dosya_tablolari()}
+        tablolar = {**okul_sql.pg_tablolari(dsn), **okul_sql.yoklama_tablolari(db.DB_YOLU), **sms, **osym, **okul_sql.tc_tablosu(TC_DIZINI), **_dosya_tablolari(),
+                    **okul_sql.dyk_tablolari(dyk.yukle()), **okul_sql.ek_sqlite_tablolari(sorgu), **okul_sql.pg_ek_tablolari(dsn, sorgu)}
         return okul_sql.calistir(sorgu, okul_sql.ogretmen_tablosu(okul_sql.personel_esle(okul_sql.ogrenci_genis(tablolar))), azami_satir=azami)
 
     try:

@@ -22,6 +22,14 @@ yoklama_onbellek(tarih 'YYYY-AA-GG', sinif, ders_no, durum 'alindi'|'alinmadi'|'
                  yok_isimleri, izinli_isimleri, yok_nolari, izinli_nolari)  -- *_isimleri / *_nolari JSON listesi
 kulup_yoklama(yoklama_onbellek ile aynı kolonlar; sinif = kulüp kodu)
 dyk_yoklama(yoklama_onbellek ile aynı kolonlar; sinif = DYK kodu, örn. 'DYK-11-COGRAFYA'; ders_no 1 ya da 3)
+dyk_program(sinif_grubu '11'|'12', derslik '10-A'|'12-B', gun 1..6 (6=Cumartesi), gun_adi, baslangic, bitis, kod, ders, ogretmen, ders_no)  -- DYK kursunun haftalık programı; ders_programi'nda YOKTUR (hafta içi 16:00-17:30, cumartesi 09:00-12:10)
+dyk_ogrenci(kod, sinif_grubu, derslik, ders, ogretmen, okul_no, ad_soyad)  -- DYK ders listelerindeki öğrenciler (sınıfı: okul_no ile ogrenci_genis)
+Diğer veri tabanları (tablo adı sorguda geçince okunur; kolonlar için SELECT * FROM <tablo> LIMIT 1): portal_* (okul portalı: portal_kullanici,
+portal_ogrenci, portal_odev, portal_odev_teslim, portal_sinav, portal_deneme*, portal_kitap, portal_nusha, portal_odunc, portal_duyuru, portal_acil_*, portal_erisim_log, portal_olay ...),
+panel_* (yoklama panosu: panel_tahtalar, panel_tahta_nabiz, panel_tahta_saglik_gecmis, panel_uzaktan_denetim, panel_ogrenciler, panel_siniflar, panel_duyuru, panel_nobetci_cagrisi),
+sms_* (sms_veli_mesajlari, sms_veli_taslaklari, sms_kisisel_taslaklari, sms_otomasyon_kurallari, sms_hatirlatmalar, sms_engelli_gonderenler),
+kelebek_* (sınav salon dağıtımı: kelebek_dagitim, kelebek_dagitim_meta, kelebek_dagitim_salon, kelebek_haric_kural, kelebek_oturum_salon, kelebek_sabit_yer, kelebek_salon_ayar),
+arena_katilimci, arena_oyun (sınıf oyunları), atlas_session (atlas oyunu), wiki_articles. Parola özeti, oturum ve anahtar tabloları YOKTUR.
 
 İpuçları: devamsız adları için `SELECT y.tarih, y.sinif, j.value FROM yoklama_onbellek y, json_each(y.yok_isimleri) j
 WHERE y.durum='alindi'`; öğretmenin dersleri için `ogretmen_programi` (ad: `ara(ogretmen,'ayşe')`; aynı ad birden çok öğretmende olabilir);

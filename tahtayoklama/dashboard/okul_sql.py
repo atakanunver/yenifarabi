@@ -19,6 +19,7 @@ import time
 import xml.etree.ElementTree as ET
 import zipfile
 from contextlib import closing
+from pathlib import Path
 
 PG_TABLOLARI = (
     "ogrenci", "veli", "veli_ogrenci", "personel", "sinif", "sinif_atama",
@@ -33,7 +34,53 @@ OSYM_KAYNAKLARI = {  # Atos tablo adı → osym veri tabanındaki ilişki (osym_
 }
 TURETILMIS_TABLOLAR = ("ogrenci_genis", "ogretmen")  # ogrenci_genis: ogrenci + sinif + tc_kimlik + SMS kisiler; ogretmen: personel + ders programı
 DOSYA_TABLOLARI = ("ogretmen_programi", "kazanim", "simdi")  # config/ogretmenler.json ve data/kazanimlar.json'dan türetilir
-IZINLI_TABLOLAR = frozenset(PG_TABLOLARI + YOKLAMA_TABLOLARI + SMS_TABLOLARI + TC_TABLOLARI + tuple(OSYM_KAYNAKLARI) + TURETILMIS_TABLOLAR + DOSYA_TABLOLARI)
+DYK_TABLOLARI = ("dyk_program", "dyk_ogrenci")  # config/dyk.json (DYK kursu: ders listeleri + haftalık program)
+
+# --- Diğer veri tabanları (2026-11-13, yönetici isteği: parola hariç hepsi) ---
+# Atos tablo adı = önek + "_" + kaynak tablo (kaynak zaten önekle başlıyorsa olduğu gibi). Yalnızca SORGUDA
+# adı geçen tablolar okunur (büyük telemetri/log tabloları her çağrıda kopyalanmasın). Parola özeti, oturum
+# ve jeton/anahtar tabloları/sütunları HİÇ okunmaz. Yeni tablo eklenince buraya + sema_aciklamasi.txt'ye ekle.
+_KOK = Path(__file__).resolve().parents[2]
+SQLITE_EK = {  # önek -> (yol, tablolar, {tablo: okunmayacak sütunlar})
+    "portal": ("okul/veri/okul.db", (
+        "acil_dis_olay", "acil_konum", "acil_ogrenci", "acil_olay", "anket", "anket_cevap", "anket_hedef",
+        "anket_katilim", "anket_soru", "anket_yanit", "avatar", "ayirtma", "bilgi_cevap", "bilgi_rozet", "bilgi_tur",
+        "bilgi_xp", "bilmece", "bilmece_cevap", "bilmece_gun", "calisma_soru", "deneme", "deneme_ogrenci", "deneme_pdf",
+        "deneme_sinif_yorum", "ders_defteri", "duyuru", "duyuru_okuma", "erisim_log", "hedef", "kitap", "kullanici",
+        "kullanici_tema", "kutu_kayit", "kutuphane_ayar", "kutuphane_yetkili", "maraton", "maraton_soru", "nusha", "odev",
+        "odev_foto", "odev_hatirlatma", "odev_pdf", "odev_soru", "odev_teslim", "odev_uyari", "odul", "odul_hafta",
+        "odunc", "ogrenci", "ogretmen_gorev", "ogretmen_not", "olay", "onay_talep", "onay_yanit", "sinav", "sinif_pdf",
+        "sohbet_mesaj", "sohbet_okuma", "soru_bildirim", "soru_inceleme", "soru_katki", "soru_katki_karar", "sudoku_bot",
+        "sudoku_duello", "sudoku_oyun", "tesekkur", "veli_ogrenci", "yillik_plan"),
+        {"kullanici": {"sifre_hash"}, "acil_olay": {"jeton"}}),
+    "panel": ("tahtayoklama/dashboard/veri/yoklama_pano.db", (
+        "duyuru", "menu_sayac", "nobetci_cagrisi", "ogrenciler", "siniflar", "tahta_nabiz", "tahta_saglik_gecmis",
+        "tahtalar", "uzaktan_denetim"), {}),
+    "sms": ("smssistemi/veri/smssistemi.db", (
+        "engelli_gonderenler", "hatirlatmalar", "kisisel_taslaklari", "otomasyon_kurallari", "veli_mesajlari",
+        "veli_taslaklari"), {}),
+    "kelebek": ("kelebek/veri/kelebek.db", (
+        "dagitim", "dagitim_meta", "dagitim_salon", "haric_kural", "oturum_salon", "sabit_yer", "salon_ayar"), {}),
+    "arena": ("arenasinif/veri/sonuclar.db", ("katilimci", "oyun"), {}),
+    "atlas": ("tahtaatlasfarabi/var/atlas.db", ("atlas_session",), {}),
+    "wiki": ("tahtaatlasfarabi/var/wiki.db", ("articles",), {}),
+}
+PG_EK = {  # önek -> (veri tabanı, tablolar, {tablo: okunmayacak sütunlar}); embedding/vector sütunları da atlanır
+    "sh": ("soru_havuzu", (
+        "aylik_rapor", "form_cevap", "form_testi", "kaynak_birim", "kazanim", "soru", "soru_geri_bildirim", "soru_gorsel",
+        "soru_kullanim"), {"aylik_rapor": {"token", "link"}, "soru_gorsel": {"icerik"}}),
+    "farabi": ("farabi", (
+        "agent_memories", "atos_hafiza", "ders_programi", "idari_belge", "kazanim", "kazanim_test_soru", "kitap",
+        "metrik", "ogretmen", "sinif_kitap", "soru_log", "tahta_durum", "yillik_plan", "yks_gosterim"), {}),
+}
+
+
+def _ek_ad(onek: str, tablo: str) -> str:
+    return tablo if tablo.startswith(onek + "_") else f"{onek}_{tablo}"
+
+
+EK_TABLOLAR = tuple(_ek_ad(o, t) for o, (_, ts, _) in {**SQLITE_EK, **PG_EK}.items() for t in ts)
+IZINLI_TABLOLAR = frozenset(PG_TABLOLARI + YOKLAMA_TABLOLARI + SMS_TABLOLARI + TC_TABLOLARI + tuple(OSYM_KAYNAKLARI) + TURETILMIS_TABLOLAR + DOSYA_TABLOLARI + DYK_TABLOLARI + EK_TABLOLAR)
 TABLO_FONKSIYONLARI = frozenset({"json_each", "json_tree"})
 YASAK_FONKSIYONLAR = frozenset({"load_extension", "readfile", "writefile", "edit", "fts3_tokenizer"})
 AZAMI_SATIR = 200
@@ -89,6 +136,50 @@ def osym_tablolari(dsn: str) -> dict[str, tuple[list[str], list[tuple]]]:
         return sonuc
     except Exception as e:  # noqa: BLE001 — DSN/parola hata metnine sızmasın
         raise SqlHatasi("ÖSYM veri tabanına ulaşılamadı.") from type(e)
+
+
+def ek_sqlite_tablolari(sorgu: str, kok=_KOK) -> dict[str, tuple[list[str], list[tuple]]]:
+    """SQLITE_EK kaynaklarından yalnızca sorguda adı geçen tablolar (salt-okunur). Hata → SqlHatasi."""
+    kucuk, sonuc = (sorgu or "").lower(), {}
+    for onek, (yol, tablolar, yasak) in SQLITE_EK.items():
+        secili = [(_ek_ad(onek, t), t) for t in tablolar if _ek_ad(onek, t) in kucuk]
+        if not secili:
+            continue
+        try:
+            with closing(sqlite3.connect(f"file:{kok / yol}?mode=ro", uri=True, timeout=3)) as c:
+                for ad, t in secili:
+                    cur = c.execute(f'SELECT * FROM "{t}"')
+                    kolon = [d[0] for d in cur.description]
+                    at = {i for i, k in enumerate(kolon) if k in yasak.get(t, ())}
+                    sonuc[ad] = ([k for i, k in enumerate(kolon) if i not in at],
+                                 [tuple(_deger(v) for i, v in enumerate(r) if i not in at) for r in cur.fetchall()])
+        except sqlite3.Error as e:
+            raise SqlHatasi(f"{onek} veri tabanına ulaşılamadı.") from type(e)
+    return sonuc
+
+
+def pg_ek_tablolari(dsn: str, sorgu: str) -> dict[str, tuple[list[str], list[tuple]]]:
+    """PG_EK kaynaklarından yalnızca sorguda adı geçen tablolar (atos_ro; sütun yetkisi dışındakiler görünmez). Hata → SqlHatasi."""
+    kucuk, sonuc = (sorgu or "").lower(), {}
+    for onek, (veri_tabani, tablolar, yasak) in PG_EK.items():
+        secili = [(_ek_ad(onek, t), t) for t in tablolar if _ek_ad(onek, t) in kucuk]
+        if not secili:
+            continue
+        try:
+            import psycopg
+            from psycopg.conninfo import make_conninfo
+
+            with psycopg.connect(make_conninfo(dsn, dbname=veri_tabani), connect_timeout=3) as c:
+                for ad, t in secili:
+                    kolon = [r[0] for r in c.execute(
+                        "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=%s "
+                        "AND udt_name <> 'vector' ORDER BY ordinal_position", (t,))
+                        if r[0] not in yasak.get(t, ())]
+                    cur = c.execute(f'SELECT {", ".join(chr(34) + k + chr(34) for k in kolon)} FROM "{t}"')
+                    sonuc[ad] = (kolon, [tuple(_deger(v) for v in r) for r in cur.fetchall()])
+        except Exception as e:  # noqa: BLE001 — DSN/parola hata metnine sızmasın
+            raise SqlHatasi(f"{onek} veri tabanına ulaşılamadı.") from type(e)
+    return sonuc
 
 
 def yoklama_tablolari(yol) -> dict[str, tuple[list[str], list[tuple]]]:
@@ -303,6 +394,28 @@ def simdi_tablosu(bilgi: dict, isogun: int) -> dict:
     ek = {"ders": f"{bilgi.get('ders_no')}. ders saati", "teneffus": "teneffüs", "okul_disi": "ders saati dışı"}.get(bilgi.get("durum"), "")
     satir = (bilgi.get("tarih"), bilgi.get("saat"), isogun, bilgi.get("gun"), bilgi.get("durum"), bilgi.get("ders_no"), ek)
     return {"simdi": (["tarih", "saat", "gun", "gun_adi", "durum", "ders_no", "aciklama"], [satir])}
+
+
+_DYK_GUNLER = {"pazartesi": 1, "sali": 2, "carsamba": 3, "persembe": 4, "cuma": 5, "cumartesi": 6}
+
+
+def dyk_tablolari(veri: dict) -> dict:
+    """config/dyk.json → dyk_ogrenci (ders listelerindeki öğrenciler) ve dyk_program (haftalık DYK oturumları).
+    DYK 16:00-17:30 (cumartesi 09:00-12:10) olduğundan ders_programi'nda YOKTUR; öğrenci sınıfı için okul_no ile ogrenci_genis'e bağlanır."""
+    ogrenci, program, ders = [], [], {}
+    siniflar = (veri or {}).get("siniflar") or {}
+    for grup, s in siniflar.items():
+        for d in (s or {}).get("dersler") or []:
+            ders[d["kod"]] = (d.get("ad"), d.get("ogretmen"))
+            for u in d.get("uyeler") or []:
+                ogrenci.append((d["kod"], grup, s.get("derslik"), d.get("ad"), d.get("ogretmen"), u["no"], u["ad_soyad"]))
+    for grup, oturumlar in ((veri or {}).get("program") or {}).items():
+        for o in oturumlar or []:
+            ad, ogretmen = ders.get(o["kod"], (None, None))
+            program.append((grup, (siniflar.get(grup) or {}).get("derslik"), _DYK_GUNLER.get(o["gun"]), o["gun"],
+                            o["bas"], o["bit"], o["kod"], ad, ogretmen, o["ders_no"]))
+    return {"dyk_ogrenci": (["kod", "sinif_grubu", "derslik", "ders", "ogretmen", "okul_no", "ad_soyad"], ogrenci),
+            "dyk_program": (["sinif_grubu", "derslik", "gun", "gun_adi", "baslangic", "bitis", "kod", "ders", "ogretmen", "ders_no"], program)}
 
 
 def kazanim_tablosu(veri: dict) -> dict:
