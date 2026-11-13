@@ -1,0 +1,41 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}DYK kursları — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}DYK kursları{% endblock %}
+
+{% block icerik %}
+<p class="serit serit-bilgi"><span>Her DYK dersinin öğrenci listesi ilgili derslik tahtasındaki yoklama ekranında görünür.
+  Değişiklik tahtaya en geç 10 dakikada kendiliğinden ulaşır.</span></p>
+{% for g in gruplar %}
+<h2>{{ g.ad }} <span class="rozet rozet-mavi">{{ g.derslik }} tahtası</span></h2>
+{% if g.dersler %}
+<div class="tablo-kutu"><table class="tablo">
+  <thead><tr><th>Ders</th><th>Öğretmen</th><th>Öğrenci</th><th></th></tr></thead>
+  <tbody>
+  {% for d in g.dersler %}
+  <tr>
+    <td>{{ d.ad }}</td>
+    <td>{{ d.ogretmen or '—' }}</td>
+    <td class="tek-satir"><span class="rozet rozet-gri">{{ (d.uyeler or [])|length }} öğrenci</span></td>
+    <td class="tek-satir"><a class="dugme dugme-ikincil dugme-kucuk" href="/admin/dyk/{{ d.kod }}">Öğrencileri düzenle <svg class="ikon ikon-kucuk" aria-hidden="true"><use href="#ik-ok-sag"/></svg></a></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p class="bos-durum">Bu sınıfta ders yok.</p>
+{% endif %}
+{% if g.program %}
+<h3>Ders programı</h3>
+<div class="tablo-kutu"><table class="tablo">
+  <thead><tr><th>Gün</th><th>Saat</th><th>Ders</th></tr></thead>
+  <tbody>
+  {% for p in g.program %}
+  <tr><td>{{ p.gun }}</td><td class="tek-satir">{{ p.bas }}–{{ p.bit }}</td><td>{{ p.ders }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endif %}
+{% else %}
+<p class="bos-durum">Henüz DYK tanımı yok.</p>
+{% endfor %}
+{% endblock %}

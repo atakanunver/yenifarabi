@@ -8,6 +8,7 @@ import asyncio
 import json
 from datetime import date
 
+import dyk
 import kulupler
 import ssh_istemci
 import zil
@@ -21,7 +22,7 @@ NABIZ_TAZE_SN = 300
 # yoklama.py'nin ürettiği durum alanları -> pano'nun sunduğu isimler
 _YOK = "yok"
 _IZINLI = "izinli"
-_TABLOLAR = {"yoklama_onbellek", "kulup_yoklama"}
+_TABLOLAR = {"yoklama_onbellek", "kulup_yoklama", "dyk_yoklama"}
 
 
 async def _tahtayi_tara(tahta: dict, tarih: str) -> tuple[dict, bool]:
@@ -82,8 +83,8 @@ def onbellege_yaz(conn, tarih: str, sinif_adi: str, ders_no: int, durum: str,
                   tablo: str = "yoklama_onbellek") -> None:
     """yoklama_onbellek'e TEK yazma yolu — hem SSH polling'i hem tahta
     istemcisinin itmesi (tahta_api.py) bunu kullanır (iki kopya senkron
-    kalmasın diye). `tablo="kulup_yoklama"` kulüp kaydı içindir (aynı kolonlar
-    ve kurallar)."""
+    kalmasın diye). `tablo="kulup_yoklama"` kulüp, `"dyk_yoklama"` DYK kaydı
+    içindir (aynı kolonlar ve kurallar)."""
     if tablo not in _TABLOLAR:
         raise ValueError(tablo)
     conn.execute(
@@ -153,9 +154,14 @@ def itilen_kaydi_yaz(conn, kayit: dict, kaynak_tahta: str) -> tuple[bool, list[i
     # Sınıf değilse kulüp kodu olabilir (config/kulupler.json): ayrı tabloya
     # yazılır, isimler kulüp üyelerinden çözülür, veli bildirimi YOK.
     kulup = None if sinif is not None else kulupler.bul(kayit["sinif"])
-    if sinif is None and kulup is None:
+    # Kulüp de değilse DYK kodu olabilir (config/dyk.json): dyk_yoklama, bildirim yok.
+    dyk_ders = None if sinif is not None or kulup is not None else dyk.bul(kayit["sinif"])
+    if sinif is None and kulup is None and dyk_ders is None:
         return False, []
-    tablo = "yoklama_onbellek" if kulup is None else "kulup_yoklama"
+    if dyk_ders is not None:
+        tablo = "dyk_yoklama"
+    else:
+        tablo = "yoklama_onbellek" if kulup is None else "kulup_yoklama"
     bugun = zil.simdi_istanbul().date().isoformat()
     # GEÇMİŞ GÜNÜN 'alindi' satırına ASLA yazılmaz (2026-10-06). yoklama.py
     # yalnızca O ANKİ dersi kaydettirir; geçmiş tarihli farklı bir kayıt
@@ -178,7 +184,10 @@ def itilen_kaydi_yaz(conn, kayit: dict, kaynak_tahta: str) -> tuple[bool, list[i
         ).fetchone()
         if onceki is not None and onceki["yok_nolari"]:
             eski_yok = set(json.loads(onceki["yok_nolari"]))
-    roster = _roster_by_no(conn, sinif["id"]) if kulup is None else kulupler.isimler(kulup)
+    if dyk_ders is not None:
+        roster = dyk.isimler(dyk_ders)
+    else:
+        roster = _roster_by_no(conn, sinif["id"]) if kulup is None else kulupler.isimler(kulup)
     yeni_yok_nolar = _yok_nolarini_coz(kayit, _YOK)
     onbellege_yaz(
         conn, kayit["tarih"], kayit["sinif"], kayit["ders_no"], "alindi",
@@ -191,7 +200,7 @@ def itilen_kaydi_yaz(conn, kayit: dict, kaynak_tahta: str) -> tuple[bool, list[i
     )
     conn.commit()
     bildirilecek = (sorted(set(yeni_yok_nolar) - eski_yok)
-                    if kayit["tarih"] == bugun and kulup is None else [])
+                    if kayit["tarih"] == bugun and kulup is None and dyk_ders is None else [])
     return True, bildirilecek
 
 

@@ -8,7 +8,7 @@ from app import app
 
 DAHILI = {"/", "/admin/siniflar", "/admin/rapor",
           "/admin/uzaktan", "/servisler", "/sistem-durumu", "/sunucular", "/veli-mesajlari",
-          "/acil", "/kulup-yoklama", "/admin/kulupler", "/kameralar", "/kameralar-ip", "/zamanlanmis-gorevler"}
+          "/acil", "/kulup-yoklama", "/dyk-yoklama", "/admin/kulupler", "/admin/dyk", "/kameralar", "/kameralar-ip", "/zamanlanmis-gorevler"}
 
 
 def _sayfalar():

@@ -103,6 +103,10 @@ OGRETMEN_PROGRAMI_DOSYASI = BASE_DIR / "ogretmen_programi.json"
 KAZANIM_DOSYASI = BASE_DIR / "data" / "kazanimlar.json"
 KULUP_ONEKI = "KULUP-"  # kulüp roster'ları (sunucu: dashboard/kulupler.py)
 _GUN_ANAHTARLARI = {1: "pazartesi", 2: "sali", 3: "carsamba", 4: "persembe", 5: "cuma"}
+# DYK kursu (sunucu: dyk_program.json, tahta_istemci.py çeker); cumartesi DAHİL.
+DYK_ONEKI = "DYK-"
+DYK_PROGRAM_DOSYASI = BASE_DIR / "data" / "dyk_program.json"
+_DYK_GUN_ANAHTARLARI = {**_GUN_ANAHTARLARI, 6: "cumartesi"}
 
 # Tek örnek koruması için sabit yerel soket adı — bkz. _tekil_ornek_sunucusu_baslat.
 TEKIL_ORNEK_SUNUCU_ADI = "tahtayoklama-yoklama"
@@ -145,23 +149,32 @@ KONTROL_ARALIGI_MS = 30_000
 
 def _roster_listesi() -> list[str]:
     """data/roster/ altındaki dosyaların adları (uzantısız): önce sınıflar,
-    sonra kulüpler (KULUP-*). Varsayılan seçim = ilk öğe = sınıf."""
+    sonra kulüpler (KULUP-*), sonra DYK kursları (DYK-*). Varsayılan seçim =
+    ilk öğe = sınıf."""
     if not ROSTER_DIR.exists():
         return []
     adlar = sorted(p.stem for p in ROSTER_DIR.glob("*.json"))
-    return ([a for a in adlar if not a.startswith(KULUP_ONEKI)]
-            + [a for a in adlar if a.startswith(KULUP_ONEKI)])
+    return ([a for a in adlar if not a.startswith((KULUP_ONEKI, DYK_ONEKI))]
+            + [a for a in adlar if a.startswith(KULUP_ONEKI)]
+            + [a for a in adlar if a.startswith(DYK_ONEKI)])
+
+
+def _roster_adi(kod: str) -> str | None:
+    """Roster dosyasındaki "ad" (kulüp/DYK için); yoksa/bozuksa None."""
+    try:
+        return json.loads((ROSTER_DIR / f"{kod}.json").read_text(encoding="utf-8")).get("ad")
+    except (OSError, ValueError, AttributeError):
+        return None
 
 
 def _roster_etiketi(kod: str) -> str:
-    """Açılır listede görünen ad: sınıf kodu olduğu gibi, kulüp "Kulüp: <ad>"."""
-    if not kod.startswith(KULUP_ONEKI):
-        return kod
-    try:
-        ad = json.loads((ROSTER_DIR / f"{kod}.json").read_text(encoding="utf-8")).get("ad")
-    except (OSError, ValueError, AttributeError):
-        ad = None
-    return f"Kulüp: {ad or kod}"
+    """Açılır listede görünen ad: sınıf kodu olduğu gibi, kulüp "Kulüp: <ad>",
+    DYK "DYK: <ad>"."""
+    if kod.startswith(KULUP_ONEKI):
+        return f"Kulüp: {_roster_adi(kod) or kod}"
+    if kod.startswith(DYK_ONEKI):
+        return f"DYK: {_roster_adi(kod) or kod}"
+    return kod
 
 
 def _roster_yukle(sinif: str) -> list[dict]:
@@ -285,6 +298,45 @@ def _simdiki_ders(zil: dict, simdi: dtime) -> int | None:
         bitis = _saat_ayristir(ders["bitis"])
         if baslangic <= simdi < bitis:
             return ders["no"]
+    return None
+
+
+def _dyk_program_yukle() -> dict:
+    try:
+        veri = json.loads(DYK_PROGRAM_DOSYASI.read_text(encoding="utf-8"))
+        return veri if isinstance(veri, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _dyk_oturumlari(program: dict, gun_no: int, simdi: dtime) -> list[dict]:
+    """O gün `bas <= simdi < bit` olan DYK oturumları. Bozuk oturum atlanır,
+    hiçbir girdi istisna fırlatmaz."""
+    gun = _DYK_GUN_ANAHTARLARI.get(gun_no)
+    try:
+        oturumlar = program.get("oturumlar", [])
+        if gun is None or not isinstance(oturumlar, list):
+            return []
+    except AttributeError:
+        return []
+    aktif = []
+    for oturum in oturumlar:
+        try:
+            if (oturum.get("gun") == gun and isinstance(oturum.get("kod"), str)
+                    and isinstance(oturum.get("ders_no"), int)
+                    and not isinstance(oturum.get("ders_no"), bool)
+                    and _saat_ayristir(oturum["bas"]) <= simdi < _saat_ayristir(oturum["bit"])):
+                aktif.append(oturum)
+        except (AttributeError, KeyError, TypeError, ValueError):
+            continue
+    return aktif
+
+
+def _dyk_oturumu(program: dict, gun_no: int, simdi: dtime, kod: str | None = None) -> dict | None:
+    """Şu an aktif DYK oturumu (`kod` verilirse yalnız o koda ait olan); yoksa None."""
+    for oturum in _dyk_oturumlari(program, gun_no, simdi):
+        if kod is None or oturum["kod"] == kod:
+            return oturum
     return None
 
 
@@ -472,7 +524,10 @@ class YoklamaPenceresi(QWidget):
         self._ders_programi = _ders_programi_yukle()
         self._kazanimlar = _kazanim_yukle()
         self._kazanim_metni = ""
+        self._dyk_program = _dyk_program_yukle()
+        self._dyk_aktif: set[tuple[str, int]] = set()
         self._kur_arayuz()
+        self._dyk_otomatik_sec(datetime.now())
         self._sinif_degisti()
         self.showFullScreen()
 
@@ -582,9 +637,41 @@ class YoklamaPenceresi(QWidget):
     # Dönem/ders takibi
     # ------------------------------------------------------------------
 
+    def _dyk_otomatik_sec(self, an: datetime) -> None:
+        """DYK oturumu AKTİFLEŞTİĞİ anda (önceki kontrolde aktif değildi) ve
+        rosteri varsa o liste seçilir; seçili DYK listesinin oturumu bitince
+        ilk sınıfa dönülür. Geçiş-tetiklidir: öğretmen oturum sırasında elle
+        başka liste seçtiyse aynı oturum için bir daha zorlanmaz. DYK'da
+        pencere öne getirilmez, açan öğretmendir."""
+        aktif = {(o["kod"], o["ders_no"])
+                 for o in _dyk_oturumlari(self._dyk_program, an.isoweekday(), an.time())}
+        onceki, self._dyk_aktif = self._dyk_aktif, aktif
+        for kod, _ in sorted(aktif - onceki):
+            indeks = self.sinif_secici.findData(kod)
+            if indeks >= 0:
+                self.sinif_secici.setCurrentIndex(indeks)
+                return
+        secili = self._secili_kod()
+        if (secili.startswith(DYK_ONEKI) and any(k == secili for k, _ in onceki)
+                and not any(k == secili for k, _ in aktif)):
+            self.sinif_secici.setCurrentIndex(0)
+
+    def _aktif_ders_hesapla(self, an: datetime) -> int | None:
+        """Seçili listeye göre aktif ders no: DYK listesi → yalnız o koda ait
+        aktif DYK oturumunun ders_no'su (kendi saati dışında None); sınıf/kulüp
+        → zil.json (DYK saati normal sınıf kaydına dokunmaz)."""
+        kod = self._secili_kod()
+        if kod.startswith(DYK_ONEKI):
+            oturum = _dyk_oturumu(self._dyk_program, an.isoweekday(), an.time(), kod)
+            return oturum["ders_no"] if oturum else None
+        return _simdiki_ders(self._zil, an.time())
+
     def _periyodik_kontrol(self) -> None:
-        simdi = datetime.now().time()
-        yeni_ders_no = _simdiki_ders(self._zil, simdi)
+        an = datetime.now()
+        simdi = an.time()
+        self._dyk_program = _dyk_program_yukle()
+        self._dyk_otomatik_sec(an)
+        yeni_ders_no = self._aktif_ders_hesapla(an)
 
         if yeni_ders_no != self._aktif_ders_no:
             # Dönem değişti — YALNIZCA yeni dersin grubu yüklenir. Eskiden
@@ -598,7 +685,7 @@ class YoklamaPenceresi(QWidget):
             self._kazanimlar = _kazanim_yukle()
             self._ders_grubunu_yukle()
 
-        if yeni_ders_no is not None:
+        if yeni_ders_no is not None and not self._secili_kod().startswith(DYK_ONEKI):
             gecen_dk = _ders_baslangicindan_gecen_dk(self._zil, yeni_ders_no, simdi)
             if gecen_dk >= UYARI_ESIGI_DK and not self._bugun_kayit_var_mi():
                 self._pencereyi_one_getir()
@@ -620,7 +707,9 @@ class YoklamaPenceresi(QWidget):
 
     def _baslik_guncelle(self) -> None:
         kazanim = None
-        if self._aktif_ders_no is not None:
+        if self._aktif_ders_no is not None and self._secili_kod().startswith(DYK_ONEKI):
+            self._dyk_baslik_yaz()
+        elif self._aktif_ders_no is not None:
             metin = f"YOKLAMA — {self._aktif_ders_no}. DERS"
             sinif = self._secili_kod()
             simdi = datetime.now()
@@ -644,6 +733,20 @@ class YoklamaPenceresi(QWidget):
         self._kazanim_metni = kazanim or ""
         self._kazanim_etiketini_ciz()
 
+    def _dyk_baslik_yaz(self) -> None:
+        """DYK listesinde başlık: ders adı roster "ad"ından, kalan süre oturumun
+        `bit` saatine göre; öğretmen/ders programı/kazanım yok."""
+        kod = self._secili_kod()
+        an = datetime.now()
+        oturum = _dyk_oturumu(self._dyk_program, an.isoweekday(), an.time(), kod)
+        kalan = 0
+        if oturum is not None:
+            zil = {"dersler": [{"no": self._aktif_ders_no, "bitis": oturum["bit"]}]}
+            kalan = _kalan_dakika(zil, self._aktif_ders_no, an.time())
+        self.baslik_etiketi.setText(f"YOKLAMA — DYK {_roster_adi(kod) or kod}")
+        self.ders_bilgisi.setText("")
+        self.kalan_sure_etiketi.setText(f"Dersin bitmesine {kalan} dakika kaldı")
+
     def _kazanim_etiketini_ciz(self) -> None:
         metin = self._kazanim_metni
         self.kazanim_alani.setVisible(bool(metin))
@@ -658,8 +761,7 @@ class YoklamaPenceresi(QWidget):
         return self.sinif_secici.currentData() or self.sinif_secici.currentText()
 
     def _sinif_degisti(self, *_args) -> None:
-        simdi = datetime.now().time()
-        self._aktif_ders_no = _simdiki_ders(self._zil, simdi)
+        self._aktif_ders_no = self._aktif_ders_hesapla(datetime.now())
         self._ders_grubunu_yukle()
         self._baslik_guncelle()
 

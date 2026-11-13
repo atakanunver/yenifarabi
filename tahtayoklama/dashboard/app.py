@@ -45,6 +45,8 @@ import bugun
 import guvenlik
 import kameralar
 import kulup_yoklama
+import dyk_admin
+import dyk_yoklama
 import yakinda
 import uzaktan_baslat
 import uzaktan_yonetim
@@ -155,6 +157,8 @@ app.include_router(zamanlanmis_gorevler.router)
 app.include_router(veli_mesajlari.router)
 app.include_router(kameralar.router)
 app.include_router(kulup_yoklama.router)
+app.include_router(dyk_yoklama.router)
+app.include_router(dyk_admin.router)
 app.include_router(acil.router)
 app.include_router(bugun.router)
 app.include_router(aylik_ozet.router)

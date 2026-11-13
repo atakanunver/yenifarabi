@@ -1,0 +1,39 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}DYK yoklaması — Yoklama ve Yönetim Paneli{% endblock %}
+{% block baslik %}DYK yoklaması{% endblock %}
+{% block ust_sag %}
+<form method="get" action="/dyk-yoklama" class="satir-form">
+  <div class="form-alan"><label for="k-tarih">Tarih</label>
+    <input type="date" id="k-tarih" name="tarih" value="{{ tarih }}"></div>
+  <button type="submit" class="dugme">Göster</button>
+</form>
+{% endblock %}
+
+{% block icerik %}
+{% if not kayitlar %}
+<section class="bos-durum">
+  <svg class="ikon ikon-buyuk"><use href="#ik-kullanicilar"/></svg>
+  <p class="bos-durum-baslik">Bu tarihte DYK yoklaması yok</p>
+  <p>Öğretmen tahtada açılır listeden dersi seçip kaydedince burada görünür. Sınıf devamsızlığını etkilemez.</p>
+</section>
+{% else %}
+<div class="tablo-kutu">
+  <table class="tablo">
+    <thead><tr><th>Ders</th><th>Öğretmen</th><th>Ders no</th><th>Yok</th><th>İzinli</th><th>Saat</th><th>Tahta</th></tr></thead>
+    <tbody>
+      {% for k in kayitlar %}
+      <tr>
+        <td>{{ k.ders }}</td>
+        <td>{{ k.ogretmen or '—' }}</td>
+        <td>{{ k.ders_no }}</td>
+        <td>{% if k.yok %}<span class="rozet rozet-kirmizi">{{ k.yok|length }}</span> {{ k.yok|join(', ') }}{% else %}—{% endif %}</td>
+        <td>{% if k.izinli %}<span class="rozet rozet-gri">{{ k.izinli|length }}</span> {{ k.izinli|join(', ') }}{% else %}—{% endif %}</td>
+        <td>{{ k.saat or '—' }}</td>
+        <td>{{ k.tahta or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

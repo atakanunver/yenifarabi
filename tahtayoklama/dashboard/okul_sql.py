@@ -24,7 +24,7 @@ PG_TABLOLARI = (
     "ogrenci", "veli", "veli_ogrenci", "personel", "sinif", "sinif_atama",
     "ders_programi", "zil", "ogretim_yili", "derslik", "dosya", "dosya_satir",
 )
-YOKLAMA_TABLOLARI = ("yoklama_onbellek", "kulup_yoklama")
+YOKLAMA_TABLOLARI = ("yoklama_onbellek", "kulup_yoklama", "dyk_yoklama")
 SMS_TABLOLARI = ("kisiler", "siniflar", "gonderimler")  # smssistemi.db (rehber + gönderim kayıtları)
 TC_TABLOLARI = ("tc_kimlik",)
 OSYM_KAYNAKLARI = {  # Atos tablo adı → osym veri tabanındaki ilişki (osym_ro yalnızca bunlara SELECT yapabilir)

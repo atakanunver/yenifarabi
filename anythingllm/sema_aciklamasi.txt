@@ -21,6 +21,7 @@ derslik(id, ad, sinif_ad, tahta_host)
 yoklama_onbellek(tarih 'YYYY-AA-GG', sinif, ders_no, durum 'alindi'|'alinmadi'|'tahta_ulasilamaz'|'ders_yok_o_gun',
                  yok_isimleri, izinli_isimleri, yok_nolari, izinli_nolari)  -- *_isimleri / *_nolari JSON listesi
 kulup_yoklama(yoklama_onbellek ile aynı kolonlar; sinif = kulüp kodu)
+dyk_yoklama(yoklama_onbellek ile aynı kolonlar; sinif = DYK kodu, örn. 'DYK-11-COGRAFYA'; ders_no 1 ya da 3)
 
 İpuçları: devamsız adları için `SELECT y.tarih, y.sinif, j.value FROM yoklama_onbellek y, json_each(y.yok_isimleri) j
 WHERE y.durum='alindi'`; öğretmenin dersleri için `ogretmen_programi` (ad: `ara(ogretmen,'ayşe')`; aynı ad birden çok öğretmende olabilir);

@@ -25,6 +25,7 @@ import socket
 import sys
 import uuid
 from datetime import datetime as _GercekDatetime
+from datetime import time as _T
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -105,6 +106,7 @@ def yoklama_ortami(tmp_path, monkeypatch, qapp):
     monkeypatch.setattr(yoklama, "DERS_PROGRAMI_DOSYASI", tmp_path / "ders_programi.json")
     monkeypatch.setattr(yoklama, "OGRETMEN_PROGRAMI_DOSYASI", tmp_path / "ogretmen_programi.json")
     monkeypatch.setattr(yoklama, "KAZANIM_DOSYASI", tmp_path / "kazanimlar.json")
+    monkeypatch.setattr(yoklama, "DYK_PROGRAM_DOSYASI", tmp_path / "dyk_program.json")
     monkeypatch.setattr(yoklama, "datetime", _SahteDatetime)
     _saat_ayarla(8, 20)
 
@@ -598,5 +600,238 @@ class TestKulupSecici:
             assert pencere._bugun_kayit_var_mi()
             pencere.sinif_secici.setCurrentIndex(0)
             assert not pencere._bugun_kayit_var_mi()
+        finally:
+            pencere.close()
+
+
+# ----------------------------------------------------------------------
+# DYK kursu (DYK-*): roster sırası/etiketi, oturum saati, seçime bağlı aktif ders
+# ----------------------------------------------------------------------
+
+DYK_PROGRAM = {"oturumlar": [
+    {"gun": "pazartesi", "bas": "16:00", "bit": "17:30", "kod": "DYK-11-COGRAFYA", "ders_no": 1},
+    {"gun": "cumartesi", "bas": "09:00", "bit": "10:30", "kod": "DYK-11-COGRAFYA", "ders_no": 1},
+    {"gun": "cumartesi", "bas": "10:40", "bit": "12:10", "kod": "DYK-12-FIZIK", "ders_no": 3},
+]}
+
+
+class TestDykOturumu:
+    def test_saat_sinirlari_bas_dahil_bit_haric(self):
+        f = yoklama._dyk_oturumu
+        assert f(DYK_PROGRAM, 1, _T(15, 59)) is None
+        assert f(DYK_PROGRAM, 1, _T(16, 0))["ders_no"] == 1
+        assert f(DYK_PROGRAM, 1, _T(17, 29, 59))["kod"] == "DYK-11-COGRAFYA"
+        assert f(DYK_PROGRAM, 1, _T(17, 30)) is None
+
+    def test_gun_eslemesi_cumartesi_dahil_pazar_yok(self):
+        f = yoklama._dyk_oturumu
+        assert f(DYK_PROGRAM, 2, _T(16, 30)) is None
+        assert f(DYK_PROGRAM, 6, _T(9, 0))["ders_no"] == 1
+        assert f(DYK_PROGRAM, 6, _T(10, 30)) is None
+        assert f(DYK_PROGRAM, 6, _T(10, 40))["ders_no"] == 3
+        assert f(DYK_PROGRAM, 7, _T(9, 30)) is None
+        assert yoklama._GUN_ANAHTARLARI == {1: "pazartesi", 2: "sali", 3: "carsamba",
+                                            4: "persembe", 5: "cuma"}  # mevcut eşleme değişmedi
+
+    def test_kod_filtresi(self):
+        assert yoklama._dyk_oturumu(DYK_PROGRAM, 6, _T(11, 0), "DYK-12-FIZIK")["ders_no"] == 3
+        assert yoklama._dyk_oturumu(DYK_PROGRAM, 6, _T(11, 0), "DYK-11-COGRAFYA") is None
+
+    @pytest.mark.parametrize("program", [
+        None, [], "x", {}, {"oturumlar": None}, {"oturumlar": "x"}, {"oturumlar": [None, 5, "a"]},
+        {"oturumlar": [{"gun": "pazartesi"}]},
+        {"oturumlar": [{"gun": "pazartesi", "bas": "16:00", "bit": "17:30", "kod": "DYK-X"}]},
+        {"oturumlar": [{"gun": "pazartesi", "bas": "16:00", "bit": "17:30", "kod": "DYK-X", "ders_no": "1"}]},
+        {"oturumlar": [{"gun": "pazartesi", "bas": "bozuk", "bit": "17:30", "kod": "DYK-X", "ders_no": 1}]},
+        {"oturumlar": [{"gun": "pazartesi", "bas": None, "bit": 5, "kod": "DYK-X", "ders_no": 1}]},
+        {"oturumlar": [{"bas": "16:00", "bit": "17:30", "kod": "DYK-X", "ders_no": 1}]},
+    ])
+    def test_bozuk_girdi_none_doner_patlamaz(self, program):
+        assert yoklama._dyk_oturumu(program, 1, _T(16, 30)) is None
+
+    def test_bozuk_oturum_digerlerini_engellemez(self):
+        program = {"oturumlar": [None, {"gun": "pazartesi", "bas": "x", "bit": "y"}, *DYK_PROGRAM["oturumlar"]]}
+        assert yoklama._dyk_oturumu(program, 1, _T(16, 0))["ders_no"] == 1
+
+    def test_program_yukle_yok_ya_bozuk_bos_dict(self, yoklama_ortami, tmp_path):
+        assert yoklama._dyk_program_yukle() == {}
+        (tmp_path / "dyk_program.json").write_text("{bozuk", encoding="utf-8")
+        assert yoklama._dyk_program_yukle() == {}
+        (tmp_path / "dyk_program.json").write_text("[1]", encoding="utf-8")
+        assert yoklama._dyk_program_yukle() == {}
+        (tmp_path / "dyk_program.json").write_text(json.dumps(DYK_PROGRAM), encoding="utf-8")
+        assert yoklama._dyk_program_yukle() == DYK_PROGRAM
+
+
+class TestDykSecici:
+    # 2026-09-28 Pazartesi; fixture roster'ı 9-A, zil 08:10-08:50 / 09:00-09:40.
+    def _hazirla(self, tmp_path, program=DYK_PROGRAM):
+        (yoklama.ROSTER_DIR / "DYK-11-COGRAFYA.json").write_text(json.dumps({
+            "sinif": "DYK-11-COGRAFYA", "ad": "11. sınıf Coğrafya",
+            "ogrenciler": [{"no": 301, "ad_soyad": "Deniz Deneme"}],
+        }, ensure_ascii=False), encoding="utf-8")
+        (yoklama.ROSTER_DIR / "KULUP-BEYAZAY.json").write_text(json.dumps({
+            "sinif": "KULUP-BEYAZAY", "ad": "Beyazay Kulübü",
+            "ogrenciler": [{"no": 206, "ad_soyad": "Deniz Deneme"}],
+        }, ensure_ascii=False), encoding="utf-8")
+        (yoklama.ROSTER_DIR / "10-A.json").write_text(
+            json.dumps({**ROSTER_ORNEGI, "sinif": "10-A"}), encoding="utf-8")
+        if program is not None:
+            (tmp_path / "dyk_program.json").write_text(json.dumps(program), encoding="utf-8")
+
+    def _sec(self, pencere, kod):
+        pencere.sinif_secici.setCurrentIndex(pencere.sinif_secici.findData(kod))
+
+    def test_siralama_ve_etiket(self, yoklama_ortami, tmp_path):
+        self._hazirla(tmp_path)
+        assert yoklama._roster_listesi() == ["10-A", "9-A", "KULUP-BEYAZAY", "DYK-11-COGRAFYA"]
+        assert yoklama._roster_etiketi("DYK-11-COGRAFYA") == "DYK: 11. sınıf Coğrafya"
+        assert yoklama._roster_etiketi("DYK-YOK") == "DYK: DYK-YOK"
+        assert yoklama._roster_etiketi("KULUP-BEYAZAY") == "Kulüp: Beyazay Kulübü"
+        assert yoklama._roster_etiketi("9-A") == "9-A"
+
+    def test_dyk_secili_oturum_icinde_ders_no_baslik_kayit(self, yoklama_ortami, tmp_path):
+        self._hazirla(tmp_path)
+        _saat_ayarla(16, 20)
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            # oturum açılışta aktifti → otomatik DYK listesine geçti
+            assert pencere._secili_kod() == "DYK-11-COGRAFYA"
+            assert pencere._aktif_ders_no == 1
+            assert pencere.baslik_etiketi.text() == "YOKLAMA — DYK 11. sınıf Coğrafya"
+            assert pencere.ders_bilgisi.text() == ""
+            assert "70 dakika" in pencere.kalan_sure_etiketi.text()
+            assert pencere.kaydet_dugmesi.isEnabled()
+            assert [k.no for k in pencere._kartlar] == [301]
+            pencere.kaydet_dugmesi.click()
+            yol = yoklama._kayit_yolu("DYK-11-COGRAFYA", 1, "2026-09-28")
+            kayit = json.loads(yol.read_text(encoding="utf-8"))
+            assert (kayit["sinif"], kayit["ders_no"]) == ("DYK-11-COGRAFYA", 1)
+            assert yol.name == "2026-09-28_DYK-11-COGRAFYA_ders1.json"
+        finally:
+            pencere.close()
+
+    def test_dyk_secili_oturum_disinda_devre_disi(self, yoklama_ortami, tmp_path):
+        self._hazirla(tmp_path)
+        _saat_ayarla(15, 0)
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            self._sec(pencere, "DYK-11-COGRAFYA")
+            assert pencere._aktif_ders_no is None
+            assert pencere.baslik_etiketi.text() == "YOKLAMA — BOŞ"
+            assert not pencere.kaydet_dugmesi.isEnabled()
+            assert all(not k.isEnabled() for k in pencere._kartlar)
+        finally:
+            pencere.close()
+
+    def test_dyk_yanlis_kod_baska_oturumda_none(self, yoklama_ortami, tmp_path):
+        self._hazirla(tmp_path, {"oturumlar": [
+            {"gun": "pazartesi", "bas": "16:00", "bit": "17:30", "kod": "DYK-12-FIZIK", "ders_no": 1}]})
+        _saat_ayarla(16, 20)
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            self._sec(pencere, "DYK-11-COGRAFYA")  # oturum başka koda ait
+            assert pencere._aktif_ders_no is None
+            assert not pencere.kaydet_dugmesi.isEnabled()
+        finally:
+            pencere.close()
+
+    def test_normal_sinif_dyk_saatinde_yalniz_zil(self, yoklama_ortami, tmp_path):
+        self._hazirla(tmp_path)
+        _saat_ayarla(8, 20)  # zil 1. ders
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere._secili_kod() == "10-A"
+            assert pencere._aktif_ders_no == 1
+            _saat_ayarla(16, 20)  # DYK saati, zil dışı: sınıf kaydı için ders yok
+            pencere._dyk_aktif = {("DYK-11-COGRAFYA", 1)}  # oturum zaten bilinen: zorlama yok
+            pencere._periyodik_kontrol()
+            assert pencere._secili_kod() == "10-A"
+            assert pencere._aktif_ders_no is None
+            assert not pencere.kaydet_dugmesi.isEnabled()
+            self._sec(pencere, "KULUP-BEYAZAY")
+            assert pencere._aktif_ders_no is None
+        finally:
+            pencere.close()
+
+    def test_normal_sinif_ders1_kaydi_dyk_ezmez(self, yoklama_ortami, tmp_path):
+        self._hazirla(tmp_path)
+        _saat_ayarla(8, 20)
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            pencere.kaydet_dugmesi.click()
+            yol = yoklama._kayit_yolu("10-A", 1, "2026-09-28")
+            once = yol.read_text(encoding="utf-8")
+            _saat_ayarla(16, 20)
+            pencere._periyodik_kontrol()  # DYK aktifleşir → DYK listesine geçer
+            assert pencere._secili_kod() == "DYK-11-COGRAFYA"
+            pencere.kaydet_dugmesi.click()
+            assert yol.read_text(encoding="utf-8") == once
+            assert yoklama._kayit_yolu("DYK-11-COGRAFYA", 1, "2026-09-28").exists()
+        finally:
+            pencere.close()
+
+    def test_otomatik_secim_gecis_tetikli_ve_oturum_bitince_doner(self, yoklama_ortami, tmp_path):
+        self._hazirla(tmp_path)
+        _saat_ayarla(15, 50)
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere._secili_kod() == "10-A"
+            _saat_ayarla(16, 0)
+            pencere._periyodik_kontrol()
+            assert pencere._secili_kod() == "DYK-11-COGRAFYA"
+            assert pencere._aktif_ders_no == 1
+            # öğretmen elle başka liste seçti → aynı oturum için zorlanmaz
+            self._sec(pencere, "KULUP-BEYAZAY")
+            _saat_ayarla(16, 30)
+            pencere._periyodik_kontrol()
+            assert pencere._secili_kod() == "KULUP-BEYAZAY"
+            # DYK'ya elle dön; oturum bitince ilk sınıfa döner
+            self._sec(pencere, "DYK-11-COGRAFYA")
+            assert pencere._aktif_ders_no == 1
+            _saat_ayarla(17, 30)
+            pencere._periyodik_kontrol()
+            assert pencere._secili_kod() == "10-A"
+            assert pencere._aktif_ders_no is None
+        finally:
+            pencere.close()
+
+    def test_dyk_icin_pencere_one_getirilmez(self, yoklama_ortami, tmp_path, monkeypatch):
+        self._hazirla(tmp_path)
+        _saat_ayarla(15, 50)
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            one = MagicMock()
+            monkeypatch.setattr(pencere, "_pencereyi_one_getir", one)
+            _saat_ayarla(16, 0)
+            pencere._periyodik_kontrol()
+            _saat_ayarla(16, 40)  # eşik (10 dk) geçti, kayıt yok
+            pencere._periyodik_kontrol()
+            one.assert_not_called()
+        finally:
+            pencere.close()
+
+    def test_rostersiz_oturum_secimi_degistirmez(self, yoklama_ortami, tmp_path):
+        self._hazirla(tmp_path, {"oturumlar": [
+            {"gun": "pazartesi", "bas": "16:00", "bit": "17:30", "kod": "DYK-12-FIZIK", "ders_no": 1}]})
+        _saat_ayarla(16, 20)
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere._secili_kod() == "10-A"
+        finally:
+            pencere.close()
+
+    def test_program_yok_davranis_ayni(self, yoklama_ortami, tmp_path):
+        self._hazirla(tmp_path, program=None)
+        _saat_ayarla(8, 20)
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            assert pencere._secili_kod() == "10-A"
+            assert pencere._aktif_ders_no == 1
+            assert pencere.baslik_etiketi.text() == "YOKLAMA — 1. DERS"
+            _saat_ayarla(8, 50)
+            pencere._periyodik_kontrol()
+            assert pencere._aktif_ders_no is None
+            assert pencere.baslik_etiketi.text() == "YOKLAMA — BOŞ"
         finally:
             pencere.close()

@@ -16,8 +16,8 @@ Döngü:
   OOM sayacı, dokunmatik USB kopması — `saglik_olc`, sürüm 3).
 - ~5 sn: GET /duyuru (2026-10-30) → yeni duyuru varsa announcement_agent.py'yi ayrı
   süreç olarak açar (PyQt6 penceresi; ses wav'ı sunucudan indirilir), iptal edilenleri kapatır.
-- 10 dk (ve açılışta): GET /yapilandirma (ETag) → roster / kulüp rosterları / zil.json /
-  ders_programi.json / kazanimlar.json içerik farklıysa doğrulayıp atomik yazar.
+- 10 dk (ve açılışta): GET /yapilandirma (ETag) → roster / kulüp + DYK rosterları / zil.json /
+  ders_programi.json / kazanimlar.json / dyk_program.json içerik farklıysa doğrulayıp atomik yazar.
 
 Yalnızca standart kütüphane (sistem python3, 3.11). Proxy KULLANILMAZ
 (okul ağı proxy'si LAN'daki sunucuya giden isteği bozmasın).
@@ -63,6 +63,7 @@ ZAMAN_ASIMI_SN = 8
 _KAYIT_ADI_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})_[A-Za-z0-9_-]+_ders\d+\.json$")
 _SINIF_RE = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 KULUP_ONEKI = "KULUP-"  # kulüp roster'ları (sınıf temizliği bunlara dokunmaz)
+DYK_ONEKI = "DYK-"  # DYK kursu roster'ları (sınıf temizliği bunlara dokunmaz)
 _SAAT_RE = re.compile(r"^\d{2}:\d{2}$")
 
 # Dokunmatik panel USB satıcı kimlikleri: IRTOUCH (eski tahtalar), OTD (yeni).
@@ -333,6 +334,13 @@ def kazanimlar_gecerli(metin: str) -> bool:
         return False
 
 
+def dyk_program_gecerli(metin: str) -> bool:
+    try:
+        return isinstance(json.loads(metin).get("oturumlar"), list)
+    except (ValueError, AttributeError):
+        return False
+
+
 def roster_gecerli(metin: str, sinif: str) -> bool:
     try:
         r = json.loads(metin)
@@ -383,7 +391,7 @@ def yapilandirmayi_uygula(yap: dict) -> None:
         # admin.py SSH senkronuyla aynı kural: tahta TEK sınıf gösterir.
         # Silmek yerine yedeğe taşınır.
         for eski in ROSTER_DIR.glob("*.json"):
-            if eski.name != f"{sinif}.json" and not eski.name.startswith(KULUP_ONEKI):
+            if eski.name != f"{sinif}.json" and not eski.name.startswith((KULUP_ONEKI, DYK_ONEKI)):
                 _yedekle(eski)
                 eski.unlink()
                 log(f"eski roster kaldirildi (yedekte): {eski.name}")
@@ -401,6 +409,30 @@ def yapilandirmayi_uygula(yap: dict) -> None:
                 _yedekle(eski)
                 eski.unlink()
                 log(f"eski kulup roster kaldirildi (yedekte): {eski.name}")
+    # DYK kursu (kulüplerle aynı kural): "dyk" / "dyk_program" anahtarı yoksa (eski
+    # sunucu) hiçbir şeye dokunulmaz. dyk_program None = bu tahtada DYK yok.
+    dyk = yap.get("dyk")
+    if isinstance(dyk, dict):
+        for kod, metin in dyk.items():
+            if (isinstance(kod, str) and kod.startswith(DYK_ONEKI) and _SINIF_RE.match(kod)
+                    and isinstance(metin, str) and roster_gecerli(metin, kod)
+                    and _farkliysa_yaz(ROSTER_DIR / f"{kod}.json", metin)):
+                log(f"dyk roster guncellendi: {kod}")
+        for eski in ROSTER_DIR.glob(f"{DYK_ONEKI}*.json"):
+            if eski.stem not in dyk:
+                _yedekle(eski)
+                eski.unlink()
+                log(f"eski dyk roster kaldirildi (yedekte): {eski.name}")
+    if "dyk_program" in yap:
+        dyk_program = yap["dyk_program"]
+        yol = DATA_DIR / "dyk_program.json"
+        if isinstance(dyk_program, str) and dyk_program_gecerli(dyk_program):
+            if _farkliysa_yaz(yol, dyk_program):
+                log("dyk_program.json guncellendi")
+        elif dyk_program is None and yol.exists():
+            _yedekle(yol)
+            yol.unlink()
+            log("dyk_program.json kaldirildi (yedekte)")
 
 
 def yapilandirma_cek(ayar: dict, durum: dict) -> None:

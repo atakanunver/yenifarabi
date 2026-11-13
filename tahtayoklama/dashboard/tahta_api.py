@@ -6,7 +6,7 @@ SSH ile çekme modelinin yerine (2026-10-06) "tahta iter / tahta çeker":
 - POST /nabiz         — 60 sn'de bir; taze nabızlı tahta SSH ile taranmaz
 - GET  /duyuru, /duyuru/<id>/ses — tahta duyuruları (2026-10-30, bkz. duyuru.py)
 - GET  /yapilandirma  — roster (atanmış sınıf) + zil.json + ders_programi.json
-                        + kazanimlar.json (2026-10-06) + kulupler (2026-10-22),
+                        + kazanimlar.json (2026-10-06) + kulupler (2026-10-22) + dyk (2026-11-13),
                         ETag/If-None-Match ile
 
 Kimlik: `Authorization: Bearer <token>` — tahta başına ayrı token. Sunucuda
@@ -31,6 +31,7 @@ import db
 import ders_programi
 import devamsizlik_bildirim
 import duyuru
+import dyk
 import kulupler
 import tahta_saglik
 import yoklayici
@@ -295,6 +296,8 @@ def yapilandirma_olustur(tahta: str) -> dict:
         "ders_programi": _ders_programi_metni(sinif_ad),
         "kazanimlar": _kazanim_metni(sinif_ad),
         "kulupler": _kulup_rosterlari(sinif_ad),
+        "dyk": dyk.rosterlari(sinif_ad),
+        "dyk_program": dyk.program_json(sinif_ad),
     }
 
 

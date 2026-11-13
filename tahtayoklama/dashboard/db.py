@@ -99,6 +99,24 @@ CREATE TABLE IF NOT EXISTS kulup_yoklama (
     UNIQUE(tarih, sinif, ders_no)
 );
 
+-- DYK kursu yoklaması (2026-11-13): dyk_yoklama ile AYNI kolonlar, ayrı tablo —
+-- sınıf devamsızlığı/veli SMS'i/rapor etkilenmez. `sinif` = DYK kodu (DYK-*).
+CREATE TABLE IF NOT EXISTS dyk_yoklama (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    tarih         TEXT NOT NULL,
+    sinif         TEXT NOT NULL,
+    ders_no       INTEGER NOT NULL,
+    durum         TEXT NOT NULL,
+    yok_isimleri  TEXT,
+    izinli_isimleri TEXT,
+    yok_nolari    TEXT,
+    izinli_nolari TEXT,
+    kaynak_tahta  TEXT,
+    kaydedilme_saati TEXT,
+    guncelleme_zamani TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(tarih, sinif, ders_no)
+);
+
 CREATE TABLE IF NOT EXISTS oturumlar (
     token         TEXT PRIMARY KEY,
     olusturma_zamani TEXT NOT NULL DEFAULT (datetime('now')),

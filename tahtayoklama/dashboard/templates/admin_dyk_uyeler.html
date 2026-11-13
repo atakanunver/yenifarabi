@@ -1,0 +1,52 @@
+{% extends "taban.html" %}
+{% block baslik_etiketi %}{{ ders.ad }} — DYK listesi{% endblock %}
+{% block baslik %}{{ ders.ad }} DYK{% endblock %}
+
+{% block icerik %}
+{% if request.query_params.get('kaydedildi') %}
+<p class="serit serit-bilgi" role="status">Kaydedildi. Tahtaya en geç 10 dakikada ulaşır.</p>
+{% endif %}
+<form method="post" action="/admin/dyk/{{ ders.kod }}">
+  <div class="ayrinti-eylem">
+    <div class="form-alan"><label for="d-ogr">Öğretmen</label><input id="d-ogr" type="text" name="ogretmen" value="{{ ders.ogretmen or '' }}" maxlength="80"></div>
+    <span>{{ ders.sinif_grubu }}. sınıf · {{ ders.derslik }} tahtası · Kod: {{ ders.kod }}</span>
+  </div>
+  <div class="tablo-kutu">
+    <table class="tablo" id="ogrenci-tablo">
+      <thead><tr><th>No</th><th>Ad soyad</th><th></th></tr></thead>
+      <tbody>
+        {% for u in ders.uyeler %}
+        <tr>
+          <td><div class="form-alan"><input type="text" name="no" value="{{ u.no }}" required inputmode="numeric"></div></td>
+          <td><div class="form-alan"><input type="text" name="ad_soyad" value="{{ u.ad_soyad }}" required maxlength="80"></div></td>
+          <td><button type="button" class="sil-satir dugme dugme-tehlike dugme-kucuk">Sil</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="ayrinti-eylem">
+    <button type="button" id="satir-ekle" class="dugme dugme-ikincil"><svg class="ikon" aria-hidden="true"><use href="#ik-arti"/></svg> Öğrenci ekle</button>
+    <button type="submit" class="dugme">Listeyi kaydet</button>
+    <a href="/admin/dyk" class="dugme dugme-ikincil">DYK kurslarına dön</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block script %}
+<template id="satir-sablonu">
+  <tr>
+    <td><div class="form-alan"><input type="text" name="no" required inputmode="numeric"></div></td>
+    <td><div class="form-alan"><input type="text" name="ad_soyad" required maxlength="80"></div></td>
+    <td><button type="button" class="sil-satir dugme dugme-tehlike dugme-kucuk">Sil</button></td>
+  </tr>
+</template>
+<script>
+document.getElementById('satir-ekle').addEventListener('click', () => {
+  document.querySelector('#ogrenci-tablo tbody').appendChild(document.getElementById('satir-sablonu').content.cloneNode(true));
+});
+document.querySelector('#ogrenci-tablo').addEventListener('click', (e) => {
+  if (e.target.classList.contains('sil-satir')) e.target.closest('tr').remove();
+});
+</script>
+{% endblock %}

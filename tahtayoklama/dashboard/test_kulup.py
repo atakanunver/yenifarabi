@@ -218,7 +218,7 @@ class TestAdminVeSayfa(KulupTemel):
             asyncio.run(admin._tahtaya_roster_gonder(
                 {"ip": "1.1.1.1", "ssh_kullanici": "o", "ad": "10-A"}, "10-A", b"{}"))
         komut = sahte.call_args.args[2]
-        self.assertIn("! -name '10-A.json' ! -name 'KULUP-*' -delete", komut)
+        self.assertIn("! -name '10-A.json' ! -name 'KULUP-*' ! -name 'DYK-*' -delete", komut)
 
     def _sayfa(self, giris=True, **sorgu):
         scope = {"type": "http", "method": "GET", "path": "/kulup-yoklama", "headers": [],
