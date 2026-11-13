@@ -138,11 +138,18 @@ def osym_tablolari(dsn: str) -> dict[str, tuple[list[str], list[tuple]]]:
         raise SqlHatasi("ÖSYM veri tabanına ulaşılamadı.") from type(e)
 
 
+def _gecenler(onek: str, tablolar, sorgu: str) -> list[tuple[str, str]]:
+    """Sorguda TAM sözcük olarak geçen ek tablolar [(atos_adi, kaynak_adi)]; 'sh_soru', 'sh_soru_gorsel'i çekmez."""
+    kucuk = (sorgu or "").lower()
+    return [(_ek_ad(onek, t), t) for t in tablolar
+            if re.search(rf"(?<![a-z0-9_]){re.escape(_ek_ad(onek, t))}(?![a-z0-9_])", kucuk)]
+
+
 def ek_sqlite_tablolari(sorgu: str, kok=_KOK) -> dict[str, tuple[list[str], list[tuple]]]:
     """SQLITE_EK kaynaklarından yalnızca sorguda adı geçen tablolar (salt-okunur). Hata → SqlHatasi."""
-    kucuk, sonuc = (sorgu or "").lower(), {}
+    sonuc = {}
     for onek, (yol, tablolar, yasak) in SQLITE_EK.items():
-        secili = [(_ek_ad(onek, t), t) for t in tablolar if _ek_ad(onek, t) in kucuk]
+        secili = _gecenler(onek, tablolar, sorgu)
         if not secili:
             continue
         try:
@@ -160,9 +167,9 @@ def ek_sqlite_tablolari(sorgu: str, kok=_KOK) -> dict[str, tuple[list[str], list
 
 def pg_ek_tablolari(dsn: str, sorgu: str) -> dict[str, tuple[list[str], list[tuple]]]:
     """PG_EK kaynaklarından yalnızca sorguda adı geçen tablolar (atos_ro; sütun yetkisi dışındakiler görünmez). Hata → SqlHatasi."""
-    kucuk, sonuc = (sorgu or "").lower(), {}
+    sonuc = {}
     for onek, (veri_tabani, tablolar, yasak) in PG_EK.items():
-        secili = [(_ek_ad(onek, t), t) for t in tablolar if _ek_ad(onek, t) in kucuk]
+        secili = _gecenler(onek, tablolar, sorgu)
         if not secili:
             continue
         try:
@@ -175,8 +182,12 @@ def pg_ek_tablolari(dsn: str, sorgu: str) -> dict[str, tuple[list[str], list[tup
                         "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=%s "
                         "AND udt_name <> 'vector' ORDER BY ordinal_position", (t,))
                         if r[0] not in yasak.get(t, ())]
+                    if not kolon:  # tablo yok / atos_ro'nun sütun yetkisi yok
+                        raise SqlHatasi(f"{ad} tablosuna erişilemiyor.")
                     cur = c.execute(f'SELECT {", ".join(chr(34) + k + chr(34) for k in kolon)} FROM public."{t}"')  # atos_ro search_path = okul_ana
                     sonuc[ad] = (kolon, [tuple(_deger(v) for v in r) for r in cur.fetchall()])
+        except SqlHatasi:
+            raise
         except Exception as e:  # noqa: BLE001 — DSN/parola hata metnine sızmasın
             raise SqlHatasi(f"{onek} veri tabanına ulaşılamadı.") from type(e)
     return sonuc
@@ -405,15 +416,22 @@ def dyk_tablolari(veri: dict) -> dict:
     ogrenci, program, ders = [], [], {}
     siniflar = (veri or {}).get("siniflar") or {}
     for grup, s in siniflar.items():
-        for d in (s or {}).get("dersler") or []:
+        if not isinstance(s, dict):
+            continue
+        for d in s.get("dersler") or []:
+            if not isinstance(d, dict) or "kod" not in d:  # elle bozulan kayıt diğer sorguları düşürmesin
+                continue
             ders[d["kod"]] = (d.get("ad"), d.get("ogretmen"))
             for u in d.get("uyeler") or []:
-                ogrenci.append((d["kod"], grup, s.get("derslik"), d.get("ad"), d.get("ogretmen"), u["no"], u["ad_soyad"]))
+                if isinstance(u, dict) and "no" in u and "ad_soyad" in u:
+                    ogrenci.append((d["kod"], grup, s.get("derslik"), d.get("ad"), d.get("ogretmen"), u["no"], u["ad_soyad"]))
     for grup, oturumlar in ((veri or {}).get("program") or {}).items():
         for o in oturumlar or []:
+            if not isinstance(o, dict) or not all(k in o for k in ("gun", "bas", "bit", "kod", "ders_no")):
+                continue
             ad, ogretmen = ders.get(o["kod"], (None, None))
-            program.append((grup, (siniflar.get(grup) or {}).get("derslik"), _DYK_GUNLER.get(o["gun"]), o["gun"],
-                            o["bas"], o["bit"], o["kod"], ad, ogretmen, o["ders_no"]))
+            program.append((grup, (siniflar.get(grup) or {}).get("derslik") if isinstance(siniflar.get(grup), dict) else None,
+                            _DYK_GUNLER.get(o["gun"]), o["gun"], o["bas"], o["bit"], o["kod"], ad, ogretmen, o["ders_no"]))
     return {"dyk_ogrenci": (["kod", "sinif_grubu", "derslik", "ders", "ogretmen", "okul_no", "ad_soyad"], ogrenci),
             "dyk_program": (["sinif_grubu", "derslik", "gun", "gun_adi", "baslangic", "bitis", "kod", "ders", "ogretmen", "ders_no"], program)}
 

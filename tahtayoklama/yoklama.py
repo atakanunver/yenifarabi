@@ -646,11 +646,13 @@ class YoklamaPenceresi(QWidget):
         aktif = {(o["kod"], o["ders_no"])
                  for o in _dyk_oturumlari(self._dyk_program, an.isoweekday(), an.time())}
         onceki, self._dyk_aktif = self._dyk_aktif, aktif
-        for kod, _ in sorted(aktif - onceki):
-            indeks = self.sinif_secici.findData(kod)
+        for oturum in sorted(aktif - onceki):
+            indeks = self.sinif_secici.findData(oturum[0])
             if indeks >= 0:
                 self.sinif_secici.setCurrentIndex(indeks)
                 return
+            # roster henüz inmedi (10 dk'lık senkron): oturum işlenmiş sayılmasın, sonraki kontrolde yeniden denensin
+            self._dyk_aktif = self._dyk_aktif - {oturum}
         secili = self._secili_kod()
         if (secili.startswith(DYK_ONEKI) and any(k == secili for k, _ in onceki)
                 and not any(k == secili for k, _ in aktif)):

@@ -68,8 +68,8 @@ async def dyk_uyeleri(request: Request, kod: str):
 
 @router.post("/{kod}")
 async def dyk_uyelerini_kaydet(request: Request, kod: str):
-    form = await request.form()
     _oturum_sarti(request)
+    form = await request.form()
     try:
         uyeler = dyk.uyeleri_ayristir(form.getlist("no"), form.getlist("ad_soyad"))
         dyk.guncelle(kod, form.get("ogretmen", ""), uyeler)

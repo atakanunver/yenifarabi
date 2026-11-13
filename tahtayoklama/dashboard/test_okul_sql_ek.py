@@ -28,6 +28,15 @@ class TestDyk(unittest.TestCase):
             self.assertEqual(okul_sql.dyk_tablolari(veri)["dyk_ogrenci"][1], [])
 
 
+    def test_bozuk_kayit_atlanir(self):
+        veri = {"siniflar": {"11": {"derslik": "10-A", "dersler": [{"ad": "Kodsuz"}, "x",
+                                                                   {"kod": "K", "uyeler": [{"no": 1}, {"no": 2, "ad_soyad": "A"}]}]}, "12": None},
+                "program": {"11": [{"gun": "cuma"}, 5, {"gun": "cuma", "bas": "16:00", "bit": "17:30", "kod": "K", "ders_no": 1}]}}
+        t = okul_sql.dyk_tablolari(veri)
+        self.assertEqual(len(t["dyk_ogrenci"][1]), 1)
+        self.assertEqual(len(t["dyk_program"][1]), 1)
+
+
 class TestEkSqlite(unittest.TestCase):
     def setUp(self):
         self.gecici = tempfile.TemporaryDirectory()
@@ -51,6 +60,11 @@ class TestEkSqlite(unittest.TestCase):
 
     def test_yalniz_sorguda_gecen_tablo_okunur(self):
         self.assertEqual(okul_sql.ek_sqlite_tablolari("SELECT 1", kok=self.kok), {})
+
+    def test_tablo_adi_tam_sozcuk_eslesir(self):
+        gec = okul_sql._gecenler("sh", ("soru", "soru_gorsel"), "SELECT * FROM sh_soru_gorsel")
+        self.assertEqual(gec, [("sh_soru_gorsel", "soru_gorsel")])
+        self.assertEqual(okul_sql._gecenler("sh", ("soru",), "select 1 -- sh_sorular"), [])
 
     def test_oturum_tablosu_listede_yok(self):
         self.assertNotIn("portal_oturum", okul_sql.IZINLI_TABLOLAR)

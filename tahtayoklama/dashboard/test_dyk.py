@@ -88,6 +88,9 @@ class TestOkuma(DykDosyasi):
 
 
 class TestUyeAyristir(unittest.TestCase):
+    def test_sutun_uzunlugu_uyusmazsa_hata(self):
+        with self.assertRaises(ValueError):
+            dyk.uyeleri_ayristir(["1", "2"], ["A"])
     def test_bos_satir_atlanir_ve_alanlar_temizlenir(self):
         self.assertEqual(dyk.uyeleri_ayristir([" 12 ", ""], [" Ali Veli ", ""]),
                          [{"no": 12, "ad_soyad": "Ali Veli"}])

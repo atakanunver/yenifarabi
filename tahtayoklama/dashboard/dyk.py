@@ -92,6 +92,8 @@ def program_json(sinif_ad: str | None) -> str | None:
 
 def uyeleri_ayristir(nolar: list[str], adlar: list[str]) -> list[dict]:
     """Form sütunlarından üye listesi; boş satır atlanır. Geçersiz/tekrarlı no → ValueError."""
+    if len(nolar) != len(adlar):
+        raise ValueError("Öğrenci no ve ad sütunları eşleşmiyor.")
     uyeler, gorulen = [], set()
     for no, ad in zip(nolar, adlar):
         no, ad = no.strip(), ad.strip()
@@ -115,8 +117,10 @@ def uyeleri_ayristir(nolar: list[str], adlar: list[str]) -> list[dict]:
 def _kaydet(veri: dict) -> None:
     """Atomik yazım; dosya öğrenci verisi içerdiği için 0600."""
     gecici = DYK_DOSYASI.with_suffix(".json.tmp")
-    gecici.write_text(json.dumps(veri, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.chmod(gecici, 0o600)
+    fd = os.open(gecici, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)  # umask'a bakmadan baştan 0600
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(json.dumps(veri, ensure_ascii=False, indent=2))
+    os.chmod(gecici, 0o600)  # .tmp önceden başka izinle kalmışsa
     os.replace(gecici, DYK_DOSYASI)
 
 
