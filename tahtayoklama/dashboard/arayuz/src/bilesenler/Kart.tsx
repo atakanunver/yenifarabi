@@ -26,9 +26,9 @@ export const Kart: React.FC<KartProps> = ({ baslik, ikon, vurgu, sag, sira = 0, 
     <div aria-hidden="true"
          className="pointer-events-none absolute inset-x-10 -bottom-4 h-16 rounded-full opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-60"
          style={{ background: `${vurgu}59` }} />
-    <div className="relative flex h-full flex-col rounded-[24px] border border-white/15 bg-white/[0.04] p-5
+    <div className="relative flex h-full flex-col rounded-[24px] border border-white/15 bg-white/[0.02] p-5
                     shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition-all duration-300
-                    group-hover:-translate-y-0.5 group-hover:border-t-white/35 group-hover:bg-white/[0.08]">
+                    group-hover:-translate-y-0.5 group-hover:border-t-white/35 group-hover:bg-white/[0.06]">
       <header className="mb-4 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full"

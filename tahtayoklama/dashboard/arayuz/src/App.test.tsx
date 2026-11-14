@@ -27,8 +27,8 @@ describe('App — ortak kabuk içindeki React ders paneli', () => {
 
   it('kart zemini arka planı daha görünür bırakır', () => {
     const html = renderToStaticMarkup(<Kart baslik="Örnek" ikon="ev" vurgu="#38BDF8">İçerik</Kart>);
-    expect(html).toContain('bg-white/[0.04]');
-    expect(html).toContain('group-hover:bg-white/[0.08]');
+    expect(html).toContain('bg-white/[0.02]');
+    expect(html).toContain('group-hover:bg-white/[0.06]');
   });
 
   it('KPI, grafik, halka, gerçek tablo ve ders listesi hazır render olur', () => {
