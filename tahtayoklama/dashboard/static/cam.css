@@ -64,7 +64,8 @@ body { background: #070914; min-height: 100vh; font-variant-numeric: tabular-num
 .alan-sekmeler::before, .cam-pencere::before {
   content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
   background: var(--cam-yuzey-koyu);
-  -webkit-backdrop-filter: var(--cam-bulanik); backdrop-filter: var(--cam-bulanik);
+  /* Hafif bulanıklık: duvar kağıdı kartların arkasından seçilebilsin (2026-11-15, Atakan) */
+  -webkit-backdrop-filter: blur(3px) saturate(130%); backdrop-filter: blur(3px) saturate(130%);
 }
 .alan-sekme {
   position: relative; display: grid; place-items: center; flex-shrink: 0;
