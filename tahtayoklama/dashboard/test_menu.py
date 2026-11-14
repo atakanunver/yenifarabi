@@ -51,7 +51,7 @@ class TestMenu(unittest.TestCase):
         eylemler = {o.get("eylem") for o in menu.AYARLAR}
         self.assertLessEqual({"yazdir", "kisayollar", "cikis"}, eylemler)
         self.assertIn("/b/atos", {o.get("href") for o in menu.AYARLAR})
-        self.assertEqual(len(menu.TEMALAR), 9)
+        self.assertEqual(len(menu.TEMALAR), 10)  # 2026-11-14: + cam (varsayılan)
         self.assertIn(("koyu", "Taş Tahta"), menu.TEMALAR)
         veli = next(s for s in _sayfalar() if s["ad"] == "Veli mesajları")
         self.assertEqual(veli["sayac"], "veli")

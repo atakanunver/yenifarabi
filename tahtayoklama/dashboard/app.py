@@ -25,6 +25,7 @@ import admin
 import okul_ana_panel
 import ajan_api
 import okul_bilgisi
+import panel_duvar
 import auth
 import db
 import deneme_hatirlatma
@@ -166,6 +167,7 @@ app.include_router(guvenlik.router)
 app.include_router(duyurular_panel.router)
 app.include_router(gorsel_panel.router)
 app.include_router(yakinda.router)
+app.include_router(panel_duvar.router)
 
 
 @app.get("/giris", response_class=HTMLResponse)

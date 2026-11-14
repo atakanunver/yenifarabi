@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from urllib.parse import parse_qs
 
+import panel_duvar
 import zil
 
 STATIK_DIZINI = Path(__file__).resolve().parent / "static"
@@ -156,6 +157,7 @@ AYARLAR: list[dict] = [
 ]
 # (anahtar, ad); sırası tema döngü düğmesinin sırasıdır, ilki varsayılan
 TEMALAR: list[tuple[str, str]] = [
+    ("cam", "Uzamsal cam"),
     ("sade-koyu", "Sade koyu"),
     ("kurumsal", "Sakin kurumsal"),
     ("lacivert", "Lacivert"),
@@ -203,6 +205,7 @@ def menu_agaci(yol: str, sorgu: str = "") -> dict:
         "atos": copy.deepcopy(ATOS),
         "ayarlar": copy.deepcopy(AYARLAR),
         "temalar": list(TEMALAR),
+        "duvar_kagitlari": panel_duvar.liste(),
         "ders": zil.ust_bilgi(),
         "gun": zil.gun_adi(),
         "surum": statik_surum(),

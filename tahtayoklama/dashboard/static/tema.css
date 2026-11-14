@@ -135,6 +135,67 @@
   --punto-baslik: 1.5rem;
 }
 
+/* Tema: "cam" — uzamsal cam (visionOS / LifeStats, 2026-11-14, varsayılan). Yüzeyler yarı saydam beyaz,
+   arkada duvar kağıdı (cam.css); doygun renk yalnız durum/veri vurgusunda. */
+:root[data-tema="cam"] {
+  --renk-ortu: rgba(4, 6, 18, 0.55);
+  --renk-zemin: rgba(8, 10, 26, 0.55);
+  --renk-yuzey: rgba(255, 255, 255, 0.06);
+  --renk-yuzey-2: rgba(255, 255, 255, 0.11);
+  --renk-kenar: rgba(255, 255, 255, 0.15);
+  --renk-kenar-vurgu: rgba(255, 255, 255, 0.28);
+  --renk-golge: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --renk-golge-kart: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --renk-golge-yukseltilmis: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 24px 48px -12px rgba(0, 0, 0, 0.5);
+
+  --renk-metin: #ffffff;
+  --renk-metin-soluk: rgba(255, 255, 255, 0.75);
+  --renk-metin-cok-soluk: rgba(255, 255, 255, 0.5);
+
+  --renk-birincil: #a5b4fc;
+  --renk-birincil-koyu: #6366f1;
+  --renk-birincil-zemin: rgba(99, 102, 241, 0.22);
+
+  --renk-yesil: #32d74b;
+  --renk-yesil-zemin: rgba(50, 215, 75, 0.16);
+  --renk-kirmizi: #ff3b5c;
+  --renk-kirmizi-zemin: rgba(255, 59, 92, 0.16);
+  --renk-amber: #ffb340;
+  --renk-amber-zemin: rgba(255, 179, 64, 0.16);
+  --renk-gri: rgba(255, 255, 255, 0.55);
+  --renk-gri-zemin: rgba(255, 255, 255, 0.08);
+  --renk-acil: #ff3b5c;
+  --renk-sabit-acik: #ffffff;
+  --renk-bant: none;
+
+  --yaricap: 12px;
+  --yaricap-buyuk: 24px;
+  --kenar-genislik: 268px;
+
+  --renk-kenar-zemin: transparent;
+  --renk-kenar-metin: var(--renk-metin);
+  --renk-kenar-soluk: var(--renk-metin-soluk);
+  --renk-kenar-hover: rgba(255, 255, 255, 0.1);
+  --renk-kenar-aktif-zemin: rgba(255, 255, 255, 0.2);
+  --renk-kenar-aktif-metin: #ffffff;
+  --renk-kenar-cizgi: rgba(255, 255, 255, 0.1);
+
+  --yazi-tipi: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Arial, sans-serif;
+  --yazi-tipi-baslik: var(--yazi-tipi);
+  --yazi-tipi-sayi: var(--yazi-tipi);
+  --renk-ust-zemin: transparent;
+  --renk-ust-metin: #ffffff;
+  --renk-ust-aktif: #ffffff;
+  --bosluk-1: 0.25rem;
+  --bosluk-2: 0.5rem;
+  --bosluk-3: 0.75rem;
+  --bosluk-4: 1rem;
+  --bosluk-5: 1.5rem;
+  --punto-kucuk: 0.75rem;
+  --punto-govde: 0.875rem;
+  --punto-baslik: 1.5rem;
+}
+
 /* Tema: "kurumsal" — sakin açık (örnek A): beyaz yüzey, lacivert metin, mavi vurgu. */
 :root[data-tema="kurumsal"] {
   --renk-ortu: rgba(10, 14, 26, 0.45);

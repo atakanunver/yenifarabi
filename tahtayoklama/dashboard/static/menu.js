@@ -1,4 +1,4 @@
-// Kabuk davranışı (2026-10-30, panel yeniden tasarımı): üst alan sekmeleri + sol sayfa menüsü.
+// Kabuk davranışı (2026-10-30; cam kabuk 2026-11-14): soldaki alan rayı + pencere içindeki sayfa menüsü.
 // Menü ağacı sunucuda menu.py'den gelir (taban.html); bu dosya yalnızca davranış: ok tuşları,
 // harf kısayolları, <=720px çekmece, ayar menüsü eylemleri, tema döngüsü, veli sayacı ve
 // mini sunucu durumu (eski kenar.js buraya katıldı). Gezinme JS'siz de çalışır (düz <a href>).
@@ -104,6 +104,10 @@
       if (window.farabiTemaUygula) window.farabiTemaUygula(ad.slice(5));
       return; // temalar arasında gezinirken menü açık kalsın
     }
+    if (ad.indexOf('duvar:') === 0) {
+      if (window.farabiDuvarUygula) window.farabiDuvarUygula(ad.slice(6));
+      return; // duvar kağıtları arasında gezinirken de menü açık kalsın
+    }
     if (EYLEMLER[ad]) { acilirKapat(false); EYLEMLER[ad](); }
   });
 
@@ -125,18 +129,24 @@
     var a = document.activeElement;
     if (!a || !a.classList) return;
     if (a.classList.contains('alan-sekme')) {
-      // Çekmecede sekmeler alt alta durur: orada ↑↓ sekmeler arasında gezer.
-      var yatay = masaustu.matches;
-      if (yatay && e.key === 'ArrowDown' && a.tagName === 'SUMMARY') {
-        // Açılır alan: ↓ listeyi açar, ilk sayfaya odaklanır
+      // Cam kabuk (2026-11-14): alanlar dikey rayda (çekmecede de alt alta): ↑↓ alanlar arasında gezer.
+      if (masaustu.matches && e.key === 'ArrowRight' && a.tagName === 'SUMMARY') {
+        // Açılır alan: → yandaki listeyi açar, ilk sayfaya odaklanır
         e.preventDefault();
         a.parentNode.open = true;
         var ilkOge = a.parentNode.querySelector('.alan-acilir-oge');
         if (ilkOge) ilkOge.focus();
         return;
       }
-      okGezin(e, gorunur(hepsi('.alan-sekme')), yatay ? 'ArrowLeft' : 'ArrowUp', yatay ? 'ArrowRight' : 'ArrowDown');
+      okGezin(e, gorunur(hepsi('.alan-sekme')), 'ArrowUp', 'ArrowDown');
     } else if (a.classList.contains('alan-acilir-oge')) {
+      if (masaustu.matches && e.key === 'ArrowLeft') {  // ← yandaki listeden raya döner
+        e.preventDefault();
+        var acilir = a.closest('details');
+        acilir.open = false;
+        acilir.querySelector('summary').focus();
+        return;
+      }
       okGezin(e, gorunur(hepsi('.alan-acilir-oge')).filter(function (o) { return o.closest('details') === a.closest('details'); }),
         'ArrowUp', 'ArrowDown');
     } else if (a.classList.contains('sol-oge')) {

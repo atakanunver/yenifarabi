@@ -28,7 +28,7 @@ class TestTema(unittest.TestCase):
     def test_her_tema_tum_tokenlari_tanimlar(self):
         bloklar = _bloklar(_oku("tema.css"))
         kok = _adlar(bloklar[""])
-        self.assertEqual(len(bloklar) - 1, 8)
+        self.assertEqual(len(bloklar) - 1, 9)  # 2026-11-14: + cam
         for tema, govde in bloklar.items():
             if tema:
                 self.assertEqual(sorted(kok - _adlar(govde)), [], tema)
@@ -36,10 +36,11 @@ class TestTema(unittest.TestCase):
     def test_tema_listesi_ve_varsayilan(self):
         css_temalar = set(_bloklar(_oku("tema.css"))) - {""}
         self.assertEqual({a for a, _ in menu.TEMALAR}, css_temalar | {"sade-koyu"})
-        self.assertEqual(next(a for a, _ in menu.TEMALAR), "sade-koyu")
-        self.assertEqual(len(menu.TEMALAR), 9)
+        # 2026-11-14: Progmatik iptal, varsayılan uzamsal cam (tahtayoklama/AGENTS.md)
+        self.assertEqual(next(a for a, _ in menu.TEMALAR), "cam")
+        self.assertEqual(len(menu.TEMALAR), 10)
         js = _oku("tema.js")
-        self.assertRegex(js, r'VARSAYILAN\s*=\s*"sade-koyu"')
+        self.assertRegex(js, r'VARSAYILAN\s*=\s*"cam"')
         self.assertRegex(js, r'klasik:\s*"argon"')
         self.assertRegex(js, r'yumusak:\s*"argon"')
         self.assertIn("FARABI_TEMALAR", js)

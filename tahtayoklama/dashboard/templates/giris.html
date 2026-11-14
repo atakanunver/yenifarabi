@@ -9,12 +9,16 @@
 <link rel="stylesheet" href="/static/pano.css?v={{ menu_agaci('/giris').surum }}">
 <link rel="stylesheet" href="/static/bilesen.css?v={{ menu_agaci('/giris').surum }}">
 <link rel="stylesheet" href="/static/stil.css?v={{ menu_agaci('/giris').surum }}">
+<link rel="stylesheet" href="/static/cam.css?v={{ menu_agaci('/giris').surum }}">
 <script>window.FARABI_TEMALAR = {{ menu_agaci('/giris').temalar | map(attribute=0) | list | tojson }};
-(function(){var t=null;try{t=localStorage.getItem('farabi_yoklama_tema')}catch(e){}if(t==='klasik'||t==='yumusak')t='argon';if(window.FARABI_TEMALAR.indexOf(t)<0)t='sade-koyu';document.documentElement.dataset.tema=t;})();</script>
+window.FARABI_DUVAR = {{ menu_agaci('/giris').duvar_kagitlari | tojson }};
+(function(){var k=document.documentElement,t=null,d=null;try{t=localStorage.getItem('farabi_yoklama_tema');d=localStorage.getItem('farabi_duvar_kagidi')}catch(e){}if(t==='klasik'||t==='yumusak')t='argon';if(window.FARABI_TEMALAR.indexOf(t)<0)t='cam';k.dataset.tema=t;var L=window.FARABI_DUVAR,s=null;for(var i=0;i<L.length;i++)if(L[i].ad===d)s=L[i];if(!s&&d!=='yok'&&L.length)s=L[0];k.dataset.duvar=s?s.ad:'yok';if(s)k.style.setProperty('--duvar-resmi','url("'+s.url+'")');})();</script>
 </head>
 <body class="giris-sarici">
 {% include "_ikon_sprite.html" %}
+<div class="cam-ortam" aria-hidden="true"></div>
 <div class="tema-secici tema-secici-kose">
+  <button type="button" data-tema="cam" title="Uzamsal cam"><svg class="ikon"><use href="#ik-yildiz"/></svg></button>
   <button type="button" data-tema="argon" title="Argon açık"><svg class="ikon"><use href="#ik-gunes"/></svg></button>
   <button type="button" data-tema="argon-koyu" title="Argon koyu"><svg class="ikon"><use href="#ik-ay"/></svg></button>
   <button type="button" data-tema="koyu" title="Taş Tahta"><svg class="ikon"><use href="#ik-tahta"/></svg></button>
