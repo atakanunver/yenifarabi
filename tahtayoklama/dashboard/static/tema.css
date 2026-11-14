@@ -77,62 +77,62 @@
 
 /* Tema: "sade-koyu" — varsayılan (örnek ekran C): çok koyu nötr zemin, mavi tek vurgu. */
 :root {
-  --renk-ortu: rgba(0, 0, 0, 0.6);
-  --renk-zemin: #0d1117;
-  --renk-yuzey: #111720;
-  --renk-yuzey-2: #171e29;
-  --renk-kenar: #222a35;
-  --renk-kenar-vurgu: #313b49;
-  --renk-golge: none;
-  --renk-golge-kart: none;
-  --renk-golge-yukseltilmis: 0 12px 30px 0 rgba(0, 0, 0, 0.5);
+  --renk-ortu: rgba(2, 6, 23, 0.7);
+  --renk-zemin: #020617;
+  --renk-yuzey: #0f172a;
+  --renk-yuzey-2: #1e293b;
+  --renk-kenar: #1e293b;
+  --renk-kenar-vurgu: #334155;
+  --renk-golge: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+  --renk-golge-kart: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
+  --renk-golge-yukseltilmis: 0 10px 25px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
 
-  --renk-metin: #e6edf3;
-  --renk-metin-soluk: #8b98a8;
-  --renk-metin-cok-soluk: #66727f;
+  --renk-metin: #f8fafc;
+  --renk-metin-soluk: #94a3b8;
+  --renk-metin-cok-soluk: #64748b;
 
-  --renk-birincil: #7cb3ff;
-  --renk-birincil-koyu: #5a97ec;
-  --renk-birincil-zemin: rgba(124, 179, 255, 0.14);
+  --renk-birincil: #6366f1;
+  --renk-birincil-koyu: #4f46e5;
+  --renk-birincil-zemin: rgba(99, 102, 241, 0.15);
 
-  --renk-yesil: #5fd38a;
-  --renk-yesil-zemin: rgba(95, 211, 138, 0.14);
-  --renk-kirmizi: #ff8a80;
-  --renk-kirmizi-zemin: rgba(255, 138, 128, 0.14);
-  --renk-amber: #f3b35b;
-  --renk-amber-zemin: rgba(243, 179, 91, 0.14);
-  --renk-gri: #8b98a8;
-  --renk-gri-zemin: #171e29;
-  --renk-acil: #e5484d;
+  --renk-yesil: #10b981;
+  --renk-yesil-zemin: rgba(16, 185, 129, 0.14);
+  --renk-kirmizi: #f43f5e;
+  --renk-kirmizi-zemin: rgba(244, 63, 94, 0.14);
+  --renk-amber: #f59e0b;
+  --renk-amber-zemin: rgba(245, 158, 11, 0.14);
+  --renk-gri: #94a3b8;
+  --renk-gri-zemin: #1e293b;
+  --renk-acil: #ef4444;
   --renk-sabit-acik: #ffffff;
   --renk-bant: none;
 
-  --yaricap: 8px;
-  --yaricap-buyuk: 10px;
+  --yaricap: 6px;
+  --yaricap-buyuk: 12px;
   --kenar-genislik: 268px;
 
-  --renk-kenar-zemin: var(--renk-yuzey);
+  --renk-kenar-zemin: var(--renk-zemin);
   --renk-kenar-metin: var(--renk-metin);
   --renk-kenar-soluk: var(--renk-metin-soluk);
-  --renk-kenar-hover: var(--renk-yuzey-2);
-  --renk-kenar-aktif-zemin: var(--renk-birincil-zemin);
-  --renk-kenar-aktif-metin: var(--renk-birincil);
+  --renk-kenar-hover: rgba(30, 41, 59, 0.6);
+  --renk-kenar-aktif-zemin: var(--renk-yuzey-2);
+  --renk-kenar-aktif-metin: #ffffff;
   --renk-kenar-cizgi: var(--renk-kenar);
 
   --yazi-tipi: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --yazi-tipi-baslik: var(--yazi-tipi);
   --yazi-tipi-sayi: var(--yazi-tipi);
-  --renk-ust-zemin: var(--renk-yuzey);
+  --renk-ust-zemin: #020617;
   --renk-ust-metin: var(--renk-metin);
-  --renk-ust-aktif: var(--renk-birincil);
+  --renk-ust-aktif: #818cf8;
   --bosluk-1: 0.25rem;
   --bosluk-2: 0.5rem;
   --bosluk-3: 0.75rem;
   --bosluk-4: 1rem;
   --bosluk-5: 1.5rem;
   --punto-kucuk: 0.75rem;
-  --punto-govde: 0.85rem;
-  --punto-baslik: 1.35rem;
+  --punto-govde: 0.875rem;
+  --punto-baslik: 1.5rem;
 }
 
 /* Tema: "kurumsal" — sakin açık (örnek A): beyaz yüzey, lacivert metin, mavi vurgu. */

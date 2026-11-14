@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="/static/tema.css?v={{ agac.surum }}">
 <link rel="stylesheet" href="/static/pano.css?v={{ agac.surum }}">
 <link rel="stylesheet" href="/static/bilesen.css?v={{ agac.surum }}">
+{# stil.css = tasarim/ (Tailwind) derlemesi; en son yüklenir, eski dosyaların bileşenlerini Progmatik görünümüyle yeniden tanımlar #}
+<link rel="stylesheet" href="/static/stil.css?v={{ agac.surum }}">
 {# Tema listesinin tek kaynağı menu.TEMALAR; tema.js de bu listeyi okur. Kayıt yoksa sade koyu
    (işletim sistemi tercihine bakılmaz, 2026-10-30). Sayfa boyanmadan önce uygulanır. #}
 <script>window.FARABI_TEMALAR = {{ agac.temalar | map(attribute=0) | list | tojson }};

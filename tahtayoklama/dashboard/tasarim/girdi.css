@@ -1,0 +1,104 @@
+/* Panel arayüzü: Tailwind 3 + Progmatik görünümü (ui.tsx: Buton, Panel, Rozet, Bildirim, SayfaBaslik).
+   Derleme: cd tasarim && npm ci && npm run build → static/stil.css (commit'lenir; üretimde node yok).
+   Yükleme sırası: tema.css → pano.css → bilesen.css → stil.css (EN SON). Eski dosyalar olduğu gibi durur
+   (test_bilesen/test_menu bunlara bağlı); bu dosya aynı seçicileri eşit özgüllükle sonradan yeniden tanımlar.
+   Renk = yalnız tema belirteçleri (tailwind.config.js); ham hex/slate/indigo yok. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Preflight kapalı: Tailwind'in kenarlık kuralı yok; @apply border + border-solid birlikte yazılır */
+  :focus-visible { @apply outline-2 outline-offset-2 outline-birincil; }
+}
+
+@layer components {
+  /* ---------- Sayfa başlığı: küçük birincil üst yazı + 2xl başlık + soluk açıklama ---------- */
+  .sayfa-basligi { @apply mb-6; }
+  .sayfa-basligi .kirinti, .ust-yazi { @apply text-xs font-medium text-birincil; }
+  .sayfa-basligi h1 { @apply text-2xl font-semibold tracking-tight text-metin; }
+  .sayfa-aciklama { @apply mt-1.5 max-w-2xl text-sm text-metin-soluk; }
+
+  /* ---------- Panel ---------- */
+  .panel { @apply rounded-xl border border-solid border-kenar bg-yuzey shadow-kart; }
+  .panel-baslik { @apply flex flex-wrap items-center justify-between gap-3 border-b border-solid border-kenar px-5 py-4; }
+  .panel-baslik h2 { @apply m-0 text-sm font-semibold text-metin; }
+  .panel-baslik p { @apply mb-0 mt-0.5 text-xs text-metin-soluk; }
+  .panel-govde { @apply space-y-4 px-5 py-4; }
+  .tablo-kutu, .ayrinti-panel { @apply rounded-xl bg-yuzey shadow-kart; }
+  .bos-durum { @apply rounded-xl bg-yuzey; }
+
+  /* ---------- Düğme: varsayılan DOLU birincil (eski sözleşme); -ikincil kenarlı, -tehlike, -hayalet ---------- */
+  .dugme { @apply h-9 min-h-9 gap-1.5 rounded-md px-3.5 text-sm font-medium; }
+  .dugme-birincil, .dugme { @apply border-birincil; }
+  .dugme-ikincil { @apply border-kenar-vurgu bg-yuzey text-metin; }
+  .dugme-ikincil:hover { @apply border-metin-soluk bg-yuzey-2; }
+  .dugme-tehlike, .dugme-tehlike:hover { @apply text-kirmizi; }
+  .dugme-tehlike { @apply border-kirmizi bg-transparent; }
+  .dugme-tehlike:hover { @apply border-kirmizi bg-kirmizi-zemin; }
+  .dugme-hayalet, .dugme-hayalet:hover { @apply text-metin-soluk; }
+  .dugme-hayalet { @apply border-transparent bg-transparent; }
+  .dugme-hayalet:hover { @apply border-transparent bg-yuzey-2 text-metin; }
+  .dugme-kucuk { @apply h-8 min-h-8 rounded-md px-2.5 text-xs; }
+  .dugme-ikon { @apply h-9 w-9 rounded-md; }
+
+  /* ---------- Rozet: hap + ring (kenarlık yerine) ---------- */
+  .rozet { @apply gap-1 border-0 px-2 py-0.5 text-xs ring-1 ring-inset ring-kenar-vurgu; }
+  .rozet-yesil { @apply ring-yesil; }
+  .rozet-amber { @apply ring-amber; }
+  .rozet-kirmizi { @apply ring-kirmizi; }
+  .rozet-gri { @apply ring-kenar-vurgu; }
+  .rozet-mavi { @apply ring-birincil; }
+
+  /* ---------- Bildirim (eski adı .serit): rounded-lg, ince kenar, solda kalın şerit yok ---------- */
+  .serit, .bildirim { @apply rounded-lg border border-solid px-4 py-3 text-sm; }
+  .serit { @apply border-l; }
+  .bildirim { @apply border-kenar-vurgu bg-yuzey text-metin; }
+  .bildirim-bilgi { @apply border-birincil bg-birincil-zemin text-birincil; }
+  .bildirim-tamam { @apply border-yesil bg-yesil-zemin text-yesil; }
+  .bildirim-uyari { @apply border-amber bg-amber-zemin text-amber; }
+  .bildirim-hata { @apply border-kirmizi bg-kirmizi-zemin text-kirmizi; }
+
+  /* ---------- Tablo ---------- */
+  .tablo th, .tablo td { @apply px-3.5 py-2.5; }
+  .tablo thead th { @apply text-xs font-medium text-metin-soluk; }
+  .tablo tbody tr:hover { @apply bg-yuzey-2; }
+
+  /* ---------- Girdi: h-9, odakta birincil kenar + ince halka (kalın outline yerine) ---------- */
+  .ara-kutu, .form-alan input, .form-alan select, .form-alan textarea {
+    @apply min-h-9 rounded-md border-kenar-vurgu bg-zemin px-3 text-sm text-metin;
+  }
+  .ara-kutu { @apply h-9; }
+  .ara-kutu:focus, .form-alan input:focus, .form-alan select:focus, .form-alan textarea:focus {
+    @apply border-birincil outline-none ring-1 ring-birincil;
+  }
+  .form-alan label { @apply text-xs font-medium text-metin-soluk; }
+
+  /* ---------- Süzgeç çipi ---------- */
+  a.cip { @apply py-1 text-xs; }
+
+  /* ---------- Sol menü (Kabuk): 248px; aktif öğe nötr dolgu, bölüm başlığı küçük soluk ---------- */
+  .sol-baslik { @apply font-medium; }
+  .sol-oge { @apply rounded-md px-2.5 text-sm; }
+  .sol-oge:hover { @apply bg-yuzey text-metin; }
+  .sol-oge.aktif { @apply bg-yuzey-2 font-medium text-metin; }
+  .sol-oge.aktif .ikon { @apply text-birincil opacity-100; }
+  .sol-menu { @apply px-3; }
+  @media (min-width: 721px) {
+    .sol-menu { width: 15.5rem; }
+    .icerik-sol-menulu { margin-left: 15.5rem; }
+  }
+}
+
+/* 390px: üst çubuk 1px taşıyordu (Acil durum düğmesi kırpılıyordu); marka adı gizlenir, logo kalır */
+@media (max-width: 480px) {
+  .ust-marka span { display: none; }
+  .uz-eylem-form { flex-wrap: wrap; }  /* Duvar kağıdı formu (dosya seç + düğme) 415px'e taşıyordu */
+}
+
+/* Yeni geçişler dahil hareket azaltma: derlemede en son gelir */
+@media (prefers-reduced-motion: reduce) {
+  .dugme, .dugme-ikon, a.cip, .sol-oge, .tablo tbody tr, .ara-kutu, .form-alan input, .form-alan select, .form-alan textarea {
+    transition: none !important; animation: none !important;
+  }
+}

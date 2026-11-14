@@ -1,13 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
+import { App } from './App';
 
-// Task 3 App'i bağlayacak; şimdilik minimal kök
 const kok = document.getElementById('kok');
-if (kok) {
+if (kok && window.PANO_VERI) {
   ReactDOM.createRoot(kok).render(
     <React.StrictMode>
-      <div className="p-6 text-sm text-white/60">Yükleniyor…</div>
+      <App veri={window.PANO_VERI} />
     </React.StrictMode>
   );
 }

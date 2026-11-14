@@ -404,7 +404,7 @@ main {
 .acil-serit[hidden] { display: none; }
 .pano-acil-dugme:hover, .acil-serit:hover { filter: brightness(1.08); }
 .pano-acil-dugme:focus-visible, .acil-serit:focus-visible { outline: 2px solid var(--renk-birincil); outline-offset: 2px; }
-#tarih-secici, #simdi-yenile { min-height: 44px; }
+#tarih-secici, #simdi-yenile { min-height: 2.25rem; }
 
 /* Sorunlu sınıf satırı: sınıf hücresinde renkli çizgi; zemin opak katman (yapışkan sütun) */
 tbody tr.satir-sorunlu th.sinif-adi {
@@ -706,45 +706,54 @@ thead th.sinif-baslik { z-index: 15; }
 }
 .giris-kart {
   background: var(--renk-yuzey);
-  padding: 2.75rem 2.5rem;
+  padding: 2.5rem 2.25rem;
   border-radius: var(--yaricap-buyuk);
   box-shadow: var(--renk-golge-yukseltilmis);
-  width: 320px;
+  width: 340px;
   border: 1px solid var(--renk-kenar);
 }
-.giris-simge { text-align: center; margin-bottom: 0.5rem; }
-.giris-kart h1 { font-size: 1.15rem; margin: 0 0 1.75rem; text-align: center; font-weight: 700; }
+.giris-simge { text-align: center; margin-bottom: 0.75rem; color: var(--renk-birincil); }
+.giris-kart h1 { font-size: 1.25rem; margin: 0 0 1.5rem; text-align: center; font-weight: 600; color: var(--renk-metin); }
 .giris-kart input[type=password] {
-  width: 100%;
-  padding: 0.75rem 0.9rem;
-  font-size: 1rem;
-  border: 1px solid var(--renk-kenar);
-  border-radius: 9px;
-  margin-bottom: 1.1rem;
+  width: 100%; box-sizing: border-box;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.95rem;
+  border: 1px solid var(--renk-kenar-vurgu);
+  border-radius: var(--yaricap);
+  margin-bottom: 1.25rem;
   font-family: inherit;
-  background: var(--renk-yuzey-2);
+  background: var(--renk-zemin);
+  color: var(--renk-metin);
 }
-.giris-kart input[type=password]:focus { outline: 2px solid var(--renk-birincil); outline-offset: 1px; background: white; }
+.giris-kart input[type=password]:focus {
+  outline: none; border-color: var(--renk-birincil); box-shadow: 0 0 0 1px var(--renk-birincil);
+}
 .giris-kart button {
   width: 100%;
-  padding: 0.75rem;
+  height: 2.5rem;
+  padding: 0 1rem;
   font-size: 0.95rem;
-  font-weight: 700;
-  color: white;
+  font-weight: 500;
+  color: var(--renk-sabit-acik);
   background: var(--renk-birincil);
-  border: none;
-  border-radius: 9px;
+  border: 1px solid var(--renk-birincil-koyu);
+  border-radius: var(--yaricap);
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.15s;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.25);
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
-.giris-kart button:hover { background: var(--renk-birincil-koyu); }
+.giris-kart button:hover {
+  background: var(--renk-birincil-koyu);
+  box-shadow: 0 2px 6px -1px var(--renk-birincil-zemin);
+}
 .giris-hata {
-  color: var(--renk-kirmizi);
-  background: var(--renk-kirmizi-zemin);
+  color: #fda4af;
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.3);
   font-size: 0.85rem;
   padding: 0.6rem 0.8rem;
-  border-radius: 8px;
+  border-radius: var(--yaricap);
   margin-bottom: 1.1rem;
   text-align: center;
 }
