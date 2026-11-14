@@ -149,3 +149,69 @@ describe('haftaGunleri', () => {
     ]);
   });
 });
+
+// ---- Cam ders ızgarası (2026-11-14): sıralama, başlık, halkalar, ders ilerlemesi ----
+import { sorunluUste, baslikMetni, halkaOranlari, dersIlerlemesi, istanbulSaati } from './turet';
+
+describe('dürüst ders listesi ve saat', () => {
+  it('verisiz gün veya ders olmayan gün tamamlandı listesi üretmez', () => {
+    const simdi = new Date(2026, 10, 14, 16);
+    expect(dersListesi(SAATLER, [], simdi, true, 7)).toEqual([]);
+    expect(dersListesi(SAATLER, [{ ...SATIR_TABAN, durum: 'ders_yok_o_gun' }], simdi, true, 7)).toEqual([]);
+  });
+  it('tarayıcının saat diliminden bağımsız İstanbul saatini üretir', () => {
+    const t = istanbulSaati(new Date('2026-11-13T06:15:00Z'));
+    expect([t.getHours(), t.getMinutes()]).toEqual([9, 15]);
+  });
+});
+
+describe('sorunluUste — pano.html ile aynı sıra', () => {
+  const siniflar = [{ id: 1, ad: '9-A' }, { id: 2, ad: '9-B' }, { id: 3, ad: '10-A' }, { id: 4, ad: '11-A' }];
+  it('alınmadı / ulaşılamaz sınıflar üste, kendi aralarında özgün sırada', () => {
+    const satirlar = [
+      { ...SATIR_TABAN, sinif: '10-A', durum: 'tahta_ulasilamaz' },
+      { ...SATIR_TABAN, sinif: '9-B', durum: 'alinmadi' },
+      { ...SATIR_TABAN, sinif: '9-A', durum: 'alindi' },
+    ];
+    expect(sorunluUste(siniflar, satirlar).map((s) => s.ad)).toEqual(['9-B', '10-A', '9-A', '11-A']);
+  });
+  it('sorun yoksa sıra değişmez', () => {
+    expect(sorunluUste(siniflar, []).map((s) => s.ad)).toEqual(['9-A', '9-B', '10-A', '11-A']);
+  });
+});
+
+describe('baslikMetni — test_pano_sablon ile aynı biçim', () => {
+  it('bugün: "Bugün · Cumartesi 14 Kasım"', () => {
+    expect(baslikMetni('2026-11-14', '2026-11-14')).toBe('Bugün · Cumartesi 14 Kasım');
+  });
+  it('geçmiş gün: "Bugün" yok', () => {
+    expect(baslikMetni('2026-10-12', '2026-11-14')).toBe('Pazartesi 12 Ekim');
+    expect(baslikMetni('2027-01-01', '2027-01-02')).toBe('Cuma 1 Ocak');
+  });
+});
+
+describe('halkaOranlari — payda 0 iken null (NaN halka yok)', () => {
+  it('boş gün', () => {
+    expect(halkaOranlari([], {})).toEqual({ alinan: null, tam: null, acik: null });
+  });
+  it('oranlar', () => {
+    const satirlar = [
+      { ...SATIR_TABAN, durum: 'alindi' },
+      { ...SATIR_TABAN, durum: 'alindi', yok_isimleri: '["Ali"]' },
+      { ...SATIR_TABAN, durum: 'alinmadi' },
+      { ...SATIR_TABAN, durum: 'henuz_baslamadi' },
+    ];
+    const h = halkaOranlari(satirlar, { '9-A': true, '9-B': false, '10-A': true, '11-A': true });
+    expect(h.alinan).toBeCloseTo(2 / 3);
+    expect(h.tam).toBeCloseTo(1 / 2);
+    expect(h.acik).toBeCloseTo(3 / 4);
+  });
+});
+
+describe('dersIlerlemesi', () => {
+  it('ders ortasında 0.5, ders dışında null', () => {
+    const s = { no: 1, baslangic: '08:10', bitis: '08:50' };
+    expect(dersIlerlemesi(s, new Date(2026, 10, 13, 8, 30))).toBeCloseTo(0.5);
+    expect(dersIlerlemesi(null, new Date(2026, 10, 13, 8, 30))).toBeNull();
+  });
+});

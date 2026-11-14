@@ -442,7 +442,7 @@ async def api_tahta_baslat(request: Request, tahta_id: int):
 
 
 def _pano_baglami(conn, tarih: str | None) -> dict:
-    """Ders ızgarası bağlamı: `/` (pano.html) ve `/yeni` (pano_cam.html) ortak kullanır."""
+    """Ders ızgarası bağlamı tüm pano sayfalarında ortak kullanılır."""
     bugun = zil.simdi_istanbul().date().isoformat()
     hedef = tarih or bugun
     try:
@@ -492,12 +492,25 @@ async def ana_sayfa(request: Request, tarih: str | None = None):
         baglam = _pano_baglami(conn, tarih)
     finally:
         conn.close()
+    return templates.TemplateResponse(request, "pano_cam.html", baglam)
+
+
+@app.get("/klasik", response_class=HTMLResponse)
+async def pano_klasik(request: Request, tarih: str | None = None):
+    conn = db.baglanti()
+    try:
+        token = request.cookies.get(auth.COOKIE_ADI)
+        if not auth.oturum_gecerli_mi(conn, token):
+            return RedirectResponse("/giris", status_code=303)
+        baglam = _pano_baglami(conn, tarih)
+    finally:
+        conn.close()
     return templates.TemplateResponse(request, "pano.html", baglam)
 
 
 @app.get("/yeni", response_class=HTMLResponse)
 async def pano_cam(request: Request, tarih: str | None = None):
-    """Buzlu cam React ders ızgarası (arayuz/ → static/pano-cam.*); onaylanınca `/` yerine geçer."""
+    """Buzlu cam React ders ızgarası (arayuz/ → static/pano-cam.*)."""
     conn = db.baglanti()
     try:
         token = request.cookies.get(auth.COOKIE_ADI)

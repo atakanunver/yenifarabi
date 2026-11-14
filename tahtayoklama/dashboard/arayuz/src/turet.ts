@@ -1,4 +1,4 @@
-import type { Satir, DersSaati } from './tipler';
+import type { Satir, DersSaati, Sinif } from './tipler';
 
 function jsonDizi(ham: string | null | undefined): string[] {
   if (!ham) return [];
@@ -72,6 +72,16 @@ export function dagilim(satirlar: Satir[]): Dagilim {
   return d;
 }
 
+/** Zil programı İstanbul saatidir; tarayıcı başka saat diliminde olsa da aynı dersi vurgular. */
+export function istanbulSaati(simdi = new Date()): Date {
+  const parcalar = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(simdi);
+  const deger = (ad: string) => Number(parcalar.find((p) => p.type === ad)?.value);
+  return new Date(deger('year'), deger('month') - 1, deger('day'), deger('hour'), deger('minute'), deger('second'));
+}
+
 function saatDk(ssDk: string): number {
   const [s, d] = ssDk.split(':').map((x) => parseInt(x, 10));
   return (s || 0) * 60 + (d || 0);
@@ -110,7 +120,8 @@ export function dersListesi(
   const simdiDk = simdi.getHours() * 60 + simdi.getMinutes();
 
   return saatler
-    .filter((s) => !bugunMu || simdiDk >= saatDk(s.baslangic))
+    .filter((s) => (!bugunMu || simdiDk >= saatDk(s.baslangic))
+      && satirlar.some((r) => r.ders_no === s.no && r.durum !== 'ders_yok_o_gun'))
     .map((s) => {
       const buDers = satirlar.filter((r) => r.ders_no === s.no);
       const alinan = buDers.filter((r) => r.durum === 'alindi').length;
@@ -154,4 +165,52 @@ export function haftaGunleri(tarihIso: string): string[] {
     sonuclar.push(`${ky}-${km}-${kd}`);
   }
   return sonuclar;
+}
+
+// ---- Cam ders ızgarası (2026-11-14) ----
+
+/** pano.html sorunluSatirlariUsteAl ile aynı: alınmadı/ulaşılamaz sınıflar üstte, kendi aralarında özgün sırada. */
+export function sorunluUste(siniflar: Sinif[], satirlar: Satir[]): Sinif[] {
+  const sorunlu = new Set(
+    satirlar.filter((s) => s.durum === 'alinmadi' || s.durum === 'tahta_ulasilamaz').map((s) => s.sinif)
+  );
+  return [...siniflar.filter((s) => sorunlu.has(s.ad)), ...siniflar.filter((s) => !sorunlu.has(s.ad))];
+}
+
+const GUNLER = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+const AYLAR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+
+/** "Bugün · Cumartesi 14 Kasım" / geçmiş gün "Pazartesi 12 Ekim" (pano.html h1 ile aynı). */
+export function baslikMetni(tarihIso: string, bugunIso: string): string {
+  const [y, m, d] = tarihIso.split('-').map((x) => parseInt(x, 10));
+  const t = new Date(y, m - 1, d);
+  const metin = `${GUNLER[t.getDay()]} ${d} ${AYLAR[m - 1]}`;
+  return tarihIso === bugunIso ? `Bugün · ${metin}` : metin;
+}
+
+export interface HalkaOranlari {
+  alinan: number | null; // alındı / (alındı + alınmadı)
+  tam: number | null;    // tam katılımlı / alındı
+  acik: number | null;   // açık tahta / bilinen tahta
+}
+
+export function halkaOranlari(satirlar: Satir[], tahtaAcik: Record<string, boolean>): HalkaOranlari {
+  const d = dagilim(satirlar);
+  const alindi = d.tam + d.devamsiz;
+  const tahtalar = Object.values(tahtaAcik);
+  return {
+    alinan: yoklamaOrani(satirlar),
+    tam: alindi ? d.tam / alindi : null,
+    acik: tahtalar.length ? tahtalar.filter(Boolean).length / tahtalar.length : null,
+  };
+}
+
+/** Etkin dersin geçen süre oranı (0–1); ders yoksa null. */
+export function dersIlerlemesi(ders: DersSaati | null, simdi: Date): number | null {
+  if (!ders) return null;
+  const bas = saatDk(ders.baslangic);
+  const bit = saatDk(ders.bitis);
+  if (bit <= bas) return null;
+  const dk = simdi.getHours() * 60 + simdi.getMinutes() + simdi.getSeconds() / 60;
+  return Math.min(1, Math.max(0, (dk - bas) / (bit - bas)));
 }

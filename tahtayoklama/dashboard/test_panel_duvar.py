@@ -47,6 +47,16 @@ class TestPanelDuvar(unittest.TestCase):
                 asyncio.run(panel_duvar.panel_duvar(ad))
             self.assertEqual(h.exception.status_code, 404, ad)
 
+    def test_ozel_karakterli_ad_url_kodlanir(self):
+        (self.dizin / "Gökyüzü #1'.jpg").write_bytes(b"x")
+        d = next(d for d in panel_duvar.liste() if d["ad"].startswith("Gökyüzü"))
+        self.assertIn("G%C3%B6ky%C3%BCz%C3%BC%20%231%27.jpg", d["url"])
+
+    def test_sembolik_bag_sunulmaz(self):
+        (self.dizin / "bag.jpg").symlink_to(self.dizin / "alt" / "d.jpg")
+        with self.assertRaises(HTTPException):
+            asyncio.run(panel_duvar.panel_duvar("bag.jpg"))
+
     def test_menu_agacinda(self):
         self.assertEqual([d["ad"] for d in menu.menu_agaci("/")["duvar_kagitlari"]], ["a.PNG", "b.jpg", "c.webp"])
 

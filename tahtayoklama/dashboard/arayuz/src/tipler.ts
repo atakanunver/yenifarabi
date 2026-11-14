@@ -31,12 +31,11 @@ export interface DersSaati {
   bitis: string;     // "08:50"
 }
 
-export interface MenuOgesi {
-  ad: string;
-  ikon: string;
-  href: string;
-  aktif?: boolean;
-  yeni_sekme?: boolean;
+/** /api/durum yanıtı (pano.html ile aynı uç) */
+export interface DurumYaniti {
+  tarih: string;
+  satirlar: Satir[];
+  tahta_acik: Record<string, boolean>;
 }
 
 export interface PanoVeri {
@@ -45,17 +44,12 @@ export interface PanoVeri {
   siniflar: Sinif[];
   sinif_tahta: Record<string, number>;
   ders_saatleri: DersSaati[];
-  ilk_durum: {
-    tarih: string;
-    satirlar: Satir[];
-    tahta_acik: Record<string, boolean>;
-  };
-  menu: MenuOgesi[];
-  acil: { ad: string; href: string };
+  ilk_durum: DurumYaniti;
 }
 
 declare global {
   interface Window {
     PANO_VERI?: PanoVeri;
+    farabiToast?: (metin: string) => void; // static/menu.js (taban.html kabuğu)
   }
 }

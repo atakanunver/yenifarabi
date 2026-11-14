@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="/static/cam.css?v={{ menu_agaci('/giris').surum }}">
 <script>window.FARABI_TEMALAR = {{ menu_agaci('/giris').temalar | map(attribute=0) | list | tojson }};
 window.FARABI_DUVAR = {{ menu_agaci('/giris').duvar_kagitlari | tojson }};
-(function(){var k=document.documentElement,t=null,d=null;try{t=localStorage.getItem('farabi_yoklama_tema');d=localStorage.getItem('farabi_duvar_kagidi')}catch(e){}if(t==='klasik'||t==='yumusak')t='argon';if(window.FARABI_TEMALAR.indexOf(t)<0)t='cam';k.dataset.tema=t;var L=window.FARABI_DUVAR,s=null;for(var i=0;i<L.length;i++)if(L[i].ad===d)s=L[i];if(!s&&d!=='yok'&&L.length)s=L[0];k.dataset.duvar=s?s.ad:'yok';if(s)k.style.setProperty('--duvar-resmi','url("'+s.url+'")');})();</script>
+(function(){var k=document.documentElement,t=null,d=null;try{t=localStorage.getItem('farabi_yoklama_tema');d=localStorage.getItem('farabi_duvar_kagidi');if(localStorage.getItem('farabi_cam_gecis')!=='1'){t='cam';localStorage.setItem('farabi_yoklama_tema',t);localStorage.setItem('farabi_cam_gecis','1')}}catch(e){}if(t==='klasik'||t==='yumusak')t='argon';if(window.FARABI_TEMALAR.indexOf(t)<0)t='cam';k.dataset.tema=t;var L=window.FARABI_DUVAR,s=null;for(var i=0;i<L.length;i++)if(L[i].ad===d)s=L[i];if(!s&&d!=='yok'&&L.length)s=L[0];k.dataset.duvar=s?s.ad:'yok';if(s)k.style.setProperty('--duvar-resmi','url("'+s.url+'")');})();</script>
 </head>
 <body class="giris-sarici">
 {% include "_ikon_sprite.html" %}

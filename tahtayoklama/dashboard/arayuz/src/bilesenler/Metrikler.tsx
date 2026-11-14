@@ -1,90 +1,51 @@
 import React from 'react';
-import { Ikon } from './Ikon';
-import { aktifDers } from '../turet';
+import { Hap, Kapsul, Kart } from './Kart';
+import { aktifDers, dersIlerlemesi } from '../turet';
 import type { DersSaati, Satir } from '../tipler';
 
-interface MetriklerProps {
+interface SuAnProps {
   saatler: DersSaati[];
   satirlar: Satir[];
   tahtaAcik: Record<string, boolean>;
   sinifSayisi: number;
   bugunMu: boolean;
-  simdi?: Date;
+  simdi: Date;
 }
 
-interface KartProps {
-  ikon: string;
-  baslik: string;
-  deger: string;
-  alt: string;
-  vurgu: string;
-}
-
-const Kart: React.FC<KartProps> = ({ ikon, baslik, deger, alt, vurgu }) => (
-  <li className="flex items-center gap-4 rounded-[18px] border border-white/[0.07] bg-white/[0.04] p-4">
-    <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${vurgu}`}>
-      <Ikon ad={ikon} className="h-5 w-5" />
-    </span>
-    <div className="min-w-0 flex-1">
-      <p className="text-xs font-medium text-white/60">{baslik}</p>
-      <p className="mt-0.5 text-xl font-bold tracking-[-0.02em] tabular-nums text-white truncate">
-        {deger}
-      </p>
-      <p className="text-[11px] text-white/50 truncate">{alt}</p>
-    </div>
-  </li>
-);
-
-export const Metrikler: React.FC<MetriklerProps> = ({
-  saatler,
-  satirlar,
-  tahtaAcik,
-  sinifSayisi,
-  bugunMu,
-  simdi = new Date(),
-}) => {
-  const aktif = aktifDers(saatler, simdi, bugunMu);
-  const acikSayi = Object.values(tahtaAcik).filter(Boolean).length;
-  const toplamTahta = Object.keys(tahtaAcik).length || sinifSayisi;
-
-  const alinanToplam = satirlar.filter((s) => s.durum === 'alindi').length;
-  const beklenenToplam = saatler.length * sinifSayisi;
-
-  const dersMetni = aktif
-    ? `${aktif.no}. ders`
-    : bugunMu
-    ? 'Teneffüs / Ders yok'
-    : 'Geçmiş gün';
-  const dersAlt = aktif ? `${aktif.baslangic} – ${aktif.bitis}` : 'Zil programına göre';
+// "Şu an": etkin ders (büyük), dersin geçen süresi kapsülü, altta açık tahta ve alınan yoklama.
+export const SuAn: React.FC<SuAnProps> = ({ saatler, satirlar, tahtaAcik, sinifSayisi, bugunMu, simdi }) => {
+  const dersVar = satirlar.some((s) => s.durum !== 'ders_yok_o_gun');
+  const aktif = aktifDers(saatler, simdi, bugunMu && dersVar);
+  const ilerleme = dersIlerlemesi(aktif, simdi);
+  const tahtalar = Object.values(tahtaAcik);
+  const acik = tahtalar.filter(Boolean).length;
+  const alinan = satirlar.filter((s) => s.durum === 'alindi').length;
+  const baslamis = satirlar.filter((s) => s.durum === 'alindi' || s.durum === 'alinmadi').length;
+  const buyuk = aktif ? `${aktif.no}. ders` : bugunMu ? (dersVar ? 'Teneffüs' : 'Ders yok') : 'Geçmiş gün';
+  const alt = aktif ? `${aktif.baslangic} – ${aktif.bitis}` : bugunMu ? 'Şu an ders yok' : 'Gün sonu durumu';
 
   return (
-    <section aria-labelledby="b-metrikler" className="flex h-full flex-col">
-      <h2 id="b-metrikler" className="sr-only">
-        Hızlı metrikler
-      </h2>
-      <ul className="flex flex-1 flex-col justify-between gap-3">
-        <Kart
-          ikon="saat"
-          baslik="Şu an"
-          deger={dersMetni}
-          alt={dersAlt}
-          vurgu="bg-buz/15 text-buz"
-        />
-        <Kart
-          ikon="tahta"
-          baslik="Açık tahta"
-          deger={`${acikSayi} / ${toplamTahta}`}
-          alt={`%${toplamTahta ? Math.round((acikSayi / toplamTahta) * 100) : 0} çevrimiçi`}
-          vurgu="bg-lila/15 text-lila"
-        />
-        <Kart
-          ikon="onay"
-          baslik="Alınan yoklama"
-          deger={`${alinanToplam}`}
-          alt={`Toplam ${beklenenToplam} dersten`}
-          vurgu="bg-zumrut/15 text-emerald-300"
-        />
-      </ul>
-    </section>
+    <Kart baslik="Şu an" ikon="saat" vurgu="#38BDF8" sira={0}
+          sag={<Hap renk={aktif ? '#32D74B' : 'rgba(255,255,255,0.45)'}>{aktif ? 'Devam ediyor' : bugunMu ? 'Ders dışı' : 'Kapandı'}</Hap>}>
+      <p className="text-[40px] font-semibold leading-none tracking-tight text-white">{buyuk}</p>
+      <p className="mt-2 text-[13px] text-white/45">{alt}</p>
+      <div className="mt-4">
+        <Kapsul oran={ilerleme} renk="#38BDF8" etiket="Dersin geçen süresi" />
+      </div>
+      <dl className="mt-auto grid grid-cols-2 gap-3 border-t border-white/10 pt-4">
+        <div>
+          <dt className="text-[12px] text-white/45">Açık tahta</dt>
+          <dd className="m-0 text-[20px] font-semibold tracking-tight text-white">
+            {acik}<span className="text-[13px] font-normal text-white/45"> / {tahtalar.length || sinifSayisi}</span>
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[12px] text-white/45">Alınan yoklama</dt>
+          <dd className="m-0 text-[20px] font-semibold tracking-tight text-white">
+            {alinan}<span className="text-[13px] font-normal text-white/45"> / {baslamis}</span>
+          </dd>
+        </div>
+      </dl>
+    </Kart>
   );
 };

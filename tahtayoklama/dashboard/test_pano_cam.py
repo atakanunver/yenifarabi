@@ -1,6 +1,4 @@
-"""/yeni: buzlu cam React ders ızgarası kabuğu (2026-11-14, plan
-docs/superpowers/plans/2026-11-14-ders-izgarasi-cam-react.md). Şablon bağlamı window.PANO_VERI
-olarak basar; React (arayuz/ → static/pano-cam.*) buna bağlanır. `/` değişmez."""
+"""React ve klasik pano rotaları, ortak kabuk ve şablon verisi testleri."""
 import asyncio
 import json
 import re
@@ -12,7 +10,6 @@ from unittest.mock import patch
 import app
 import auth
 import db
-import menu
 from fastapi.requests import Request
 
 
@@ -50,10 +47,13 @@ class TestPanoCam(unittest.TestCase):
         satir = re.search(r"window\.PANO_VERI = (.*?);</script>", html, re.S).group(1)
         return json.loads(satir)
 
-    def test_yeni_oturumsuz_giris_yonlendirir(self):
-        yanit = asyncio.run(app.pano_cam(_istek(), tarih=None))
-        self.assertEqual(yanit.status_code, 303)
-        self.assertEqual(yanit.headers["location"], "/giris")
+    def test_rotalar_oturumsuz_giris_yonlendirir(self):
+        for yol, isleyici in (("/", app.ana_sayfa), ("/yeni", app.pano_cam),
+                              ("/klasik", app.pano_klasik)):
+            with self.subTest(yol=yol), patch.object(auth, "oturum_gecerli_mi", return_value=False):
+                yanit = asyncio.run(isleyici(_istek(yol), tarih=None))
+                self.assertEqual(yanit.status_code, 303)
+                self.assertEqual(yanit.headers["location"], "/giris")
 
     def test_sablon_sprite_ve_veri(self):
         html = self._html()
@@ -61,23 +61,28 @@ class TestPanoCam(unittest.TestCase):
         self.assertIn("window.PANO_VERI =", html)
         self.assertRegex(html, r'/static/pano-cam\.js\?v=\d+')
         self.assertRegex(html, r'/static/pano-cam\.css\?v=\d+')
-        self.assertNotIn('class="ust-cubuk"', html)
+        self.assertIn('class="ust-cubuk"', html)
+        self.assertIn('class="cam-sahne"', html)
+        self.assertEqual(html.count('id="kok"'), 1)
+        self.assertNotIn('class="sayfa-basligi"', html)
 
     def test_veri_json_gecerli(self):
         veri = self._veri(self._html())
         self.assertEqual(veri["tarih"], "2026-11-13")
-        self.assertEqual(len(veri["menu"]), len(menu.ALANLAR))
-        self.assertTrue(all({"ad", "ikon", "href"} <= set(m) for m in veri["menu"]))
-        self.assertEqual(veri["acil"]["href"], menu.ACIL["href"])
+        self.assertEqual(set(veri), {"tarih", "bugun", "siniflar", "sinif_tahta",
+                                    "ders_saatleri", "ilk_durum"})
         self.assertEqual(veri["sinif_tahta"], {"1": 5})
         self.assertEqual([s["ad"] for s in veri["siniflar"]], ["9-A", "10-A"])
         self.assertEqual(veri["ilk_durum"]["satirlar"][0]["izinli_isimleri"], '["Ali Veli"]')
 
-    def test_ana_sayfa_degismedi(self):
-        async def calistir():
-            with patch.object(auth, "oturum_gecerli_mi", return_value=True):
-                return await app.ana_sayfa(_istek("/"), tarih="2026-11-13")
-        self.assertEqual(asyncio.run(calistir()).template.name, "pano.html")
+    def test_rotalar_beklenen_sablonu_sunar(self):
+        for yol, isleyici, sablon in (("/", app.ana_sayfa, "pano_cam.html"),
+                                      ("/yeni", app.pano_cam, "pano_cam.html"),
+                                      ("/klasik", app.pano_klasik, "pano.html")):
+            with self.subTest(yol=yol), patch.object(auth, "oturum_gecerli_mi", return_value=True):
+                yanit = asyncio.run(isleyici(_istek(yol), tarih="2026-11-13"))
+                self.assertEqual(yanit.template.name, sablon)
+                self.assertTrue(any(r.path == yol and r.endpoint == isleyici for r in app.app.routes))
 
 
 if __name__ == "__main__":

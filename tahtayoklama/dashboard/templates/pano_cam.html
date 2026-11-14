@@ -1,27 +1,13 @@
-<!doctype html>
-<html lang="tr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ders ızgarası — Yoklama ve Yönetim Paneli</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
-{# Buzlu cam React ders ızgarası (2026-11-14). Kaynak arayuz/ (Vite) → static/pano-cam.{js,css};
-   taban.html kabuğu YOK, gezinme React'te ama ağacın tek kaynağı yine menu.py::menu_agaci. #}
-{% set agac = menu_agaci("/", "") %}
+{% extends "taban.html" %}
+{% block baslik_etiketi %}Ders ızgarası — Yoklama ve Yönetim Paneli{% endblock %}
+{% block bas %}
 <link rel="stylesheet" href="/static/pano-cam.css?v={{ agac.surum }}">
-</head>
-<body>
-{% include "_ikon_sprite.html" %}
-<div id="kok"></div>
-{% set ns = namespace(menu=[]) %}
-{%- for alan in agac.alanlar %}{% set ilk = alan.sayfalar[0] %}
-{%- set ns.menu = ns.menu + [{"ad": alan.ad, "ikon": alan.ikon, "href": ilk.href, "aktif": alan.aktif or false,
-                              "yeni_sekme": ilk.yeni_sekme or false}] %}
-{%- endfor %}
-{%- set veri = {"tarih": tarih, "bugun": bugun, "siniflar": siniflar, "sinif_tahta": sinif_tahta,
-                "ders_saatleri": ders_saatleri, "ilk_durum": ilk_durum, "menu": ns.menu,
-                "acil": {"ad": agac.acil.ad, "href": agac.acil.href}} %}
+{% endblock %}
+{% block sayfa_basligi %}{% endblock %}
+{% block icerik %}<div id="kok"></div>{% endblock %}
+{% block script %}
+{% set veri = {"tarih": tarih, "bugun": bugun, "siniflar": siniflar, "sinif_tahta": sinif_tahta,
+                "ders_saatleri": ders_saatleri, "ilk_durum": ilk_durum} %}
 <script>window.PANO_VERI = {{ veri | tojson }};</script>
 <script type="module" src="/static/pano-cam.js?v={{ agac.surum }}"></script>
-</body>
-</html>
+{% endblock %}

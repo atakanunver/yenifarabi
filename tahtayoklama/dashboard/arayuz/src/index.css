@@ -2,10 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  background: #050b24;
-  color: #fff;
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
+/* Preflight kapalı (tailwind.config.ts): yalnız React adasında gereken sıfırlama, #kok kapsamında.
+   Gövde/arka plan taban.html cam kabuğunundur; burada tanımlanmaz. */
+@layer base {
+  #kok, #kok *, #kok *::before, #kok *::after { box-sizing: border-box; border: 0 solid currentColor; }
+  #kok { font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+    font-variant-numeric: tabular-nums; color: #fff; -webkit-font-smoothing: antialiased; }
+  #kok h1, #kok h2, #kok h3, #kok p, #kok ul, #kok ol, #kok figure { margin: 0; }
+  #kok ul, #kok ol { list-style: none; padding: 0; }
+  #kok button, #kok input { font: inherit; color: inherit; margin: 0; }
+  #kok button { background: none; padding: 0; cursor: pointer; text-align: inherit; }
+  #kok button:disabled { cursor: not-allowed; }
+  #kok table { border-collapse: collapse; border-spacing: 0; }
+  #kok th { font-weight: inherit; text-align: left; text-transform: none; }
+  #kok td, #kok th { white-space: normal; overflow-wrap: anywhere; }
+  #kok svg { display: block; }
+  #kok :focus-visible { outline: 2px solid rgba(255, 255, 255, 0.7); outline-offset: 2px; }
+  #kok input[type="date"] { color-scheme: dark; }
 }

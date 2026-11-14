@@ -132,7 +132,7 @@ class TestApiDurumIzinli(unittest.TestCase):
             with patch.object(auth, "oturum_gecerli_mi", return_value=True):
                 yanit = await app.ana_sayfa(self._istek(), tarih="2026-09-28")
                 html = yanit.body.decode()
-                self.assertIn("const ILK_DURUM =", html)
+                self.assertIn("window.PANO_VERI =", html)  # React ana sayfa ilk_durum alanını tüketir
                 self.assertIn("Ali Veli", html)
 
         asyncio.run(run_test())

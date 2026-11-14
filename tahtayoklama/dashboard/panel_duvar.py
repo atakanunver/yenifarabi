@@ -9,6 +9,7 @@ yalnız listedeki dosya adları sunulur (yol/klasör adı kabul edilmez).
 import os
 import time
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
@@ -26,10 +27,10 @@ def liste() -> list[dict]:
     if _onbellek.get("t", -1e9) + 10 < simdi:
         try:
             dosyalar = sorted(
-                (f for f in DIZIN.iterdir() if f.is_file() and f.suffix.lower() in UZANTILAR),
+                (f for f in DIZIN.iterdir() if not f.is_symlink() and f.is_file() and f.suffix.lower() in UZANTILAR),
                 key=lambda f: f.name,
             )
-            sonuc = [{"ad": f.name, "url": f"/panel-duvar/{f.name}?v={int(f.stat().st_mtime)}"} for f in dosyalar]
+            sonuc = [{"ad": f.name, "url": f"/panel-duvar/{quote(f.name, safe='')}?v={int(f.stat().st_mtime)}"} for f in dosyalar]
         except OSError:
             sonuc = []
         _onbellek.update(t=simdi, v=sonuc)
