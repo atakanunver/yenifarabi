@@ -1,0 +1,42 @@
+{
+  "active": true,
+  "hubId": "hafiza",
+  "name": "Kalıcı Hafıza",
+  "schema": "skill-1.0.0",
+  "version": "1.0.0",
+  "description": "Kullanıcı bir bilgiyi hafızana kaydetmeni, unutmamanı veya hatırlamanı istediğinde bu aracı kullan. Bilgileri kalıcı hafızaya kaydeder, listeler veya siler; kaydedilen bilgiler sonraki tüm sohbetlerde ve oturumlarda otomatik olarak hatırlanır.",
+  "author": "Farabi",
+  "license": "MIT",
+  "setup_args": {},
+  "examples": [
+    {
+      "prompt": "okulun kuruluş tarihini hafızana kaydet",
+      "call": "{\"islem\": \"kaydet\", \"icerik\": \"Okulumuz 20.01.1995 tarihinde MEB oluruyla Kurşunlu Anadolu Lisesi olarak açılmıştır.\"}"
+    },
+    {
+      "prompt": "bunu llm hafızasına kaydet",
+      "call": "{\"islem\": \"kaydet\", \"icerik\": \"Kaydedilecek önemli metin veya bilgi\"}"
+    },
+    {
+      "prompt": "hafızandaki bilgileri listele",
+      "call": "{\"islem\": \"listele\"}"
+    }
+  ],
+  "entrypoint": {
+    "file": "handler.js",
+    "params": {
+      "islem": {
+        "description": "'kaydet' (hafızaya yeni bilgi ekler), 'listele' (kayıtlı hafıza maddelerini getirir), 'sil' (hafızadan belirtilen id'yi siler)",
+        "type": "string"
+      },
+      "icerik": {
+        "description": "Hafızaya kaydedilecek bilgi veya metin (kaydet işleminde zorunludur)",
+        "type": "string"
+      },
+      "id": {
+        "description": "Silinecek hafıza kaydının ID numarası (yalnızca sil işleminde)",
+        "type": "number"
+      }
+    }
+  }
+}
