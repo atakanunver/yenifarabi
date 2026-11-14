@@ -7,7 +7,7 @@ Monorepo. Bu dosya ortak kurallar + servisler arası resim; alt projelerin kendi
   Çalışma dizini tek: hangi dal checkout'taysa servisler onu koşar; dal değiştirmek canlı kodu değiştirir. Üretim venv'lerine pip kurma.
 - ⚠️ `git sparse-checkout set/reapply` ÇALIŞTIRMA: git'te izlenmeyen canlı dizinleri (`kelebek/`, `kameralar/`,
   `tahtaatlasfarabi/` + `var/atlas.db`, `tahtamasaustuduzeni/`) silebilir. `kiosk/` sparse-checkout dışında.
-- Ayrı depolar: `okul3d/` (özel), `tahtaatlasfarabi/` (PUBLIC `atakanunver/farabi-atlas`). Ana depo da PUBLIC: izlenmeyen
+- Ayrı depolar: `okul3d/` (özel), `progmatik/` (özel, ders programı planlayıcı), `tahtaatlasfarabi/` (PUBLIC `atakanunver/farabi-atlas`). Ana depo da PUBLIC: izlenmeyen
   dosyalardan veya `/home/ata/llm-cluster-wiki`'den (şifre içerir) ayrıntı taşıma.
 - Kaynaklar: kararlar `DECISIONS.md` (tek satır `tarih | karar | neden`), mimari `docs/mimari.md` (2026-09-13'te donmuş; çelişkide
   bu dosya esas), ağ/dağıtım/SSH/zamanlayıcılar `docs/runbook.md`, sürüm notları `CHANGELOG.md`. `README.md` yalnız Atakan isterse
@@ -55,6 +55,7 @@ Monorepo. Bu dosya ortak kurallar + servisler arası resim; alt projelerin kendi
 | farabi-okul3d | okul3d/ | 8095, 8096 | 3D dijital ikiz + oda adları API'si |
 | sinif-arena | arenasinif/ | 8030 | Sınıf Arenası, Düello, HexaFetih |
 | farabi-atlas | tahtaatlasfarabi/ | 8099 | harita/küre oyunları, kendi `var/atlas.db`'si |
+| progmatik | progmatik/ | 8060 | ders programı planlayıcı (aSc yerine, OR-Tools CP-SAT); çıktısı ders_programi/ogretmenler JSON |
 | pm2-anythingllm | /opt/anythingllm | 8010 | Atos (AnythingLLM, PM2, Docker'sız; collector 8888) |
 - Servisler arası bağ = HTTP + HMAC/paylaşılan anahtar. Tek DB istisnası: smssistemi `yoklama_pano.db`'yi salt-okunur okur. Docker yok.
 - Client = ince arayüz; server = beyin, ham LLM metni döndürmez: `{status, answer, sources[], latency_ms, request_id}`.
