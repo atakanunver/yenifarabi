@@ -3,6 +3,7 @@ Yalnızca soru metinleri + okul numarası alanı Google'a gider; öğrenci adı/
 
 import json
 import logging
+import ssl
 import time
 from pathlib import Path
 
@@ -15,6 +16,17 @@ GIZLI = Path(__file__).with_name("config") / "gizli.json"
 
 class FormHatasi(Exception):
     pass
+
+
+def _ag_ek(gizli: dict) -> dict:
+    """Okul kablolu hattı SSL-inceleme yapıyor (MEB-CERT; Python katı X509 kipinde AKI eksik diye
+    reddediyor). gizli.json::proxy varsa 4G proxy'si; yoksa (2026-11-11'den beri) kablolu hat:
+    sistem CA deposu (MEB CA kurulu) + katı kip kapalı, zincir doğrulaması sürer."""
+    if gizli.get("proxy"):
+        return {"proxy": gizli["proxy"]}
+    baglam = ssl.create_default_context(cafile="/etc/ssl/certs/ca-certificates.crt")
+    baglam.verify_flags &= ~ssl.VERIFY_X509_STRICT
+    return {"verify": baglam}
 
 
 def _tekrarli_post(k, url: str, deneme: int = 3, bekleme_sn: float = 5.0, **kw) -> dict:
@@ -50,9 +62,7 @@ def govde(anahtar: str, baslik: str, aciklama: str, sorular: list[dict], puan: i
 def form_olustur(gizli: dict, baslik: str, aciklama: str, sorular: list[dict], istemci=None) -> dict:
     """{form_url, form_kisa_url, form_id, tablo_url} döner; hata → FormHatasi."""
     k = istemci or httpx
-    # Okul ağı SSL-inceleme yapıyor (MEB-CERT, Python katı X509 kipinde reddediliyor);
-    # Google'a Müdür PC WifiHttpProxy'si üzerinden gidilir (gizli.json::proxy).
-    ek = {"proxy": gizli["proxy"]} if gizli.get("proxy") else {}
+    ek = _ag_ek(gizli)
     try:
         r = k.post(
             gizli["script_url"],
@@ -72,7 +82,7 @@ def form_olustur(gizli: dict, baslik: str, aciklama: str, sorular: list[dict], i
 def sonuclari_al(gizli: dict, form_id: str, istemci=None) -> list[dict]:
     """Formun gönderimleri: [{zaman, okul_no, secimler[şık metni|None]}]; hata → FormHatasi."""
     k = istemci or httpx
-    ek = {"proxy": gizli["proxy"]} if gizli.get("proxy") else {}
+    ek = _ag_ek(gizli)
     try:
         veri = _tekrarli_post(
             k,
@@ -94,7 +104,7 @@ def raporlari_yaz(gizli: dict, raporlar: list[dict], istemci=None, parti: int = 
     raporlar: [{token, ay, sinif, okul_no, son_gecerlilik, veri}] — isim/telefon İÇERMEZ.
     Küçük partiler: her doküman birkaç sn sürer (Apps Script 6 dk sınırı). Bir token'ın linki eksikse FormHatasi."""
     k = istemci or httpx
-    ek = {"proxy": gizli["proxy"]} if gizli.get("proxy") else {}
+    ek = _ag_ek(gizli)
     linkler: dict[str, str] = {}
     for i in range(0, len(raporlar), parti):
         grup = raporlar[i:i + parti]

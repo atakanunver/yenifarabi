@@ -15,7 +15,7 @@ from pathlib import Path
 ADRES = "http://127.0.0.1/api/ajan"
 ANAHTAR_YOLU = Path(__file__).resolve().parent.parent / "config" / "ajan.json"
 ZAMAN_ASIMI = 300  # sn; ulaşılamayan tahtada SSH beklemesi uzayabilir
-EYLEMLER = ("ekran_karart", "ekran_kaldir", "yoklama_kapat", "chrome_kapat", "yeniden_baslat")
+EYLEMLER = ("ekran_karart", "ekran_kaldir", "yoklama_ac", "yoklama_kapat", "chrome_kapat", "yeniden_baslat")
 
 
 def _istek(yol: str, anahtar: str, govde: dict | None = None) -> dict:

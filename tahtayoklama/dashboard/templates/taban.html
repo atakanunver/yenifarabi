@@ -28,6 +28,8 @@
   <a class="ust-marka" href="/" title="Ders ızgarası"><img src="/static/atos-logo.png" alt="" width="24" height="24"><span>Home</span></a>
   <a class="ust-atos ust-zil" href="http://zil.local:8090/" data-menu="{{ agac.zil.href }}" data-kisayol="{{ agac.zil.kisayol }}" title="{{ agac.zil.ad }} (yeni sekmede açılır)" target="_blank" rel="noopener">
     <svg class="ikon"><use href="#ik-{{ agac.zil.ikon }}"/></svg><span>Zil</span></a>
+  <a class="ust-atos ust-progmatik" href="http://farabi.local:8060/" title="Progmatik ders programı (yeni sekmede açılır)" target="_blank" rel="noopener">
+    <svg class="ikon"><use href="#ik-takvim"/></svg><span>Progmatik</span></a>
   <div class="gezinme" id="gezinme">
     <nav class="alan-sekmeler" aria-label="Ana alanlar">
       {% for alan in agac.alanlar %}{% set ilk = alan.sayfalar[0] %}
@@ -75,8 +77,6 @@
     {% endif %}
   </div>
   <div class="ust-araclar">
-    <a class="ust-atos ust-atos-buyuk" href="{{ baglanti(agac.atos) }}" data-menu="{{ agac.atos.href }}" data-kisayol="{{ agac.atos.kisayol }}" title="{{ agac.atos.ad }} (yeni sekmede açılır)" target="_blank" rel="noopener">
-      <svg class="ikon"><use href="#ik-{{ agac.atos.ikon }}"/></svg><span>Atos</span></a>
     <span class="ust-zaman"><span class="ust-gun">{{ agac.gun }}</span> <span id="ust-saat"></span>{% if agac.ders %}<span class="ust-ders"> · {{ agac.ders }}</span>{% endif %}</span>
     <button type="button" class="ust-dugme" data-eylem="tema-dongu" aria-label="Temayı değiştir" title="Temayı değiştir">
       <svg class="ikon"><use href="#ik-ay"/></svg></button>
@@ -132,6 +132,8 @@
   <p>Yoklama, tahta ve servis yönetimi — farabi.local.</p>
   <form method="dialog"><button class="dugme">Kapat</button></form>
 </dialog>
+<a class="atos-fab" href="{{ baglanti(agac.atos) }}" data-kisayol="{{ agac.atos.kisayol }}" target="_blank" rel="noopener" title="Atos yapay zekâ (yeni sekmede açılır)" aria-label="Yapay Zekaya Sor — Atos">
+  <span class="atos-fab-ses" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="atos-fab-yazi">Yapay Zekaya Sor</span></a>
 <div id="toast" class="toast gizli"></div>
 
 <script src="/static/tema.js?v={{ agac.surum }}"></script>

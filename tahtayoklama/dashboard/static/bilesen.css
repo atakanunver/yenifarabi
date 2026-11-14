@@ -79,6 +79,15 @@ html { scroll-padding-top: 4rem; }  /* #duyuru gibi çapalar yapışkan çubuğu
   color: var(--renk-ust-aktif); font-weight: 600; text-decoration: none; white-space: nowrap;
 }
 .ust-zil { margin-right: var(--bosluk-2); flex-shrink: 0; }
+.ust-progmatik {
+  margin-right: var(--bosluk-2); flex-shrink: 0; border-radius: 999px;
+  border: 1px solid currentColor; padding: 0.3rem 0.8rem 0.3rem 0.6rem;
+  transition: box-shadow 0.12s;
+}
+.ust-progmatik::before { opacity: 0.1; }
+.ust-progmatik:hover { box-shadow: 0 0 0 1px currentColor; }
+.ust-atos.ust-progmatik:hover::before { opacity: 0.18; }
+.ust-atos.ust-progmatik:focus-visible { border-radius: 999px; outline-offset: 2px; }
 .ust-atos-buyuk { gap: 0.5rem; margin-right: var(--bosluk-2); padding: 0.45rem 0.95rem; font-size: 1.1rem; }
 .ust-atos-buyuk .ikon { width: 1.35rem; height: 1.35rem; }
 .ust-zaman {
@@ -981,6 +990,32 @@ label.pano-tarih {
 .gorsel-onizleme img, .gorsel-secili { cursor: zoom-in; }
 .gorsel-onizleme img:focus-visible, .gorsel-secili:focus-visible { outline: 2px solid var(--renk-birincil); outline-offset: 2px; }
 .gorsel-onizleme img:fullscreen, .gorsel-secili:fullscreen { width: 100vw; max-width: none; height: 100vh; object-fit: contain; border-radius: 0; cursor: zoom-out; }
+
+/* Atos'a sor — sağ alt yüzen düğme (2026-11-11) */
+.atos-fab {
+  position: fixed; right: 20px; bottom: 20px; z-index: 900;
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 12px 20px 12px 14px; border-radius: 999px;
+  background: linear-gradient(135deg, var(--renk-birincil-koyu), var(--renk-birincil));
+  color: var(--renk-zemin); font-weight: 600; font-size: 0.95rem; text-decoration: none;
+  box-shadow: 0 8px 24px -6px var(--renk-birincil);
+  animation: atos-fab-yuz 3.2s ease-in-out infinite;
+}
+.atos-fab::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: -1;
+  background: inherit; opacity: 0.6; animation: atos-fab-halka 2.4s ease-out infinite;
+}
+.atos-fab:hover, .atos-fab:focus-visible { animation-play-state: paused; filter: brightness(1.12); outline: 2px solid var(--renk-birincil); outline-offset: 2px; }
+.atos-fab-ses { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; gap: 2px; }
+.atos-fab-ses i { display: block; width: 3px; height: 6px; border-radius: 2px; background: currentColor; animation: atos-fab-dalga 1s ease-in-out infinite; }
+.atos-fab-ses i:nth-child(2) { animation-delay: .15s; }
+.atos-fab-ses i:nth-child(3) { animation-delay: .3s; }
+.atos-fab-ses i:nth-child(4) { animation-delay: .45s; }
+@keyframes atos-fab-yuz { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes atos-fab-halka { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(1.35, 1.7); opacity: 0; } }
+@keyframes atos-fab-dalga { 0%, 100% { height: 6px; } 50% { height: 20px; } }
+@media (max-width: 720px) { .atos-fab { right: 14px; bottom: 14px; padding: 12px; } .atos-fab-yazi { display: none; } }
+@media (prefers-reduced-motion: reduce) { .atos-fab, .atos-fab::before, .atos-fab-ses i { animation: none; } }
 
 /* Nöbetçi çağrı düğmeleri: alt alta, düz dikdörtgen vurgu, tek satır */
 .menu-eylem[data-eylem^="nobetci-cagir:"] {

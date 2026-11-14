@@ -349,7 +349,7 @@ async def _ekran_karart_tek(t: dict, form) -> dict:
         t["ip"],
         t["kullanici"],
         f"env DISPLAY={display} XAUTHORITY={xauthority} "
-        f"wmctrl -r {shlex.quote(_ETA_SCREEN_COVER_BASLIK)} -b add,maximized_vert,maximized_horz",
+        f"wmctrl -r {shlex.quote(_ETA_SCREEN_COVER_BASLIK)} -b add,fullscreen",
     )
     return {
         "tahta": t["ad"],

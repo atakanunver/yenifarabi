@@ -101,7 +101,7 @@ class TestUzaktanEkran(unittest.TestCase):
                 sonuc = await uzaktan_yonetim._ekran_karart_tek(tahta, None)
             self.assertTrue(sonuc["basarili"])
             self.assertEqual(sum("wmctrl -l" in k for k in komutlar), 3)
-            self.assertIn("maximized_vert", komutlar[-1])
+            self.assertIn("fullscreen", komutlar[-1])
 
         asyncio.run(run_test())
 
