@@ -12,6 +12,8 @@ Monorepo. Bu dosya ortak kurallar + servisler arası resim; alt projelerin kendi
 - Kaynaklar: kararlar `DECISIONS.md` (tek satır `tarih | karar | neden`), mimari `docs/mimari.md` (2026-09-13'te donmuş; çelişkide
   bu dosya esas), ağ/dağıtım/SSH/zamanlayıcılar `docs/runbook.md`, sürüm notları `CHANGELOG.md`. `README.md` yalnız Atakan isterse
   güncellenir. `_arsiv/` yalnız okuma.
+- `docs/` altındaki 2026-10-29 toplu belge seti (`ARCHITECTURE`, `DATA_FLOW`, `DEPENDENCY_MAP`, `TECHNICAL_DEBT`, `TEST_STRATEGY`,
+  `API_AND_INTEGRATIONS`, `CODE_QUALITY_AUDIT`) DOĞRULANMAMIŞ LLM üretimi, var olmayan dosya/teknolojilere atıf yapar: kaynak sayma.
 - AGENTS.md'si olmayanlar: `kelebek/` (sınav salon dağıtımı), `osym/` (ÖSYM/YKS rapor yükleyici, `osym` DB), `arenasinif/`
   (tahta yarışma oyunları; kendi `DECISIONS.md`'si), `anythingllm/` (Atos kurulum + yetenekler), `tahtagoruntuyakala/` (notlar).
 - Ders görsel arşivi: `client/ders_gorsel_servis.py` + `client/core/ders_gorsel.py` (tahta, `systemd --user farabi-ders-gorsel`,
@@ -23,7 +25,7 @@ Monorepo. Bu dosya ortak kurallar + servisler arası resim; alt projelerin kendi
   (birimler `_arsiv/kazanimtest-systemd/`), yerel STT/TTS/Pipecat (ses tek yol: client'ta Gemini Live), `farabi-idari-yukle.timer`.
 - Soru havuzu hazır soru + görsel arşividir; öğretmen katkısı `soru-katki.timer` (2 dk) LLM ile soru üretmez.
 - NAS yedeği `farabi-yedek.timer` pazar 03:30 TR (`~/farabi-yedek/farabi-yedek.py` → `server/yedek/farabi_yedek.py`).
-  2026-11-04..07 bağlantı eksikti; uçtan uca doğrulanana dek çalışıyor varsayma.
+  2026-11-04..07 bağlantı eksikti; 2026-11-08 koşusu journal'da "yedek tamam" verdi, NAS'taki içerik doğrulanmadı.
 - 9-11 çalışmaları Maarif modeline göre.
 - Planlanan: tahtada "Soruyu çöz" (mevcut `actions/ekrandaki_soruyu_oku.py`'yi tetikler).
 - Okul ağı SSL-inceleme yapar: yeni venv'de certifi'ye MEB sertifikası ekle; `HF_HUB_OFFLINE=1`.
