@@ -439,6 +439,47 @@ async def api_tahta_baslat(request: Request, tahta_id: int):
     return JSONResponse(sonuc, status_code=200 if sonuc["basarili"] else 502)
 
 
+def _pano_baglami(conn, tarih: str | None) -> dict:
+    """Ders ızgarası bağlamı: `/` (pano.html) ve `/yeni` (pano_cam.html) ortak kullanır."""
+    bugun = zil.simdi_istanbul().date().isoformat()
+    hedef = tarih or bugun
+    try:
+        ssh_istemci.tarih_dogrula(hedef)
+    except ValueError:
+        hedef = bugun
+    if hedef > bugun:  # gelecek tarih anlamsız — bugüne kelepçele
+        hedef = bugun
+
+    siniflar = [dict(r) for r in conn.execute(
+        "SELECT id, ad FROM siniflar WHERE aktif = 1"
+    )]
+    siniflar.sort(key=lambda s: _sinif_sira_anahtari(s["ad"]))
+
+    # Bir sınıfa bağlı TEK bir tahta varsa, "Yoklama alınmadı" hücresinin
+    # tıklama hedefi o tahtanın id'si olur (Faz 4). Sıfır ya da birden
+    # fazla tahta bağlıysa tıklanabilir hedef yok (çok nadir bir geçiş
+    # durumu — bkz. plan.md).
+    sinif_tahta: dict[int, int] = {}
+    for r in conn.execute(
+        "SELECT sinif_id, id, COUNT(*) OVER (PARTITION BY sinif_id) AS n "
+        "FROM tahtalar WHERE sinif_id IS NOT NULL AND aktif = 1"
+    ):
+        if r["n"] == 1:
+            sinif_tahta[r["sinif_id"]] = r["id"]
+
+    ders_saatleri = zil.ders_saatleri()
+    ilk_durum = {"tarih": hedef, "satirlar": _durum_satirlari(conn, date.fromisoformat(hedef)),
+                 "tahta_acik": _tahta_acik_haritasi(conn)}
+    return {
+        "tarih": hedef,
+        "bugun": bugun,
+        "siniflar": siniflar,
+        "sinif_tahta": sinif_tahta,
+        "ders_saatleri": ders_saatleri,
+        "ilk_durum": ilk_durum,
+    }
+
+
 @app.get("/", response_class=HTMLResponse)
 async def ana_sayfa(request: Request, tarih: str | None = None):
     conn = db.baglanti()
@@ -446,48 +487,21 @@ async def ana_sayfa(request: Request, tarih: str | None = None):
         token = request.cookies.get(auth.COOKIE_ADI)
         if not auth.oturum_gecerli_mi(conn, token):
             return RedirectResponse("/giris", status_code=303)
-
-        bugun = zil.simdi_istanbul().date().isoformat()
-        hedef = tarih or bugun
-        try:
-            ssh_istemci.tarih_dogrula(hedef)
-        except ValueError:
-            hedef = bugun
-        if hedef > bugun:  # gelecek tarih anlamsız — bugüne kelepçele
-            hedef = bugun
-
-        siniflar = [dict(r) for r in conn.execute(
-            "SELECT id, ad FROM siniflar WHERE aktif = 1"
-        )]
-        siniflar.sort(key=lambda s: _sinif_sira_anahtari(s["ad"]))
-
-        # Bir sınıfa bağlı TEK bir tahta varsa, "Yoklama alınmadı" hücresinin
-        # tıklama hedefi o tahtanın id'si olur (Faz 4). Sıfır ya da birden
-        # fazla tahta bağlıysa tıklanabilir hedef yok (çok nadir bir geçiş
-        # durumu — bkz. plan.md).
-        sinif_tahta: dict[int, int] = {}
-        for r in conn.execute(
-            "SELECT sinif_id, id, COUNT(*) OVER (PARTITION BY sinif_id) AS n "
-            "FROM tahtalar WHERE sinif_id IS NOT NULL AND aktif = 1"
-        ):
-            if r["n"] == 1:
-                sinif_tahta[r["sinif_id"]] = r["id"]
-
-        ders_saatleri = zil.ders_saatleri()
-        ilk_durum = {"tarih": hedef, "satirlar": _durum_satirlari(conn, date.fromisoformat(hedef)),
-                     "tahta_acik": _tahta_acik_haritasi(conn)}
+        baglam = _pano_baglami(conn, tarih)
     finally:
         conn.close()
+    return templates.TemplateResponse(request, "pano.html", baglam)
 
-    return templates.TemplateResponse(
-        request,
-        "pano.html",
-        {
-            "tarih": hedef,
-            "bugun": bugun,
-            "siniflar": siniflar,
-            "sinif_tahta": sinif_tahta,
-            "ders_saatleri": ders_saatleri,
-            "ilk_durum": ilk_durum,
-        },
-    )
+
+@app.get("/yeni", response_class=HTMLResponse)
+async def pano_cam(request: Request, tarih: str | None = None):
+    """Buzlu cam React ders ızgarası (arayuz/ → static/pano-cam.*); onaylanınca `/` yerine geçer."""
+    conn = db.baglanti()
+    try:
+        token = request.cookies.get(auth.COOKIE_ADI)
+        if not auth.oturum_gecerli_mi(conn, token):
+            return RedirectResponse("/giris", status_code=303)
+        baglam = _pano_baglami(conn, tarih)
+    finally:
+        conn.close()
+    return templates.TemplateResponse(request, "pano_cam.html", baglam)
