@@ -62,6 +62,7 @@ PYVER=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_in
 python3 -c "import ensurepip" >/dev/null 2>&1 || EKSIK_PAKET+=("python${PYVER}-venv")
 dpkg -s libportaudio2 >/dev/null 2>&1 || EKSIK_PAKET+=("libportaudio2")
 dpkg -s libxcb-cursor0 >/dev/null 2>&1 || EKSIK_PAKET+=("libxcb-cursor0")
+dpkg -s evince >/dev/null 2>&1 || EKSIK_PAKET+=("evince")  # varsayılan PDF okuyucu; sonra server/pdf_okuyucu_kur.sh <derslik>
 if [ "${#EKSIK_PAKET[@]}" -gt 0 ]; then
     echo "  EKSİK: ${EKSIK_PAKET[*]}"
     echo "  Bu paketler sudo gerektirir, bu script otomatik kurmaz."
@@ -69,7 +70,7 @@ if [ "${#EKSIK_PAKET[@]}" -gt 0 ]; then
     echo "    sudo apt-get update && sudo apt-get install -y ${EKSIK_PAKET[*]}"
     echo "  git eksikse aşağıdaki [1/7] adımı da başarısız olur."
 else
-    echo "  Tamam — git/wmctrl/venv/portaudio/xcb-cursor hepsi kurulu."
+    echo "  Tamam — git/wmctrl/venv/portaudio/xcb-cursor/evince hepsi kurulu."
 fi
 
 # 1) Board repo yoksa: yalnızca client/ (sparse-checkout, cone modu) klonlanır.
