@@ -200,6 +200,8 @@ tahtayoklama/dashboard/config/panel_giris.json
 kelebek/
 # okul3d: kendi git deposu var (özel, atakanunver/okul3d)
 okul3d/
+# progmatik: ders programı planlayıcı, kendi git deposu var (özel, atakanunver/progmatik)
+progmatik/
 
 # 165 MB HGM Küre (exe/dll); public repoya girmesin
 tahtamasaustuduzeni/HGM KUR/
