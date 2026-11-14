@@ -1,0 +1,157 @@
+import type { Satir, DersSaati } from './tipler';
+
+function jsonDizi(ham: string | null | undefined): string[] {
+  if (!ham) return [];
+  try {
+    const d = JSON.parse(ham);
+    return Array.isArray(d) ? d.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export type HucreTuru =
+  | 'tam'
+  | 'devamsiz'
+  | 'alinmadi'
+  | 'ulasilamaz'
+  | 'atanmamis'
+  | 'bos';
+
+export interface HucreSonucu {
+  tur: HucreTuru;
+  yok: string[];
+  izinli: string[];
+}
+
+export function hucreDurumu(satir: Satir): HucreSonucu {
+  const yok = jsonDizi(satir.yok_isimleri);
+  const izinli = jsonDizi(satir.izinli_isimleri);
+
+  if (satir.durum === 'alindi') {
+    return {
+      tur: yok.length || izinli.length ? 'devamsiz' : 'tam',
+      yok,
+      izinli,
+    };
+  }
+  if (satir.durum === 'alinmadi') return { tur: 'alinmadi', yok, izinli };
+  if (satir.durum === 'tahta_ulasilamaz') return { tur: 'ulasilamaz', yok, izinli };
+  if (satir.durum === 'tahta_atanmamis') return { tur: 'atanmamis', yok, izinli };
+  return { tur: 'bos', yok, izinli };
+}
+
+export function yoklamaOrani(satirlar: Satir[]): number | null {
+  let alindi = 0;
+  let alinmadi = 0;
+  for (const s of satirlar) {
+    if (s.durum === 'alindi') alindi++;
+    else if (s.durum === 'alinmadi') alinmadi++;
+  }
+  const toplam = alindi + alinmadi;
+  if (toplam === 0) return null;
+  return alindi / toplam;
+}
+
+export interface Dagilim {
+  tam: number;
+  devamsiz: number;
+  alinmadi: number;
+  ulasilamaz: number;
+}
+
+export function dagilim(satirlar: Satir[]): Dagilim {
+  const d: Dagilim = { tam: 0, devamsiz: 0, alinmadi: 0, ulasilamaz: 0 };
+  for (const s of satirlar) {
+    const h = hucreDurumu(s);
+    if (h.tur === 'tam') d.tam++;
+    else if (h.tur === 'devamsiz') d.devamsiz++;
+    else if (h.tur === 'alinmadi') d.alinmadi++;
+    else if (h.tur === 'ulasilamaz') d.ulasilamaz++;
+  }
+  return d;
+}
+
+function saatDk(ssDk: string): number {
+  const [s, d] = ssDk.split(':').map((x) => parseInt(x, 10));
+  return (s || 0) * 60 + (d || 0);
+}
+
+export function aktifDers(
+  saatler: DersSaati[],
+  simdi: Date,
+  bugunMu: boolean
+): DersSaati | null {
+  if (!bugunMu) return null;
+  const dk = simdi.getHours() * 60 + simdi.getMinutes();
+  for (const s of saatler) {
+    if (dk >= saatDk(s.baslangic) && dk <= saatDk(s.bitis)) return s;
+  }
+  return null;
+}
+
+export interface DersOzeti {
+  no: number;
+  baslangic: string;
+  bitis: string;
+  durum: 'devam' | 'tamam';
+  alinan: number;
+  beklenen: number;
+}
+
+export function dersListesi(
+  saatler: DersSaati[],
+  satirlar: Satir[],
+  simdi: Date,
+  bugunMu: boolean,
+  sinifSayisi: number
+): DersOzeti[] {
+  const aktif = aktifDers(saatler, simdi, bugunMu);
+  const simdiDk = simdi.getHours() * 60 + simdi.getMinutes();
+
+  return saatler
+    .filter((s) => !bugunMu || simdiDk >= saatDk(s.baslangic))
+    .map((s) => {
+      const buDers = satirlar.filter((r) => r.ders_no === s.no);
+      const alinan = buDers.filter((r) => r.durum === 'alindi').length;
+      const devamMi = bugunMu && aktif?.no === s.no;
+      return {
+        no: s.no,
+        baslangic: s.baslangic,
+        bitis: s.bitis,
+        durum: devamMi ? ('devam' as const) : ('tamam' as const),
+        alinan,
+        beklenen: sinifSayisi,
+      };
+    });
+}
+
+export function tiklanabilir(
+  satir: Satir,
+  sinifTahta: Record<string, number>,
+  sinifId: number
+): boolean {
+  if (satir.durum !== 'alinmadi') return false;
+  return String(sinifId) in sinifTahta;
+}
+
+export function haftaGunleri(tarihIso: string): string[] {
+  // Verilen günün ait olduğu haftanın Pzt..Cum günleri
+  const [y, m, d] = tarihIso.split('-').map((x) => parseInt(x, 10));
+  const t = new Date(y, m - 1, d);
+  // JS getDay: 0 Pazar, 1 Pzt.. 6 Cts -> Pzt'yi 0 yap
+  const gun = (t.getDay() + 6) % 7;
+  const pzt = new Date(t);
+  pzt.setDate(t.getDate() - gun);
+
+  const sonuclar: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    const k = new Date(pzt);
+    k.setDate(pzt.getDate() + i);
+    const ky = k.getFullYear();
+    const km = String(k.getMonth() + 1).padStart(2, '0');
+    const kd = String(k.getDate()).padStart(2, '0');
+    sonuclar.push(`${ky}-${km}-${kd}`);
+  }
+  return sonuclar;
+}
