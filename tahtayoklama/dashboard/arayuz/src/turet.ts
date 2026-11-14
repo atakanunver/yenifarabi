@@ -177,17 +177,6 @@ export function sorunluUste(siniflar: Sinif[], satirlar: Satir[]): Sinif[] {
   return [...siniflar.filter((s) => sorunlu.has(s.ad)), ...siniflar.filter((s) => !sorunlu.has(s.ad))];
 }
 
-const GUNLER = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
-const AYLAR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
-
-/** "Bugün · Cumartesi 14 Kasım" / geçmiş gün "Pazartesi 12 Ekim" (pano.html h1 ile aynı). */
-export function baslikMetni(tarihIso: string, bugunIso: string): string {
-  const [y, m, d] = tarihIso.split('-').map((x) => parseInt(x, 10));
-  const t = new Date(y, m - 1, d);
-  const metin = `${GUNLER[t.getDay()]} ${d} ${AYLAR[m - 1]}`;
-  return tarihIso === bugunIso ? `Bugün · ${metin}` : metin;
-}
-
 export interface HalkaOranlari {
   alinan: number | null; // alındı / (alındı + alınmadı)
   tam: number | null;    // tam katılımlı / alındı

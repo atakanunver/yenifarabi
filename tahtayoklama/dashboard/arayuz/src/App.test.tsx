@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { App } from './App';
+import { Kart } from './bilesenler/Kart';
 import type { PanoVeri } from './tipler';
 
 const veri: PanoVeri = {
@@ -12,6 +13,24 @@ const veri: PanoVeri = {
 };
 
 describe('App — ortak kabuk içindeki React ders paneli', () => {
+  it('ders ızgarası KPI ve grafiklerden önce gelir', () => {
+    const html = renderToStaticMarkup(<App veri={veri} />);
+    expect(html.indexOf('<table')).toBeLessThan(html.indexOf('aria-label="Şu an"'));
+  });
+
+  it('büyük tarih başlığı yerine yalnız erişilebilir sayfa adı bulunur', () => {
+    const html = renderToStaticMarkup(<App veri={veri} />);
+    expect(html).toContain('<h1 class="sr-only">Ders ızgarası</h1>');
+    expect(html).not.toContain('Bugün ·');
+    expect(html).not.toContain('13 Kasım');
+  });
+
+  it('kart zemini arka planı daha görünür bırakır', () => {
+    const html = renderToStaticMarkup(<Kart baslik="Örnek" ikon="ev" vurgu="#38BDF8">İçerik</Kart>);
+    expect(html).toContain('bg-white/[0.04]');
+    expect(html).toContain('group-hover:bg-white/[0.08]');
+  });
+
   it('KPI, grafik, halka, gerçek tablo ve ders listesi hazır render olur', () => {
     const html = renderToStaticMarkup(<App veri={veri} />);
     for (const baslik of ['Şu an', 'Katılım', 'Haftalık katılım', 'Dersler', '9-A']) expect(html).toContain(baslik);

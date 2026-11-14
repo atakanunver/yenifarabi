@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Ikon } from './Ikon';
 import { YAY } from './Kart';
-import { baslikMetni, haftaGunleri } from '../turet';
+import { haftaGunleri } from '../turet';
 import type { AcilDurum } from '../api';
 
 const KISA = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum'];
@@ -10,7 +10,6 @@ const KISA = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum'];
 interface UstSeritProps {
   tarih: string;
   bugun: string;
-  aktifDersNo: number | null;
   sonGuncelleme: string;
   yenileniyor: boolean;
   acil: AcilDurum | null;
@@ -18,7 +17,7 @@ interface UstSeritProps {
   onYenile: () => void;
 }
 
-export const UstSerit: React.FC<UstSeritProps> = ({ tarih, bugun, aktifDersNo, sonGuncelleme, yenileniyor, acil, onTarih, onYenile }) => {
+export const UstSerit: React.FC<UstSeritProps> = ({ tarih, bugun, sonGuncelleme, yenileniyor, acil, onTarih, onYenile }) => {
   const gunler = haftaGunleri(tarih);
   const a = acil?.aktif;
   return (
@@ -32,14 +31,8 @@ export const UstSerit: React.FC<UstSeritProps> = ({ tarih, bugun, aktifDersNo, s
           </span>
         </a>
       )}
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-[12px] font-medium text-white/45">Yoklama › Ders ızgarası</p>
-          <h1 className="mt-1 text-[28px] font-semibold leading-tight tracking-tight text-white sm:text-[32px]">
-            {baslikMetni(tarih, bugun)}
-            {aktifDersNo ? <span className="text-white/45"> · {aktifDersNo}. ders</span> : null}
-          </h1>
-        </div>
+      <h1 className="sr-only">Ders ızgarası</h1>
+      <header className="mb-3 flex flex-wrap items-center gap-3">
         <div className="flex flex-wrap items-center gap-2.5">
           <div role="tablist" aria-label="Haftanın günü" className="relative flex rounded-full border border-white/15 bg-white/[0.06] p-1">
             {gunler.map((g, i) => {

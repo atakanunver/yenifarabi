@@ -67,7 +67,6 @@ ALANLAR: list[dict] = [
             {"ad": "Kulüp yoklaması", "href": "/kulup-yoklama", "ikon": "kullanicilar"},
             {"ad": "DYK yoklaması", "href": "/dyk-yoklama", "ikon": "kullanicilar"},
             {"ad": "3D Okul Menüsü", "href": "http://192.168.23.20:8095/", "ikon": "tahta", "yeni_sekme": True},
-            {"ad": "Görsel Oluşturma Paneli", "href": "/gorsel", "ikon": "resim"},
             {"ad": "Nöbetçiyi Müdüre Çağır", "href": "#", "eylem": "nobetci-cagir:mudur", "ikon": "zil"},
             {"ad": "Nöbetçiyi Müdür Yardımcısına Çağır", "href": "#", "eylem": "nobetci-cagir:yardimci", "ikon": "zil"},
         ],
@@ -110,12 +109,12 @@ ALANLAR: list[dict] = [
         ],
     },
     {
-        "ad": "Güvenlik", "anahtar": "guvenlik", "kisayol": "k", "ikon": "kamera", "acilir": True,
+        "ad": "Güvenlik", "anahtar": "guvenlik", "kisayol": "k", "ikon": "guvenlik-kamera", "acilir": True,
         "sayfalar": [
-            {"ad": "DVR kameralar", "href": "/kameralar", "ikon": "kamera"},
-            {"ad": "IP kameralar (yedek)", "href": "/kameralar-ip", "ikon": "kamera"},
-            {"ad": "Kamera kayıtları", "href": "/kameralar-kayit", "ikon": "kamera"},
-            {"ad": "Güvenlik ekranı", "href": "/guvenlik", "ikon": "kamera"},
+            {"ad": "DVR kameralar", "href": "/kameralar", "ikon": "guvenlik-kamera"},
+            {"ad": "IP kameralar (yedek)", "href": "/kameralar-ip", "ikon": "guvenlik-kamera"},
+            {"ad": "Kamera kayıtları", "href": "/kameralar-kayit", "ikon": "guvenlik-kamera"},
+            {"ad": "Güvenlik ekranı", "href": "/guvenlik", "ikon": "guvenlik-kamera"},
             {"ad": "Kiosk yüz tanıma", "href": KIOSK_YUZ_PANELI, "ikon": "kullanicilar", "yeni_sekme": True},
         ],
     },
@@ -130,8 +129,13 @@ ALANLAR: list[dict] = [
             {"ad": "Kiosk paneli", "href": "/panel-git/kiosk", "ikon": "sunucu", "yeni_sekme": True},
             {"ad": "Bilgehan paneli", "href": "/panel-git/bilgehan", "ikon": "sunucu", "yeni_sekme": True},
             {"ad": "Debian paneli", "href": DEBIAN_PANELI, "ikon": "sunucu", "yeni_sekme": True},
-            {"ad": "Görsel Oluşturma Paneli", "href": "/gorsel", "ikon": "resim"},
             {"ad": "CLIProxyAPI (yönetim)", "href": CLIPROXY_PANELI, "ikon": "sunucu", "yeni_sekme": True},
+        ],
+    },
+    {
+        "ad": "Görsel", "anahtar": "gorsel", "kisayol": "g", "ikon": "kamera",
+        "sayfalar": [
+            {"ad": "Görsel Oluşturma Paneli", "href": "/gorsel", "ikon": "kamera"},
         ],
     },
     {

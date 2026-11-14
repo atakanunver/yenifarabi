@@ -150,8 +150,8 @@ describe('haftaGunleri', () => {
   });
 });
 
-// ---- Cam ders ızgarası (2026-11-14): sıralama, başlık, halkalar, ders ilerlemesi ----
-import { sorunluUste, baslikMetni, halkaOranlari, dersIlerlemesi, istanbulSaati } from './turet';
+// ---- Cam ders ızgarası (2026-11-14): sıralama, halkalar, ders ilerlemesi ----
+import { sorunluUste, halkaOranlari, dersIlerlemesi, istanbulSaati } from './turet';
 
 describe('dürüst ders listesi ve saat', () => {
   it('verisiz gün veya ders olmayan gün tamamlandı listesi üretmez', () => {
@@ -177,16 +177,6 @@ describe('sorunluUste — pano.html ile aynı sıra', () => {
   });
   it('sorun yoksa sıra değişmez', () => {
     expect(sorunluUste(siniflar, []).map((s) => s.ad)).toEqual(['9-A', '9-B', '10-A', '11-A']);
-  });
-});
-
-describe('baslikMetni — test_pano_sablon ile aynı biçim', () => {
-  it('bugün: "Bugün · Cumartesi 14 Kasım"', () => {
-    expect(baslikMetni('2026-11-14', '2026-11-14')).toBe('Bugün · Cumartesi 14 Kasım');
-  });
-  it('geçmiş gün: "Bugün" yok', () => {
-    expect(baslikMetni('2026-10-12', '2026-11-14')).toBe('Pazartesi 12 Ekim');
-    expect(baslikMetni('2027-01-01', '2027-01-02')).toBe('Cuma 1 Ocak');
   });
 });
 

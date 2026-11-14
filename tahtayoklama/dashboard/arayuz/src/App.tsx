@@ -91,7 +91,7 @@ export const App: React.FC<{ veri: PanoVeri }> = ({ veri }) => {
 
   return (
     <MotionConfig reducedMotion="user" transition={reduced ? { duration: 0 } : YAY}>
-      <UstSerit tarih={veri.tarih} bugun={veri.bugun} aktifDersNo={aktif?.no ?? null}
+      <UstSerit tarih={veri.tarih} bugun={veri.bugun}
                 sonGuncelleme={sonGuncelleme} yenileniyor={yenileniyor} acil={acil}
                 onTarih={onTarih} onYenile={() => { void onYenile(); }} />
       {hata && (
@@ -100,21 +100,19 @@ export const App: React.FC<{ veri: PanoVeri }> = ({ veri }) => {
           <button type="button" className="underline" onClick={() => { void guncelle(); }}>Tekrar dene</button>
         </div>
       )}
-      {/* 3 eşit sütun + 2×16px aralık = içerik genişliği. Izgara altta geniş alan, dersler dar sağ sütun. */}
+      {/* Izgara her genişlikte önce gelir; KPI ve grafikler alt sıradadır. */}
       <div className="flex flex-col gap-4">
-      <div className="order-2 grid grid-cols-1 gap-4 xl:order-1 xl:grid-cols-3">
-        <SuAn saatler={veri.ders_saatleri} satirlar={satirlar} tahtaAcik={durum.tahta_acik}
-              sinifSayisi={veri.siniflar.length} bugunMu={bugunMu} simdi={simdi} />
-        <KatilimHalkasi satirlar={satirlar} tahtaAcik={durum.tahta_acik} />
-        <KatilimGrafigi tarih={veri.tarih} bugun={veri.bugun} satirlar={satirlar} onTarihSec={onTarih} />
-      </div>
-      <div className="order-1 grid grid-cols-1 items-start gap-4 xl:order-2 2xl:grid-cols-[minmax(0,1fr)_320px]">
         <DersIzgarasi siniflar={veri.siniflar} saatler={veri.ders_saatleri} satirlar={satirlar}
                       sinifTahta={veri.sinif_tahta} tahtaAcik={durum.tahta_acik}
                       aktifDersNo={aktif?.no ?? null} onBaslat={onBaslat} />
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <SuAn saatler={veri.ders_saatleri} satirlar={satirlar} tahtaAcik={durum.tahta_acik}
+                sinifSayisi={veri.siniflar.length} bugunMu={bugunMu} simdi={simdi} />
+          <KatilimHalkasi satirlar={satirlar} tahtaAcik={durum.tahta_acik} />
+          <KatilimGrafigi tarih={veri.tarih} bugun={veri.bugun} satirlar={satirlar} onTarihSec={onTarih} />
+        </div>
         <DersListesi saatler={veri.ders_saatleri} satirlar={satirlar} simdi={simdi} bugunMu={bugunMu}
                      sinifSayisi={veri.siniflar.length} />
-      </div>
       </div>
     </MotionConfig>
   );

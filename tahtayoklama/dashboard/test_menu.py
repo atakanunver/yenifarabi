@@ -27,8 +27,16 @@ def _hrefler():
 class TestMenu(unittest.TestCase):
     def test_alan_sirasi(self):
         self.assertEqual([a["ad"] for a in menu.ALANLAR],
-                         ["Tahtalar", "Yoklama", "Öğrenci ve personel", "İletişim", "Duyurular", "Eğitim", "Güvenlik", "Sistem", "Favoriler"])
-        self.assertEqual([a["kisayol"] for a in menu.ALANLAR], list("hypideksf"))
+                         ["Tahtalar", "Yoklama", "Öğrenci ve personel", "İletişim", "Duyurular", "Eğitim", "Güvenlik", "Sistem", "Görsel", "Favoriler"])
+        self.assertEqual([a["kisayol"] for a in menu.ALANLAR], list("hypideksgf"))
+
+    def test_gorsel_kisayolu_ve_kamera_simgeleri(self):
+        agac = menu.menu_agaci('/gorsel')
+        self.assertEqual(agac['aktif_alan']['anahtar'], 'gorsel')
+        self.assertEqual(agac['aktif_alan']['ikon'], 'kamera')
+        self.assertEqual(agac['aktif_alan']['sayfalar'][0]['href'], '/gorsel')
+        guvenlik = next(a for a in menu.ALANLAR if a['anahtar'] == 'guvenlik')
+        self.assertEqual(guvenlik['ikon'], 'guvenlik-kamera')
 
     def test_tum_sayfalar_menude(self):
         hrefler = {h.split("#")[0] for h in _hrefler()}
@@ -160,7 +168,7 @@ class TestMenu(unittest.TestCase):
     def test_ust_cubukta_alti_alan(self):
         html = self._render("/admin/rapor")
         sekmeler = re.findall(r'<(?:a|summary) class="alan-sekme"[^>]*>', html)
-        self.assertEqual(len(sekmeler), 9)
+        self.assertEqual(len(sekmeler), 10)
         for etiket, alan in zip(sekmeler, menu.ALANLAR):
             if alan.get("acilir"):  # açılır alan: sekme <summary>, sayfalar panelde
                 self.assertTrue(etiket.startswith("<summary"), alan["ad"])
