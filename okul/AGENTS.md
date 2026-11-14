@@ -11,6 +11,11 @@ Mobil öncelikli okul portalı (öğrenci/veli/öğretmen/yönetici): FastAPI + 
 - Yıllık planlar: `venv/bin/python scripts/yillik_planlari_aktar.py` (argümansız; `/mnt/farabi-data/farabi/YILLIK PLANLAR 2026_2027` .docx'leri `PLAN_HARITASI` (öğretmen id, sınıf, ders) ile `belgeler`/db'ye aktarır; yeni plan = haritaya satır).
 - Bazı dosyalar CRLF (`git ls-files --eol`): Python `open()` ile yeniden yazma, `newline=''` ya da Edit aracı.
 
+## Mimari (istek akışı)
+- `app.py`: orta katman + exception handler'lar; rota modülleri tek `for r in (...)` demetiyle `include_router` edilir (yeni modül o demete eklenir). `rotalar/*.py` ince, iş mantığı kök modüllerde (`maraton.py`, `arena.py`, `odevler.py`, `push.py` …).
+- `deps.py`: ortak bağımlılıklar. `db_conn` istek başına bir SQLite bağlantısı; `mevcut_kullanici` çerezden oturumu çözer, yoksa `GirisGerekli`, ilk şifre değişmediyse `SifreDegistirmeli` fırlatır (handler'lar yönlendirir). `rol(*roller, post=False)` rolü denetler (yanlış rol = 404); varsayılan `post=False`, POST rotalarında açıkça `post=True` ver (form alanı `csrf` doğrulanır, atlarsan CSRF koruması yok); şablonlarda `<input type="hidden" name="csrf" value="{{ csrf }}">`. `render()` ortak şablon bağlamını (`k`, `csrf`, rozet sayaçları `anket_bekleyen`/`sohbet_okunmamis`/`duyuru_okunmamis`/`kutu_yeni`, `acil_aktif`) ekler; saat/zil/kanallar bağlamda değil Jinja global'idir.
+- `db.py`: tek dosyada şema + `GOCLER` göç listesi; `baglanti()`/`sema_kur()`. Dış veri (`kaynaklar/*`) okul.db'ye kopyalanmaz, her istekte okunur.
+
 ## Değişiklik kuralları
 - ⚠️ Şablonlar canlıya ANINDA yansır; Python (`deps.py` Jinja global vb.) restart ister. Yeni Jinja global kullanan şablonu `is defined` ile koru ve değişiklikten hemen sonra restart et (korumasız global /giris'i 503 yaptı).
 - Şema: `db.GOCLER` sonuna yeni eleman ekle, eskileri DEĞİŞTİRME. Güncel sürüm = `len(GOCLER)` (şu an 41); yeni göç = `V<len+1>`. Şema `PRAGMA user_version` ile sürümlü, her göç tek `BEGIN…COMMIT`. Her göç için `scripts/geri_al.py`'ye GERI girdisi ekle (`--hedef N`).
@@ -19,7 +24,7 @@ Mobil öncelikli okul portalı (öğrenci/veli/öğretmen/yönetici): FastAPI + 
 - Yeni rota modülü `rotalar/` altına + `app.py`'de `include_router`. Rota işi `rotalar/`, iş mantığı kök modülde.
 - Üst çubuk `.ust` tek satır flex: yeni öğe ≤360px'te Çıkış düğmesini itmemeli (`flex: none`).
 - Yeni sabit renk yazma, CSS değişkeni kullan (`--alan --kenar --sari-bg --hata-yazi ...`); dış yazı tipi YOK.
-- Test: `tests/test_*.py`; yetki değişikliği test edilir; dış servisler mock'lanır. Yeni yol/ayar eklersen `conftest.py`'deki autouse `gecici_ortam` fixture'ına ekle (yoksa test gerçek `veri/`'ye yazar). `ayarlar.AYAR` tek global ayar nesnesi; testte `analitik.sifirla()` conftest'te çağrılır.
+- Test: `tests/test_*.py`; yetki değişikliği test edilir; dış servisler mock'lanır. Hazır fixture'lar (`tests/conftest.py`): `conn` (db bağlantısı), `yeni_kullanici(c, rol, ad, kullanici_adi=None, telefon=None, sifre=None)`, `ornek` (yönetici/öğretmen/2 öğrenci/veli + ilişkiler; anahtarlar `yonetici`, `ogretmen`, `ogr1_k`, `ogr1`, `veli1`…), `saat` (elle ilerletilen `zaman.simdi`). Yeni yol/ayar eklersen `conftest.py`'deki autouse `gecici_ortam` fixture'ına ekle (yoksa test gerçek `veri/`'ye yazar). `ayarlar.AYAR` tek global ayar nesnesi; testte `analitik.sifirla()` conftest'te çağrılır.
 
 ## Güvenlik ve gizlilik
 - Repo PUBLIC: şifre/anahtar/token/özel davet bağlantısı/öğrenci verisi commit'leme. Sırlar gitignore'lu `config/gizli.json`'da.
