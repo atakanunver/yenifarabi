@@ -69,6 +69,7 @@ window.FARABI_DUVAR = {{ agac.duvar_kagitlari | tojson }};
         <a class="ust-marka" href="/" title="Ders ızgarası"><img src="/static/atos-logo.png" alt="" width="28" height="28">
           <span class="ust-marka-metin"><span class="ust-marka-ad">Farabi</span>
           <span class="ust-zaman"><span class="ust-gun">{{ agac.gun }}</span> <span id="ust-saat"></span>{% if agac.ders %}<span class="ust-ders"> · {{ agac.ders }}</span>{% endif %}</span></span></a>
+        <span class="ust-hava" id="ust-hava" hidden><svg class="ikon" aria-hidden="true"><use href="#ik-hava-bulut"/></svg><span class="ust-hava-derece"></span></span>
         <div class="ust-araclar">
           {# Atos: eskiden sağ altta yüzen düğmeydi (2026-11-11); içeriğin üstüne bindiği için üst çubukta (2026-11-14) #}
           <a class="ust-yz" href="{{ baglanti(agac.atos) }}" data-kisayol="{{ agac.atos.kisayol }}" target="_blank" rel="noopener" title="Atos yapay zekâ (yeni sekmede açılır)" aria-label="Yapay Zekaya Sor — Atos">

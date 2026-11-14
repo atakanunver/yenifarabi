@@ -255,6 +255,28 @@
    sunucuya bildirir (sendBeacon: sayfa değişse de gider). Kişi/IP bilgisi gönderilmez. */
 (function () {
   if (!navigator.sendBeacon) return;
+  // Üst bant hava durumu (/api/hava → okul3d MGM önbelleği), 15 dk'da bir.
+  var hava = document.getElementById('ust-hava');
+  function havaTuru(kod) {
+    if (kod === 'A' || kod === 'SCK') return 'gunes';
+    if (kod === 'AB' || kod === 'PB') return 'bulut-gunes';
+    if (/^(HKY|K|YKY)$/.test(kod)) return 'kar';
+    if (/Y$/.test(kod)) return 'yagmur';
+    return 'bulut';
+  }
+  function havaGuncelle() {
+    fetch('/api/hava', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (v) {
+      if (!v || typeof v.sicaklik !== 'number') return;
+      var tur = havaTuru(v.kod);
+      hava.dataset.tur = tur;
+      hava.querySelector('use').setAttribute('href', '#ik-hava-' + tur);
+      hava.querySelector('.ust-hava-derece').textContent = Math.round(v.sicaklik) + '°';
+      hava.title = v.yer + ': ' + v.durum + ', nem %' + v.nem;
+      hava.hidden = false;
+    }).catch(function () {});
+  }
+  if (hava) { havaGuncelle(); setInterval(havaGuncelle, 15 * 60 * 1000); }
+
   document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('a[data-menu]');
     if (a) navigator.sendBeacon('/api/menu-tik', new Blob([a.getAttribute('data-menu')], { type: 'text/plain' }));

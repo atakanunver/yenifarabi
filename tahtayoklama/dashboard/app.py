@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
 from urllib.parse import quote
+from urllib.request import urlopen
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
@@ -281,6 +282,16 @@ def _tahta_acik_haritasi(conn) -> dict[str, bool]:
             (f"-{tahta_saglik.CEVRIMDISI_SN} seconds",),
         )
     }
+
+
+@app.get("/api/hava")
+def api_hava():
+    # Üst banttaki hava: okul3d'nin MGM önbelleği (15 dk); tarayıcı :8096'ya CORS'suz erişemez.
+    try:
+        with urlopen("http://127.0.0.1:8096/api/hava", timeout=3) as yanit:
+            return JSONResponse(json.loads(yanit.read()))
+    except (OSError, ValueError):
+        return JSONResponse({}, status_code=503)
 
 
 @app.get("/api/durum")
