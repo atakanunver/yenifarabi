@@ -108,7 +108,8 @@ body { background: #070914; min-height: 100vh; font-variant-numeric: tabular-num
   -webkit-backdrop-filter: var(--cam-bulanik); backdrop-filter: var(--cam-bulanik);
   animation: cam-belir 0.28s var(--cam-yay);
 }
-/* Rayın altındaki Favoriler yukarı açılır; aşağı açılınca ekrandan taşıyordu (2026-11-15) */
+/* Rayın altındaki Güvenlik ve Favoriler yukarı açılır; aşağı açılınca ekrandan taşıyordu (2026-11-15) */
+.alan-acilir[data-alan="guvenlik"] > .alan-acilir-panel,
 .alan-acilir[data-alan="favoriler"] > .alan-acilir-panel { top: auto; bottom: -8px; }
 .alan-acilir-baslik { padding: 4px 10px 6px; font-size: 0.75rem; font-weight: 500; color: var(--cam-metin-3); }
 .alan-acilir-oge { min-height: 2.4rem; padding: 0.45rem 0.7rem; border-radius: 12px; color: var(--cam-metin-2); }
