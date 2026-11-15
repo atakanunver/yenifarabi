@@ -32,47 +32,64 @@ const defaultSettings = {
     audio: true,
     speak: false,
 };
-const defaultCountryStyle = {
-    weight: 2,
-    color: "black",
-    fill: true,
-    fillColor: "var(--alan)",
-    fillOpacity: 1,
-    interactive: false
-};
-const defaultHighlightedCountryStyle = {
-    weight: 3,
-    fillOpacity: .3,
-    color: "var(--accent)",
-    fill: true
-};
-const defaultHiddenCountryStyle = {
-    stroke: false,
-    fillOpacity: .2,
-    fill: true
-};
-const exploreCountryStyle = {
-    weight: 2,
-    color: "black",
-    fill: true,
-    fillColor: "var(--alan)",
-    fillOpacity: 1,
-    interactive: true,
-    bubblingMouseEvents: false,
-    opacity: 1,
-};
-const exploreCountryHoveredStyle = {
-    weight: 2,
-    fillOpacity: .2,
-    color: "black",
-    fillColor: "var(--accent3)",
-};
-const exploreCountryHighlightedStyle = {
-    weight: 2,
-    fillOpacity: .4,
-    color: "var(--accent)",
-    fillColor: "var(--accent)",
-};
+const mapColorCache = new Map();
+function mapColor(name) {
+    const app = document.getElementById('cografyaApp');
+    const value = getComputedStyle(app).getPropertyValue(name).trim();
+    const key = name + ':' + value + ':' + (document.documentElement.dataset.tema || '') + ':' + document.documentElement.hasAttribute('data-cam');
+    if(!mapColorCache.has(key)) {
+        const probe = document.createElement('span');
+        probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none';
+        probe.style.color = 'var(' + name + ')';
+        app.appendChild(probe);
+        mapColorCache.set(key, getComputedStyle(probe).color);
+        probe.remove();
+    }
+    return mapColorCache.get(key);
+}
+let countryColors = {};
+function assignCountryColors() {
+    const neighbors = {};
+    Object.keys(countryData).sort().forEach(id => { neighbors[id] = new Set(); });
+    Object.keys(neighbors).forEach(id => {
+        (countryData[id].borders || []).forEach(border => {
+            if(neighbors[border]) { neighbors[id].add(border); neighbors[border].add(id); }
+        });
+    });
+    countryColors = {};
+    Object.keys(neighbors).sort((a, b) => neighbors[b].size - neighbors[a].size || a.localeCompare(b, 'en')).forEach(id => {
+        const used = new Set(Array.from(neighbors[id], neighbor => countryColors[neighbor]));
+        const start = Array.from(id).reduce((sum, c) => sum + c.charCodeAt(0), 0) % 5;
+        for(let i = 0; i < 5; i++) {
+            const color = (start + i) % 5;
+            if(!used.has(color)) { countryColors[id] = color; return; }
+        }
+        countryColors[id] = start;
+    });
+}
+function countryFill(id) {
+    return mapColor('--ulke' + ((countryColors[id] ?? 0) + 1));
+}
+function defaultCountryStyle(feature) {
+    return {weight: 1.2, color: mapColor('--harita-kenar'), fill: true,
+        fillColor: countryFill(feature.id), fillOpacity: 1, stroke: true, interactive: false};
+}
+function defaultHighlightedCountryStyle() {
+    return {weight: 3, color: mapColor('--harita-kenar'), fill: true,
+        fillColor: mapColor('--harita-vurgu'), fillOpacity: .95, stroke: true};
+}
+function defaultHiddenCountryStyle() {
+    return {stroke: false, fill: true, fillColor: mapColor('--deniz'), fillOpacity: 1};
+}
+function exploreCountryStyle(feature) {
+    return Object.assign({}, defaultCountryStyle(feature), {interactive: true, bubblingMouseEvents: false, opacity: 1, stroke: true});
+}
+function exploreCountryHoveredStyle() {
+    return {weight: 2, fillOpacity: .9, color: mapColor('--harita-kenar'), fillColor: mapColor('--accent3')};
+}
+function exploreCountryHighlightedStyle() {
+    return defaultHighlightedCountryStyle();
+}
 const autocompleteOptions = {
     limit: 5,
     allowTypo: true,
@@ -836,6 +853,7 @@ function setAliases(data) {
 }
 function setupDataStructs(res) {
     countryData = res;
+    assignCountryColors();
     countries = Object.keys(countryData);
     countries.forEach(function(id) {
         if(!(id in countryData) || !countryData[id].name) {console.log(id); return;}
@@ -924,7 +942,7 @@ function checkLoad() {
     }
 }
 function setGeoJSON(countryOptions) {
-    countryStyle = Object.assign({}, defaultCountryStyle, countryOptions);
+    countryStyle = feature => Object.assign({}, defaultCountryStyle(feature), countryOptions);
     map.geoCenters = [];
     L.geoJSON(geoJSON, {
         style: countryStyle,
@@ -966,16 +984,16 @@ function removeItem(arr, value, deep = false) {
 }
 function unHighlight() {
     for(var i = 0;i < highlighted.length;++i) {
-        highlighted[i].setStyle(countryStyle);
+        highlighted[i].setStyle(countryStyle(highlighted[i].feature));
     }
     highlighted = [];
 }
-function highlight(elem, options = defaultHighlightedCountryStyle) {
+function highlight(elem, options = defaultHighlightedCountryStyle()) {
     elem.setStyle(options);
     elem.bringToFront();
     highlighted.push(elem);
 }
-function hidden(elem, options = defaultHiddenCountryStyle) {
+function hidden(elem, options = defaultHiddenCountryStyle()) {
     elem.setStyle(options);
     elem.bringToBack();
     highlighted.push(elem);
@@ -1138,15 +1156,15 @@ function setExploreGeoJSON() {
         style: exploreCountryStyle,
         onEachFeature: function(feature, layer) {
             exploreGeometry[feature.id] = layer;
-            layer.setStyle(exploreCountryStyle);
+            layer.setStyle(exploreCountryStyle(feature));
             layer.on('mouseover', function(evt) {
                 if(this.feature.id !== exploreCountry) {
-                    this.setStyle(exploreCountryHoveredStyle);
+                    this.setStyle(exploreCountryHoveredStyle());
                 }
             });
             layer.on('mouseout', function(evt) {
                 if(this.feature.id !== exploreCountry) {
-                    this.setStyle(exploreCountryStyle);
+                    this.setStyle(exploreCountryStyle(this.feature));
                     this.bringToFront();
                     if(exploreCountry) {exploreGeometry[exploreCountry].bringToFront();}
                 }
@@ -1160,6 +1178,7 @@ function setExploreGeoJSON() {
 }
 function checkExploreLoad() {
     if(++exploreMapLoadedParts >= 3) {
+        Object.values(exploreGeometry).forEach(layer => layer.setStyle(exploreCountryStyle(layer.feature)));
         toScreen('explore');
     }
 }
@@ -1172,8 +1191,8 @@ function deleteExploreMap() {
     }
 }
 function selectExploreCountry(id) {
-    if(exploreCountry) {exploreGeometry[exploreCountry].setStyle(exploreCountryStyle);}
-    exploreGeometry[id].setStyle(exploreCountryHighlightedStyle);
+    if(exploreCountry) {exploreGeometry[exploreCountry].setStyle(exploreCountryStyle(exploreGeometry[exploreCountry].feature));}
+    exploreGeometry[id].setStyle(exploreCountryHighlightedStyle());
     exploreGeometry[id].bringToFront();
     exploreCountry = id;
     setExploreDetails(id);

@@ -4,8 +4,14 @@
     --highlight_bright: var(--kenar); --selected: var(--mavi-acik); --border: var(--kenar);
     --border_light: var(--kenar2); --text: var(--murekkep); --dull: var(--soluk);
     --text_bright: var(--murekkep); --accent: var(--yesil); --accent2: var(--mavi);
+    --harita-vurgu: var(--fosfor); --harita-kenar: var(--murekkep);
     --accent3: var(--mavi); --error: var(--kirmizi); --warning: var(--sari-yazi);
-    --font: system-ui, sans-serif; --monospace: system-ui, sans-serif; --deniz: var(--mavi-acik);
+    --ulke1: color-mix(in srgb, var(--yesil) 65%, var(--alan));
+    --ulke2: color-mix(in srgb, var(--mavi) 65%, var(--alan));
+    --ulke3: color-mix(in srgb, var(--mor) 65%, var(--alan));
+    --ulke4: color-mix(in srgb, var(--fosfor) 65%, var(--alan));
+    --ulke5: color-mix(in srgb, var(--kirmizi) 65%, var(--alan));
+    --font: system-ui, sans-serif; --monospace: system-ui, sans-serif; --deniz: color-mix(in srgb, var(--mavi) 25%, var(--kagit));
 }
 #cografyaApp * {
     -webkit-font-smoothing: subpixel-antialiased;
@@ -599,13 +605,13 @@
     pointer-events: inherit;
 }
 #cografyaApp .mc_a {
-    padding: 12px 20px;
-    margin: 15px;
+    padding: 8px 14px;
+    margin: 6px;
     position: relative;
     box-sizing: border-box;
     color: var(--background);
     font-family: var(--font);
-    font-size: 1em;
+    font-size: .9em;
     display: inline-block;
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -674,7 +680,8 @@
     display: none;
 }
 #cografyaApp .mc_a.flag > img {
-    height: 64px;
+    height: 44px;
+    max-width: 100%;
     display: block;
 }
 #cografyaApp .mc_a.flag.correct > img {
@@ -1611,3 +1618,33 @@
 #cografyaApp #exploreFactGrid > div > svg { flex:none; }
 #cografyaApp #exploreFactGrid #exploreDetailCapital { display:block; overflow-wrap:normal; }
 #cografyaApp #exploreDetailCapital button { display:block; white-space:nowrap; }
+
+/* Oyun alanı: soru ve yanıtlar ayrı satırlarda kalır. */
+#cografyaApp #game { grid-template-rows: minmax(0, 1fr) auto; }
+#cografyaApp #game > .map, #cografyaApp #game > .question { grid-area: 1 / 1; }
+#cografyaApp #game > .question { position: relative; bottom: auto; font-size: clamp(1.6rem, 5vw, 3rem) !important; overflow-wrap: anywhere; }
+#cografyaApp #answerBank, #cografyaApp #answerBank.floating { position: relative; grid-area: 2 / 1; bottom: auto; left: auto; background: var(--alan); }
+#cografyaApp .mc_answers { display: flex; justify-content: center; align-items: stretch; flex-wrap: wrap; }
+#cografyaApp .mc_a { display: inline-flex; align-items: center; justify-content: center; max-width: calc(50% - 12px); color: var(--murekkep); background: var(--alan); border: 1px solid var(--murekkep); border-radius: 8px; overflow-wrap: anywhere; line-height: 1.2; }
+#cografyaApp .mc_a:before { transform: none; background: transparent; box-shadow: none; }
+#cografyaApp .mc_a:hover { color: var(--murekkep); background: var(--cizgi); }
+#cografyaApp .mc_a.correct { position: relative; transform: none; left: auto; bottom: auto; font-size: .9em; background: var(--yesil-acik); }
+#cografyaApp .mc_a.incorrect { background: var(--kirmizi-acik); }
+#cografyaApp .gameBtns, #cografyaApp #gameTimer { position: absolute; }
+#cografyaApp #gameTimer { padding: 6px 10px; }
+#cografyaApp #gameTimer div { font-size: 1.2em; }
+#cografyaApp .harita-yakinlastir { right: 75px; }
+
+html[data-cam] #cografyaApp {
+    --harita-vurgu: oklch(from var(--yesil) 0.62 0.18 h);
+    --harita-kenar: rgb(from var(--sekme-bg) r g b / 1);
+    --deniz: color-mix(in srgb, var(--mavi) 25%, rgb(from var(--sekme-bg) r g b / 1));
+    --ulke1: color-mix(in srgb, var(--yesil) 75%, var(--murekkep));
+    --ulke2: color-mix(in srgb, var(--mavi) 75%, var(--murekkep));
+    --ulke3: color-mix(in srgb, var(--mor) 75%, var(--murekkep));
+    --ulke4: color-mix(in srgb, var(--yesil) 50%, var(--kirmizi));
+    --ulke5: color-mix(in srgb, var(--kirmizi) 75%, var(--murekkep));
+}
+html[data-cam] #cografyaApp #answerBank, html[data-cam] #cografyaApp .mc_a { background: rgb(from var(--sekme-bg) r g b / 1); }
+
+html[data-cam] #cografyaApp #gameTimer:before, html[data-cam] #cografyaApp .floatingBtn:before, html[data-cam] #cografyaApp .harita-yakinlastir button { background: rgb(from var(--sekme-bg) r g b / 1); opacity: 1; }
