@@ -1114,3 +1114,17 @@ html[data-tema] .bg-primary-button * {
   border-color: var(--theme-button-primary, #6366f1);
   outline: none;
 }
+
+/* Karşılama başlığı ("İyi günler"): içerik kutudan yüksekse ortalama başlığı ekran dışına itiyordu.
+   `safe center` taşmada üste hizalar ve kaydırma verir; kısa pencerede başlık ve boşluk küçülür. */
+html[data-tema] #root div.justify-center:has(> div > h1.text-center) {
+  justify-content: safe center;
+  overflow-y: auto;
+}
+@media (max-height: 820px) {
+  html[data-tema] #root h1.text-center.mb-11 {
+    margin-bottom: 20px;
+    font-size: 26px;
+    line-height: 32px;
+  }
+}
