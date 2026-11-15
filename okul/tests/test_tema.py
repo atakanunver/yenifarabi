@@ -43,6 +43,12 @@ def test_tema_kaydolur_ve_sayfalarda_gorunur(istemci, ornek, conn):
     istemci.post("/profil/tema", data={"csrf": csrf, "tema": "tahta"})
     assert conn.execute("SELECT COUNT(*) FROM kullanici_tema WHERE kullanici_id = ?", (ornek["ogr1_k"],)).fetchone()[0] == 1
     assert 'data-tema="tahta"' in istemci.get("/profil").text
+    r = istemci.post("/profil/tema", data={"csrf": csrf, "tema": "cam"}, follow_redirects=False)
+    assert r.status_code == 303
+    profil = istemci.get("/profil").text
+    assert 'data-tema="cam" data-cam' in profil
+    assert 'name="tema" value="cam" checked' in profil
+    assert 'data-tema="cam" data-cam' in istemci.get("/ogrenci").text
 
 
 def test_gecersiz_tema_422_ve_degismez(istemci, ornek, conn):
@@ -90,8 +96,9 @@ def test_tema_listesi_tutarli():
     assert tema.VARSAYILAN in tema.TEMALAR and tema.gecerli("neon") and not tema.gecerli("x")
     css = pathlib.Path("static/temalar.css").read_text(encoding="utf-8")
     for kod in tema.TEMALAR:
-        if kod != tema.VARSAYILAN:
+        if kod not in (tema.VARSAYILAN, "cam"):
             assert f'data-tema="{kod}"' in css
+    assert 'data-cam' in pathlib.Path("static/cam-okul.css").read_text(encoding="utf-8")
 
 
 def test_gocu_27_ve_geri_alma_betigi():

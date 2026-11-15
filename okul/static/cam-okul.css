@@ -1,0 +1,33 @@
+/* Seçilmiş diğer temalar korunur; seçim yoksa ortak cam kullanılır. */
+:root[data-cam] {
+  color-scheme: dark;
+  --kagit: transparent; --cizgi: rgba(255,255,255,.16);
+  --murekkep: #fff; --soluk: rgba(255,255,255,.75);
+  --mavi: #c4e7ff; --mavi-acik: rgba(255,255,255,.10);
+  --kirmizi: #ff9eae; --kirmizi-acik: rgba(255,100,120,.16);
+  --yesil: #a9e9bd; --yesil-acik: rgba(100,220,150,.14);
+  --fosfor: #e6eaf3; --mor: #e0d4f5; --mor-koyu: rgba(255,255,255,.12);
+  --mor-orta: rgba(255,255,255,.16); --mor-acik: rgba(255,255,255,.09);
+  --mor-kenar: rgba(255,255,255,.22); --kart: rgba(255,255,255,.09);
+  --alan: rgba(255,255,255,.10); --kenar: rgba(255,255,255,.22); --kenar2: rgba(255,255,255,.3);
+  --sari-bg: rgba(255,255,255,.09); --sari-kenar: rgba(255,255,255,.22);
+  --sari-yazi: #fff; --sari-soluk: rgba(255,255,255,.75); --not-bg: rgba(255,255,255,.08);
+  --halka: rgba(255,255,255,.2); --hata-yazi: #ffb8c4; --sabit-yazi: #fff;
+  --sekme-bg: rgba(24,27,43,.92); --tus-bg: rgba(255,255,255,.16); --tus-yazi: #fff;
+  --golge: inset 0 1px 1px rgba(255,255,255,.22), 0 12px 28px rgba(0,0,0,.14);
+  font-family: var(--font-cam);
+}
+html[data-cam] body { background: transparent; color: var(--murekkep); }
+html[data-cam] .ust, html[data-cam] .sekmeler { background: rgba(24,27,43,.82); border-color: var(--kenar); }
+html[data-cam] .kart, html[data-cam] .giris .sekme-sec { border: 1px solid var(--kenar); box-shadow: var(--golge); }
+html[data-cam] .tus { border: 1px solid var(--kenar); box-shadow: inset 0 1px rgba(255,255,255,.22); }
+html[data-cam] .fosfor { color: inherit; background: none; }
+html[data-cam] .marka span { color: inherit; }
+html[data-cam] input, html[data-cam] select, html[data-cam] textarea { color: var(--murekkep); }
+html[data-cam] .sayfa { min-width: 0; overflow-wrap: anywhere; }
+html[data-cam] table { max-width: 100%; }
+@media (max-width: 480px) {
+  html[data-cam] .sekmeler a { min-width: 0; font-size: .58rem; text-align: center; overflow-wrap: normal; }
+}
+html[data-cam][data-tema] body::before, html[data-cam][data-tema] body::after { content: none; }
+html[data-cam][data-tema] .kart { border-color: var(--kenar); }

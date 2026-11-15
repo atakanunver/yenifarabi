@@ -7,6 +7,8 @@
   <!-- Yerel (çevrimdışı) kaynaklar: internet gerekmez -->
   <link rel="stylesheet" href="/static/vendor/fonts.css">
   <link rel="stylesheet" href="/static/tailwind.css">
+  <link rel="stylesheet" href='/static/cam-tema.css?v=20261115b'>
+  <link rel="stylesheet" href='/static/cam-arena.css?v=20261115b'>
   <script src="/static/vendor/confetti.browser-1.6.0.js"></script>
   <script src="/static/vendor/lucide-lite-1.52.0.min.js"></script>
   <script src="/static/soru-bildir.js"></script>
@@ -55,7 +57,8 @@
   </style>
 </head>
 
-<body class="bg-slate-950 text-white min-h-screen flex flex-col overflow-x-hidden selection:bg-indigo-500 selection:text-white">
+<body class="cam-sayfa arena-koyu text-white min-h-screen flex flex-col overflow-x-hidden selection:bg-indigo-500 selection:text-white">
+<div class="cam-ortam" aria-hidden="true"></div>
 
   <!-- TOP HEADER & BRANDING BAR -->
   <header class="bg-slate-900/90 backdrop-blur border-b border-slate-800 px-4 py-3 sticky top-0 z-40">
@@ -67,7 +70,7 @@
         </div>
         <div>
           <h1 class="font-fun text-xl md:text-2xl font-bold tracking-wide bg-gradient-to-r from-amber-400 via-indigo-300 to-emerald-400 bg-clip-text text-transparent">
-            SINIF ARENASI
+            Sınıf Arenası
           </h1>
           <p class="text-xs text-slate-400 hidden sm:block">Farabi.local Akıllı Tahta İnteraktif Yarışması</p>
         </div>
@@ -323,7 +326,7 @@
           <p class="text-xs text-slate-400">
             Dersinize ait soruları JSON formatında düzenleyebilir, dışarı aktarabilir veya yedekleyebilirsiniz.
           </p>
-          <textarea id="question-json-editor" rows="11" class="w-full bg-slate-950 font-mono text-xs border border-slate-800 rounded-xl p-3 text-emerald-400 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+          <textarea id="question-json-editor" rows="11" class="w-full arena-koyu font-mono text-xs border border-slate-800 rounded-xl p-3 text-emerald-400 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
           <div class="flex items-center justify-between gap-2">
             <button onclick="applyQuestionsFromEditor()" class="touch-btn px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl flex items-center gap-2">
               <i data-lucide="check-circle" class="w-4 h-4"></i> Değişiklikleri Uygula
@@ -340,7 +343,7 @@
   </main>
 
   <!-- ACTIVE QUESTION POPUP MODAL (WITH JOKERS & CITATIONS) -->
-  <div id="question-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+  <div id="question-modal" class="fixed inset-0 arena-koyu backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-3xl w-full p-6 md:p-8 shadow-2xl flex flex-col gap-5 relative animate-in fade-in zoom-in-95 duration-200">
       
       <!-- Modal Top: Category & Points & Timer -->
@@ -368,7 +371,7 @@
       </div>
 
       <!-- Joker Action Bar (Power-ups) -->
-      <div class="flex items-center justify-center gap-2 py-1 border-y border-slate-800/80 bg-slate-950/40 rounded-xl px-2">
+      <div class="flex items-center justify-center gap-2 py-1 border-y border-slate-800/80 arena-koyu rounded-xl px-2">
         <span class="text-xs text-slate-500 uppercase font-bold tracking-wider mr-2 hidden sm:inline">Joker Hakları:</span>
         <button onclick="applyJokerDouble()" id="joker-double-btn" class="touch-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 flex items-center gap-1.5 transition">
           <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i> ⚡ Çift Puan
@@ -431,7 +434,7 @@
   </div>
 
   <!-- CLASS SELECTION MODAL -->
-  <div id="class-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div id="class-modal" class="fixed inset-0 arena-koyu backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col gap-4">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <h3 class="font-fun text-xl font-bold text-white flex items-center gap-2">
@@ -451,7 +454,7 @@
   </div>
 
   <!-- LESSON / SUBJECT SELECTION MODAL -->
-  <div id="lesson-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div id="lesson-modal" class="fixed inset-0 arena-koyu backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-lg w-full p-6 shadow-2xl flex flex-col gap-4">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <h3 class="font-fun text-xl font-bold text-white flex items-center gap-2">
@@ -463,7 +466,7 @@
       </div>
       <div>
         <label class="text-xs text-slate-400 font-semibold mb-1.5 block">Özel Konu / Odak (İsteğe bağlı):</label>
-        <input type="text" id="custom-topic-input" placeholder="Örn: Hücre Zarı ve Madde Geçişleri, Kurtuluş Savaşı..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+        <input type="text" id="custom-topic-input" placeholder="Örn: Hücre Zarı ve Madde Geçişleri, Kurtuluş Savaşı..." class="w-full arena-koyu border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
       </div>
       <label class="text-xs text-slate-400 font-semibold block">Ders Seçin:</label>
       <div id="lesson-selection-grid" class="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
@@ -473,7 +476,7 @@
   </div>
 
   <!-- ROSTER & ATTENDANCE DETAILS MODAL -->
-  <div id="roster-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div id="roster-modal" class="fixed inset-0 arena-koyu backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-4xl w-full p-6 md:p-8 shadow-2xl flex flex-col gap-5 max-h-[90vh]">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div class="flex items-center gap-3">
@@ -496,7 +499,7 @@
       </div>
 
       <!-- Absent Students Bar -->
-      <div id="roster-absent-container" class="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-1.5">
+      <div id="roster-absent-container" class="arena-koyu border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-1.5">
         <div class="flex items-center gap-2 text-xs font-semibold text-rose-400">
           <i data-lucide="user-x" class="w-4 h-4"></i>
           <span>Bugün Yoklamada Bulunmayan Öğrenciler (Oyundan Otomatik Elendi):</span>
@@ -520,7 +523,7 @@
   </div>
 
   <!-- PODIUM / WINNER CELEBRATION MODAL -->
-  <div id="podium-modal" class="fixed inset-0 bg-slate-950/95 backdrop-blur-lg z-50 hidden flex items-center justify-center p-4">
+  <div id="podium-modal" class="fixed inset-0 arena-koyu backdrop-blur-lg z-50 hidden flex items-center justify-center p-4">
     <div class="bg-gradient-to-b from-slate-900 to-slate-950 border border-amber-500/40 rounded-3xl max-w-2xl w-full p-8 text-center shadow-2xl relative flex flex-col items-center gap-6">
       <div class="w-20 h-20 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-amber-400 shadow-xl shadow-amber-500/20">
         <i data-lucide="trophy" class="w-10 h-10"></i>
@@ -553,7 +556,7 @@
   </div>
 
   <!-- SYSTEM HEALTH & DIAGNOSTIC MODAL -->
-  <div id="diagnostic-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+  <div id="diagnostic-modal" class="fixed inset-0 arena-koyu backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-3xl w-full p-6 md:p-8 shadow-2xl flex flex-col gap-5 max-h-[90vh]">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div class="flex items-center gap-3">
@@ -573,7 +576,7 @@
       <!-- Service Health Status Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <!-- Farabi Brain API -->
-        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-1.5" id="diag-brain-card">
+        <div class="arena-koyu border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-1.5" id="diag-brain-card">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-slate-300">Farabi Brain (8000)</span>
             <span class="w-2.5 h-2.5 rounded-full bg-slate-500" id="diag-brain-dot"></span>
@@ -583,7 +586,7 @@
         </div>
 
         <!-- Ollama LLM -->
-        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-1.5" id="diag-ollama-card">
+        <div class="arena-koyu border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-1.5" id="diag-ollama-card">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-slate-300">Ollama (11434)</span>
             <span class="w-2.5 h-2.5 rounded-full bg-slate-500" id="diag-ollama-dot"></span>
@@ -593,7 +596,7 @@
         </div>
 
         <!-- Yoklama DB -->
-        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-1.5" id="diag-db-card">
+        <div class="arena-koyu border border-slate-800 rounded-2xl p-3.5 flex flex-col gap-1.5" id="diag-db-card">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-slate-300">Yoklama Panosu (DB)</span>
             <span class="w-2.5 h-2.5 rounded-full bg-slate-500" id="diag-db-dot"></span>
@@ -619,7 +622,7 @@
       </div>
 
       <!-- Logs Display Box -->
-      <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3 font-mono text-[11px] text-slate-300 h-64 overflow-y-auto space-y-1" id="diag-log-box">
+      <div class="arena-koyu border border-slate-800 rounded-2xl p-3 font-mono text-[11px] text-slate-300 h-64 overflow-y-auto space-y-1" id="diag-log-box">
         <p class="text-slate-500 italic">Loglar yükleniyor...</p>
       </div>
 
@@ -947,7 +950,7 @@
       teams.slice(0, teamCount).forEach(team => {
         const b = document.createElement('button');
         b.className = `touch-btn py-2.5 px-3 rounded-xl bg-gradient-to-r ${team.color} text-white font-fun font-bold text-sm shadow hover:brightness-110 active:scale-95 flex items-center justify-center gap-1.5`;
-        b.innerHTML = `<span>${team.name}</span> <span class="bg-black/20 px-1.5 py-0.5 rounded text-xs">+${points * jokerMultiplier}</span>`;
+        b.innerHTML = `<span>${team.name}</span> <span class="arena-perde px-1.5 py-0.5 rounded text-xs">+${points * jokerMultiplier}</span>`;
         b.onclick = () => awardPointsAndClose(team.id, points * jokerMultiplier);
         awardContainer.appendChild(b);
       });
@@ -1609,7 +1612,7 @@
 
       teams.slice(0, teamCount).forEach(t => {
         const card = document.createElement('div');
-        card.className = `bg-slate-950 border-2 ${t.borderColor} rounded-2xl p-4 flex flex-col gap-3 shadow`;
+        card.className = `arena-koyu border-2 ${t.borderColor} rounded-2xl p-4 flex flex-col gap-3 shadow`;
         
         let membersHtml = '';
         (t.ogrenciler || []).forEach(m => {

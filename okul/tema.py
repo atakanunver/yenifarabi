@@ -5,6 +5,7 @@ import sqlite3
 VARSAYILAN = "defter"
 
 TEMALAR = {
+    "cam": ("Cam", "#16212d", ("#16212d", "#526477", "#dce7f0")),
     "defter": ("Kareli defter", "#4b1f6f", ("#fafcff", "#2446c7", "#d7263d")),
     "harita": ("Orman haritası", "#2f4b2a", ("#eef0dc", "#2f4b2a", "#e8a93b")),
     "tahta": ("Tahta", "#1f3a33", ("#1f3a33", "#f4d35e", "#8fd3e8")),

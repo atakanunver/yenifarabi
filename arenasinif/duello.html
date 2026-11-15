@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr" class="h-full bg-slate-950 text-slate-100">
+<html lang="tr" class="h-full arena-koyu text-slate-100">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -7,6 +7,8 @@
   <!-- Yerel (çevrimdışı) kaynaklar: internet gerekmez -->
   <link rel="stylesheet" href="/static/vendor/fonts.css">
   <link rel="stylesheet" href="/static/tailwind.css">
+  <link rel="stylesheet" href='/static/cam-tema.css?v=20261115b'>
+  <link rel="stylesheet" href='/static/cam-arena.css?v=20261115b'>
   <script src="/static/vendor/confetti.browser-1.6.0.js"></script>
   <script src="/static/hata.js"></script>
   <script src="/static/sonuc.js"></script>
@@ -67,7 +69,8 @@
     }
   </style>
 </head>
-<body class="h-full flex flex-col bg-slate-950 text-slate-100 selection:bg-none">
+<body class="cam-sayfa h-full flex flex-col arena-koyu text-slate-100 selection:bg-none">
+<div class="cam-ortam" aria-hidden="true"></div>
 
   <!-- =================================================================== -->
   <!-- ÜST BİLGİ VE KONTROL ÇUBUĞU                                         -->
@@ -367,7 +370,7 @@
   <!-- =================================================================== -->
   <!-- 3. MODAL: MARATON BİTİŞ & KAZANAN EKRANI                            -->
   <!-- =================================================================== -->
-  <div id="macBitisModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center z-50 p-6 hidden">
+  <div id="macBitisModal" class="fixed inset-0 arena-koyu backdrop-blur-md flex items-center justify-center z-50 p-6 hidden">
     <div class="max-w-xl w-full bg-slate-900 border-2 border-amber-500/50 rounded-3xl p-8 flex flex-col items-center text-center shadow-2xl relative overflow-hidden">
       
       <div id="macBitisIcon" class="text-7xl mb-2 animate-bounce">🏆</div>
@@ -379,7 +382,7 @@
       </p>
 
       <!-- Skor Kartı -->
-      <div class="flex items-center justify-center gap-8 w-full my-6 bg-slate-950/80 p-5 rounded-2xl border border-slate-800">
+      <div class="flex items-center justify-center gap-8 w-full my-6 arena-koyu p-5 rounded-2xl border border-slate-800">
         <div class="flex flex-col items-center">
           <span id="macSonucSolAd" class="text-lg font-bold text-blue-400">Ahmet</span>
           <span id="macSonucSolPuan" class="text-4xl font-black font-gaming text-white">40 Puan</span>
@@ -424,7 +427,7 @@
   <!-- =================================================================== -->
   <!-- 4. MODAL: SINIF VE DERS AYARLARI                                    -->
   <!-- =================================================================== -->
-  <div id="ayarlarModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-6 hidden">
+  <div id="ayarlarModal" class="fixed inset-0 arena-koyu backdrop-blur-sm flex items-center justify-center z-50 p-6 hidden">
     <div class="max-w-md w-full bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl">
       <h3 class="text-xl font-bold font-gaming text-white mb-4">⚙️ Sınıf & Ders Seçimi</h3>
       
@@ -457,7 +460,7 @@
   <!-- =================================================================== -->
   <!-- 5. MODAL: LİDERLİK VE SKOR TABLOSU (JSON VERİSİ)                    -->
   <!-- =================================================================== -->
-  <div id="liderlikModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center z-50 p-6 hidden">
+  <div id="liderlikModal" class="fixed inset-0 arena-koyu backdrop-blur-md flex items-center justify-center z-50 p-6 hidden">
     <div class="max-w-2xl w-full bg-slate-900 border-2 border-amber-500/40 rounded-3xl p-6 flex flex-col shadow-2xl max-h-[85vh] overflow-hidden">
       <div class="flex items-center justify-between pb-4 border-b border-slate-800">
         <div class="flex items-center gap-3">

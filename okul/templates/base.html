@@ -1,7 +1,7 @@
 {% from "_makrolar.html" import ikon, vesikalik %}<!doctype html>
-{# Veli profil sayfası olmadığı için tema seçemez: orman haritası temasında sabit. Diğer roller: kendi seçimi, yoksa defter. #}
+{% set cam_aktif = not k or not k.tema or k.tema == 'cam' %}
 {% set tema_kodu = k.tema if k and k.tema else ('harita' if k and k.rol == 'veli' else 'defter') %}
-<html lang="tr" data-tema="{{ tema_kodu }}"{% if k and k.rol == 'veli' %} class="veli"{% endif %}>
+<html lang="tr" data-tema="{{ tema_kodu }}"{% if cam_aktif %} data-cam{% endif %}{% if k and k.rol == 'veli' %} class="veli"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -16,11 +16,14 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/static/logo-64.png" type="image/png">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<link rel="stylesheet" href="/static/cam-tema.css?v=20261115b">
 <link rel="stylesheet" href="/static/okul.css?v=34">
 <link rel="stylesheet" href="/static/temalar.css?v=3">
 {% if k and k.rol == 'veli' %}<link rel="stylesheet" href="/static/veli.css?v=1">{% endif %}
+<link rel="stylesheet" href="/static/cam-okul.css?v=20261115b">
 </head>
-<body>
+<body{% if cam_aktif %} class="cam-sayfa"{% endif %}>
+{% if cam_aktif %}<div class="cam-ortam" aria-hidden="true"></div>{% endif %}
 <header class="ust">
   <a class="marka" href="/"><img src="/static/logo-64.png" alt="" width="32" height="32"><b>Dijital<span>Okul</span></b></a>
   {% if k %}
