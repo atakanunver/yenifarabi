@@ -36,6 +36,13 @@
   --ease-cam-yay: cubic-bezier(0.34, 1.36, 0.64, 1);
 }
 
+/* Native select açılır listesi işletim sistemi renklerini kullanır; koyu şema + açık seçenek rengi şart. */
+:root { color-scheme: dark; }
+/* İSTİSNA (opak zemin serbest): <option> içinde saydamlık çalışmaz, yarı saydam zemin listeyi okunmaz yapar. */
+.cam-sayfa select option, .cam-sayfa select optgroup, .cam-girdi option, .cam-girdi optgroup {
+  background-color: #1a1d2e; color: #ffffff;
+}
+
 @layer components {
   /* Preflight kapalı: bileşenler kendi box-sizing'ini koyar */
   .cam-pencere, .cam-serit, .cam-kart, .cam-dialog, .cam-dugme, .cam-girdi, .cam-pill, .cam-pill-oge, .cam-rozet { box-sizing: border-box; }
