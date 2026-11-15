@@ -2,50 +2,45 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DVR Kameralar — Yoklama ve Yönetim Paneli</title>
+<link rel="stylesheet" href="/static/cam-tema.css?v=20261115b">
 <style>
-  :root { color-scheme: dark; }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; background: #0b0d10; color: #e6e6e6;
-    font-family: -apple-system, Segoe UI, Arial, sans-serif;
-    height: 100vh; display: flex; flex-direction: column;
-  }
-  header {
-    padding: 8px 14px; background: #14171c; border-bottom: 1px solid #262b33;
-    display: flex; align-items: center; gap: 12px; flex-shrink: 0;
-  }
-  header a.geri { color: #9aa3b2; text-decoration: none; font-size: 13px; }
-  header a.geri:hover { color: #e6e6e6; }
-  header h1 { font-size: 15px; font-weight: 600; margin: 0; color: #cfd3da; }
-  header span { font-size: 12px; color: #7a8290; }
+  body { height: 100vh; display: flex; flex-direction: column; gap: 8px; padding: 8px; overflow: hidden; }
+  header { min-height: 52px; flex-shrink: 0; }
+  header a.geri { color: var(--color-cam-metin-2); text-decoration: none; font-size: 14px; }
+  header a.geri:hover { color: var(--color-cam-metin); }
+  header h1 { font-size: 17px; font-weight: 600; margin: 0; }
+  header span { font-size: 13px; color: var(--color-cam-metin-3); }
   #grid {
-    flex: 1; display: grid; gap: 4px; padding: 4px;
+    flex: 1; display: grid; gap: 6px;
     grid-template-columns: repeat(4, 1fr);
     grid-template-rows: repeat(4, 1fr);
     min-height: 0;
   }
   .tile {
-    position: relative; background: #000; border: 1px solid #1c2026;
-    border-radius: 4px; overflow: hidden; cursor: zoom-in;
+    position: relative; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--color-cam-kenar);
+    border-radius: 14px; overflow: hidden; cursor: zoom-in;
     user-select: none; -webkit-user-select: none;
   }
   .tile iframe { width: 100%; height: 100%; border: 0; pointer-events: none; }
   .tile .label {
     position: absolute; left: 0; top: 0; z-index: 2;
-    background: rgba(0,0,0,.55); color: #fff; font-size: 11px;
-    padding: 2px 6px; border-bottom-right-radius: 4px;
+    background: rgba(5, 8, 22, 0.6); color: #fff; font-size: 13px; font-weight: 600;
+    padding: 3px 9px; border-bottom-right-radius: 12px;
   }
   .tile.enlarged {
-    position: fixed; inset: 46px 0 0 0; z-index: 10;
-    grid-column: auto; grid-row: auto; border-radius: 0; cursor: zoom-out;
+    position: fixed; inset: 68px 8px 8px 8px; z-index: 10;
+    grid-column: auto; grid-row: auto; cursor: zoom-out;
   }
   #grid.has-enlarged .tile:not(.enlarged) { display: none; }
-  .hint { font-size: 11px; color: #5c6372; margin-left: auto; }
+  .hint { font-size: 12px; color: var(--color-cam-metin-3); margin-left: auto; }
 </style>
 </head>
-<body>
-<header>
+<body class="cam-sayfa">
+<div class="cam-ortam" aria-hidden="true"></div>
+<header class="cam-serit">
   <a class="geri" href="/">← Panele dön</a>
   <h1>🎥 DVR Kameralar</h1>
   <span id="status">yükleniyor…</span>

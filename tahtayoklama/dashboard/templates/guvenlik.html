@@ -4,73 +4,83 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Güvenlik Ekranı</title>
+<link rel="stylesheet" href="/static/cam-tema.css?v=20261115b">
 <style>
-  :root { color-scheme: dark; }
   * { box-sizing: border-box; }
-  body { margin: 0; height: 100vh; overflow: hidden; background: #0b0d10; color: #e6e6e6;
-         font-family: -apple-system, Segoe UI, Arial, sans-serif;
-         display: grid; grid-template-columns: 1fr 300px; user-select: none; -webkit-user-select: none; }
+  body { margin: 0; height: 100vh; overflow: hidden; padding: 8px; gap: 8px;
+         display: grid; grid-template-columns: 1fr 320px; user-select: none; -webkit-user-select: none; }
 
   /* Kameralar */
-  #grid { display: grid; gap: 4px; padding: 4px; grid-template-columns: repeat(3, 1fr);
+  #grid { display: grid; gap: 6px; grid-template-columns: repeat(3, 1fr);
           grid-template-rows: repeat(3, 1fr); min-height: 0; min-width: 0; }
-  .kare { position: relative; background: #000; border: 3px solid #1c2026; border-radius: 6px; overflow: hidden; cursor: zoom-in; }
+  .kare { position: relative; background: rgba(255, 255, 255, 0.04); border: 3px solid rgba(255, 255, 255, 0.2); border-radius: 16px; overflow: hidden; cursor: zoom-in; }
   .kare iframe { width: 100%; height: 100%; border: 0; pointer-events: none; }
-  .kare .ad { position: absolute; left: 0; top: 0; z-index: 2; background: rgba(0,0,0,.6); color: #fff;
-              font-size: 15px; font-weight: 600; padding: 3px 8px; border-bottom-right-radius: 6px; }
-  .kare .rozet { position: absolute; right: 0; top: 0; z-index: 2; font-size: 13px; font-weight: 700; padding: 3px 8px;
-                 border-bottom-left-radius: 6px; display: none; }
-  .kare.yedek .rozet { display: block; background: #b58900; color: #000; }
-  .kare .yok { position: absolute; inset: 0; z-index: 3; display: none; place-items: center; background: rgba(0,0,0,.8);
+  .kare .ad { position: absolute; left: 0; top: 0; z-index: 2; background: rgba(5, 8, 22, 0.6); color: #fff;
+              font-size: 15px; font-weight: 600; padding: 3px 10px; border-bottom-right-radius: 12px; }
+  .kare .rozet { position: absolute; right: 0; top: 0; z-index: 2; font-size: 13px; font-weight: 700; padding: 3px 10px;
+                 border-bottom-left-radius: 12px; display: none; }
+  .kare.yedek .rozet { display: block; background: rgba(255, 179, 0, 0.9); color: rgb(20 20 30); }
+  .kare .yok { position: absolute; inset: 0; z-index: 3; display: none; place-items: center; background: rgba(5, 8, 22, 0.8);
                color: #ff8a8a; font-size: 20px; font-weight: 800; }
   .kare.baglanti-yok .yok { display: grid; }
   .kare.hareket { border-color: #ff1744; animation: hareket 0.8s infinite; }
   @keyframes hareket { 50% { border-color: #4a0010; } }
-  .kare.buyuk { position: fixed; inset: 0 300px 0 0; z-index: 10; cursor: zoom-out; border-radius: 0; }
+  .kare.buyuk { position: fixed; inset: 8px 336px 8px 8px; z-index: 10; cursor: zoom-out; }
   #grid.buyutuldu .kare:not(.buyuk) { visibility: hidden; }
 
   /* Sağ panel */
-  aside { background: #14171c; border-left: 1px solid #262b33; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; }
+  aside { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; }
   #saat { font-size: 30px; font-weight: 700; text-align: center; line-height: 1.1; }
-  #tarih { font-size: 14px; color: #9aa3b2; text-align: center; }
-  #durum { font-size: 18px; font-weight: 800; text-align: center; padding: 10px; border-radius: 10px; background: #1b5e20; color: #fff; }
-  #durum.aktif { background: #b00020; animation: yanip 1.2s infinite; }
-  #durum.bilinmiyor { background: #444; }
+  #tarih { font-size: 14px; color: var(--color-cam-metin-2); text-align: center; }
+  #durum { font-size: 18px; font-weight: 800; text-align: center; padding: 10px; border-radius: 14px;
+           background: rgba(50, 215, 75, 0.28); border: 1px solid rgba(50, 215, 75, 0.6); color: #fff; }
+  #durum.aktif { background: rgba(255, 59, 92, 0.6); border-color: rgba(255, 59, 92, 0.9); animation: yanip 1.2s infinite; }
+  #durum.bilinmiyor { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.25); }
   @keyframes yanip { 50% { opacity: .7; } }
-  h2 { font-size: 13px; letter-spacing: .08em; color: #9aa3b2; margin: 4px 0 0; }
-  .dugme { border: 0; border-radius: 10px; color: #fff; font-weight: 800; cursor: pointer; width: 100%; }
-  .alarm { font-size: 19px; min-height: 48px; }
-  .haber { font-size: 15px; min-height: 40px; background: #2b3340; text-align: left; padding: 0 14px; }
-  #iptal { font-size: 18px; min-height: 60px; background: #ffb300; color: #000; display: none; }
+  h2 { font-size: 13px; letter-spacing: .08em; color: var(--color-cam-metin-3); margin: 4px 0 0; }
+  .dugme { border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 14px; color: #fff; font-weight: 800; cursor: pointer; width: 100%;
+           font-family: inherit; background: rgba(255, 255, 255, 0.14); transition: background 0.15s, transform 0.12s; }
+  .dugme:hover { filter: brightness(1.2); }
+  .dugme:active { transform: scale(0.98); }
+  .dugme:disabled { opacity: .5; cursor: not-allowed; }
+  .alarm { font-size: 19px; min-height: 52px; }
+  .haber { font-size: 15px; min-height: 40px; background: rgba(56, 189, 248, 0.2); text-align: left; padding: 0 14px; }
+  #iptal { font-size: 18px; min-height: 60px; background: rgba(255, 179, 0, 0.9); color: rgb(20 20 30); display: none; }
   #durum.aktif + #iptal { display: block; }
-  #hareket-modu { font-size: 15px; min-height: 40px; background: #2b3340; }
-  #hareket-modu.acik { background: #8b0000; }
-  #kilitle { font-size: 15px; min-height: 40px; background: #4a5260; }
+  #hareket-modu { font-size: 15px; min-height: 40px; }
+  #hareket-modu.acik { background: rgba(255, 59, 92, 0.55); border-color: rgba(255, 59, 92, 0.9); }
+  #kilitle { font-size: 15px; min-height: 40px; }
   .bosluk { flex: 1; }
-  .telefon { font-size: 15px; color: #cfd3da; display: flex; justify-content: space-between; }
+  .telefon { font-size: 15px; color: var(--color-cam-metin-2); display: flex; justify-content: space-between; }
   .telefon b { font-size: 18px; color: #fff; }
-  #sonuc { font-size: 15px; padding: 8px; border-radius: 8px; background: #1f2630; display: none; }
+  #sonuc { font-size: 15px; padding: 8px; border-radius: 12px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); display: none; }
 
   /* Onay penceresi */
-  #onay { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.85); display: none; place-items: center; }
+  #onay { position: fixed; inset: 0; z-index: 50; background: rgba(5, 8, 22, 0.8); display: none; place-items: center; }
   #onay.acik { display: grid; }
-  #onay .kutu { background: #14171c; border: 2px solid #39404b; border-radius: 16px; padding: 32px; width: min(720px, 92vw); text-align: center; }
+  #onay .kutu { background: var(--color-cam-panel); width: min(720px, 92vw); text-align: center; }
   #onay h3 { font-size: 34px; margin: 0 0 8px; }
-  #onay p { font-size: 18px; color: #cfd3da; margin: 0 0 24px; }
+  #onay p { font-size: 18px; color: var(--color-cam-metin-2); margin: 0 0 24px; }
   #onay .secenekler { display: grid; gap: 14px; }
   #onay .secenekler button { font-size: 26px; min-height: 78px; }
-  #onay .vazgec { background: #4a5260; }
-  #nobetci-popup { border: 2px solid #f5c542; border-radius: 18px; background: #171b22; color: #fff; width: min(680px, 90vw); padding: 34px; text-align: center; box-shadow: 0 20px 80px #000b; }
-  #nobetci-popup::backdrop { background: #000b; }
-  #nobetci-popup h2 { color: #f5c542; font-size: 25px; margin: 0 0 18px; }
+  #onay .vazgec { background: rgba(255, 255, 255, 0.16); }
+  #nobetci-popup { border: 2px solid #f5c542; border-radius: 28px; background: var(--color-cam-panel); color: #fff; width: min(680px, 90vw); padding: 34px; text-align: center; box-shadow: 0 20px 80px rgba(0, 0, 0, 0.7);
+                   -webkit-backdrop-filter: blur(40px) saturate(150%); backdrop-filter: blur(40px) saturate(150%); }
+  #nobetci-popup::backdrop { background: rgba(5, 8, 22, 0.7); }
+  #nobetci-popup h2 { color: #f5c542; font-size: 25px; margin: 0 0 18px; letter-spacing: 0; }
   #nobetci-popup p { font-size: clamp(30px, 5vw, 52px); font-weight: 800; margin: 0 0 26px; }
-  #nobetci-popup button { background: #f5c542; color: #171717; padding: 14px 32px; font-size: 19px; }
+  #nobetci-popup button { background: #f5c542; color: rgb(23 23 23); padding: 14px 32px; font-size: 19px; width: auto; }
+  @media (prefers-reduced-motion: reduce) {
+    .kare.hareket, #durum.aktif { animation: none; }
+    .dugme { transition: none; }
+  }
 </style>
 </head>
-<body>
+<body class="cam-sayfa">
+<div class="cam-ortam" aria-hidden="true"></div>
 <div id="grid"></div>
 
-<aside>
+<aside class="cam-pencere">
   <div id="saat">--:--</div>
   <div id="tarih"></div>
   <div id="durum" class="bilinmiyor">Durum alınıyor…</div>
@@ -94,7 +104,7 @@
 </aside>
 
 <div id="onay" role="dialog" aria-modal="true">
-  <div class="kutu">
+  <div class="kutu cam-dialog">
     <h3 id="onay-baslik"></h3>
     <p id="onay-metin"></p>
     <div class="secenekler" id="onay-secenekler"></div>
@@ -354,12 +364,12 @@ document.querySelectorAll(".alarm").forEach(d => d.addEventListener("click", () 
   const ad = d.dataset.ad, tur = d.dataset.tur;
   onayAc(ad + " alarmı verilsin mi?", "Siren ve anons çalar, personele SMS gider, tahtalarda talimat ekranı açılır.", [
     { yazi: "GERÇEK OLAY — BAŞLAT", renk: "#b00020", eylem: () => gonder(ad + " (GERÇEK)", "/api/guvenlik/alarm", { tur, tatbikat: false }) },
-    { yazi: "TATBİKAT", renk: "#ffb300", yaziRengi: "#000", eylem: () => gonder(ad + " (tatbikat)", "/api/guvenlik/alarm", { tur, tatbikat: true }) },
+    { yazi: "TATBİKAT", renk: "#ffb300", yaziRengi: "#111", eylem: () => gonder(ad + " (tatbikat)", "/api/guvenlik/alarm", { tur, tatbikat: true }) },
   ]);
 }));
 $("iptal").addEventListener("click", () => {
   onayAc("Yanlış alarm iptal edilsin mi?", "Ses durur, tahta ekranları kapanır, alarmı alanlara \"YANLIŞ ALARM\" SMS'i gider.", [
-    { yazi: "EVET, İPTAL ET", renk: "#ffb300", yaziRengi: "#000", eylem: () => gonder("Yanlış alarm iptali", "/api/guvenlik/iptal", {}) },
+    { yazi: "EVET, İPTAL ET", renk: "#ffb300", yaziRengi: "#111", eylem: () => gonder("Yanlış alarm iptali", "/api/guvenlik/iptal", {}) },
   ]);
 });
 document.querySelectorAll(".haber").forEach(d => d.addEventListener("click", () => {

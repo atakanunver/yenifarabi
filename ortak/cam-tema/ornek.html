@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cam-tema örnek</title>
+<link rel="stylesheet" href="dist/cam-tema.css">
+</head>
+<body class="cam-sayfa">
+<div class="cam-ortam" aria-hidden="true"></div>
+<main class="mx-auto max-w-5xl p-6">
+  <section class="cam-pencere grid gap-6">
+    <header class="cam-serit">
+      <h1 class="cam-baslik">Uzamsal cam örneği</h1>
+      <span class="cam-metin-3">ortak tema, Tailwind 4</span>
+      <div class="cam-pill ml-auto" role="group">
+        <button class="cam-pill-oge" aria-pressed="true">Bugün</button>
+        <button class="cam-pill-oge" aria-pressed="false">Hafta</button>
+        <button class="cam-pill-oge" aria-pressed="false">Ay</button>
+      </div>
+    </header>
+
+    <div class="grid gap-4 sm:grid-cols-3">
+      <div class="cam-kart"><div class="cam-metin-3 text-xs">Yoklama alınan</div><div class="text-4xl font-bold">42</div><span class="cam-rozet cam-rozet-yesil">tamam</span></div>
+      <div class="cam-kart"><div class="cam-metin-3 text-xs">Eksik sınıf</div><div class="text-4xl font-bold">3</div><span class="cam-rozet cam-rozet-kirmizi">eksik</span></div>
+      <div class="cam-kart"><div class="cam-metin-3 text-xs">Çevrimiçi tahta</div><div class="text-4xl font-bold">9</div><span class="cam-rozet cam-rozet-mavi">bilgi</span> <span class="cam-rozet cam-rozet-mor">mor</span> <span class="cam-rozet">nötr</span></div>
+    </div>
+
+    <hr class="cam-ayrac">
+
+    <div class="flex flex-wrap items-center gap-3">
+      <button class="cam-dugme">Kaydet</button>
+      <button class="cam-dugme cam-dugme-ikincil">Vazgeç</button>
+      <button class="cam-dugme cam-dugme-tehlike">Sil</button>
+      <button class="cam-dugme cam-dugme-kucuk">Küçük</button>
+      <button class="cam-dugme cam-dugme-ikincil cam-dugme-kucuk" disabled>Pasif</button>
+    </div>
+
+    <form class="grid gap-3 sm:grid-cols-3" onsubmit="return false">
+      <input class="cam-girdi" placeholder="Ad soyad">
+      <select class="cam-girdi"><option>9-A</option><option>10-A</option></select>
+      <textarea class="cam-girdi sm:col-span-3" rows="2" placeholder="Not"></textarea>
+    </form>
+
+    <table class="cam-tablo">
+      <thead><tr><th>Sınıf</th><th>Ders</th><th>Mevcut</th><th>Durum</th></tr></thead>
+      <tbody>
+        <tr><td>9-A</td><td>Matematik</td><td>28 / 30</td><td><span class="cam-rozet cam-rozet-yesil">alındı</span></td></tr>
+        <tr><td>10-A</td><td>Fizik</td><td>-</td><td><span class="cam-rozet cam-rozet-amber">bekliyor</span></td></tr>
+      </tbody>
+    </table>
+
+    <p class="cam-metin">Ana metin. <span class="cam-metin-2">İkinci kademe.</span> <span class="cam-metin-3">Üçüncü kademe.</span></p>
+  </section>
+</main>
+</body>
+</html>

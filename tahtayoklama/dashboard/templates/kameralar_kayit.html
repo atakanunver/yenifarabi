@@ -2,113 +2,85 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Harekete Duyarlı Kamera Kayıtları — Yoklama ve Yönetim Paneli</title>
+<link rel="stylesheet" href="/static/cam-tema.css?v=20261115b">
 <style>
-  :root { color-scheme: dark; }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; background: #0b0d10; color: #e6e6e6;
-    font-family: -apple-system, Segoe UI, Arial, sans-serif;
-    height: 100vh; display: flex; flex-direction: column;
-  }
-  header {
-    padding: 8px 14px; background: #14171c; border-bottom: 1px solid #262b33;
-    display: flex; align-items: center; gap: 12px; flex-shrink: 0; flex-wrap: wrap;
-  }
-  header a.geri { color: #9aa3b2; text-decoration: none; font-size: 13px; }
-  header a.geri:hover { color: #e6e6e6; }
-  header h1 { font-size: 15px; font-weight: 600; margin: 0; color: #cfd3da; }
-  .rozet {
-    font-size: 11px; background: rgba(34,197,94,.15); color: #4ade80;
-    padding: 3px 8px; border-radius: 12px; border: 1px solid rgba(34,197,94,.3);
-  }
-  .govde {
-    flex: 1; display: grid; grid-template-columns: 330px 1fr; min-height: 0;
-  }
+  body { height: 100vh; display: flex; flex-direction: column; gap: 8px; padding: 8px; overflow: hidden; }
+  header { min-height: 52px; flex-shrink: 0; }
+  header a.geri { color: var(--color-cam-metin-2); text-decoration: none; font-size: 14px; }
+  header a.geri:hover { color: var(--color-cam-metin); }
+  header h1 { font-size: 17px; font-weight: 600; margin: 0; }
+  .govde { flex: 1; display: grid; grid-template-columns: 330px 1fr; gap: 8px; min-height: 0; }
   @media (max-width: 860px) {
     .govde { grid-template-columns: 1fr; grid-template-rows: 45vh 1fr; }
   }
-  .sol {
-    background: #12151a; border-right: 1px solid #222730;
-    display: flex; flex-direction: column; min-height: 0;
-  }
-  .filtreler {
-    padding: 12px; border-bottom: 1px solid #222730; display: flex; flex-direction: column; gap: 8px;
-  }
-  label { font-size: 11px; color: #8c95a6; text-transform: uppercase; letter-spacing: .04em; }
-  select {
-    width: 100%; padding: 7px 9px; background: #0b0d10; color: #e6e6e6;
-    border: 1px solid #2b313c; border-radius: 6px; font-size: 13px;
-  }
-  .saat-chipler {
-    display: flex; gap: 4px; flex-wrap: wrap; padding-top: 4px; max-height: 68px; overflow-y: auto;
-  }
+  .sol, .sag { display: flex; flex-direction: column; min-height: 0; padding: 0; overflow: hidden; }
+  .filtreler { padding: 12px; border-bottom: 1px solid var(--color-cam-ayrac); display: flex; flex-direction: column; gap: 8px; }
+  label { font-size: 12px; color: var(--color-cam-metin-3); letter-spacing: .02em; }
+  .saat-chipler { display: flex; gap: 4px; flex-wrap: wrap; padding-top: 4px; max-height: 76px; overflow-y: auto; }
   .chip {
-    background: #1a1f27; color: #9aa3b2; border: 1px solid #282f3b;
-    border-radius: 4px; padding: 3px 7px; font-size: 11px; cursor: pointer;
+    background: rgba(255, 255, 255, 0.08); color: var(--color-cam-metin-2); border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 999px; padding: 3px 9px; font-size: 12px; cursor: pointer; font-family: inherit;
   }
-  .chip.aktif { background: #2563eb; color: #fff; border-color: #3b82f6; }
+  .chip:hover { background: rgba(255, 255, 255, 0.16); }
+  .chip.aktif { background: rgba(255, 255, 255, 0.22); color: #fff; border-color: rgba(255, 255, 255, 0.4); box-shadow: 0 0 15px rgba(255, 255, 255, 0.3); }
   .liste-baslik {
-    padding: 8px 12px; font-size: 12px; color: #8c95a6; border-bottom: 1px solid #1d222a;
+    padding: 8px 12px; font-size: 13px; color: var(--color-cam-metin-3); border-bottom: 1px solid var(--color-cam-ayrac);
     display: flex; justify-content: space-between; align-items: center;
   }
-  #kayit-listesi {
-    flex: 1; overflow-y: auto; padding: 6px;
-  }
+  #kayit-listesi { flex: 1; overflow-y: auto; padding: 6px; }
   .kayit-oge {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 13px;
-    border: 1px solid transparent; margin-bottom: 3px;
+    padding: 8px 10px; border-radius: 12px; cursor: pointer; font-size: 14px;
+    border: 1px solid transparent; margin-bottom: 3px; color: var(--color-cam-metin-2);
   }
-  .kayit-oge:hover { background: #1a1f28; }
-  .kayit-oge.secili { background: #1e3a8a; border-color: #3b82f6; color: #fff; }
-  .kayit-oge .boyut { font-size: 11px; color: #7f8899; }
-  .kayit-oge.secili .boyut { color: #bfdbfe; }
-  .sag {
-    display: flex; flex-direction: column; background: #07080a; min-height: 0;
-  }
+  .kayit-oge:hover { background: rgba(255, 255, 255, 0.1); }
+  .kayit-oge.secili { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.35); color: #fff; }
+  .kayit-oge .boyut { font-size: 12px; color: var(--color-cam-metin-3); }
+  .kayit-oge.secili .boyut { color: var(--color-cam-metin-2); }
   .oynatici-ust {
-    padding: 10px 16px; background: #101318; border-bottom: 1px solid #222730;
+    padding: 10px 16px; border-bottom: 1px solid var(--color-cam-ayrac);
     display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
   }
-  .oynatici-baslik { font-size: 14px; font-weight: 600; color: #e2e8f0; }
-  .oynatici-kontroller { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #9aa3b2; }
+  .oynatici-baslik { font-size: 15px; font-weight: 600; }
+  .oynatici-kontroller { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--color-cam-metin-2); }
   .btn {
-    background: #1e2430; color: #e2e8f0; border: 1px solid #2e3646;
-    border-radius: 5px; padding: 5px 10px; font-size: 12px; cursor: pointer; text-decoration: none;
+    background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px; padding: 5px 11px; font-size: 13px; cursor: pointer; text-decoration: none; font-family: inherit;
   }
-  .btn:hover { background: #283040; }
-  .btn.aktif { background: #2563eb; border-color: #3b82f6; color: #fff; }
-  .video-kapsayici {
-    flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; position: relative;
-  }
-  video { width: 100%; height: 100%; max-height: 100%; background: #000; outline: none; }
+  .btn:hover { background: rgba(255, 255, 255, 0.2); }
+  .btn.aktif { background: rgba(255, 255, 255, 0.24); border-color: rgba(255, 255, 255, 0.45); box-shadow: 0 0 15px rgba(255, 255, 255, 0.3); }
+  .video-kapsayici { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; position: relative; }
+  video { width: 100%; height: 100%; max-height: 100%; background: rgba(5, 8, 22, 0.5); outline: none; }
   #yukleniyor {
-    position: absolute; background: rgba(15,23,42,.88); color: #e2e8f0;
-    padding: 10px 18px; border-radius: 8px; font-size: 13px; border: 1px solid #334155;
+    position: absolute; background: rgba(18, 20, 38, 0.78); color: #fff;
+    padding: 10px 18px; border-radius: 14px; font-size: 14px; border: 1px solid rgba(255, 255, 255, 0.2);
     display: none; pointer-events: none;
   }
 </style>
 </head>
-<body>
-<header>
+<body class="cam-sayfa">
+<div class="cam-ortam" aria-hidden="true"></div>
+<header class="cam-serit">
   <a class="geri" href="/">← Panele dön</a>
   <h1>📼 Harekete Duyarlı Kamera Kayıtları</h1>
-  <span class="rozet">Yalnız hareket sırasında kayıt alınır; kayıtlar 15 gün saklanır</span>
+  <span class="rozet cam-rozet cam-rozet-yesil">Yalnız hareket sırasında kayıt alınır; kayıtlar 15 gün saklanır</span>
   <a class="geri" style="margin-left:auto" href="/kameralar">🎥 Canlı DVR Kameralar →</a>
   <a class="geri" href="/kameralar-ip">IP Kameralar →</a>
 </header>
 
 <div class="govde">
-  <div class="sol">
+  <div class="sol cam-pencere">
     <div class="filtreler">
       <div>
         <label for="kamera-sec">Kamera</label>
-        <select id="kamera-sec"></select>
+        <select id="kamera-sec" class="cam-girdi"></select>
       </div>
       <div>
         <label for="tarih-sec">Tarih</label>
-        <select id="tarih-sec"></select>
+        <select id="tarih-sec" class="cam-girdi"></select>
       </div>
       <div>
         <label>Saat Filtresi</label>
@@ -124,7 +96,7 @@
     <div id="kayit-listesi"></div>
   </div>
 
-  <div class="sag">
+  <div class="sag cam-pencere">
     <div class="oynatici-ust">
       <div class="oynatici-baslik" id="aktif-baslik">Soldan bir hareket kaydı seçin</div>
       <div class="oynatici-kontroller">

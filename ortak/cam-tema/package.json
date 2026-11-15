@@ -1,0 +1,13 @@
+{
+  "name": "cam-tema",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Farabi servisleri icin ortak uzamsal cam temasi (Tailwind 4)",
+  "scripts": {
+    "build": "tailwindcss -i src/cam-tema.css -o dist/cam-tema.css --minify && sed -i 's#^/\\*![^*]*\\*/##' dist/cam-tema.css"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.5",
+    "tailwindcss": "4.3.5"
+  }
+}

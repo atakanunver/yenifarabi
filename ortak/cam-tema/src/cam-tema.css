@@ -1,0 +1,145 @@
+/* Farabi ortak uzamsal cam teması (Tailwind 4). Preflight YOK: mevcut sayfaları bozmaz.
+   Kaynak: tahtayoklama/dashboard/static/cam.css belirteçleri. Derleme: npm run build. */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+@font-face {
+  font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(fontlar/inter-latin-ext-wght-normal.woff2) format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(fontlar/inter-latin-wght-normal.woff2) format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@theme static {
+  --font-cam: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Arial, sans-serif;
+  --color-cam-yuzey: rgba(255, 255, 255, 0.08);
+  --color-cam-yuzey-koyu: rgba(14, 16, 32, 0.1);
+  --color-cam-panel: rgba(18, 20, 38, 0.78);
+  --color-cam-kenar: rgba(255, 255, 255, 0.2);
+  --color-cam-kenar-parlak: rgba(255, 255, 255, 0.35);
+  --color-cam-ayrac: rgba(255, 255, 255, 0.1);
+  --color-cam-metin: #ffffff;
+  --color-cam-metin-2: rgba(255, 255, 255, 0.75);
+  --color-cam-metin-3: rgba(255, 255, 255, 0.45);
+  --color-cam-mercan: #ff3b5c;
+  --color-cam-yesil: #32d74b;
+  --color-cam-mavi: #38bdf8;
+  --color-cam-indigo: #6366f1;
+  --color-cam-mor: #bf5af2;
+  --color-cam-amber: #ffb300;
+  --shadow-cam-isik: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 24px 48px -12px rgba(0, 0, 0, 0.5);
+  --shadow-cam-parilti: 0 0 15px rgba(255, 255, 255, 0.3);
+  --ease-cam-yay: cubic-bezier(0.34, 1.36, 0.64, 1);
+}
+
+@layer components {
+  /* Preflight kapalı: bileşenler kendi box-sizing'ini koyar */
+  .cam-pencere, .cam-serit, .cam-kart, .cam-dialog, .cam-dugme, .cam-girdi, .cam-pill, .cam-pill-oge, .cam-rozet { box-sizing: border-box; }
+
+  /* Gövde: <body class="cam-sayfa"> */
+  .cam-sayfa {
+    @apply m-0 min-h-screen font-cam text-cam-metin tabular-nums;
+    color-scheme: dark;
+  }
+
+  /* Zemin: --duvar-resmi (url(...)) tanımlıysa duvar kağıdı, yoksa bulanık gradyan. <div class="cam-ortam" aria-hidden="true"> */
+  .cam-ortam {
+    @apply pointer-events-none fixed inset-0 -z-10;
+    background-color: #0a0c1e;
+    background-image: linear-gradient(180deg, rgba(5, 8, 22, 0.2), rgba(5, 8, 22, 0.5)),
+      var(--duvar-resmi,
+        radial-gradient(40vmax 34vmax at 6% 4%, rgba(255, 154, 92, 0.28), transparent 70%),
+        radial-gradient(42vmax 36vmax at 96% 96%, rgba(56, 189, 248, 0.24), transparent 70%),
+        radial-gradient(34vmax 30vmax at 30% 92%, rgba(99, 102, 241, 0.26), transparent 70%),
+        radial-gradient(26vmax 24vmax at 72% 32%, rgba(191, 90, 242, 0.14), transparent 70%),
+        linear-gradient(135deg, #2a1620, #12102a 50%, #07162b));
+    background-size: cover; background-position: center; background-repeat: no-repeat;
+  }
+
+  /* Pencere: bulanıklık YOK (referans cam.css, 2026-11-15 Atakan kararı: duvar kağıdı net görünsün);
+     yüzey ::before katmanında, aynı renk. Küçük dialog'da hafif blur(6px). */
+  .cam-pencere {
+    @apply relative isolate rounded-[36px] border border-white/20 p-6 text-cam-metin shadow-cam-isik;
+  }
+  .cam-pencere::before, .cam-dialog::before {
+    @apply pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-cam-yuzey-koyu;
+    content: "";
+  }
+  .cam-dialog::before { @apply bg-white/[0.08] backdrop-blur-[6px]; }
+
+  /* Üst şerit (sayfa başlığı / araç çubuğu) */
+  .cam-serit {
+    @apply flex flex-wrap items-center gap-3 rounded-[20px] border border-white/15 bg-cam-yuzey-koyu px-4 py-2 text-cam-metin;
+  }
+
+  .cam-kart {
+    @apply rounded-[24px] border border-white/15 bg-white/[0.06] p-4 text-cam-metin transition duration-300 ease-cam-yay hover:-translate-y-0.5 hover:border-white/35 hover:bg-white/[0.11];
+  }
+
+  /* Modal / onay kutusu: <dialog class="cam-dialog"> ya da perde içinde div. Bulanıklık ::before'da. */
+  .cam-dialog {
+    @apply relative isolate rounded-[28px] border border-white/20 bg-transparent p-8 text-cam-metin shadow-cam-isik;
+  }
+  .cam-dialog::backdrop { background: rgba(5, 8, 22, 0.7); }
+  .cam-perde { @apply fixed inset-0 z-50 place-items-center bg-[rgb(5_8_22/0.7)]; }
+
+  /* Düğmeler */
+  .cam-dugme {
+    @apply inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-[14px] border border-white/30 bg-linear-to-br from-cam-mavi/60 to-cam-indigo/60 px-4 py-2 text-sm font-semibold text-cam-metin no-underline shadow-cam-parilti transition duration-150 ease-cam-yay hover:border-white/50 hover:brightness-125 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70;
+  }
+  .cam-dugme-ikincil {
+    @apply border-white/20 bg-none bg-white/[0.08] shadow-none hover:bg-white/[0.16];
+  }
+  .cam-dugme-tehlike {
+    @apply border-cam-mercan/60 bg-none bg-cam-mercan/35 shadow-none hover:bg-cam-mercan/55;
+  }
+  .cam-dugme-kucuk { @apply min-h-8 rounded-[10px] px-3 py-1 text-xs; }
+
+  /* Girdi: input / select / textarea */
+  .cam-girdi {
+    @apply w-full rounded-[14px] border border-white/15 bg-white/[0.08] px-3 py-2 text-sm text-cam-metin transition duration-150 placeholder:text-cam-metin-3 focus:border-white/40 focus:bg-white/[0.12] focus:outline-none;
+    color-scheme: dark;
+  }
+
+  /* Tablo */
+  .cam-tablo { @apply w-full border-collapse text-sm text-cam-metin; }
+  .cam-tablo th { @apply border-b border-white/15 px-3 py-2 text-left text-xs font-medium text-cam-metin-3; }
+  .cam-tablo td { @apply border-b border-white/10 px-3 py-2 text-cam-metin-2; }
+  .cam-tablo tbody tr { @apply transition-colors duration-150 hover:bg-white/[0.06]; }
+
+  /* Segment (pill) seçici: <div class="cam-pill"><button class="cam-pill-oge" aria-pressed="true"> */
+  .cam-pill {
+    @apply inline-flex gap-1 rounded-full border border-white/15 bg-white/[0.08] p-1;
+  }
+  .cam-pill-oge {
+    @apply min-h-8 cursor-pointer rounded-full border-0 bg-transparent px-4 py-1 text-sm font-medium text-cam-metin-2 transition duration-300 ease-cam-yay hover:bg-white/10 hover:text-cam-metin;
+  }
+  .cam-pill-oge[aria-pressed="true"], .cam-pill-oge.aktif { @apply bg-white/20 text-cam-metin shadow-cam-parilti; }
+
+  /* Rozet */
+  .cam-rozet {
+    @apply inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-semibold text-cam-metin-2;
+  }
+  .cam-rozet-yesil { @apply border-cam-yesil/50 bg-cam-yesil/20 text-cam-yesil; }
+  .cam-rozet-kirmizi { @apply border-cam-mercan/50 bg-cam-mercan/20 text-cam-mercan; }
+  .cam-rozet-mavi { @apply border-cam-mavi/50 bg-cam-mavi/20 text-cam-mavi; }
+  .cam-rozet-mor { @apply border-cam-mor/50 bg-cam-mor/20 text-cam-mor; }
+  .cam-rozet-amber { @apply border-cam-amber/50 bg-cam-amber/20 text-cam-amber; }
+
+  /* Metin kademeleri */
+  .cam-baslik { @apply m-0 text-2xl font-bold tracking-tight text-cam-metin; }
+  .cam-metin { @apply text-cam-metin; }
+  .cam-metin-2 { @apply text-cam-metin-2; }
+  .cam-metin-3 { @apply text-cam-metin-3; }
+  .cam-rakam { @apply tabular-nums; }
+  .cam-ayrac { @apply m-0 h-px w-full border-0 bg-white/10; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cam-kart, .cam-dugme, .cam-pill-oge, .cam-girdi, .cam-tablo tbody tr { transition: none; animation: none; }
+  .cam-kart:hover, .cam-dugme:active { transform: none; }
+}
