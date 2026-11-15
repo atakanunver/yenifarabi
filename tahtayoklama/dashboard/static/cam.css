@@ -155,6 +155,7 @@ body { background: #070914; min-height: 100vh; font-variant-numeric: tabular-num
 .ust-hava[data-tur="bulut-gunes"] .ikon { color: #ffe08a; filter: drop-shadow(0 0 6px rgba(255, 214, 10, 0.35)); }
 .ust-hava[data-tur="yagmur"] .ikon { color: #38bdf8; filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.45)); }
 .ust-hava[data-tur="kar"] .ikon { color: #e0f2fe; filter: drop-shadow(0 0 6px rgba(224, 242, 254, 0.45)); }
+.ust-hava .ust-hava-derece { color: #ffd60a; text-shadow: 0 0 6px rgba(255, 214, 10, 0.45); }
 .ust-marka:hover { background: rgba(255, 255, 255, 0.11); border-top-color: var(--cam-kenar-parlak); transform: translateY(-1px); }
 .ust-marka img { width: 34px; height: 34px; border-radius: 50%; box-shadow: 0 0 14px rgba(99, 102, 241, 0.45); }
 .ust-marka-metin { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
