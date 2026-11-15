@@ -1,0 +1,255 @@
+/* SMS Sistemi arayüzü: Tailwind 3 + Uzamsal Cam Görünümü.
+   Anlamsal sınıf adları şablonlar, satır içi JS ve app.py tarafından kullanılır: adları değiştirme.
+   Derleme: cd tasarim && npm ci && npm run build → static/stil.css (commit'lenir). */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { color-scheme: dark; }
+  body { @apply text-sm text-slate-200 antialiased; }
+  a { @apply text-indigo-300 hover:text-indigo-200; }
+  h1, h2, h3 { @apply text-white; }
+  h2 { @apply text-sm font-semibold; }
+  code { @apply rounded bg-white/10 px-1 py-0.5 font-mono text-xs text-slate-200; }
+  strong { @apply font-semibold; }
+  :focus-visible { @apply outline outline-2 outline-offset-2 outline-indigo-400; }
+  ::-webkit-scrollbar { @apply size-[7px]; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply rounded-full bg-white/20 hover:bg-white/30; }
+
+  /* Form öğeleri */
+  form label { @apply mb-2 block text-xs font-medium text-slate-300; }
+  textarea, input[type=text], input[type=password], input[type=number], input[type=time], input[type=date],
+  input[type=tel], input[type=search], input[type=file], select {
+    @apply mt-1.5 h-9 w-full rounded-xl border border-white/15 bg-white/[0.08] px-3 text-sm text-white placeholder:text-white/40
+           focus:border-white/40 focus:bg-white/[0.12] focus:outline-none focus:ring-1 focus:ring-indigo-400/50;
+  }
+  input[type=file] { @apply h-auto py-1.5 text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-2.5 file:py-1 file:text-xs file:text-white; }
+  textarea { @apply h-auto min-h-20 py-2.5; }
+  input[type=checkbox], input[type=radio] { @apply size-4 shrink-0 accent-indigo-500; }
+  button {
+    @apply inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-white/30 bg-gradient-to-br from-sky-500/60 to-indigo-600/60 px-3.5
+           text-sm font-semibold text-white transition-all hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  summary { @apply cursor-pointer; }
+  table { @apply w-full text-sm; }
+  th { @apply whitespace-nowrap border-b border-white/15 px-4 py-3 text-left text-xs font-medium text-white/50; }
+  td { @apply border-t border-white/10 px-4 py-3 align-middle text-slate-200; }
+  th + td, thead + tbody tr:first-child td { @apply border-t-0; }
+  tbody tr:hover td { @apply bg-white/[0.06]; }
+  tr.hata td { @apply text-rose-300; }
+  tr.gonderildi td { @apply bg-emerald-500/15; }
+  tr.gonderildi td:first-child { @apply border-l-2 border-l-emerald-400; }
+  section { @apply mb-5 overflow-x-auto rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-4 shadow-sm; }
+  section > h2, .bolum-ust h2 { @apply mb-3 flex items-center gap-2; }
+  .bolum-ust h2 { @apply mb-0; }
+}
+
+@layer components {
+  /* Kabuk: solda menü, sağda sayfa; dar ekranda menü üstte yatay şerit */
+  .kabuk { @apply min-h-screen lg:grid lg:grid-cols-[248px_minmax(0,1fr)]; }
+  .kenar {
+    @apply flex items-center gap-3 overflow-x-auto border-b border-white/10 bg-slate-900/40 backdrop-blur-md px-4 py-3
+           lg:sticky lg:top-0 lg:h-screen lg:flex-col lg:items-stretch lg:gap-6 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:border-white/10 lg:px-3 lg:py-5;
+  }
+  .menu { @apply flex gap-0.5 lg:flex-col; }
+  .menu a {
+    @apply flex min-h-9 shrink-0 items-center gap-3 whitespace-nowrap rounded-xl px-2.5 py-1.5 text-sm text-white/70 no-underline
+           transition-all hover:bg-white/10 hover:text-white;
+  }
+  .menu a .ikon { @apply size-4 text-white/50; }
+  .menu a[aria-current="page"] { @apply bg-white/15 text-white font-medium shadow-sm; }
+  .menu a[aria-current="page"] .ikon { @apply text-indigo-300; }
+  .cikis-form { @apply ml-auto shrink-0 lg:ml-0 lg:mt-auto; }
+  .cikis-form button {
+    @apply h-auto w-full justify-start gap-3 rounded-xl border-transparent bg-transparent px-2.5 py-2 font-normal text-white/60
+           transition-colors hover:bg-rose-500/15 hover:text-rose-200;
+  }
+  .icerik { @apply min-w-0 px-4 py-6 sm:px-8 sm:py-8; }
+
+  .ikon { @apply inline-block size-[1.1em] shrink-0 align-[-0.18em]; }
+  .ikon-kucuk { @apply size-[0.88em]; }
+  .ikon-buyuk { @apply size-10 text-indigo-400; }
+
+  /* Sayfa başlığı */
+  .ust-yazi { @apply text-xs font-semibold uppercase tracking-wider text-indigo-300; }
+  .sayfa-baslik { @apply mt-1 flex items-center gap-2 text-2xl font-bold tracking-tight text-white; }
+  .sayfa-aciklama { @apply mt-1.5 max-w-2xl text-sm text-white/60; }
+  .sayfa-baslik-sarici { @apply mb-6 flex flex-wrap items-start justify-between gap-3; }
+  .sayfa-eylemler { @apply flex gap-2; }
+  .sayfa-giris { @apply mb-6; }
+
+  /* Giriş sayfası */
+  .giris-sarici { @apply flex min-h-screen items-center justify-center px-4; }
+  .giris-form { @apply w-full max-w-sm space-y-4 rounded-3xl border border-white/20 bg-white/[0.08] p-8 shadow-2xl; }
+  .giris-form h1 { @apply mb-2 flex items-center gap-2 text-xl font-bold text-white; }
+  .giris-form button { @apply w-full; }
+
+  /* Düğme türevleri */
+  .ikincil-btn, .kucuk-btn, .sekme-btn {
+    @apply inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-white/20 bg-white/[0.08] px-3 text-sm font-medium
+           text-white no-underline shadow-none transition-all hover:border-white/35 hover:bg-white/[0.16] hover:text-white;
+  }
+  .kucuk-btn, .sekme-btn { @apply h-8 rounded-lg px-2.5 text-xs; }
+  .duzelt-btn { @apply h-8 gap-1 rounded-lg border border-indigo-400/40 bg-indigo-500/20 px-2.5 text-xs font-medium text-indigo-200 hover:bg-indigo-500/30; }
+  .alici-sil-btn { @apply h-auto border-0 bg-transparent px-0.5 py-0 text-sm font-bold leading-none text-rose-300 hover:bg-rose-500/20; }
+  .kural-ac-btn { @apply rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 hover:border-emerald-500/50 hover:bg-emerald-500/30; }
+  .kural-kapat-btn, .kural-sil-btn, .sil-btn, .sinif-liste button {
+    @apply rounded-lg border border-rose-500/40 bg-rose-500/10 text-rose-300 hover:border-rose-500/50 hover:bg-rose-500/20;
+  }
+  .sinif-liste button, .satir-eylemler button { @apply h-7 rounded-lg px-2 text-xs; }
+  .buyuk-onay-btn { @apply h-11 gap-2 rounded-xl border border-white/30 bg-gradient-to-br from-emerald-500/70 to-teal-600/70 px-6 text-base font-semibold hover:brightness-125; }
+  .gonder-ana-btn { @apply mt-2 h-11 w-full text-base font-semibold; }
+
+  /* Mesajlar */
+  .hata { @apply font-medium text-rose-300; }
+  .basari { @apply font-medium text-emerald-300; }
+  .uyari-kutusu { @apply mb-5 rounded-2xl border border-white/15 bg-white/[0.06] px-4 py-3 text-sm text-white/90; }
+  .uyari-kutusu.basari { @apply border-emerald-500/40 bg-emerald-950/30 text-emerald-200; }
+  .uyari-kutusu.hata { @apply border-rose-500/40 bg-rose-950/40 text-rose-200; }
+  .ipucu { @apply mt-0 text-xs text-white/50; }
+  p.hata, p.basari { @apply mb-5 rounded-2xl border px-4 py-3 text-sm; }
+  p.hata { @apply border-rose-500/40 bg-rose-950/40 text-rose-200; }
+  p.basari { @apply border-emerald-500/40 bg-emerald-950/30 text-emerald-200; }
+
+  /* Rozet */
+  .rozet {
+    @apply inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-white/80 ring-1 ring-white/15;
+  }
+  .rozet-yesil { @apply bg-emerald-500/20 text-emerald-300 ring-emerald-500/30; }
+  .rozet-turuncu { @apply bg-amber-500/20 text-amber-300 ring-amber-500/30; }
+  .rozet-mavi { @apply bg-indigo-500/20 text-indigo-300 ring-indigo-500/30; }
+  .rozet-gri { @apply bg-white/10 text-white/70 ring-white/15; }
+  .sinif-rozet { @apply whitespace-nowrap rounded-md bg-indigo-500/20 px-1.5 py-px font-semibold text-indigo-300; }
+  .ogr-rozet { @apply rounded-md bg-emerald-500/20 px-1.5 py-px font-medium text-emerald-300; }
+  .ogr-rozet.eslesmedi { @apply bg-rose-500/20 text-rose-300; }
+  .tel-metin { @apply font-mono text-white/60; }
+
+  /* KPI */
+  .kpi-grid { @apply mb-6 grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3.5; }
+  .kpi-karti { @apply flex flex-col gap-1 rounded-2xl border border-white/15 bg-white/[0.06] px-4 py-3.5 transition-all duration-300 hover:border-white/30 hover:bg-white/[0.1]; }
+  .kpi-karti.clickable { @apply cursor-pointer; }
+  .kpi-etiket { @apply text-xs font-medium text-white/50; }
+  .kpi-deger { @apply text-2xl font-bold leading-tight text-white; }
+  .kpi-alt { @apply text-xs text-white/40; }
+  .kpi-karti.kpi-yesil { @apply border-l-4 border-l-emerald-400; }
+  .kpi-karti.kpi-turuncu { @apply border-l-4 border-l-amber-400; }
+  .kpi-karti.kpi-mavi { @apply border-l-4 border-l-indigo-400; }
+  .kart-vurgulu { @apply border-l-4 border-l-indigo-400; }
+  .kart-yesil { @apply border-l-emerald-400; }
+  .kart-mavi { @apply border-l-indigo-400; }
+  .kart-turuncu { @apply border-l-amber-400; }
+
+  /* Bölüm */
+  .bolum-ust { @apply mb-3 flex flex-wrap items-start justify-between gap-4; }
+  .bolum-aciklama { @apply mt-1 text-xs text-white/50; }
+  .toplu-eylem-butonlar { @apply flex shrink-0 gap-1.5; }
+  .gizli-liste { @apply mt-3 hidden max-h-80 overflow-y-auto border-t border-white/10 pt-3; }
+  .kucuk-tablo { @apply w-full text-xs; }
+  .tablo-kaydir { @apply overflow-x-auto; }
+  .tablo-kaydir > table { @apply min-w-[600px]; }
+
+  /* Satır içi formlar */
+  .sinif-liste { @apply mb-3 flex flex-wrap gap-2; }
+  .sinif-liste li { @apply flex items-center gap-2 rounded-xl bg-indigo-500/15 py-1 pl-2.5 pr-1 text-white ring-1 ring-indigo-500/30; }
+  .sinif-ekle-form, .filtre-form, .kisi-ekle-form, .yukle-form { @apply flex flex-wrap items-end gap-3; }
+  .sinif-ekle-form label, .filtre-form label, .kisi-ekle-form label, .yukle-form label { @apply mb-0 flex min-w-40 flex-1 flex-col; }
+  .sinif-ekle-form input, .filtre-form select { @apply w-auto min-w-36; }
+  .satir-eylemler { @apply flex gap-1.5 whitespace-nowrap; }
+  .satir-eylemler form, .satir-form { @apply inline; }
+  .satir-tarih-form { @apply m-0; }
+  .tarih-input { @apply mt-0 h-8 w-36 px-2 text-xs; }
+
+  /* Gönder sayfası */
+  .gonder-izgara { @apply grid items-start gap-6 lg:grid-cols-[1.15fr_0.85fr]; }
+  .sol-panel, .sag-panel { @apply flex min-w-0 flex-col gap-4; }
+  .secilenler-ust { @apply mb-2 flex items-center justify-between; }
+  .secilenler-ust h2 { @apply mb-0; }
+  .secilenler-etiket-listesi { @apply flex max-h-56 flex-wrap gap-1.5 overflow-y-auto py-1; }
+  .alici-etiket { @apply inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/15 px-2 py-1 text-xs ring-1 ring-indigo-500/30 text-white; }
+  .alici-etiket small { @apply text-white/50; }
+  .manuel-giris-akordiyon { @apply mb-5 rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-3.5; }
+  .manuel-giris-akordiyon summary { @apply text-sm text-white; }
+  .manuel-giris-govde { @apply mt-3; }
+  .mesaj-baslik-sarici { @apply mb-1.5 flex items-center justify-between gap-3; }
+  .mesaj-baslik-sarici label { @apply mb-0; }
+  #duzelt-durum { @apply mt-1 block; }
+  .rehber-secim-kutusu { @apply mb-0 lg:sticky lg:top-6; }
+  .panel-filtreler { @apply mb-3 flex gap-3; }
+  .panel-filtreler label { @apply mb-0 flex-1; }
+  .panel-ust-cubuk { @apply mb-1.5 flex items-center justify-between border-b border-white/10 py-2; }
+  .tumunu-sec-label { @apply mb-0 flex cursor-pointer items-center gap-2 text-sm text-white; }
+  .panel-kisi-listesi { @apply max-h-[460px] overflow-y-auto rounded-xl border border-white/15; }
+  .kisi-karti { @apply border-b border-white/10 px-2.5 py-2 transition-colors last:border-b-0 hover:bg-white/[0.06]; }
+  .kisi-karti label { @apply mb-0 flex w-full cursor-pointer items-center gap-2.5 text-sm text-white; }
+  .kisi-karti.telefonsuz { @apply opacity-50; }
+  .kisi-karti.telefonsuz label { @apply cursor-not-allowed; }
+  .kisi-bilgi { @apply flex flex-1 flex-col gap-0.5; }
+  .kisi-ad { @apply text-sm font-semibold text-white; }
+  .kisi-detay { @apply flex flex-wrap items-center gap-1.5 text-xs text-white/50; }
+  .kisi-alt { @apply text-xs text-white/50; }
+  .hedef-secici { @apply flex flex-wrap items-end gap-3; }
+  .hedef-secici label { @apply mb-0 flex min-w-36 flex-none flex-col; }
+  .hedef-secici select { @apply w-auto; }
+  #hedef-sonuc { @apply self-center text-sm text-white/50; }
+
+  /* Seçim kartları (doğum günü içe aktarma) */
+  .secim-grid { @apply mt-3 grid max-h-96 grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-2.5 overflow-y-auto p-0.5; }
+  .secim-karti {
+    @apply flex cursor-pointer items-center gap-2.5 rounded-xl border border-white/15 bg-white/[0.05] px-3 py-2.5 transition-colors
+           hover:border-white/30 hover:bg-white/[0.09] has-[:checked]:border-indigo-400/50 has-[:checked]:bg-indigo-500/15;
+  }
+  .secim-karti-icerik { @apply flex flex-1 flex-col gap-0.5; }
+  .secim-karti-soluk { @apply opacity-70 hover:opacity-100; }
+  .filtre-arama-kutusu { @apply my-2.5; }
+  .filtre-arama-kutusu input { @apply max-w-xs; }
+  .form-onay-cubuk { @apply my-6 flex items-center gap-4; }
+
+  /* Doğum günleri */
+  .bugun-liste { @apply mt-3 flex flex-wrap gap-3; }
+  .bugun-kisi-karti { @apply flex flex-[1_1_280px] items-center gap-3 rounded-xl border border-white/15 bg-white/[0.05] px-4 py-3; }
+  .bugun-avatar { @apply flex size-10 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300; }
+  .bugun-bilgi { @apply flex flex-1 flex-col gap-1; }
+  .sekme-butonlar { @apply flex flex-wrap gap-2; }
+  .sekme-btn { @apply cursor-pointer; }
+  .sekme-btn.aktif { @apply border-white/35 bg-white/20 text-white hover:bg-white/25; }
+  .yaklasan-izgara { @apply mt-3.5 grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3; }
+  .yaklasan-kart { @apply flex items-center gap-3 rounded-xl border border-white/15 bg-white/[0.05] px-3.5 py-2.5; }
+  .yaklasan-gun-rozet { @apply whitespace-nowrap rounded-lg bg-white/10 px-2 py-1.5 text-center text-xs font-semibold text-white/80; }
+  .yaklasan-gun-rozet.gun-bugun { @apply bg-indigo-500/20 text-indigo-200 ring-1 ring-indigo-500/30; }
+  .yaklasan-gun-rozet.gun-yarin { @apply bg-amber-500/20 text-amber-200 ring-1 ring-amber-500/30; }
+  .yaklasan-detay { @apply flex flex-col gap-0.5; }
+  .dogum-tablosu { @apply mt-3.5 w-full; }
+
+  /* Ayar formu */
+  .ayar-form { @apply flex max-w-2xl flex-col gap-4; }
+  .ayar-satir { @apply flex flex-col gap-1.5; }
+  .ayar-baslik { @apply text-sm font-semibold text-white; }
+  .radyo-grup { @apply mt-1 flex gap-4; }
+  .radyo-etiket { @apply mb-0 inline-flex cursor-pointer items-center gap-2 text-sm font-normal text-white/80; }
+  .karakter-sayac-serit { @apply mt-1 flex items-center justify-between text-xs text-white/50; }
+
+  /* Otomasyon */
+  .kural-liste { @apply mb-4 grid gap-3; }
+  .kural-karti { @apply rounded-2xl border border-white/15 border-l-4 border-l-white/30 bg-white/[0.05] px-4 py-3; }
+  .kural-karti.aktif { @apply border-l-emerald-400; }
+  .kural-karti.secili { @apply border-indigo-400/60 border-l-indigo-400; }
+  .kural-ust { @apply flex flex-wrap items-center gap-2; }
+  .kural-ad { @apply text-sm font-semibold text-white; }
+  .kural-eylem { @apply ml-auto flex flex-wrap items-center gap-2; }
+  .kural-eylem form { @apply m-0 inline; }
+  .kural-meta { @apply mt-1.5 text-xs text-white/50; }
+  .kural-duzenle, .kural-ekle { @apply mt-2.5; }
+  .kural-duzenle summary, .kural-ekle summary { @apply text-sm font-medium text-indigo-300 hover:text-indigo-200; }
+  .kural-ekle summary { @apply inline-flex items-center gap-1.5; }
+  .kural-form { @apply mt-2.5; }
+  .kural-form-izgara { @apply grid grid-cols-2 gap-3 sm:grid-cols-[2fr_1fr_1fr]; }
+  .kural-form-izgara label:first-child { @apply col-span-2 sm:col-span-1; }
+  .kural-form-eylem { @apply mt-2 flex flex-wrap gap-2; }
+  .kural-sil-form { @apply mt-3 border-t border-dashed border-white/15 pt-2.5; }
+  .onizleme-ust { @apply mb-3 flex flex-wrap items-center justify-between gap-2; }
+  .onizleme-baslik { @apply text-sm font-semibold text-white; }
+  .haric-liste { @apply ml-4 mt-2 list-disc text-xs text-white/50; }
+  .sms-onizleme-baloncuk { @apply mt-1 rounded-xl border border-white/15 bg-white/[0.07] px-3 py-2 font-sans text-xs leading-snug text-white/90; }
+}

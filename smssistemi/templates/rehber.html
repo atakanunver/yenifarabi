@@ -1,7 +1,11 @@
 {% extends "taban.html" %}
 {% block baslik_etiketi %}Rehber — SMS Sistemi{% endblock %}
 {% block icerik %}
-<h1>Rehber</h1>
+<div class="sayfa-giris">
+  <p class="ust-yazi">Rehber</p>
+  <h1 class="sayfa-baslik">Rehber</h1>
+  <p class="sayfa-aciklama">Sınıflar, öğrenci, veli ve personel kayıtları.</p>
+</div>
 
 {% if mesaj %}
   {% if mesaj == "sinif_kullanimda" %}

@@ -1,7 +1,11 @@
 {% extends "taban.html" %}
 {% block baslik_etiketi %}Gönder — SMS Sistemi{% endblock %}
 {% block icerik %}
-<h1>Toplu SMS Gönder</h1>
+<div class="sayfa-giris">
+  <p class="ust-yazi">Gönder</p>
+  <h1 class="sayfa-baslik">Toplu SMS Gönder</h1>
+  <p class="sayfa-aciklama">Rehberden kişi seçin ya da numara girin, mesajı yazıp gönderin.</p>
+</div>
 {% if hata %}<p class="hata">{{ hata }}</p>{% endif %}
 
 <div class="gonder-izgara">

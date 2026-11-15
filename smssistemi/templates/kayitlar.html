@@ -1,7 +1,12 @@
 {% extends "taban.html" %}
 {% block baslik_etiketi %}Kayıtlar — SMS Sistemi{% endblock %}
 {% block icerik %}
-<h1>Geçmiş Gönderimler</h1>
+<div class="sayfa-giris">
+  <p class="ust-yazi">Kayıtlar</p>
+  <h1 class="sayfa-baslik">Geçmiş Gönderimler</h1>
+</div>
+<section class="p-0">
+<div class="tablo-kaydir">
 <table>
   <thead><tr><th>Tarih</th><th>Toplam</th><th>Başarılı</th><th>Hatalı</th><th></th></tr></thead>
   <tbody>
@@ -16,4 +21,6 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
+</section>
 {% endblock %}

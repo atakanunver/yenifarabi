@@ -6,24 +6,32 @@
 <title>{% block baslik_etiketi %}SMS Sistemi{% endblock %}</title>
 {% include "_tema.html" %}
 </head>
-<body>
+<body class="cam-sayfa">
+<div class="cam-ortam" aria-hidden="true"></div>
 {% include "_ikon_sprite.html" %}
-<header class="ust-cubuk">
-  <a href="/" class="marka"><svg class="ikon"><use href="#ik-zarf"/></svg> SMS Sistemi</a>
-  <nav>
-    <a href="/" class="{{ 'aktif' if request.url.path == '/' else '' }}"><svg class="ikon"><use href="#ik-gonder"/></svg> Gönder</a>
-    <a href="/rehber" class="{{ 'aktif' if request.url.path == '/rehber' else '' }}"><svg class="ikon"><use href="#ik-kullanicilar"/></svg> Rehber</a>
-    <a href="/dogum-gunleri" class="{{ 'aktif' if request.url.path.startswith('/dogum-gunleri') else '' }}"><svg class="ikon"><use href="#ik-pasta"/></svg> Doğum Günleri</a>
-    <a href="/yoklama-sms" class="{{ 'aktif' if request.url.path.startswith('/yoklama-sms') else '' }}"><svg class="ikon"><use href="#ik-onay"/></svg> Yoklama SMS</a>
-    <a href="/otomasyon" class="{{ 'aktif' if request.url.path.startswith('/otomasyon') else '' }}"><svg class="ikon"><use href="#ik-kaydirici"/></svg> Otomasyon</a>
-    <a href="/kayitlar" class="{{ 'aktif' if request.url.path == '/kayitlar' else '' }}"><svg class="ikon"><use href="#ik-saat"/></svg> Kayıtlar</a>
-  </nav>
-  <form method="post" action="/cikis" class="cikis-form">
-    <button type="submit"><svg class="ikon"><use href="#ik-cikis"/></svg> Çıkış</button>
-  </form>
-</header>
-<main>
+{% set p = request.url.path %}
+<div class="kabuk">
+<aside class="kenar">
+<a href="/" class="marka flex shrink-0 items-center gap-2.5 no-underline lg:px-2">
+  <span class="grid size-7 place-items-center rounded-md border border-indigo-400 bg-indigo-500/15 text-indigo-300"><svg class="ikon"><use href="#ik-zarf"/></svg></span>
+  <span class="leading-tight"><span class="block text-sm font-bold tracking-tight text-white">SMS Sistemi</span>
+  <span class="hidden text-xs text-slate-500 lg:block">Veli ve personel bilgilendirme</span></span>
+</a>
+<nav class="menu" aria-label="Sayfalar">
+  <a href="/"{{ ' aria-current=page' if p == '/' }}><svg class="ikon"><use href="#ik-gonder"/></svg>Gönder</a>
+  <a href="/rehber"{{ ' aria-current=page' if p == '/rehber' }}><svg class="ikon"><use href="#ik-kullanicilar"/></svg>Rehber</a>
+  <a href="/dogum-gunleri"{{ ' aria-current=page' if p.startswith('/dogum-gunleri') }}><svg class="ikon"><use href="#ik-pasta"/></svg>Doğum Günleri</a>
+  <a href="/yoklama-sms"{{ ' aria-current=page' if p.startswith('/yoklama-sms') }}><svg class="ikon"><use href="#ik-onay"/></svg>Yoklama SMS</a>
+  <a href="/otomasyon"{{ ' aria-current=page' if p.startswith('/otomasyon') }}><svg class="ikon"><use href="#ik-kaydirici"/></svg>Otomasyon</a>
+  <a href="/kayitlar"{{ ' aria-current=page' if p == '/kayitlar' or p.startswith('/durum') }}><svg class="ikon"><use href="#ik-saat"/></svg>Kayıtlar</a>
+</nav>
+<form method="post" action="/cikis" class="cikis-form">
+  <button type="submit"><svg class="ikon"><use href="#ik-cikis"/></svg>Çıkış</button>
+</form>
+</aside>
+<main class="icerik">
 {% block icerik %}{% endblock %}
 </main>
+</div>
 </body>
 </html>

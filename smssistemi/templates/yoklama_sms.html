@@ -2,7 +2,11 @@
 {% block baslik_etiketi %}Yoklama SMS — SMS Sistemi{% endblock %}
 {% block icerik %}
 
-<h1>Yoklama SMS</h1>
+<div class="sayfa-giris">
+  <p class="ust-yazi">Yoklama</p>
+  <h1 class="sayfa-baslik">Yoklama SMS</h1>
+  <p class="sayfa-aciklama">Yoklamada gelmeyen öğrencilerin velilerine SMS gönderin.</p>
+</div>
 
 {% if mesaj == "sablon_kaydedildi" %}
   <div class="uyari-kutusu basari"><svg class="ikon"><use href="#ik-onay"/></svg> Mesaj şablonu kaydedildi.</div>
