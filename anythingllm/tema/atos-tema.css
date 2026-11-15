@@ -1086,3 +1086,31 @@ html[data-tema] .bg-primary-button * {
     grid-template-columns: 1fr;
   }
 }
+
+/* Sonraki adım önerileri: tıklanabilir düğmeler (atos-tema.js) */
+.markdown ol.atos-oneri-liste,
+.markdown ul.atos-oneri-liste {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.markdown .atos-oneri-liste > li.atos-oneri {
+  list-style: none;
+  cursor: pointer;
+  padding: 9px 14px;
+  border: 1px solid var(--theme-chat-input-border, rgba(255, 255, 255, 0.18));
+  border-radius: 12px;
+  background: var(--theme-bg-chat-input, rgba(255, 255, 255, 0.06));
+  color: var(--theme-text-primary, inherit);
+  transition: background 0.15s, border-color 0.15s;
+}
+.markdown .atos-oneri-liste > li.atos-oneri::marker { content: ""; }
+.markdown .atos-oneri-liste > li.atos-oneri p { margin: 0; }
+.markdown .atos-oneri-liste > li.atos-oneri:hover,
+.markdown .atos-oneri-liste > li.atos-oneri:focus-visible {
+  border-color: var(--theme-button-primary, #6366f1);
+  outline: none;
+}

@@ -251,3 +251,103 @@
     baslat();
   }
 })();
+
+/* "Sonraki adım önerileri:" listesini tıklanabilir düğmeye çevirir. Tıklanan öneri AnythingLLM'in kendi
+   set_prompt_input olayıyla sohbet kutusuna yazılır, sonra form gönderilir (handleSubmit değeri kutudan okur).
+   Cevap metni React'ın dangerouslySetInnerHTML'iyle yeniden çizildiği için gözlemci her değişimde yeniden işaretler. */
+(function () {
+  var BASLIK = /^\s*sonraki adım önerileri\s*:?\s*$/i;
+  var KUTU_KIMLIK = "primary-prompt-input";
+  var DURDUR_KIMLIK = "stop-generation-button";
+  var bekleyen = false;
+
+  function listeBul(md) {
+    var adaylar = md.querySelectorAll("p, strong, h1, h2, h3, h4");
+    for (var i = 0; i < adaylar.length; i++) {
+      if (!BASLIK.test(adaylar[i].textContent || "")) continue;
+      var blok = adaylar[i].closest("p, h1, h2, h3, h4") || adaylar[i];
+      var sonraki = blok.nextElementSibling;
+      if (sonraki && (sonraki.tagName === "OL" || sonraki.tagName === "UL")) return sonraki;
+    }
+    return null;
+  }
+
+  function isaretle() {
+    bekleyen = false;
+    var govdeler = document.querySelectorAll(".markdown");
+    for (var i = 0; i < govdeler.length; i++) {
+      var liste = listeBul(govdeler[i]);
+      if (!liste || liste.classList.contains("atos-oneri-liste")) continue;
+      liste.classList.add("atos-oneri-liste");
+      var maddeler = liste.children;
+      for (var j = 0; j < maddeler.length; j++) {
+        var m = maddeler[j];
+        if (m.tagName !== "LI") continue;
+        m.classList.add("atos-oneri");
+        m.setAttribute("role", "button");
+        m.setAttribute("tabindex", "0");
+      }
+    }
+  }
+
+  function planla() {
+    if (bekleyen) return;
+    bekleyen = true;
+    setTimeout(isaretle, 120);
+  }
+
+  function gonder(metin) {
+    var kutu = document.getElementById(KUTU_KIMLIK);
+    // Akış sürerken veya kutu yokken gönderme (ikinci istek ilkini bozar).
+    if (!kutu || kutu.disabled || document.getElementById(DURDUR_KIMLIK)) return;
+    window.dispatchEvent(new CustomEvent("set_prompt_input", {
+      detail: { messageContent: metin, writeMode: "replace" }
+    }));
+    var deneme = 0;
+    var zamanlayici = setInterval(function () {
+      var k = document.getElementById(KUTU_KIMLIK);
+      deneme++;
+      if (k && k.value === metin) {
+        clearInterval(zamanlayici);
+        var form = k.form;
+        if (form && form.requestSubmit) form.requestSubmit();
+      } else if (deneme > 25) {
+        clearInterval(zamanlayici);
+      }
+    }, 40);
+  }
+
+  function oneriMetni(li) {
+    return (li.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
+  function tiklandi(e) {
+    var li = e.target && e.target.closest ? e.target.closest("li.atos-oneri") : null;
+    if (!li) return;
+    var metin = oneriMetni(li);
+    if (metin) gonder(metin);
+  }
+
+  function tusaBasildi(e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var li = e.target && e.target.closest ? e.target.closest("li.atos-oneri") : null;
+    if (!li || e.target !== li) return;
+    e.preventDefault();
+    var metin = oneriMetni(li);
+    if (metin) gonder(metin);
+  }
+
+  function baslatOneri() {
+    document.addEventListener("click", tiklandi);
+    document.addEventListener("keydown", tusaBasildi);
+    if (typeof MutationObserver === "undefined" || !document.body) return;
+    new MutationObserver(planla).observe(document.body, { childList: true, subtree: true, characterData: true });
+    planla();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", baslatOneri);
+  } else {
+    baslatOneri();
+  }
+})();
