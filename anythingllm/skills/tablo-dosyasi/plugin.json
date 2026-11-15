@@ -4,7 +4,7 @@
   "name": "SQL sonucundan Excel/PDF dosyası",
   "schema": "skill-1.0.0",
   "version": "1.0.0",
-  "description": "Okul kayıtlarında bir SELECT sorgusu çalıştırır ve SONUCU DOĞRUDAN Excel (.xlsx) veya PDF dosyasına çevirir; satırları sen yazmazsın. Sınıf listeleri, öğretmen/öğrenci/veli telefon listeleri, yoklama ve devamsızlık raporları gibi tablo çıktıları için BUNU kullan (yerleşik create-excel-file/create-pdf-file yerine; onlar satırları senin yazmanı ister ve uzun listelerde hata yapar). En fazla 2000 satır. Tablolar ve sütunlar için sql-sorgu aracının açıklamasındaki şemayı kullan (ara(kolon,'metin') Türkçe-duyarsız arama, sinif_atama/sinif ile sınıf listesi, json_each ile devamsız adları). Dosya sohbette indirme kartı olarak görünür.\n\nŞema:\n__SEMA__",
+  "description": "Okul kayıtlarında bir SELECT sorgusu çalıştırır ve SONUCU DOĞRUDAN Excel (.xlsx) veya PDF dosyasına çevirir; satırları sen yazmazsın. Sınıf listeleri, öğretmen/öğrenci/veli telefon listeleri, yoklama ve devamsızlık raporları gibi tablo çıktıları için BUNU kullan (yerleşik create-excel-file/create-pdf-file yerine; onlar satırları senin yazmanı ister ve uzun listelerde hata yapar). En fazla 2000 satır. Tablolar ve sütunlar için sql-sorgu aracının açıklamasındaki şemayı kullan (ara(kolon,'metin') Türkçe-duyarsız arama, sinif_atama/sinif ile sınıf listesi, json_each ile devamsız adları). Dosya sohbette indirme kartı olarak görünür.",
   "author": "Farabi",
   "author_url": "",
   "license": "MIT",

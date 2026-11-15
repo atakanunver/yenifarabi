@@ -1,0 +1,1088 @@
+/* Atos (AnythingLLM) — Farabi 10 tema eşlemesi + ortak bileşen stilleri.
+   Kaynak: tahtayoklama/dashboard/static/{tema.css,bilesen.css,cam.css}.
+   Dış URL/CDN yok: yazı tipleri yerel /farabi-tema/fontlar/*.woff2. */
+
+@font-face {
+  font-family: "Geist"; font-style: normal; font-weight: 400 700; font-display: swap;
+  src: url(/farabi-tema/fontlar/geist-latin-ext.woff2) format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Geist"; font-style: normal; font-weight: 400 700; font-display: swap;
+  src: url(/farabi-tema/fontlar/geist-latin.woff2) format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(/farabi-tema/fontlar/inter-latin-ext-wght-normal.woff2) format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(/farabi-tema/fontlar/inter-latin-wght-normal.woff2) format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Source Sans 3"; font-style: normal; font-weight: 200 900; font-display: swap;
+  src: url(/farabi-tema/fontlar/source-sans-3-latin-ext-wght-normal.woff2) format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Source Sans 3"; font-style: normal; font-weight: 200 900; font-display: swap;
+  src: url(/farabi-tema/fontlar/source-sans-3-latin-wght-normal.woff2) format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "IBM Plex Sans"; font-style: normal; font-weight: 100 700; font-display: swap;
+  src: url(/farabi-tema/fontlar/ibm-plex-sans-latin-ext-wght-normal.woff2) format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "IBM Plex Sans"; font-style: normal; font-weight: 100 700; font-display: swap;
+  src: url(/farabi-tema/fontlar/ibm-plex-sans-latin-wght-normal.woff2) format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Roboto"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(/farabi-tema/fontlar/roboto-latin-ext-wght-normal.woff2) format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Roboto"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(/farabi-tema/fontlar/roboto-latin-wght-normal.woff2) format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Nunito"; font-style: normal; font-weight: 200 1000; font-display: swap;
+  src: url(/farabi-tema/fontlar/nunito-latin-ext-wght-normal.woff2) format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Nunito"; font-style: normal; font-weight: 200 1000; font-display: swap;
+  src: url(/farabi-tema/fontlar/nunito-latin-wght-normal.woff2) format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ==========================================================================
+   10 Tema Tanımı — özgüllük (0,1,1) ile [data-theme=light] (0,1,0) geçilir
+   ========================================================================== */
+
+/* 1. cam (varsayılan) */
+:root,
+html:not([data-tema]),
+html[data-tema="cam"] {
+  color-scheme: dark;
+  --renk-ortu: rgba(4, 6, 18, 0.55);
+  --renk-zemin: #0a0c1e;
+  --renk-yuzey: rgba(255, 255, 255, 0.06);
+  --renk-yuzey-2: rgba(255, 255, 255, 0.11);
+  --renk-yuzey-opak: rgba(18, 20, 38, 0.92);
+  --renk-kenar: rgba(255, 255, 255, 0.16);
+  --renk-kenar-vurgu: rgba(255, 255, 255, 0.28);
+  --renk-golge: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --renk-golge-kart: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 24px 48px -12px rgba(0, 0, 0, 0.45);
+  --renk-golge-yukseltilmis: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 24px 48px -12px rgba(0, 0, 0, 0.55);
+  --renk-metin: #ffffff;
+  --renk-metin-soluk: rgba(255, 255, 255, 0.75);
+  --renk-metin-cok-soluk: rgba(255, 255, 255, 0.5);
+  --renk-birincil: #818cf8;
+  --renk-birincil-koyu: #6366f1;
+  --renk-birincil-zemin: rgba(99, 102, 241, 0.22);
+  --renk-yesil: #32d74b;
+  --renk-yesil-zemin: rgba(50, 215, 75, 0.16);
+  --renk-kirmizi: #ff3b5c;
+  --renk-kirmizi-zemin: rgba(255, 59, 92, 0.16);
+  --renk-amber: #ffb340;
+  --renk-amber-zemin: rgba(255, 179, 64, 0.16);
+  --renk-sabit-acik: #ffffff;
+  --renk-kenar-zemin: rgba(14, 16, 32, 0.48);
+  --renk-kenar-metin: #ffffff;
+  --renk-kenar-soluk: rgba(255, 255, 255, 0.75);
+  --renk-kenar-hover: rgba(255, 255, 255, 0.12);
+  --renk-kenar-aktif-zemin: rgba(255, 255, 255, 0.2);
+  --renk-kenar-aktif-metin: #ffffff;
+  --renk-kenar-cizgi: rgba(255, 255, 255, 0.16);
+  --yaricap: 12px;
+  --yaricap-buyuk: 24px;
+  --yazi-tipi: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+/* 2. sade-koyu */
+html[data-tema="sade-koyu"] {
+  color-scheme: dark;
+  --renk-ortu: rgba(2, 6, 23, 0.7);
+  --renk-zemin: #020617;
+  --renk-yuzey: #0f172a;
+  --renk-yuzey-2: #1e293b;
+  --renk-yuzey-opak: #0f172a;
+  --renk-kenar: #1e293b;
+  --renk-kenar-vurgu: #334155;
+  --renk-golge: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+  --renk-golge-kart: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
+  --renk-golge-yukseltilmis: 0 10px 25px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+  --renk-metin: #f8fafc;
+  --renk-metin-soluk: #94a3b8;
+  --renk-metin-cok-soluk: #64748b;
+  --renk-birincil: #6366f1;
+  --renk-birincil-koyu: #4f46e5;
+  --renk-birincil-zemin: rgba(99, 102, 241, 0.15);
+  --renk-yesil: #10b981;
+  --renk-yesil-zemin: rgba(16, 185, 129, 0.14);
+  --renk-kirmizi: #f43f5e;
+  --renk-kirmizi-zemin: rgba(244, 63, 94, 0.14);
+  --renk-amber: #f59e0b;
+  --renk-amber-zemin: rgba(245, 158, 11, 0.14);
+  --renk-sabit-acik: #ffffff;
+  --renk-kenar-zemin: var(--renk-zemin);
+  --renk-kenar-metin: var(--renk-metin);
+  --renk-kenar-soluk: var(--renk-metin-soluk);
+  --renk-kenar-hover: rgba(30, 41, 59, 0.8);
+  --renk-kenar-aktif-zemin: var(--renk-yuzey-2);
+  --renk-kenar-aktif-metin: #ffffff;
+  --renk-kenar-cizgi: var(--renk-kenar);
+  --yaricap: 6px;
+  --yaricap-buyuk: 12px;
+  --yazi-tipi: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* 3. kurumsal */
+html[data-tema="kurumsal"] {
+  color-scheme: light;
+  --renk-ortu: rgba(10, 14, 26, 0.45);
+  --renk-zemin: #f6f8fb;
+  --renk-yuzey: #ffffff;
+  --renk-yuzey-2: #eef1f5;
+  --renk-yuzey-opak: #ffffff;
+  --renk-kenar: #e3e7ec;
+  --renk-kenar-vurgu: #cbd2db;
+  --renk-golge: none;
+  --renk-golge-kart: none;
+  --renk-golge-yukseltilmis: 0 8px 24px rgba(15, 23, 42, 0.14);
+  --renk-metin: #0f172a;
+  --renk-metin-soluk: #475569;
+  --renk-metin-cok-soluk: #7b8798;
+  --renk-birincil: #1d4ed8;
+  --renk-birincil-koyu: #1e40af;
+  --renk-birincil-zemin: #e8eefc;
+  --renk-yesil: #15803d;
+  --renk-yesil-zemin: #e3f4e8;
+  --renk-kirmizi: #b91c1c;
+  --renk-kirmizi-zemin: #fbe8e8;
+  --renk-amber: #92400e;
+  --renk-amber-zemin: #f8ede0;
+  --renk-sabit-acik: #ffffff;
+  --renk-kenar-zemin: var(--renk-yuzey);
+  --renk-kenar-metin: var(--renk-metin);
+  --renk-kenar-soluk: var(--renk-metin-soluk);
+  --renk-kenar-hover: var(--renk-yuzey-2);
+  --renk-kenar-aktif-zemin: var(--renk-birincil-zemin);
+  --renk-kenar-aktif-metin: var(--renk-birincil);
+  --renk-kenar-cizgi: var(--renk-kenar);
+  --yaricap: 8px;
+  --yaricap-buyuk: 10px;
+  --yazi-tipi: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* 4. lacivert */
+html[data-tema="lacivert"] {
+  color-scheme: light;
+  --renk-ortu: rgba(10, 14, 26, 0.45);
+  --renk-zemin: #f4f6f9;
+  --renk-yuzey: #ffffff;
+  --renk-yuzey-2: #eaeef3;
+  --renk-yuzey-opak: #ffffff;
+  --renk-kenar: #dce2ea;
+  --renk-kenar-vurgu: #c5cdd8;
+  --renk-golge: none;
+  --renk-golge-kart: none;
+  --renk-golge-yukseltilmis: 0 8px 24px rgba(15, 23, 42, 0.14);
+  --renk-metin: #0f1b2d;
+  --renk-metin-soluk: #4a5a70;
+  --renk-metin-cok-soluk: #7a8799;
+  --renk-birincil: #1d4f91;
+  --renk-birincil-koyu: #163c70;
+  --renk-birincil-zemin: #e3ebf6;
+  --renk-yesil: #15803d;
+  --renk-yesil-zemin: #e3f4e8;
+  --renk-kirmizi: #b91c1c;
+  --renk-kirmizi-zemin: #fbe8e8;
+  --renk-amber: #92400e;
+  --renk-amber-zemin: #f8ede0;
+  --renk-sabit-acik: #ffffff;
+  --renk-kenar-zemin: var(--renk-yuzey);
+  --renk-kenar-metin: var(--renk-metin);
+  --renk-kenar-soluk: var(--renk-metin-soluk);
+  --renk-kenar-hover: var(--renk-yuzey-2);
+  --renk-kenar-aktif-zemin: var(--renk-birincil-zemin);
+  --renk-kenar-aktif-metin: var(--renk-birincil);
+  --renk-kenar-cizgi: var(--renk-kenar);
+  --yaricap: 8px;
+  --yaricap-buyuk: 10px;
+  --yazi-tipi: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* 5. argon */
+html[data-tema="argon"] {
+  color-scheme: light;
+  --renk-ortu: rgba(10, 14, 26, 0.45);
+  --renk-zemin: #f2f4f6;
+  --renk-yuzey: #ffffff;
+  --renk-yuzey-2: #e9edf0;
+  --renk-yuzey-opak: #ffffff;
+  --renk-kenar: #dde2e7;
+  --renk-kenar-vurgu: #c7ced6;
+  --renk-golge: none;
+  --renk-golge-kart: none;
+  --renk-golge-yukseltilmis: 0 8px 24px rgba(15, 23, 42, 0.14);
+  --renk-metin: #10151c;
+  --renk-metin-soluk: #5b6472;
+  --renk-metin-cok-soluk: #8992a0;
+  --renk-birincil: #1d5fbf;
+  --renk-birincil-koyu: #164a94;
+  --renk-birincil-zemin: #e4ecf7;
+  --renk-yesil: #2e7d32;
+  --renk-yesil-zemin: #e3f1e4;
+  --renk-kirmizi: #c4242a;
+  --renk-kirmizi-zemin: #fbe7e8;
+  --renk-amber: #92400e;
+  --renk-amber-zemin: #f8ede0;
+  --renk-sabit-acik: #ffffff;
+  --renk-kenar-zemin: var(--renk-yuzey);
+  --renk-kenar-metin: var(--renk-metin);
+  --renk-kenar-soluk: var(--renk-metin-soluk);
+  --renk-kenar-hover: var(--renk-yuzey-2);
+  --renk-kenar-aktif-zemin: var(--renk-birincil-zemin);
+  --renk-kenar-aktif-metin: var(--renk-birincil);
+  --renk-kenar-cizgi: var(--renk-kenar);
+  --yaricap: 8px;
+  --yaricap-buyuk: 10px;
+  --yazi-tipi: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* 6. argon-koyu */
+html[data-tema="argon-koyu"] {
+  color-scheme: dark;
+  --renk-ortu: rgba(5, 10, 20, 0.6);
+  --renk-zemin: #11161d;
+  --renk-yuzey: #171d26;
+  --renk-yuzey-2: #1e2530;
+  --renk-yuzey-opak: #171d26;
+  --renk-kenar: #2a323d;
+  --renk-kenar-vurgu: #3a4350;
+  --renk-golge: none;
+  --renk-golge-kart: none;
+  --renk-golge-yukseltilmis: 0 12px 30px 0 rgba(0, 0, 0, 0.5);
+  --renk-metin: #e8ecf1;
+  --renk-metin-soluk: #a7b0bd;
+  --renk-metin-cok-soluk: #7c8695;
+  --renk-birincil: #5b9bf0;
+  --renk-birincil-koyu: #3f7ed0;
+  --renk-birincil-zemin: rgba(91, 155, 240, 0.16);
+  --renk-yesil: #4caf50;
+  --renk-yesil-zemin: rgba(76, 175, 80, 0.16);
+  --renk-kirmizi: #e5484d;
+  --renk-kirmizi-zemin: rgba(229, 72, 77, 0.16);
+  --renk-amber: #d6912f;
+  --renk-amber-zemin: rgba(214, 145, 47, 0.16);
+  --renk-sabit-acik: #ffffff;
+  --renk-kenar-zemin: var(--renk-yuzey);
+  --renk-kenar-metin: var(--renk-metin);
+  --renk-kenar-soluk: var(--renk-metin-soluk);
+  --renk-kenar-hover: var(--renk-yuzey-2);
+  --renk-kenar-aktif-zemin: var(--renk-birincil-zemin);
+  --renk-kenar-aktif-metin: var(--renk-birincil);
+  --renk-kenar-cizgi: var(--renk-kenar);
+  --yaricap: 8px;
+  --yaricap-buyuk: 10px;
+  --yazi-tipi: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* 7. material */
+html[data-tema="material"] {
+  color-scheme: light;
+  --renk-ortu: rgba(10, 14, 26, 0.45);
+  --renk-zemin: #f0f2f5;
+  --renk-yuzey: #ffffff;
+  --renk-yuzey-2: #f5f6f8;
+  --renk-yuzey-opak: #ffffff;
+  --renk-kenar: #e3e6ea;
+  --renk-kenar-vurgu: #d2d6da;
+  --renk-golge: none;
+  --renk-golge-kart: none;
+  --renk-golge-yukseltilmis: 0 20px 27px 0 rgba(0, 0, 0, 0.05), 0 8px 16px -4px rgba(0, 0, 0, 0.12);
+  --renk-metin: #344767;
+  --renk-metin-soluk: #67748e;
+  --renk-metin-cok-soluk: #8392ab;
+  --renk-birincil: #d81b60;
+  --renk-birincil-koyu: #ad1457;
+  --renk-birincil-zemin: #fce4ec;
+  --renk-yesil: #2e7d32;
+  --renk-yesil-zemin: #e8f5e9;
+  --renk-kirmizi: #c62828;
+  --renk-kirmizi-zemin: #ffebee;
+  --renk-amber: #c25e00;
+  --renk-amber-zemin: #fff3e0;
+  --renk-sabit-acik: #ffffff;
+  --renk-kenar-zemin: #212121;
+  --renk-kenar-metin: #ffffff;
+  --renk-kenar-soluk: #c7c9d3;
+  --renk-kenar-hover: rgba(255, 255, 255, 0.08);
+  --renk-kenar-aktif-zemin: #d81b60;
+  --renk-kenar-aktif-metin: #ffffff;
+  --renk-kenar-cizgi: rgba(255, 255, 255, 0.12);
+  --yaricap: 8px;
+  --yaricap-buyuk: 10px;
+  --yazi-tipi: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* 8. material-koyu */
+html[data-tema="material-koyu"] {
+  color-scheme: dark;
+  --renk-ortu: rgba(0, 0, 0, 0.6);
+  --renk-zemin: #1a2035;
+  --renk-yuzey: #202940;
+  --renk-yuzey-2: #283353;
+  --renk-yuzey-opak: #202940;
+  --renk-kenar: #2f3a5a;
+  --renk-kenar-vurgu: #3c4a72;
+  --renk-golge: none;
+  --renk-golge-kart: none;
+  --renk-golge-yukseltilmis: 0 12px 30px 0 rgba(0, 0, 0, 0.5);
+  --renk-metin: #f0f2f5;
+  --renk-metin-soluk: #b2b9cc;
+  --renk-metin-cok-soluk: #8b93ab;
+  --renk-birincil: #ec407a;
+  --renk-birincil-koyu: #d81b60;
+  --renk-birincil-zemin: rgba(236, 64, 122, 0.18);
+  --renk-yesil: #66bb6a;
+  --renk-yesil-zemin: rgba(102, 187, 106, 0.16);
+  --renk-kirmizi: #ef5350;
+  --renk-kirmizi-zemin: rgba(239, 83, 80, 0.16);
+  --renk-amber: #ffa726;
+  --renk-amber-zemin: rgba(255, 167, 38, 0.16);
+  --renk-sabit-acik: #ffffff;
+  --renk-kenar-zemin: #1a2035;
+  --renk-kenar-metin: #ffffff;
+  --renk-kenar-soluk: #b2b9cc;
+  --renk-kenar-hover: rgba(255, 255, 255, 0.08);
+  --renk-kenar-aktif-zemin: #d81b60;
+  --renk-kenar-aktif-metin: #ffffff;
+  --renk-kenar-cizgi: rgba(255, 255, 255, 0.12);
+  --yaricap: 8px;
+  --yaricap-buyuk: 10px;
+  --yazi-tipi: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* 9. black */
+html[data-tema="black"] {
+  color-scheme: dark;
+  --renk-ortu: rgba(0, 0, 0, 0.6);
+  --renk-zemin: #1e1e2f;
+  --renk-yuzey: #27293d;
+  --renk-yuzey-2: #2d3048;
+  --renk-yuzey-opak: #27293d;
+  --renk-kenar: #34374f;
+  --renk-kenar-vurgu: #44486a;
+  --renk-golge: none;
+  --renk-golge-kart: none;
+  --renk-golge-yukseltilmis: 0 12px 30px 0 rgba(0, 0, 0, 0.5);
+  --renk-metin: #f5f5f7;
+  --renk-metin-soluk: #b4b6c8;
+  --renk-metin-cok-soluk: #8a8ca3;
+  --renk-birincil: #e14eca;
+  --renk-birincil-koyu: #ba54f5;
+  --renk-birincil-zemin: rgba(225, 78, 202, 0.16);
+  --renk-yesil: #00f2c3;
+  --renk-yesil-zemin: rgba(0, 242, 195, 0.14);
+  --renk-kirmizi: #fd5d93;
+  --renk-kirmizi-zemin: rgba(253, 93, 147, 0.16);
+  --renk-amber: #ff8d72;
+  --renk-amber-zemin: rgba(255, 141, 114, 0.16);
+  --renk-sabit-acik: #ffffff;
+  --renk-kenar-zemin: var(--renk-yuzey);
+  --renk-kenar-metin: var(--renk-metin);
+  --renk-kenar-soluk: var(--renk-metin-soluk);
+  --renk-kenar-hover: var(--renk-yuzey-2);
+  --renk-kenar-aktif-zemin: var(--renk-birincil-zemin);
+  --renk-kenar-aktif-metin: var(--renk-birincil);
+  --renk-kenar-cizgi: var(--renk-kenar);
+  --yaricap: 8px;
+  --yaricap-buyuk: 10px;
+  --yazi-tipi: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* 10. koyu ("Taş Tahta") */
+html[data-tema="koyu"] {
+  color-scheme: dark;
+  --renk-ortu: rgba(10, 14, 26, 0.45);
+  --renk-zemin: #14181a;
+  --renk-yuzey: #1b2024;
+  --renk-yuzey-2: #232a2f;
+  --renk-yuzey-opak: #1b2024;
+  --renk-kenar: #333c42;
+  --renk-kenar-vurgu: #475059;
+  --renk-golge: none;
+  --renk-golge-kart: none;
+  --renk-golge-yukseltilmis: 0 12px 30px 0 rgba(0, 0, 0, 0.5);
+  --renk-metin: #f4f1e8;
+  --renk-metin-soluk: #a8b0ad;
+  --renk-metin-cok-soluk: #6e7a78;
+  --renk-birincil: #c97b3d;
+  --renk-birincil-koyu: #a8632e;
+  --renk-birincil-zemin: rgba(201, 123, 61, 0.16);
+  --renk-yesil: #45b37a;
+  --renk-yesil-zemin: rgba(69, 179, 122, 0.16);
+  --renk-kirmizi: #e0566b;
+  --renk-kirmizi-zemin: rgba(224, 86, 107, 0.16);
+  --renk-amber: #d9a441;
+  --renk-amber-zemin: rgba(217, 164, 65, 0.16);
+  --renk-sabit-acik: #ffffff;
+  --renk-kenar-zemin: var(--renk-yuzey);
+  --renk-kenar-metin: var(--renk-metin);
+  --renk-kenar-soluk: var(--renk-metin-soluk);
+  --renk-kenar-hover: var(--renk-yuzey-2);
+  --renk-kenar-aktif-zemin: var(--renk-birincil-zemin);
+  --renk-kenar-aktif-metin: var(--renk-birincil);
+  --renk-kenar-cizgi: var(--renk-kenar);
+  --yaricap: 8px;
+  --yaricap-buyuk: 10px;
+  --yazi-tipi: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ==========================================================================
+   Tüm 86 --theme-* değişkeni eşlemesi (özgüllük (0,1,1) >= [data-theme=light])
+   ========================================================================== */
+html:not([data-tema]),
+html[data-tema] {
+  --theme-loader: var(--renk-birincil);
+  --theme-bg-primary: var(--renk-yuzey-opak);
+  --theme-bg-secondary: var(--renk-yuzey);
+  --theme-bg-sidebar: var(--renk-kenar-zemin);
+  --theme-bg-container: var(--renk-zemin);
+  --theme-bg-chat: var(--renk-yuzey);
+  --theme-bg-chat-input: var(--renk-yuzey-2);
+  --theme-text-primary: var(--renk-metin);
+  --theme-text-secondary: var(--renk-metin-soluk);
+  --theme-placeholder: var(--renk-metin-cok-soluk);
+  --theme-sidebar-item-default: var(--renk-yuzey-2);
+  --theme-sidebar-item-selected: var(--renk-kenar-aktif-zemin);
+  --theme-sidebar-item-hover: var(--renk-kenar-hover);
+  --theme-sidebar-item-text-active: var(--renk-kenar-aktif-metin);
+  --theme-sidebar-item-text-inactive: var(--renk-kenar-soluk);
+  --theme-sidebar-item-workspace-active: var(--renk-kenar-aktif-metin);
+  --theme-sidebar-item-workspace-inactive: var(--renk-kenar-metin);
+  --theme-sidebar-subitem-default: transparent;
+  --theme-sidebar-subitem-selected: var(--renk-kenar-aktif-zemin);
+  --theme-sidebar-subitem-hover: var(--renk-kenar-hover);
+  --theme-sidebar-thread-selected: var(--renk-kenar-aktif-zemin);
+  --theme-sidebar-border: var(--renk-kenar-cizgi);
+  --theme-sidebar-footer-icon: var(--renk-yuzey-2);
+  --theme-sidebar-footer-icon-fill: var(--renk-kenar-metin);
+  --theme-sidebar-footer-icon-hover: var(--renk-kenar-hover);
+  --theme-popup-menu-bg: var(--renk-yuzey-opak);
+  --theme-chat-input-border: var(--renk-kenar-vurgu);
+  --theme-action-menu-bg: var(--renk-yuzey-opak);
+  --theme-action-menu-item-hover: var(--renk-birincil-zemin);
+  --theme-settings-input-bg: var(--renk-yuzey-2);
+  --theme-settings-input-placeholder: var(--renk-metin-cok-soluk);
+  --theme-settings-input-active: var(--renk-birincil-zemin);
+  --theme-settings-input-text: var(--renk-metin);
+  --theme-modal-border: var(--renk-kenar);
+  --theme-button-primary: var(--renk-birincil);
+  --theme-button-primary-hover: var(--renk-birincil-koyu);
+  --theme-button-cta: var(--renk-birincil);
+  --theme-file-row-even: var(--renk-zemin);
+  --theme-file-row-odd: var(--renk-yuzey-opak);
+  --theme-file-row-selected-even: var(--renk-birincil-zemin);
+  --theme-file-row-selected-odd: var(--renk-birincil-zemin);
+  --theme-file-picker-hover: var(--renk-birincil-zemin);
+  --theme-home-text: var(--renk-metin);
+  --theme-home-text-secondary: var(--renk-metin-soluk);
+  --theme-home-bg-card: var(--renk-yuzey-2);
+  --theme-home-bg-button: var(--renk-yuzey-2);
+  --theme-home-border: var(--renk-kenar);
+  --theme-home-button-primary: var(--renk-birincil);
+  --theme-home-button-primary-hover: var(--renk-birincil-koyu);
+  --theme-home-button-secondary: var(--renk-yuzey-2);
+  --theme-home-button-secondary-hover: var(--renk-birincil-zemin);
+  --theme-home-button-secondary-text: var(--renk-metin);
+  --theme-home-button-secondary-hover-text: var(--renk-birincil);
+  --theme-home-button-secondary-border: var(--renk-kenar-vurgu);
+  --theme-home-button-secondary-border-hover: var(--renk-birincil);
+  --theme-home-update-card-bg: var(--renk-yuzey-2);
+  --theme-home-update-card-hover: var(--renk-birincil-zemin);
+  --theme-home-update-source: var(--renk-birincil);
+  --theme-checklist-item-bg: var(--renk-yuzey-2);
+  --theme-checklist-item-bg-hover: var(--renk-birincil-zemin);
+  --theme-checklist-item-text: var(--renk-metin);
+  --theme-checklist-item-completed-bg: var(--renk-yesil-zemin);
+  --theme-checklist-item-completed-text: var(--renk-yesil);
+  --theme-checklist-checkbox-fill: var(--renk-yesil);
+  --theme-checklist-checkbox-text: var(--renk-sabit-acik);
+  --theme-checklist-item-hover: var(--renk-birincil);
+  --theme-checklist-checkbox-border: var(--renk-kenar-vurgu);
+  --theme-checklist-button-border: var(--renk-birincil);
+  --theme-checklist-button-text: var(--renk-birincil);
+  --theme-checklist-button-hover-bg: var(--renk-birincil-zemin);
+  --theme-checklist-button-hover-border: var(--renk-birincil);
+  --theme-attachment-bg: var(--renk-yuzey-2);
+  --theme-attachment-error-bg: var(--renk-kirmizi-zemin);
+  --theme-attachment-success-bg: var(--renk-yesil-zemin);
+  --theme-attachment-text: var(--renk-metin);
+  --theme-attachment-text-secondary: var(--renk-metin-soluk);
+  --theme-attachment-icon: var(--renk-metin);
+  --theme-attachment-icon-spinner: var(--renk-birincil);
+  --theme-attachment-icon-spinner-bg: var(--renk-yuzey-2);
+  --theme-button-text: var(--renk-metin-soluk);
+  --theme-button-code-hover-text: var(--renk-birincil);
+  --theme-button-code-hover-bg: var(--renk-birincil-zemin);
+  --theme-button-disable-hover-text: var(--renk-amber);
+  --theme-button-disable-hover-bg: var(--renk-amber-zemin);
+  --theme-button-delete-hover-text: var(--renk-kirmizi);
+  --theme-button-delete-hover-bg: var(--renk-kirmizi-zemin);
+}
+
+/* Material açık temada koyu kenar çubuğu kontrastı */
+html[data-tema="material"] {
+  --theme-sidebar-item-default: rgba(255, 255, 255, 0.08);
+  --theme-sidebar-footer-icon: rgba(255, 255, 255, 0.1);
+}
+
+/* ==========================================================================
+   Ortak Tipografi, Zemin ve Bileşen Düzeltmeleri
+   ========================================================================== */
+html[data-tema],
+html[data-tema] body {
+  background-color: var(--renk-zemin) !important;
+  color: var(--renk-metin) !important;
+  font-family: var(--yazi-tipi) !important;
+}
+
+html[data-tema] button,
+html[data-tema] input,
+html[data-tema] select,
+html[data-tema] textarea {
+  font-family: var(--yazi-tipi) !important;
+}
+
+/* Uzamsal cam ortam arka planı (cam teması) */
+html[data-tema="cam"] body,
+html[data-tema="cam"] #root,
+html[data-tema="cam"] .bg-zinc-950,
+html[data-tema="cam"] .light\:bg-slate-50,
+html[data-tema="cam"] .bg-theme-bg-container {
+  background:
+    radial-gradient(40vmax 34vmax at 6% 4%, rgba(255, 154, 92, 0.28), transparent 70%),
+    radial-gradient(42vmax 36vmax at 96% 96%, rgba(56, 189, 248, 0.24), transparent 70%),
+    radial-gradient(34vmax 30vmax at 30% 92%, rgba(99, 102, 241, 0.26), transparent 70%),
+    radial-gradient(26vmax 24vmax at 72% 32%, rgba(191, 90, 242, 0.14), transparent 70%),
+    linear-gradient(135deg, #2a1620, #12102a 50%, #07162b) !important;
+  background-attachment: fixed !important;
+}
+
+/* Ana zemin kapsayıcıları */
+html[data-tema]:not([data-tema="cam"]) .bg-zinc-950,
+html[data-tema]:not([data-tema="cam"]) .light\:bg-slate-50,
+html[data-tema]:not([data-tema="cam"]) .bg-theme-bg-container {
+  background-color: var(--renk-zemin) !important;
+}
+
+/* Kenar çubuğu (Sidebar ve SettingsSidebar) */
+html[data-tema] .bg-theme-bg-sidebar:not(.absolute),
+html[data-tema] .bg-theme-bg-sidebar.light\:bg-slate-200:not(.absolute),
+html[data-tema] .bg-theme-bg-sidebar.light\:bg-white:not(.absolute) {
+  background-color: var(--renk-kenar-zemin) !important;
+  color: var(--renk-kenar-metin) !important;
+  border-color: var(--renk-kenar-cizgi) !important;
+  border-radius: var(--yaricap-buyuk);
+}
+
+html[data-tema] .bg-theme-bg-sidebar.absolute {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+html[data-tema="cam"] .bg-theme-bg-sidebar:not(.absolute) {
+  border-width: 1px !important;
+  box-shadow: var(--renk-golge-kart);
+  -webkit-backdrop-filter: blur(28px) saturate(145%);
+  backdrop-filter: blur(28px) saturate(145%);
+}
+
+html[data-tema] .bg-theme-bg-sidebar input[type="search"],
+html[data-tema] .bg-theme-bg-sidebar .bg-theme-sidebar-item-default {
+  background-color: var(--renk-kenar-hover) !important;
+  color: var(--renk-kenar-metin) !important;
+  border: 1px solid var(--renk-kenar-cizgi);
+  border-radius: var(--yaricap);
+}
+
+html[data-tema] .bg-theme-bg-sidebar input[type="search"]::placeholder {
+  color: var(--renk-kenar-soluk) !important;
+}
+
+/* Kenar çubuğu çalışma alanı, thread ağacı, + ve alt simgeler */
+html[data-tema] .bg-theme-bg-sidebar button.bg-white {
+  background-color: var(--renk-birincil) !important;
+  color: var(--renk-sabit-acik) !important;
+}
+
+html[data-tema] .bg-theme-bg-sidebar button.bg-white svg {
+  color: var(--renk-sabit-acik) !important;
+}
+
+html[data-tema] .bg-theme-bg-sidebar [role="listitem"] .light\:bg-blue-200,
+html[data-tema] .bg-theme-bg-sidebar [role="listitem"] > div:last-child:has([aria-current="page"]),
+html[data-tema] .bg-theme-bg-sidebar [role="listitem"] [class*="bg-[var(--theme-sidebar-thread-selected)]"] {
+  background-color: var(--renk-kenar-aktif-zemin) !important;
+  border-radius: var(--yaricap);
+}
+
+html[data-tema] .bg-theme-bg-sidebar .light\:text-blue-700 {
+  color: var(--renk-kenar-soluk) !important;
+}
+
+html[data-tema] .bg-theme-bg-sidebar .light\:text-blue-800 {
+  color: var(--renk-kenar-metin) !important;
+}
+
+html[data-tema] .bg-theme-bg-sidebar [role="listitem"] p {
+  color: var(--renk-kenar-soluk) !important;
+}
+
+html[data-tema] .bg-theme-bg-sidebar [role="listitem"] [aria-current="page"] p,
+html[data-tema] .bg-theme-bg-sidebar [role="listitem"] a:hover p {
+  color: var(--renk-kenar-aktif-metin) !important;
+}
+
+html[data-tema] .bg-theme-bg-sidebar [role="listitem"] > div.border-l {
+  border-color: var(--renk-kenar-cizgi) !important;
+}
+
+html[data-tema] .bg-theme-bg-sidebar [role="listitem"] > div.border-l-2 {
+  border-color: var(--renk-birincil) !important;
+}
+
+html[data-tema] .bg-theme-bg-sidebar button:has(.lucide-plus),
+html[data-tema] .bg-theme-bg-sidebar [role="list"] > button {
+  color: var(--renk-kenar-metin) !important;
+}
+
+html[data-tema] .bg-theme-bg-sidebar [role="list"] > button .bg-zinc-800,
+html[data-tema] .bg-theme-bg-sidebar [role="list"] > button .light\:bg-slate-50 {
+  background-color: var(--renk-kenar-hover) !important;
+  color: var(--renk-kenar-metin) !important;
+}
+
+html[data-tema] .bg-theme-bg-sidebar .bg-theme-sidebar-footer-icon {
+  background-color: var(--renk-kenar-hover) !important;
+  border: 1px solid var(--renk-kenar-cizgi);
+  color: var(--renk-kenar-metin) !important;
+}
+
+html[data-tema] .bg-theme-bg-sidebar .bg-theme-sidebar-footer-icon:hover {
+  background-color: var(--renk-kenar-aktif-zemin) !important;
+}
+
+html[data-tema] .bg-theme-bg-sidebar .bg-theme-sidebar-footer-icon svg {
+  color: var(--renk-kenar-metin) !important;
+  fill: currentColor !important;
+}
+
+/* Ana sohbet / çalışma alanı ve ayar kartı */
+html[data-tema] #root > div > div.bg-zinc-900,
+html[data-tema] #root .bg-zinc-900.light\:bg-white,
+html[data-tema] #root .bg-theme-bg-secondary,
+html[data-tema] #root .bg-theme-bg-chat {
+  background-color: var(--renk-yuzey) !important;
+  color: var(--renk-metin) !important;
+  border: 1px solid var(--renk-kenar) !important;
+  border-radius: var(--yaricap-buyuk);
+  box-shadow: var(--renk-golge-kart);
+}
+
+html[data-tema="cam"] #root .bg-zinc-900.light\:bg-white,
+html[data-tema="cam"] #root .bg-theme-bg-secondary {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04)), rgba(14, 16, 32, 0.35) !important;
+  border-color: var(--renk-kenar) !important;
+}
+
+/* Girdi kutusu (#prompt-input-wrapper) */
+html[data-tema] #prompt-input-wrapper .bg-zinc-800,
+html[data-tema] #prompt-input-wrapper .light\:bg-white {
+  background-color: var(--renk-yuzey-2) !important;
+  border: 1px solid var(--renk-kenar-vurgu) !important;
+  border-radius: var(--yaricap-buyuk) !important;
+  box-shadow: var(--renk-golge);
+}
+
+html[data-tema="cam"] #prompt-input-wrapper .bg-zinc-800 {
+  background: rgba(255, 255, 255, 0.08) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+}
+
+html[data-tema] #prompt-input-wrapper .bg-zinc-800:focus-within {
+  border-color: var(--renk-birincil) !important;
+}
+
+html[data-tema] #primary-prompt-input,
+html[data-tema] #primary-prompt-input.light\:text-slate-600 {
+  color: var(--renk-metin) !important;
+}
+
+html[data-tema] #primary-prompt-input::placeholder {
+  color: var(--renk-metin-cok-soluk) !important;
+}
+
+/* Gönder ve birincil eylem düğmeleri */
+html[data-tema] #prompt-input-wrapper button[type="submit"]:not(:disabled),
+html[data-tema] .bg-primary-button,
+html[data-tema] form button[type="submit"]:not([disabled]) {
+  background-color: var(--renk-birincil) !important;
+  color: var(--renk-sabit-acik) !important;
+  border-color: transparent !important;
+}
+
+html[data-tema] #prompt-input-wrapper button[type="submit"]:not(:disabled):hover,
+html[data-tema] .bg-primary-button:hover,
+html[data-tema] form button[type="submit"]:not([disabled]):hover {
+  background-color: var(--renk-birincil-koyu) !important;
+  color: var(--renk-sabit-acik) !important;
+}
+
+html[data-tema] #prompt-input-wrapper button[type="submit"]:not(:disabled) svg {
+  color: var(--renk-sabit-acik) !important;
+}
+
+html[data-tema] #prompt-input-wrapper button[type="submit"]:disabled {
+  background-color: var(--renk-yuzey-2) !important;
+  color: var(--renk-metin-cok-soluk) !important;
+  opacity: 0.65;
+}
+
+html[data-tema] #prompt-input-wrapper button[type="submit"]:disabled svg {
+  color: var(--renk-metin-cok-soluk) !important;
+}
+
+html[data-tema] .bg-theme-bg-chat-input {
+  border: 1px solid var(--renk-kenar);
+}
+
+/* Kullanıcı mesaj balonu */
+html[data-tema] #chat-history .justify-end .bg-zinc-800,
+html[data-tema] #chat-history .justify-end .light\:bg-slate-100 {
+  background-color: var(--renk-birincil-zemin) !important;
+  color: var(--renk-metin) !important;
+  border: 1px solid var(--renk-kenar-vurgu);
+  border-radius: var(--yaricap-buyuk);
+  border-bottom-right-radius: 4px;
+}
+
+/* Modallar ve açılır menüler */
+html[data-tema] dialog,
+html[data-tema] .z-99 > div.bg-zinc-900,
+html[data-tema] .z-99 > div.light\:bg-white {
+  background-color: var(--renk-yuzey-opak) !important;
+  color: var(--renk-metin) !important;
+  border: 1px solid var(--renk-kenar) !important;
+  border-radius: var(--yaricap-buyuk) !important;
+  box-shadow: var(--renk-golge-yukseltilmis) !important;
+}
+
+html[data-tema] .z-99 input,
+html[data-tema] .z-99 select,
+html[data-tema] .z-99 textarea,
+html[data-tema] .bg-theme-settings-input-bg {
+  background-color: var(--renk-yuzey-2) !important;
+  color: var(--renk-metin) !important;
+  border: 1px solid var(--renk-kenar-vurgu) !important;
+  border-radius: var(--yaricap) !important;
+}
+
+html[data-tema] .z-99 input:focus,
+html[data-tema] .z-99 select:focus,
+html[data-tema] .z-99 textarea:focus,
+html[data-tema] .bg-theme-settings-input-bg:focus {
+  border-color: var(--renk-birincil) !important;
+  outline: none !important;
+}
+
+/* Giriş sayfası (PasswordModal + SingleUserAuth) */
+html[data-tema] .fixed.inset-0.bg-zinc-950 > form,
+html[data-tema] .fixed.inset-0.light\:bg-slate-50 > form {
+  background-color: var(--renk-yuzey) !important;
+  border: 1px solid var(--renk-kenar) !important;
+  border-radius: var(--yaricap-buyuk) !important;
+  box-shadow: var(--renk-golge-yukseltilmis) !important;
+  padding: 2rem 1.75rem !important;
+  margin-top: 1.5rem;
+  width: min(400px, calc(100vw - 32px));
+}
+
+html[data-tema="cam"] .fixed.inset-0.bg-zinc-950 > form {
+  background: rgba(18, 20, 38, 0.56) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  backdrop-filter: blur(28px) saturate(150%);
+}
+
+html[data-tema] .fixed.inset-0 form input {
+  background-color: var(--renk-yuzey-2) !important;
+  color: var(--renk-metin) !important;
+  border: 1px solid var(--renk-kenar-vurgu) !important;
+  border-radius: var(--yaricap) !important;
+}
+
+/* ==========================================================================
+   Açık vs Koyu Tema Metin/Kenarlık Uyumlaştırması (data-theme'den bağımsız)
+   ========================================================================== */
+html[data-tema="kurumsal"] .text-white,
+html[data-tema="lacivert"] .text-white,
+html[data-tema="argon"] .text-white,
+html[data-tema="material"] .text-white,
+html[data-tema="kurumsal"] .text-slate-50,
+html[data-tema="lacivert"] .text-slate-50,
+html[data-tema="argon"] .text-slate-50,
+html[data-tema="material"] .text-slate-50,
+html[data-tema="kurumsal"] .text-zinc-100,
+html[data-tema="lacivert"] .text-zinc-100,
+html[data-tema="argon"] .text-zinc-100,
+html[data-tema="material"] .text-zinc-100,
+html[data-tema="kurumsal"] .text-zinc-200,
+html[data-tema="lacivert"] .text-zinc-200,
+html[data-tema="argon"] .text-zinc-200,
+html[data-tema="material"] .text-zinc-200 {
+  color: var(--renk-metin) !important;
+}
+
+html[data-tema="kurumsal"] .text-zinc-300,
+html[data-tema="lacivert"] .text-zinc-300,
+html[data-tema="argon"] .text-zinc-300,
+html[data-tema="material"] .text-zinc-300,
+html[data-tema="kurumsal"] .text-zinc-400,
+html[data-tema="lacivert"] .text-zinc-400,
+html[data-tema="argon"] .text-zinc-400,
+html[data-tema="material"] .text-zinc-400,
+html[data-tema="kurumsal"] .text-white\/60,
+html[data-tema="lacivert"] .text-white\/60,
+html[data-tema="argon"] .text-white\/60,
+html[data-tema="material"] .text-white\/60,
+html[data-tema="kurumsal"] .text-white\/40,
+html[data-tema="lacivert"] .text-white\/40,
+html[data-tema="argon"] .text-white\/40,
+html[data-tema="material"] .text-white\/40 {
+  color: var(--renk-metin-soluk) !important;
+}
+
+/* Material kenar çubuğu koyu (#212121): içindeki metin ve ikonlar beyaz kalmalı */
+html[data-tema="material"] .bg-theme-bg-sidebar .text-white,
+html[data-tema="material"] .bg-theme-bg-sidebar .text-zinc-300,
+html[data-tema="material"] .bg-theme-bg-sidebar .text-zinc-400,
+html[data-tema="material"] .bg-theme-bg-sidebar .light\:text-blue-900 {
+  color: #ffffff !important;
+}
+
+/* Koyu temalarda AnythingLLM'in .light:* kurallarını bastır */
+html[data-tema="cam"] .light\:text-slate-900,
+html[data-tema="sade-koyu"] .light\:text-slate-900,
+html[data-tema="argon-koyu"] .light\:text-slate-900,
+html[data-tema="material-koyu"] .light\:text-slate-900,
+html[data-tema="black"] .light\:text-slate-900,
+html[data-tema="koyu"] .light\:text-slate-900,
+html[data-tema="cam"] .light\:text-slate-950,
+html[data-tema="sade-koyu"] .light\:text-slate-950,
+html[data-tema="argon-koyu"] .light\:text-slate-950,
+html[data-tema="material-koyu"] .light\:text-slate-950,
+html[data-tema="black"] .light\:text-slate-950,
+html[data-tema="koyu"] .light\:text-slate-950,
+html[data-tema="cam"] .light\:text-blue-900,
+html[data-tema="sade-koyu"] .light\:text-blue-900,
+html[data-tema="argon-koyu"] .light\:text-blue-900,
+html[data-tema="material-koyu"] .light\:text-blue-900,
+html[data-tema="black"] .light\:text-blue-900,
+html[data-tema="koyu"] .light\:text-blue-900 {
+  color: var(--renk-metin) !important;
+}
+
+html[data-tema="cam"] .light\:text-slate-800,
+html[data-tema="sade-koyu"] .light\:text-slate-800,
+html[data-tema="argon-koyu"] .light\:text-slate-800,
+html[data-tema="material-koyu"] .light\:text-slate-800,
+html[data-tema="black"] .light\:text-slate-800,
+html[data-tema="koyu"] .light\:text-slate-800,
+html[data-tema="cam"] .light\:text-slate-600,
+html[data-tema="sade-koyu"] .light\:text-slate-600,
+html[data-tema="argon-koyu"] .light\:text-slate-600,
+html[data-tema="material-koyu"] .light\:text-slate-600,
+html[data-tema="black"] .light\:text-slate-600,
+html[data-tema="koyu"] .light\:text-slate-600,
+html[data-tema="cam"] .light\:text-zinc-600,
+html[data-tema="sade-koyu"] .light\:text-zinc-600,
+html[data-tema="argon-koyu"] .light\:text-zinc-600,
+html[data-tema="material-koyu"] .light\:text-zinc-600,
+html[data-tema="black"] .light\:text-zinc-600,
+html[data-tema="koyu"] .light\:text-zinc-600 {
+  color: var(--renk-metin-soluk) !important;
+}
+
+html[data-tema] .border-white\/10,
+html[data-tema] .border-zinc-800,
+html[data-tema] .border-zinc-700,
+html[data-tema] .light\:border-slate-300 {
+  border-color: var(--renk-kenar) !important;
+}
+
+/* Birincil düğmelerde beyaz metin korunsun */
+html[data-tema] button[type="submit"],
+html[data-tema] .bg-primary-button,
+html[data-tema] .bg-primary-button * {
+  color: var(--renk-sabit-acik) !important;
+}
+
+/* ==========================================================================
+   Sabit Köşe Tema Seçici (#atos-tema-secici)
+   ========================================================================== */
+#atos-tema-secici {
+  position: fixed;
+  top: 26px;
+  right: 108px;
+  z-index: 9998;
+  font-family: var(--yazi-tipi);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+#atos-tema-dugme {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--renk-kenar-vurgu);
+  background: var(--renk-yuzey-opak);
+  color: var(--renk-metin);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--renk-golge-yukseltilmis);
+  transition: border-color 0.15s, background-color 0.15s, transform 0.15s;
+}
+
+#atos-tema-dugme:hover {
+  border-color: var(--renk-birincil);
+}
+
+#atos-tema-dugme:focus-visible {
+  outline: 2px solid var(--renk-birincil);
+  outline-offset: 2px;
+}
+
+#atos-tema-dugme .atos-tema-nokta {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--renk-birincil);
+  flex-shrink: 0;
+}
+
+#atos-tema-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(280px, calc(100vw - 24px));
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: var(--yaricap-buyuk);
+  border: 1px solid var(--renk-kenar-vurgu);
+  background: var(--renk-yuzey-opak);
+  color: var(--renk-metin);
+  box-shadow: var(--renk-golge-yukseltilmis);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  backdrop-filter: blur(24px) saturate(140%);
+}
+
+#atos-tema-panel[hidden] {
+  display: none;
+}
+
+.atos-tema-baslik {
+  padding: 4px 8px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--renk-metin-cok-soluk);
+}
+
+.atos-tema-liste {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.atos-tema-oge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--yaricap);
+  background: transparent;
+  color: var(--renk-metin);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.atos-tema-oge::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--renk-metin-cok-soluk);
+  flex-shrink: 0;
+}
+
+.atos-tema-oge:hover {
+  background: var(--renk-yuzey-2);
+}
+
+.atos-tema-oge[aria-checked="true"] {
+  background: var(--renk-birincil-zemin);
+  border-color: var(--renk-birincil);
+  color: var(--renk-birincil);
+  font-weight: 600;
+}
+
+.atos-tema-oge[aria-checked="true"]::before {
+  border-color: currentColor;
+  background: currentColor;
+}
+
+.atos-tema-oge:focus-visible {
+  outline: 2px solid var(--renk-birincil);
+  outline-offset: -2px;
+}
+
+@media (max-width: 720px) {
+  #atos-tema-secici {
+    top: 14px;
+    right: 56px;
+  }
+  #atos-tema-dugme {
+    height: 32px;
+    padding: 0 10px;
+  }
+  #atos-tema-dugme .atos-tema-etiket {
+    display: none;
+  }
+  .atos-tema-liste {
+    grid-template-columns: 1fr;
+  }
+}
