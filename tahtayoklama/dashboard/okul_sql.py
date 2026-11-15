@@ -116,8 +116,8 @@ def pg_tablolari(dsn: str) -> dict[str, tuple[list[str], list[tuple]]]:
                 cur = c.execute(f'SELECT * FROM "{t}"')
                 sonuc[t] = ([d.name for d in cur.description], [tuple(_deger(v) for v in r) for r in cur.fetchall()])
         return sonuc
-    except Exception as e:  # noqa: BLE001 — DSN/parola hata metnine sızmasın
-        raise SqlHatasi("Okul veri tabanına ulaşılamadı.") from type(e)
+    except Exception:  # noqa: BLE001 — DSN/parola hata metnine sızmasın
+        raise SqlHatasi("Okul veri tabanına ulaşılamadı.") from None
 
 
 def osym_tablolari(dsn: str) -> dict[str, tuple[list[str], list[tuple]]]:
@@ -134,8 +134,8 @@ def osym_tablolari(dsn: str) -> dict[str, tuple[list[str], list[tuple]]]:
                 sonuc[ad] = ([k for i, k in enumerate(kolon) if i not in at],
                              [tuple(_deger(v) for i, v in enumerate(r) if i not in at) for r in cur.fetchall()])
         return sonuc
-    except Exception as e:  # noqa: BLE001 — DSN/parola hata metnine sızmasın
-        raise SqlHatasi("ÖSYM veri tabanına ulaşılamadı.") from type(e)
+    except Exception:  # noqa: BLE001 — DSN/parola hata metnine sızmasın
+        raise SqlHatasi("ÖSYM veri tabanına ulaşılamadı.") from None
 
 
 def _gecenler(onek: str, tablolar, sorgu: str) -> list[tuple[str, str]]:
@@ -160,8 +160,8 @@ def ek_sqlite_tablolari(sorgu: str, kok=_KOK) -> dict[str, tuple[list[str], list
                     at = {i for i, k in enumerate(kolon) if k in yasak.get(t, ())}
                     sonuc[ad] = ([k for i, k in enumerate(kolon) if i not in at],
                                  [tuple(_deger(v) for i, v in enumerate(r) if i not in at) for r in cur.fetchall()])
-        except sqlite3.Error as e:
-            raise SqlHatasi(f"{onek} veri tabanına ulaşılamadı.") from type(e)
+        except sqlite3.Error:
+            raise SqlHatasi(f"{onek} veri tabanına ulaşılamadı.") from None
     return sonuc
 
 
@@ -188,8 +188,8 @@ def pg_ek_tablolari(dsn: str, sorgu: str) -> dict[str, tuple[list[str], list[tup
                     sonuc[ad] = (kolon, [tuple(_deger(v) for v in r) for r in cur.fetchall()])
         except SqlHatasi:
             raise
-        except Exception as e:  # noqa: BLE001 — DSN/parola hata metnine sızmasın
-            raise SqlHatasi(f"{onek} veri tabanına ulaşılamadı.") from type(e)
+        except Exception:  # noqa: BLE001 — DSN/parola hata metnine sızmasın
+            raise SqlHatasi(f"{onek} veri tabanına ulaşılamadı.") from None
     return sonuc
 
 
@@ -201,8 +201,8 @@ def yoklama_tablolari(yol) -> dict[str, tuple[list[str], list[tuple]]]:
                 cur = c.execute(f'SELECT * FROM "{t}"')
                 sonuc[t] = ([d[0] for d in cur.description], cur.fetchall())
             return sonuc
-    except sqlite3.Error as e:
-        raise SqlHatasi("Yoklama veri tabanına ulaşılamadı.") from type(e)
+    except sqlite3.Error:
+        raise SqlHatasi("Yoklama veri tabanına ulaşılamadı.") from None
 
 
 def sms_tablolari(yol) -> dict[str, tuple[list[str], list[tuple]]]:
@@ -214,8 +214,8 @@ def sms_tablolari(yol) -> dict[str, tuple[list[str], list[tuple]]]:
                 cur = c.execute(f'SELECT * FROM "{t}"')
                 sonuc[t] = ([d[0] for d in cur.description], cur.fetchall())
             return sonuc
-    except sqlite3.Error as e:
-        raise SqlHatasi("SMS veri tabanına ulaşılamadı.") from type(e)
+    except sqlite3.Error:
+        raise SqlHatasi("SMS veri tabanına ulaşılamadı.") from None
 
 
 _NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"

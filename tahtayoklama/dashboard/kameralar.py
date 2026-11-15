@@ -168,7 +168,11 @@ async def api_kamera_video(request: Request, kamera: str, dosya: str):
             str(gecici),
         ]
         # ffmpeg 60 sn sürebilir; olay döngüsünde koşarsa tahta nabızları dahil tüm pano donar
-        r = await asyncio.to_thread(subprocess.run, komut, timeout=60, check=False)
+        try:
+            r = await asyncio.to_thread(subprocess.run, komut, timeout=60, check=False)
+        except subprocess.TimeoutExpired:
+            gecici.unlink(missing_ok=True)
+            return FileResponse(kaynak, media_type="video/mp4", filename=dosya)
         if r.returncode != 0 or not gecici.is_file() or gecici.stat().st_size == 0:
             gecici.unlink(missing_ok=True)
             return FileResponse(kaynak, media_type="video/mp4", filename=dosya)

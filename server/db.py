@@ -9,6 +9,9 @@ onları threadpool'da PARALEL koşturuyor; SimpleConnectionPool thread-safe
 değil (eşzamanlı getconn/putconn yarışı). Threaded sürüm aynı API + kilit.
 """
 
+import contextlib
+
+import psycopg2
 import psycopg2.pool
 from pgvector.psycopg2 import register_vector
 
@@ -38,4 +41,9 @@ class baglanti:
         return self.conn
 
     def __exit__(self, exc_type, exc, tb):
-        _havuz.putconn(self.conn)
+        try:
+            if exc_type is not None:
+                with contextlib.suppress(psycopg2.Error):
+                    self.conn.rollback()
+        finally:
+            _havuz.putconn(self.conn)

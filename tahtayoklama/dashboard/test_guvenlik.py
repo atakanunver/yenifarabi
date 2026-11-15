@@ -214,5 +214,39 @@ class TestSablon(unittest.TestCase):
         self.assertNotIn("TEHLİKE GEÇTİ", html)
 
 
+class TestKameraVideoTimeout(unittest.TestCase):
+    def test_ffmpeg_timeout_gecici_dosyayi_siler_ve_kaynagi_doner(self):
+        import subprocess
+        import tempfile
+        from pathlib import Path
+
+        import kameralar
+
+        with tempfile.TemporaryDirectory() as d:
+            kok = Path(d)
+            kayit_kok = kok / "kayit"
+            onbellek_kok = kok / "onbellek"
+            (kayit_kok / "giris_ip_ham").mkdir(parents=True)
+            onbellek_kok.mkdir(parents=True)
+            dosya = "2026-11-14_10-00-00-1.mp4"
+            kaynak = kayit_kok / "giris_ip_ham" / dosya
+            kaynak.write_bytes(b"ham-video")
+            gecici = onbellek_kok / "giris_ip_ham__2026-11-14_10-00-00-1.tmp.mp4"
+            gecici.write_bytes(b"yarim-kalan")
+
+            with mock.patch.object(kameralar, "_yetkili_mi", return_value=True), \
+                    mock.patch.object(kameralar, "KAYIT_KOK", kayit_kok), \
+                    mock.patch.object(kameralar, "ONBELLEK_KOK", onbellek_kok), \
+                    mock.patch.object(
+                        kameralar.subprocess,
+                        "run",
+                        side_effect=subprocess.TimeoutExpired(cmd="ffmpeg", timeout=60),
+                    ):
+                yanit = asyncio.run(kameralar.api_kamera_video(_istek("/x"), "giris_ip_ham", dosya))
+
+            self.assertEqual(Path(yanit.path), kaynak)
+            self.assertFalse(gecici.exists())
+
+
 if __name__ == "__main__":
     unittest.main()

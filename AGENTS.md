@@ -99,7 +99,8 @@ Monorepo. Bu dosya ortak kurallar + servisler arası resim; alt projelerin kendi
 8. Yeni teknoloji/servis/kütüphane/LLM/bulut API için önce onay. 9. `.env`/API anahtarı commit'lenmez, koda yazılmaz.
 10. Ölçmeden optimizasyon yok. 11. Client+server bağlı değişiklikte ikisi birlikte; son kabul fiziksel tahtada Atakan.
 - Dil Türkçe; kod ve teknik terimler orijinal. Kod değişikliğini anlatırken yalnız değişen bloğu göster.
-- Frontend (`tahtayoklama/dashboard/`): önce `tahtayoklama/AGENTS.md` tasarım bölümü; CDN/yeni kütüphane yok.
+- Frontend: dashboard görsel dili uzamsal cam (visionOS; Progmatik kimliği 2026-11-14'te iptal), ayrıntı `tahtayoklama/AGENTS.md` tasarım bölümü.
+  smssistemi ve kelebek şimdilik Tailwind 3.4.16 `tasarim/` → `static/stil.css` (derlenmiş, commit'lenir); CDN/yeni kütüphane yok.
 
 ## Gizlilik ve okuma yasakları
 - Öğrenci/veli verisi (yoklama, roster, SMS rehberi) ASLA buluta gitmez. Ses Gemini Live'a gider (bilinçli); kitap metni gidebilir.

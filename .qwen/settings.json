@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/ata/llm-cluster-wiki/**)"
+    ]
+  },
+  "$version": 4
+}

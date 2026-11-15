@@ -476,8 +476,11 @@ def _rapor_verisi(conn, baslangic: str, bitis: str, sinif_ad: str | None) -> lis
     satirlar = []
     for r in conn.execute(sorgu, parametreler):
         d = dict(r)
-        d["yok_isimleri"] = json.loads(d["yok_isimleri"] or "[]")
-        d["izinli_isimleri"] = json.loads(d["izinli_isimleri"] or "[]")
+        for alan in ("yok_isimleri", "izinli_isimleri"):
+            try:
+                d[alan] = json.loads(d[alan] or "[]")
+            except ValueError:
+                d[alan] = []
         d["durum_etiketi"] = _DURUM_ETIKETI.get(d["durum"], d["durum"])
         satirlar.append(d)
     return satirlar

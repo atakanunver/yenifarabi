@@ -74,8 +74,9 @@ class TestEkSqlite(unittest.TestCase):
         self.assertNotIn("panel_oturumlar", okul_sql.IZINLI_TABLOLAR)
 
     def test_kaynak_yoksa_sql_hatasi(self):
-        with self.assertRaises(okul_sql.SqlHatasi):
+        with self.assertRaises(okul_sql.SqlHatasi) as ctx:
             okul_sql.ek_sqlite_tablolari("SELECT * FROM kelebek_dagitim", kok=self.kok)
+        self.assertIsNone(ctx.exception.__cause__)
 
     def test_izinli_tablo_sorgulanir_digeri_reddedilir(self):
         t = okul_sql.ek_sqlite_tablolari("SELECT * FROM portal_kullanici", kok=self.kok)
@@ -84,9 +85,18 @@ class TestEkSqlite(unittest.TestCase):
             okul_sql.calistir("SELECT * FROM oturum", t)
 
     def test_pg_kaynak_yoksa_bagli_degilse_sql_hatasi(self):
-        with patch.dict("sys.modules", {"psycopg": None}), self.assertRaises(okul_sql.SqlHatasi):
+        with patch.dict("sys.modules", {"psycopg": None}), self.assertRaises(okul_sql.SqlHatasi) as ctx:
             okul_sql.pg_ek_tablolari("dbname=x", "SELECT * FROM sh_soru")
+        self.assertIsNone(ctx.exception.__cause__)
         self.assertEqual(okul_sql.pg_ek_tablolari("dbname=x", "SELECT 1"), {})
+
+    def test_yoklama_ve_sms_hatasinda_cause_yok(self):
+        with self.assertRaises(okul_sql.SqlHatasi) as c1:
+            okul_sql.yoklama_tablolari("/yok/yok.db")
+        self.assertIsNone(c1.exception.__cause__)
+        with self.assertRaises(okul_sql.SqlHatasi) as c2:
+            okul_sql.sms_tablolari("/yok/yok.db")
+        self.assertIsNone(c2.exception.__cause__)
 
 
 if __name__ == "__main__":

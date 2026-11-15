@@ -141,3 +141,27 @@ def test_dolu_siniri(ist, monkeypatch):
     monkeypatch.setattr(h, "AZAMI_KAYIT", 1)
     _k(ist, "Bir", "Birinci kayıt alfa", onaylandi=True)
     assert _k(ist, "İki", "tamamen farklı konu beta gama", onaylandi=True)["durum"] == "dolu"
+
+
+def test_baglanti_hata_rollback(monkeypatch):
+    olaylar = []
+
+    class SahteConn:
+        def rollback(self):
+            olaylar.append("rollback")
+
+    class SahteHavuz:
+        def getconn(self):
+            return SahteConn()
+
+        def putconn(self, conn):
+            olaylar.append(("putconn", conn))
+
+    monkeypatch.setattr(db, "_havuz", SahteHavuz())
+    monkeypatch.setattr(db, "register_vector", lambda conn: None)
+
+    with pytest.raises(RuntimeError), db.baglanti():
+        raise RuntimeError("deneme hatası")
+
+    assert olaylar[0] == "rollback"
+    assert olaylar[1][0] == "putconn"

@@ -6,6 +6,7 @@ Yalnızca panonun kendi verisini salt-okunur toplar: bugünün yoklama önbelle�
 `/admin/rapor`'dadır. SMS taslağı ve EBYS bu sürümde YOK (başka servislerin verisi).
 """
 
+import asyncio
 import json
 import time
 import urllib.error
@@ -125,8 +126,12 @@ async def bugun_sayfa(request: Request):
         tahta = tahta_ozeti(conn)
     finally:
         conn.close()
+    veli, sms = await asyncio.gather(
+        asyncio.to_thread(veli_mesajlari.sayac_getir),
+        asyncio.to_thread(sms_ozeti),
+    )
     return templates.TemplateResponse(
         request,
         "bugun.html",
-        {"tarih": tarih, "yoklama": yoklama, "tahta": tahta, "veli": veli_mesajlari.sayac_getir(), "sms": sms_ozeti()},
+        {"tarih": tarih, "yoklama": yoklama, "tahta": tahta, "veli": veli, "sms": sms},
     )

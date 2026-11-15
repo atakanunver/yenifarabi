@@ -4,6 +4,7 @@ Gzip testi yalnızca yapılandırma kontrolüdür: `TestClient` KULLANILMAZ
 (dashboard venv'inde `httpx` yok, üretim venv'ine paket kurulmaz); gerçek
 sıkıştırma deploy sonrası `curl` ile doğrulanır (plan.md)."""
 
+import sqlite3
 import unittest
 
 from starlette.middleware.gzip import GZipMiddleware
@@ -51,6 +52,23 @@ class TestGzipYapilandirmasi(unittest.TestCase):
             any(m.cls is GZipMiddleware for m in app_modulu.app.user_middleware),
             "GZipMiddleware app.user_middleware icinde bulunamadi",
         )
+
+
+class TestRaporVerisi(unittest.TestCase):
+    def test_bozuk_json_satiri_cokmez(self):
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            "CREATE TABLE yoklama_onbellek (tarih TEXT, sinif TEXT, ders_no INTEGER, durum TEXT, "
+            "yok_isimleri TEXT, izinli_isimleri TEXT, kaynak_tahta TEXT, kaydedilme_saati TEXT)"
+        )
+        conn.execute(
+            "INSERT INTO yoklama_onbellek VALUES ('2026-10-20', '9-A', 1, 'alindi', '{bozuk', '[bozuk', '9-A', '08:20')"
+        )
+        satirlar = admin._rapor_verisi(conn, "2026-10-01", "2026-10-31", None)
+        self.assertEqual(len(satirlar), 1)
+        self.assertEqual(satirlar[0]["yok_isimleri"], [])
+        self.assertEqual(satirlar[0]["izinli_isimleri"], [])
 
 
 if __name__ == "__main__":

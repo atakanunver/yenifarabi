@@ -20,8 +20,8 @@ def _open_library(isbn: str) -> dict | None:
         return None
     return {
         "baslik": v["title"],
-        "yazar": ", ".join(a.get("name", "") for a in v.get("authors", [])),
-        "yayinevi": ", ".join(p.get("name", "") for p in v.get("publishers", [])),
+        "yazar": ", ".join(a.get("name", "") for a in (v.get("authors") or [])),
+        "yayinevi": ", ".join(p.get("name", "") for p in (v.get("publishers") or [])),
     }
 
 
@@ -30,7 +30,7 @@ def _google(isbn: str) -> dict | None:
     v = ogeler[0].get("volumeInfo", {}) if ogeler else {}
     if not v.get("title"):
         return None
-    return {"baslik": v["title"], "yazar": ", ".join(v.get("authors", [])), "yayinevi": v.get("publisher", "")}
+    return {"baslik": v["title"], "yazar": ", ".join(v.get("authors") or []), "yayinevi": v.get("publisher") or ""}
 
 
 def eser_bilgisi(isbn: str) -> dict | None:

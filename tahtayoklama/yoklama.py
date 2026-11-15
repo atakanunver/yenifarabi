@@ -179,8 +179,11 @@ def _roster_etiketi(kod: str) -> str:
 
 def _roster_yukle(sinif: str) -> list[dict]:
     yol = ROSTER_DIR / f"{sinif}.json"
-    veri = json.loads(yol.read_text(encoding="utf-8"))
-    return veri.get("ogrenciler", [])
+    try:
+        veri = json.loads(yol.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    return veri.get("ogrenciler", []) if isinstance(veri, dict) else []
 
 
 def _zil_yukle() -> dict:

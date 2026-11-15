@@ -1,3 +1,4 @@
+import asyncio
 import json
 import sqlite3
 import unittest
@@ -67,6 +68,33 @@ class TestSmsOzeti(unittest.TestCase):
                 mock.patch.object(bugun.urllib.request, "urlopen") as acik:
             self.assertIsNone(bugun.sms_ozeti(simdi=1.0))
         acik.assert_not_called()
+
+
+class TestBugunSayfa(unittest.TestCase):
+    def test_dis_cagrilar_to_thread_ile_yapilir(self):
+        conn = mock.MagicMock()
+        req = mock.MagicMock()
+        to_thread_cagrilari = []
+
+        async def sahte_to_thread(fn, *args, **kwargs):
+            to_thread_cagrilari.append(fn)
+            return fn(*args, **kwargs)
+
+        with mock.patch.object(bugun.db, "baglanti", return_value=conn), \
+                mock.patch.object(bugun.auth, "dogrula", return_value=True), \
+                mock.patch.object(bugun, "yoklama_ozeti", return_value={"siniflar": []}), \
+                mock.patch.object(bugun, "tahta_ozeti", return_value={"toplam": 0, "sorunlu": []}), \
+                mock.patch.object(bugun.veli_mesajlari, "sayac_getir", return_value={"okunmamis": 2}) as m_sayac, \
+                mock.patch.object(bugun, "sms_ozeti", return_value={"ilk_ders": None}) as m_sms, \
+                mock.patch.object(bugun.asyncio, "to_thread", side_effect=sahte_to_thread), \
+                mock.patch.object(bugun.templates, "TemplateResponse", return_value="ok") as m_tpl:
+            res = asyncio.run(bugun.bugun_sayfa(req))
+
+        self.assertEqual(res, "ok")
+        self.assertCountEqual(to_thread_cagrilari, [m_sayac, m_sms])
+        self.assertEqual(m_tpl.call_args.args[2]["veli"], {"okunmamis": 2})
+        self.assertEqual(m_tpl.call_args.args[2]["sms"], {"ilk_ders": None})
+        conn.close.assert_called_once()
 
 
 if __name__ == "__main__":

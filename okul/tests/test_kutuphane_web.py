@@ -89,6 +89,9 @@ def test_api_isbn_internetten(c, conn, ornek, monkeypatch):
     monkeypatch.setattr(isbn_kaynak, "_get", lambda url: {"items": [{"volumeInfo": {"title": "X", "authors": ["Y"]}}]}
                         if "googleapis" in url else {})
     assert c.get("/kutuphane/api/isbn", params={"isbn": "9789750719387"}).json()["dis"]["baslik"] == "X"
+    monkeypatch.setattr(isbn_kaynak, "_get", lambda url: {"items": [{"volumeInfo": {"title": "Yazarsız", "authors": None, "publisher": None}}]}
+                        if "googleapis" in url else {})
+    assert c.get("/kutuphane/api/isbn", params={"isbn": "9789750719387"}).json()["dis"] == {"baslik": "Yazarsız", "yazar": "", "yayinevi": ""}
     assert c.get("/kutuphane/api/isbn", params={"isbn": "123"}).json()["dis"] is None
 
 
