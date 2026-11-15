@@ -28,7 +28,7 @@ def test_sema_kurulur_ve_tekrar_calistirilabilir(conn):
         "erisim_log",
         "aktarim_taslak",
     } <= tablolar
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == len(db.GOCLER)
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == len(db.GOCLER) == 42
 
 
 def test_veli_telefonu_benzersiz_ama_ogretmenle_cakisabilir(conn, yeni_kullanici):

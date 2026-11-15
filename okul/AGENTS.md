@@ -18,7 +18,7 @@ Mobil öncelikli okul portalı (öğrenci/veli/öğretmen/yönetici): FastAPI + 
 
 ## Değişiklik kuralları
 - ⚠️ Şablonlar canlıya ANINDA yansır; Python (`deps.py` Jinja global vb.) restart ister. Yeni Jinja global kullanan şablonu `is defined` ile koru ve değişiklikten hemen sonra restart et (korumasız global /giris'i 503 yaptı).
-- Şema: `db.GOCLER` sonuna yeni eleman ekle, eskileri DEĞİŞTİRME. Güncel sürüm = `len(GOCLER)` (şu an 41); yeni göç = `V<len+1>`. Şema `PRAGMA user_version` ile sürümlü, her göç tek `BEGIN…COMMIT`. Her göç için `scripts/geri_al.py`'ye GERI girdisi ekle (`--hedef N`).
+- Şema: `db.GOCLER` sonuna yeni eleman ekle, eskileri DEĞİŞTİRME. Güncel sürüm = `len(GOCLER)` (şu an 42); yeni göç = `V<len+1>`. Şema `PRAGMA user_version` ile sürümlü, her göç tek `BEGIN…COMMIT`. Her göç için `scripts/geri_al.py`'ye GERI girdisi ekle (`--hedef N`).
 - CSS/JS değişince: `okul.css?v=N` (base.html) ve `*.js?v=N` (onu yükleyen şablon) sürümünü, `static/sw.js` içindeki SURUM + STATIK listesini artır; yeni statik JS STATIK'e de eklenir.
 - Zaman için daima `zaman.simdi()` (test edilebilirlik).
 - Yeni rota modülü `rotalar/` altına + `app.py`'de `include_router`. Rota işi `rotalar/`, iş mantığı kök modülde.
@@ -49,6 +49,7 @@ Saat widget'ı (`_saat.html`) ve zil tablosu (`_zil_tablo.html`) `deps.py` Jinja
 - Öğretmen liderliği: kendi sınıfı adlı; sınıflar arası kıyasta yalnız toplam; adlı görüntüleme `erisim_log`'a yazılır. Soru bazlı istatistik kimliksiz (`odevler.soru_istatistik`).
 - gayret (V33): süreç XP'si (<5 sn 0, günde ≤60, yalnız 9-11); kancalar `maraton.cevapla`, `arena.cevapla`, `calisma.cevapla`.
 - sudoku: çözüm ve bot süresi istemciye GİTMEZ, süre sunucuda; `bilgi_xp`/rozet/ödüle bağlı değil.
+- cografya (V42, `cografya_oyun.py`, `rotalar/cografya.py`, oyun `cografya/` = OwenK2/Interactive-Map-Quiz uyarlaması, klasör CC BY-NC-SA 4.0, `/static/cografya` mount'u): yalnız öğrenci; puan ve süre sunucuda (doğru/yanlış sayısı istemci beyanı), XP `bilgi_xp` kaynak `cografya` (9-11, oyun ≤10, gün ≤20) → XP yarışına girer, haftalık ödül/hedefe girmez. Türkçe veri `cografya/scripts/veri_hazirla.py` (Natural Earth + `ham/duzeltmeler.json`). Çevrim içi karo/yazı tipi YOK.
 - Mikro-görevler (V35): bilmece doğru şık o gün istemciye gitmez; teşekkür (sabit şablon, yalnız kendi sınıfı) XP'si haftalık ödüle SAYILMAZ; `gunun_bilgisi.py`.
 - anket: yanıtlar ANONİM (`anket_katilim` ile `anket_yanit` arasında bağ yok); <5 yanıtlı grup gizli. gelisim: yalnız ödev testi + Form kazanım verisi; küçük grup/yetersiz veri gizli, risk etiketi yok.
 - etkinlik (havuzdan 3/5/10 soruluk test ödevi): isteğe bağlı kazanım (`soru.kazanim_id`; `arena_soru.kazanimlar`, ≥3 soruluk; eşleşme TAHMİNİ; serbest metin `konu` filtre için kullanılmaz; seçilince `odev_soru.kazanim` = kod; 12. sınıfta liste kapalı).

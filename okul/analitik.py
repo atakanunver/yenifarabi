@@ -24,6 +24,8 @@ AZ_VERI = 10  # öneri/eğilim için asgari olay-günü
 
 # tür -> (görünen ad, ilgili roller, temel işlem mi, kullanılmıyorsa öneri)
 OZELLIKLER = {
+    "cografya_bitir": ("Coğrafya oyunu tamamlama", ("ogrenci",), False, ""),
+    "cografya_goruntule": ("Coğrafya oyunu görüntüleme", ("ogrenci",), False, ""),
     "ana_sayfa": ("Ana sayfa", ("ogrenci", "veli", "ogretmen", "yonetici"), False, ""),
     "odev_goruntule": (
         "Ödev görüntüleme", ("ogrenci",), True,
@@ -127,6 +129,7 @@ GIRIS, CIKIS, AKTIF = "giris", "cikis", "aktif"
 TEMEL_ISLEMLER = tuple(t for t, v in OZELLIKLER.items() if v[2])
 
 _SAYFALAR = (
+    (re.compile(r"^/ogrenci/cografya$"), "cografya_goruntule"),
     (re.compile(r"^/(ogrenci|veli|ogretmen|yonetici)$"), "ana_sayfa"),
     (re.compile(r"^/ogrenci/odev/\d+$"), "odev_goruntule"),
     (re.compile(r"^/ogrenci/kazanimlar$"), "kazanim_raporu"),

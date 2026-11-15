@@ -1,0 +1,186 @@
+{
+  "ARM": {
+    "capital": "Erivan"
+  },
+  "AUT": {
+    "capital": "Viyana"
+  },
+  "AZE": {
+    "capital": "Bakü"
+  },
+  "BEN": {
+    "capital": "Porto-Novo"
+  },
+  "BES": {
+    "name": "Bonaire, Sint Eustatius ve Saba"
+  },
+  "BOL": {
+    "capital": "Sucre"
+  },
+  "BTN": {
+    "name": "Butan"
+  },
+  "BVT": {
+    "name": "Bouvet Adası"
+  },
+  "CCK": {
+    "name": "Cocos Adaları"
+  },
+  "CHN": {
+    "capital": "Pekin"
+  },
+  "CIV": {
+    "capital": "Yamoussoukro",
+    "name": "Fildişi Sahili"
+  },
+  "COD": {
+    "name": "Kongo Demokratik Cumhuriyeti"
+  },
+  "CUB": {
+    "capital": "Havana"
+  },
+  "CXR": {
+    "name": "Christmas Adası"
+  },
+  "CYP": {
+    "capital": "Lefkoşa"
+  },
+  "CZE": {
+    "capital": "Prag"
+  },
+  "DZA": {
+    "capital": "Cezayir"
+  },
+  "EGY": {
+    "capital": "Kahire"
+  },
+  "ETH": {
+    "capital": "Addis Ababa"
+  },
+  "GBR": {
+    "name": "Birleşik Krallık"
+  },
+  "GEO": {
+    "capital": "Tiflis"
+  },
+  "GIB": {
+    "name": "Cebelitarık"
+  },
+  "GLP": {
+    "name": "Guadeloupe"
+  },
+  "GRC": {
+    "capital": "Atina"
+  },
+  "GUF": {
+    "name": "Fransız Guyanası"
+  },
+  "HND": {
+    "name": "Honduras"
+  },
+  "IND": {
+    "capital": "Yeni Delhi"
+  },
+  "IRN": {
+    "capital": "Tahran"
+  },
+  "IRQ": {
+    "capital": "Bağdat"
+  },
+  "ISR": {
+    "capital": "Kudüs"
+  },
+  "KAZ": {
+    "capital": "Astana"
+  },
+  "KGZ": {
+    "capital": "Bişkek"
+  },
+  "KOR": {
+    "name": "Güney Kore"
+  },
+  "MDA": {
+    "capital": "Kişinev"
+  },
+  "MKD": {
+    "capital": "Üsküp"
+  },
+  "MTQ": {
+    "name": "Martinik"
+  },
+  "MYT": {
+    "name": "Mayotte"
+  },
+  "NLD": {
+    "name": "Hollanda"
+  },
+  "PAK": {
+    "capital": "İslamabad"
+  },
+  "POL": {
+    "capital": "Varşova"
+  },
+  "PRK": {
+    "capital": "Pyongyang"
+  },
+  "PRT": {
+    "capital": "Lizbon"
+  },
+  "PSE": {
+    "capital": "Doğu Kudüs"
+  },
+  "REU": {
+    "name": "Réunion"
+  },
+  "ROU": {
+    "capital": "Bükreş"
+  },
+  "RUS": {
+    "capital": "Moskova"
+  },
+  "SAU": {
+    "capital": "Riyad"
+  },
+  "SJM": {
+    "name": "Svalbard ve Jan Mayen"
+  },
+  "SYR": {
+    "capital": "Şam"
+  },
+  "TJK": {
+    "capital": "Duşanbe"
+  },
+  "TKL": {
+    "name": "Tokelau"
+  },
+  "TKM": {
+    "capital": "Aşkabat"
+  },
+  "TUR": {
+    "capital": "Ankara",
+    "name": "Türkiye"
+  },
+  "TWN": {
+    "capital": "Taipei"
+  },
+  "TZA": {
+    "capital": "Dodoma"
+  },
+  "UKR": {
+    "capital": "Kiev"
+  },
+  "USA": {
+    "capital": "Washington",
+    "name": "Amerika Birleşik Devletleri"
+  },
+  "UZB": {
+    "capital": "Taşkent"
+  },
+  "XKS": {
+    "capital": "Priştine",
+    "name": "Kosova"
+  },
+  "ZAF": {
+    "capital": "Pretoria"
+  }
+}

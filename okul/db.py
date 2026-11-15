@@ -959,11 +959,37 @@ CREATE TABLE soru_katki_karar (
 );
 """
 
+SEMA_V42 = """
+CREATE TABLE bilgi_xp_yeni (
+    id            INTEGER PRIMARY KEY,
+    kullanici_id  INTEGER NOT NULL REFERENCES kullanici(id),
+    kaynak        TEXT NOT NULL CHECK (kaynak IN ('arena_dogru', 'arena_bonus', 'maraton_tur', 'gayret', 'bilmece', 'tesekkur', 'cografya')),
+    ref           TEXT NOT NULL,
+    miktar        INTEGER NOT NULL CHECK (miktar > 0),
+    gun           TEXT NOT NULL,
+    zaman         TEXT NOT NULL,
+    UNIQUE (kullanici_id, kaynak, ref)
+);
+INSERT INTO bilgi_xp_yeni SELECT id, kullanici_id, kaynak, ref, miktar, gun, zaman FROM bilgi_xp;
+DROP TABLE bilgi_xp;
+ALTER TABLE bilgi_xp_yeni RENAME TO bilgi_xp;
+CREATE INDEX bilgi_xp_kullanici ON bilgi_xp(kullanici_id);
+CREATE TABLE cografya_oyun (
+    id INTEGER PRIMARY KEY,
+    kullanici_id INTEGER NOT NULL REFERENCES kullanici(id) ON DELETE CASCADE,
+    mod TEXT NOT NULL, yanit TEXT NOT NULL, bolge TEXT NOT NULL,
+    soru_sayisi INTEGER NOT NULL, baslama TEXT NOT NULL, bitis TEXT,
+    dogru INTEGER, yanlis INTEGER, sure_sn INTEGER, puan INTEGER
+);
+CREATE INDEX cografya_gun ON cografya_oyun(kullanici_id, baslama);
+CREATE INDEX cografya_liderlik ON cografya_oyun(mod, yanit, bolge, bitis);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
     SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27, SEMA_V28, SEMA_V29, SEMA_V30, SEMA_V31, SEMA_V32, SEMA_V33, SEMA_V34,
-    SEMA_V35, SEMA_V36, SEMA_V37, SEMA_V38, SEMA_V39, SEMA_V40, SEMA_V41,
+    SEMA_V35, SEMA_V36, SEMA_V37, SEMA_V38, SEMA_V39, SEMA_V40, SEMA_V41, SEMA_V42,
 ]
 
 

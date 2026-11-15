@@ -24,6 +24,7 @@ from rotalar import (
     pdfgonder,
     bildirim,
     calisma,
+    cografya,
     duyuru_api,
     devamsizlik_api,
     deneme,
@@ -65,8 +66,9 @@ async def omur(_app):
 app = FastAPI(
     title="Dijital Okul", docs_url=None, redoc_url=None, openapi_url=None, lifespan=omur
 )
+app.mount("/static/cografya", StaticFiles(directory=str(KOK / "cografya" / "static"), check_dir=False), name="cografya")
 app.mount("/static", StaticFiles(directory=str(KOK / "static")), name="static")
-for r in (giris, pano, belge_sinav, pdfgonder, bildirim, calisma, duyuru_api, devamsizlik_api, ogrenci, arena, avatar, anket, gelisim, etkinlik, kisisel, oduller, oyun, veli, deneme, inceleme, ogretmen_liderlik, ogretmen, yonetici, push, sohbet, kutu, kutuphane, not_defteri, onay, acil, sudoku, bilmece, tesekkur, atlas, soru_gorsel, soru_katki):
+for r in (giris, pano, belge_sinav, pdfgonder, bildirim, calisma, duyuru_api, devamsizlik_api, ogrenci, arena, avatar, anket, gelisim, etkinlik, kisisel, oduller, oyun, veli, deneme, inceleme, ogretmen_liderlik, ogretmen, yonetici, push, sohbet, kutu, kutuphane, not_defteri, onay, acil, sudoku, bilmece, tesekkur, atlas, soru_gorsel, soru_katki, cografya):
     app.include_router(r.router)
 
 
