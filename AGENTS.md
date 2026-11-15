@@ -18,6 +18,7 @@ Monorepo. Bu dosya ortak kurallar + servisler arası resim; alt projelerin kendi
   (tahta yarışma oyunları; kendi `DECISIONS.md`'si), `anythingllm/` (Atos kurulum + yetenekler), `tahtagoruntuyakala/` (notlar).
 - Ders görsel arşivi: `client/ders_gorsel_servis.py` + `client/core/ders_gorsel.py` (tahta, `systemd --user farabi-ders-gorsel`,
   bayrak `ders_gorsel.enabled`, pilot 10-A) → `server/ders_gorsel.py` (`POST /api/ders-gorsel`, `/mnt/farabi-data/farabi/ders_gorselleri/`).
+- Ortak cam teması (2026-11-15): `ortak/cam-tema/` (Tailwind 4, `npm run build` → `dist/cam-tema.css`; sparse-checkout DIŞINDA, eklemek için `git add --sparse`). Servisler dist'i kendi `static/`'ine KOPYALAR (dashboard 5 sayfa, okul, arenasinif, smssistemi, kelebek, progmatik); dist değişince her kopyayı ve `?v=` sürümünü, okulda `sw.js` SURUM'unu güncelle. Kapsam dışı: `acil_ekran.html`, okul3d, Atlas, Atos.
 
 ## Canlı durum
 - KALICI İPTAL, açıkça istenmeden geri açma/önerme: RAG ve gömme servisi `farabi-embed` (`server/main.py::RAG_AKTIF = False`;
