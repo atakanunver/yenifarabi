@@ -24,6 +24,7 @@ html[data-cam] .tus { border: 1px solid var(--kenar); box-shadow: inset 0 1px rg
 html[data-cam] .fosfor { color: inherit; background: none; }
 html[data-cam] .marka span { color: inherit; }
 html[data-cam] input, html[data-cam] select, html[data-cam] textarea { color: var(--murekkep); }
+html[data-cam] select option, html[data-cam] select optgroup { background-color: #1a1d2e; color: #fff; }  /* option içinde saydamlık çalışmaz */
 html[data-cam] .sayfa { min-width: 0; overflow-wrap: anywhere; }
 html[data-cam] table { max-width: 100%; }
 @media (max-width: 480px) {
