@@ -24,7 +24,31 @@ kulup_yoklama(yoklama_onbellek ile aynı kolonlar; sinif = kulüp kodu)
 dyk_yoklama(yoklama_onbellek ile aynı kolonlar; sinif = DYK kodu, örn. 'DYK-11-COGRAFYA'; ders_no 1 ya da 3)
 dyk_program(sinif_grubu '11'|'12', derslik '10-A'|'12-B', gun 1..6 (6=Cumartesi), gun_adi, baslangic, bitis, kod, ders, ogretmen, ders_no)  -- DYK kursunun haftalık programı; ders_programi'nda YOKTUR (hafta içi 16:00-17:30, cumartesi 09:00-12:10)
 dyk_ogrenci(kod, sinif_grubu, derslik, ders, ogretmen, okul_no, ad_soyad)  -- DYK ders listelerindeki öğrenciler (sınıfı: okul_no ile ogrenci_genis)
-Diğer veri tabanları (tablo adı sorguda geçince okunur; kolonlar için SELECT * FROM <tablo> LIMIT 1): portal_* (okul portalı: portal_kullanici,
+ÖSYM/YKS (mezun öğrencilerin yerleşme verisi; tc_kimlik ile birleşir, ad için `ara(ad_soyad,'ayşe')`):
+osym_ozet(yil, mezun, sinava_giren, yerlesen, oran, kaynak)  -- yıl bazında özet (son 5 yıl)
+osym_yerlestirme(yil, tc_kimlik, ad_soyad, donem, program_kodu, program_adi, universite, fakulte, tercih_sirasi, puan_turu 'EA'|'SAY'|'SÖZ'|'DİL'|'TYT', puan, obp, meteb, kont_turu, ek_puan, ek_puan_2)  -- yerleşen öğrenci başına bir satır
+osym_yks_puan(yil, rapor, tc_kimlik, ad_soyad, puan_turu, puan, basari_sirasi)
+osym_dogru_yanlis(yil, sinav, tc_kimlik, ad_soyad, test, dogru, yanlis, bos, ham)
+osym_genel_istatistik(yil, ogretim_yili, son_sinif, basvuran, kazanan, tercih_yapan, lisans, onlisans_sinavsiz, onlisans_sinavli, aof, toplam_yerlesen, kaynak)
+mezun(tc_kimlik, ad_soyad, mezuniyet_yili, yerlesen_program, yerlesme_yili, telefon, telefon_kaynagi, not_, guncelleme)
+Okul portalı (yalnız dolu/önemli tablolar). Bağlantılar: veli_id, ogretmen_id, yazar_id, kullanici_id = portal_kullanici.id; ogrenci_id = portal_ogrenci.id (onun kullanici_id'si portal_kullanici.id); portal_ogrenci.okul_no = ogrenci.okul_no:
+portal_kullanici(id, rol, ad_soyad, kullanici_adi, telefon, sifre_degismeli, aktif, olusturma, foto, eposta)
+portal_ogrenci(id, okul_no, ad_soyad, sinif, kullanici_id)
+portal_veli_ogrenci(veli_id, ogrenci_id, yakinlik)
+portal_ogretmen_gorev(ogretmen_id, sinif, ders)
+portal_sinav(id, yazar_id, tur, baslik, sinif, ders, duzeyler, tarih, ders_no, aciklama, olusturma, bitis)
+portal_odev(id, ogretmen_id, sinif, ders, tur, baslik, aciklama, teslim, olusturma)
+portal_odev_teslim(odev_id, ogrenci_id, durum, puan, cevaplar, zaman)
+portal_deneme(id, ad, tarih, ozet, yayinda, olusturma)
+portal_deneme_ogrenci(deneme_id, okul_no, girdi, veri, analiz, tavsiye)
+portal_duyuru(id, yazar_id, baslik, metin, hedef_tur, hedef, yayin, bitis)
+portal_kitap(id, isbn, baslik, yazar, yayinevi, tur, kapak, olusturma)
+portal_nusha(id, kitap_id, demirbas, baski_yili, basim_sayisi, raf, durum, olusturma)
+portal_odunc(id, nusha_id, ogrenci_id, veren_id, verilis, son_tarih, iade, alan_id)
+portal_yillik_plan(id, ogretmen_id, sinif, ders, dosya_adi, depo_adi, tur, boyut, yukleme)
+portal_ders_defteri(kullanici_id, tarih, ders_no, sinif, ders, kazanim, islendi, notu, zaman)
+portal_olay(id, kullanici_id, rol, tur, nesne, gun, saat, oturum_k)  -- portal kullanım günlüğü
+Diğer veri tabanları ve portalın kalan tabloları (tablo adı sorguda geçince okunur; kolonlar için SELECT * FROM <tablo> LIMIT 1): portal_* (okul portalı: portal_kullanici,
 portal_ogrenci, portal_odev, portal_odev_teslim, portal_sinav, portal_deneme*, portal_kitap, portal_nusha, portal_odunc, portal_duyuru, portal_acil_*, portal_erisim_log, portal_olay ...),
 panel_* (yoklama panosu: panel_tahtalar, panel_tahta_nabiz, panel_tahta_saglik_gecmis, panel_uzaktan_denetim, panel_ogrenciler, panel_siniflar, panel_duyuru, panel_nobetci_cagrisi),
 sms_* (sms_veli_mesajlari, sms_veli_taslaklari, sms_kisisel_taslaklari, sms_otomasyon_kurallari, sms_hatirlatmalar, sms_engelli_gonderenler),

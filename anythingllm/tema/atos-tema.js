@@ -261,31 +261,35 @@
   var DURDUR_KIMLIK = "stop-generation-button";
   var bekleyen = false;
 
-  function listeBul(md) {
-    var adaylar = md.querySelectorAll("p, strong, h1, h2, h3, h4");
+  // .markdown sınıfı tek mesajda değil tüm sohbet geçmişi kutusunda durur; her cevaptaki listeyi ayrı bul.
+  function listelerBul(kap) {
+    var bulunan = [];
+    var adaylar = kap.querySelectorAll("p, h1, h2, h3, h4");
     for (var i = 0; i < adaylar.length; i++) {
       if (!BASLIK.test(adaylar[i].textContent || "")) continue;
-      var blok = adaylar[i].closest("p, h1, h2, h3, h4") || adaylar[i];
-      var sonraki = blok.nextElementSibling;
-      if (sonraki && (sonraki.tagName === "OL" || sonraki.tagName === "UL")) return sonraki;
+      var sonraki = adaylar[i].nextElementSibling;
+      if (sonraki && (sonraki.tagName === "OL" || sonraki.tagName === "UL")) bulunan.push(sonraki);
     }
-    return null;
+    return bulunan;
   }
 
   function isaretle() {
     bekleyen = false;
     var govdeler = document.querySelectorAll(".markdown");
     for (var i = 0; i < govdeler.length; i++) {
-      var liste = listeBul(govdeler[i]);
-      if (!liste || liste.classList.contains("atos-oneri-liste")) continue;
-      liste.classList.add("atos-oneri-liste");
-      var maddeler = liste.children;
-      for (var j = 0; j < maddeler.length; j++) {
-        var m = maddeler[j];
-        if (m.tagName !== "LI") continue;
-        m.classList.add("atos-oneri");
-        m.setAttribute("role", "button");
-        m.setAttribute("tabindex", "0");
+      var listeler = listelerBul(govdeler[i]);
+      for (var k = 0; k < listeler.length; k++) {
+        var liste = listeler[k];
+        if (liste.classList.contains("atos-oneri-liste")) continue;
+        liste.classList.add("atos-oneri-liste");
+        var maddeler = liste.children;
+        for (var j = 0; j < maddeler.length; j++) {
+          var m = maddeler[j];
+          if (m.tagName !== "LI") continue;
+          m.classList.add("atos-oneri");
+          m.setAttribute("role", "button");
+          m.setAttribute("tabindex", "0");
+        }
       }
     }
   }
