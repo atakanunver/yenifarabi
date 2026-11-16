@@ -22,3 +22,5 @@
 
 - kutuphane (`kutuphane.py`, `rotalar/kutuphane.py`, `templates/kutuphane/`, şema V40 `kitap`/`nusha`/`odunc`/`ayirtma`/`kutuphane_ayar`/`kutuphane_yetkili`, plan `LIBRARY_DISCOVERY.md`): eser (ISBN) ≠ fiziksel nüsha (demirbaş TEXT, baştaki sıfır korunur); işlem = yönetici + `kutuphane_yetkili` öğretmenler, diğerleri katalog, öğrenci/veli `/kutuphane/benim`. Yazmalar `BEGIN IMMEDIATE` + kısmi tekil indeks (aynı nüsha aynı anda iki kişiye verilemez; laptop + telefon aynı anda çalışır). Kamera tarayıcıda çözer (BarcodeDetector → `static/vendor/zxing-0.21.3.min.js`), görüntü sunucuya gitmez; kamera YALNIZCA HTTPS'te (smual.app) açılır, LAN http'de elle giriş. QR etiket içeriği `KTP-<demirbaş>` (ISBN ile karışmaz). Okuma yolu temizliği (`ayirtma_temizle`) öğrenci ana sayfasını asla bozmamalı. Ödünç sayısı okuma sayısı değildir.
 
+
+- Avatar görselleri yapay zekâ ile üretildi; üretim `scripts/avatar_uret.py`, adlandırma `<kod>-<n>.webp`.

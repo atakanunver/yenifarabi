@@ -1,5 +1,7 @@
 """Avatar: SVG güvenliği, seviyeye göre açılma (sunucuda doğrulanır), kayıt, önizleme, bildirimler, yetki."""
 
+from pathlib import Path
+
 import auth
 import avatar
 import pytest
@@ -13,48 +15,58 @@ def _xp(conn, kid, miktar):
     conn.commit()
 
 
-def test_svg_gecerli_ve_guvenli():
-    s = str(avatar.svg({"karakter": "<script>", "sapka": "x\"onload=1", "yuz": "gozluk"}, 3, 64))
-    assert s.startswith("<svg") and "script" not in s and "onload" not in s  # bilinmeyen kod varsayılana döner
+@pytest.mark.parametrize("kod", ["<script>", "../x", "ejder-9", "ejder-"])
+def test_svg_gecerli_ve_guvenli(kod):
+    cfg = avatar.cfg_temiz({"karakter": kod})
+    assert cfg == {"karakter": "kasif", "kostum": "1"}
+    s = str(avatar.svg({"karakter": kod}, 3, 64))
+    assert s.count("/static/avatar/") == 1 and "/static/avatar/kasif-1.webp?v=1" in s
     assert 'width="64"' in s and "Kaşif avatarı, seviye 3" in s
-    for kod in avatar.KARAKTERLER:
-        assert "<svg" in str(avatar.svg({"karakter": kod}, 1))
-    # iç içe kullanımda clipPath id'leri çakışmaz
-    a, b = str(avatar.svg(None, 1)), str(avatar.svg(None, 1))
-    assert a != b
+    assert str(avatar.svg(None, 1)) != str(avatar.svg(None, 1))
+    assert avatar.cfg_temiz({"karakter": "ejder", "kostum": "9"}) == avatar.VARSAYILAN
+
+
+def test_gorseller_mevcut():
+    dizin = Path(__file__).resolve().parents[1] / "static" / "avatar"
+    assert all((dizin / f"{kod}-{n}.webp").is_file() for kod in avatar.KARAKTERLER for n in range(1, 4))
 
 
 def test_kademe_ve_yildiz():
-    assert avatar.kademe(1)[1] == "Çaylak" and avatar.kademe(2)[1] == "Çaylak" and avatar.kademe(3)[1] == "Kaşif"
+    assert avatar.kademe(1)[1] == "Çaylak" and avatar.kademe(3)[1] == "Kaşif"
     assert avatar.kademe(10)[1] == "Şampiyon"
-    assert str(avatar.svg(None, 1)).count("<path d=\"M14 17") == 0 and str(avatar.svg(None, 9)).count("l1.8 3.6") == 4
+    assert str(avatar.svg(None, 1)).count('l1.8 3.6') == 0
+    assert str(avatar.svg(None, 9)).count('l1.8 3.6') == 4
 
 
 def test_acilma_seviyeleri():
-    assert avatar.acik_mi("karakter", "kasif", 1) and not avatar.acik_mi("karakter", "ejder", 7) and avatar.acik_mi("karakter", "ejder", 8)
-    assert not avatar.acik_mi("sapka", "tac", 6) and avatar.acik_mi("sapka", "tac", 7)
-    assert not avatar.acik_mi("sapka", "olmayan", 10) and not avatar.acik_mi("bolum_yok" if False else "yuz", "x", 10)
+    assert avatar.acik_mi("karakter", "kasif", 1)
+    assert not avatar.acik_mi("karakter", "ejder", 7) and avatar.acik_mi("karakter", "ejder", 8)
+    assert not avatar.acik_mi("kostum", "2", 2, "kasif") and avatar.acik_mi("kostum", "2", 3, "kasif")
+    assert not avatar.acik_mi("kostum", "9", 10, "kasif")
 
 
 def test_kaydet_dogrular(conn, ornek):
     k = ornek["ogr1_k"]
-    avatar.kaydet(conn, k, {"karakter": "bilge", "sapka": "kasket"}, 2)
-    assert avatar.getir(conn, k) == {"karakter": "bilge", "sapka": "kasket", "yuz": "yok", "sirt": "yok"}
-    with pytest.raises(ValueError):
-        avatar.kaydet(conn, k, {"karakter": "ejder"}, 7)
-    with pytest.raises(ValueError):
-        avatar.kaydet(conn, k, {"karakter": "kasif", "sirt": "kanat"}, 9)
-    assert avatar.getir(conn, k)["karakter"] == "bilge"  # reddedilen kayıt eskisini bozmaz
-    avatar.kaydet(conn, k, {"karakter": "ejder", "sapka": "tac", "yuz": "maske", "sirt": "kanat"}, 10)
-    assert avatar.getir(conn, k)["sirt"] == "kanat"
+    avatar.kaydet(conn, k, {"karakter": "bilge", "kostum": "1"}, 2)
+    with pytest.raises(ValueError, match="henüz açılmadı"):
+        avatar.kaydet(conn, k, {"karakter": "ejder", "kostum": "1"}, 7)
+    with pytest.raises(ValueError, match="henüz açılmadı"):
+        avatar.kaydet(conn, k, {"karakter": "kasif", "kostum": "2"}, 2)
+    assert avatar.getir(conn, k) == {"karakter": "bilge", "kostum": "1"}
+    conn.execute("UPDATE avatar SET karakter='ejder', sapka='tac' WHERE kullanici_id=?", (k,))
+    assert avatar.getir(conn, k) == {"karakter": "ejder", "kostum": "1"}
+    avatar.kaydet(conn, k, {"karakter": "ejder", "kostum": "3"}, 10)
+    assert avatar.getir(conn, k) == {"karakter": "ejder", "kostum": "3"}
+    assert tuple(conn.execute("SELECT karakter, sapka, yuz, sirt FROM avatar WHERE kullanici_id=?", (k,)).fetchone()) == ("ejder-3", "yok", "yok", "yok")
 
 
 def test_acilanlar_ve_siradaki():
-    assert avatar.acilanlar(1, 2) == ["Bilge Baykuş (karakter)", "Kasket (şapka)"]
     assert avatar.acilanlar(1, 1) == []
-    assert avatar.acilanlar(1, 4) and "Akıllı Tilki (karakter)" in avatar.acilanlar(1, 4)
-    sev, adlar = avatar.siradaki_acilis(1)
-    assert sev == 2 and adlar
+    assert "Bilge Baykuş (karakter)" in avatar.acilanlar(1, 2)
+    assert "Kalpaklı Keloğlan (kostüm)" in avatar.acilanlar(2, 3)
+    assert "Keloğlan (karakter)" in avatar.acilanlar(0, 1)
+    assert "Keloğlan (kostüm)" not in avatar.acilanlar(0, 1)
+    assert avatar.siradaki_acilis(1) == (2, avatar.acilanlar(1, 2))
     assert avatar.siradaki_acilis(10) is None
 
 
@@ -82,17 +94,25 @@ def test_sayfa_onizleme_ve_kayit(istemci, ornek, conn):
     # önizleme: açık seçenek uygulanır, kilitli seçenek yok sayılır
     assert "Bu avatarı kullan" in istemci.get("/ogrenci/avatar?karakter=robi").text
     assert "Bu avatarı kullan" not in istemci.get("/ogrenci/avatar?karakter=ejder").text
+    assert "Bu avatarı kullan" not in istemci.get("/ogrenci/avatar?karakter=kasif&kostum=2").text
+    r = istemci.post("/ogrenci/avatar", data={"csrf": csrf, "karakter": "kasif", "kostum": "2"})
+    assert r.status_code == 400 and "henüz açılmadı" in r.text
     # kilitli kayıt reddedilir
-    r = istemci.post("/ogrenci/avatar", data={"csrf": csrf, "karakter": "ejder", "sapka": "yok", "yuz": "yok", "sirt": "yok"})
+    r = istemci.post("/ogrenci/avatar", data={"csrf": csrf, "karakter": "ejder", "kostum": "1"})
     assert r.status_code == 400 and "henüz açılmadı" in r.text
     assert conn.execute("SELECT count(*) FROM avatar").fetchone()[0] == 0
-    r = istemci.post("/ogrenci/avatar", data={"csrf": csrf, "karakter": "robi", "sapka": "yok", "yuz": "yok", "sirt": "yok"}, follow_redirects=False)
+    r = istemci.post("/ogrenci/avatar", data={"csrf": csrf, "karakter": "robi", "kostum": "1"}, follow_redirects=False)
     assert r.status_code == 303 and "Kaydedildi" in istemci.get("/ogrenci/avatar?tamam=1").text
     assert avatar.getir(conn, ornek["ogr1_k"])["karakter"] == "robi"
     # seviye yükselince yeni seçenek kullanılabilir
     _xp(conn, ornek["ogr1_k"], 120)  # seviye 3
-    r = istemci.post("/ogrenci/avatar", data={"csrf": csrf, "karakter": "bilge", "sapka": "kasket", "yuz": "gozluk", "sirt": "yok"}, follow_redirects=False)
+    r = istemci.post("/ogrenci/avatar", data={"csrf": csrf, "karakter": "bilge", "kostum": "1"}, follow_redirects=False)
     assert r.status_code == 303
+    r = istemci.post("/ogrenci/avatar", data={"csrf": csrf, "karakter": "kasif", "kostum": "2"}, follow_redirects=False)
+    assert r.status_code == 303
+    t = istemci.get("/ogrenci/avatar?karakter=robi").text
+    assert 'name="kostum" value="1"' in t
+    assert 'name="kostum" value="2"' in istemci.get("/ogrenci/avatar?karakter=kasif&kostum=2").text
 
 
 def test_csrf_yetki_ve_baskasinin_avatari(istemci, ornek, conn):
@@ -103,7 +123,7 @@ def test_csrf_yetki_ve_baskasinin_avatari(istemci, ornek, conn):
         assert istemci.get("/ogrenci/avatar").status_code == 404
         assert istemci.post("/ogrenci/avatar", data={"csrf": c, "karakter": "robi"}).status_code == 404
     c = giris(istemci, "101", "ali-sifre")
-    istemci.post("/ogrenci/avatar", data={"csrf": c, "karakter": "robi", "sapka": "yok", "yuz": "yok", "sirt": "yok"})
+    istemci.post("/ogrenci/avatar", data={"csrf": c, "karakter": "robi", "kostum": "1"})
     giris(istemci, "201", "ayse-sifre")  # başkası kendi avatarını görür, Ali'ninkini değil
     assert avatar.getir(conn, ornek["ogr2_k"])["karakter"] == "kasif"
 

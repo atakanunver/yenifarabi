@@ -10,7 +10,7 @@
   <section class="kart avatar-sahne" aria-label="Önizleme">
     {{ avatar_svg(secim, seviye.no, 168) }}
     <p class="kademe-ad">{{ kademe[1] }} kademesi</p>
-    <p class="kucuk soluk">Seviye arttıkça çerçeven güzelleşir, yeni karakter ve eşyalar açılır.</p>
+    <p class="kucuk soluk">Seviye arttıkça çerçeven güzelleşir, yeni karakter ve kostümler açılır.</p>
     {% if siradaki %}<p class="sonraki-acilis">🔓 <b>Seviye {{ siradaki[0] }}</b>'de açılır: {{ siradaki[1]|join(', ') }}</p>{% endif %}
     <form method="post" action="/ogrenci/avatar">
       <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -19,18 +19,14 @@
     </form>
   </section>
 
-  {% for b, (baslik, sozluk) in bolumler.items() %}
-  <section class="kart" aria-labelledby="av-{{ b }}">
-    <h2 id="av-{{ b }}">{{ baslik }}</h2>
+  <section class="kart" aria-labelledby="av-karakter">
+    <h2 id="av-karakter">Karakter</h2>
     <ul class="avatar-sec">
-      {% for kod, (ad, sev, _) in sozluk.items() %}
-      {% set acik = sev <= seviye.no %}
-      {% set deneme = dict(secim, **{b: kod}) %}
-      <li class="{{ 'secili' if secim[b] == kod }}{{ ' kilitli' if not acik }}">
-        {% if acik %}
-        <a href="/ogrenci/avatar?{% for bb in bolumler %}{{ bb }}={{ deneme[bb] }}{{ '&amp;' if not loop.last }}{% endfor %}"{{ ' aria-current="true"' if secim[b] == kod }}>
-          {% if b == 'karakter' %}{{ avatar_svg(deneme, seviye.no, 56) }}{% else %}<span class="eşya-ik">{{ avatar_svg(deneme, seviye.no, 56) }}</span>{% endif %}
-          <span>{{ ad }}</span></a>
+      {% for kod, (ad, sev, _) in karakterler.items() %}
+      <li class="{{ 'secili' if secim.karakter == kod }}{{ ' kilitli' if sev > seviye.no }}">
+        {% if sev <= seviye.no %}
+        <a href="/ogrenci/avatar?karakter={{ kod }}&amp;kostum=1"{{ ' aria-current="true"' if secim.karakter == kod }}>
+          {{ avatar_svg({'karakter': kod, 'kostum': '1'}, seviye.no, 56) }}<span>{{ ad }}</span></a>
         {% else %}
         <div aria-disabled="true"><span class="kilit-ik" aria-hidden="true">🔒</span><span>{{ ad }}</span><span class="kucuk">Seviye {{ sev }}'de açılır</span></div>
         {% endif %}
@@ -38,7 +34,21 @@
       {% endfor %}
     </ul>
   </section>
-  {% endfor %}
+  <section class="kart" aria-labelledby="av-kostum">
+    <h2 id="av-kostum">Kostüm</h2>
+    <ul class="avatar-sec">
+      {% for kod, (ad, sev) in kostumler.items() %}
+      <li class="{{ 'secili' if secim.kostum == kod }}{{ ' kilitli' if sev > seviye.no }}">
+        {% if sev <= seviye.no %}
+        <a href="/ogrenci/avatar?karakter={{ secim.karakter }}&amp;kostum={{ kod }}"{{ ' aria-current="true"' if secim.kostum == kod }}>
+          {{ avatar_svg({'karakter': secim.karakter, 'kostum': kod}, seviye.no, 56) }}<span>{{ ad }}</span></a>
+        {% else %}
+        <div aria-disabled="true"><span class="kilit-ik" aria-hidden="true">🔒</span><span>{{ ad }}</span><span class="kucuk">Seviye {{ sev }}'de açılır</span></div>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
   <p class="kucuk"><a href="/ogrenci/arena">← Bilgi Arenası</a></p>
 </div>
 {% endblock %}
