@@ -205,6 +205,24 @@ body { background: #070914; min-height: 100vh; font-variant-numeric: tabular-num
 .ust-yz:hover { transform: translateY(-1px); filter: brightness(1.08); box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 0 22px rgba(99, 102, 241, 0.7); }
 .ust-yz:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.7); outline-offset: 2px; }
 
+/* Üst çubuktaki okul maketi */
+.ust-okul {
+  display: inline-flex; align-items: center; justify-content: center; gap: 3px; height: 38px;
+  padding: 0 12px 0 5px; border: 1px solid var(--cam-kenar-ince); border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06); color: var(--cam-metin-2); font: inherit; font-weight: 500;
+  white-space: nowrap; text-decoration: none; box-shadow: inset 0 1px 1px rgba(255,255,255,.24);
+  transition: border-color .3s, background .3s, box-shadow .3s;
+}
+.ust-okul-maket { width: 56px; height: 34px; flex: none; overflow: visible; transition: transform .3s var(--cam-yay), filter .3s; }
+.ust-okul-camlar { transition: fill .3s, filter .3s; }
+.ust-okul:hover, .ust-okul:focus-visible { border-color: rgba(255,255,255,.65); background: rgba(255,255,255,.13); box-shadow: inset 0 1px 2px rgba(255,255,255,.55), 0 0 14px rgba(255,235,190,.25); }
+.ust-okul:hover .ust-okul-maket, .ust-okul:focus-visible .ust-okul-maket { transform: translateY(-2px); filter: drop-shadow(0 0 3px rgba(255,223,160,.5)); }
+.ust-okul:hover .ust-okul-camlar, .ust-okul:focus-visible .ust-okul-camlar { fill: #ffd66f; filter: drop-shadow(0 0 2px #ffcd64); }
+.ust-okul:focus-visible { outline: 2px solid rgba(255,255,255,.7); outline-offset: 2px; }
+@media (max-width: 1300px) { .ust-okul-yazi { display: none; } .ust-okul { padding: 0 3px; } }
+@media (max-width: 480px) { .ust-okul { width: 38px; padding: 0; } .ust-okul-maket { width: 36px; height: 32px; } }
+@media (prefers-reduced-motion: reduce) { .ust-okul, .ust-okul-maket, .ust-okul-camlar { transition: none; } .ust-okul:hover .ust-okul-maket, .ust-okul:focus-visible .ust-okul-maket { transform: none; } }
+
 /* Ayarlar paneli: temalar + duvar kağıdı */
 .ayar-panel {
   top: calc(100% + 10px); width: 20rem; padding: 10px; color: var(--cam-metin);
@@ -421,7 +439,12 @@ body { background: #070914; min-height: 100vh; font-variant-numeric: tabular-num
   .sol-metin { flex: 0 0 auto; }
   .sayfa-basligi h1 { font-size: 1.4rem; }
 }
-@media (max-width: 480px) { .ust-acil span { display: none; } .ust-acil { width: 38px; padding: 0; } }
+@media (max-width: 480px) { .ust-acil span { display: none; } .ust-acil { width: 38px; padding: 0; } .ust-araclar { gap: 0; } }
+@media (max-width: 380px) { .ust-cubuk { gap: 0; } .ust-cekmece-dugme { flex-shrink: 0; } }
+@media (max-width: 340px) {
+  .ust-cubuk { flex-wrap: wrap; }
+  .ust-araclar { flex-basis: 100%; justify-content: flex-end; }
+}
 
 /* ---------- Erişilebilirlik ve yedekler ---------- */
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
