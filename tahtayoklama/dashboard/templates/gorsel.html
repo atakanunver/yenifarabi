@@ -504,6 +504,8 @@ async function galeriYukle() {
     et.textContent = (TURLER[x.tur] || x.tur) + ' · ' + x.tarih + ' ' + x.saat;
     b.append(im, et);
     b.addEventListener('click', () => sec(x.ad));
+    b.title = 'Çift tık: arka plan olarak kullan';
+    b.addEventListener('dblclick', () => { sec(x.ad); document.getElementById('arka-kullan').click(); });
     return b;
   }));
 }
