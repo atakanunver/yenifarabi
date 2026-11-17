@@ -296,6 +296,10 @@
 <script>
 const durumKutu = document.getElementById('gorsel-durum');
 function bildir(m, hata) {
+  // Mesaj, son tıklanan düğmenin grubunun hemen altında görünsün.
+  const etkin = document.activeElement;
+  const grup = etkin?.closest?.('fieldset, #onay-kutu, #galeri') || (etkin?.tagName === 'BUTTON' ? etkin : null);
+  if (grup) grup.after(durumKutu);
   durumKutu.hidden = false;
   durumKutu.className = 'serit ' + (hata ? 'serit-kritik' : 'serit-bilgi');
   durumKutu.firstElementChild.textContent = m;
