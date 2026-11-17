@@ -39,8 +39,8 @@
   <input type="text" id="baslik" value="Tebrikler" maxlength="60" aria-describedby="baslik-yardim">
   <p class="ipucu" id="baslik-yardim">Boş bırakılırsa başlık basılmaz.</p>
   <label for="ogrenciler">Öğrenci listesi</label>
-  <textarea id="ogrenciler" rows="6" maxlength="8000" aria-describedby="ogrenci-yardim" placeholder="Öğrenci adı soyadı; 9-A"></textarea>
-  <p class="ipucu" id="ogrenci-yardim">Her satıra Ad Soyad; Sınıf yazın veya Excel'den TAB ile ayrılmış iki sütun yapıştırın. Boş satırlar atlanır; en çok 24 kişi. Boş liste yazısız arka plan oluşturur.</p>
+  <textarea id="ogrenciler" rows="6" maxlength="8000" aria-describedby="ogrenci-yardim" placeholder="Ayşe Yılmaz 9-A"></textarea>
+  <p class="ipucu" id="ogrenci-yardim">Her satıra bir öğrenci yazın; satır olduğu gibi basılır. Boş satırlar atlanır; en çok 24 kişi. Boş liste yazısız arka plan oluşturur.</p>
   <p id="liste-durum" role="status" aria-live="polite"></p><ol id="liste"></ol>
   <fieldset class="cip-satir" aria-label="Afiş eylemleri">
     <button type="button" class="dugme" id="onizle">Önizle</button>
@@ -410,13 +410,10 @@ function listeyiGoster() {
   const liste = document.getElementById('liste'); liste.replaceChildren();
   let sayi = 0, hata = '';
   ogrenciler.value.split(/\r\n|[\n\r\v\f\x1c-\x1e\x85\u2028\u2029]/).forEach((satir, i) => {
-    if (!satir.trim() || hata) return;
-    const ayiraclar = satir.match(/[;\t]/g) || [];
-    if (ayiraclar.length !== 1) { hata = (i + 1) + '. satır: geçersiz ayırıcı.'; return; }
-    const alanlar = satir.split(ayiraclar[0]).map(x => x.trim());
-    if (!alanlar[0] || !alanlar[1]) { hata = (i + 1) + '. satır: eksik alan.'; return; }
+    const ad = satir.trim().replace(/\s+/g, ' ');
+    if (!ad || hata) return;
     if (sayi === 24) { hata = (i + 1) + '. satır: 24 kayıt sınırı aşıldı.'; return; }
-    sayi++; const li = document.createElement('li'); li.textContent = alanlar[0] + ' — ' + alanlar[1]; liste.appendChild(li);
+    sayi++; const li = document.createElement('li'); li.textContent = ad; liste.appendChild(li);
   });
   listeGecerli = !hata;
   document.getElementById('liste-durum').textContent = sayi + ' kayıt' + (hata ? ' — ' + hata : '');
@@ -432,7 +429,7 @@ function formOlustur() {
 }
 async function hataMetni(y) { try { const v = await y.json(); return v.mesaj || 'İşlem başarısız.'; } catch (_) { return 'Oturum süresi dolmuş veya sunucu yanıtı geçersiz (HTTP ' + y.status + ').'; } }
 onizleDugme.addEventListener('click', async () => {
-  if (!arkaDosya || !listeGecerli) { bildir(!arkaDosya ? 'Önce arka plan seçin.' : 'Listedeki hatayı düzeltin.', true); return; }
+  if (!arkaDosya || !listeGecerli) { bildir(!arkaDosya ? 'Önce arka plan seçin.' : document.getElementById('liste-durum').textContent, true); return; }
   gecersizKil(); const an = surum; onizleDugme.disabled = true;
   try {
     const y = await fetch('/gorsel/onizle', { method: 'POST', body: formOlustur(), credentials: 'same-origin' });

@@ -360,17 +360,12 @@ def ogrencileri_ayristir(metin: str) -> list[dict]:
         raise GorselHatasi("Girdi 8000 karakter sınırını aşıyor.")
     kayitlar = []
     for no, satir in enumerate(metin.splitlines(), 1):
-        if not satir.strip():
+        ad = " ".join(satir.split())  # her satır bir kayıt, olduğu gibi basılır
+        if not ad:
             continue
-        if satir.count(";") + satir.count("\t") != 1:
-            raise GorselHatasi(f"{no}. satır: geçersiz ayırıcı.")
-        ayirac = ";" if ";" in satir else "\t"
-        ad, sinif = (alan.strip() for alan in satir.split(ayirac))
-        if not ad or not sinif:
-            raise GorselHatasi(f"{no}. satır: eksik alan.")
         if len(kayitlar) == 24:
             raise GorselHatasi(f"{no}. satır: 24 kayıt sınırı aşıldı.")
-        kayitlar.append({"ad_soyad": ad, "sinif": sinif})
+        kayitlar.append({"ad_soyad": ad, "sinif": ""})
     return kayitlar
 
 
@@ -396,8 +391,7 @@ def liste_karti(arka_plan_png: bytes, kayitlar: list[dict], baslik: str = "") ->
 
     for k in kayitlar:
         ad = str(k.get("ad_soyad") or "").strip()
-        sinif = str(k.get("sinif") or "").strip()
-        if not ad or not sinif:
+        if not ad:
             raise GorselHatasi("Listede eksik alan var.")
 
     x_min = 460
