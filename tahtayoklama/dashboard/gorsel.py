@@ -78,14 +78,17 @@ def _anahtar() -> str:
     return deger
 
 
-def ai_arka_plan(prompt: str, boyut: str = "1536x1024") -> bytes:
+def ai_arka_plan(prompt: str, boyut: str = "1536x1024", *, haftalik: bool = True) -> bytes:
     """İsimsiz arka plan PNG'si üretir (~22 sn). Öğrenci adı bu fonksiyona geçirilmez."""
     prompt = (prompt or "").strip()
     if not prompt:
         raise GorselHatasi("Prompt boş.")
     if len(prompt) > 2000:
         raise GorselHatasi("Prompt en çok 2000 karakter olabilir.")
-    govde = {"model": MODEL, "prompt": f"{prompt}. {PROMPT_EKI}", "size": boyut, "n": 1}
+    ek = PROMPT_EKI if haftalik else (
+        "yazı ve harf yok; sol kenar sade kalsın, merkezde ve sağda liste için geniş, temiz boş alan bırak"
+    )
+    govde = {"model": MODEL, "prompt": f"{prompt}. {ek}", "size": boyut, "n": 1}
     istek = urllib.request.Request(
         CLIPROXY_URL,
         data=json.dumps(govde).encode(),
@@ -305,6 +308,75 @@ def _panel_ciz(cizim, kayitlar: list[dict], baslik: str, x0: int, x1: int, y0: i
             cizim.line((orta - 90, y + 3 + aralik // 2, orta + 90, y + 3 + aralik // 2), fill=_ALTIN_KOYU, width=2)
             y += aralik
         y += 10
+
+
+def ogrencileri_ayristir(metin: str) -> list[dict]:
+    if len(metin) > 8000:
+        raise GorselHatasi("Girdi 8000 karakter sınırını aşıyor.")
+    kayitlar = []
+    for no, satir in enumerate(metin.splitlines(), 1):
+        if not satir.strip():
+            continue
+        if satir.count(";") + satir.count("\t") != 1:
+            raise GorselHatasi(f"{no}. satır: geçersiz ayırıcı.")
+        ayirac = ";" if ";" in satir else "\t"
+        ad, sinif = (alan.strip() for alan in satir.split(ayirac))
+        if not ad or not sinif:
+            raise GorselHatasi(f"{no}. satır: eksik alan.")
+        if len(kayitlar) == 24:
+            raise GorselHatasi(f"{no}. satır: 24 kayıt sınırı aşıldı.")
+        kayitlar.append({"ad_soyad": ad, "sinif": sinif})
+    return kayitlar
+
+
+def liste_karti(arka_plan_png: bytes, kayitlar: list[dict]) -> bytes:
+    if len(kayitlar) > 24:
+        raise GorselHatasi("Liste 24 kayıt sınırını aşıyor.")
+    try:
+        arka = Image.open(io.BytesIO(arka_plan_png)).convert("RGB")
+    except (OSError, ValueError):
+        raise GorselHatasi("Arka plan geçerli bir görsel değil.") from None
+    en, boy = KART_BOYUT
+    oran = max(en / arka.width, boy / arka.height)
+    arka = arka.resize((round(arka.width * oran), round(arka.height * oran)), Image.LANCZOS)
+    sol, ust = (arka.width - en) // 2, (arka.height - boy) // 2
+    kart = arka.crop((sol, ust, sol + en, ust + boy)).convert("RGBA")
+    if kayitlar:
+        sutun = 1 if len(kayitlar) <= 12 else 2
+        satir_sayisi = math.ceil(len(kayitlar) / sutun)
+        sutun_en = 1400 // sutun
+        satir_h = 960 // satir_sayisi
+        bloklar = []
+        for kayit in kayitlar:
+            ad, sinif = kayit.get("ad_soyad", "").strip(), kayit.get("sinif", "").strip()
+            if not ad or not sinif:
+                raise GorselHatasi("Listede eksik alan var.")
+            for boyut in range(40, 23, -1):
+                font = _font(boyut)
+                adlar = _sar(ad, font, sutun_en - 180)
+                siniflar = _sar(sinif, font, 120)
+                if adlar and siniflar and max(len(adlar), len(siniflar)) * _adim(font, True) <= satir_h - 8:
+                    break
+            else:
+                raise GorselHatasi("Liste içeriği ayrılan alana sığmıyor.")
+            bloklar.append((adlar, siniflar, font))
+        katman = Image.new("RGBA", KART_BOYUT, (0, 0, 0, 0))
+        cizim = ImageDraw.Draw(katman)
+        cizim.rounded_rectangle((440, 40, 1880, 1040), 30, fill=(10, 15, 25, 190))
+        for i, (adlar, siniflar, font) in enumerate(bloklar):
+            x = 460 + (i // satir_sayisi) * sutun_en
+            y = 60 + (i % satir_sayisi) * satir_h
+            for satir in adlar:
+                _golge_yaz(cizim, x + (sutun_en - 180) / 2, y, satir, font, _BEYAZ)
+                y += _adim(font, True)
+            y = 60 + (i % satir_sayisi) * satir_h
+            for satir in siniflar:
+                _golge_yaz(cizim, x + sutun_en - 75, y, satir, font, _BEYAZ)
+                y += _adim(font, True)
+        kart = Image.alpha_composite(kart, katman)
+    cikti = io.BytesIO()
+    kart.convert("RGB").save(cikti, "PNG")
+    return cikti.getvalue()
 
 
 def hafta_karti(arka_plan_png: bytes, kazananlar: dict) -> bytes:

@@ -440,3 +440,71 @@ class TestPanel(_Ortak):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestGenelListe(unittest.TestCase):
+    def test_ayristirma_ve_sinirlar(self):
+        self.assertEqual(gorsel.ogrencileri_ayristir(' \r\n Ayşe Örnek ; 9-A \r\n\nÖzgür Örnek\t 10-B\r\n'),
+                         [{'ad_soyad': 'Ayşe Örnek', 'sinif': '9-A'},
+                          {'ad_soyad': 'Özgür Örnek', 'sinif': '10-B'}])
+        self.assertEqual(gorsel.ogrencileri_ayristir(' \n'), [])
+        self.assertEqual(len(gorsel.ogrencileri_ayristir('\n'.join(['Örnek;9-A'] * 24))), 24)
+        self.assertEqual(len(gorsel.ogrencileri_ayristir('A;' + 'B' * 7998)), 1)
+
+    def test_ayristirma_hatalari_kisisel_metin_icermez(self):
+        for metin in ('ÖzelAd', 'ÖzelAd;', ';ÖzelAd', 'ÖzelAd;9-A;X',
+                      'ÖzelAd\t9-A\tX', 'ÖzelAd;9-A\tX',
+                      '\n'.join(['ÖzelAd;9-A'] * 25), 'ÖzelAd' + 'x' * 7995):
+            with self.subTest(uzunluk=len(metin)), self.assertRaises(gorsel.GorselHatasi) as hata:
+                gorsel.ogrencileri_ayristir(metin)
+            self.assertNotIn('ÖzelAd', str(hata.exception))
+
+    def test_bos_tek_ve_yirmi_dort_kayit(self):
+        arka = _png(renk=(10, 20, 80))
+        bos = Image.open(io.BytesIO(gorsel.liste_karti(arka, [])))
+        self.assertEqual((bos.size, bos.format), ((1920, 1080), 'PNG'))
+        self.assertEqual(bos.getpixel((800, 500)), (10, 20, 80))
+        for adet in (1, 24):
+            kayitlar = [{'ad_soyad': f'Örnek İsim {i}', 'sinif': f'{i}-A'} for i in range(adet)]
+            with mock.patch.object(gorsel, '_golge_yaz', wraps=gorsel._golge_yaz) as yaz:
+                im = Image.open(io.BytesIO(gorsel.liste_karti(arka, kayitlar))).convert('RGB')
+            self.assertEqual(im.crop((0, 0, 420, 1080)).getcolors(), [(420 * 1080, (10, 20, 80))])
+            metinler = [c.args[3] for c in yaz.call_args_list]
+            for kayit in kayitlar:
+                self.assertIn(kayit['ad_soyad'], metinler)
+                self.assertIn(kayit['sinif'], metinler)
+            self.assertTrue(all(c.args[4].size >= 24 for c in yaz.call_args_list))
+            self.assertIsNotNone(im.crop((420, 0, 1920, 1080)).convert('L').point(lambda p: p > 100 and 255).getbbox())
+            if adet == 24:
+                self.assertIsNotNone(im.crop((1160, 940, 1860, 1020)).convert('L').point(
+                    lambda p: p > 100 and 255).getbbox())
+
+    def test_uzun_ad_sarilir_ve_tasan_reddedilir(self):
+        kayit = {'ad_soyad': 'Çağlar Şükrü Öğüt-Ünlü İğdelioğlu ' * 3, 'sinif': '10-A'}
+        with mock.patch.object(gorsel, '_golge_yaz', wraps=gorsel._golge_yaz) as yaz:
+            gorsel.liste_karti(_png(), [kayit])
+        metin = ' '.join(c.args[3] for c in yaz.call_args_list if c.args[3] != '10-A')
+        self.assertEqual(metin.replace('- ', '-'), kayit['ad_soyad'].strip())
+        for kayitlar in ([{'ad_soyad': 'Ç' * 200, 'sinif': '9-A'}],
+                         [{'ad_soyad': 'Örnek', 'sinif': '9-A'}] * 25):
+            with self.assertRaises(gorsel.GorselHatasi):
+                gorsel.liste_karti(_png(), kayitlar)
+        with self.assertRaises(gorsel.GorselHatasi):
+            gorsel.liste_karti(b'gecersiz', [])
+
+    def test_genel_ai_eki(self):
+        import base64
+        istekler = []
+
+        def sahte(istek, timeout):
+            istekler.append(json.loads(istek.data)['prompt'])
+            return _Yanit({'data': [{'b64_json': base64.b64encode(_png()).decode()}]})
+
+        with mock.patch.object(gorsel, '_anahtar', return_value='test'), \
+             mock.patch('urllib.request.urlopen', sahte):
+            gorsel.ai_arka_plan('orman')
+            gorsel.ai_arka_plan('orman', haftalik=False)
+        self.assertIn(gorsel.PROMPT_EKI, istekler[0])
+        self.assertNotIn(gorsel.PROMPT_EKI, istekler[1])
+        for kelime in ('lacivert', 'altın', 'kupa', 'ödül'):
+            self.assertNotIn(kelime, istekler[1].lower())

@@ -51,8 +51,12 @@ def _durum_ozeti() -> dict:
 
 async def _uret(tur: str, prompt: str) -> None:
     try:
-        png = await asyncio.to_thread(gorsel.ai_arka_plan, prompt)
-        yol = gorsel.arsivle("serbest", png) if tur == "serbest" else gorsel.aday_kaydet(png)
+        if tur == "manuel":
+            png = await asyncio.to_thread(gorsel.ai_arka_plan, prompt, haftalik=False)
+            yol = gorsel.arsivle("manuel-arka-plan", png)
+        else:
+            png = await asyncio.to_thread(gorsel.ai_arka_plan, prompt)
+            yol = gorsel.arsivle("serbest", png) if tur == "serbest" else gorsel.aday_kaydet(png)
         _is.update(durum="hazir", mesaj="Görsel hazır.", dosya=yol.name)
     except gorsel.GorselHatasi as e:
         _is.update(durum="hata", mesaj=str(e))
@@ -84,7 +88,7 @@ async def gorsel_durum(request: Request):
 async def gorsel_uret(request: Request):
     uzaktan_yonetim._dogrula(request)
     form = await request.form()
-    tur = "serbest" if form.get("tur") == "serbest" else "arka_plan"
+    tur = form.get("tur") if form.get("tur") in ("serbest", "manuel") else "arka_plan"
     prompt = str(form.get("prompt") or "").strip()
     if not prompt:
         return _hata("Prompt boş.")
@@ -94,7 +98,7 @@ async def gorsel_uret(request: Request):
         return _hata("Bir üretim sürüyor, bitmesini bekle.", 409)
     if not gorsel.uretim_hakki_al():
         return _hata(f"Günlük {gorsel.GUNLUK_SINIR} üretim sınırı doldu.", 429)
-    _is.update(durum="calisiyor", tur=tur, mesaj="Üretiliyor (~25 sn)…", baslangic=time.monotonic())
+    _is.update(durum="calisiyor", tur=tur, mesaj="Üretiliyor (~25 sn)…", baslangic=time.monotonic(), dosya=None)
     gorev = asyncio.create_task(_uret(tur, prompt))
     _gorevler.add(gorev)
     gorev.add_done_callback(_gorevler.discard)
@@ -146,12 +150,55 @@ async def gorsel_arka_plan(request: Request):
 async def gorsel_onizleme(request: Request):
     uzaktan_yonetim._dogrula(request)
     try:
-        yol = gorsel.kart_uret_ve_arsivle(await _kazananlar())
+        arka = gorsel.kullanilacak_arka_plan().read_bytes()
+        png = await asyncio.to_thread(gorsel.hafta_karti, arka, await _kazananlar())
     except ValueError:
         return Response("Bu hafta kazanan yok (geçici sonuçlarda iki kategori de boş).", status_code=404)
     except gorsel.GorselHatasi as e:
         return Response(str(e), status_code=502)
-    return FileResponse(yol, media_type="image/png", headers={"Cache-Control": "no-store"})
+    return Response(png, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+
+async def _liste_ciz(request: Request):
+    form = await request.form()
+    yol = gorsel.arsiv_yolu(str(form.get("dosya") or ""))
+    if yol is None:
+        return _hata("Görsel seçilmedi ya da arşivde yok.")
+    try:
+        kayitlar = gorsel.ogrencileri_ayristir(str(form.get("ogrenciler") or ""))
+    except gorsel.GorselHatasi as e:
+        return _hata(str(e))
+    try:
+        return await asyncio.to_thread(gorsel.liste_karti, yol.read_bytes(), kayitlar)
+    except gorsel.GorselHatasi:
+        return _hata("Liste veya arka plan çizime uygun değil.")
+    except Exception:  # noqa: BLE001
+        return _hata("Görsel oluşturulamadı.", 500)
+
+
+@router.post("/gorsel/onizle")
+async def gorsel_onizle(request: Request):
+    uzaktan_yonetim._dogrula(request)
+    png = await _liste_ciz(request)
+    if isinstance(png, Response):
+        return png
+    return Response(png, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+
+@router.post("/gorsel/kaydet")
+async def gorsel_kaydet(request: Request):
+    uzaktan_yonetim._dogrula(request)
+    png = await _liste_ciz(request)
+    if isinstance(png, Response):
+        _denetim(request, "gorsel_liste_kaydet", False)
+        return png
+    try:
+        yol = gorsel.arsivle("liste-kart", png)
+    except Exception:  # noqa: BLE001
+        _denetim(request, "gorsel_liste_kaydet", False)
+        return _hata("Görsel kaydedilemedi.", 500)
+    _denetim(request, "gorsel_liste_kaydet", True)
+    return {"ok": True, "mesaj": "Görsel arşive kaydedildi.", "dosya": yol.name}
 
 
 @router.post("/gorsel/onayla")

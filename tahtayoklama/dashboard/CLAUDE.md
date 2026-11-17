@@ -31,3 +31,5 @@ sudo systemctl restart farabi-yoklama-dashboard              # yalnız 08:00-17:
 - `config/` gizli dosyalar içerir (gitignore'lu); `*.bak-*` / `*.yedek-*` dosyaları eski yedeklerdir, kod tabanı değil — okuma/düzenleme.
 - Systemd birimindeki 8010 `port80.conf` drop-in'i ile 80'e ezilir; `curl` ile test ederken gerçek port 80.
 - `okul_sql.py` ve `okul_bilgisi.py` değişince kök `CLAUDE.md`'deki "Atos veri erişimi" kurallarına (yeni tablo = sabit + `IZINLI_TABLOLAR` + şema açıklaması) uy.
+
+- `/gorsel`: AI yalnız arka plan üretir; öğrenci listesi ve önizleme yerelde işlenir, arşive kayıt açık kullanıcı eylemidir. Haftalık otomasyon ayrıdır. Test: `venv/bin/python -m unittest test_gorsel test_gorsel_panel -v`.
