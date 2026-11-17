@@ -164,14 +164,15 @@ async def _liste_ciz(request: Request):
     yol = gorsel.arsiv_yolu(str(form.get("dosya") or ""))
     if yol is None:
         return _hata("Görsel seçilmedi ya da arşivde yok.")
+    baslik = str(form.get("baslik") or "").strip()
     try:
         kayitlar = gorsel.ogrencileri_ayristir(str(form.get("ogrenciler") or ""))
     except gorsel.GorselHatasi as e:
         return _hata(str(e))
     try:
-        return await asyncio.to_thread(gorsel.liste_karti, yol.read_bytes(), kayitlar)
-    except gorsel.GorselHatasi:
-        return _hata("Liste veya arka plan çizime uygun değil.")
+        return await asyncio.to_thread(gorsel.liste_karti, yol.read_bytes(), kayitlar, baslik)
+    except gorsel.GorselHatasi as e:
+        return _hata(str(e))
     except Exception:  # noqa: BLE001
         return _hata("Görsel oluşturulamadı.", 500)
 

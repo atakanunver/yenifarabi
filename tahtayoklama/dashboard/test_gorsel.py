@@ -117,6 +117,8 @@ class TestKart(unittest.TestCase):
     def test_font_yoksa_anlamli_hata(self):
         with mock.patch.object(gorsel, "FONT_YOLU", "/yok/font.ttf"), self.assertRaises(gorsel.GorselHatasi):
             gorsel.hafta_karti(_png(), {"maraton": [{"ad_soyad": "A", "sinif": "9-A"}]})
+        with mock.patch.object(gorsel, "LISTE_FONT_YOLU", "/yok/font.otf"), self.assertRaises(gorsel.GorselHatasi):
+            gorsel.liste_karti(_png(), [{"ad_soyad": "A", "sinif": "9-A"}])
 
 
 class _Yanit:
@@ -442,6 +444,16 @@ if __name__ == "__main__":
     unittest.main()
 
 
+ADLAR_24 = [
+    "Ayşe Yıldırım", "Çağlar Öztürk", "İrem Şahin", "Göktuğ Ünlü",
+    "Zeynep Kılıç", "Emre Doğan", "Şule Aksoy", "Barış Erdoğan",
+    "Deniz Aydın", "Mustafa Kaya", "Elif Polat", "Burak Özdemir",
+    "Ceren Aslan", "Mert Çetin", "Hande Kurt", "Batuhan Yavuz",
+    "Derya Koç", "Serkan Şimşek", "Fatih Arslan", "Ömer Faruk Güler",
+    "Süleyman Koçak", "Gülfem Çelik", "Muhammed Ali Şahin", "Zehra Yılmaz",
+]
+
+
 class TestGenelListe(unittest.TestCase):
     def test_ayristirma_ve_sinirlar(self):
         self.assertEqual(gorsel.ogrencileri_ayristir(' \r\n Ayşe Örnek ; 9-A \r\n\nÖzgür Örnek\t 10-B\r\n'),
@@ -459,25 +471,72 @@ class TestGenelListe(unittest.TestCase):
                 gorsel.ogrencileri_ayristir(metin)
             self.assertNotIn('ÖzelAd', str(hata.exception))
 
-    def test_bos_tek_ve_yirmi_dort_kayit(self):
+    def test_bos_tek_sekiz_ve_yirmi_dort_kayit(self):
         arka = _png(renk=(10, 20, 80))
-        bos = Image.open(io.BytesIO(gorsel.liste_karti(arka, [])))
-        self.assertEqual((bos.size, bos.format), ((1920, 1080), 'PNG'))
-        self.assertEqual(bos.getpixel((800, 500)), (10, 20, 80))
-        for adet in (1, 24):
-            kayitlar = [{'ad_soyad': f'Örnek İsim {i}', 'sinif': f'{i}-A'} for i in range(adet)]
-            with mock.patch.object(gorsel, '_golge_yaz', wraps=gorsel._golge_yaz) as yaz:
-                im = Image.open(io.BytesIO(gorsel.liste_karti(arka, kayitlar))).convert('RGB')
+        # 0 kayıt: başlık verilse bile yazısız (orta piksel arka planla aynı)
+        bos = Image.open(io.BytesIO(gorsel.liste_karti(arka, [], baslik="Tebrikler")))
+        self.assertEqual((bos.size, bos.format), ((1920, 1080), "PNG"))
+        self.assertEqual(bos.getpixel((960, 540)), (10, 20, 80))
+        self.assertEqual(bos.crop((0, 0, 420, 1080)).getcolors(), [(420 * 1080, (10, 20, 80))])
+
+        for adet in (1, 8, 24):
+            kayitlar = [{"ad_soyad": ADLAR_24[i], "sinif": f"{9 + i % 4}-{'ABCD'[i % 4]}"} for i in range(adet)]
+            with mock.patch.object(gorsel, "_golge_yaz", wraps=gorsel._golge_yaz) as yaz:
+                im = Image.open(io.BytesIO(gorsel.liste_karti(arka, kayitlar, baslik="Tebrikler"))).convert("RGB")
+            # sol 420 şerit arka planla aynı
             self.assertEqual(im.crop((0, 0, 420, 1080)).getcolors(), [(420 * 1080, (10, 20, 80))])
+
             metinler = [c.args[3] for c in yaz.call_args_list]
+            self.assertIn("Tebrikler", metinler)
             for kayit in kayitlar:
-                self.assertIn(kayit['ad_soyad'], metinler)
-                self.assertIn(kayit['sinif'], metinler)
-            self.assertTrue(all(c.args[4].size >= 24 for c in yaz.call_args_list))
-            self.assertIsNotNone(im.crop((420, 0, 1920, 1080)).convert('L').point(lambda p: p > 100 and 255).getbbox())
-            if adet == 24:
-                self.assertIsNotNone(im.crop((1160, 940, 1860, 1020)).convert('L').point(
-                    lambda p: p > 100 and 255).getbbox())
+                self.assertIn(kayit["ad_soyad"], metinler)
+                self.assertIn(kayit["sinif"], metinler)
+
+            # tüm adlar aynı punto
+            ad_puntolari = [c.args[4].size for c in yaz.call_args_list if c.args[3] in [k["ad_soyad"] for k in kayitlar]]
+            self.assertEqual(len(set(ad_puntolari)), 1)
+            ad_punto = ad_puntolari[0]
+
+            if adet == 8:
+                self.assertGreaterEqual(ad_punto, 56)
+            elif adet == 24:
+                self.assertGreaterEqual(ad_punto, 36)
+
+            # sınıf puntosu ~0.65 oranında
+            sinif_puntolari = [c.args[4].size for c in yaz.call_args_list if c.args[3] in [k["sinif"] for k in kayitlar]]
+            self.assertTrue(all(abs(sp / ad_punto - 0.65) <= 0.06 for sp in sinif_puntolari))
+
+            # hiçbir metin x<420'ye ve tuval dışına taşmaz
+            for c in yaz.call_args_list:
+                cx, cy, metin, font = c.args[1], c.args[2], c.args[3], c.args[4]
+                anchor = c.kwargs.get("anchor", "ma")
+                w = font.getlength(metin)
+                sol = cx - w / 2 if anchor == "ma" else cx
+                sag = cx + w / 2 if anchor == "ma" else cx + w
+                self.assertGreaterEqual(sol, 420, f"{metin} sol kenara taştı: {sol}")
+                self.assertLessEqual(sag, 1920, f"{metin} sağ kenara taştı: {sag}")
+                self.assertGreaterEqual(cy, 0, f"{metin} üst kenara taştı: {cy}")
+                self.assertLessEqual(cy, 1080, f"{metin} alt kenara taştı: {cy}")
+
+    def test_baslik_kurallari(self):
+        arka = _png(renk=(10, 20, 80))
+        kayitlar = [{"ad_soyad": "Ayşe Yıldırım", "sinif": "9-A"}]
+
+        # Verildiğinde çizilir
+        with mock.patch.object(gorsel, "_golge_yaz", wraps=gorsel._golge_yaz) as yaz:
+            gorsel.liste_karti(arka, kayitlar, baslik="  Başarı Belgesi  ")
+        self.assertIn("Başarı Belgesi", [c.args[3] for c in yaz.call_args_list])
+
+        # Boşsa çizilmez
+        with mock.patch.object(gorsel, "_golge_yaz", wraps=gorsel._golge_yaz) as yaz:
+            gorsel.liste_karti(arka, kayitlar, baslik="")
+        self.assertNotIn("Başarı Belgesi", [c.args[3] for c in yaz.call_args_list])
+
+        # 60 karakter kabul edilir, 61 karakter reddedilir
+        gorsel.liste_karti(arka, kayitlar, baslik="B" * 60)
+        with self.assertRaises(gorsel.GorselHatasi) as h:
+            gorsel.liste_karti(arka, kayitlar, baslik="B" * 61)
+        self.assertIn("60", str(h.exception))
 
     def test_uzun_ad_sarilir_ve_tasan_reddedilir(self):
         kayit = {'ad_soyad': 'Çağlar Şükrü Öğüt-Ünlü İğdelioğlu ' * 3, 'sinif': '10-A'}
@@ -491,6 +550,53 @@ class TestGenelListe(unittest.TestCase):
                 gorsel.liste_karti(_png(), kayitlar)
         with self.assertRaises(gorsel.GorselHatasi):
             gorsel.liste_karti(b'gecersiz', [])
+
+    def test_sutun_blok_ortalanmasi_ve_sag_dekor_payi(self):
+        arka = _png(renk=(10, 20, 80))
+        for adet in (8, 24):
+            kayitlar = [{"ad_soyad": ADLAR_24[i], "sinif": f"{9 + i % 4}-{'ABCD'[i % 4]}"} for i in range(adet)]
+            with mock.patch.object(gorsel, "_golge_yaz", wraps=gorsel._golge_yaz) as yaz:
+                gorsel.liste_karti(arka, kayitlar, baslik="Tebrikler")
+
+            kutular = []
+            sutun_metinleri = {0: [], 1: []}
+            cx_degerleri = sorted({c.args[1] for c in yaz.call_args_list if c.kwargs.get("anchor") == "la"})
+            self.assertEqual(len(cx_degerleri), 2, f"{adet} kayıtta 2 sütun bekleniyordu.")
+            cx_sol, cx_sag = cx_degerleri
+
+            for c in yaz.call_args_list:
+                cx, _, metin, font = c.args[1], c.args[2], c.args[3], c.args[4]
+                anchor = c.kwargs.get("anchor", "ma")
+                w = font.getlength(metin)
+                sol = cx - w / 2 if anchor == "ma" else cx
+                sag = cx + w / 2 if anchor == "ma" else cx + w
+                kutular.append((sol, sag))
+                if anchor == "la":
+                    if cx == cx_sol:
+                        sutun_metinleri[0].append(sag)
+                    elif cx == cx_sag:
+                        sutun_metinleri[1].append(sol)
+
+            # Çizilen tüm metin kutularının en sağı <= 1840
+            max_sag = max(k[1] for k in kutular)
+            self.assertLessEqual(max_sag, 1840, f"{adet} kayıtta en sağ metin 1840'ı aştı: {max_sag}")
+
+            # İki sütunda sol sütunun sağ kenarı ile sağ sütunun sol kenarı arası 60–120 px
+            sol_sutun_sag = max(sutun_metinleri[0])
+            sag_sutun_sol = min(sutun_metinleri[1])
+            sutun_arasi_bosluk = sag_sutun_sol - sol_sutun_sag
+            self.assertGreaterEqual(sutun_arasi_bosluk, 60, f"{adet} kayıtta sütun arası çok dar: {sutun_arasi_bosluk}")
+            self.assertLessEqual(sutun_arasi_bosluk, 120, f"{adet} kayıtta sütun arası çok geniş: {sutun_arasi_bosluk}")
+
+            # Bloğun sol ve sağ boşluğu [460, 1840] içinde ±10 px dengeli (ortalı)
+            min_sol = min(k[0] for k in kutular)
+            sol_bosluk = min_sol - 460
+            sag_bosluk = 1840 - max_sag
+            fark = abs(sol_bosluk - sag_bosluk)
+            self.assertLessEqual(
+                fark, 10,
+                f"{adet} kayıtta blok dengesiz: sol={sol_bosluk}, sağ={sag_bosluk}, fark={fark}"
+            )
 
     def test_genel_ai_eki(self):
         import base64
@@ -506,5 +612,10 @@ class TestGenelListe(unittest.TestCase):
             gorsel.ai_arka_plan('orman', haftalik=False)
         self.assertIn(gorsel.PROMPT_EKI, istekler[0])
         self.assertNotIn(gorsel.PROMPT_EKI, istekler[1])
+        # Yazı yasağı var
+        self.assertIn("yazı", istekler[1])
+        # Sadelik ("sade alan" vb.) yerine zengin dekor ifadesi var
+        self.assertNotIn("sade alan", istekler[1])
+        self.assertTrue(any(k in istekler[1] for k in ("zengin", "derinlik", "ışık efektleri", "ayrıntılı süsleme")))
         for kelime in ('lacivert', 'altın', 'kupa', 'ödül'):
             self.assertNotIn(kelime, istekler[1].lower())

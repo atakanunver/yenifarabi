@@ -32,12 +32,18 @@ CLIPROXY_AYAR = TABAN / "config" / "cliproxy.json"
 MODEL = "gpt-image-2"
 OKUL_ODUL_URL = "http://127.0.0.1:9090/api/odul/hafta"
 FONT_YOLU = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+LISTE_FONT_YOLU = "/usr/share/fonts/opentype/urw-base35/URWGothic-Demi.otf"
 GUNLUK_SINIR = 10
 KART_BOYUT = (1920, 1080)
 PROMPT_EKI = (
     "panel, çerçeve, madalya, yazı ve harf yok; sol kenar (yaklaşık %25) sade ve koyu kalsın, ana dekor "
     "(kupa, defne, altın kıvrımlar) orta ve sağ tarafta olsun, merkezde ve sağda büyük sade alan bırak; "
     "lacivert-altın prestij teması"
+)
+GENEL_PROMPT_EKI = (
+    "zengin, gösterişli ve sinematik; yazı, harf, logo ve filigran yok; ışık efektleri, derinlik ve "
+    "ayrıntılı süsleme kenar ve köşelerde yoğun; ortası ve sağ-orta isim listesi için daha sakin, "
+    "düşük kontrastlı; sol yaklaşık %20 sakin"
 )
 VARSAYILAN_PROMPT = (
     "Okul haftalık başarı ödülü için 16:9 duvar kağıdı arka planı: koyu lacivert ve altın tonları, "
@@ -85,9 +91,7 @@ def ai_arka_plan(prompt: str, boyut: str = "1536x1024", *, haftalik: bool = True
         raise GorselHatasi("Prompt boş.")
     if len(prompt) > 2000:
         raise GorselHatasi("Prompt en çok 2000 karakter olabilir.")
-    ek = PROMPT_EKI if haftalik else (
-        "yazı ve harf yok; sol kenar sade kalsın, merkezde ve sağda liste için geniş, temiz boş alan bırak"
-    )
+    ek = PROMPT_EKI if haftalik else GENEL_PROMPT_EKI
     govde = {"model": MODEL, "prompt": f"{prompt}. {ek}", "size": boyut, "n": 1}
     istek = urllib.request.Request(
         CLIPROXY_URL,
@@ -195,6 +199,13 @@ def _font(boyut: int) -> ImageFont.FreeTypeFont:
         raise GorselHatasi(f"Yazı tipi bulunamadı: {FONT_YOLU}") from None
 
 
+def _liste_font(boyut: int) -> ImageFont.FreeTypeFont:
+    try:
+        return ImageFont.truetype(LISTE_FONT_YOLU, boyut)
+    except OSError:
+        raise GorselHatasi(f"Yazı tipi bulunamadı: {LISTE_FONT_YOLU}") from None
+
+
 def _genislik(font, metin: str) -> float:
     return font.getlength(metin)
 
@@ -254,10 +265,44 @@ def _blok(kayit: dict, genislik: int, yukseklik: int) -> dict:
     return {"satirlar": tum, "yukseklik": 10 + sum(_adim(fo, i < len(ad_satirlari)) for i, (_, fo, _) in enumerate(tum))}
 
 
-def _golge_yaz(cizim: ImageDraw.ImageDraw, orta_x: float, y: float, metin: str, font, renk) -> None:
-    for dx, dy, a in ((3, 3, 150), (2, 2, 200)):
-        cizim.text((orta_x + dx, y + dy), metin, font=font, fill=(0, 0, 0, a), anchor="ma")
-    cizim.text((orta_x, y), metin, font=font, fill=renk, anchor="ma")
+def _golge_yaz(
+    cizim: ImageDraw.ImageDraw,
+    orta_x: float,
+    y: float,
+    metin: str,
+    font,
+    renk,
+    *,
+    anchor: str = "ma",
+    stroke_width: int = 0,
+    stroke_fill=None,
+    golge_cizim: ImageDraw.ImageDraw | None = None,
+    golge_dx: int = 5,
+    golge_dy: int = 6,
+) -> None:
+    if golge_cizim is not None:
+        golge_cizim.text(
+            (orta_x + golge_dx, y + golge_dy),
+            metin,
+            font=font,
+            fill=(0, 0, 0, 170),
+            anchor=anchor,
+            stroke_width=stroke_width,
+            stroke_fill=(0, 0, 0, 200),
+        )
+        cizim.text(
+            (orta_x, y),
+            metin,
+            font=font,
+            fill=renk,
+            anchor=anchor,
+            stroke_width=stroke_width,
+            stroke_fill=stroke_fill,
+        )
+    else:
+        for dx, dy, a in ((3, 3, 150), (2, 2, 200)):
+            cizim.text((orta_x + dx, y + dy), metin, font=font, fill=(0, 0, 0, a), anchor=anchor)
+        cizim.text((orta_x, y), metin, font=font, fill=renk, anchor=anchor)
 
 
 def _panel_zemin(kart: Image.Image, x0: int, x1: int, y0: int, y1: int) -> Image.Image:
@@ -329,9 +374,12 @@ def ogrencileri_ayristir(metin: str) -> list[dict]:
     return kayitlar
 
 
-def liste_karti(arka_plan_png: bytes, kayitlar: list[dict]) -> bytes:
+def liste_karti(arka_plan_png: bytes, kayitlar: list[dict], baslik: str = "") -> bytes:
     if len(kayitlar) > 24:
         raise GorselHatasi("Liste 24 kayıt sınırını aşıyor.")
+    baslik = (baslik or "").strip()
+    if len(baslik) > 60:
+        raise GorselHatasi("Başlık en çok 60 karakter olabilir.")
     try:
         arka = Image.open(io.BytesIO(arka_plan_png)).convert("RGB")
     except (OSError, ValueError):
@@ -341,39 +389,238 @@ def liste_karti(arka_plan_png: bytes, kayitlar: list[dict]) -> bytes:
     arka = arka.resize((round(arka.width * oran), round(arka.height * oran)), Image.LANCZOS)
     sol, ust = (arka.width - en) // 2, (arka.height - boy) // 2
     kart = arka.crop((sol, ust, sol + en, ust + boy)).convert("RGBA")
-    if kayitlar:
-        sutun = 1 if len(kayitlar) <= 12 else 2
-        satir_sayisi = math.ceil(len(kayitlar) / sutun)
-        sutun_en = 1400 // sutun
-        satir_h = 960 // satir_sayisi
-        bloklar = []
-        for kayit in kayitlar:
-            ad, sinif = kayit.get("ad_soyad", "").strip(), kayit.get("sinif", "").strip()
-            if not ad or not sinif:
-                raise GorselHatasi("Listede eksik alan var.")
-            for boyut in range(40, 23, -1):
-                font = _font(boyut)
-                adlar = _sar(ad, font, sutun_en - 180)
-                siniflar = _sar(sinif, font, 120)
-                if adlar and siniflar and max(len(adlar), len(siniflar)) * _adim(font, True) <= satir_h - 8:
-                    break
+    if not kayitlar:
+        cikti = io.BytesIO()
+        kart.convert("RGB").save(cikti, "PNG")
+        return cikti.getvalue()
+
+    for k in kayitlar:
+        ad = str(k.get("ad_soyad") or "").strip()
+        sinif = str(k.get("sinif") or "").strip()
+        if not ad or not sinif:
+            raise GorselHatasi("Listede eksik alan var.")
+
+    x_min = 460
+    x_max = 1840
+    y_min = 40
+    y_max = 1040
+    w_avail = x_max - x_min
+    h_avail = y_max - y_min
+
+    aday_sutunlar = [1] if len(kayitlar) == 1 else [1, 2]
+    sonuclar = {}
+
+    for sutun in aday_sutunlar:
+        col_gap = 60 if sutun == 2 else 0
+        col_width = (w_avail - col_gap) // sutun
+        rows_count = math.ceil(len(kayitlar) / sutun)
+        for boyut in range(80, 27, -1):
+            f_ad = _liste_font(boyut)
+            f_sinif = _liste_font(max(16, round(boyut * 0.65)))
+            f_bas_size = round(boyut * 1.3)
+            if baslik:
+                while f_bas_size > 20:
+                    fb = _liste_font(f_bas_size)
+                    if fb.getlength(baslik) <= w_avail - 40:
+                        break
+                    f_bas_size -= 2
+                f_bas = _liste_font(f_bas_size)
+                baslik_h = f_bas.size * 1.15 + 24
             else:
-                raise GorselHatasi("Liste içeriği ayrılan alana sığmıyor.")
-            bloklar.append((adlar, siniflar, font))
-        katman = Image.new("RGBA", KART_BOYUT, (0, 0, 0, 0))
-        cizim = ImageDraw.Draw(katman)
-        cizim.rounded_rectangle((440, 40, 1880, 1040), 30, fill=(10, 15, 25, 190))
-        for i, (adlar, siniflar, font) in enumerate(bloklar):
-            x = 460 + (i // satir_sayisi) * sutun_en
-            y = 60 + (i % satir_sayisi) * satir_h
-            for satir in adlar:
-                _golge_yaz(cizim, x + (sutun_en - 180) / 2, y, satir, font, _BEYAZ)
-                y += _adim(font, True)
-            y = 60 + (i % satir_sayisi) * satir_h
-            for satir in siniflar:
-                _golge_yaz(cizim, x + sutun_en - 75, y, satir, font, _BEYAZ)
-                y += _adim(font, True)
-        kart = Image.alpha_composite(kart, katman)
+                f_bas = None
+                baslik_h = 0
+            h_rec = h_avail - baslik_h
+            adim_ad = round(boyut * 1.12)
+            adim_sinif = round(f_sinif.size * 1.12)
+
+            parsed_cols = []
+            possible = True
+            for c in range(sutun):
+                c_items = kayitlar[c * rows_count : (c + 1) * rows_count]
+                c_parsed = []
+                c_h = 0
+                for item in c_items:
+                    ad = str(item.get("ad_soyad") or "").strip()
+                    sinif = str(item.get("sinif") or "").strip()
+                    ad_lines = _sar(ad, f_ad, col_width)
+                    if ad_lines is None:
+                        possible = False
+                        break
+                    sinif_lines = _sar(sinif, f_sinif, col_width)
+                    if sinif_lines is None:
+                        possible = False
+                        break
+                    item_h = len(ad_lines) * adim_ad + len(sinif_lines) * adim_sinif + 4
+                    c_h += item_h
+                    c_parsed.append((ad_lines, sinif_lines, item_h))
+                if not possible:
+                    break
+                parsed_cols.append((c_parsed, c_h))
+            if not possible:
+                continue
+            max_col_h = max((ch for _, ch in parsed_cols), default=0)
+            if max_col_h <= h_rec:
+                sonuclar[sutun] = (boyut, f_bas_size, parsed_cols, baslik_h, col_width, col_gap, rows_count)
+                break
+
+    if not sonuclar:
+        raise GorselHatasi("Liste içeriği ayrılan alana sığmıyor.")
+
+    if len(sonuclar) == 1:
+        secilen_sutun = next(iter(sonuclar))
+    else:
+        b1 = sonuclar[1][0]
+        b2 = sonuclar[2][0]
+        if b2 > b1:
+            secilen_sutun = 2
+        elif b1 > b2:
+            secilen_sutun = 1
+        else:
+            secilen_sutun = 1 if len(kayitlar) <= 4 else 2
+
+    boyut, f_bas_size, parsed_cols, baslik_h, col_width, col_gap, rows_count = sonuclar[secilen_sutun]
+    f_ad = _liste_font(boyut)
+    f_sinif = _liste_font(max(16, round(boyut * 0.65)))
+    f_bas = _liste_font(f_bas_size) if baslik else None
+    adim_ad = round(boyut * 1.12)
+    adim_sinif = round(f_sinif.size * 1.12)
+
+    max_col_h = max(ch for _, ch in parsed_cols)
+    artan_h = max(0, (h_avail - baslik_h) - max_col_h)
+    row_gap = min(36, artan_h // (rows_count - 1)) if rows_count > 1 else 0
+    total_h = baslik_h + max_col_h + (rows_count - 1) * row_gap
+    top_y = y_min + (h_avail - total_h) // 2
+
+    title_y = top_y
+    columns_y = top_y + baslik_h
+
+    col_widths = []
+    for c_parsed, _ in parsed_cols:
+        cw = 0.0
+        for ad_lines, sinif_lines, _ in c_parsed:
+            for line in ad_lines:
+                cw = max(cw, f_ad.getlength(line))
+            for line in sinif_lines:
+                cw = max(cw, f_sinif.getlength(line))
+        col_widths.append(cw)
+
+    if secilen_sutun == 1:
+        total_block_w = col_widths[0]
+        block_left = max(float(x_min), (x_min + x_max - total_block_w) / 2)
+        col_xs = [round(block_left)]
+    else:
+        col_gap_actual = 90
+        total_block_w = col_widths[0] + col_gap_actual + col_widths[1]
+        block_left = (x_min + x_max - total_block_w) / 2
+        col_x0 = round(block_left)
+        col_x1 = round(col_x0 + col_widths[0] + col_gap_actual)
+        col_xs = [col_x0, col_x1]
+
+    title_x = (col_xs[0] + (col_xs[-1] + col_widths[-1])) / 2
+
+    metin_kutulari = []
+    if f_bas:
+        bw = f_bas.getlength(baslik)
+        metin_kutulari.append((title_x - bw / 2, title_y, title_x + bw / 2, title_y + f_bas.size * 1.15))
+
+    for c, (c_parsed, _) in enumerate(parsed_cols):
+        cx = col_xs[c]
+        cy = columns_y
+        for ad_lines, sinif_lines, _ in c_parsed:
+            for line in ad_lines:
+                lw = f_ad.getlength(line)
+                metin_kutulari.append((cx, cy, cx + lw, cy + adim_ad))
+                cy += adim_ad
+            for line in sinif_lines:
+                lw = f_sinif.getlength(line)
+                metin_kutulari.append((cx, cy, cx + lw, cy + adim_sinif))
+                cy += adim_sinif
+            cy += 4 + row_gap
+
+    min_x = min(k[0] for k in metin_kutulari)
+    min_y = min(k[1] for k in metin_kutulari)
+    max_x = max(k[2] for k in metin_kutulari)
+    max_y = max(k[3] for k in metin_kutulari)
+
+    pad_x = 50
+    pad_y = 35
+    hx0 = max(450, round(min_x - pad_x))
+    hx1 = min(1890, round(max_x + pad_x))
+    hy0 = max(20, round(min_y - pad_y))
+    hy1 = min(1060, round(max_y + pad_y))
+    hradius = min(50, (hy1 - hy0) // 4)
+
+    hale = Image.new("RGBA", KART_BOYUT, (0, 0, 0, 0))
+    ImageDraw.Draw(hale).rounded_rectangle((hx0, hy0, hx1, hy1), radius=hradius, fill=(5, 10, 30, 120))
+    hale = hale.filter(ImageFilter.GaussianBlur(25))
+    hale.paste((0, 0, 0, 0), (0, 0, 420, 1080))
+
+    golge_katman = Image.new("RGBA", KART_BOYUT, (0, 0, 0, 0))
+    yazi_katman = Image.new("RGBA", KART_BOYUT, (0, 0, 0, 0))
+    golge_cizim = ImageDraw.Draw(golge_katman)
+    yazi_cizim = ImageDraw.Draw(yazi_katman)
+
+    if f_bas:
+        _golge_yaz(
+            yazi_cizim,
+            title_x,
+            title_y,
+            baslik,
+            f_bas,
+            _ALTIN,
+            anchor="ma",
+            stroke_width=3,
+            stroke_fill=(60, 40, 0),
+            golge_cizim=golge_cizim,
+            golge_dx=5,
+            golge_dy=6,
+        )
+
+    for c, (c_parsed, _) in enumerate(parsed_cols):
+        cx = col_xs[c]
+        cy = columns_y
+        for ad_lines, sinif_lines, _ in c_parsed:
+            for line in ad_lines:
+                _golge_yaz(
+                    yazi_cizim,
+                    cx,
+                    cy,
+                    line,
+                    f_ad,
+                    _BEYAZ,
+                    anchor="la",
+                    stroke_width=4,
+                    stroke_fill=(10, 20, 50),
+                    golge_cizim=golge_cizim,
+                    golge_dx=5,
+                    golge_dy=6,
+                )
+                cy += adim_ad
+            for line in sinif_lines:
+                _golge_yaz(
+                    yazi_cizim,
+                    cx,
+                    cy,
+                    line,
+                    f_sinif,
+                    _ALTIN,
+                    anchor="la",
+                    stroke_width=2,
+                    stroke_fill=(10, 20, 50),
+                    golge_cizim=golge_cizim,
+                    golge_dx=4,
+                    golge_dy=5,
+                )
+                cy += adim_sinif
+            cy += 4 + row_gap
+
+    golge_katman = golge_katman.filter(ImageFilter.GaussianBlur(6))
+    golge_katman.paste((0, 0, 0, 0), (0, 0, 420, 1080))
+    yazi_katman.paste((0, 0, 0, 0), (0, 0, 420, 1080))
+
+    kart = Image.alpha_composite(kart, hale)
+    kart = Image.alpha_composite(kart, golge_katman)
+    kart = Image.alpha_composite(kart, yazi_katman)
     cikti = io.BytesIO()
     kart.convert("RGB").save(cikti, "PNG")
     return cikti.getvalue()

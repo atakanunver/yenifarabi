@@ -9,17 +9,35 @@
 <form class="gorsel-form" onsubmit="return false">
   <div class="form-alan">
     <label for="ornek">Hazır örnek</label>
-    <select id="ornek"><option value="">Örnek seçin</option><option value="başarı">Lacivert-altın başarı</option><option value="bilim">Bilim / teknoloji</option><option value="kitap">Kitap / okuma</option><option value="geometri">Sade geometrik</option><option value="bahar">Bahar</option></select>
+    <select id="ornek">
+      <option value="">Örnek seçin</option>
+      <option value="başarı">Lacivert-altın tören / başarı</option>
+      <option value="bilim">Bilim / uzay</option>
+      <option value="kitap">Kitap / okuma</option>
+      <option value="geometri">Matematik / geometri</option>
+      <option value="bahar">Doğa / bahar</option>
+      <option value="spor">Spor / şampiyonluk</option>
+      <option value="sanat">Sanat / müzik</option>
+      <option value="motif">Türk motifleri</option>
+    </select>
     <label for="prompt">Arka plan açıklaması</label>
     <textarea id="prompt" rows="5" maxlength="2000" data-sayac="prompt-sayac">{{ varsayilan_prompt }}</textarea>
     <span class="ipucu" id="prompt-sayac"></span>
   </div>
-  <button type="button" class="dugme" data-uret="manuel"><svg class="ikon"><use href="#ik-resim"/></svg> Arka plan üret</button>
+  <fieldset class="cip-satir" aria-label="Arka plan eylemleri">
+    <button type="button" class="dugme" data-uret="manuel"><svg class="ikon"><use href="#ik-resim"/></svg> Arka plan üret</button>
+    <button type="button" class="dugme dugme-ikincil" id="zenginlestir" title="Kısa fikrini yerel yapay zekâ ayrıntılı prompta çevirir"><svg class="ikon"><use href="#ik-yildiz"/></svg> Promptu zenginleştir</button>
+    <button type="button" class="dugme dugme-ikincil" id="ornek-prompt" title="Rastgele bir örnek prompt yazar"><svg class="ikon"><use href="#ik-yenile"/></svg> Örnek prompt</button>
+    <button type="button" class="dugme dugme-ikincil" id="zenginlestir-geri" hidden>Geri al</button>
+  </fieldset>
   <span class="ipucu">Bugün kalan üretim hakkı: <b id="kalan">{{ ozet.kalan }}</b> / {{ ozet.sinir }}.</span>
 </form>
 <p class="ipucu" id="arka-secim">Henüz arka plan seçilmedi.</p>
 <h2 class="bolum-basligi">Öğrenci bilgileri</h2>
 <div class="gorsel-form form-alan">
+  <label for="baslik">Başlık</label>
+  <input type="text" id="baslik" value="Tebrikler" maxlength="60" aria-describedby="baslik-yardim">
+  <p class="ipucu" id="baslik-yardim">Boş bırakılırsa başlık basılmaz.</p>
   <label for="ogrenciler">Öğrenci listesi</label>
   <textarea id="ogrenciler" rows="6" maxlength="8000" aria-describedby="ogrenci-yardim" placeholder="Öğrenci adı soyadı; 9-A"></textarea>
   <p class="ipucu" id="ogrenci-yardim">Her satıra Ad Soyad; Sınıf yazın veya Excel'den TAB ile ayrılmış iki sütun yapıştırın. Boş satırlar atlanır; en çok 24 kişi. Boş liste yazısız arka plan oluşturur.</p>
@@ -68,6 +86,210 @@
 <h3>Son gönderimler</h3>
 <div id="gunluk"><p class="ipucu">Henüz gönderim yok.</p></div>
 
+
+<h2 class="bolum-basligi">İpuçları</h2>
+<div class="gorsel-ipuclari">
+  <article>
+    <h3>Yazı için boş alan bırak</h3>
+    <p>Afişe sonradan tarih veya saat yazacaksan boşluk iste.</p>
+    <p class="gorsel-ornek">Örn. “… üstte yazı için temiz boş alan (copy space) bırak.”</p>
+  </article>
+  <article>
+    <h3>İstemediklerini yaz</h3>
+    <p>Bozuk harf, logo ve filigran çıkmasın diye açıkça belirt.</p>
+    <p class="gorsel-ornek">Örn. “… görselde yazı, logo, filigran ve düşük kalite olmasın.”</p>
+  </article>
+  <article>
+    <h3>Işığı belirt</h3>
+    <p>Işık, görüntünün profesyonel görünmesini en çok etkileyen şeydir.</p>
+    <p class="gorsel-ornek">Örn. stüdyo ışığı (lüks ürün), altın saat ışığı (samimi sahne), güçlü kontrast ve neon kenar ışığı (etkinlik).</p>
+  </article>
+  <article>
+    <h3>Bir tarz seç</h3>
+    <p>Tarzı söylemezsen yapay zeka kendi bildiğini çizer.</p>
+    <p class="gorsel-ornek">Örn. minimalist grafik tasarım ve düz vektör; 3B kil illüstrasyon; Bauhaus veya İsviçre afiş tarzı.</p>
+  </article>
+  <article>
+    <h3>Ürün tanıtımı: mockup</h3>
+    <p>Kutu, şişe veya ambalaj üzerinde görünmesini istiyorsan “mockup” de.</p>
+    <p class="gorsel-ornek">Örn. “Okul kupası mockup, ambalaj tasarımı sunumu, beyaz zemin.”</p>
+  </article>
+  <article>
+    <h3>Patlatılmış görünüm <small>(/explodedview)</small></h3>
+    <p>Parçaları havada ayrılmış, montaj şeması gibi bir çizim için. İzometrik bakış açısı eğriliği önler; malzeme belirtmek parçaları ayırt ettirir.</p>
+    <p class="gorsel-ornek">Örn. “Akıllı telefonun patlatılmış görünüm şeması: pil, çip ve kamera lensleri havada ayrık, ince çizgili etiketler, izometrik, beyaz zemin.”</p>
+  </article>
+  <article>
+    <h3>Mavi ozalit <small>(/blueprint)</small></h3>
+    <p>Lacivert zeminde beyaz çizgilerle mühendislik çizimi hissi verir.</p>
+    <p class="gorsel-ornek">Örn. “1960'lar spor otomobilin teknik ozalit çizimi: koyu mavi zemin, ince ızgara, net beyaz çizgiler, üst-yan-ön görünüm, ölçü notları.”</p>
+  </article>
+  <article>
+    <h3>Kesit görünümü</h3>
+    <p>Nesnenin içini göstermek için ortadan kesilmiş çizim iste.</p>
+    <p class="gorsel-ornek">Örn. “Akıllı bir evin kesit illüstrasyonu: odalar, mobilya, güneş paneli ve tesisat görünür, izometrik, sade.”</p>
+  </article>
+  <article>
+    <h3>Botanik ve anatomik çizim</h3>
+    <p>Canlı yapıları eski ansiklopedi sayfası gibi parçalarına ayırır.</p>
+    <p class="gorsel-ornek">Örn. “Açmış bir gülün botanik ayrıştırma çizimi: taç yaprak, gövde ve kökler eski parşömen üzerinde, mürekkep çizgi ve suluboya, etiketli.”</p>
+  </article>
+</div>
+
+<h2 class="bolum-basligi">Görsel türleri</h2>
+<p class="ipucu">Konuyu yazmadan önce istediğin görsel türünü söyle; yapay zekâ düzeni buna göre kurar. Aşağıdaki adları açıklamanın başına ya da içine yazabilirsin.</p>
+<div class="gorsel-ipuclari">
+  <article>
+    <h3>Karar matrisi <small>(/decision matrix)</small></h3>
+    <p>Seçenekleri ölçütlere göre karşılaştıran tablo ya da 2×2 ızgara.</p>
+    <p class="gorsel-ornek">Örn. “Karar matrisi: üç okul projesi seçeneği, maliyet, süre ve etki ölçütleri, sade tablo.”</p>
+  </article>
+  <article>
+    <h3>İnfografik <small>(/infographic)</small></h3>
+    <p>Bilgiyi simge, sayı ve kısa başlıklarla tek sayfada anlatır.</p>
+    <p class="gorsel-ornek">Örn. “Su döngüsü infografiği: simgeler, oklar, kısa başlıklar, canlı renkler.”</p>
+  </article>
+  <article>
+    <h3>Tuval <small>(/canvas)</small></h3>
+    <p>Bir fikri ya da projeyi bölmelere ayrılmış tek bir tuvalde toplar.</p>
+    <p class="gorsel-ornek">Örn. “Okul projesi için proje tuvali: amaç, hedef kitle, kaynak, süre ve çıktı kutuları.”</p>
+  </article>
+  <article>
+    <h3>Katmanlar <small>(/layers)</small></h3>
+    <p>Bir yapıyı üst üste dizilmiş katmanlar hâlinde gösterir.</p>
+    <p class="gorsel-ornek">Örn. “Dünya'nın katmanları: kabuk, manto, dış çekirdek, iç çekirdek, etiketli kesit.”</p>
+  </article>
+  <article>
+    <h3>Döngü <small>(/cycle)</small></h3>
+    <p>Tekrarlanan süreci oklarla bağlı dairesel akış olarak çizer.</p>
+    <p class="gorsel-ornek">Örn. “Azot döngüsü: dairesel akış, numaralı adımlar, oklar, sade simgeler.”</p>
+  </article>
+  <article>
+    <h3>Yol haritası <small>(/roadmap)</small></h3>
+    <p>Hedefe giden aşamaları yol ya da basamak şeklinde gösterir.</p>
+    <p class="gorsel-ornek">Örn. “YKS hazırlık yol haritası: eylülden haziranaya aşamalar, dönüm noktaları, yol şeklinde.”</p>
+  </article>
+  <article>
+    <h3>Çizimli not <small>(/sketchnotes)</small></h3>
+    <p>Elle çizilmiş gibi başlıklar, kutular, oklar ve küçük karalamalarla ders notu.</p>
+    <p class="gorsel-ornek">Örn. “Fotosentez sketchnote: el yazısı hissi, kutular, oklar, güneş ve yaprak çizimleri, beyaz zemin.”</p>
+  </article>
+  <article>
+    <h3>Buzdağı <small>(/iceberg)</small></h3>
+    <p>Görünen kısmı üstte, görünmeyen derin kısmı suyun altında anlatır.</p>
+    <p class="gorsel-ornek">Örn. “Başarılı öğrenci buzdağı: suyun üstünde notlar, altında çalışma alışkanlıkları ve uyku.”</p>
+  </article>
+  <article>
+    <h3>Zaman çizelgesi <small>(/timeline)</small></h3>
+    <p>Olayları tarih sırasına göre yatay ya da dikey bir çizgi üzerinde dizer.</p>
+    <p class="gorsel-ornek">Örn. “Kurtuluş Savaşı zaman çizelgesi: 1919-1923, önemli olaylar, yatay çizgi, etiketli.”</p>
+  </article>
+  <article>
+    <h3>Ağaç şeması <small>(/tree)</small></h3>
+    <p>Bir kavramı kökten dallara doğru hiyerarşik olarak ayırır.</p>
+    <p class="gorsel-ornek">Örn. “Canlıların sınıflandırması ağaç şeması: âlemler, dallar, alt gruplar, sade çizgiler.”</p>
+  </article>
+  <article>
+    <h3>Zihin haritası <small>(/mindmap)</small></h3>
+    <p>Merkezdeki konudan her yöne dallanan başlıklar ve alt fikirler çizer.</p>
+    <p class="gorsel-ornek">Örn. “Yenilenebilir enerji zihin haritası: ortada konu, güneş, rüzgâr, hidro dalları, renkli.”</p>
+  </article>
+</div>
+
+<h2 class="bolum-basligi">Görsel stiller</h2>
+<p class="ipucu">Stili söylemezsen yapay zekâ kendi bildiğini çizer. İstediğin stilin adını açıklamanın sonuna ekle.</p>
+<div class="gorsel-ipuclari">
+  <article>
+    <h3>Minimalizm <small>(Minimalism)</small></h3>
+    <p>Az öğe, bol boşluk, sınırlı renk.</p>
+    <p class="gorsel-ornek">Örn. “… minimalist stil, sade, geniş boşluk, tek vurgu rengi.”</p>
+  </article>
+  <article>
+    <h3>Maksimalizm <small>(Maximalism)</small></h3>
+    <p>Yoğun desen, zengin renk, her yer dolu.</p>
+    <p class="gorsel-ornek">Örn. “… maksimalist stil, canlı renkler, iç içe desenler, yoğun detay.”</p>
+  </article>
+  <article>
+    <h3>Fütüristik <small>(Futuristic)</small></h3>
+    <p>Gelecek hissi: parlak çizgiler, teknolojik formlar.</p>
+    <p class="gorsel-ornek">Örn. “… fütüristik stil, parlak mavi ışık çizgileri, metalik yüzeyler.”</p>
+  </article>
+  <article>
+    <h3>Vektör sanatı <small>(Vector art)</small></h3>
+    <p>Düz renkli, net kenarlı, büyütülünce bozulmayan çizim.</p>
+    <p class="gorsel-ornek">Örn. “… düz vektör illüstrasyon, net kenarlar, sınırlı renk paleti.”</p>
+  </article>
+  <article>
+    <h3>Kolaj <small>(Collage art)</small></h3>
+    <p>Kesilip yapıştırılmış kâğıt, fotoğraf ve doku parçaları.</p>
+    <p class="gorsel-ornek">Örn. “… kolaj sanatı, yırtık kâğıt kenarları, karışık dokular.”</p>
+  </article>
+  <article>
+    <h3>Siberpunk <small>(Cyberpunk)</small></h3>
+    <p>Karanlık şehir, neon ışık, yüksek teknoloji.</p>
+    <p class="gorsel-ornek">Örn. “… cyberpunk stil, yağmurlu gece, mor ve turkuaz neon.”</p>
+  </article>
+  <article>
+    <h3>Pop art</h3>
+    <p>Kalın çizgi, parlak düz renkler, yarım ton noktaları.</p>
+    <p class="gorsel-ornek">Örn. “… pop art stil, kalın siyah çizgi, canlı sarı ve kırmızı, nokta deseni.”</p>
+  </article>
+  <article>
+    <h3>Glassmorphism</h3>
+    <p>Buzlu cam gibi yarı saydam, bulanık katmanlar.</p>
+    <p class="gorsel-ornek">Örn. “… glassmorphism, buzlu cam paneller, yumuşak gradyan arka plan.”</p>
+  </article>
+  <article>
+    <h3>Kil stili <small>(Clay style)</small></h3>
+    <p>Yumuşak, yuvarlak, elle yoğrulmuş 3B görünüm.</p>
+    <p class="gorsel-ornek">Örn. “… 3B kil illüstrasyon, yumuşak stüdyo ışığı, pastel renkler.”</p>
+  </article>
+  <article>
+    <h3>Piksel stili <small>(Pixel style)</small></h3>
+    <p>Eski oyunlardaki gibi kare piksellerden oluşan görüntü.</p>
+    <p class="gorsel-ornek">Örn. “… 16 bit piksel sanatı, sınırlı palet, keskin kenarlar.”</p>
+  </article>
+  <article>
+    <h3>Editoryal <small>(Editorial)</small></h3>
+    <p>Dergi kapağı gibi güçlü kompozisyon ve şık düzen.</p>
+    <p class="gorsel-ornek">Örn. “… editoryal stil, dergi kapağı düzeni, güçlü kontrast, yazı için boşluk.”</p>
+  </article>
+  <article>
+    <h3>Y2K</h3>
+    <p>2000'lerin başı: metalik, parlak, balon formlar.</p>
+    <p class="gorsel-ornek">Örn. “… Y2K stil, krom efekt, gümüş ve pembe, yuvarlak formlar.”</p>
+  </article>
+  <article>
+    <h3>İsviçre tasarımı <small>(Swiss design)</small></h3>
+    <p>Izgara düzeni, sade geometri, güçlü hiyerarşi.</p>
+    <p class="gorsel-ornek">Örn. “… İsviçre stili afiş, ızgara düzeni, kırmızı ve siyah, sade şekiller.”</p>
+  </article>
+  <article>
+    <h3>Gerçeküstücülük <small>(Surrealism)</small></h3>
+    <p>Düş gibi, beklenmedik ve mantık dışı sahneler.</p>
+    <p class="gorsel-ornek">Örn. “… sürrealist stil, gökyüzünde yüzen kitaplar, eriyen saat, loş ışık.”</p>
+  </article>
+  <article>
+    <h3>Bohem <small>(Bohemian)</small></h3>
+    <p>Doğal tonlar, etnik desenler, rahat ve sıcak hava.</p>
+    <p class="gorsel-ornek">Örn. “… bohem stil, toprak tonları, makrome ve kurutulmuş çiçekler.”</p>
+  </article>
+  <article>
+    <h3>Viktoryen <small>(Victorian)</small></h3>
+    <p>Süslü çerçeveler, koyu zengin renkler, antika hava.</p>
+    <p class="gorsel-ornek">Örn. “… Viktorya dönemi stili, süslü altın çerçeve, bordo ve zümrüt tonları.”</p>
+  </article>
+  <article>
+    <h3>Grafiti <small>(Graffiti)</small></h3>
+    <p>Duvar sprey sanatı: kalın harfler, damlalar, canlı renkler.</p>
+    <p class="gorsel-ornek">Örn. “… grafiti stili, tuğla duvar, sprey dokusu, canlı renkler.”</p>
+  </article>
+  <article>
+    <h3>Aurora</h3>
+    <p>Kutup ışığı gibi akan, yumuşak geçişli renk dalgaları.</p>
+    <p class="gorsel-ornek">Örn. “… aurora gradyanı, yeşil, mor ve mavi akan ışık, bulanık yumuşak arka plan.”</p>
+  </article>
+</div>
 {% endblock %}
 
 {% block script %}
@@ -91,7 +313,7 @@ async function gonder(yol, govde) {
 }
 function gunlukYaz(liste) {
   const k = document.getElementById('gunluk');
-  if (!liste.length) { k.innerHTML = '<p class="ipucu">Henüz gönderim yok.</p>'; return; }
+  if (!liste.length) { k.innerHTML = '<p class=ipucu>Henüz gönderim yok.</p>'; return; }
   const t = document.createElement('table'); t.className = 'tablo';
   t.innerHTML = '<thead><tr><th>Zaman</th><th>Tahta</th><th>Sonuç</th></tr></thead>';
   const g = document.createElement('tbody');
@@ -117,20 +339,64 @@ function tamEkran(e) {
 document.addEventListener('dblclick', tamEkran);
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('.gorsel-onizleme img, .gorsel-secili')) tamEkran(e); });
 const prompt = document.getElementById('prompt');
+const baslik = document.getElementById('baslik');
 const ogrenciler = document.getElementById('ogrenciler');
 const onizleDugme = document.getElementById('onizle');
 const kaydetDugme = document.getElementById('kaydet');
 const indir = document.getElementById('indir');
+const geriDugme = document.getElementById('zenginlestir-geri');
 let arkaDosya = null, surum = 0, arkaSurumu = 0, blobUrl = null, gecerli = false, listeGecerli = true, kayitMesgul = false;
 let yoklama = null, yoklamaMesgul = false, uretimMesgul = false, aktifTur = null, uretimSurumu = 0;
+let oncekiPrompt = null, sonOrnek = -1;
 const ornekler = {
-  başarı: 'Lacivert ve altın tonlarda başarı temalı afiş arka planı, yazısız, öğrenci listesi için geniş temiz boş alan.',
-  bilim: 'Bilim ve teknoloji temalı sade afiş arka planı, yazısız, öğrenci listesi için geniş temiz boş alan.',
-  kitap: 'Kitap ve okuma temalı sade afiş arka planı, yazısız, öğrenci listesi için geniş temiz boş alan.',
-  geometri: 'Sade geometrik şekillerle afiş arka planı, yazısız, öğrenci listesi için geniş temiz boş alan.',
-  bahar: 'Bahar çiçekleriyle sade afiş arka planı, yazısız, öğrenci listesi için geniş temiz boş alan.'
+  başarı: 'Lacivert ve altın tonlarında görkemli ödül töreni arka planı. Sinematik arka ışık ve sıcak spot aydınlatması; kenarlarda dökümlü saten kurdeleler, altın varak işlemeli zarif defne yaprakları ve parıltılı parçacıklar. Kenar ve köşelerde yoğunlaşan derinlikli dekor, ortada isim listesi için sakin ve ferah bir alan. Görselde yazı, harf, logo yok.',
+  bilim: 'Bilim ve derin uzay temalı afiş arka planı; uzak galaksiler, parıldayan nebulalar ve zarif gezegen yörüngeleri. Kozmik neon kenar ışığı ve yıldız parıltıları; saydam cam küreler, kristal dokular ve ince ışıltılı tozlar. Dekor çerçeve kenarlarında ve köşelerde yoğun, orta bölüm isim listesi için karanlık ve sakin. Görselde yazı, harf, logo yok.',
+  kitap: 'Antik kütüphane ve okuma temalı afiş arka planı. Vitray pencerelerden süzülen altın saat ışığı ve sıcak hüzmeler; eski ahşap oymalar, deri ciltli kitaplar, altın varaklı parşömen dokuları. Kitaplık detayları ve süslemeler kenar ve köşelerde yoğun, ortası isim listesi için aydınlık, sade ve sakin. Görselde yazı, harf, logo yok.',
+  geometri: 'Matematik ve kutsal geometri temalı arka plan; altın oran spiralleri ve zarif geometrik hatlar. Sinematik arka ışık ve parıldayan altın çizgiler; buzlu cam katmanlar, metalik pirinç teller ve derinlik hissi veren gölgeler. Geometrik motifler köşelerde ve kenarlarda toplanmış, merkez isim listesi için duru ve sakin. Görselde yazı, harf, logo yok.',
+  bahar: 'Doğa ve bahar uyanışı temalı afiş arka planı; pembe ve beyaz çiçek açan ağaç dalları. Yaprakların arasından süzülen taze sabah güneşi ve yumuşak altın saat ışığı; ipeksi taç yapraklar, taze yeşil dokular ve su damlaları. Çiçekli dallar üst ve köşe kısımlarda çerçeve oluşturur, merkez isim listesi için ferah ve sakin. Görselde yazı, harf, logo yok.',
+  spor: 'Spor ve şampiyonluk coşkusu temalı arka plan. Güçlü stadyum projektör ışıkları, sinematik atmosferik sis ve havada uçuşan altın konfetiler; metalik kupa yansımaları, parlak kurdeleler ve dinamik parçacıklar. Coşkulu kutlama detayları kenar ve köşelerde dinamik, orta kısım isim listesi için sade ve sakin. Görselde yazı, harf, logo yok.',
+  sanat: 'Sanat ve müzik temalı afiş arka planı; havada süzülen soyut notalar, enstrüman silüetleri ve renk ahengi. Dramatik sahne spot ışığı ve yumuşak ışıltılar; tuval dokusu, canlı akrilik boya sıçramaları ve pirinç metalik parıltılar. Sanatsal detaylar kenarlara ve köşelere dağılmış, orta alan isim listesi için temiz ve sakin. Görselde yazı, harf, logo yok.',
+  motif: 'Geleneksel Türk motifleri temalı zarif afiş arka planı; Selçuklu yıldızları ve klasik rumi desenler. Yumuşak sinematik aydınlatma ve sıcak altın ışıltılar; parlak İznik çinisi dokusu, turkuaz ve kobalt sırlar, ince altın varak işlemeler. Zengin bordür kenar ve köşeleri sarar, ortası isim listesi için açık renk ve sakin. Görselde yazı, harf, logo yok.'
 };
-document.getElementById('ornek').addEventListener('change', e => { if (e.target.value) { prompt.value = ornekler[e.target.value]; prompt.dispatchEvent(new Event('input')); } });
+const ORNEKLER = [
+  'Gün batımında deniz kenarında yalnız bir fener, sulu boya tarzı, sıcak turuncu ve mor tonlar, üstte yazı için temiz boş alan.',
+  'Akıllı telefonun patlatılmış görünüm şeması: pil, çip ve kamera lensleri havada ayrık, ince çizgili etiketler, izometrik bakış, beyaz zemin.',
+  '1960\'lar spor otomobilin teknik ozalit çizimi: koyu mavi zemin, ince ızgara, net beyaz çizgiler, üst-yan-ön görünüm, ölçü notları.',
+  'Açmış bir gülün botanik ayrıştırma çizimi: taç yapraklar, gövde ve kökler eski parşömen üzerinde, mürekkep çizgi ve suluboya, etiketli.',
+  'Sınıfta fen deneyi yapan neşeli öğrenciler, 3B kil illüstrasyon tarzı, parlak canlı renkler, yumuşak stüdyo ışığı, yüz detayları sade.',
+  'Okul bahçesinde ilkbahar şenliği afişi arka planı: çiçek açmış ağaçlar, altın saat ışığı, minimalist düz vektör, yazı için geniş boş alan.'
+];
+function promptYaz(metin) {
+  prompt.value = metin;
+  prompt.dispatchEvent(new Event('input'));
+}
+document.getElementById('ornek').addEventListener('change', e => {
+  if (e.target.value && ornekler[e.target.value]) {
+    oncekiPrompt = null; geriDugme.hidden = true;
+    promptYaz(ornekler[e.target.value]);
+  }
+});
+document.getElementById('ornek-prompt').addEventListener('click', () => {
+  do { sonOrnek = Math.floor(Math.random() * ORNEKLER.length); } while (ORNEKLER.length > 1 && ORNEKLER[sonOrnek] === prompt.value);
+  oncekiPrompt = null; geriDugme.hidden = true;
+  promptYaz(ORNEKLER[sonOrnek]);
+});
+document.getElementById('zenginlestir').addEventListener('click', async e => {
+  const d = e.currentTarget, metin = prompt.value.trim();
+  if (!metin) { bildir('Önce kısa bir fikir yaz (ya da «Örnek prompt»a bas).', true); return; }
+  d.disabled = true; bildir('Prompt zenginleştiriliyor (~10-30 sn)…');
+  const f = new FormData(); f.set('prompt', metin);
+  let v;
+  try { v = await gonder('/gorsel/zenginlestir', f); } catch (_) { v = { ok: false, mesaj: 'Sunucuya ulaşılamadı.' }; }
+  d.disabled = false;
+  if (!v.ok) { bildir(v.mesaj, true); return; }
+  oncekiPrompt = prompt.value; geriDugme.hidden = false;
+  promptYaz(v.prompt); bildir('Prompt zenginleştirildi; düzenleyip «Arka plan üret»e basabilirsin.');
+});
+geriDugme.addEventListener('click', () => {
+  if (oncekiPrompt === null) return;
+  promptYaz(oncekiPrompt); oncekiPrompt = null; geriDugme.hidden = true;
+});
 function gecersizKil() {
   surum++; gecerli = false; kaydetDugme.disabled = true; indir.hidden = true;
   document.getElementById('afis-img').hidden = true;
@@ -155,8 +421,15 @@ function listeyiGoster() {
   listeGecerli = !hata;
   document.getElementById('liste-durum').textContent = sayi + ' kayıt' + (hata ? ' — ' + hata : '');
 }
+baslik.addEventListener('input', gecersizKil);
 ogrenciler.addEventListener('input', () => { gecersizKil(); listeyiGoster(); }); listeyiGoster();
-function formOlustur() { const f = new FormData(); f.set('dosya', arkaDosya); f.set('ogrenciler', ogrenciler.value); return f; }
+function formOlustur() {
+  const f = new FormData();
+  f.set('dosya', arkaDosya);
+  f.set('ogrenciler', ogrenciler.value);
+  f.set('baslik', baslik.value);
+  return f;
+}
 async function hataMetni(y) { try { const v = await y.json(); return v.mesaj || 'İşlem başarısız.'; } catch (_) { return 'Oturum süresi dolmuş veya sunucu yanıtı geçersiz (HTTP ' + y.status + ').'; } }
 onizleDugme.addEventListener('click', async () => {
   if (!arkaDosya || !listeGecerli) { bildir(!arkaDosya ? 'Önce arka plan seçin.' : 'Listedeki hatayı düzeltin.', true); return; }
@@ -222,7 +495,7 @@ const tahtaKutulari = () => [...document.querySelectorAll('input[name=tahta]')];
 async function galeriYukle() {
   const g = (await (await fetch('/gorsel/arsiv', { credentials: 'same-origin' })).json()).gorseller;
   const k = document.getElementById('galeri');
-  if (!g.length) { k.innerHTML = '<p class="ipucu">Arşiv boş.</p>'; return; }
+  if (!g.length) { k.innerHTML = '<p class=ipucu>Arşiv boş.</p>'; return; }
   k.replaceChildren(...g.map(x => {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'gorsel-kutucuk'; b.setAttribute('role', 'listitem');

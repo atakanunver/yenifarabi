@@ -43,7 +43,7 @@ class TestYerelPanel(_Ortak):
                  mock.patch('urllib.request.urlopen') as url:
                 once = self.dosyalar()
                 for metin in ('', 'GizliSentinel;9-A', '\n'.join(['Örnek;9-A'] * 24), 'Başka;10-B'):
-                    r = await panel.gorsel_onizle(self.istek(dosya=self.arka.name, ogrenciler=metin))
+                    r = await panel.gorsel_onizle(self.istek(dosya=self.arka.name, ogrenciler=metin, baslik='GizliBaslikSentinel'))
                     self.assertEqual(r.status_code, 200)
                     self.assertEqual(r.headers['cache-control'], 'no-store')
                     self.assertEqual(Image.open(io.BytesIO(r.body)).size, (1920, 1080))
@@ -53,11 +53,16 @@ class TestYerelPanel(_Ortak):
                                      (self.arka.name, 'x' * 200 + ';9-A'), ('../x.png', ''), ('', ''),
                                      ('2026-01-01_0000_serbest.png', '')):
                     for fonk in (panel.gorsel_onizle, panel.gorsel_kaydet):
-                        r = await fonk(self.istek(dosya=dosya, ogrenciler=metin))
+                        r = await fonk(self.istek(dosya=dosya, ogrenciler=metin, baslik='Tebrikler'))
                         self.assertEqual(r.status_code, 400)
                         self.assertNotIn(b'GizliSentinel', r.body)
+                # 61 karakter başlık 400 döndürmeli
+                for fonk in (panel.gorsel_onizle, panel.gorsel_kaydet):
+                    r = await fonk(self.istek(dosya=self.arka.name, ogrenciler='Örnek;9-A', baslik='B' * 61))
+                    self.assertEqual(r.status_code, 400)
+                    self.assertNotIn(b'GizliSentinel', r.body)
                 self.assertEqual(self.dosyalar(), once)
-                r = await panel.gorsel_kaydet(self.istek(dosya=self.arka.name, ogrenciler='GizliSentinel;9-A'))
+                r = await panel.gorsel_kaydet(self.istek(dosya=self.arka.name, ogrenciler='GizliSentinel;9-A', baslik='GizliBaslikSentinel'))
                 self.assertTrue(r['ok'])
                 self.assertEqual(r['mesaj'], 'Görsel arşive kaydedildi.')
                 self.assertIsNotNone(gorsel.arsiv_yolu(r['dosya']))
@@ -65,6 +70,7 @@ class TestYerelPanel(_Ortak):
                 self.assertEqual(len(set(sonra) - set(once)), 1)
                 self.assertTrue(all(sonra[k] == v for k, v in once.items()))
                 self.assertNotIn('GizliSentinel', str(den.call_args_list))
+                self.assertNotIn('GizliBaslikSentinel', str(den.call_args_list))
                 for m in (ai, zengin, kota, kazanan, url):
                     m.assert_not_called()
         asyncio.run(kos())
@@ -73,10 +79,21 @@ class TestYerelPanel(_Ortak):
         async def kos():
             with mock.patch('uzaktan_yonetim._dogrula'), \
                  mock.patch.object(gorsel, 'liste_karti', side_effect=RuntimeError('GizliSentinel /gizli')):
-                r = await panel.gorsel_onizle(self.istek(dosya=self.arka.name, ogrenciler='GizliSentinel;9-A'))
+                r = await panel.gorsel_onizle(self.istek(dosya=self.arka.name, ogrenciler='GizliSentinel;9-A', baslik='GizliBaslikSentinel'))
                 self.assertEqual(r.status_code, 500)
                 self.assertNotIn(b'GizliSentinel', r.body)
+                self.assertNotIn(b'GizliBaslikSentinel', r.body)
                 self.assertNotIn(b'/gizli', r.body)
+        asyncio.run(kos())
+
+    def test_baslik_liste_kartina_gecer(self):
+        async def kos():
+            with mock.patch('uzaktan_yonetim._dogrula'), \
+                 mock.patch.object(gorsel, 'liste_karti', return_value=_png()) as mock_liste:
+                r = await panel.gorsel_onizle(self.istek(dosya=self.arka.name, ogrenciler='Örnek;9-A', baslik='Özel Başlık'))
+                self.assertEqual(r.status_code, 200)
+                mock_liste.assert_called_once()
+                self.assertEqual(mock_liste.call_args.args[2], 'Özel Başlık')
         asyncio.run(kos())
 
     def test_manuel_uret_ve_durum(self):
