@@ -16,6 +16,10 @@ from kaynaklar import isbn as isbn_kaynak
 @pytest.fixture(autouse=True)
 def gecici_ortam(tmp_path, monkeypatch):
     monkeypatch.setattr(AYAR, "db_yolu", tmp_path / "okul.db")
+    monkeypatch.setattr(AYAR, "tahta_dosya_yedek", tmp_path / "tahta_dosyalari")
+    monkeypatch.setattr(AYAR, "tahta_dosya_gecici", tmp_path / "tahta_dosya_gecici")
+    monkeypatch.setattr(AYAR, "tahta_dosya_anahtar", "")
+    monkeypatch.setattr(AYAR, "tahta_dosya_dashboard_url", "http://127.0.0.1:1")
     monkeypatch.setattr(AYAR, "dosya_dizini", tmp_path / "dosyalar")
     monkeypatch.setattr(AYAR, "rapor_yolu", tmp_path / "analitik_rapor.json")
     monkeypatch.setattr(AYAR, "pano_db_yolu", tmp_path / "pano.db")

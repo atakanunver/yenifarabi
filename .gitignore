@@ -181,6 +181,7 @@ tahtayoklama/dashboard/config/acil.json
 
 # Devamsızlık anlık bildirimi (2026-10-21) — dashboard → okul paylaşılan anahtarı
 tahtayoklama/dashboard/config/devamsizlik_bildirim.json
+tahtayoklama/dashboard/config/tahta_dosya.json
 
 # Güvenlik ekranı (2026-10-18) — şifre hash'i + çerez imza anahtarı + telefonlar
 tahtayoklama/dashboard/config/guvenlik.json

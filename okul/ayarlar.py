@@ -46,6 +46,10 @@ class Ayarlar:
     duyuru_anahtar: str = ""
     # tahtayoklama dashboard → /api/devamsizlik-bildir paylaşılan anahtarı (config/gizli.json "devamsizlik_anahtar"); boşsa uç kapalı
     devamsizlik_anahtar: str = ""
+    tahta_dosya_anahtar: str = ""
+    tahta_dosya_dashboard_url: str = "http://127.0.0.1"
+    tahta_dosya_yedek: Path = Path("/mnt/farabi-data/farabi/tahta_dosyalari")
+    tahta_dosya_gecici: Path = KOK / "veri" / "tahta_dosya_gecici"
 
 
 def yukle() -> Ayarlar:
@@ -63,6 +67,7 @@ def yukle() -> Ayarlar:
         a.soru_anahtar = g.get("soru_havuzu_anahtar", "")
         a.duyuru_anahtar = g.get("duyuru_anahtar", "")
         a.devamsizlik_anahtar = g.get("devamsizlik_anahtar", "")
+        a.tahta_dosya_anahtar = g.get("tahta_dosya_anahtar", "")
     return a
 
 

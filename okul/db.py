@@ -985,11 +985,29 @@ CREATE INDEX cografya_gun ON cografya_oyun(kullanici_id, baslama);
 CREATE INDEX cografya_liderlik ON cografya_oyun(mod, yanit, bolge, bitis);
 """
 
+SEMA_V43 = """
+CREATE TABLE tahta_dosya (
+    id INTEGER PRIMARY KEY,
+    ogretmen_id INTEGER NOT NULL REFERENCES kullanici(id),
+    tahta TEXT NOT NULL,
+    dosya_adi TEXT NOT NULL,
+    tur TEXT NOT NULL,
+    boyut INTEGER NOT NULL,
+    yedek_yol TEXT NOT NULL,
+    durum TEXT NOT NULL CHECK (durum IN ('sirada','gonderildi','hata','suresi_doldu')),
+    deneme INTEGER NOT NULL DEFAULT 0,
+    son_hata TEXT NOT NULL DEFAULT '',
+    zaman TEXT NOT NULL,
+    gonderim_zamani TEXT
+);
+CREATE INDEX tahta_dosya_durum ON tahta_dosya(durum, zaman);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
     SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27, SEMA_V28, SEMA_V29, SEMA_V30, SEMA_V31, SEMA_V32, SEMA_V33, SEMA_V34,
-    SEMA_V35, SEMA_V36, SEMA_V37, SEMA_V38, SEMA_V39, SEMA_V40, SEMA_V41, SEMA_V42,
+    SEMA_V35, SEMA_V36, SEMA_V37, SEMA_V38, SEMA_V39, SEMA_V40, SEMA_V41, SEMA_V42, SEMA_V43,
 ]
 
 

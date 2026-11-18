@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block icerik %}
+<section class="kart">
+  <h1>Tahtaya dosya gönder</h1>
+  <p class="soluk">Dosya tahtanın masaüstündeki Gelen Dosyalar klasörüne kaydedilir. Kendiliğinden açılmaz. Kapalı tahta için 24 saat bekler.</p>
+  {% if hata %}<p class="hata" role="alert">{{ hata }}</p>{% endif %}
+  <form id="tahta-dosya-form" action="/ogretmen/tahtaya-gonder" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="dosya">Dosya (en fazla 95 MB)</label>
+    <input id="dosya" type="file" name="dosya" required accept=".pdf,.docx,.pptx,.xlsx,.odt,.odp,.ods,.jpg,.jpeg,.png,.mp4,.webm,.mkv,.mov,.mp3,.wav,.ogg,.m4a">
+    <fieldset><legend>Gönderilecek tahtalar</legend>
+      {% for t in tahtalar %}<label class="sik"><input type="checkbox" name="tahta" value="{{ t.ad }}"> {{ t.sinif or t.ad }}</label>{% endfor %}
+    </fieldset>
+    {% if not tahtalar %}<p class="hata">Tahta listesi şu anda alınamıyor. Daha sonra tekrar deneyin.</p>{% endif %}
+    <button class="tus" {% if not tahtalar %}disabled{% endif %}>Gönder</button>
+  </form>
+</section>
+<section class="kart">
+  <h2>Gönderimlerim</h2>
+  {% if gonderimler %}<ul class="liste">
+  {% for g in gonderimler %}<li class="satir"><span><b>{{ g.dosya_adi }}</b> · {{ g.tahta }}<br><small>{{ g.zaman|tarih }} · {{ {'sirada':'Sırada','gonderildi':'Gönderildi','hata':'Hata','suresi_doldu':'Süresi doldu'}[g.durum] }}</small></span></li>{% endfor %}
+  </ul>{% else %}<p class="soluk">Henüz gönderim yok.</p>{% endif %}
+</section>
+{% endblock %}

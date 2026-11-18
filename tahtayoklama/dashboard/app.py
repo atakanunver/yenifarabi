@@ -41,6 +41,7 @@ import ssh_istemci
 import tahta_saglik
 import sunucular
 import tahta_api
+import tahta_dosya
 import acil
 import aylik_ozet
 import bugun
@@ -127,10 +128,12 @@ async def lifespan(app: FastAPI):
     durum_gorevi = asyncio.create_task(sistem_durumu.toplayici_dongusu())
     # Yaklaşan deneme (MEBİ YKS vb.) teneffüs hatırlatması; kaynak okul /api/pano.
     deneme_gorevi = asyncio.create_task(deneme_hatirlatma.dongu())
+    dosya_gorevi = asyncio.create_task(tahta_dosya.dongu())
     yield
     gorev.cancel()
     durum_gorevi.cancel()
     deneme_gorevi.cancel()
+    dosya_gorevi.cancel()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -153,6 +156,7 @@ app.include_router(ajan_api.router)
 app.include_router(okul_bilgisi.router)
 app.include_router(sunucular.router)
 app.include_router(tahta_api.router)
+app.include_router(tahta_dosya.router)
 app.include_router(kazanim_rapor.router)
 app.include_router(servis_yonetimi.router)
 app.include_router(zamanlanmis_gorevler.router)
