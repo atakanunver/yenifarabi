@@ -73,7 +73,12 @@ def test_web_yetki_csrf_ve_akis(istemci, conn, ornek, monkeypatch):  # noqa: F81
                      files={'dosya': ('ders.pdf', PDF)}, follow_redirects=False)
     assert r.status_code == 303, r.text[r.text.find('<p class="hata" role="alert"'):r.text.find('<p class="hata" role="alert"')+200]
     assert conn.execute('SELECT COUNT(*) FROM tahta_dosya').fetchone()[0] == 2
-    assert 'Sırada' in istemci.get('/ogretmen/tahtaya-gonder').text
+    sayfa = istemci.get('/ogretmen/tahtaya-gonder').text
+    assert 'Sırada' in sayfa and 'Son gönderim' in sayfa and 'location.reload' in sayfa
+    for (i,) in conn.execute('SELECT id FROM tahta_dosya').fetchall():
+        tahta_dosya.sonuc(conn, i, 'gonderildi')
+    sayfa = istemci.get('/ogretmen/tahtaya-gonder').text
+    assert '9-A · Gönderildi' in sayfa and 'location.reload' not in sayfa
     giris(istemci, 'mudur', 'mudur-sifre')
     assert istemci.get('/ogretmen/tahtaya-gonder').status_code == 200
     veli_giris(istemci, conn, ornek['veli1'])

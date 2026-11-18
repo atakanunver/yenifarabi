@@ -1,18 +1,29 @@
 """Farabi Atlas portal içinde: /kure (SPA) ve /api/atlas istekleri öğretmen girişiyle :8099'a proxy'lenir.
+Öğrenci yalnız keşif modunda: /kure (GET/HEAD), GET /api/atlas/context ve GET /api/atlas/wiki/<id>. Oturum (sınıf oyunu)
+uçları öğrenciye 404'tür ve Atlas'a HİÇ iletilmez (Atlas tek ortak tahta kimliğiyle çalışır; öğrenci tahtadaki oyunu görmemeli).
 
 Atlas ayrı servis ve ayrı DB'dir (tahtaatlasfarabi/); burada yalnızca giriş kapısı + aynı origin (smual.app dahil) sağlanır.
 Atlas kendi CSRF'ini form alanıyla doğrular; gövde aynen iletilir. Çerez ve cf-*/x-forwarded-* başlıkları Atlas'a gitmez.
 """
 
+import json
+import re
+import sqlite3
+from typing import Annotated
+
 import httpx
 from ayarlar import AYAR
 from deps import render, rol
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 router = APIRouter()
 OGRETMEN = rol("ogretmen", "yonetici")
+OGRENCI = rol("ogrenci")
+ATLAS_ERISIM = rol("ogretmen", "yonetici", "ogrenci")
+_OGRENCI_API = re.compile(r"context|wiki/[A-Za-z0-9_-]+")
+_OGRENCI_KURE = re.compile(r"[A-Za-z0-9_\-./]*")
 _GIDEN = ("content-type", "range", "if-none-match", "if-modified-since")
 _DONEN = ("content-type", "content-range", "accept-ranges", "cache-control", "etag", "last-modified", "location")
 
@@ -39,21 +50,49 @@ async def _proxy(request: Request) -> Response:
     return Response(r.content, status_code=r.status_code, headers=donen)
 
 
+def _ogrenci_kisitla(k, izin: bool) -> None:
+    """Öğrenci yalnız izinli yollara girer; ".." ile /api/atlas/sessions'a kaçış (httpx yolu normalleştirir) dahil."""
+    if k["rol"] == "ogrenci" and not izin:
+        raise HTTPException(404)
+
+
+def _ogrenci_context(r: Response) -> Response:
+    """Öğrencinin context yanıtında sınıf listesi boşaltılır: Atlas arayüzü 'Başlat'ı kapatır (oyun kurulamaz)."""
+    try:
+        veri = json.loads(r.body)
+        veri["classes"] = []
+        veri["teacher"] = "Keşif modu"
+    except (ValueError, TypeError):
+        return Response("Atlas yanıtı okunamadı.", status_code=502, media_type="text/plain; charset=utf-8")
+    donen = {a: v for a, v in r.headers.items() if a != "content-length"}
+    return Response(json.dumps(veri), status_code=r.status_code, headers=donen)
+
+
 @router.get("/ogretmen/atlas")
 def sayfa(request: Request, k=Depends(OGRETMEN)):
     return render(request, "ogretmen/atlas.html")
 
 
+@router.get("/ogrenci/atlas")
+def ogrenci_sayfa(request: Request, k: Annotated[sqlite3.Row, Depends(OGRENCI)]):
+    return render(request, "ogrenci/atlas.html")
+
+
 @router.get("/kure", include_in_schema=False)
-def egik_cizgi(k=Depends(OGRETMEN)):
+def egik_cizgi(k=Depends(ATLAS_ERISIM)):
     return RedirectResponse("/kure/", status_code=307)
 
 
 @router.api_route("/kure/{yol:path}", methods=["GET", "HEAD"], include_in_schema=False)
-async def kure(request: Request, yol: str, k=Depends(OGRETMEN)):
+async def kure(request: Request, yol: str, k=Depends(ATLAS_ERISIM)):
+    _ogrenci_kisitla(k, _OGRENCI_KURE.fullmatch(yol) is not None and ".." not in yol)
     return await _proxy(request)
 
 
 @router.api_route("/api/atlas/{yol:path}", methods=["GET", "POST"], include_in_schema=False)
-async def api(request: Request, yol: str, k=Depends(OGRETMEN)):
-    return await _proxy(request)
+async def api(request: Request, yol: str, k=Depends(ATLAS_ERISIM)):
+    _ogrenci_kisitla(k, request.method == "GET" and _OGRENCI_API.fullmatch(yol) is not None)
+    r = await _proxy(request)
+    if k["rol"] == "ogrenci" and yol == "context" and r.status_code == 200:
+        return _ogrenci_context(r)
+    return r

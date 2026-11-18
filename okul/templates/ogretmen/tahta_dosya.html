@@ -8,6 +8,14 @@
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <label for="dosya">Dosya (en fazla 95 MB)</label>
     <input id="dosya" type="file" name="dosya" required accept=".pdf,.docx,.pptx,.xlsx,.odt,.odp,.ods,.jpg,.jpeg,.png,.mp4,.webm,.mkv,.mov,.mp3,.wav,.ogg,.m4a">
+    {% if gonderimler %}{% set son = gonderimler[0] %}
+    <p class="kucuk" role="status">Son gönderim <b>{{ son.dosya_adi }}</b>:
+      {% for g in gonderimler if g.zaman == son.zaman and g.dosya_adi == son.dosya_adi %}
+      <span class="etiket {{ {'sirada':'sari','gonderildi':'yesil'}.get(g.durum, 'kirmizi') }}">{{ g.tahta }} · {{ {'sirada':'Sırada','gonderildi':'Gönderildi','hata':'Tekrar denenecek','suresi_doldu':'Süresi doldu'}[g.durum] }}</span>
+      {% endfor %}
+      {% if son.durum in ('sirada', 'hata') %}<br><span class="soluk">Tahta açıksa yaklaşık 1 dakikada gider; sayfa kendini yeniler.</span>{% endif %}
+    </p>
+    {% endif %}
     <fieldset><legend>Gönderilecek tahtalar</legend>
       {% for t in tahtalar %}<label class="sik"><input type="checkbox" name="tahta" value="{{ t.ad }}"> {{ t.sinif or t.ad }}</label>{% endfor %}
     </fieldset>
@@ -21,4 +29,14 @@
   {% for g in gonderimler %}<li class="satir"><span><b>{{ g.dosya_adi }}</b> · {{ g.tahta }}<br><small>{{ g.zaman|tarih }} · {{ {'sirada':'Sırada','gonderildi':'Gönderildi','hata':'Hata','suresi_doldu':'Süresi doldu'}[g.durum] }}</small></span></li>{% endfor %}
   </ul>{% else %}<p class="soluk">Henüz gönderim yok.</p>{% endif %}
 </section>
+{% if gonderimler|selectattr('durum', 'in', ['sirada', 'hata'])|list %}
+<script>
+// Bekleyen gönderim varken 20 sn'de bir yenile; öğretmen yeni dosya/tahta seçiyorsa dokunma.
+setInterval(function () {
+  var f = document.getElementById("tahta-dosya-form");
+  if (f.dosya.files.length || f.querySelector("input[name=tahta]:checked")) return;
+  location.reload();
+}, 20000);
+</script>
+{% endif %}
 {% endblock %}

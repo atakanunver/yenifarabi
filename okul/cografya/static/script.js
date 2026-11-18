@@ -1658,6 +1658,7 @@ async function oyunuBaslat(sayi) {
     document.getElementById('puanDurumu').textContent = '';
     document.getElementById('liderlik').hidden = true;
     const secim = oyunSecimi();
+    if (document.getElementById('cografyaApp').dataset.deneme) return {...secim};
     try {
         const body = new URLSearchParams({...secim, csrf: document.getElementById('cografyaApp').dataset.csrf, soru_sayisi: sayi});
         const r = await fetch('/ogrenci/cografya/basla', {method:'POST', headers:{'Accept':'application/json'}, body});
@@ -1669,6 +1670,10 @@ async function oyunuBaslat(sayi) {
 async function oyunuBitir() {
     const oyun = game.sunucu;
     const durum = document.getElementById('puanDurumu');
+    if (document.getElementById('cografyaApp').dataset.deneme) {
+        durum.textContent = 'Deneme modu: puan ve XP kaydedilmez.';
+        return;
+    }
     document.getElementById('liderlik').hidden = false;
     durum.textContent = 'Puan kaydediliyor…';
     try {

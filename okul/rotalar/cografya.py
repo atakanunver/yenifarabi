@@ -12,6 +12,7 @@ import yetki
 from deps import db_conn, render, rol
 
 router = APIRouter(prefix="/ogrenci/cografya")
+ogretmen_router = APIRouter(prefix="/ogretmen/cografya")
 OGRENCI = rol("ogrenci")
 OGRENCI_POST = rol("ogrenci", post=True)
 Kullanici = Annotated[object, Depends(OGRENCI)]
@@ -30,6 +31,13 @@ def _ogrenci(conn, k):
 def sayfa(request: Request, k: Kullanici, conn: Conn):
     o = _ogrenci(conn, k)
     return render(request, "ogrenci/cografya.html", ogrenci=o, xp_acik=arena.duzey_uygun(o["sinif"]))
+
+
+@ogretmen_router.get("")
+def ogretmen_sayfa(request: Request, k: Annotated[object, Depends(rol("ogretmen", "yonetici"))]):
+    """Deneme modu: oyun tarayıcıda oynanır, sunucuya/DB'ye hiçbir şey yazılmaz (basla/bitir/liderlik çağrılmaz)."""
+    ogrenci = {"ad_soyad": k["ad_soyad"], "sinif": "Öğretmen" if k["rol"] == "ogretmen" else "Yönetici"}
+    return render(request, "ogrenci/cografya.html", ogrenci=ogrenci, xp_acik=False, deneme=True)
 
 
 @router.post("/basla")

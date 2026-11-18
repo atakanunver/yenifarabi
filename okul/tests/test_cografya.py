@@ -128,3 +128,44 @@ def test_geri_al_42():
     assert not c.execute("SELECT name FROM sqlite_master WHERE name='cografya_oyun'").fetchall()
     with pytest.raises(sqlite3.IntegrityError):
         c.execute("INSERT INTO bilgi_xp (kullanici_id,kaynak,ref,miktar,gun,zaman) VALUES (1,'cografya','x',1,'2026','2026')")
+
+
+def test_ogretmen_deneme_sayfasi_ve_yetki(istemci, conn, ornek):
+    giris(istemci, "hoca", "hoca-sifre")
+    r = istemci.get("/ogretmen/cografya")
+    assert r.status_code == 200
+    assert "Deneme modu: puan ve XP kaydedilmez." in r.text and 'data-deneme="1"' in r.text
+    assert 'href="/ogretmen/cografya"' in istemci.get("/ogretmen").text
+    giris(istemci, "mudur", "mudur-sifre")
+    assert istemci.get("/ogretmen/cografya").status_code == 200
+    giris(istemci)
+    assert istemci.get("/ogretmen/cografya").status_code == 404
+
+
+def test_veli_ogretmen_cografyasini_goremez(istemci, conn, ornek):
+    istemci.cookies.clear()
+    istemci.cookies.set(auth.COOKIE_ADI, auth.oturum_ac(conn, ornek["veli1"]))
+    assert istemci.get("/ogretmen/cografya").status_code == 404
+
+
+def test_ogrenci_sayfasi_deneme_degil(istemci, ornek):
+    giris(istemci)
+    r = istemci.get("/ogrenci/cografya")
+    assert r.status_code == 200 and "data-deneme" not in r.text and "Deneme modu" not in r.text
+
+
+def test_ogretmen_oyunu_xp_ve_liderlige_girmez(istemci, conn, ornek, saat):
+    # Deneme modunda öğretmen sunucuya hiçbir uç çağırmaz; öğrenci uçları öğretmene kapalıdır (404), DB değişmez.
+    xp_once = conn.execute("SELECT COUNT(*) FROM bilgi_xp").fetchone()[0]
+    csrf = giris(istemci, "hoca", "hoca-sifre")
+    assert basla(istemci, csrf).status_code == 404
+    assert bitir(istemci, csrf, 1).status_code == 404
+    assert istemci.get("/ogrenci/cografya/liderlik").status_code == 404
+    assert conn.execute("SELECT COUNT(*) FROM cografya_oyun").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM bilgi_xp").fetchone()[0] == xp_once
+    csrf = giris(istemci)
+    oid = basla(istemci, csrf).json()["oyun_id"]
+    saat["an"] += timedelta(seconds=40)
+    assert bitir(istemci, csrf, oid).json()["xp"] == 10
+    r = istemci.get("/ogrenci/cografya/liderlik?mod=bayrak&yanit=secmeli&bolge=dunya&donem=genel&kapsam=okul").json()
+    assert [x["ad"] for x in r["liste"]] == ["Ali V."]

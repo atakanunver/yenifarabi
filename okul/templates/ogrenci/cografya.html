@@ -3,9 +3,10 @@
 {% block icerik %}
 <link rel="stylesheet" href="/static/cografya/res/lib/leaflet.css?v=1">
 <link rel="stylesheet" href="/static/cografya/style.css?v=7">
-<nav class="cografya-ust"><a href="/ogrenci">← Ana sayfa</a><span>{{ ogrenci.ad_soyad }} · {{ ogrenci.sinif }}</span></nav>
-{% if not xp_acik %}<p>XP 9-11. sınıflarda kazanılır.</p>{% endif %}
-<div id="cografyaApp" data-csrf="{{ csrf }}">
+<nav class="cografya-ust"><a href="{{ '/ogretmen' if deneme|default(false) else '/ogrenci' }}">← Ana sayfa</a><span>{{ ogrenci.ad_soyad }} · {{ ogrenci.sinif }}</span></nav>
+{% if deneme|default(false) %}<p>Deneme modu: puan ve XP kaydedilmez.</p>
+{% elif not xp_acik %}<p>XP 9-11. sınıflarda kazanılır.</p>{% endif %}
+<div id="cografyaApp" data-csrf="{{ csrf }}"{% if deneme|default(false) %} data-deneme="1"{% endif %}>
 
     <div id="clickCover"></div>
     <div id="home" class="screen centered visible" style="display: grid;">
@@ -418,5 +419,5 @@
 <script defer src="/static/cografya/res/lib/smooth-zoom.js?v=1"></script>
 <script defer src="/static/cografya/res/lib/fuzzysort-min.js?v=1"></script>
 <script defer src="/static/cografya/normalize.js?v=1"></script>
-<script defer src="/static/cografya/script.js?v=3"></script>
+<script defer src="/static/cografya/script.js?v=4"></script>
 {% endblock %}
