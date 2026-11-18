@@ -1,6 +1,6 @@
 # Dijital Okul (okul/)
 
-Mobil öncelikli okul portalı (öğrenci/veli/öğretmen/yönetici): FastAPI + Jinja2 + vanilla CSS ("kareli defter" teması, imza öğe `.kareler`), kendi SQLite'ı. `farabi-okul.service`, port 9090, dışarıdan https://smual.app (Cloudflare Tunnel). Spec: `../docs/superpowers/specs/2026-10-10-dijital-okul-design.md`.
+Mobil öncelikli okul portalı (öğrenci/veli/öğretmen/yönetici): FastAPI + Jinja2 + vanilla CSS, kendi SQLite'ı. Varsayılan görünüm ortak cam tema (tema seçmemiş kullanıcıda `data-cam`): `static/cam-tema.css` = `ortak/cam-tema` dist kopyası (burada düzenleme), okula özel değişkenler `static/cam-okul.css`; diğer temalar (`defter` vb., imza öğe `.kareler`) `temalar.css`. `farabi-okul.service`, port 9090, dışarıdan https://smual.app (Cloudflare Tunnel). Spec: `../docs/superpowers/specs/2026-10-10-dijital-okul-design.md`.
 
 ## Komutlar
 - Test (`okul/` içinde): `venv/bin/python -m pytest -q`; tek test: `venv/bin/python -m pytest tests/test_odevler.py::test_adi -q`.
@@ -18,8 +18,8 @@ Mobil öncelikli okul portalı (öğrenci/veli/öğretmen/yönetici): FastAPI + 
 
 ## Değişiklik kuralları
 - ⚠️ Şablonlar canlıya ANINDA yansır; Python (`deps.py` Jinja global vb.) restart ister. Yeni Jinja global kullanan şablonu `is defined` ile koru ve değişiklikten hemen sonra restart et (korumasız global /giris'i 503 yaptı).
-- Şema: `db.GOCLER` sonuna yeni eleman ekle, eskileri DEĞİŞTİRME. Güncel sürüm = `len(GOCLER)` (şu an 42); yeni göç = `V<len+1>`. Şema `PRAGMA user_version` ile sürümlü, her göç tek `BEGIN…COMMIT`. Her göç için `scripts/geri_al.py`'ye GERI girdisi ekle (`--hedef N`).
-- CSS/JS değişince: `okul.css?v=N` (base.html) ve `*.js?v=N` (onu yükleyen şablon) sürümünü, `static/sw.js` içindeki SURUM + STATIK listesini artır; yeni statik JS STATIK'e de eklenir.
+- Şema: `db.GOCLER` sonuna yeni eleman ekle, eskileri DEĞİŞTİRME. Güncel sürüm = `len(GOCLER)` (şu an 42); yeni göç = `V<len+1>`. Şema `PRAGMA user_version` ile sürümlü, her göç tek `BEGIN…COMMIT`. Her göç için `scripts/geri_al.py`'ye GERI girdisi ekle (`--hedef N`; GERI V5'ten başlar, `--hedef` < 4 desteklenmez).
+- CSS/JS değişince: `okul.css?v=N` / `cam-*.css?v=<tarih>` (base.html) ve `*.js?v=N` (onu yükleyen şablon) sürümünü, `static/sw.js` içindeki SURUM + STATIK listesini (aynı `?v=` ile) artır; yeni statik JS STATIK'e de eklenir.
 - Zaman için daima `zaman.simdi()` (test edilebilirlik).
 - Yeni rota modülü `rotalar/` altına + `app.py`'de `include_router`. Rota işi `rotalar/`, iş mantığı kök modülde.
 - Üst çubuk `.ust` tek satır flex: yeni öğe ≤360px'te Çıkış düğmesini itmemeli (`flex: none`).
