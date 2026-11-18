@@ -544,6 +544,10 @@ details.kart > summary { cursor: pointer; min-height: 32px; }
 .liderlik-liste .ad { flex: 1; }
 .liderlik-liste li.ben { background: rgba(34, 211, 238, .14); border-radius: 8px; }
 .sekme-sec { display: flex; gap: .4rem; flex-wrap: wrap; }
+/* Sınavlar bölümü alt sekmeleri (_akademik_sekme.html) */
+.akademik-sekme { display: flex; gap: .4rem; overflow-x: auto; margin: 0 0 .8rem; padding: .25rem; background: var(--mavi-acik); border-radius: 12px; }
+.akademik-sekme a { flex: 1 0 auto; text-align: center; padding: .5rem .8rem; border-radius: 9px; text-decoration: none; font-weight: 700; color: var(--mavi); white-space: nowrap; }
+.akademik-sekme a.aktif { background: var(--alan); box-shadow: var(--golge); }
 
 /* Öğretmen: kazanım ısı haritası + sınıf tablosunda kendi sınıfım */
 .isi-harita { display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: .5rem; margin: .5rem 0; }

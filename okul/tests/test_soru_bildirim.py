@@ -176,3 +176,12 @@ def test_iptal_idleri_api(conn, ornek, monkeypatch):
     soru_bildirim.iptal_et(conn, 740)
     assert soru_bildirim.iptal_idleri(conn) == [740]
     assert [o["soru_id"] for o in soru_bildirim.ozet(conn)] == [741]
+
+
+def test_soru_isaretle_partial_tek_tik_dugmesi():
+    import deps
+
+    html = deps.TEMPLATES.get_template("ogretmen/_soru_isaretle.html").render(soru_id=77, kaynak="odev")
+    onde, _, details = html.partition("<details")
+    assert "🚩 Hatalı — iptal et" in onde and 'data-tur="sacma"' in onde and 'data-soru-id="77"' in onde
+    assert "data-isaretle-kap" in onde and 'data-tur="cevap"' in details

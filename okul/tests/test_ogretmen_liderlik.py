@@ -248,7 +248,8 @@ def test_odev_sonuc_havuz_sorusunda_isaretle_dugmesi(istemci, conn, ornek, saat)
     conn.commit()
     giris(istemci, "hoca", "hoca-sifre")
     h = istemci.get(f"/ogretmen/odev/{od}").text
-    assert h.count("data-isaretle ") == 5 and 'data-soru-id="55"' in h  # yalnızca havuz kaynaklı soruda, 5 sebep
+    assert h.count("data-isaretle ") == 6 and 'data-soru-id="55"' in h  # yalnızca havuz kaynaklı soruda: 1 tek tık + 5 sebep
+    assert h.count("🚩 Hatalı — iptal et") == 1
     assert "/static/soru-isaretle.js" in h
 
 

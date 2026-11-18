@@ -5,8 +5,10 @@ import sqlite3
 import analitik
 import dosyalar
 import odevler
+import inceleme
 import push
 import sinifpdf
+import soru_katki
 import yetki
 from deps import db_conn, istemci_ip, render, rol
 from fastapi import (
@@ -19,7 +21,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import FileResponse, RedirectResponse
-from metin import tr_kucuk
+from metin import sinif_seviyesi, tr_kucuk
 
 from rotalar.belge_sinav import _oku
 from rotalar.ogrenci import _kendisi
@@ -33,12 +35,44 @@ OGRENCI = rol("ogrenci")
 GORUNTULEYEN = rol("ogrenci", "ogretmen", "yonetici")
 
 
-def _liste(request, conn, k, status=200, **ek): 
+# ?havuz= kodları → kullanıcıya gösterilen metin (URL'den serbest metin yansıtılmaz)
+HAVUZ_NOTLARI = {
+    "sirada": "PDF sınıfa gönderildi ve sorular soru havuzu kuyruğuna alındı; birkaç dakika içinde işlenir.",
+    "onaysiz": "PDF sınıfa gönderildi; ancak izin onayı işaretlenmediği için sorular havuza gönderilmedi.",
+    "uygunsuz": "PDF sınıfa gönderildi; bu sınıf/ders için soru havuzu yok, sorular havuza gönderilmedi.",
+    "cevap": "PDF sınıfa gönderildi; cevap anahtarı okunamadığı için sorular havuza gönderilmedi. "
+    "Soru havuzuna katkı sayfasından yeniden deneyebilirsiniz.",
+    "hata": "PDF sınıfa gönderildi; sorular havuza gönderilemedi. Soru havuzuna katkı sayfasından yeniden deneyebilirsiniz.",
+}
+
+
+def _havuz_cifti(conn, k, sinif: str, ders: str) -> tuple[int, str] | None:
+    """Sınıf + ders → (seviye, havuz kodu); havuzda karşılığı yoksa (12. sınıf, eşleşmeyen ders) None."""
+    try:
+        sev = sinif_seviyesi(sinif)
+    except ValueError:
+        return None
+    kod = inceleme.havuz_kodu(ders)
+    if kod and (sev, kod) in soru_katki.secenekler(conn, k):
+        return sev, kod
+    return None
+
+
+def _havuz_uygun(conn, k, secenekler) -> list[str]:
+    """Havuz katkısı yapılabilecek "sınıf|ders" seçimleri (yöneticide ders serbest metin: sunucu karar verir)."""
+    if k["rol"] == "yonetici":
+        return []
+    return [f"{s}|{d}" for s, d in secenekler if _havuz_cifti(conn, k, s, d)]
+
+
+def _liste(request, conn, k, status=200, **ek):
+    secenekler = gorevler(conn, k)
     return render(
         request,
         "ogretmen/pdf.html",
         status,
-        secenekler=gorevler(conn, k),
+        secenekler=secenekler,
+        havuz_uygun=_havuz_uygun(conn, k, secenekler),
         pdfler=sinifpdf.ogretmen_pdfleri(conn, k),
         **ek,
     )
@@ -61,6 +95,9 @@ async def pdf_yukle(
     kvkk: str = Form(""),
     soru_bas: str = Form(""),
     soru_bit: str = Form(""),
+    havuza: str = Form(""),
+    havuz_onay: str = Form(""),
+    cevap: str = Form(""),
     k=Depends(OGRETMEN_POST),
     conn: sqlite3.Connection = Depends(db_conn),
 ):
@@ -68,18 +105,37 @@ async def pdf_yukle(
         raise HTTPException(410, "PDF'ten otomatik soru üretimi kaldırıldı; soru arşivi kullanılıyor.")
     sinif, _, d = secim.partition("|")
     ders = tr_kucuk((d or ders).strip())
+    veri = await _oku(dosya, dosyalar.PLAN_AZAMI)
     try:
-        pdf_id = sinifpdf.gonder(
-            conn, k, sinif.strip(), ders, baslik,
-            dosya.filename or "", await _oku(dosya, dosyalar.PLAN_AZAMI),
-        )
+        pdf_id = sinifpdf.gonder(conn, k, sinif.strip(), ders, baslik, dosya.filename or "", veri)
     except PermissionError:
         raise HTTPException(404) from None
     except dosyalar.DosyaHatasi as e:
         return _liste(request, conn, k, 422, hata=str(e))
     analitik.istekten(request, "ogretmen_pdf_gonder", str(pdf_id))
     arka.add_task(push.pdf_bildir, sinif.strip(), k["id"])
-    return RedirectResponse(f"/ogretmen/pdf/{pdf_id}/odev", status_code=303)
+    yol = f"/ogretmen/pdf/{pdf_id}/odev"
+    if havuza == "evet":
+        kod = _havuza_gonder(request, conn, k, (sinif.strip(), ders), (baslik, dosya.filename or ""), veri, cevap, havuz_onay)
+        yol += f"?havuz={kod}"
+    return RedirectResponse(yol, status_code=303)
+
+
+def _havuza_gonder(request, conn, k, sinif_ders, ad, veri, cevap, onay) -> str:
+    """PDF zaten gönderildi; havuz katkısı başarısız olsa da akış bozulmaz. HAVUZ_NOTLARI kodu döner."""
+    cift = _havuz_cifti(conn, k, *sinif_ders)
+    if cift is None:
+        return "uygunsuz"
+    if not onay:
+        return "onaysiz"
+    try:
+        kid = soru_katki.gonder(conn, k, cift[0], cift[1], ad[0], ad[1], veri, cevap)
+    except soru_katki.KatkiHatasi:
+        return "cevap"
+    except (dosyalar.DosyaHatasi, PermissionError):
+        return "hata"
+    analitik.istekten(request, "ogretmen_soru_katki", str(kid))
+    return "sirada"
 
 
 @router.post("/ogretmen/pdf/{pdf_id}/soru")
@@ -113,7 +169,12 @@ def _sahip_pdf(conn, k, pdf_id):
 def pdf_odev_formu(
     pdf_id: int, request: Request, k=Depends(OGRETMEN), conn: sqlite3.Connection = Depends(db_conn)
 ):
-    return render(request, "ogretmen/pdf_odev.html", pdf=_sahip_pdf(conn, k, pdf_id))
+    return render(
+        request,
+        "ogretmen/pdf_odev.html",
+        pdf=_sahip_pdf(conn, k, pdf_id),
+        havuz_notu=HAVUZ_NOTLARI.get(request.query_params.get("havuz", "")),
+    )
 
 
 @router.post("/ogretmen/pdf/{pdf_id}/odev")

@@ -20,6 +20,20 @@
   <input id="baslik" name="baslik" type="text" maxlength="120" placeholder="Senaryo çalışma föyü">
   <label for="dosya">PDF <span class="soluk kucuk">(en fazla 10 MB)</span></label>
   <input id="dosya" name="dosya" type="file" required accept=".pdf,application/pdf">
+  <fieldset class="kart">
+    <legend>Bu PDF'teki sorular soru havuzuna da eklensin mi?</legend>
+    <label class="kucuk"><input type="radio" name="havuza" value="evet" checked> Evet, eklensin</label>
+    <label class="kucuk"><input type="radio" name="havuza" value="hayir"> Hayır, yalnızca sınıfa gönder</label>
+    <p class="kucuk soluk">
+      {% if k.rol == 'yonetici' %}Havuz katkısı, yazdığınız ders havuzdaki bir dersle eşleşirse yapılır (9-12. sınıf).
+      {% elif havuz_uygun %}Havuza uygun seçimler: {% for s in havuz_uygun %}{{ s|replace('|', ' · ') }}{% if not loop.last %}, {% endif %}{% endfor %}. Diğer seçimlerde PDF yalnızca sınıfa gider (bu ders için havuz yok).
+      {% else %}Size atanmış derslerin hiçbiri soru havuzunda yok (bu ders için havuz yok); PDF yalnızca sınıfa gider.{% endif %}
+    </p>
+    <label for="cevap">Cevap anahtarı <span class="soluk kucuk">(boş bırakırsanız PDF'in sonundaki anahtar aranır)</span></label>
+    <textarea id="cevap" name="cevap" rows="3" placeholder="1-A 2-C 3-B 4-D …  ya da  ACBD…"></textarea>
+    <p class="kucuk soluk">Sorular 1, 2, 3 … diye numaralı, şıklar A) B) C) D) (E) biçiminde olmalı; PDF'in metni seçilebilir olmalı. Soru sayısı anahtarla tutmazsa hiçbir soru havuza eklenmez; PDF yine sınıfa gönderilir.</p>
+    <label class="kucuk"><input type="checkbox" name="havuz_onay" value="1"> Bu soruları havuzda kullanma iznim var; PDF'te öğrenci/veli kişisel verisi yok.</label>
+  </fieldset>
   <div class="tuslar"><button class="tus">Gönder ve ödev ver →</button></div>
 </form>
 {% endif %}

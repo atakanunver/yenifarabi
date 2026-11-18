@@ -2,6 +2,7 @@
 {% from "_makrolar.html" import kareler, kaynak_yok %}
 {% block baslik %}Kazanımlar — Dijital Okul{% endblock %}
 {% block icerik %}
+{% include "_akademik_sekme.html" %}
 <h1>{{ kim }}</h1>
 <p class="soluk kucuk">Her kare bir kazanım. Dolu kare: doğruların en az %{{ (esik * 100)|round|int }}'i. Taralı kare: çalışılması önerilen kazanım. Veriler deneme, ödev testi ve eski kazanım testlerinden gelir; 3'ten az soruda "Veri az" yazar.</p>
 {% if not erisildi %}<div class="kart">{{ kaynak_yok("Kazanım testi sonuçları") }}</div>{% endif %}

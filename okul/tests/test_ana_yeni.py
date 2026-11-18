@@ -137,14 +137,26 @@ def test_yaris_bos_ve_birinci_mesaji(istemci, ornek, conn, saat):
     assert "Birincisin!" in istemci.get("/ogrenci").text
 
 
-def test_alt_menu_oyun_odakli_ve_tek_aktif(istemci, ornek):
+def test_alt_menu_sinavlar_ve_tek_aktif(istemci, ornek):
     import re
 
     giris(istemci, "101", "ali-sifre")
-    for yol, aktif in (("/ogrenci/arena/liderlik", "Liderlik"), ("/ogrenci/arena", "Oyun"), ("/ogrenci", "Ana sayfa"), ("/duyurular", "Duyurular")):
+    for yol, aktif in (("/ogrenci/arena/liderlik", "Liderlik"), ("/ogrenci/deneme", "Sınavlar"), ("/ogrenci", "Ana sayfa"), ("/duyurular", "Duyurular")):
         t = istemci.get(yol).text
         nav = t[t.index('<nav class="sekmeler"'):]
         nav = nav[:nav.index("</nav>")]
         assert [m for m in re.findall(r'<a href="[^"]+" class="aktif"[^>]*>.*?</svg>([^<]+)</a>', nav, re.S)] == [aktif], yol
-        for ad in ("Oyun", "Liderlik", "Ödevler", "Duyurular"):
+        for ad in ("Sınavlar", "Liderlik", "Ödevler", "Duyurular"):
             assert ad in nav
+        assert "Oyun" not in nav
+
+
+def test_veli_alt_menu_sinavlar(istemci, ornek, monkeypatch):
+    from test_web import _veli_girisi
+
+    _veli_girisi(istemci, monkeypatch)
+    t = istemci.get("/veli").text
+    nav = t[t.index('<nav class="sekmeler"'):]
+    nav = nav[:nav.index("</nav>")]
+    assert f'href="/veli/deneme?ogr={ornek["ogr1"]}"' in nav and "Sınavlar" in nav
+    assert "Kazanımlar" not in nav

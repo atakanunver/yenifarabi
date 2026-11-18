@@ -1,0 +1,8 @@
+{# Sınavlar bölümü alt sekmeleri (öğrenci + veli). Veli bağlantılarında ?ogr= (çocuk seçimi) korunur. #}
+{% set oz = '/veli' if k.rol == 'veli' else '/ogrenci' %}
+{% set q = ('?ogr=' ~ cocuk.id) if (k.rol == 'veli' and cocuk) else '' %}
+{% set yol = request.url.path %}
+{% set ak = [(oz ~ '/deneme', 'Denemeler'), (oz ~ '/sinavlar', 'Takvim'), (oz ~ ('/kazanim' if k.rol == 'veli' else '/kazanimlar'), 'Kazanımlar')] %}
+<nav class="akademik-sekme" aria-label="Sınavlar">
+  {% for temel, ad in ak %}{% set etkin = yol == temel or yol.startswith(temel ~ '/') %}<a href="{{ temel }}{{ q }}" class="{{ 'aktif' if etkin }}"{{ ' aria-current="page"' if etkin }}>{{ ad }}</a>{% endfor %}
+</nav>

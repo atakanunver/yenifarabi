@@ -5,6 +5,7 @@
 <h1>PDF'ten ödev ver</h1>
 <p class="soluk">📄 <a href="/pdf/{{ pdf.id }}" target="_blank">{{ pdf.baslik }}</a> · {{ pdf.sinif }} · {{ pdf.ders|baslik }}. Öğrenciler cevaplarını fotoğraf olarak yükler; yalnızca siz görürsünüz.</p>
 {% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+{% if havuz_notu is defined and havuz_notu %}<div class="not" role="status">{{ havuz_notu }}</div>{% endif %}
 <form class="kart" method="post" action="/ogretmen/pdf/{{ pdf.id }}/odev">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   <label for="baslik">Başlık</label>

@@ -88,7 +88,10 @@ def test_web_akis_ve_yetki(istemci, conn, ornek, monkeypatch):
     r = istemci.get("/ogretmen/inceleme")
     assert r.status_code == 200 and "işaretli doğru cevap" in r.text and r.text.count('name="sonuc" value="dogru"') == 5
     assert istemci.post("/ogretmen/inceleme/1", data={"csrf": csrf, "sonuc": "dogru"}, follow_redirects=False).status_code == 303
+    assert r.text.count("🚩 Hatalı — iptal et") == 5  # tek tık düğmesi (sebepsiz → tur=sacma)
     assert istemci.post("/ogretmen/inceleme/2", data={"csrf": csrf, "tur": "sacma"}, follow_redirects=False).status_code == 303
+    assert conn.execute("SELECT sonuc FROM soru_inceleme WHERE sira = 2").fetchone()["sonuc"] == "hatali"
+    assert len(soru_bildirim.gizli_idler(conn)) == 1  # öğretmen bildirimi tek başına gizler
     assert "İncele (2/5)" in istemci.get("/ogretmen").text
     r = istemci.post("/ogretmen/inceleme/1", data={"csrf": csrf, "sonuc": "pas"}, follow_redirects=True)
     assert "zaten işaretledin" in r.text

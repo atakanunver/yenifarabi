@@ -3,7 +3,7 @@
 {% block icerik %}
 <p class="kucuk"><a href="/ogretmen">← Ana sayfa</a></p>
 <h1>Bugünün 5 sorusu</h1>
-<p class="soluk">Kendi dersinden, öğrencilerin oyunlarda göreceği sorular. Soru doğruysa ✅, sorunluysa 🚩 ile sebebini seç; bildirdiğin soru öğrencilere gösterilmeyecek. Emin değilsen pas geç. ({{ yapilan }} / {{ sorular|length }} tamamlandı)</p>
+<p class="soluk">Kendi dersinden, öğrencilerin oyunlarda göreceği sorular. Soru doğruysa ✅, sorunluysa 🚩 ile tek tıkla iptal et (istersen sebebini de seçebilirsin); bildirdiğin soru öğrencilere gösterilmeyecek. Emin değilsen pas geç. ({{ yapilan }} / {{ sorular|length }} tamamlandı)</p>
 {% if mesaj %}<div class="not" role="status">{{ mesaj }}</div>{% endif %}
 {% if hata %}<div class="not" role="status">Soru havuzuna şu an ulaşılamıyor. Biraz sonra tekrar dene.</div>{% endif %}
 {% for s in sorular %}
@@ -24,9 +24,10 @@
     <div class="tuslar">
       <button class="tus kucuk" name="sonuc" value="dogru">✅ Doğru</button>
       <button class="tus ikincil kucuk" name="sonuc" value="pas">⏭ Pas</button>
+      <button class="tus tehlike kucuk" name="tur" value="sacma" onclick="return confirm('Soru hatalı sayılıp öğrencilerden gizlensin mi?')">🚩 Hatalı — iptal et</button>
     </div>
     <details class="kucuk">
-      <summary>🚩 Soru hatalı</summary>
+      <summary>Hatalı — sebep belirt</summary>
       <div class="tuslar">
         {% for kod, ad in turler.items() %}<button class="tus ikincil kucuk" name="tur" value="{{ kod }}">{{ ad }}</button>{% endfor %}
       </div>

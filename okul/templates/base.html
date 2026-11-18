@@ -17,7 +17,7 @@
 <link rel="icon" href="/static/logo-64.png" type="image/png">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <link rel="stylesheet" href="/static/cam-tema.css?v=20261115c">
-<link rel="stylesheet" href="/static/okul.css?v=35">
+<link rel="stylesheet" href="/static/okul.css?v=36">
 <link rel="stylesheet" href="/static/temalar.css?v=3">
 {% if k and k.rol == 'veli' %}<link rel="stylesheet" href="/static/veli.css?v=1">{% endif %}
 <link rel="stylesheet" href="/static/cam-okul.css?v=20261115c">
@@ -93,12 +93,12 @@
 {% set ogr = ('?ogr=' ~ cocuk.id) if cocuk else '' %}
 {% if k.rol == 'ogrenci' %}
   {% if OYUN_NAV is defined %}
-  {% set sekmeler = [('/ogrenci','Ana sayfa','ev'),('/ogrenci/arena','Oyun','oyun'),('/ogrenci/arena/liderlik','Liderlik','kupa'),('/ogrenci/odevler','Ödevler','odev'),('/duyurular','Duyurular','duyuru')] %}
+  {% set sekmeler = [('/ogrenci','Ana sayfa','ev'),('/ogrenci/deneme','Sınavlar','sinav'),('/ogrenci/arena/liderlik','Liderlik','kupa'),('/ogrenci/odevler','Ödevler','odev'),('/duyurular','Duyurular','duyuru')] %}
   {% else %}
   {% set sekmeler = [('/ogrenci','Ana sayfa','ev'),('/ogrenci/odevler','Ödevler','odev'),('/ogrenci/kazanimlar','Kazanımlar','kazanim'),('/ogrenci/program','Program','program'),('/duyurular','Duyurular','duyuru')] %}
   {% endif %}
 {% elif k.rol == 'veli' %}
-  {% set sekmeler = [('/veli'~ogr,'Ana sayfa','ev'),('/veli/devamsizlik'~ogr,'Devamsızlık','devam'),('/veli/kazanim'~ogr,'Kazanımlar','kazanim'),('/veli/odevler'~ogr,'Ödevler','odev'),('/duyurular','Duyurular','duyuru')] %}
+  {% set sekmeler = [('/veli'~ogr,'Ana sayfa','ev'),('/veli/devamsizlik'~ogr,'Devamsızlık','devam'),('/veli/deneme'~ogr,'Sınavlar','sinav'),('/veli/odevler'~ogr,'Ödevler','odev'),('/duyurular','Duyurular','duyuru')] %}
 {% elif k.rol == 'ogretmen' %}
   {% set sekmeler = [('/ogretmen','Sınıflarım','ev'),('/ogretmen/odev/yeni','Ödev ver','kalem'),('/ogretmen/sinavlar','Sınavlar','sinav'),('/ogretmen/program','Program','program'),('/ogretmen/duyuru','Duyuru yaz','duyuru')] %}
 {% else %}
@@ -108,6 +108,7 @@
   {# etkin sekme: yolu eşleşenlerin en uzunu (örn. /ogrenci/arena/liderlik açıkken yalnızca Liderlik) #}
   {% set en = namespace(uzun='') %}
   {% for yol, ad, ik in sekmeler %}{% set temel = yol.split('?')[0] %}{% if (request.url.path == temel or (temel|length > 9 and request.url.path.startswith(temel))) and temel|length > en.uzun|length %}{% set en.uzun = temel %}{% endif %}{% endfor %}
+  {% if k.rol in ('ogrenci', 'veli') and request.url.path.startswith(('/ogrenci/sinavlar', '/veli/sinavlar', '/ogrenci/kazanimlar', '/veli/kazanim')) %}{% set en.uzun = ('/veli' if k.rol == 'veli' else '/ogrenci') ~ '/deneme' %}{% endif %}
   {% for yol, ad, ik in sekmeler %}
   {% set temel = yol.split('?')[0] %}
   <a href="{{ yol }}" class="{{ 'aktif' if temel == en.uzun }}"{{ ' aria-current="page"' if temel == en.uzun }}>{{ ikon(ik) }}{{ ad }}</a>
