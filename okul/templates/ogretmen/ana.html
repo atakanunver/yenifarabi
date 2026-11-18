@@ -1,11 +1,48 @@
 {% extends "base.html" %}
 {% block icerik %}
 {% include "_ana_ekran.html" %}
-<p><a class="tus ikincil" href="/static/farabi-kilavuz.html">Farabi kullanma kılavuzu</a></p>
-<p><a class="tus ikincil" href="/ogretmen/tahtaya-gonder">📁 Tahtaya dosya gönder</a></p>
 <link rel="stylesheet" href="/static/kokpit.css?v=1">
 <link rel="stylesheet" href="/static/rol-ana.css?v=1">
 <div class="rol-ana">
+{% include "_saat.html" %}
+<h1>Sınıflarım</h1>
+<div class="kisayollar">
+  {% if k.rol == 'ogretmen' %}<a class="tus ikincil" href="/ogretmen/tesekkur">💌 Teşekkür kartı gönder</a>{% endif %}
+  {% if k.rol == 'ogretmen' %}<a class="tus ikincil" href="/ogretmen/planlar">📄 Yıllık planlarım</a>{% endif %}
+  <a class="tus ikincil" href="/ogretmen/atlas">🗺️ Farabi Atlas</a>
+  <a class="tus ikincil" href="/ogretmen/cografya">🌍 Coğrafya Harita Oyunu</a>
+  {% if KUTUPHANE is defined %}<a class="tus ikincil" href="/kutuphane">📚 Kütüphane</a>{% endif %}
+  <a class="tus ikincil" href="/ogretmen/pdf">📎 PDF gönder</a>
+  <a class="tus ikincil" href="/ogretmen/soru-katki">🧩 Soru havuzuna katkı</a>
+  <a class="tus ikincil" href="/ogretmen/onay">📋 Veli onayı iste</a>
+  <a class="tus ikincil" href="/ogretmen/sinavlar">🗓️ Sınav takvimi</a>
+</div>
+<section class="kart">
+  <ul class="liste">
+  {% for g in gorevler_bilgi %}
+    <li style="display:block;">
+      <div style="display:flex; align-items:center; gap:.5rem; width:100%;">
+        <a class="satir" href="/ogretmen/sinif/{{ g.sinif }}"><span class="etiket">{{ g.sinif }}</span><span>{{ g.ders|baslik if g.ders else 'Sınıf listesi' }}</span></a>
+        {% if g.ders %}<a class="tus ikincil kucuk sag" href="/ogretmen/odev/yeni?sinif={{ g.sinif }}&ders={{ g.ders|urlencode }}">Ödev ver</a>{% endif %}
+      </div>
+      {% if g.kazanim %}
+        <div class="soluk kucuk" style="margin-top:.25rem; padding-left:.2rem; line-height:1.35;">
+          🎯 <b>Bu haftanın kazanımı:</b> {{ g.kazanim }}
+        </div>
+      {% endif %}
+    </li>
+  {% else %}
+    <li class="bos">Size henüz sınıf/ders atanmamış. Okul yönetimi görevlerinizi tanımlayınca burada görünecek.</li>
+  {% endfor %}
+  </ul>
+</section>
+<section class="kart">
+  <h2>📑 Deneme sonuçları</h2>
+  <p class="kucuk soluk">Kendi sınıflarınızın deneme karneleri ve ortak eksik kazanımlar.</p>
+  <p><a class="tus ikincil" href="/ogretmen/deneme">Denemeleri aç</a></p>
+</section>
+<p><a class="tus ikincil" href="/static/farabi-kilavuz.html">Farabi kullanma kılavuzu</a></p>
+<p><a class="tus ikincil" href="/ogretmen/tahtaya-gonder">📁 Tahtaya dosya gönder</a></p>
 {% if canli_ders is defined and canli_ders %}
 {% set c = canli_ders %}
 {% set devam = canli_durum == 'devam' %}
@@ -92,7 +129,6 @@
 </section>
 {% endif %}
 
-{% include "_saat.html" %}
 {% if inceleme_kart is defined and inceleme_kart %}
 <section class="kart">
   <h2>📝 Bugünün 5 sorusu</h2>
@@ -100,11 +136,6 @@
   <p><a class="tus {{ 'ikincil' if inceleme_kart.yapilan >= inceleme_kart.toplam and inceleme_kart.toplam }}" href="/ogretmen/inceleme">{% if inceleme_kart.yapilan >= inceleme_kart.toplam and inceleme_kart.yapilan %}Tamamlandı · gözden geçir{% else %}İncele ({{ inceleme_kart.yapilan }}/{{ inceleme_kart.toplam }}){% endif %}</a></p>
 </section>
 {% endif %}
-<section class="kart">
-  <h2>📑 Deneme sonuçları</h2>
-  <p class="kucuk soluk">Kendi sınıflarınızın deneme karneleri ve ortak eksik kazanımlar.</p>
-  <p><a class="tus ikincil" href="/ogretmen/deneme">Denemeleri aç</a></p>
-</section>
 <section class="kart">
   <h2>🏆 Yarışmalar bu hafta</h2>
   <p><a class="tus ikincil" href="/ogretmen/liderlik/maraton">XP ve Soru Maratonu yarışları</a></p>
@@ -164,38 +195,6 @@
   </ul>
   <p class="kucuk" style="margin:.5rem 0 0;"><a href="/duyurular">Tüm duyurular</a>{% if duyuru_okunmamis|default(0) %} <span class="sayi-rozet">{{ duyuru_okunmamis }} yeni</span>{% endif %}</p>
 </details>
-
-<h1>Sınıflarım</h1>
-<div class="kisayollar">
-  {% if k.rol == 'ogretmen' %}<a class="tus ikincil" href="/ogretmen/tesekkur">💌 Teşekkür kartı gönder</a>{% endif %}
-  {% if k.rol == 'ogretmen' %}<a class="tus ikincil" href="/ogretmen/planlar">📄 Yıllık planlarım</a>{% endif %}
-  <a class="tus ikincil" href="/ogretmen/atlas">🗺️ Farabi Atlas</a>
-  <a class="tus ikincil" href="/ogretmen/cografya">🌍 Coğrafya Harita Oyunu</a>
-  {% if KUTUPHANE is defined %}<a class="tus ikincil" href="/kutuphane">📚 Kütüphane</a>{% endif %}
-  <a class="tus ikincil" href="/ogretmen/pdf">📎 PDF gönder</a>
-  <a class="tus ikincil" href="/ogretmen/soru-katki">🧩 Soru havuzuna katkı</a>
-  <a class="tus ikincil" href="/ogretmen/onay">📋 Veli onayı iste</a>
-  <a class="tus ikincil" href="/ogretmen/sinavlar">🗓️ Sınav takvimi</a>
-</div>
-<section class="kart">
-  <ul class="liste">
-  {% for g in gorevler_bilgi %}
-    <li style="display:block;">
-      <div style="display:flex; align-items:center; gap:.5rem; width:100%;">
-        <a class="satir" href="/ogretmen/sinif/{{ g.sinif }}"><span class="etiket">{{ g.sinif }}</span><span>{{ g.ders|baslik if g.ders else 'Sınıf listesi' }}</span></a>
-        {% if g.ders %}<a class="tus ikincil kucuk sag" href="/ogretmen/odev/yeni?sinif={{ g.sinif }}&ders={{ g.ders|urlencode }}">Ödev ver</a>{% endif %}
-      </div>
-      {% if g.kazanim %}
-        <div class="soluk kucuk" style="margin-top:.25rem; padding-left:.2rem; line-height:1.35;">
-          🎯 <b>Bu haftanın kazanımı:</b> {{ g.kazanim }}
-        </div>
-      {% endif %}
-    </li>
-  {% else %}
-    <li class="bos">Size henüz sınıf/ders atanmamış. Okul yönetimi görevlerinizi tanımlayınca burada görünecek.</li>
-  {% endfor %}
-  </ul>
-</section>
 
 <section class="kart">
   <h2>Verdiğim ödevler</h2>
