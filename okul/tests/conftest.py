@@ -35,6 +35,10 @@ def gecici_ortam(tmp_path, monkeypatch):
     monkeypatch.setattr(isbn_kaynak, "_get", lambda url: {})  # testler internete (Open Library/Google) çıkmaz
     monkeypatch.setattr(AYAR, "duyuru_anahtar", "")
     monkeypatch.setattr(AYAR, "devamsizlik_anahtar", "")
+    monkeypatch.setattr(AYAR, "izin_anahtar", "")  # izin bildirimleri: gerçek SMS/Telegram asla tetiklenmez
+    monkeypatch.setattr(AYAR, "izin_sms_telefon", "")
+    monkeypatch.setattr(AYAR, "telegram_token", "")
+    monkeypatch.setattr(AYAR, "telegram_sohbet", "")
     monkeypatch.setattr(AYAR, "kazanim_yolu", tmp_path / "kazanimlar.json")
     monkeypatch.setattr(AYAR, "sms_anahtar", "test-anahtar")
     monkeypatch.setattr(AYAR, "acil_anahtar", "")  # gerçek alarm/SMS asla tetiklenmez; acil testleri kendisi açar + kaynaklar.acil'i mock'lar

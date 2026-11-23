@@ -62,6 +62,7 @@ ZAMAN_ASIMI_SN = 8
 
 _KAYIT_ADI_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})_[A-Za-z0-9_-]+_ders\d+\.json$")
 _SINIF_RE = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
+_TARIH_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 KULUP_ONEKI = "KULUP-"  # kulüp roster'ları (sınıf temizliği bunlara dokunmaz)
 DYK_ONEKI = "DYK-"  # DYK kursu roster'ları (sınıf temizliği bunlara dokunmaz)
 _SAAT_RE = re.compile(r"^\d{2}:\d{2}$")
@@ -341,6 +342,18 @@ def dyk_program_gecerli(metin: str) -> bool:
         return False
 
 
+def izinler_gecerli(izinler) -> bool:
+    """{"YYYY-MM-DD": ["okul_no", ...]} — boş sözlük de geçerli."""
+    if not isinstance(izinler, dict):
+        return False
+    for tarih, nolar in izinler.items():
+        if not (isinstance(tarih, str) and _TARIH_RE.match(tarih)):
+            return False
+        if not (isinstance(nolar, list) and all(isinstance(n, str) and 0 < len(n) <= 32 for n in nolar)):
+            return False
+    return True
+
+
 def roster_gecerli(metin: str, sinif: str) -> bool:
     try:
         r = json.loads(metin)
@@ -433,6 +446,13 @@ def yapilandirmayi_uygula(yap: dict) -> None:
             _yedekle(yol)
             yol.unlink()
             log("dyk_program.json kaldirildi (yedekte)")
+    # Onaylı veli izinleri (yoklama.py "izinli" başlatır): anahtar yoksa (eski
+    # sunucu) ya da geçersizse dosyaya dokunulmaz.
+    izinler = yap.get("izinler")
+    if izinler_gecerli(izinler):
+        metin = json.dumps(izinler, ensure_ascii=False, sort_keys=True)
+        if _farkliysa_yaz(DATA_DIR / "izinler.json", metin):
+            log("izinler.json guncellendi")
 
 
 def yapilandirma_cek(ayar: dict, durum: dict) -> None:

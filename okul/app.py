@@ -27,6 +27,7 @@ from rotalar import (
     cografya,
     duyuru_api,
     devamsizlik_api,
+    izin,
     deneme,
     etkinlik,
     gelisim,
@@ -69,7 +70,7 @@ app = FastAPI(
 )
 app.mount("/static/cografya", StaticFiles(directory=str(KOK / "cografya" / "static"), check_dir=False), name="cografya")
 app.mount("/static", StaticFiles(directory=str(KOK / "static")), name="static")
-for r in (giris, pano, belge_sinav, pdfgonder, bildirim, calisma, duyuru_api, devamsizlik_api, ogrenci, arena, avatar, anket, gelisim, etkinlik, kisisel, oduller, oyun, veli, deneme, inceleme, ogretmen_liderlik, ogretmen, yonetici, push, sohbet, kutu, kutuphane, not_defteri, onay, acil, sudoku, bilmece, tesekkur, atlas, soru_gorsel, soru_katki, tahta_dosya, cografya):
+for r in (giris, pano, belge_sinav, pdfgonder, bildirim, calisma, duyuru_api, devamsizlik_api, izin, ogrenci, arena, avatar, anket, gelisim, etkinlik, kisisel, oduller, oyun, veli, deneme, inceleme, ogretmen_liderlik, ogretmen, yonetici, push, sohbet, kutu, kutuphane, not_defteri, onay, acil, sudoku, bilmece, tesekkur, atlas, soru_gorsel, soru_katki, tahta_dosya, cografya):
     app.include_router(r.router)
 app.include_router(cografya.ogretmen_router)
 

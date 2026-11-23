@@ -20,6 +20,7 @@ from pathlib import Path
 
 # user_version N'den N-1'e inmek için çalışan betik. Yeni göç eklenince buraya da eklenir.
 GERI = {
+    44: "DROP TABLE IF EXISTS izin_talep;",
     43: "DROP TABLE IF EXISTS tahta_dosya;",
     42: """
 DELETE FROM bilgi_xp WHERE kaynak = 'cografya';
@@ -249,6 +250,7 @@ DROP TABLE IF EXISTS bilgi_tur;
 """,
 }
 TABLOLAR = {
+    44: ["izin_talep"],
     43: ["tahta_dosya"],
     42: ["cografya_oyun"],
     36: ["deneme_sinif_yorum", "deneme_pdf"],

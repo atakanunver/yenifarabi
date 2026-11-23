@@ -135,6 +135,21 @@ def odev_foto_kaydet(veri: bytes) -> Dosya:
     return _kaydet("odev_foto", veri, tur)
 
 
+def izin_eki_kaydet(veri: bytes) -> Dosya:
+    """Veli izin talebi eki (sağlık raporu): PDF/JPG/PNG/WEBP, tür imzadan."""
+    if len(veri) > PLAN_AZAMI:
+        raise DosyaHatasi("Ek en fazla 10 MB olabilir.")
+    tur = "pdf" if veri[:5] == b"%PDF-" else foto_turu(veri)
+    if tur is None:
+        raise DosyaHatasi("Ek olarak yalnızca PDF, JPG, PNG ya da WEBP yükleyebilirsiniz.")
+    return _kaydet("izin", veri, tur)
+
+
+def izin_pdf_kaydet(veri: bytes) -> Dosya:
+    """Sunucunun ürettiği izin dilekçesi PDF'i."""
+    return _kaydet("izin", veri, "pdf")
+
+
 def yol(klasor: str, depo_adi: str) -> Path:
     # depo_adi her zaman bizim ürettiğimiz ad; yine de yol dışına çıkmayı engelle
     if not depo_adi or "/" in depo_adi or "\\" in depo_adi or depo_adi.startswith("."):

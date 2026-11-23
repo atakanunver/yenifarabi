@@ -6,6 +6,7 @@ import belirli_gunler
 import denemeler
 import duyurular
 import gunun_bilgisi
+import izin
 import odevler
 import onay
 import sinavlar
@@ -81,6 +82,7 @@ def ana(
         kalan=sinavlar.kalan_gun,
         deneme_sayisi=denemeler.deneme_sayisi(conn, c["okul_no"]),
         tesekkur=tesekkur.ozet(conn, c),
+        izin_talepleri=izin.veli_talepleri(conn, k["id"], c["id"])[:3],
         belirli_gunler=belirli_gunler.bugun(),
         gunun_bilgisi=gunun_bilgisi.bugun(),
     )

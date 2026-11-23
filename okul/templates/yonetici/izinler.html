@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block baslik %}Veli izin talepleri — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Veli izin talepleri</h1>
+<p class="soluk">{{ bekleyen }} bekleyen talep. Bekleyenler önce listelenir.</p>
+{% for t in talepler %}
+<a class="kart satir" href="/yonetici/izinler/{{ t.id }}" style="display:block">
+  <p class="soluk kucuk">{{ t.olusturma[:16] }} · <span class="etiket{{ ' yesil' if t.durum == 'onaylandi' else (' kirmizi' if t.durum == 'reddedildi' else ' sari') }}">{{ t.durum_ad }}</span></p>
+  <p><b>{{ t.ogrenci_ad }}</b> ({{ t.sinif }}, no {{ t.okul_no }}) · veli {{ t.veli_ad }}</p>
+  <p class="kucuk">{{ t.baslangic_g }} – {{ t.bitis_g }} · {{ t.gun }} gün · {{ t.neden_ad }}{% if t.ek_depo %} · 📎 ek var{% endif %}</p>
+</a>
+{% else %}
+<div class="kart"><p class="bos">Talep yok.</p></div>
+{% endfor %}
+<p class="kucuk"><a href="/yonetici">← Okul özeti</a></p>
+{% endblock %}

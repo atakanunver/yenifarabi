@@ -37,6 +37,27 @@ def kod_gonder(telefon: str, metin: str) -> None:
         raise SmsHatasi(
             f"SMS gönderilemedi (hata {r.status_code}). Lütfen okulla iletişime geçin."
         )
+BILDIRIM_AZAMI = 320
+
+
+def bildirim_gonder(telefon: str, metin: str) -> bool:
+    """Tek numaraya bilgilendirme SMS'i (smssistemi /api/arac/bildirim-sms). Asla istisna fırlatmaz:
+    anahtar/telefon yoksa ya da gönderim başarısızsa False döner (asıl işlemi bozmaz)."""
+    if not AYAR.sms_anahtar or not telefon or not metin:
+        return False
+    try:
+        r = httpx.post(
+            _taban() + "/bildirim-sms",
+            json={"telefon": telefon, "metin": metin[:BILDIRIM_AZAMI]},
+            headers={"X-Sms-Arac-Key": AYAR.sms_anahtar},
+            timeout=10,
+            trust_env=False,
+        )
+    except httpx.HTTPError:
+        return False
+    return r.status_code == 200
+
+
 # --- Yönetici SMS paneli: smssistemi /api/arac uçlarının istemcisi ---------
 
 _PANEL_MESAJLARI = {

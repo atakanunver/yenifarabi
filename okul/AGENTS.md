@@ -18,7 +18,7 @@ Mobil öncelikli okul portalı (öğrenci/veli/öğretmen/yönetici): FastAPI + 
 
 ## Değişiklik kuralları
 - ⚠️ Şablonlar canlıya ANINDA yansır; Python (`deps.py` Jinja global vb.) restart ister. Yeni Jinja global kullanan şablonu `is defined` ile koru ve değişiklikten hemen sonra restart et (korumasız global /giris'i 503 yaptı).
-- Şema: `db.GOCLER` sonuna yeni eleman ekle, eskileri DEĞİŞTİRME. Güncel sürüm = `len(GOCLER)` (şu an 42); yeni göç = `V<len+1>`. Şema `PRAGMA user_version` ile sürümlü, her göç tek `BEGIN…COMMIT`. Her göç için `scripts/geri_al.py`'ye GERI girdisi ekle (`--hedef N`; GERI V5'ten başlar, `--hedef` < 4 desteklenmez).
+- Şema: `db.GOCLER` sonuna yeni eleman ekle, eskileri DEĞİŞTİRME. Güncel sürüm = `len(GOCLER)` (şu an 44); yeni göç = `V<len+1>`. Şema `PRAGMA user_version` ile sürümlü, her göç tek `BEGIN…COMMIT`. Her göç için `scripts/geri_al.py`'ye GERI girdisi ekle (`--hedef N`; GERI V5'ten başlar, `--hedef` < 4 desteklenmez).
 - CSS/JS değişince: `okul.css?v=N` / `cam-*.css?v=<tarih>` (base.html) ve `*.js?v=N` (onu yükleyen şablon) sürümünü, `static/sw.js` içindeki SURUM + STATIK listesini (aynı `?v=` ile) artır; yeni statik JS STATIK'e de eklenir.
 - Zaman için daima `zaman.simdi()` (test edilebilirlik).
 - Yeni rota modülü `rotalar/` altına + `app.py`'de `include_router`. Rota işi `rotalar/`, iş mantığı kök modülde.
@@ -39,6 +39,7 @@ Mobil öncelikli okul portalı (öğrenci/veli/öğretmen/yönetici): FastAPI + 
 
 ## Modül haritası
 Uzun maddelerin tam hali (gayret, sudoku, mikro-görevler, denemeler, push, sohbet, kokpit, veli ekranı, soru_bildirim, kütüphane): `docs/moduller.md`. O modüle dokunmadan önce oku.
+- izin (V44 `izin_talep`, `izin.py`, `izin_pdf.py`, `rotalar/izin.py`): veli `/veli/izin` dilekçe talebi (gün = sunucuda iş günü, takvim.json), yönetici `/yonetici/izinler` onay/ret (rozet `izin_bekleyen`); push/Telegram SABİT metin (ad/neden yok), personel SMS `AYAR.izin_sms_telefon`; LAN `GET /api/izinler` (`X-Izin-Anahtar`) dashboard'a onaylı izinleri verir. Ayrıntı `docs/moduller.md`.
 - Profil iletişim (`rotalar/belge_sinav.py` `POST /profil/iletisim`; V37 `kullanici.eposta`, telefon `kullanici.telefon`): yalnız kendisi + yönetici görür; `ice_aktar.ogretmen_uygula` CSV'de boş telefonla mevcudu ezmez.
 Saat widget'ı (`_saat.html`) ve zil tablosu (`_zil_tablo.html`) `deps.py` Jinja global'lerinden (`saat_verisi`, `zil_cizelgesi`) beslenir; canlı durum `static/saat.js`, kural `kaynaklar/zil.py::durum` ile aynı kalmalı. Yeni öğretim yılı/tatil = yalnız `config/takvim.json`.
 - analitik: `olay` tablosu yalnız sayaç (içerik/IP/cihaz yok), UNIQUE(kullanıcı,tür,nesne,gün,oturum_k) + `INSERT OR IGNORE`; `analitik.kaydet` bellek tamponu (25 kayıt/5 sn) → `bosalt()`; olaylar orta katmanda yalnız 200 GET'ten, rotalarda başarılı işlemden sonra; çevrim içi = `oturum.son_nabiz` ≤ 90 sn; yeni olay türü = `analitik.OZELLIKLER`'e ekle. `/yonetici/analitik`.

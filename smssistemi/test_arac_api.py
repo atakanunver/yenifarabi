@@ -421,6 +421,45 @@ def test_kod_sms_dogrulama(ortam):
     assert _kod(aa.kod_sms, aa.KodSmsIstek(telefon="05321112233", metin="x" * 161)) == 422
 
 
+# --- bildirim-sms (dijital okul veli izin talebi) ---
+
+
+def _bildirim(tel="0532 111 22 33", metin="İzin talebi onaylandı."):
+    return aa.bildirim_sms(aa.KodSmsIstek(telefon=tel, metin=metin))
+
+
+def test_bildirim_sms_anahtar_zorunlu(ortam):
+    rota = next(r for r in aa.router.routes if r.path == "/api/arac/bildirim-sms")
+    assert any(d.dependency is aa.anahtar_dogrula for d in rota.dependencies)
+    assert _kod(aa.anahtar_dogrula, None) == 401
+    assert _kod(aa.anahtar_dogrula, "yanlis") == 401
+
+
+def test_bildirim_sms_dogrulama(ortam):
+    giden, _ = ortam
+    aa._bildirim_sms_gecmis.clear()
+    assert _kod(_bildirim, "123") == 422
+    assert _kod(_bildirim, "05321112233", "x" * 321) == 422
+    assert _kod(_bildirim, "05321112233", "   ") == 422
+    assert _bildirim("05321112233", "x" * 320) == {"gonderim_id": "g1"}
+    assert len(giden) == 1
+
+
+def test_bildirim_sms_gonderir_saatte_10_ve_kod_kotasini_tuketmez(ortam):
+    giden, saat = ortam
+    aa._bildirim_sms_gecmis.clear()
+    aa._kod_sms_gecmis.clear()
+    assert _bildirim() == {"gonderim_id": "g1"}
+    assert giden[0] == [("okul-izin", "05321112233", "İzin talebi onaylandı.")]
+    for _ in range(9):  # dakikalık sınır yok
+        _bildirim()
+    assert _kod(_bildirim) == 429  # saatte 10
+    assert "05321112233" not in aa._kod_sms_gecmis
+    aa.kod_sms(aa.KodSmsIstek(telefon="05321112233", metin="Kod: 1"))  # ayrı kota
+    saat["an"] += timedelta(hours=1)
+    _bildirim()
+
+
 # --- Tüm okul / personel / günlük sınır ---
 
 def _kisi_ekle(sinif_ad, tur, telefonlar):

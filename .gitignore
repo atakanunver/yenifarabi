@@ -210,3 +210,6 @@ tahtamasaustuduzeni/HGM KUR/
 # Farabi Atlas: kendi git deposu var (public, atakanunver/farabi-atlas)
 tahtaatlasfarabi/
 tahtayoklama/dashboard/config/cliproxy.json
+
+# Veli izin talepleri (2026-11-23) — dashboard → okul /api/izinler anahtarı
+tahtayoklama/dashboard/config/izin.json

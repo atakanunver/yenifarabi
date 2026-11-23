@@ -149,6 +149,13 @@ class TestKayit(DykTemel):
 
 
 class TestYapilandirma(DykTemel):
+    def setUp(self):
+        super().setUp()
+        # Canlıda config/izin.json oluşunca gerçek okul ucuna gidilmesin.
+        yama = patch.object(tahta_api, "IZIN_AYAR_DOSYASI", Path(self._tmp.name) / "izin_yok.json")
+        yama.start()
+        self.addCleanup(yama.stop)
+
     def test_derslik_eslesen_tahtada_dolu(self):
         y = tahta_api.yapilandirma_olustur("10-A")
         self.assertEqual(list(y["dyk"]), [KOD])

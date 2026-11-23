@@ -134,6 +134,13 @@ class KulupTemel(unittest.TestCase):
 
 
 class TestYapilandirma(KulupTemel):
+    def setUp(self):
+        super().setUp()
+        # Canlıda config/izin.json oluşunca gerçek okul ucuna gidilmesin.
+        yama = patch.object(tahta_api, "IZIN_AYAR_DOSYASI", Path(self._tmp.name) / "izin_yok.json")
+        yama.start()
+        self.addCleanup(yama.stop)
+
     def test_yalniz_kendi_sinifinin_tahtasina(self):
         y = tahta_api.yapilandirma_olustur("10-A")
         self.assertEqual(list(y["kulupler"]), ["KULUP-BEYAZAY"])

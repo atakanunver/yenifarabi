@@ -12,6 +12,7 @@ import db
 import duyurular
 import push
 import acil
+import izin
 import kutu
 import sohbet
 from ayarlar import AYAR, KOK
@@ -224,6 +225,20 @@ def _kutu_yeni(request: Request, k) -> int:
         return 0
 
 
+def _izin_bekleyen(request: Request, k) -> int:
+    """Yönetici ana sayfasındaki 'Veli izin talepleri' rozeti: bekleyen talep sayısı. Hata sayfayı bozmaz: 0 döner."""
+    if k is None or k["rol"] != "yonetici" or request.url.path != "/yonetici":
+        return 0
+    try:
+        c = db.baglanti()
+        try:
+            return izin.bekleyen_sayisi(c)
+        finally:
+            c.close()
+    except Exception:  # noqa: BLE001 — sayaç isteğe bağlıdır
+        return 0
+
+
 def _duyuru_okunmamis(request: Request, k) -> int:
     """Rol ana sayfasındaki duyuru bağlantısı için okunmamış sayısı. Hata sayfayı bozmaz: 0 döner."""
     if k is None or request.url.path not in ("/ogrenci", "/veli", "/ogretmen"):
@@ -259,6 +274,7 @@ def render(request: Request, sablon: str, status_code: int = 200, **ctx):
     ctx.setdefault("duyuru_okunmamis", _duyuru_okunmamis(request, ctx["k"]))
     ctx.setdefault("acil_aktif", _acil_aktif(ctx["k"]))
     ctx.setdefault("kutu_yeni", _kutu_yeni(request, ctx["k"]))
+    ctx.setdefault("izin_bekleyen", _izin_bekleyen(request, ctx["k"]))
     ctx["csrf"] = getattr(request.state, "csrf", "")
     ctx.setdefault("bugun_gun", GUNLER[zaman.simdi().weekday()])
     return TEMPLATES.TemplateResponse(request, sablon, ctx, status_code=status_code)

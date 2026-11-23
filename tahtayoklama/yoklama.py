@@ -101,6 +101,8 @@ OGRETMEN_PROGRAMI_DOSYASI = BASE_DIR / "ogretmen_programi.json"
 # Haftalık kazanım (yıllık planlardan, dashboard/scripts/kazanim_yukle.py
 # üretir, tahta_istemci.py çeker). Yoksa/bozuksa ikinci satır boş kalır.
 KAZANIM_DOSYASI = BASE_DIR / "data" / "kazanimlar.json"
+# Okulda onaylanmış veli izinleri {"YYYY-MM-DD": ["okul_no", ...]} — tahta_istemci yazar.
+IZIN_DOSYASI = BASE_DIR / "data" / "izinler.json"
 KULUP_ONEKI = "KULUP-"  # kulüp roster'ları (sunucu: dashboard/kulupler.py)
 _GUN_ANAHTARLARI = {1: "pazartesi", 2: "sali", 3: "carsamba", 4: "persembe", 5: "cuma"}
 # DYK kursu (sunucu: dyk_program.json, tahta_istemci.py çeker); cumartesi DAHİL.
@@ -351,6 +353,23 @@ def _ders_baslangicindan_gecen_dk(zil: dict, ders_no: int, simdi: dtime) -> int:
             baslangic_dk = baslangic.hour * 60 + baslangic.minute
             return simdi_dk - baslangic_dk
     return 0
+
+
+def _izinli_numaralar(tarih: str) -> set[str]:
+    """O gün izinli okul numaraları; izinler.json yok/bozuksa sessizce boş."""
+    try:
+        nolar = json.loads(IZIN_DOSYASI.read_text(encoding="utf-8")).get(tarih, [])
+        return {n for n in nolar if isinstance(n, str)}
+    except (OSError, ValueError, AttributeError, TypeError):
+        return set()
+
+
+def _baslangic_durumu(no: str, onceki_durumlar: dict, izinliler: set[str]) -> str:
+    """Kayıtlı durum > onaylı veli izni ("izinli") > "var". Kayıt dosyası
+    burada yazılmaz; öğretmen kaydedene kadar kayıt yok."""
+    if no in onceki_durumlar:
+        return onceki_durumlar[no]
+    return "izinli" if no in izinliler else "var"
 
 
 def _kayit_yolu(sinif: str, ders_no: int, tarih: str) -> Path:
@@ -772,7 +791,8 @@ class YoklamaPenceresi(QWidget):
 
     def _ders_grubunu_yukle(self) -> None:
         """Seçili sınıf + aktif ders için kartları kurar — o ders için
-        daha önce kayıt varsa onu yükler, yoksa hepsini 'var' başlatır."""
+        daha önce kayıt varsa onu yükler, yoksa onaylı izinlileri 'izinli',
+        diğerlerini 'var' başlatır."""
         sinif = self._secili_kod()
         for i in reversed(range(self.izgara.count())):
             self.izgara.itemAt(i).widget().setParent(None)
@@ -788,8 +808,8 @@ class YoklamaPenceresi(QWidget):
             return
 
         onceki_durumlar: dict[str, str] = {}
+        tarih = datetime.now().strftime("%Y-%m-%d")
         if self._aktif_ders_no is not None:
-            tarih = datetime.now().strftime("%Y-%m-%d")
             yol = _kayit_yolu(sinif, self._aktif_ders_no, tarih)
             if yol.exists():
                 try:
@@ -797,6 +817,9 @@ class YoklamaPenceresi(QWidget):
                 except (json.JSONDecodeError, OSError):
                     onceki_durumlar = {}
 
+        # İzin listesi yalnız tahtanın sınıfına ait; kulüp/DYK listesine uygulanmaz.
+        izinliler = (set() if sinif.startswith((KULUP_ONEKI, DYK_ONEKI))
+                     else _izinli_numaralar(tarih))
         ogrenciler = _roster_yukle(sinif)
         vp = self._kaydirma.viewport()
         genislik = vp.width() or self.width() or KART_HEDEF_GENISLIK * SUTUN_MIN
@@ -806,7 +829,7 @@ class YoklamaPenceresi(QWidget):
         self._sutun_sayisi = sutun
 
         for idx, ogrenci in enumerate(ogrenciler):
-            durum = onceki_durumlar.get(str(ogrenci["no"]), "var")
+            durum = _baslangic_durumu(str(ogrenci["no"]), onceki_durumlar, izinliler)
             kart = OgrenciKarti(ogrenci, durum=durum, genislik=kart_genislik, yukseklik=kart_yukseklik)
             kart.clicked.connect(self._ozeti_guncelle)
             self._kartlar.append(kart)

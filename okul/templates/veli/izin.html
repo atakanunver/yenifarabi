@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block baslik %}İzin talebi — Dijital Okul{% endblock %}
+{% block icerik %}
+{% set g = girdi|default({}) %}
+<h1>📝 İzin talebi</h1>
+<p class="veli-alt"><b>{{ cocuk.ad_soyad }}</b> ({{ cocuk.sinif }}) için devamsızlık izin dilekçesi. Dilekçe sizin adınıza oluşturulur, okul yönetimine iletilir.</p>
+{% if gonderildi %}<p class="kart" role="status">✔ Talebiniz okul yönetimine iletildi. Sonuç bu sayfada görünür.</p>{% endif %}
+{% if hata is defined and hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+
+<section class="kart{{ ' uyari' if hak.kullanilan >= hak.hak }}">
+  <h2>Özürlü devamsızlık hakkı</h2>
+  <p>Bu öğretim yılında onaylanan izin: <b>{{ hak.kullanilan }} gün</b> · kalan: <b>{{ hak.kalan }} gün</b> (hak {{ hak.hak }} gün)</p>
+  {% if hak.kullanilan >= hak.hak %}<p class="hata" role="alert">⚠ Özürlü devamsızlık hakkı ({{ hak.hak }} gün) doldu. Talep gönderebilirsiniz; durum okul yönetimince değerlendirilir.</p>{% endif %}
+</section>
+
+<form class="kart" method="post" action="/veli/izin" enctype="multipart/form-data" id="izin-form">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="ogr" value="{{ cocuk.id }}">
+  <label for="baslangic">Başlangıç tarihi</label>
+  <input type="date" id="baslangic" name="baslangic" required value="{{ g.baslangic|default(bugun) }}">
+  <label for="bitis">Bitiş tarihi</label>
+  <input type="date" id="bitis" name="bitis" required value="{{ g.bitis|default(bugun) }}">
+  <p class="soluk kucuk" id="izin-gun" aria-live="polite">Gün sayısı hafta sonu ve tatiller hariç okul günü olarak otomatik hesaplanır.</p>
+  <label for="neden_tur">Mazeret</label>
+  <select id="neden_tur" name="neden_tur" required>
+    {% for kod, ad in nedenler.items() %}<option value="{{ kod }}"{% if kod == g.neden_tur %} selected{% endif %}>{{ ad[0] }}</option>{% endfor %}
+  </select>
+  <label for="neden_metin">Açıklama (Diğer seçildiyse zorunlu, en çok {{ metin_azami }} karakter)</label>
+  <textarea id="neden_metin" name="neden_metin" maxlength="{{ metin_azami }}">{{ g.neden_metin|default('') }}</textarea>
+  <label for="ek">Ek (isteğe bağlı): sağlık raporu ya da belge — PDF, JPG, PNG, WEBP; en çok 10 MB</label>
+  <input type="file" id="ek" name="ek" accept="application/pdf,image/jpeg,image/png,image/webp">
+  <div class="not">
+    <b>Kurallar</b>
+    <ul class="kucuk">
+      <li>Özür belgesi, özrün bittiği günü takip eden <b>5 iş günü içinde</b> okula teslim edilmelidir.</li>
+      <li>Özürlü devamsızlık hakkı <b>20 gün</b>, özürsüz <b>10 gün</b>; toplam <b>30 gün</b>.</li>
+      <li>Devamsızlık durumunu e-Okul'dan da kontrol edin.</li>
+    </ul>
+  </div>
+  <div class="tuslar"><button class="tus tam veli-tus">Talebi gönder</button></div>
+</form>
+
+<h2>Taleplerim</h2>
+{% for t in talepler %}
+<article class="kart">
+  <p class="soluk kucuk">{{ t.olusturma[:16] }} · <span class="etiket{{ ' yesil' if t.durum == 'onaylandi' else (' kirmizi' if t.durum == 'reddedildi' else ' sari') }}">{{ t.durum_ad }}</span></p>
+  <p><b>{{ t.baslangic_g }} – {{ t.bitis_g }}</b> · {{ t.gun }} gün · {{ t.neden_ad }}{% if t.neden_metin %}: {{ t.neden_metin }}{% endif %}</p>
+  <p class="kucuk">{% if t.pdf_depo %}<a href="/veli/izin/{{ t.id }}/pdf">Dilekçe (PDF)</a>{% endif %}{% if t.ek_depo %} · <a href="/veli/izin/{{ t.id }}/ek">Ek</a>{% endif %}</p>
+</article>
+{% else %}
+<div class="kart"><p class="veli-bos">Henüz izin talebiniz yok.</p></div>
+{% endfor %}
+<p><a class="tus ikincil veli-tus" href="/veli?ogr={{ cocuk.id }}">← Ana sayfa</a></p>
+<script src="/static/izin.js?v=1" defer></script>
+{% endblock %}

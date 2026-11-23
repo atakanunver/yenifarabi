@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block baslik %}İzin talebi — Dijital Okul{% endblock %}
+{% block icerik %}
+<h1>Veli izin talebi</h1>
+{% if hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+<section class="kart">
+  <p class="soluk kucuk">Talep {{ t.olusturma[:16] }} · <span class="etiket{{ ' yesil' if t.durum == 'onaylandi' else (' kirmizi' if t.durum == 'reddedildi' else ' sari') }}">{{ t.durum_ad }}</span>{% if t.karar_veren_ad %} · {{ t.karar_veren_ad }}, {{ t.karar_zamani[:16] }}{% endif %}</p>
+  <ul class="liste">
+    <li><span>Öğrenci</span><span class="sag"><b>{{ t.ogrenci_ad }}</b> ({{ t.sinif }}, no {{ t.okul_no }})</span></li>
+    <li><span>Veli</span><span class="sag">{{ t.veli_ad }}{% if t.veli_telefon %} · {{ t.veli_telefon }}{% endif %}</span></li>
+    <li><span>Tarih aralığı</span><span class="sag">{{ t.baslangic_g }} – {{ t.bitis_g }}</span></li>
+    <li><span>Okul günü</span><span class="sag"><b>{{ t.gun }} gün</b></span></li>
+    <li><span>Mazeret</span><span class="sag">{{ t.neden_ad }}</span></li>
+  </ul>
+  {% if t.neden_metin %}<p style="white-space:pre-wrap">{{ t.neden_metin }}</p>{% endif %}
+  <div class="tuslar">
+    {% if t.pdf_depo %}<a class="tus ikincil" href="/yonetici/izinler/{{ t.id }}/pdf">📄 Dilekçe PDF</a>{% else %}<span class="soluk kucuk">Dilekçe PDF'i üretilemedi.</span>{% endif %}
+    {% if t.ek_depo %}<a class="tus ikincil" href="/yonetici/izinler/{{ t.id }}/ek">📎 Ek ({{ t.ek_tur|upper }})</a>{% endif %}
+  </div>
+</section>
+<section class="kart{{ ' uyari' if hak.asim }}">
+  <h2>Özürlü devamsızlık hakkı (öğretim yılı)</h2>
+  <p>Onaylı kullanılan: <b>{{ hak.kullanilan }} gün</b> · kalan: <b>{{ hak.kalan }} gün</b> (hak {{ hak.hak }} gün)</p>
+  {% if hak.asim %}<p class="hata" role="alert">⚠ {% if hak.ek %}Bu talep onaylanırsa toplam {{ hak.kullanilan + hak.ek }} gün olur;{% else %}Toplam onaylı izin{% endif %} 20 günlük özürlü hak aşılıyor. (Uyarıdır, onay engellenmez.)</p>{% endif %}
+</section>
+{% if t.durum == 'bekliyor' %}
+<form class="kart tuslar" method="post" action="/yonetici/izinler/{{ t.id }}/karar">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button class="tus" name="karar" value="onayla">✔ Onayla</button>
+  <button class="tus ikincil" name="karar" value="reddet">✘ Reddet</button>
+  <p class="soluk kucuk">Onayda veliye SMS ve bildirim gider; ret durumunda yalnız bildirim.</p>
+</form>
+{% endif %}
+<p class="kucuk"><a href="/yonetici/izinler">← Veli izin talepleri</a></p>
+{% endblock %}

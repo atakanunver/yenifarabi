@@ -45,6 +45,10 @@ class TestTahtaApi(unittest.TestCase):
         self._tmp = TemporaryDirectory()
         tmp = Path(self._tmp.name)
         self._eski = (db.DB_YOLU, tahta_api.TOKEN_DOSYASI, tahta_api.KAZANIM_DOSYASI)
+        # Gerçek config/izin.json varsa testler okula istek atmasın.
+        izin_yama = patch.object(tahta_api, "IZIN_AYAR_DOSYASI", tmp / "izin_yok.json")
+        izin_yama.start()
+        self.addCleanup(izin_yama.stop)
         tahta_api.KAZANIM_DOSYASI = tmp / "kazanimlar.json"
         tahta_api.KAZANIM_DOSYASI.write_text(json.dumps({
             "haftalar": {"4": "2026-10-05"},
@@ -313,6 +317,46 @@ class TestTahtaApi(unittest.TestCase):
         govde = json.loads(yanit.body.decode())
         self.assertIsNone(govde["roster"])
         self.assertIsNone(govde["sinif"])
+
+    def _izin_ayari(self, acici):
+        ayar = Path(self._tmp.name) / "izin.json"
+        ayar.write_text(json.dumps({"okul_url": "http://127.0.0.1:9090", "anahtar": "t"}))
+        for yama in (patch.object(tahta_api, "IZIN_AYAR_DOSYASI", ayar),
+                     patch.dict(tahta_api._izin_onbellek, clear=True),
+                     patch("urllib.request.build_opener",
+                           return_value=SimpleNamespace(open=acici))):
+            yama.start()
+            self.addCleanup(yama.stop)
+
+    def test_yapilandirma_okul_kapaliyken_bozulmaz(self):
+        def acici(istek, timeout):
+            raise OSError("baglanti reddedildi")
+        self._izin_ayari(acici)
+        govde = json.loads(asyncio.run(tahta_api.yapilandirma(
+            self._istek(TOKEN_A, method="GET"))).body.decode())
+        self.assertEqual(govde["izinler"], {})
+        self.assertEqual(govde["sinif"], "9-A")
+        self.assertIsNotNone(govde["roster"])
+
+    def test_yapilandirma_izinler_yalniz_kendi_sinifi_etag_degisir(self):
+        import io
+        siniflar = {"9-A": ["1"], "9-B": ["2"]}
+
+        class Yanit(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def acici(istek, timeout):
+            return Yanit(json.dumps({"tarih": "x", "siniflar": siniflar}).encode())
+        y0 = asyncio.run(tahta_api.yapilandirma(self._istek(TOKEN_A, method="GET")))
+        self._izin_ayari(acici)
+        y1 = asyncio.run(tahta_api.yapilandirma(self._istek(TOKEN_A, method="GET")))
+        govde = json.loads(y1.body.decode())
+        self.assertEqual(govde["izinler"], {"2026-10-06": ["1"], "2026-10-07": ["1"]})
+        self.assertNotEqual(y0.headers["ETag"], y1.headers["ETag"])
 
     def test_yapilandirma_kazanimlar_duzeye_gore_suzulur(self):
         govde = json.loads(asyncio.run(tahta_api.yapilandirma(

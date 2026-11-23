@@ -34,6 +34,8 @@ SABLONLAR = {
     "onay": ("Dijital Okul", "Onayınızı bekleyen bir belge var.", "/veli/onaylar"),
     "tesekkur": ("Dijital Okul", "Bir teşekkür kartı aldın!", "/tesekkurler"),
     "tesekkur_veli": ("Dijital Okul", "Öğrenciniz bir teşekkür kartı aldı.", "/tesekkurler"),
+    "izin_talep": ("Dijital Okul", "Yeni bir veli izin talebi var.", "/yonetici/izinler"),
+    "izin_sonuc": ("Dijital Okul", "İzin talebiniz yanıtlandı.", "/veli/izin"),
 }
 AZAMI_ABONELIK = 10  # kullanıcı başına cihaz
 AZAMI_HATA = 5  # ardışık geçici hatadan sonra abonelik silinir
@@ -328,3 +330,15 @@ def tesekkur_alicilari(conn: sqlite3.Connection, ogrenci_idleri: list[int], veli
 def tesekkur_bildir(ogrenci_idleri: list[int]) -> None:
     _arkaplan("tesekkur", lambda c: tesekkur_alicilari(c, ogrenci_idleri, veli=False))
     _arkaplan("tesekkur_veli", lambda c: tesekkur_alicilari(c, ogrenci_idleri, veli=True))
+
+
+def yonetici_alicilari(conn: sqlite3.Connection) -> list[int]:
+    return [r[0] for r in conn.execute(_ABONELI + " AND u.rol = 'yonetici'", (0,))]
+
+
+def izin_talep_bildir() -> None:
+    _arkaplan("izin_talep", yonetici_alicilari)
+
+
+def izin_sonuc_bildir(veli_id: int) -> None:
+    _arkaplan("izin_sonuc", lambda c: [r[0] for r in c.execute(_ABONELI + " AND u.id = ?", (0, veli_id))])

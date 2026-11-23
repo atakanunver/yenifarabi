@@ -31,7 +31,7 @@
   ac.addEventListener("click", function () {
     ac.disabled = true;
     P.ac(csrf).then(yenile).catch(function (e) {
-      yaz(e && e.message === "izin" ? "İzin verilmedi." : "Bildirim açılamadı. Biraz sonra tekrar deneyin.");
+      yaz(e && e.message === "izin" ? "İzin verilmedi." : "Bildirim açılamadı (" + String(e && (e.name && e.name !== "Error" ? e.name : e.message) || "bilinmeyen").slice(0, 40) + "). Biraz sonra tekrar deneyin.");
     }).then(function () { ac.disabled = false; });
   });
 

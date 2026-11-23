@@ -47,6 +47,13 @@ class Ayarlar:
     # tahtayoklama dashboard → /api/devamsizlik-bildir paylaşılan anahtarı (config/gizli.json "devamsizlik_anahtar"); boşsa uç kapalı
     devamsizlik_anahtar: str = ""
     tahta_dosya_anahtar: str = ""
+    okul_adi: str = "Şehit Murat Ustaoğlu Anadolu Lisesi"  # dilekçe başlığı/SMS imzası (giriş sayfasındaki adla aynı)
+    # Veli izin talebi (izin.py): dashboard → /api/izinler anahtarı, talep SMS'inin gideceği personel telefonu,
+    # Telegram bildirimi (bot jetonu + virgüllü sohbet id). Hepsi config/gizli.json; boşsa ilgili özellik sessizce kapalı
+    izin_anahtar: str = ""
+    izin_sms_telefon: str = ""
+    telegram_token: str = ""
+    telegram_sohbet: str = ""
     tahta_dosya_dashboard_url: str = "http://127.0.0.1"
     tahta_dosya_yedek: Path = Path("/mnt/farabi-data/farabi/tahta_dosyalari")
     tahta_dosya_gecici: Path = KOK / "veri" / "tahta_dosya_gecici"
@@ -68,6 +75,10 @@ def yukle() -> Ayarlar:
         a.duyuru_anahtar = g.get("duyuru_anahtar", "")
         a.devamsizlik_anahtar = g.get("devamsizlik_anahtar", "")
         a.tahta_dosya_anahtar = g.get("tahta_dosya_anahtar", "")
+        a.izin_anahtar = g.get("izin_anahtar", "")
+        a.izin_sms_telefon = g.get("izin_sms_telefon", "")
+        a.telegram_token = g.get("telegram_token", "")
+        a.telegram_sohbet = g.get("telegram_sohbet", "")
     return a
 
 

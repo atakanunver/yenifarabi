@@ -6,7 +6,8 @@ SSH ile çekme modelinin yerine (2026-10-06) "tahta iter / tahta çeker":
 - POST /nabiz         — 60 sn'de bir; taze nabızlı tahta SSH ile taranmaz
 - GET  /duyuru, /duyuru/<id>/ses — tahta duyuruları (2026-10-30, bkz. duyuru.py)
 - GET  /yapilandirma  — roster (atanmış sınıf) + zil.json + ders_programi.json
-                        + kazanimlar.json (2026-10-06) + kulupler (2026-10-22) + dyk (2026-11-13),
+                        + kazanimlar.json (2026-10-06) + kulupler (2026-10-22) + dyk (2026-11-13)
+                        + izinler (okul onaylı veli izinleri, 2026-11-23),
                         ETag/If-None-Match ile
 
 Kimlik: `Authorization: Bearer <token>` — tahta başına ayrı token. Sunucuda
@@ -19,9 +20,13 @@ açık, bu yüzden her girdi sıkı doğrulanır ve hiçbir uç komut çalışt�
 import asyncio
 import hashlib
 import hmac
+import http.client
 import json
 import re
-from datetime import date
+import time
+import urllib.parse
+import urllib.request
+from datetime import date, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
@@ -42,6 +47,12 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 ZIL_DOSYASI = DATA_DIR / "zil.json"
 DERS_PROGRAMI_DOSYASI = DATA_DIR / "ders_programi.json"
 KAZANIM_DOSYASI = DATA_DIR / "kazanimlar.json"
+# Okul portalının onaylı veli izinleri (LAN ucu /api/izinler). Dosya yoksa
+# özellik kapalı: {"okul_url": "http://127.0.0.1:9090", "anahtar": "..."}.
+IZIN_AYAR_DOSYASI = Path(__file__).resolve().parent / "config" / "izin.json"
+IZIN_ZAMAN_ASIMI_SN = 3
+IZIN_ONBELLEK_SN = 60
+_izin_onbellek: dict[str, tuple[float, dict[str, list[str]]]] = {}
 
 GOVDE_MAKS = 64 * 1024
 _TARIH_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -266,6 +277,53 @@ def _ders_programi_metni(sinif_ad: str | None) -> str | None:
         return metin
 
 
+def _okul_izinleri(tarih: str) -> dict[str, list[str]]:
+    """Okuldan o günün onaylı izinleri ({sınıf: [okul_no, ...]}); 60 sn
+    bellek önbelleği. Ayar yok / okul kapalı / bozuk yanıt → boş: yapılandırma
+    bunun yüzünden ASLA bozulmaz. Proxy kullanılmaz (yerel çağrı)."""
+    try:
+        ayar = json.loads(IZIN_AYAR_DOSYASI.read_text(encoding="utf-8"))
+        url, anahtar = ayar["okul_url"], ayar["anahtar"]
+        if not (isinstance(url, str) and isinstance(anahtar, str) and anahtar):
+            return {}
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
+    kayit = _izin_onbellek.get(tarih)
+    if kayit is not None and time.monotonic() - kayit[0] < IZIN_ONBELLEK_SN:
+        return kayit[1]
+    sonuc: dict[str, list[str]] = {}
+    try:
+        istek = urllib.request.Request(
+            url.rstrip("/") + "/api/izinler?" + urllib.parse.urlencode({"tarih": tarih}),
+            headers={"X-Izin-Anahtar": anahtar})
+        acici = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with acici.open(istek, timeout=IZIN_ZAMAN_ASIMI_SN) as yanit:
+            siniflar = json.loads(yanit.read(GOVDE_MAKS * 4)).get("siniflar")
+        if isinstance(siniflar, dict):
+            sonuc = {s: sorted({str(n) for n in nolar if isinstance(n, (str, int))})
+                     for s, nolar in siniflar.items()
+                     if isinstance(s, str) and isinstance(nolar, list)}
+    except (OSError, ValueError, AttributeError, http.client.HTTPException):  # izinsiz devam
+        sonuc = {}
+    _izin_onbellek[tarih] = (time.monotonic(), sonuc)
+    return sonuc
+
+
+def _sinif_izinleri(sinif_ad: str | None) -> dict[str, list[str]]:
+    """Bugün + yarın (Europe/Istanbul) için yalnız bu sınıfın izinli numaraları;
+    izinlisi olmayan gün yazılmaz. Sınıfsız tahtada boş."""
+    if sinif_ad is None:
+        return {}
+    bugun = zil.simdi_istanbul().date()
+    izinler = {}
+    for gun in (bugun, bugun + timedelta(days=1)):
+        tarih = gun.isoformat()
+        nolar = _okul_izinleri(tarih).get(sinif_ad)
+        if nolar:
+            izinler[tarih] = nolar
+    return izinler
+
+
 def yapilandirma_olustur(tahta: str) -> dict:
     """Roster, admin.py'nin SSH senkronuyla BAYT BAYT aynı üretilir
     (`_roster_payload_olustur`) — iki yol aynı dosyayı yazsın. Sınıfı
@@ -298,13 +356,16 @@ def yapilandirma_olustur(tahta: str) -> dict:
         "kulupler": _kulup_rosterlari(sinif_ad),
         "dyk": dyk.rosterlari(sinif_ad),
         "dyk_program": dyk.program_json(sinif_ad),
+        "izinler": _sinif_izinleri(sinif_ad),
     }
 
 
 @router.get("/yapilandirma")
 async def yapilandirma(request: Request):
     tahta = _tahta_dogrula(request)
-    govde = json.dumps(yapilandirma_olustur(tahta), ensure_ascii=False, sort_keys=True)
+    # Okul izin çağrısı (urllib, ≤2×3 sn) event loop'u kilitlemesin.
+    yap = await asyncio.to_thread(yapilandirma_olustur, tahta)
+    govde = json.dumps(yap, ensure_ascii=False, sort_keys=True)
     etag = '"' + hashlib.sha256(govde.encode("utf-8")).hexdigest()[:32] + '"'
     if request.headers.get("If-None-Match") == etag:
         return Response(status_code=304, headers={"ETag": etag})

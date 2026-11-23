@@ -731,6 +731,31 @@ def kod_sms(istek: KodSmsIstek):
     return {"gonderim_id": gonder([("Dijital Okul", tel, metin)])}
 
 
+# --- Dijital okul veli izin talebi bildirimi — 2026-11-23 ---
+# kod-sms gibi tek telefona serbest metin; ayrı sayaç (giriş kodu kotasını
+# tüketmez), dakikalık sınır yok, telefon başına saatte 10. Kayıtta ad "okul-izin".
+BILDIRIM_SMS_AZAMI = 320
+BILDIRIM_SMS_SAAT_AZAMI = 10
+_bildirim_sms_gecmis: dict[str, list[datetime]] = {}
+
+
+@router.post("/bildirim-sms", dependencies=[Depends(anahtar_dogrula)])
+def bildirim_sms(istek: KodSmsIstek):
+    tel = gonderim.normalize_phone(istek.telefon)
+    if not gonderim.is_valid_phone(tel):
+        raise HTTPException(status_code=422, detail="Geçersiz telefon.")
+    metin = istek.metin.strip()
+    if not metin or len(metin) > BILDIRIM_SMS_AZAMI:
+        raise HTTPException(status_code=422, detail=f"Metin 1-{BILDIRIM_SMS_AZAMI} karakter olmalı.")
+    an = simdi()
+    gecmis = [t for t in _bildirim_sms_gecmis.get(tel, []) if an - t < timedelta(hours=1)]
+    if len(gecmis) >= BILDIRIM_SMS_SAAT_AZAMI:
+        raise HTTPException(status_code=429, detail="Bu numaraya çok sık bildirim gönderildi.")
+    gecmis.append(an)
+    _bildirim_sms_gecmis[tel] = gecmis
+    return {"gonderim_id": gonder([("okul-izin", tel, metin)])}
+
+
 # --- Gönderim kayıtları (smual yönetici paneli; 2026-10-21) --------------
 
 

@@ -31,7 +31,7 @@
     }).catch(function (e) {
       durum.textContent = e && e.message === "izin"
         ? "İzin verilmedi. İstersen sonra üst çubuktaki 🔔 simgesinden açabilirsin."
-        : "Bildirim açılamadı. Biraz sonra tekrar dene.";
+        : "Bildirim açılamadı (" + String(e && (e.name && e.name !== "Error" ? e.name : e.message) || "bilinmeyen").slice(0, 40) + "). Biraz sonra tekrar dene.";
       d.disabled = false;
     });
   });

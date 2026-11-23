@@ -1003,11 +1003,33 @@ CREATE TABLE tahta_dosya (
 CREATE INDEX tahta_dosya_durum ON tahta_dosya(durum, zaman);
 """
 
+SEMA_V44 = """
+CREATE TABLE izin_talep (
+    id INTEGER PRIMARY KEY,
+    veli_id INTEGER NOT NULL REFERENCES kullanici(id),
+    ogrenci_id INTEGER NOT NULL REFERENCES ogrenci(id),
+    baslangic TEXT NOT NULL,
+    bitis TEXT NOT NULL,
+    gun INTEGER NOT NULL CHECK (gun > 0),
+    neden_tur TEXT NOT NULL,
+    neden_metin TEXT NOT NULL DEFAULT '',
+    ek_depo TEXT,
+    ek_tur TEXT,
+    pdf_depo TEXT,
+    durum TEXT NOT NULL DEFAULT 'bekliyor' CHECK (durum IN ('bekliyor','onaylandi','reddedildi')),
+    karar_veren INTEGER REFERENCES kullanici(id),
+    karar_zamani TEXT,
+    olusturma TEXT NOT NULL
+);
+CREATE INDEX izin_talep_durum ON izin_talep(durum, baslangic, bitis);
+CREATE INDEX izin_talep_veli ON izin_talep(veli_id, olusturma);
+"""
+
 GOCLER = [
     SEMA_V1, SEMA_V2, SEMA_V3, SEMA_V4, SEMA_V5, SEMA_V6, SEMA_V7, SEMA_V8, SEMA_V9, SEMA_V10,
     SEMA_V11, SEMA_V12, SEMA_V13, SEMA_V14, SEMA_V15, SEMA_V16, SEMA_V17,
     SEMA_V18, SEMA_V19, SEMA_V20, SEMA_V21, SEMA_V22, SEMA_V23, SEMA_V24, SEMA_V25, SEMA_V26, SEMA_V27, SEMA_V28, SEMA_V29, SEMA_V30, SEMA_V31, SEMA_V32, SEMA_V33, SEMA_V34,
-    SEMA_V35, SEMA_V36, SEMA_V37, SEMA_V38, SEMA_V39, SEMA_V40, SEMA_V41, SEMA_V42, SEMA_V43,
+    SEMA_V35, SEMA_V36, SEMA_V37, SEMA_V38, SEMA_V39, SEMA_V40, SEMA_V41, SEMA_V42, SEMA_V43, SEMA_V44,
 ]
 
 

@@ -96,6 +96,12 @@
 
 <section class="kart veli-eylemler">
   <a class="tus tam veli-tus" href="/kutu">✉ Okula mesaj yazın</a>
+  <a class="tus tam ikincil veli-tus" href="/veli/izin?ogr={{ cocuk.id }}">📝 İzin talebi (dilekçe) ve taleplerim</a>
+  {% if izin_talepleri is defined and izin_talepleri %}
+  <ul class="liste">
+    {% for t in izin_talepleri %}<li><a class="satir" href="/veli/izin?ogr={{ cocuk.id }}"><span>İzin {{ t.baslangic_g }} – {{ t.bitis_g }} ({{ t.gun }} gün)</span><span class="sag"><span class="etiket{{ ' yesil' if t.durum == 'onaylandi' else (' kirmizi' if t.durum == 'reddedildi' else ' sari') }}">{{ t.durum_ad }}</span></span></a></li>{% endfor %}
+  </ul>
+  {% endif %}
   <a class="tus tam ikincil veli-tus" href="/veli/onaylar?ogr={{ cocuk.id }}">📋 Onay bekleyen belgeler</a>
   {% if KUTUPHANE is defined %}<a class="tus tam ikincil veli-tus" href="/kutuphane/benim?ogr={{ cocuk.id }}">📚 Kütüphane kitapları</a>{% endif %}
 </section>
