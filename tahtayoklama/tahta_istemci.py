@@ -18,6 +18,8 @@ Döngü:
   süreç olarak açar (PyQt6 penceresi; ses wav'ı sunucudan indirilir), iptal edilenleri kapatır.
 - 10 dk (ve açılışta): GET /yapilandirma (ETag) → roster / kulüp + DYK rosterları / zil.json /
   ders_programi.json / kazanimlar.json / dyk_program.json içerik farklıysa doğrulayıp atomik yazar.
+- ~5 sn: ders/DYK başlangıcından 35 dk sonra kayıt yoksa assets/ogretmenimyoklama.mp3
+  çalınır (`yoklama_hatirlat`, sürüm 6).
 
 Yalnızca standart kütüphane (sistem python3, 3.11). Proxy KULLANILMAZ
 (okul ağı proxy'si LAN'daki sunucuya giden isteği bozmasın).
@@ -39,7 +41,7 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-SURUM = "5"
+SURUM = "6"
 BASE_DIR = Path(__file__).resolve().parent
 AYAR_DOSYASI = BASE_DIR / "istemci.json"
 DATA_DIR = BASE_DIR / "data"
@@ -546,6 +548,128 @@ def duyuru_cek(ayar: dict, durum: dict) -> None:
 
 # --- ana döngü -------------------------------------------------------------
 
+# --- 35. dakika sesli yoklama hatırlatması (sürüm 6, 2026-11-23) ------------
+# Ders (zil.json) ya da DYK oturumu başlangıcından 35 dk sonra o derse ait
+# kayıt yoksa tahta "Öğretmenim yoklama alalım mı" der. Normal ders: tahtanın
+# sınıfı programda dersliyse; o ders no için herhangi bir kod (sınıf ya da
+# KULUP-*) ile kayıt varsa alınmış sayılır. DYK: kendi kodu ve ders_no'su.
+# Her ders için bir kez (bellek içi küme).
+HATIRLATMA_DK = 35
+HATIRLATMA_SESI = BASE_DIR / "assets" / "ogretmenimyoklama.mp3"
+HATIRLATMA_CALARLARI = (["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet"],
+                        ["cvlc", "--play-and-exit", "--quiet"],
+                        ["paplay"])
+_GUN_ANAHTARLARI = {1: "pazartesi", 2: "sali", 3: "carsamba", 4: "persembe", 5: "cuma"}
+_DYK_GUN_ANAHTARLARI = {**_GUN_ANAHTARLARI, 6: "cumartesi"}
+_hatirlatilanlar: set[tuple] = set()
+
+
+def _json_oku(yol: Path):
+    try:
+        return json.loads(yol.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def _dakika(saat) -> int | None:
+    if not isinstance(saat, str) or not _SAAT_RE.match(saat):
+        return None
+    s, d = int(saat[:2]), int(saat[3:])
+    return s * 60 + d if s < 24 and d < 60 else None
+
+
+def _hatirlatma_zamani(bas, bit, simdi_dk: int) -> bool:
+    b, e = _dakika(bas), _dakika(bit)
+    return b is not None and e is not None and b + HATIRLATMA_DK <= simdi_dk < e
+
+
+def _tahta_sinifi() -> str | None:
+    try:
+        adlar = sorted(p.stem for p in ROSTER_DIR.glob("*.json")
+                       if not p.name.startswith((KULUP_ONEKI, DYK_ONEKI)))
+    except OSError:
+        return None
+    return adlar[0] if adlar else None
+
+
+def _programda_ders_var(program, sinif: str, gun_no: int, ders_no) -> bool:
+    try:
+        gun = program.get("siniflar", {}).get(sinif, {}).get(_GUN_ANAHTARLARI.get(gun_no))
+        ad = gun.get(str(ders_no)) if isinstance(gun, dict) else None
+    except AttributeError:
+        return False
+    return isinstance(ad, str) and bool(ad.strip())
+
+
+def hatirlatma_sesi_cal() -> bool:
+    if not HATIRLATMA_SESI.exists():
+        log(f"hatirlatma sesi yok: {HATIRLATMA_SESI}")
+        return False
+    for komut in HATIRLATMA_CALARLARI:
+        if shutil.which(komut[0]):
+            try:
+                subprocess.Popen([*komut, str(HATIRLATMA_SESI)], stdin=subprocess.DEVNULL,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return True
+            except OSError as e:
+                log(f"hatirlatma sesi calinamadi ({komut[0]}): {e!r}")
+    log("hatirlatma icin ses calar bulunamadi (ffplay/cvlc/paplay)")
+    return False
+
+
+def yoklama_hatirlat(simdi: datetime | None = None) -> list[tuple]:
+    """Hatırlatma gereken dersler için sesi çalar; çalınan anahtarları döndürür."""
+    simdi = simdi or datetime.now()
+    tarih = simdi.strftime("%Y-%m-%d")
+    simdi_dk = simdi.hour * 60 + simdi.minute
+    gun_no = simdi.isoweekday()
+    for eski in [a for a in _hatirlatilanlar if a[0] != tarih]:
+        _hatirlatilanlar.discard(eski)
+    adaylar = []  # (anahtar, kayıt glob deseni)
+
+    sinif = _tahta_sinifi()
+    zil = _json_oku(DATA_DIR / "zil.json")
+    if sinif and isinstance(zil, dict) and isinstance(zil.get("dersler"), list):
+        program = _json_oku(DATA_DIR / "ders_programi.json")
+        for ders in zil["dersler"]:
+            if not isinstance(ders, dict):
+                continue
+            no = ders.get("no")
+            if (isinstance(no, int) and not isinstance(no, bool)
+                    and _hatirlatma_zamani(ders.get("baslangic"), ders.get("bitis"), simdi_dk)
+                    and _programda_ders_var(program, sinif, gun_no, no)):
+                adaylar.append(((tarih, "ders", no), f"{tarih}_*_ders{no}.json"))
+
+    dyk = _json_oku(DATA_DIR / "dyk_program.json")
+    gun = _DYK_GUN_ANAHTARLARI.get(gun_no)
+    oturumlar = dyk.get("oturumlar") if isinstance(dyk, dict) else None
+    if gun and isinstance(oturumlar, list):
+        for o in oturumlar:
+            if not isinstance(o, dict):
+                continue
+            kod, no = o.get("kod"), o.get("ders_no")
+            if (o.get("gun") == gun and isinstance(kod, str) and _SINIF_RE.match(kod)
+                    and isinstance(no, int) and not isinstance(no, bool)
+                    and _hatirlatma_zamani(o.get("bas"), o.get("bit"), simdi_dk)):
+                adaylar.append(((tarih, kod, no), f"{tarih}_{kod}_ders{no}.json"))
+
+    calinanlar = []
+    for anahtar, desen in adaylar:
+        if anahtar in _hatirlatilanlar:
+            continue
+        try:
+            kayit_var = any(KAYIT_DIR.glob(desen))
+        except OSError:
+            kayit_var = False
+        if kayit_var:
+            continue
+        _hatirlatilanlar.add(anahtar)
+        log(f"yoklama hatirlatma: {anahtar[1]} ders {anahtar[2]}")
+        hatirlatma_sesi_cal()
+        calinanlar.append(anahtar)
+    return calinanlar
+
+
 def main() -> int:
     try:
         ayar = ayar_yukle()
@@ -574,6 +698,10 @@ def main() -> int:
             duyuru_cek(ayar, durum)
         except Exception as e:  # noqa: BLE001
             log(f"duyuru hatasi: {e!r}")
+        try:
+            yoklama_hatirlat()
+        except Exception as e:  # noqa: BLE001
+            log(f"hatirlatma hatasi: {e!r}")
         if son_kayit == 0.0 or simdi - son_kayit >= KAYIT_ARALIGI_SN:
             son_kayit = simdi
             try:
