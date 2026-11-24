@@ -108,7 +108,26 @@ async def _polling_dongusu() -> None:
                 print(f"[polling] hata: {e}")
             finally:
                 conn.close()
+            await _izinleri_uygula(zil.simdi_istanbul().date().isoformat())
         await asyncio.sleep(POLLING_ARALIGI_SN)
+
+
+async def _izinleri_uygula(tarih: str) -> None:
+    """Sonradan onaylanan veli izinlerini bugünün kayıtlarına işler
+    (yoklayici.izinleri_uygula); okul kapalı/hata döngüyü bozmaz."""
+    try:
+        izinler = await asyncio.to_thread(tahta_api._okul_izinleri, tarih)
+        if not izinler:
+            return
+        conn = db.baglanti()
+        try:
+            degisen = yoklayici.izinleri_uygula(conn, tarih, izinler)
+        finally:
+            conn.close()
+        if degisen:
+            print(f"[polling] {degisen} yoklama satırına veli izni işlendi")
+    except Exception as e:  # noqa: BLE001 - poller asla tüm servisi düşürmemeli
+        print(f"[polling] izin hatası: {e}")
 
 
 # Önizleme: yeniden tasarım dalı ayrı portta canlı veriyi bozmadan denenir

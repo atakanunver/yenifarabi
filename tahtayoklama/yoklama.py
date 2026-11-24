@@ -65,7 +65,9 @@ VERİ MODELİ:
 
 DURUM: üç hâlli — var (yeşil) → yok (kırmızı) → izinli (gri) → var — her
 dokunuşta döner. Varsayılan hepsi "var" (istisnaları işaretlemek, herkesi
-tek tek işaretlemekten daha hızlı).
+tek tek işaretlemekten daha hızlı). Yönetimin onayladığı veli izni
+(`data/izinler.json`) kayıtlı durumu ezer; o kart "izinli" kilitlenir, dokunuşla
+değişmez ve ders sırasında gelen onay açık ızgaraya uygulanır.
 """
 
 import json
@@ -124,6 +126,8 @@ DURUM_ETIKET = {
     "yok": "YOK",
     "izinli": "İZİNLİ",
 }
+# Yönetimin onayladığı veli izni: kart kilitli, öğretmen değiştiremez.
+ONAYLI_IZIN_ETIKET = "İZİNLİ (onaylı)"
 
 # Dokunmatik hedef boyutu — parmakla yanlış tuşa basmayı önlemek için.
 # 2026-09-06: sabit yükseklik/sütun (KART_MIN_YUKSEKLIK=90, SUTUN=4) hem
@@ -365,11 +369,12 @@ def _izinli_numaralar(tarih: str) -> set[str]:
 
 
 def _baslangic_durumu(no: str, onceki_durumlar: dict, izinliler: set[str]) -> str:
-    """Kayıtlı durum > onaylı veli izni ("izinli") > "var". Kayıt dosyası
-    burada yazılmaz; öğretmen kaydedene kadar kayıt yok."""
-    if no in onceki_durumlar:
-        return onceki_durumlar[no]
-    return "izinli" if no in izinliler else "var"
+    """Onaylı veli izni ("izinli") > kayıtlı durum > "var" — yönetim onayı
+    öğretmenin kaydını ezer. Kayıt dosyası burada yazılmaz; öğretmen
+    kaydedene kadar kayıt yok."""
+    if no in izinliler:
+        return "izinli"
+    return onceki_durumlar.get(no, "var")
 
 
 def _kayit_yolu(sinif: str, ders_no: int, tarih: str) -> Path:
@@ -487,18 +492,30 @@ class OgrenciKarti(QPushButton):
         durum: str = "var",
         genislik: int = KART_HEDEF_GENISLIK,
         yukseklik: int = MAKS_KART_YUKSEKLIK,
+        kilitli: bool = False,
     ):
         super().__init__()
         self.no = ogrenci["no"]
         self.ad_soyad = ogrenci["ad_soyad"]
         self.durum = durum
+        # Onaylı izin kilidi setEnabled ile DEĞİL bayrakla — teneffüs
+        # etkinleştirmesi (_girisleri_ayarla) bundan bağımsız kalsın.
+        self.kilitli = kilitli
         self.setFixedSize(genislik, yukseklik)
         self.clicked.connect(self._sonraki_duruma_gec)
         self._guncelle()
 
     def _sonraki_duruma_gec(self) -> None:
+        if self.kilitli:
+            return
         i = DURUM_SIRASI.index(self.durum)
         self.durum = DURUM_SIRASI[(i + 1) % len(DURUM_SIRASI)]
+        self._guncelle()
+
+    def izinli_kilitle(self) -> None:
+        """Onaylı veli izni: kart "izinli" olur ve dokunuşla değişmez."""
+        self.durum = "izinli"
+        self.kilitli = True
         self._guncelle()
 
     def boyut_ayarla(self, genislik: int, yukseklik: int) -> None:
@@ -514,16 +531,19 @@ class OgrenciKarti(QPushButton):
         # sığsın diye) KART_FONT_PT metin taşabilir — yüksekliğe göre küçültülür.
         font_pt = min(KART_FONT_PT, self.height() // 3)
         dolgu = 4 if self.height() < MAKS_KART_YUKSEKLIK else 10
+        durum_satiri = f"[ {ONAYLI_IZIN_ETIKET if self.kilitli else DURUM_ETIKET[self.durum]} ]"
         while True:
             ad_gosterim = _ad_sarmala(self.ad_soyad, self.width(), font_pt)
             font = QFont()
             font.setPointSize(font_pt)
             font.setBold(True)
             satir_sayisi = ad_gosterim.count("\n") + 2
-            if font_pt <= 8 or QFontMetrics(font).height() * satir_sayisi <= self.height() - 2 * dolgu:
+            metrikler = QFontMetrics(font)
+            if font_pt <= 8 or (metrikler.height() * satir_sayisi <= self.height() - 2 * dolgu
+                                and metrikler.horizontalAdvance(durum_satiri) <= self.width() - 2 * dolgu - 10):
                 break
             font_pt -= 1
-        self.setText(f"{self.no}. {ad_gosterim}\n[ {DURUM_ETIKET[self.durum]} ]")
+        self.setText(f"{self.no}. {ad_gosterim}\n{durum_satiri}")
         # QPushButton:disabled seçicisi — teneffüste kartlar devre dışıyken
         # (bkz. YoklamaPenceresi._girisleri_ayarla) görünüşte de farklı
         # olsun, aksi halde devre dışı kart etkin karttan ayırt edilemezdi.
@@ -709,6 +729,8 @@ class YoklamaPenceresi(QWidget):
             self._kazanimlar = _kazanim_yukle()
             self._ders_grubunu_yukle()
 
+        self._onayli_izinleri_uygula(an)
+
         if yeni_ders_no is not None and not self._secili_kod().startswith(DYK_ONEKI):
             gecen_dk = _ders_baslangicindan_gecen_dk(self._zil, yeni_ders_no, simdi)
             if gecen_dk >= UYARI_ESIGI_DK and not self._bugun_kayit_var_mi():
@@ -829,13 +851,31 @@ class YoklamaPenceresi(QWidget):
         self._sutun_sayisi = sutun
 
         for idx, ogrenci in enumerate(ogrenciler):
-            durum = _baslangic_durumu(str(ogrenci["no"]), onceki_durumlar, izinliler)
-            kart = OgrenciKarti(ogrenci, durum=durum, genislik=kart_genislik, yukseklik=kart_yukseklik)
+            no = str(ogrenci["no"])
+            durum = _baslangic_durumu(no, onceki_durumlar, izinliler)
+            kart = OgrenciKarti(ogrenci, durum=durum, genislik=kart_genislik, yukseklik=kart_yukseklik,
+                                kilitli=no in izinliler)
             kart.clicked.connect(self._ozeti_guncelle)
             self._kartlar.append(kart)
             self.izgara.addWidget(kart, idx // sutun, idx % sutun)
         self._girisleri_ayarla()
         self._ozeti_guncelle()
+
+    def _onayli_izinleri_uygula(self, an: datetime) -> None:
+        """Ders sırasında gelen onaylı izinleri açık ızgaraya uygular —
+        kartlar yeniden kurulmaz, diğer işaretlemeler korunur. Kulüp/DYK
+        listelerine izin uygulanmaz (bkz. _ders_grubunu_yukle)."""
+        sinif = self._secili_kod()
+        if not sinif or sinif.startswith((KULUP_ONEKI, DYK_ONEKI)):
+            return
+        izinliler = _izinli_numaralar(an.strftime("%Y-%m-%d"))
+        degisti = False
+        for kart in self._kartlar:
+            if not kart.kilitli and str(kart.no) in izinliler:
+                kart.izinli_kilitle()
+                degisti = True
+        if degisti:
+            self._ozeti_guncelle()
 
     def _girisleri_ayarla(self) -> None:
         """Teneffüste/ders saati dışında (`_aktif_ders_no is None`) öğrenci

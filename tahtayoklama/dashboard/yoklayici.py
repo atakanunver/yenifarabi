@@ -140,14 +140,17 @@ def _roster_by_no(conn, sinif_id: int) -> dict[str, str]:
     }
 
 
-def itilen_kaydi_yaz(conn, kayit: dict, kaynak_tahta: str) -> tuple[bool, list[int]]:
+def itilen_kaydi_yaz(conn, kayit: dict, kaynak_tahta: str,
+                      izinli_nolar=()) -> tuple[bool, list[int]]:
     """Tahta istemcisinin ittiği (önceden doğrulanmış) tek bir yoklama
     kaydını önbelleğe 'alindi' olarak yazar. Sınıf aktif değilse (False, [])
     döner — tahta↔sınıf eşlemesine BAKILMAZ (kayıt içeriğindeki `sinif` esas,
     bkz. modül docstring'i; fenlab her sınıfı kaydedebilir). İkinci eleman:
     BUGÜNÜN kaydında bu çağrıyla YENİ 'yok' yazılan okul numaraları (anlık
     veli bildirimi için — tahta_api.py çağırır); düzeltmede zaten yok olan
-    öğrenci tekrar bildirilmez."""
+    öğrenci tekrar bildirilmez. `izinli_nolar`: okulun o gün için onaylı veli
+    izni verdiği numaralar (str) — yalnız SINIF kaydında, tahtadan var/yok
+    gelse de 'izinli' yazılır (yönetim onayı esas, 2026-11-24)."""
     sinif = conn.execute(
         "SELECT id FROM siniflar WHERE ad = ? AND aktif = 1", (kayit["sinif"],)
     ).fetchone()
@@ -162,6 +165,9 @@ def itilen_kaydi_yaz(conn, kayit: dict, kaynak_tahta: str) -> tuple[bool, list[i
         tablo = "dyk_yoklama"
     else:
         tablo = "yoklama_onbellek" if kulup is None else "kulup_yoklama"
+    if sinif is not None and izinli_nolar:
+        kayit = {**kayit, "durumlar": {
+            no: (_IZINLI if no in izinli_nolar else d) for no, d in kayit["durumlar"].items()}}
     bugun = zil.simdi_istanbul().date().isoformat()
     # GEÇMİŞ GÜNÜN 'alindi' satırına ASLA yazılmaz (2026-10-06). yoklama.py
     # yalnızca O ANKİ dersi kaydettirir; geçmiş tarihli farklı bir kayıt
@@ -202,6 +208,53 @@ def itilen_kaydi_yaz(conn, kayit: dict, kaynak_tahta: str) -> tuple[bool, list[i
     bildirilecek = (sorted(set(yeni_yok_nolar) - eski_yok)
                     if kayit["tarih"] == bugun and kulup is None and dyk_ders is None else [])
     return True, bildirilecek
+
+
+def izinleri_uygula(conn, tarih: str, izinler: dict[str, list[str]]) -> int:
+    """Sonradan onaylanan veli izinleri: o günün 'alindi' sınıf satırlarında
+    izinli numarayı yok_nolari/yok_isimleri'nden izinli_nolari/izinli_isimleri'ne
+    taşır (öğrenci 08:17'de yok kaydedildi, izin 08:32'de onaylandı). İsimler
+    aktif roster'dan; kaydedilme_saati DEĞİŞMEZ (yeni tahta kaydı yine ezebilir,
+    o da kayit_al'da izinli yazılır). Döner: güncellenen satır sayısı."""
+    degisen = 0
+    for sinif_adi, nolar in izinler.items():
+        izinli = {int(n) for n in nolar if str(n).isdigit()}
+        if not izinli:
+            continue
+        sinif = conn.execute(
+            "SELECT id FROM siniflar WHERE ad = ? AND aktif = 1", (sinif_adi,)
+        ).fetchone()
+        if sinif is None:
+            continue
+        roster = None
+        for satir in conn.execute(
+            "SELECT ders_no, yok_nolari, izinli_nolari, izinli_isimleri FROM yoklama_onbellek "
+            "WHERE tarih = ? AND sinif = ? AND durum = 'alindi'", (tarih, sinif_adi),
+        ).fetchall():
+            yok = json.loads(satir["yok_nolari"] or "[]")
+            tasinacak = [n for n in yok if n in izinli]
+            if not tasinacak:
+                continue
+            if roster is None:
+                roster = _roster_by_no(conn, sinif["id"])
+            yeni_yok = [n for n in yok if n not in izinli]
+            eski_izinli = json.loads(satir["izinli_nolari"] or "[]")
+            yeni_izinli = eski_izinli + [n for n in tasinacak if n not in eski_izinli]
+            izinli_isimleri = json.loads(satir["izinli_isimleri"] or "[]") + [
+                roster.get(str(n), f"No {n}") for n in tasinacak if n not in eski_izinli]
+            conn.execute(
+                "UPDATE yoklama_onbellek SET yok_nolari = ?, yok_isimleri = ?, "
+                "izinli_nolari = ?, izinli_isimleri = ?, guncelleme_zamani = datetime('now') "
+                "WHERE tarih = ? AND sinif = ? AND ders_no = ?",
+                (json.dumps(yeni_yok),
+                 json.dumps([roster.get(str(n), f"No {n}") for n in yeni_yok], ensure_ascii=False),
+                 json.dumps(yeni_izinli), json.dumps(izinli_isimleri, ensure_ascii=False),
+                 tarih, sinif_adi, satir["ders_no"]),
+            )
+            degisen += 1
+    if degisen:
+        conn.commit()
+    return degisen
 
 
 def _taze_nabizli_tahtalar(conn) -> set[str]:

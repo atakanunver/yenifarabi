@@ -146,9 +146,13 @@ def kayit_dogrula(veri: dict) -> dict:
 async def kayit_al(request: Request):
     tahta = _tahta_dogrula(request)
     kayit = kayit_dogrula(await _govde(request))
+    # Onaylı veli izni tahtadaki var/yok'u ezer (yalnız sınıf kaydı, bkz.
+    # itilen_kaydi_yaz); okul çağrısı bloklar → thread.
+    izinler = await asyncio.to_thread(_okul_izinleri, kayit["tarih"])
+    izinli_nolar = set(izinler.get(kayit["sinif"], []))
     conn = db.baglanti()
     try:
-        basarili, bildirilecek = yoklayici.itilen_kaydi_yaz(conn, kayit, tahta)
+        basarili, bildirilecek = yoklayici.itilen_kaydi_yaz(conn, kayit, tahta, izinli_nolar)
         if not basarili:
             raise HTTPException(422, "Bilinmeyen ya da pasif sınıf.")
     finally:

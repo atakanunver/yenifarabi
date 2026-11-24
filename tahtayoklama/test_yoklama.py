@@ -107,6 +107,7 @@ def yoklama_ortami(tmp_path, monkeypatch, qapp):
     monkeypatch.setattr(yoklama, "OGRETMEN_PROGRAMI_DOSYASI", tmp_path / "ogretmen_programi.json")
     monkeypatch.setattr(yoklama, "KAZANIM_DOSYASI", tmp_path / "kazanimlar.json")
     monkeypatch.setattr(yoklama, "DYK_PROGRAM_DOSYASI", tmp_path / "dyk_program.json")
+    monkeypatch.setattr(yoklama, "IZIN_DOSYASI", tmp_path / "izinler.json")
     monkeypatch.setattr(yoklama, "datetime", _SahteDatetime)
     _saat_ayarla(8, 20)
 
@@ -833,5 +834,94 @@ class TestDykSecici:
             pencere._periyodik_kontrol()
             assert pencere._aktif_ders_no is None
             assert pencere.baslik_etiketi.text() == "YOKLAMA — BOŞ"
+        finally:
+            pencere.close()
+
+
+# ----------------------------------------------------------------------
+# Onaylı veli izni: kayıtlı durumu ezer, kart kilitli, ders içinde uygulanır
+# ----------------------------------------------------------------------
+
+
+def _izin_yaz(nolar: list[str]) -> None:
+    yoklama.IZIN_DOSYASI.write_text(json.dumps({"2026-09-28": nolar}), encoding="utf-8")
+
+
+class TestOnayliIzinKilidi:
+    def test_onayli_izin_kayitli_yok_u_ezer(self, yoklama_ortami):
+        assert yoklama._baslangic_durumu("1", {"1": "yok"}, {"1"}) == "izinli"
+        assert yoklama._baslangic_durumu("2", {"2": "yok"}, {"1"}) == "yok"
+        assert yoklama._baslangic_durumu("3", {}, set()) == "var"
+        yoklama_ortami.mkdir()
+        yoklama._kayit_yolu("9-A", 1, "2026-09-28").write_text(
+            json.dumps({"durumlar": {"1": "yok", "2": "yok"}}), encoding="utf-8")
+        _izin_yaz(["1"])
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            k1, k2 = pencere._kartlar
+            assert (k1.durum, k1.kilitli) == ("izinli", True)
+            assert (k2.durum, k2.kilitli) == ("yok", False)
+            assert yoklama.ONAYLI_IZIN_ETIKET in k1.text()
+        finally:
+            pencere.close()
+
+    def test_kilitli_karta_tiklama_durumu_degistirmez(self, yoklama_ortami):
+        _izin_yaz(["1"])
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            kart = pencere._kartlar[0]
+            assert kart.isEnabled()  # kilit setEnabled ile değil
+            for _ in range(3):
+                kart.click()
+                assert kart.durum == "izinli"
+            pencere.kaydet_dugmesi.click()
+            kayit = json.loads(yoklama._kayit_yolu("9-A", 1, "2026-09-28").read_text(encoding="utf-8"))
+            assert kayit["durumlar"] == {"1": "izinli", "2": "var"}  # sözleşme aynı
+        finally:
+            pencere.close()
+
+    def test_kilitsiz_kart_eskisi_gibi_doner(self, yoklama_ortami):
+        _izin_yaz(["1"])
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            kart = pencere._kartlar[1]
+            gorulen = []
+            for _ in range(3):
+                kart.click()
+                gorulen.append(kart.durum)
+            assert gorulen == ["yok", "izinli", "var"]
+            assert yoklama.ONAYLI_IZIN_ETIKET not in kart.text()
+        finally:
+            pencere.close()
+
+    def test_periyodik_kontrolde_gelen_onay_acik_karti_kilitler(self, yoklama_ortami):
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            k1, k2 = pencere._kartlar
+            k2.click()  # öğretmen işaretlemesi: yok
+            assert not k1.kilitli
+            _izin_yaz(["1"])
+            pencere._periyodik_kontrol()
+            assert pencere._kartlar[0] is k1  # ızgara yeniden kurulmadı
+            assert (k1.durum, k1.kilitli) == ("izinli", True)
+            assert k2.durum == "yok"
+            assert "İzinli: 1" in pencere.ozet_etiketi.text()
+            k1.click()
+            assert k1.durum == "izinli"
+        finally:
+            pencere.close()
+
+    def test_kulup_listesine_izin_uygulanmaz(self, yoklama_ortami):
+        (yoklama.ROSTER_DIR / "KULUP-BEYAZAY.json").write_text(json.dumps({
+            "sinif": "KULUP-BEYAZAY", "ad": "Beyazay Kulübü",
+            "ogrenciler": [{"no": 1, "ad_soyad": "Ali Veli (9-A)"}],
+        }, ensure_ascii=False), encoding="utf-8")
+        _izin_yaz(["1"])
+        pencere = yoklama.YoklamaPenceresi()
+        try:
+            pencere.sinif_secici.setCurrentIndex(1)
+            pencere._periyodik_kontrol()
+            kart = pencere._kartlar[0]
+            assert (kart.durum, kart.kilitli) == ("var", False)
         finally:
             pencere.close()
