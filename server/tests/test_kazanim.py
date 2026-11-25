@@ -121,3 +121,59 @@ def test_auth_gerekli(veri, monkeypatch):
     r = c.get("/api/egitim/kazanim", params={"derslik": "12-A", "ders_no": 1, "tarih": SALI},
               headers={auth.HEADER_ADI: "gizli"})
     assert r.status_code == 200
+
+
+def _konular_yaz(veri, konular):
+    plan = json.loads(json.dumps(PLAN))
+    if konular is not None:
+        plan["konular"] = konular
+    (veri / "kazanimlar.json").write_text(json.dumps(plan), encoding="utf-8")
+    kz._ONBELLEK.clear()
+
+
+def test_konu_ve_tema_eklenir(istemci, veri):
+    _konular_yaz(veri, {"12": {"matematik": {"4": {"tema": "Sayılar", "konu": " Üslü   ifadeler "}}}})
+    assert _al(istemci).json() == {
+        "durum": "tamam", "ders": "matematik", "hafta": 4,
+        "kazanimlar": ["12.1.2.2. Birinci kazanım", "12.1.2.3. İkinci kazanım"],
+        "tema": "Sayılar", "konu": "Üslü ifadeler",
+    }
+
+
+def test_yalniz_tema_eklenir(istemci, veri):
+    _konular_yaz(veri, {"12": {"matematik": {"4": {"tema": "Sayılar"}}}})
+    j = _al(istemci).json()
+    assert j["tema"] == "Sayılar" and "konu" not in j
+
+
+def test_konular_anahtari_yoksa_eski_yanit(istemci, veri):
+    _konular_yaz(veri, None)
+    assert _al(istemci).json() == {
+        "durum": "tamam", "ders": "matematik", "hafta": 4,
+        "kazanimlar": ["12.1.2.2. Birinci kazanım", "12.1.2.3. İkinci kazanım"],
+    }
+
+
+@pytest.mark.parametrize("bozuk", [
+    [], "metin", None, 5,
+    {"12": []}, {"12": {"matematik": []}}, {"12": {"matematik": {"4": "metin"}}},
+    {"12": {"matematik": {"4": None}}}, {"12": {"matematik": {"4": ["x"]}}},
+    {"12": {"matematik": {"4": {"tema": 5, "konu": None}}}},
+    {"12": {"matematik": {"4": {"tema": "  ", "konu": ""}}}},
+])
+def test_bozuk_konular_alan_yok_istisna_yok(istemci, veri, bozuk):
+    _konular_yaz(veri, bozuk)
+    r = _al(istemci)
+    assert r.status_code == 200
+    j = r.json()
+    assert j["durum"] == "tamam" and "konu" not in j and "tema" not in j
+
+
+def test_yok_durumunda_konu_eklenmez(istemci, veri):
+    _konular_yaz(veri, {"12": {"matematik": {"4": {"tema": "T", "konu": "K"}}}})
+    assert _al(istemci, tarih=TATIL).json() == {"durum": "yok", "ders": "matematik", "hafta": None}
+    plan = json.loads((veri / "kazanimlar.json").read_text(encoding="utf-8"))
+    plan["kazanimlar"]["12"]["matematik"]["4"] = ""
+    (veri / "kazanimlar.json").write_text(json.dumps(plan), encoding="utf-8")
+    kz._ONBELLEK.clear()
+    assert _al(istemci).json() == {"durum": "yok", "ders": "matematik", "hafta": 4}

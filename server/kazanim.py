@@ -7,6 +7,7 @@ ders_programi.json "hedef fizik" gibi şube-özel adları içerir; tahtanın ken
 kopyası içermez). Mantık `tahtayoklama/yoklama.py::_ders_adi_ham/_kazanim` ile
 aynıdır (o dosya içe aktarılmaz). Hiçbir durumda istisna fırlatmaz: eksik/bozuk
 dosya, tatil haftası, bilinmeyen derslik → {"durum": "yok"}.
+"tamam" yanıtına, planda `konular[düzey][ders][hafta]` dolu ise "konu"/"tema" eklenir.
 """
 
 import json
@@ -70,6 +71,24 @@ def _hafta(kz: dict, gun: date) -> int | None:
     return None
 
 
+def _konu_tema(kz: dict, duzey: str, ders: str, hafta: int) -> dict:
+    """konular[düzey][ders][hafta] içinden dolu tema/konu; bozuksa boş dict."""
+    try:
+        kayit = kz.get("konular", {}).get(duzey, {}).get(ders, {}).get(str(hafta))
+    except AttributeError:
+        return {}
+    if not isinstance(kayit, dict):
+        return {}
+    sonuc = {}
+    for alan in ("tema", "konu"):
+        deger = kayit.get(alan)
+        if isinstance(deger, str):
+            deger = " ".join(deger.split())
+            if deger:
+                sonuc[alan] = deger
+    return sonuc
+
+
 def kazanim_bul(derslik: str, ders_no: int, gun: date) -> dict:
     program = _yukle("ders_programi.json")
     kz = _yukle("kazanimlar.json")
@@ -91,7 +110,9 @@ def kazanim_bul(derslik: str, ders_no: int, gun: date) -> dict:
     satirlar = [s for s in satirlar if s]
     if not satirlar:
         return yok
-    return {"durum": "tamam", "ders": ders, "hafta": hafta, "kazanimlar": satirlar}
+    yanit = {"durum": "tamam", "ders": ders, "hafta": hafta, "kazanimlar": satirlar}
+    yanit.update(_konu_tema(kz, duzey, ders, hafta))
+    return yanit
 
 
 @router.get("/api/egitim/kazanim")
