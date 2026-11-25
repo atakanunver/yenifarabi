@@ -4,8 +4,10 @@
 > doğrulandı).** Yıllık-plan hattı (`tools/plan_parse.py`, `icerik/plan.json`)
 > **tamamen kaldırıldı**, yalnız bu dizindeki dosyalar kaldı; `client/CLAUDE.md`,
 > "Project layout" bölümüne bakın. Aşağıdaki `plan_parse.py` komutu artık
-> ÇALIŞMAZ — dosya yok. Konu/kazanım yalnızca öğretmenden gelir, plandan asla
-> otomatik çıkarılmaz; bu davranışı geri getirmeyin.
+> ÇALIŞMAZ — dosya yok. Konu/kazanım artık varsayılan olarak sunucunun
+> `/api/egitim/kazanim` ucundan (yıllık plan) gelir; öğretmen yazarsa/söylerse
+> plan değeri ezilir (2026-11-25 kararı). Bu dizindeki Excel dosyaları yine de
+> hiçbir kodun girdisi değildir.
 
 Buraya **yıllık plan `.xlsx` dosyaları** konur. Başka bir şey konmaz — öğretmenin
 kaynak materyali olarak depoda duruyor, hiçbir aracın girdisi değil.
