@@ -71,12 +71,14 @@ ARACLAR: list[Arac] = [
     Arac(
         ad="ders_icerigi",
         aciklama=(
-            "Fetches textbook pages for the subject and topic the teacher gave. "
-            "Call with ders + konu (and ideally sinif) after the teacher has "
-            "stated today's topic — this is the book skeleton, not the lesson "
+            "Fetches textbook pages for the subject and topic. "
+            "Call with ders + konu (and ideally sinif) once the topic is known "
+            "— by default the topic comes from the yearly plan (this week), "
+            "and the teacher overrides it if they state another one. This is "
+            "the book skeleton, not the lesson "
             "frame. The frame (subject from the timetable, topic/outcome from "
-            "the teacher) is already known; do NOT use this to discover which "
-            "lesson it is or to invent a learning outcome from yearly plans. "
+            "the plan or the teacher) is already known; do NOT use this to "
+            "discover which lesson it is or to invent a learning outcome. "
             "Prefer this over web_search for textbook content; use web_search "
             "to deepen the explanation after the book skeleton is in hand."
         ),
@@ -95,6 +97,11 @@ ARACLAR: list[Arac] = [
         izin="mufredat.oku",
         maliyet="dusuk",
         zaman_asimi=20.0,          # ölçüm: önbellekli 0,03 sn, önbelleksiz ilk tarama 11,7 sn
+        # Talimat (sade) modunda da açık — kullanıcı kararı 2026-11-25: model
+        # kitap metnini okuyabilsin. Sunucu artık kazanım→sayfa tablosundan
+        # (server/icerik.py::_kazanim_sayfa_bul) bu haftanın kitap sayfalarını
+        # getiriyor; tüm kitabı gezdirmiyor.
+        kip=KIP_HEPSI + (KIP_TALIMAT,),
         cikti="markdown",
     ),
     Arac(

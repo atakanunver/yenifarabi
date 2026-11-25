@@ -55,6 +55,7 @@ ARAÇ KULLANIMI:
 - `pdf_sayfa`: Kitabın belirli bir sayfasını ekrana yansıtır ("45. sayfayı aç"). Sayfa açılınca sınıf inceleyene kadar susup bekle.
 - Kitaba dayalı sorularda kaynak sayfa biliniyorsa `pdf_sayfa` ile aç; kaynak yoksa kitaba dayalı cevap uydurma.
 - `yks_sorulari`: Konuyla ilgili çıkmış sınav soruları.
+- `geogebra`: Fonksiyon grafiği, geometrik çizim ve 3B cisimleri tahtada GeoGebra'da canlı çizer ("x kare eksi 4 grafiğini çiz" → komutlar=['f(x)=x^2-4']). Komutlar İngilizce GeoGebra sözdizimiyle.
 - `web_search`: Bilgi doğrulama ve konuyu derinleştirme. Sürekli değil, gerektiğinde çağır.
 - `youtube_video`: Bir olayı, deneyi veya süreci görsel olarak izletmek için.
 - `eba`: eba.gov.tr içerikleri ve video sayfaları.

@@ -210,6 +210,77 @@ def _bolum_bul(kitaplar: dict, tema: str, ders: str | None,
     return en_iyi if en_iyi_puan >= 0.5 else None
 
 
+def _kazanim_sayfa_kayitlari() -> list[dict]:
+    def _oku(ad: str) -> list[dict]:
+        veri = _json_oku(ESLEME_DIR / ad)
+        if not isinstance(veri, dict) or not isinstance(veri.get("kayitlar"), list):
+            return []
+        return [k for k in veri["kayitlar"] if isinstance(k, dict)]
+
+    def _ezer(e: dict, o: dict) -> bool:
+        if str(e.get("sinif", "")) != str(o.get("sinif", "")) or \
+                _norm(e.get("ders", "")) != _norm(o.get("ders", "")):
+            return False
+        hafta_e, hafta_o = e.get("hafta"), o.get("hafta")
+        if e.get("kazanim_kodu"):
+            return o.get("kazanim_kodu") == e["kazanim_kodu"] and \
+                (not hafta_e or str(hafta_e) == str(hafta_o))
+        return not o.get("kazanim_kodu") and bool(hafta_e) and str(hafta_e) == str(hafta_o)
+
+    elle = _oku("kazanim_sayfa_elle.json")
+    otomatik = [o for o in _oku("kazanim_sayfa.json")
+                if not any(_ezer(e, o) for e in elle)]
+    return otomatik + elle
+
+
+def _kazanim_sayfa_bul(kitaplar: dict, konu: str, tema: str, ders: str | None,
+                       sinif: str | None) -> tuple[dict, dict] | None:
+    sorgu = konu or tema
+    sorgu_n = _norm(sorgu)
+    sorgu_k = _kelimeler(sorgu)
+    if not sorgu_n:
+        return None
+    adaylar = []
+    for k in _kazanim_sayfa_kayitlari():
+        if sinif and str(k.get("sinif", "")) != str(sinif).strip():
+            continue
+        if not _ders_eslesir(ders, str(k.get("ders", ""))):
+            continue
+        adaylar.append(k)
+
+    def _sonuc(k: dict) -> tuple[dict, dict] | None:
+        try:
+            ilk, son = int(k["ilk_sayfa"]), int(k["son_sayfa"])
+        except (KeyError, TypeError, ValueError):
+            return None
+        kitap = _kitap_kaydi(kitaplar, {"kitap": k.get("kitap", ""),
+                                        "ders": k.get("ders", ""),
+                                        "sinif": k.get("sinif")})
+        if not kitap:
+            return None
+        return kitap, {"no": k.get("bolum_no", 0), "tur": "Bölüm",
+                       "ad": k.get("baslik", ""), "ilk_sayfa": ilk,
+                       "son_sayfa": son, "yontem": "metin"}
+
+    for k in adaylar:
+        if _norm(k.get("plan_konu", "")) == sorgu_n:
+            sonuc = _sonuc(k)
+            if sonuc:
+                return sonuc
+    if not sorgu_k:
+        return None
+    en_iyi, en_iyi_puan = None, 0.0
+    for k in adaylar:
+        alan_k = (_kelimeler(k.get("baslik", "")) | _kelimeler(k.get("plan_konu", ""))
+                  | _kelimeler(k.get("kazanim", "")))
+        puan = len(sorgu_k & alan_k) / len(sorgu_k)
+        if puan > en_iyi_puan:
+            sonuc = _sonuc(k)
+            if sonuc:
+                en_iyi, en_iyi_puan = sonuc, puan
+    return en_iyi if en_iyi_puan >= 0.5 else None
+
+
 # derslik -> {ders(norm): dosya} — bir tahtada ders_icerigi'nin konuya göre
 # SEÇTİĞİ kitabı hatırlar, pdf_sayfa aynı ders için birden çok kitap (ör.
 # matematik_9.pdf/matematik_9_2.pdf, cilt 1/cilt 2) varken doğru cildi
@@ -387,7 +458,8 @@ def ders_icerigi_endpoint(istek: KonuIstek) -> KonuYanit:
                        "parametresiyle ver. Elimde ne olduğunu aşağıda listeliyorum.\n\n"
                        + _katalog(kitaplar, ders, sinif))
 
-    eslesme = _bolum_bul(kitaplar, sorgu, ders, sinif)
+    eslesme = (_kazanim_sayfa_bul(kitaplar, konu, tema, ders, sinif)
+               or _bolum_bul(kitaplar, sorgu, ders, sinif))
     if not eslesme:
         return _bitir("bulunamadi", f"Kitap bölümü eşleşmedi.\nKonu: {sorgu}\n{_SINIRLI_DEVAM}")
 

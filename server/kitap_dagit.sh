@@ -201,10 +201,12 @@ for t in "${TAHTALAR[@]}"; do
 
     bilgi=$(tahta_bilgi "$t") || { echo "== $t: HATA — tahtalar.json'da kayıtlı değil"; HATA=1; continue; }
     read -r KULLANICI IP <<< "$bilgi"
-    uzak_dizinler=$(timeout 30 "$BASE_DIR/tahta-ssh.sh" "$t" 'ls -1 ~/DERSLER 2>/dev/null || echo __DERSLER_YOK__' 2>/dev/null)
-    if [ -z "$uzak_dizinler" ]; then
+    # __TAMAM__ işareti: gelmezse tahta ulaşılamaz; boş ~/DERSLER "ulaşılamadı" sayılmaz
+    uzak_ham=$(timeout 30 "$BASE_DIR/tahta-ssh.sh" "$t" 'echo __TAMAM__; ls -1 ~/DERSLER 2>/dev/null || echo __DERSLER_YOK__' 2>/dev/null)
+    if ! grep -qxF '__TAMAM__' <<< "$uzak_ham"; then
         echo "== $t: HATA — ulaşılamadı"; HATA=1; continue
     fi
+    uzak_dizinler=$(grep -vxF '__TAMAM__' <<< "$uzak_ham")
     if [ "$uzak_dizinler" = "__DERSLER_YOK__" ]; then
         echo "== $t: HATA — tahtada ~/DERSLER yok (dizin düzeni farklı), gönderilmedi"; HATA=1; continue
     fi

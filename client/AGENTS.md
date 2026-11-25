@@ -40,8 +40,8 @@ python tools/mikrofon_test.py --karsilastir              # mikrofon kalibrasyon 
 
 ## Çalışma Modu: SADE MOD (Varsayılan)
 Tahtalarda varsayılan olarak **Sade Mod** koşar (`core/tahta.sade_mod()`; `config/api_keys.json` içinde `"sade_mod": false` kapatır, dosya/alan yoksa açık):
-- 14 Temel Araç Aktiftir:
-  `web_ac`, `uygulama_ac`, `dosya_ac`, `pencere_kapat`, `pdf_sayfa`, `yks_sorulari`, `geogebra`, `ekran_goruntusu_al`, `ekrandaki_soruyu_oku`, `icerigi_kapat`, `youtube_video`, `web_search`, `eba`, `yoklama_al`.
+- 15 Temel Araç Aktiftir:
+  `web_ac`, `uygulama_ac`, `dosya_ac`, `pencere_kapat`, `pdf_sayfa`, `yks_sorulari`, `geogebra`, `ekran_goruntusu_al`, `ekrandaki_soruyu_oku`, `icerigi_kapat`, `youtube_video`, `web_search`, `eba`, `yoklama_al`, `ders_icerigi` (kitap metni; 2026-11-25 kullanıcı kararı).
 - `kitap_sorusu` client'tan kaldırıldı (RAG İPTAL, `1be6b08`); geri ekleme.
 - `yoklama_al`, `yoklama.py`'yi önce `<client>/../tahtayoklama/` (9-A tam klon), sonra `~/tahtayoklama/` (sparse-checkout tahtalar) içinde arar.
 - Ders kipleri (`ogretmenli`, `ogretmensiz`) ve dil butonları bu modda gizlidir; öğretmen sesli komutları doğrudan yürütülür.

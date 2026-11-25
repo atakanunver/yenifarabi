@@ -90,13 +90,21 @@ SADE_HARIC = ("talimat_modundan_cik", "shutdown_farabi")
 SADE_TALIMAT_ARACLARI = {
     "web_ac", "uygulama_ac", "dosya_ac", "pencere_kapat", "pdf_sayfa", "yks_sorulari", "geogebra",
     "ekran_goruntusu_al", "ekrandaki_soruyu_oku", "icerigi_kapat", "youtube_video", "web_search", "eba", "yoklama_al",
+    "ders_icerigi",
 }
 
 
 def test_sade_modda_talimat_arac_kumesi():
-    """2026-10-24 sade mod: talimat kipinde TAM bu 14 araç (çıkış/ders bitirme araçları listeden çıkar)."""
+    """2026-10-24 sade mod: talimat kipinde TAM bu 15 araç (çıkış/ders bitirme araçları listeden çıkar)."""
     adlar = {d["name"] for d in kayit.bildirimler("talimat", haric=SADE_HARIC)}
     assert adlar == SADE_TALIMAT_ARACLARI
+
+
+def test_ders_icerigi_sade_modda_ve_ders_kiplerinde_acik():
+    """2026-11-25 kullanıcı kararı: sade (talimat) modda model kitap metnini okuyabilsin."""
+    assert "ders_icerigi" in {d["name"] for d in kayit.bildirimler("talimat", haric=SADE_HARIC)}
+    assert kayit.kipte_acik("ders_icerigi", "talimat")
+    assert kayit.kipte_acik("ders_icerigi", "ogretmenli") and kayit.kipte_acik("ders_icerigi", "ogretmensiz")
 
 
 def test_haric_yalniz_listeden_cikarir_normal_kip_ve_sade_olmayan_talimat_etkilenmez():

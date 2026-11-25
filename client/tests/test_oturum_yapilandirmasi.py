@@ -204,8 +204,8 @@ class TestTalimatModu:
         assert {"web_ac", "uygulama_ac", "dosya_ac", "pencere_kapat",
                 "pdf_sayfa", "yks_sorulari"} <= adlar
         assert ("talimat_modundan_cik" in adlar) == (not main.tahta.sade_mod())
-        # Normal ders araçları bu modda görünmemeli (web_search/youtube_video/eba/yoklama_al sade modda talimatta da açık).
-        assert "ders_icerigi" not in adlar and "ders_hafizasi" not in adlar
+        # Normal ders araçları bu modda görünmemeli (web_search/youtube_video/eba/yoklama_al/ders_icerigi sade modda talimatta da açık).
+        assert "ders_hafizasi" not in adlar
 
     def test_talimat_modu_yoksa_normal_persona_kullanilir(self, config):
         assert config.system_instruction != main._TALIMAT_PERSONASI
@@ -221,6 +221,11 @@ class TestTalimatModu:
         assert "talimat_modundan_cik" not in cfg.system_instruction and "normal derse dön" not in cfg.system_instruction
         assert "icerigi_kapat" in cfg.system_instruction  # yeni araçlar persona'da anlatılıyor
         assert main._TALIMAT_PERSONASI_SADE != main._TALIMAT_PERSONASI
+
+    def test_sade_persona_ders_icerigi_var_cikma_satiri_yok(self):
+        assert "ders_icerigi" in main._TALIMAT_PERSONASI_SADE
+        assert main._TALIMAT_CIKMA_SATIRI not in main._TALIMAT_PERSONASI_SADE
+        assert main._TALIMAT_CIKMA_SATIRI in main._TALIMAT_PERSONASI
 
     def test_sade_olmayan_talimat_eski_davranis(self, monkeypatch):
         monkeypatch.setattr(main.tahta, "sade_mod", lambda: False)
