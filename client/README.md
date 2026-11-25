@@ -17,15 +17,15 @@ adını verebilecek en yerinde isimdir.
 
 Sınıftaki akıllı tahtada çalışır, öğrencilerle sesli konuşur, tahtadaki soruyu
 görerek anlatır. **Hangi ders** olduğunu okul programından bilir; **konu ve
-kazanımı** öğretmen yazar veya söyler; varsa yıllık plandaki kazanım öneri olarak sunulur. Cevabı doğrudan vermek yerine öğrenciye
+üniteyi** varsayılan olarak yıllık plandan (bu hafta) alır, öğretmen başka bir konu yazar veya söylerse onu esas alır. Cevabı doğrudan vermek yerine öğrenciye
 ilk adımı sordurur — öğrenci iki kez takılırsa üçüncüde çözümü gösterir.
 
 | Yetenek | Açıklama |
 |---|---|
 | 🎙️ Sesli ders | Gemini Live ile düşük gecikmeli, kesintisiz konuşma — varsayılan Türkçe, isteğe bağlı tamamen İngilizce/Almanca (bkz. altta) |
 | 🗓️ Ders programı | Açılışta sınıf, kaçıncı ders ve ders adını duyurur — sınıfa sormaz |
-| ✏️ Konu / kazanım | Öğretmen yazar veya söyler; sunucudaki yıllık plan kazanımı önerilebilir, öğretmen girdisi gelmeden yoklama ve anlatım başlamaz |
-| 📚 Kitap sayfaları | Öğretmen konu verdikten sonra ilgili ders kitabı sayfalarını getirir |
+| ✏️ Konu / kazanım | Konu ve ünite varsayılan olarak yıllık plandan gelir; öğretmen `konu:` yazar veya söylerse plan değeri ezilir. Plan kazanımı yalnızca öneridir; plandan da öğretmenden de konu gelmezse yoklama ve anlatım başlamaz |
+| 📚 Kitap sayfaları | Konu belli olduktan sonra (plandan ya da öğretmenden) ilgili ders kitabı sayfalarını getirir |
 | 📝 Çıkmış sorular | Konuyla ilgili YKS (TYT/AYT) sorusunu arşivden bulur; soruyu ve şıkları
 okur, **çözmeye kalkışmaz** — öğrenciden cevap ya da öğretmenden talimat gelmeden anlatmaz |
 | 📄 Materyal okuma | PDF ders notu, ödev, sunum, tablo, görsel |
@@ -67,14 +67,15 @@ Ders kipleri açıldığında okulda her ders aynı değil:
 
 ```
 ders_programi.json  →  ders adı + saat     →  açılışta duyurulur
-sunucu yıllık planı →  kazanım önerisi     →  varsa öğretmene sunulur
-öğretmen (yazı/ses) →  konu veya kazanım   →  ders çerçevesi belirlenir
+sunucu yıllık planı →  konu/ünite + kazanım →  varsayılan ders çerçevesi
+öğretmen (yazı/ses) →  konu veya kazanım   →  plan değerini ezer
 ders_icerigi        →  kitap sayfaları     →  iskelet (çerçeve kaynağı değil)
 ```
 
-Farabi ders başında sınıf ve ders saatine göre sunucudan haftanın yıllık plan
-kazanımını isteyebilir. Bu bilgi öneridir; öğretmen konu veya kazanım verirse
-onun girdisi esas alınır. Sunucuya ulaşılamazsa öğretmenden bilgi alınarak
+Farabi ders başında sınıf ve ders saatine göre sunucudan (`/api/egitim/kazanim`)
+haftanın yıllık plan konusunu, ünitesini ve kazanımını ister. Plandan gelen konu
+dersin çerçevesi olur; kazanım yalnızca öneridir. Öğretmen konu veya kazanım
+verirse onun girdisi esas alınır. Sunucuya ulaşılamazsa öğretmenden bilgi alınarak
 devam edilir. Farabi sınıfa "hangi dersteyiz / nerede kalmıştık" diye sormaz. Öğrenci hafızası (`save_memory`)
 yoktur — tahta sınıfça paylaşılır.
 

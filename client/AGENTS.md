@@ -18,6 +18,8 @@ python tools/mikrofon_test.py --karsilastir              # mikrofon kalibrasyon 
 ```
 - Tahtada Test: `server/tahta-ssh.sh <derslik> "cd ~/farabi/client && venv/bin/python -m pytest tests/ -q"`
 - Son Kabul: Fiziksel tahta üzerinde Atakan tarafından yapılır.
+- Dağıtım: Tahtalar `update_farabi.sh` ile `git pull --ff-only origin master` + `pip install` + `systemctl --user restart farabi-client.service` yapar; master'a push edilen client kodu tahtalara gider.
+- Loglar: `logs/farabi.log` (tanı) ve `logs/ders/YYYY-AA-GG.txt` (ders kaydı) gerçek sınıf izidir. `tests/conftest.py` bunları `FARABI_LOG_DIR` / `FARABI_DERS_LOG_DIR` ile geçici dizine yönlendirir; yeni log yolu eklersen aynı korumayı ekle.
 
 ## Önemli Dosyalar ve Sorumlulukları
 | Dosya / Dizin | Sorumluluk |
@@ -32,9 +34,12 @@ python tools/mikrofon_test.py --karsilastir              # mikrofon kalibrasyon 
 | `core/tahta.py` | Derslik kimliği (`vestel9b.local`), tahta anahtarı ve sade mod tespiti |
 | `core/prompt.txt` | Canlı modelin sistem talimatı ve persona kuralları |
 | `core/zil.py` & `core/program.py` | Yerel zil ve ders programı verisi yönetimi |
+| `core/modeller.py` | Canlı ses model adı tek yerde (model emekliliğinde yalnız burası değişir) |
+| `core/saglayicilar.py` | Gemini dışı metin/görsel işleri için `server`'a ince HTTP proxy (`/api/egitim/metin_uret`, `gorsel_uret`); client'ta sağlayıcı anahtarı yok. `metin_uret`/`gorsel_uret` imzaları korunmalı, hata `RuntimeError` yükseltir |
+| `core/olaylar.py` | Modüller arası olay yayını (`abone`/`yayinla`) |
 
 ## Çalışma Modu: SADE MOD (Varsayılan)
-Tahtalarda varsayılan olarak **Sade Mod** koşar (`core/tahta.sade_mod()`):
+Tahtalarda varsayılan olarak **Sade Mod** koşar (`core/tahta.sade_mod()`; `config/api_keys.json` içinde `"sade_mod": false` kapatır, dosya/alan yoksa açık):
 - 14 Temel Araç Aktiftir:
   `web_ac`, `uygulama_ac`, `dosya_ac`, `pencere_kapat`, `pdf_sayfa`, `yks_sorulari`, `geogebra`, `ekran_goruntusu_al`, `ekrandaki_soruyu_oku`, `icerigi_kapat`, `youtube_video`, `web_search`, `eba`, `yoklama_al`.
 - `kitap_sorusu` client'tan kaldırıldı (RAG İPTAL, `1be6b08`); geri ekleme.
