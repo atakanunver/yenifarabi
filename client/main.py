@@ -471,10 +471,11 @@ class FarabiLive:
         # CLOCK_MONOTONIC askıda geçen süreyi saymaz, _boşta_gozcusu uzun bir
         # uykuyu hiç göremezdi (bkz. _boşta_gozcusu docstring'i).
         self._son_etkinlik = time.time()
-        # O anki ders çerçevesi. Ders ADI programdan gelir; konu ve kazanım
-        # öğretmenin yazdığı/söylediği metinden. Yıllık plan (Excel→plan.json)
-        # oturum çerçevesini doldurmaz; yalnızca bu haftanın KAZANIMI sunucudan
-        # (/api/egitim/kazanim) ders başında gelir (kazanim_kaynagi="plan"), konu hep sorulur.
+        # O anki ders çerçevesi. Ders ADI programdan gelir; konu/ünite ve
+        # kazanım varsayılan olarak yıllık plandan (sunucu
+        # tahtayoklama/data/kazanimlar.json, /api/egitim/kazanim) ders başında
+        # gelir (kazanim_kaynagi="plan", konu_kaynagi="plan"); öğretmen
+        # yazarsa/söylerse plan değeri ezilir.
         self._program_slotu = None
         self._current_lesson: dict | None = None
         try:
@@ -660,7 +661,8 @@ class FarabiLive:
         """
         Ders programından yalnızca ders adını ve saatini al.
 
-        Konu/kazanım burada boş kalır — öğretmen ders başında yazar veya söyler.
+        Konu/kazanım burada boş kalır — yıllık plandan gelir veya öğretmen
+        ders başında yazar/söyler.
         """
         ders = (slot.get("ders") or "").strip()
         if not ders:
@@ -675,18 +677,20 @@ class FarabiLive:
             "kazanim_kodu": "",
             "kazanimlar": [],
             "kazanim_kaynagi": "",
+            "konu_kaynagi": "",
             "period": slot.get("ders_no"),
         }
 
     @staticmethod
     def _plan_kazanimini_getir(derslik: str, ders_no) -> dict | None:
         """
-        Sunucudan bu haftanın yıllık plan kazanımını sorar (`GET
-        /api/egitim/kazanim`). SENKRON/BLOKLAYICI (en fazla 3 sn) — çağıran
-        bunu bir iş parçacığında çalıştırmalı. Konuyu DEĞİL yalnızca
-        kazanımı getirir; öğretmene konu yine sorulur. Her hata (ağ, 4xx/5xx,
-        bozuk JSON, durum != "tamam") sessizce None döner — Farabi dersi asla
-        bu yüzden aksatmaz.
+        Sunucudan bu haftanın yıllık plan kazanımını (varsa konu ve temayı)
+        sorar (`GET /api/egitim/kazanim`). SENKRON/BLOKLAYICI (en fazla 3 sn) —
+        çağıran bunu bir iş parçacığında çalıştırmalı. Yanıtta dolu `konu`/
+        `tema` varsa dönüşe `topic`/`unit`/`konu_kaynagi="plan"` eklenir;
+        eski sunucu bunları göndermez. Her hata (ağ, 4xx/5xx, bozuk JSON,
+        durum != "tamam") sessizce None döner — Farabi dersi asla bu yüzden
+        aksatmaz.
         """
         import requests
 
@@ -707,15 +711,25 @@ class FarabiLive:
                 log.info("Plan kazanımı yok (derslik=%s ders_no=%s)", derslik, ders_no)
                 return None
             liste = [str(k).strip() for k in (veri.get("kazanimlar") or []) if str(k).strip()]
-            if not liste:
+            konu = str(veri.get("konu") or "").strip()
+            tema = str(veri.get("tema") or "").strip()
+            if not liste and not konu:
                 return None
-            kod_m = re.match(r"^\S+\.\d+(\.\d+)*\.?", liste[0])
-            return {
-                "kazanim": "; ".join(liste),
-                "kazanimlar": liste,
-                "kazanim_kodu": kod_m.group(0) if kod_m else "",
-                "kazanim_kaynagi": "plan",
-            }
+            sonuc: dict = {}
+            if liste:
+                kod_m = re.match(r"^\S+\.\d+(\.\d+)*\.?", liste[0])
+                sonuc = {
+                    "kazanim": "; ".join(liste),
+                    "kazanimlar": liste,
+                    "kazanim_kodu": kod_m.group(0) if kod_m else "",
+                    "kazanim_kaynagi": "plan",
+                }
+            if konu:
+                sonuc["topic"] = konu
+                sonuc["konu_kaynagi"] = "plan"
+                if tema:
+                    sonuc["unit"] = tema
+            return sonuc
         except Exception as e:
             log.info("Plan kazanımı alınamadı (sessiz devam): %s", e)
             return None
@@ -725,6 +739,9 @@ class FarabiLive:
         Ders başında `_current_lesson`a yıllık plan kazanımını işler.
         Ağ çağrısı iş parçacığında, toplam bekleme sınırlı; sonuç event
         loop iş parçacığında uygulanır. Öğretmen girişi bunun üzerine yazar.
+        Kazanım yalnız `kazanim` boşsa, konu/ünite yalnız `topic` boşsa
+        işlenir (öğretmen önce yazdıysa ezilmez). Motor adımına/ısıtmaya
+        dokunmaz.
         """
         cerceve = self._current_lesson
         if not cerceve or not cerceve.get("period"):
@@ -739,9 +756,15 @@ class FarabiLive:
         except Exception as e:
             log.info("Plan kazanımı atlandı: %s", e)
             return
-        if sonuc and cerceve is self._current_lesson and not cerceve.get("kazanim"):
-            cerceve.update(sonuc)
+        if not sonuc or cerceve is not self._current_lesson:
+            return
+        konu_alanlari = {k: sonuc[k] for k in ("topic", "unit", "konu_kaynagi") if k in sonuc}
+        if "kazanim" in sonuc and not cerceve.get("kazanim"):
+            cerceve.update({k: v for k, v in sonuc.items() if k not in konu_alanlari})
             log.info("Çerçeveye plan kazanımı işlendi: %s", sonuc["kazanim"])
+        if konu_alanlari and not cerceve.get("topic"):
+            cerceve.update(konu_alanlari)
+            log.info("Çerçeveye plan konusu işlendi: %s", konu_alanlari["topic"])
 
     def _kazanimi_ogretmene_al(self) -> None:
         """Öğretmen kazanım yazdı/söyledi: plandan gelen yan alanları temizle."""
@@ -784,6 +807,9 @@ class FarabiLive:
         if konu_m:
             self._current_lesson["topic"] = konu_m.group(1).strip()
             self.motor.durum.konu = self._current_lesson["topic"]
+            if self._current_lesson.get("konu_kaynagi") == "plan":
+                self._current_lesson["unit"] = ""  # plan teması öğretmenin konusuna uymaz
+            self._current_lesson["konu_kaynagi"] = "ogretmen"
         if kaz_m:
             self._current_lesson["kazanim"] = kaz_m.group(1).strip()
             self._kazanimi_ogretmene_al()
@@ -982,7 +1008,8 @@ class FarabiLive:
         parts = [time_ctx]
 
         # Ders çerçevesi — Farabi'nin konu dışına çıkmama kuralı buna dayanır.
-        # Konu/kazanım öğretmenden gelir; boş alanlar "plandan geldi" ima etmez.
+        # Konu/ünite/kazanım varsayılan olarak yıllık plandan (kaynak alanı
+        # "plan") gelir, öğretmen söylerse ezilir; boş alanlar "plandan geldi" ima etmez.
         lesson = self._current_lesson
         if lesson:
             fields = [
@@ -991,6 +1018,10 @@ class FarabiLive:
                 ("Konu",    lesson.get("topic")),
                 ("Kazanım", lesson.get("kazanim")),
             ]
+            konu_plandan = lesson.get("konu_kaynagi") == "plan" and lesson.get("topic")
+            if konu_plandan:
+                fields[1] = ("Ünite/Tema (yıllık plan)", lesson.get("unit"))
+                fields[2] = ("Konu (yıllık plan, bu hafta)", lesson.get("topic"))
             if lesson.get("kazanim_kaynagi") == "plan":
                 fields[3] = ("Kazanım (yıllık plan, bu hafta)", lesson.get("kazanim"))
             dolu = [(label, value) for label, value in fields if value]
@@ -998,6 +1029,8 @@ class FarabiLive:
                 lesson_ctx = "[BUGÜNKÜ DERS — DERS ÇERÇEVEN BUDUR]\n" + "\n".join(
                     f"{label}: {value}" for label, value in dolu
                 )
+                if konu_plandan:
+                    lesson_ctx += "\nÖğretmen farklı bir konu söylerse onu esas al."
                 parts.append(lesson_ctx + "\n")
             if not lesson.get("topic") and lesson.get("kazanim") \
                     and lesson.get("kazanim_kaynagi") == "plan":
@@ -2021,9 +2054,10 @@ class FarabiLive:
         lesson = self._current_lesson or {}
         subject = lesson.get("subject", "")
         topic   = lesson.get("topic", "")
-        # Plandan gelen kazanım (2026-10-06, /api/egitim/kazanim) dersi "hazır"
-        # YAPMAZ — kullanıcı kararı "planı kullan, konuyu sor": hazır olmak için
-        # öğretmenden konu ya da kazanım gerekir. Plan kazanımı yalnızca öneri.
+        # Plandan gelen kazanım (/api/egitim/kazanim) dersi "hazır" YAPMAZ:
+        # plan kazanımı yalnızca öneridir. Plandan gelen KONU (2026-11-25
+        # kuralı: varsayılan plan, öğretmen ezer) ise `topic`i doldurur ve
+        # dersi hazır sayar; öğretmen farklı konu söylerse o esastır.
         plandan = lesson.get("kazanim_kaynagi") == "plan"
         plan_kazanimi = lesson.get("kazanim", "") if plandan else ""
         kazanim = "" if plandan else lesson.get("kazanim", "")
