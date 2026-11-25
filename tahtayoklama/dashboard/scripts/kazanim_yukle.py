@@ -23,7 +23,19 @@ buluta göndermez.
 ------------
     {"_kaynak": "...", "_uretim_araci": "...",
      "haftalar":   {"1": "2026-09-14", ...},       # plan hafta no -> o haftanın PAZARTESİ'si
-     "kazanimlar": {"9": {"matematik": {"1": "9.1.1. ..."}}}}
+     "kazanimlar": {"9": {"matematik": {"1": "9.1.1. ..."}}},
+     "konular":    {"9": {"matematik": {"1": {"tema": "SAYILAR", "konu": "..."}}}}}
+
+konular (2026-11-25): tema = ünite/tema sütunu (ÜNİTE, TEMA, ÜNİTE/TEMA, THEME,
+ÖĞRENME ALANI, ÖĞRENME ALANI / TEMA, ÜNİTE KONULAR; edebiyat 9/11'de tablo başlık
+satırındaki "N. TEMA: ..."), konu = konu sütunu (KONU, KONU (İÇERİK ÇERÇEVESİ),
+İÇERİK ÇERÇEVESİ, KONU / İÇERİK, ALT ÖĞRENME ALANI, CONTENT FRAME, ÖĞRENME ALANI /
+KONU, "... - KONU / İÇERİK ÇERÇEVESİ"). Satırlar kazanımla AYNI haftaya yerleşir;
+yalnız hafta etiketli satırdan, haftanın ilk dolu değeri alınır. Birleşik hücre
+okuyucularda (docx/xlsx/pdfplumber) her satırda tekrar eder, ayrıca doldurulmaz.
+Kazanım hücresiyle aynı metin (satır boyu bant), okul temelli planlama / tatil /
+sınav yer tutucuları yazılmaz. Yalnız biri varsa yalnız o alan; ikisi de yoksa
+hafta YER ALMAZ. Kazanımla aynı temizleme + 200 karakter.
 
 Takvim (haftalar) planların KENDİ tarihli hafta etiketlerinden ("4. Hafta:
 5-9 Ekim", "4.HAFTA(05-11)" ...) çıkarılır; ara tatil/yarıyıl tatili
@@ -666,10 +678,70 @@ def baslik_kazanim_mi(metin: str) -> bool:
     return any(a in k for a in ("OGRENME CIKTI", "KAZANIM", "LEARNING OUTCOMES", "LANGUAGE TASKS"))
 
 
+# Tema/konu sütun başlıkları: planlarda GERÇEKTEN geçen başlıklar (2026-11-25
+# taraması; katla + boşluk sadeleştirme sonrası birebir). "ÜNİTE/TEMA - İÇERİK
+# ÇERÇEVESİ", "ÜNİTE - KONU" gibi üst grup başlıkları bilerek yok (alttaki
+# başlık satırı sütunları belirler).
+TEMA_BASLIKLARI = {
+    "TEMA", "UNITE", "UNITE/TEMA", "UNITE/ TEMA", "UNITE TEMA", "THEME",
+    "OGRENME ALANI", "OGRENME ALANI / TEMA",
+    "UNITE KONULAR",  # ortak türk tarihi: içerik "1. ÜNİTE: ..."
+}
+KONU_BASLIKLARI = {
+    "KONU", "KONU (ICERIK CERCEVESI)", "ICERIK CERCEVESI", "KONU / ICERIK",
+    "ALT OGRENME ALANI", "CONTENT FRAME",
+    "OGRENME ALANI / KONU",  # bilişim: içerik haftalık konu ("Döngü Kavramı")
+}
+# Edebiyat 9/11: "METİN TAHLİLİ (ANLAMA) OKUMA BECERİLERİ ALANI - KONU / İÇERİK ÇERÇEVESİ"
+_KONU_BASLIK_SONU_RE = re.compile(r"KONU / (?:ICERIK CERCEVESI|METIN)$")
+# Edebiyat 9/11: tablonun başlık satırında "1. TEMA: SÖZÜN İNCELİĞİ" — tablonun teması.
+_TABLO_TEMA_RE = re.compile(r"^\d{1,2}\s*\.\s*TEMA\s*:")
+
+
+def baslik_turu(metin: str) -> str | None:
+    """Başlık hücresi tema mı konu mu (yoksa None)."""
+    k = " ".join(katla(temizle(metin)).split())
+    if k in TEMA_BASLIKLARI:
+        return "tema"
+    if k in KONU_BASLIKLARI or (len(k) <= 100 and _KONU_BASLIK_SONU_RE.search(k)):
+        return "konu"
+    return None
+
+
+# Tema/konu hücresinde içerik olmayan plan etiketleri (katla biçiminde, içerir).
+_TEMA_KONU_YER_TUTUCU = ("OKUL TEMELLI PLANLAMA", "SCHOOL BASED PLANNING", "TATIL", "SINAV HAFTASI")
+
+
+_TEKRAR_RE = re.compile(r"(.{10,}?)(?:\s*\1)+")
+
+
+def tema_konu_temizle(ham: str) -> str:
+    """Boşluk sadeleştir; Word'de hücre birleştirmenin kopyaladığı birebir
+    tekrarı ("2. ÜNİTE: X2. ÜNİTE: X2. ÜNİTE: X") teke indir; 200 karakter.
+    Yer tutucu → "". Harf eşiği kazanımdan düşük: "Optik" gibi kısa tema var."""
+    deger = temizle(ham or "")
+    m = _TEKRAR_RE.fullmatch(deger)
+    if m:
+        deger = m.group(1).strip()
+    deger = kisalt(deger)
+    harfler = re.sub(r"[^A-Za-zÇĞİÖŞÜçğıöşüÄäÂâÎîÛû]", "", deger)
+    if (len(harfler) < 3 or _YER_TUTUCU_RE.match(deger)
+            or any(y in katla(deger) for y in _TEMA_KONU_YER_TUTUCU)):
+        return ""
+    return deger
+
+
+def _hucre(satir, i: int | None) -> str:
+    return satir[i][0] if i is not None and 0 <= i < len(satir) else ""
+
+
 def tablo_satirlari(satirlar, ofset_bellek: dict):
     """Yield (hafta_no|None, pazartesi|None, kazanim_ham, tarih_sorunu|None,
-    etiketsiz_mi). ofset_bellek: başlıksız tablolar için hafta->kazanım sütun farkı."""
+    etiketsiz_mi, tema_ham, konu_ham). ofset_bellek: başlıksız tablolar için
+    hafta->kazanım/tema/konu sütun farkı."""
     kolon = None
+    tema_k = konu_k = None
+    tablo_tema = ""  # başlık satırındaki "N. TEMA: ..." (edebiyat)
     onceki_hafta = None  # (hafta_no, pazartesi) — etiketsiz devam satırları için
     baslik_goruldu = False
     for satir in satirlar:
@@ -683,6 +755,13 @@ def tablo_satirlari(satirlar, ofset_bellek: dict):
             kolon = adaylar[0]
             baslik_goruldu = True
             onceki_hafta = None
+            turler = [baslik_turu(m) for m in metinler]
+            tt = next((temizle(m) for m in metinler if _TABLO_TEMA_RE.match(katla(temizle(m)))), None)
+            if tt is not None:  # "TEMA | 1 | 1. TEMA: ..." satırındaki "TEMA" sütun değil
+                tablo_tema = tt
+                turler = [None if t == "tema" else t for t in turler]
+            tema_k = next((i for i, t in enumerate(turler) if t == "tema"), None)
+            konu_k = next((i for i, t in enumerate(turler) if t == "konu"), None)
             continue
         if hafta is None and tarih is None:
             # devam satırı (etiketsiz) ya da tatil bandı
@@ -696,26 +775,40 @@ def tablo_satirlari(satirlar, ofset_bellek: dict):
                 continue
             ham = satir[k][0]
             if temizle(ham):
+                # Tema/konu yalnız hafta etiketli satırdan: devam satırları imza,
+                # dipnot ("Bu çerçeve yıllık plan; ...") ve açıklama taşır.
                 if onceki_hafta:
-                    yield onceki_hafta[0], onceki_hafta[1], ham, None, False
+                    yield onceki_hafta[0], onceki_hafta[1], ham, None, False, "", ""
                 else:
-                    yield None, None, ham, None, True
+                    yield None, None, ham, None, True, "", ""
             continue
         k = kolon
+        tk, kk = tema_k, konu_k
         if k is None:  # başlıksız tablo (PDF devam sayfaları)
             w_idx = next((i for i, m in enumerate(metinler[:3]) if hafta_no_bul([m]) is not None), None)
             ofs = ofset_bellek.get("ofset")
             if w_idx is None or ofs is None:
                 continue
             k = w_idx + ofs
+            ofs_t, ofs_k = ofset_bellek.get("ofset_tema"), ofset_bellek.get("ofset_konu")
+            tk = None if ofs_t is None else w_idx + ofs_t
+            kk = None if ofs_k is None else w_idx + ofs_k
         elif "ofset" not in ofset_bellek:
             w_idx = next((i for i, m in enumerate(metinler[:3]) if hafta_no_bul([m]) is not None), None)
             if w_idx is not None:
                 ofset_bellek["ofset"] = k - w_idx
+                ofset_bellek["ofset_tema"] = None if tema_k is None else tema_k - w_idx
+                ofset_bellek["ofset_konu"] = None if konu_k is None else konu_k - w_idx
         if k >= len(satir):
             continue
         onceki_hafta = (hafta, tarih)
-        yield hafta, tarih, satir[k][0], sorun, False
+        # Kazanım hücresiyle aynı metin = satır boyu birleşik bant (yıl sonu,
+        # okul temelli planlama) → tema/konu değil.
+        kaz = temizle(satir[k][0])
+        tema, konu = [x if temizle(x) != kaz else "" for x in (_hucre(satir, tk), _hucre(satir, kk))]
+        if not tema and not yer_tutucu_mu(kaz):  # "SOSYAL ETKİNLİK" haftasına tablo teması yazılmaz
+            tema = tablo_tema
+        yield hafta, tarih, satir[k][0], sorun, False, tema, konu
 
 
 def dosyayi_oku(yol: Path, sayfa: str | None):
@@ -750,7 +843,7 @@ def pdf_kesik_hucreleri_onar(satirlar):
     yeni = []
     for r in satirlar:
         uzun = next((m for m in metinler if len(m) > len(r[2]) and r[2].strip() and m.startswith(r[2])), r[2])
-        yeni.append((r[0], r[1], uzun, r[3], r[4]))
+        yeni.append((r[0], r[1], uzun, *r[3:]))
     return yeni
 
 
@@ -793,7 +886,7 @@ def calisma(plan_dizini: Path, cikti: Path) -> int:
         if yol_s in TAKVIM_OYU_DISI:
             continue
         gorulen = set()
-        for hafta, pzt, _ham, sorun, _e in satirlar:
+        for hafta, pzt, _ham, sorun, *_ in satirlar:
             if sorun:
                 tarih_sorunlari.append(f"{duzey}/{ders} hafta {hafta}: {sorun}")
             if hafta is not None and pzt is not None and (hafta, pzt) not in gorulen:
@@ -831,12 +924,13 @@ def calisma(plan_dizini: Path, cikti: Path) -> int:
 
     # 2) Kazanımlar
     sonuc = defaultdict(lambda: defaultdict(dict))  # düzey -> ders -> hafta -> metin
+    konular = defaultdict(lambda: defaultdict(dict))  # düzey -> ders -> hafta -> {tema, konu}
     celiskiler = []
     etiketsiz = Counter()
     for (duzey, ders, yol_s), satirlar in okunan.items():
         hedef = sonuc[duzey][ders]
         adaylar = []
-        for hafta, pzt, ham, _sorun, etiketsiz_mi in satirlar:
+        for hafta, pzt, ham, _sorun, etiketsiz_mi, tema_ham, konu_ham in satirlar:
             if etiketsiz_mi:
                 etiketsiz[(duzey, ders)] += 1
                 continue
@@ -860,6 +954,13 @@ def calisma(plan_dizini: Path, cikti: Path) -> int:
                     continue
             if hafta_son is None:
                 continue
+            # Tema/konu: haftanın plandaki İLK dolu değeri; yer tutucu (SINAV
+            # HAFTASI, ARA TATİL ...) yazılmaz. Birleşik hücre okuyucularda tekrar
+            # eder, burada ayrıca doldurulmaz.
+            for alan, ham_ in (("tema", tema_ham), ("konu", konu_ham)):
+                deger = tema_konu_temizle(ham_)
+                if deger:
+                    konular[duzey][ders].setdefault(hafta_son, {}).setdefault(alan, deger)
             metin = ilk_kazanim(ham, (duzey, ders) in CUMLE_KES)
             if metin:
                 adaylar.append((hafta_son, metin))
@@ -888,6 +989,12 @@ def calisma(plan_dizini: Path, cikti: Path) -> int:
             str(d): {ders: {str(h): m for h, m in sorted(hf.items())}
                      for ders, hf in sorted(sonuc[d].items()) if hf}
             for d in sorted(sonuc)
+        },
+        "konular": {
+            str(d): {ders: {str(h): {a: kh[a] for a in ("tema", "konu") if a in kh}
+                            for h, kh in sorted(hf.items())}
+                     for ders, hf in sorted(konular[d].items()) if hf}
+            for d in sorted(konular) if any(konular[d].values())
         },
     }
     cikti.parent.mkdir(parents=True, exist_ok=True)

@@ -368,6 +368,27 @@ class TestTahtaApi(unittest.TestCase):
             self._istek(TOKEN_F, method="GET"))).body.decode())
         self.assertEqual(sorted(json.loads(govde["kazanimlar"])["kazanimlar"]), ["12", "9"])
 
+    def test_yapilandirma_konular_tahtaya_gitmez(self):
+        eski = tahta_api.KAZANIM_DOSYASI.read_text(encoding="utf-8")
+        veri = json.loads(eski)
+        veri["konular"] = {"9": {"matematik": {"4": {"tema": "T", "konu": "K"}}}}
+        tahta_api.KAZANIM_DOSYASI.write_text(
+            json.dumps(veri, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        for token in (TOKEN_A, TOKEN_F):
+            govde = json.loads(asyncio.run(tahta_api.yapilandirma(
+                self._istek(token, method="GET"))).body.decode())
+            kz = json.loads(govde["kazanimlar"])
+            self.assertNotIn("konular", kz)
+            self.assertEqual(kz["haftalar"], {"4": "2026-10-05"})
+        self.assertEqual(sorted(kz["kazanimlar"]), ["12", "9"])  # fenlab tamamı
+        # konular'sız dosyada yük değişmez (ETag sabit)
+        tahta_api.KAZANIM_DOSYASI.write_text(eski, encoding="utf-8")
+        self.assertEqual(tahta_api._kazanim_metni(None), eski)
+        tahta_api.KAZANIM_DOSYASI.write_text(
+            json.dumps(veri, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        self.assertEqual(json.loads(tahta_api._kazanim_metni(None)),
+                         json.loads(eski))
+
     def test_yapilandirma_kazanim_dosyasi_yoksa_none(self):
         tahta_api.KAZANIM_DOSYASI.unlink()
         govde = json.loads(asyncio.run(tahta_api.yapilandirma(

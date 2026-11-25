@@ -245,17 +245,22 @@ def _dosya_metni(yol: Path) -> str | None:
 def _kazanim_metni(sinif_ad: str | None) -> str | None:
     """data/kazanimlar.json (scripts/kazanim_yukle.py üretir). Sınıfı atanmış
     tahtaya yalnızca kendi düzeyi gider (dosya ~yüzlerce KB); atanmamış
-    tahtaya (fenlab — her sınıf girer) tamamı."""
+    tahtaya (fenlab — her sınıf girer) tamamı. "konular" (düzey→ders→hafta→
+    {tema,konu}) hiçbir tahtaya gitmez; tahta konuyu server API'sinden alır."""
     metin = _dosya_metni(KAZANIM_DOSYASI)
-    if metin is None or sinif_ad is None:
-        return metin
+    if metin is None:
+        return None
     try:
         veri = json.loads(metin)
-        duzey = sinif_ad.split("-")[0]
-        veri["kazanimlar"] = {duzey: veri.get("kazanimlar", {}).get(duzey, {})}
-        return json.dumps(veri, ensure_ascii=False, indent=1)
+        if veri.pop("konular", None) is None and sinif_ad is None:
+            return metin
+        if sinif_ad is not None:
+            duzey = sinif_ad.split("-")[0]
+            veri["kazanimlar"] = {duzey: veri.get("kazanimlar", {}).get(duzey, {})}
+            return json.dumps(veri, ensure_ascii=False, indent=1)
+        return json.dumps(veri, ensure_ascii=False, indent=1) + "\n"
     except (ValueError, AttributeError, TypeError):
-        return None
+        return None if sinif_ad is not None else metin
 
 
 def _kulup_rosterlari(sinif_ad: str | None) -> dict[str, str]:
