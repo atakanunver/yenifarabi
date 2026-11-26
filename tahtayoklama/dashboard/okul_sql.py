@@ -23,7 +23,7 @@ from pathlib import Path
 
 PG_TABLOLARI = (
     "ogrenci", "veli", "veli_ogrenci", "personel", "sinif", "sinif_atama",
-    "ders_programi", "zil", "ogretim_yili", "derslik", "dosya", "dosya_satir",
+    "ders_programi", "zil", "ogretim_yili", "derslik", "dosya", "dosya_satir", "yonetici_el_kitabi",
 )
 YOKLAMA_TABLOLARI = ("yoklama_onbellek", "kulup_yoklama", "dyk_yoklama")
 SMS_TABLOLARI = ("kisiler", "siniflar", "gonderimler")  # smssistemi.db (rehber + gönderim kayıtları)

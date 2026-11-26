@@ -16,6 +16,7 @@ ogretmen_programi(ogretmen, personel_id, sinif, ders, gun 1..5, ders_no 1..8, ba
 simdi(tarih, saat 'SS:DD', gun 1..7, gun_adi, durum 'ders'|'teneffus'|'okul_disi', ders_no, aciklama)  -- TEK SATIR: şu anki Türkiye zamanı ve ders durumu
 kazanim(seviye '9'|'10'|'11'|'12', ders (küçük harf, örn. 'biyoloji'), hafta 1.., hafta_baslangic 'YYYY-AA-GG', metin)  -- haftalık işlenecek kazanım
 zil(yil_id, gun_tipi, ders_no, baslangic 'SS:DD', bitis 'SS:DD')
+yonetici_el_kitabi(kod 'EYL-01', ay 'Eylül'..'Ağustos', ay_no 1..12 (Ocak=1, Eylül=9), kategori, gorev, son_tarih (serbest metin), sorumlu, oncelik 'Yüksek'|'Orta'|'Düşük', mevzuat)  -- müdürün yıllık görev takvimi (342 görev). 'Bu ay yapılacak işler' = WHERE ay_no = <bugünkü ay> (simdi.tarih'ten); gorev + son_tarih + sorumlu göster
 ogretim_yili(id, ad, baslangic, bitis, aktif)     -- geçerli yıl: aktif = 1 (yil_id = 2026)
 derslik(id, ad, sinif_ad, tahta_host)
 yoklama_onbellek(tarih 'YYYY-AA-GG', sinif, ders_no, durum 'alindi'|'alinmadi'|'tahta_ulasilamaz'|'ders_yok_o_gun',
