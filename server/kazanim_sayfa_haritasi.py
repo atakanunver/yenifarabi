@@ -238,8 +238,141 @@ def bolum_araliklari(girdiler: list[dict], offset: int, sayfa_sayisi: int,
     return bolumler
 
 
-def kitap_bolumleri(kitap: dict, metin_dizini: Path = METIN_DIZINI) -> dict:
-    """Kitap kaydı → {"bolumler": [...], "offset", "offset_orani", "toc": [PDF sayfaları]}."""
+# ---------------------------------------------------------------- numarasız (ünite + alt başlık) İçindekiler
+# felsefe-11 (2026-11-26 OCR): "1. ÜNİTE: AD 13" + numarasız BÜYÜK HARFLİ alt başlıklar ("ÇEVRE ETİĞİ 25").
+# Yalnız numaralı yol hiç bölüm bulamazsa ve ≥2 ünite satırı varsa kullanılır.
+
+_UNITE_SATIRI = re.compile(r"^\s*(\d{1,2})\s*\.\s*ÜN[İI]TE\s*:\s*(.+?)[\s.…]*(\d{1,3})\s*$")
+_SAYFALI_SATIR = re.compile(r"^\s*(.*?\S)[\s.…]*?\s(\d{1,3})\s*$")
+_KALIP = ("giris", "hatirlama", "on degerlendirme", "dusunme koprusu", "ekler", "sozluk",
+          "kitap kaynakcasi", "kaynakca", "cevap anahtari", "gorsel genel ag", "turkiye nin mulki",
+          "turk dunyasi haritasi")
+
+
+def _kalip_mi(baslik: str) -> bool:
+    n = " ".join(norm(baslik).split())
+    return "olcme ve degerlendirme" in n or n.startswith(_KALIP)
+
+
+def _buyuk_baslik(metin: str) -> str | None:
+    """Sondaki OCR çöpünü ("smear mrs", "<a") atıp harflerin ≥%70'i büyükse başlığı döndürür."""
+    parca = metin.split()
+    while parca and (not any(c.isalpha() for c in parca[-1]) or any(c.islower() for c in parca[-1])):
+        parca.pop()
+    baslik = _temiz(" ".join(parca))
+    harf = [c for c in baslik if c.isalpha()]
+    return baslik if harf and sum(c.isupper() for c in harf) / len(harf) >= 0.7 else None
+
+
+def uniteli_icindekiler(metin: str) -> list[dict]:
+    """→ [{"tur": "unite"|"baslik"|"kalip", "unite": int, "baslik", "sayfa": basılı}].
+    Alt başlıklar son görülen üniteye bağlanır; sayfası ünite başından küçük satır (OCR bozuk)
+    atılır; küçük harfli alt-alt başlıklar ("Mutluluk ve Hayat İlişkisi") ne bölüm ne sınırdır."""
+    girdiler: list[dict] = []
+    unite = None
+    for satir in metin.split("\n"):
+        m = _UNITE_SATIRI.match(satir)
+        if m:
+            unite = {"tur": "unite", "unite": int(m.group(1)), "baslik": _temiz(m.group(2)),
+                     "sayfa": int(m.group(3))}
+            girdiler.append(unite)
+            continue
+        s = _SAYFALI_SATIR.match(satir)
+        if not s:
+            continue
+        sayfa = int(s.group(2))
+        if _kalip_mi(s.group(1)):
+            girdiler.append({"tur": "kalip", "unite": unite["unite"] if unite else None,
+                             "baslik": _temiz(s.group(1)), "sayfa": sayfa})
+            continue
+        baslik = _buyuk_baslik(s.group(1))
+        if unite and baslik and sayfa >= unite["sayfa"]:
+            girdiler.append({"tur": "baslik", "unite": unite["unite"], "baslik": baslik, "sayfa": sayfa})
+    return girdiler
+
+
+def baslik_satiri_ara(sayfalar: dict, baslik: str, bas: int, son: int) -> int | None:
+    """Gövdede `baslik`ın başlık satırı olarak geçtiği ilk sayfa: satır (ya da iki satırın
+    birleşimi) normalize eşit ya da iki yönde de ≥0.8 kelime örtüşmesi."""
+    hedef_n, hedef_k = norm(baslik).split(), kelimeler(baslik)
+    for p in range(bas, son + 1):
+        satirlar = [s for s in _metin(sayfalar, p).split("\n") if s.strip()]
+        for i, s in enumerate(satirlar):
+            for aday in (s, " ".join(satirlar[i:i + 2])):
+                if norm(aday).split() == hedef_n:
+                    return p
+                ak = kelimeler(aday)
+                ortak = len(hedef_k & ak)
+                if hedef_k and ak and ortak / len(hedef_k) >= 0.8 and ortak / len(ak) >= 0.8:
+                    return p
+    return None
+
+
+def uniteli_bolumler(sayfalar: dict, toc_bas: int, n: int, offset: int,
+                     aranacak: list[tuple[int, str]] | None = None) -> list[dict]:
+    """Numarasız İçindekiler → bölümler [{"no": "<ünite>.<sıra>", "baslik", "ilk_sayfa", "son_sayfa"}].
+    İçindekiler `toc_bas`tan ünite satırı süren sayfalara taşar. `aranacak` (ünite, plan konusu):
+    İçindekiler'de bulunmayan (OCR bozuk / sayfasız) alt başlık o ünitenin gövdesinde aranır."""
+    girdiler: list[dict] = []
+    p = toc_bas
+    while p < toc_bas + 4:
+        g = uniteli_icindekiler(_metin(sayfalar, p))
+        if p > toc_bas and not any(x["tur"] == "unite" for x in g):
+            break
+        girdiler += g
+        p += 1
+    unite_bas = {x["unite"]: x["sayfa"] + offset for x in girdiler if x["tur"] == "unite"}
+    if len(unite_bas) < 2:
+        return []
+    sinirlar = {x["sayfa"] + offset for x in girdiler}
+    bolumler = [{"unite": x["unite"], "baslik": x["baslik"], "ilk_sayfa": x["sayfa"] + offset}
+                for x in girdiler if x["tur"] == "baslik"]
+    acilis = ("giris", "hatirlama", "on degerlendirme", "dusunme koprusu")
+    for u in dict.fromkeys(u for u, _k in aranacak or []):
+        eksik = [k for uu, k in aranacak if uu == u
+                 and not any(b["unite"] == u and baslik_puani(k, b["baslik"]) >= 0.5 for b in bolumler)]
+        if not eksik:
+            continue
+        sonraki = [s for k, s in unite_bas.items() if k > u]
+        u_son = (min(sonraki) - 1) if sonraki else n
+        if u in unite_bas:
+            u_bas = unite_bas[u]
+        else:  # ünite satırı da okunamamış: önceki son sınırdan sonrası
+            u_bas = max((s for s in sinirlar if s <= u_son), default=0) + 1
+        kalip = [x["sayfa"] + offset for x in girdiler if x["tur"] == "kalip" and x["unite"] == u
+                 and u_bas <= x["sayfa"] + offset <= u_son and not _olcme_mi(x["baslik"])]
+        if not kalip:  # açılış sayfaları (GİRİŞ … DÜŞÜNME KÖPRÜSÜ) gövdeden
+            kalip = [p for p in range(u_bas, u_son + 1) for s in _metin(sayfalar, p).split("\n")
+                     if " ".join(norm(s).split()) in acilis]
+        bas = (max(kalip) + 1) if kalip else u_bas + 1  # ünite kapağındaki konu listesini atla
+        bulunan = []
+        for konu in eksik:
+            ilk = baslik_satiri_ara(sayfalar, konu, bas, u_son)
+            bulunan.append([konu, ilk])
+        # başlık satırı OCR'da kaybolmuş ilk konu: açılış sayfalarından hemen sonra başlar
+        ilk_bilinen = min([b["ilk_sayfa"] for b in bolumler if b["unite"] == u]
+                          + [i for _k, i in bulunan if i], default=None)
+        if kalip and bulunan[0][1] is None and (ilk_bilinen is None or bas < ilk_bilinen):
+            bulunan[0][1] = bas
+        for konu, ilk in bulunan:
+            if ilk:
+                bolumler.append({"unite": u, "baslik": konu, "ilk_sayfa": ilk})
+                sinirlar.add(ilk)
+    tum = sorted(sinirlar | set(unite_bas.values()))
+    sonuc, sira = [], {}
+    for b in sorted(bolumler, key=lambda b: b["ilk_sayfa"]):
+        sira[b["unite"]] = sira.get(b["unite"], 0) + 1
+        sonraki = [s for s in tum if s > b["ilk_sayfa"]]
+        sonuc.append({"no": f"{b['unite']}.{sira[b['unite']]}", "baslik": b["baslik"],
+                      "ilk_sayfa": b["ilk_sayfa"], "son_sayfa": (sonraki[0] - 1) if sonraki else n})
+    return sonuc
+
+
+def kitap_bolumleri(kitap: dict, metin_dizini: Path = METIN_DIZINI,
+                    aranacak: list[tuple[int, str]] | None = None) -> dict:
+    """Kitap kaydı → {"bolumler": [...], "offset", "offset_orani", "toc": [PDF sayfaları]}.
+    Numaralı bölüm hiç yoksa numarasız ünite/alt başlık İçindekiler'i denenir (`aranacak`:
+    gövdede aranacak (ünite, plan konusu) çiftleri)."""
     yol = metin_dizini / f"{Path(kitap['dosya']).stem}.json"
     try:
         sayfalar = json.loads(yol.read_text(encoding="utf-8"))["sayfalar"]
@@ -265,8 +398,10 @@ def kitap_bolumleri(kitap: dict, metin_dizini: Path = METIN_DIZINI) -> dict:
             g["pdf"] = govde_ara(sayfalar, g["no"], g["baslik"], govde_bas, n)
     tema_sonlari = {str(b.get("no")): int(b["son_sayfa"]) for b in kitap.get("bolumler", [])
                     if b.get("son_sayfa")}
-    return {"bolumler": bolum_araliklari(girdiler, offset or 0, n, tema_sonlari),
-            "offset": offset, "offset_orani": oran, "toc": toc}
+    bolumler = bolum_araliklari(girdiler, offset or 0, n, tema_sonlari)
+    if not bolumler and toc:
+        bolumler = uniteli_bolumler(sayfalar, toc[0], n, offset or 0, aranacak)
+    return {"bolumler": bolumler, "offset": offset, "offset_orani": oran, "toc": toc}
 
 
 # ---------------------------------------------------------------- kod / başlık eşleme
@@ -403,11 +538,14 @@ def _hafta_sirasi(h: str):
     return (0, int(h)) if str(h).isdigit() else (1, str(h))
 
 
-def harita_uret(plan: dict, kitaplar: list[dict], bolum_haritasi: dict[str, list[dict]]
+def harita_uret(plan: dict, kitaplar: list[dict], bolum_haritasi: dict[str, list[dict]],
+                tde_haritasi: dict[str, dict] | None = None
                 ) -> tuple[list[dict], dict, list[str], list[str], list[str]]:
     """→ (kayıtlar, {(sınıf, ders): [eşlenen, toplam, kitaplı_mı, kodlu]}, eşlenemeyen, şüpheli,
     alınmayan). Kod-başlık kelime ortaklığı olmayan (ve başlık yolunun da bulamadığı) eşleme
-    tabloya ALINMAZ (kullanıcı kararı 2026-11-25): sunucu o kazanım için eski eşlemeye düşer."""
+    tabloya ALINMAZ (kullanıcı kararı 2026-11-25): sunucu o kazanım için eski eşlemeye düşer.
+    Türk Dili ve Edebiyatı `tde_haritasi` (dosya → tde_kitap) ile metin adı yolundan eşlenir;
+    plan teması yoksa önceki haftanın teması taşınır."""
     kayitlar, oran, eslenemeyen, supheliler, alinmayan = [], {}, [], [], []
     konular = plan.get("konular", {})
     for sinif, dersler in plan.get("kazanimlar", {}).items():
@@ -419,6 +557,8 @@ def harita_uret(plan: dict, kitaplar: list[dict], bolum_haritasi: dict[str, list
                     supheliler.append(f"{sinif} {ders}: kitap dersi farklı → {k['dosya']} "
                                       f"({k.get('ders', '')})")
             sayac = oran.setdefault((sinif, ders), [0, 0, bool(adaylar), 0])
+            tde = norm(ders) == TDE_DERS
+            tema_no = None
             for hafta in sorted(haftalar, key=_hafta_sirasi):
                 kazanim = haftalar[hafta]
                 if not isinstance(kazanim, str) or not kazanim.strip():
@@ -427,7 +567,17 @@ def harita_uret(plan: dict, kitaplar: list[dict], bolum_haritasi: dict[str, list
                 if kod_normalle(kazanim_kodu(kazanim)):
                     sayac[3] += 1
                 konu = (konular.get(sinif, {}).get(ders, {}) or {}).get(hafta) or {}
-                kayit = kazanim_esle(sinif, ders, hafta, kazanim, konu, adaylar, bolum_haritasi)
+                if tde:
+                    kayit = None
+                    for k in adaylar:
+                        yapi = (tde_haritasi or {}).get(k["dosya"]) or {"bolumler": [], "temalar": []}
+                        tema_no = tde_plan_temasi(konu.get("tema", ""), kazanim, yapi["temalar"]) or tema_no
+                        kayit = tde_kaydi(sinif, ders, hafta, kazanim, konu, k, yapi, tema_no)
+                        if kayit:
+                            kayit.pop("_adim")
+                            break
+                else:
+                    kayit = kazanim_esle(sinif, ders, hafta, kazanim, konu, adaylar, bolum_haritasi)
                 etiket = f"{sinif} {ders} h{hafta}: {kazanim[:70]}"
                 if kayit is None:
                     if adaylar:
@@ -444,7 +594,242 @@ def harita_uret(plan: dict, kitaplar: list[dict], bolum_haritasi: dict[str, list
     return kayitlar, oran, eslenemeyen, supheliler, alinmayan
 
 
+# ---------------------------------------------------------------- Türk Dili ve Edebiyatı (metin adı)
+# TDE kodları (TDE2.1 …) bölüm değil beceri kodudur (1 dinleme, 2 okuma, 3 konuşma, 4 yazma) ve her
+# temada tekrar eder; kitap İçindekiler'inde numaralı bölüm yok. Bağ: plan konusundaki metin adı
+# (“San’at”) ↔ İçindekiler'deki metin adı ("Okuma Sırası: “San’at”"), aynı tema içinde.
+
+TDE_DERS = "turk dili ve edebiyati"
+_TDE_KATLA = str.maketrans({"â": "a", "î": "i", "û": "u", "Â": "A", "Î": "I", "Û": "U", "\xad": None})
+_TDE_BASLIK_ONEKI = ("okuma", "edebiyat atolyesi", "dinleme", "metin tahlili", "yazma",
+                     "sozlu iletisim", "dil bilgisi")
+_TDE_BECERI = {"1": "dinleme", "2": "okuma", "3": "konusma", "4": "yazma"}
+_TDE_DURAK = {"metin", "tahlili", "okuma", "tema", "icerigine", "uygun", "edebiyat", "atolyesi",
+              "yazma", "konusma", "dinleme", "izleme", "modlu", "sirasi", "oncesi", "sonrasi",
+              "anlama", "anlatma", "yapabilme", "yazabilme", "hazirlayabilme", "temasinda"}
+
+
+def _tn(s: str) -> str:
+    return " ".join(norm((s or "").translate(_TDE_KATLA)).split())
+
+
+def _tk(s: str) -> set[str]:
+    return {k for k in _tn(s).split() if len(k) > 3}
+
+
+def tde_tur(metin: str) -> str | None:
+    """İçindekiler satırı bir TDE bölüm başlığıysa türü (okuma/dinleme/konusma/yazma/olcme/
+    dilbilgisi), değilse None. "Okuma Öncesi/Sırası/Sonrası" alt satırdır."""
+    n = _tn(metin)
+    if re.search(r"\b(sirasi|oncesi|sonrasi)\b", n):
+        return None
+    if "olcme ve degerlendirme" in n:
+        return "olcme"
+    if not n.startswith(_TDE_BASLIK_ONEKI) or (n.startswith("sozlu iletisim") and n != "sozlu iletisim"):
+        return None  # 11: "Sözlü İletişim Engellerini … Drama" bir etkinlik adı, başlık değil
+    for anahtar, tur in (("dil bilgisi", "dilbilgisi"), ("dinleme", "dinleme"), ("yazma", "yazma"),
+                         ("konusma", "konusma"), ("sozlu iletisim", "konusma"), ("okuma", "okuma")):
+        if anahtar in n:
+            return tur
+    return None
+
+
+def _devam_mi(onceki: str, satir: str) -> bool:
+    return (onceki.count("“") > onceki.count("”") or onceki.count("(") > onceki.count(")")
+            or onceki.endswith(("\xad", "-")) or satir[:1] in "”)(" or satir[:1].islower())
+
+
+def tde_icindekiler(metin: str) -> list[dict]:
+    """TDE İçindekiler sayfası → [{"metin", "sayfa": basılı}] (sıra korunur). Sayfa numarası aynı
+    satırda (nokta dolgusu) ya da sonraki satırda tek başına; metin adı açık tırnak/parantez ya da
+    tirele sonraki satıra taşabilir; taşan satır öncekinin tekrarıysa ("Picasso’nun Hatları /
+    Picasso’nun Hatları”") atılır."""
+    metin = metin.split(_OCR_IZI, 1)[0]
+    girdiler: list[dict] = []
+    tampon = ""
+    for ham in metin.split("\n"):
+        satir = ham.replace(" ", " ").strip()
+        if not satir:
+            continue
+        sm = _YALNIZ_SAYI.match(satir)
+        if sm:
+            if tampon:
+                girdiler.append({"metin": _temiz(tampon), "sayfa": int(sm.group(1))})
+            tampon = ""
+            continue
+        ss = _SON_SAYFA.match(satir)
+        govde = ss.group(1) if ss else satir
+        if tampon and _devam_mi(tampon, satir):
+            yeni = _tn(govde.strip("“”\" "))
+            if not (yeni and _tn(tampon).endswith(yeni)):
+                tampon = (tampon[:-1] if tampon.endswith(("\xad", "-")) else tampon + " ") + govde
+        else:
+            tampon = govde
+        if ss:
+            girdiler.append({"metin": _temiz(tampon), "sayfa": int(ss.group(2))})
+            tampon = ""
+    return girdiler
+
+
+def _metin_adi(metin: str) -> str:
+    ad = metin.split(":", 1)[1] if re.search(r"sırası\s*:", metin, re.IGNORECASE) else metin
+    return ad.strip(" “”\"")
+
+
+def tde_bolumleri(girdiler: list[dict], offset: int, sayfa_sayisi: int,
+                  temalar: list[dict]) -> list[dict]:
+    """Bölüm başlıkları + altlarındaki metin adları → [{"tur", "etiket", "tema", "ilk_sayfa",
+    "son_sayfa", "adlar"}]. Tema: kitaplar.json tema aralığı (PDF) bölüm başlangıcını içeren tema.
+    Son sayfa: sonraki bölüm başlığı − 1, tema sonunu aşmaz."""
+    bolumler: list[dict] = []
+    for g in girdiler:
+        tur = tde_tur(g["metin"])
+        if tur:
+            bolumler.append({"tur": tur, "etiket": g["metin"], "ilk_sayfa": g["sayfa"] + offset,
+                             "adlar": []})
+        elif bolumler and not re.search(r"\b(tema|unite)", _tn(g["metin"])):
+            bolumler[-1]["adlar"].append(_metin_adi(g["metin"]))
+    bolumler = [b for b in bolumler if 1 <= b["ilk_sayfa"] <= sayfa_sayisi]
+    baslar = sorted(b["ilk_sayfa"] for b in bolumler)
+    for b in bolumler:
+        tema = next((t for t in temalar if t["ilk_sayfa"] <= b["ilk_sayfa"] <= t["son_sayfa"]), None)
+        b["tema"] = int(tema["no"]) if tema else None
+        sonraki = [s for s in baslar if s > b["ilk_sayfa"]]
+        son = sonraki[0] - 1 if sonraki else sayfa_sayisi
+        b["son_sayfa"] = min(son, tema["son_sayfa"]) if tema else son
+    return bolumler
+
+
+def tde_kitap(kitap: dict, metin_dizini: Path = METIN_DIZINI) -> dict:
+    """TDE kitabı → {"bolumler", "temalar", "offset", "toc"}."""
+    yol = metin_dizini / f"{Path(kitap['dosya']).stem}.json"
+    try:
+        sayfalar = json.loads(yol.read_text(encoding="utf-8"))["sayfalar"]
+    except (OSError, ValueError, KeyError):
+        return {"bolumler": [], "temalar": [], "offset": None, "toc": []}
+    n = int(kitap.get("sayfa_sayisi") or max((int(k) for k in sayfalar), default=0))
+
+    def _baslik_sayisi(p: int) -> int:
+        return sum(1 for g in tde_icindekiler(_metin(sayfalar, p)) if tde_tur(g["metin"]))
+
+    bas = next((p for p in range(1, 16) if "icindekiler" in norm(_metin(sayfalar, p))
+                and _baslik_sayisi(p) >= 3), None)
+    toc = []
+    if bas is not None:
+        toc = [bas]
+        while toc[-1] + 1 < 16 and _baslik_sayisi(toc[-1] + 1) >= 3:
+            toc.append(toc[-1] + 1)
+    girdiler = [g for p in toc for g in tde_icindekiler(_metin(sayfalar, p))]
+    offset, _oran = offset_hesapla(sayfalar, (toc[-1] + 1) if toc else 1, n)
+    temalar = [{"no": b.get("no"), "ad": b.get("ad", ""), "ilk_sayfa": int(b["ilk_sayfa"]),
+                "son_sayfa": int(b["son_sayfa"])} for b in kitap.get("bolumler", [])
+               if b.get("ilk_sayfa") and b.get("son_sayfa")]
+    return {"bolumler": tde_bolumleri(girdiler, offset or 0, n, temalar), "temalar": temalar,
+            "offset": offset, "toc": toc}
+
+
+def tde_plan_temasi(plan_tema: str, kazanim: str, temalar: list[dict]) -> int | None:
+    """Plan teması numarası: "1. TEMA: …" → 1; yoksa kazanımdaki “Tema Adı” temasında → kitap teması."""
+    m = re.search(r"(\d+)\s*(tema|unite)\b", _tn(plan_tema))
+    if m:
+        return int(m.group(1))
+    for ad in re.findall(r"“([^”]+)”", kazanim or ""):
+        for t in temalar:
+            if _tn(t["ad"]) == _tn(ad):
+                return int(t["no"])
+    return None
+
+
+def tde_plan_turu(konu: str, kazanim: str) -> str | None:
+    """Plan konusundaki etkinlik türü; konu yoksa TDE beceri kodu (TDE2.1 → okuma)."""
+    kelime = set(_tn(konu).split())
+    if "olcme" in kelime and "degerlendirme" in kelime:
+        return "olcme"
+    for tur in ("dinleme", "yazma", "konusma", "okuma"):
+        if tur in kelime:
+            return tur
+    m = re.match(r"\s*TDE(\d)\.", kazanim or "")
+    return _TDE_BECERI.get(m.group(1)) if m else None
+
+
+def tde_esle(konu: str, kazanim: str, tema_no: int | None, yapi: dict
+             ) -> tuple[dict, str | None, str] | None:
+    """Aynı temadaki bölümlerden seçim → (bölüm, metin adı|None, adım). Adımlar:
+    'tirnak' plan konusundaki tırnaklı ad ↔ İçindekiler metin adı (aynı tema, tür serbest);
+    'ad' tırnaksız konu kelimeleri metin adının ≥ yarısını kapsar (aynı tür);
+    'tur' türün tek bölümü / kelimesi en çok tutan bölüm / hepsi birleşik aralık."""
+    if tema_no is None:
+        return None
+    tema_b = [b for b in yapi["bolumler"] if b["tema"] == tema_no]
+    tur = tde_plan_turu(konu, kazanim)
+    en_iyi = None
+    for ad in re.findall(r"[“\"]([^”\"]+)[”\"]", konu or ""):
+        for b in tema_b:
+            for a in b["adlar"]:
+                p = baslik_puani(_tn(ad), _tn(a))
+                if p >= 0.5 and (en_iyi is None or p > en_iyi[2]):
+                    en_iyi = (b, a, p)
+    if en_iyi:
+        return en_iyi[0], en_iyi[1], "tirnak"
+    sorgu_k = _tk(konu) - _TDE_DURAK
+    turdekiler = [b for b in tema_b if b["tur"] == tur]
+    for b in turdekiler:
+        for a in b["adlar"]:
+            ak = _tk(a) - _TDE_DURAK
+            p = len(sorgu_k & ak) / len(ak) if ak else 0.0
+            if p >= 0.5 and (en_iyi is None or p > en_iyi[2]):
+                en_iyi = (b, a, p)
+    if en_iyi:
+        return en_iyi[0], en_iyi[1], "ad"
+    if not turdekiler:
+        return None
+    puanli = [(len(sorgu_k & (_tk(b["etiket"] + " " + " ".join(b["adlar"])) - _TDE_DURAK)), b)
+              for b in turdekiler]
+    enc = max(p for p, _b in puanli)
+    secilen = [b for p, b in puanli if p == enc]
+    if len(secilen) == 1:
+        return secilen[0], None, "tur"
+    birlesik = {**secilen[0], "etiket": f"{secilen[0]['etiket']} (+{len(secilen) - 1} bölüm)",
+                "son_sayfa": secilen[-1]["son_sayfa"]}
+    return birlesik, None, "tur"
+
+
+def tde_kaydi(sinif: str, ders: str, hafta: str, kazanim: str, konu: dict, kitap: dict,
+              yapi: dict, tema_no: int | None) -> dict | None:
+    plan_konu = (konu or {}).get("konu", "") or ""
+    r = tde_esle(plan_konu, kazanim, tema_no, yapi)
+    if r is None:
+        return None
+    bolum, ad, adim = r
+    supheli = []
+    uzunluk = bolum["son_sayfa"] - bolum["ilk_sayfa"] + 1
+    if uzunluk < 1 or uzunluk > 40:
+        supheli.append(f"aralık {uzunluk} sayfa")
+    return {"sinif": str(sinif), "ders": ders, "hafta": str(hafta),
+            "kazanim_kodu": kazanim_kodu(kazanim), "kazanim": kazanim, "plan_konu": plan_konu,
+            "plan_tema": (konu or {}).get("tema", "") or "", "kitap": kitap["dosya"],
+            "bolum_no": f"TEMA{tema_no}/" + re.sub(r"\s+", "", bolum["etiket"]),
+            "baslik": bolum["etiket"] + (f" — {ad}" if ad else ""),
+            "ilk_sayfa": bolum["ilk_sayfa"], "son_sayfa": bolum["son_sayfa"],
+            "yontem": "metin_adi", "_supheli": supheli, "_adim": adim}
+
+
 # ---------------------------------------------------------------- main
+
+def _plan_konulari(plan: dict, kitap: dict, kitaplar: list[dict]) -> list[tuple[int, str]]:
+    """Kitabın aday olduğu (sınıf, ders) planlarından (kod ünitesi, konu) çiftleri."""
+    cift = []
+    for sinif, dersler in plan.get("kazanimlar", {}).items():
+        for ders, haftalar in dersler.items():
+            if kitap not in aday_kitaplar(kitaplar, sinif, ders):
+                continue
+            for hafta, kazanim in haftalar.items():
+                no = kod_normalle(kazanim_kodu(kazanim if isinstance(kazanim, str) else ""))
+                konu = ((plan.get("konular", {}).get(sinif, {}).get(ders) or {}).get(hafta) or {}).get("konu")
+                if no and konu:
+                    cift.append((int(no.split(".")[0]), konu))
+    return list(dict.fromkeys(cift))
+
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -456,9 +841,16 @@ def main() -> int:
     kitaplar = json.loads(KITAP_PATH.read_text(encoding="utf-8")).get("kitaplar", [])
     satirlar: list[str] = ["# Kitaplar"]
     bolum_haritasi: dict[str, list[dict]] = {}
+    tde_haritasi: dict[str, dict] = {}
     for k in kitaplar:
-        kb = kitap_bolumleri(k)
+        kb = kitap_bolumleri(k, aranacak=_plan_konulari(plan, k, kitaplar))
         bolum_haritasi[k["dosya"]] = kb["bolumler"]
+        if norm(k.get("ders", "")) == TDE_DERS:
+            tk = tde_kitap(k)
+            tde_haritasi[k["dosya"]] = tk
+            satirlar.append(f"{k['dosya']}: TDE İçindekiler s.{tk['toc']}, offset {tk['offset']}, "
+                            f"{len(tk['bolumler'])} bölüm, "
+                            f"{sum(len(b['adlar']) for b in tk['bolumler'])} metin adı")
         notlar = []
         if kb.get("hata"):
             notlar.append(kb["hata"])
@@ -470,7 +862,7 @@ def main() -> int:
                         f"(%{kb['offset_orani'] * 100:.0f}), {len(kb['bolumler'])} bölüm"
                         + (f" — {'; '.join(notlar)}" if notlar else ""))
 
-    kayitlar, oran, eslenemeyen, supheliler, alinmayan = harita_uret(plan, kitaplar, bolum_haritasi)
+    kayitlar, oran, eslenemeyen, supheliler, alinmayan = harita_uret(plan, kitaplar, bolum_haritasi, tde_haritasi)
 
     satirlar.append("\n# Ders başına eşleme (eşlenen/toplam, kodlu kazanım sayısı)")
     top_e = top_t = 0
@@ -502,6 +894,8 @@ def main() -> int:
         "_aciklama": [
             "Yıllık plan kazanımı → ders kitabı PDF sayfa aralığı (sayfalar PDF sayfası, 1 tabanlı).",
             "yontem: 'kod' = kazanım kodu ↔ İçindekiler bölüm no; 'baslik' = plan konusu ↔ başlık örtüşmesi.",
+            ("yontem: 'metin_adi' = TDE: plan konusundaki metin adı/etkinlik türü ↔ İçindekiler (aynı tema); "
+             "bolum_no 'TEMA<n>/<bölüm başlığı>'."),
             "Otomatik üretilir; elle düzeltme kazanim_sayfa_elle.json'a yazılır.",
         ],
         "_uretim": "server/kazanim_sayfa_haritasi.py",

@@ -269,3 +269,177 @@ def test_kitap_bolumleri_uctan_uca(tmp_path):
 def test_metin_yoksa_bos(tmp_path):
     kb = ksh.kitap_bolumleri({"dosya": "yok.pdf"}, metin_dizini=tmp_path)
     assert kb["bolumler"] == [] and kb["hata"] == "metin yok"
+
+
+# ---------------------------------------------------------------- TDE (metin adı yolu)
+# turk_dili_ve_edebiyati_9 PDF s.8 biçimi: sayfa sonraki satırda, iki satırlık ad, tekrar, tire
+TDE9_TOC = (
+    "7\nİçindekiler\nTEMA1.\nSözün İnceliği\n12\n"
+    "OKUMA: ŞİİR \n15\nOkuma Öncesi \n16\nOkuma Sırası: “San’at”\n17\nOkuma Sonrası \n18\n"
+    "OKUMA: DENEME \n38\nOkuma Sırası: “Picasso’nun Hatları\nPicasso’nun Hatları”\n40\n"
+    "EDEBİYAT ATÖLYESİ: YAZMA \n51\nYazma Sırası: “Duygularımı Betimli\xad\nyorum”\n52\n"
+    "Tema Ölçme ve Değerlendirme\n67\n"
+    "TEMA2.2. Anlam Arayışı\n72\nOKUMA: HİKÂYE\n75\nOkuma Sırası: “San’at”\n77\n"
+)
+# turk-dili-ve-edebiyati-11 biçimi: satır içi nokta dolgusu, tırnaksız adlar
+TDE11_TOC = (
+    "1. TEMA: BİR DİYECEĞİM VAR!..............12\n"
+    "Metin Tahlili-1 (Anlama): Okuma..........15\nKaragöz Oyunu (Yazıcı)...........18\n"
+    "Metin Tahlili-2 (Anlama): Okuma..........36\nMektup (Âli’ye Mektuplar) ........37\n"
+    "Sözlü İletişim Engellerini Konu Alan Bir Drama Sergileyebilme.......53\n"
+    "Edebiyat Atölyesi-2 (Anlatma): Yazma.....74\n"
+    "1. Tema Ölçme ve Değerlendirme Soruları.....79\n"
+)
+TDE_TEMALAR = [{"no": 1, "ad": "Sözün İnceliği", "ilk_sayfa": 8, "son_sayfa": 73},
+               {"no": 2, "ad": "Anlam Arayışı", "ilk_sayfa": 74, "son_sayfa": 150}]
+TDE_KITAP = {"dosya": "turk_dili_ve_edebiyati_9.pdf", "ders": "turk dili ve edebiyati", "sinif": 9}
+
+
+def _tde_yapi():
+    return {"bolumler": ksh.tde_bolumleri(ksh.tde_icindekiler(TDE9_TOC), 1, 150, TDE_TEMALAR),
+            "temalar": TDE_TEMALAR}
+
+
+class TestTdeIcindekiler:
+    def test_sonraki_satir_sayfa_iki_satirlik_ad_tekrar_tire(self):
+        g = [(x["metin"], x["sayfa"]) for x in ksh.tde_icindekiler(TDE9_TOC)]
+        assert ("OKUMA: ŞİİR", 15) in g
+        assert ("Okuma Sırası: “San’at”", 17) in g
+        assert ("Okuma Sırası: “Picasso’nun Hatları", 40) in g  # tekrar eden ikinci satır atıldı
+        assert ("Yazma Sırası: “Duygularımı Betimliyorum”", 52) in g   # tire birleşti
+
+    def test_satir_ici_dolgu_ve_etkinlik_adi_baslik_degil(self):
+        b = ksh.tde_bolumleri(ksh.tde_icindekiler(TDE11_TOC), 1, 84, [
+            {"no": 1, "ad": "Bir Diyeceğim Var!", "ilk_sayfa": 13, "son_sayfa": 84}])
+        assert [(x["tur"], x["ilk_sayfa"], x["son_sayfa"]) for x in b] == [
+            ("okuma", 16, 36), ("okuma", 37, 74), ("yazma", 75, 79), ("olcme", 80, 84)]
+        assert b[1]["adlar"] == ["Mektup (Âli’ye Mektuplar)",
+                                 "Sözlü İletişim Engellerini Konu Alan Bir Drama Sergileyebilme"]
+
+    def test_aralik_ve_tema(self):
+        b = {(x["tema"], x["etiket"]): (x["ilk_sayfa"], x["son_sayfa"], x["adlar"])
+             for x in _tde_yapi()["bolumler"]}
+        assert b[(1, "OKUMA: ŞİİR")] == (16, 38, ["Okuma Öncesi", "San’at", "Okuma Sonrası"])
+        assert b[(1, "OKUMA: DENEME")][:2] == (39, 51)
+        assert b[(1, "Tema Ölçme ve Değerlendirme")][:2] == (68, 73)  # tema sonunu aşmaz
+        assert b[(2, "OKUMA: HİKÂYE")][:2] == (76, 150)
+
+
+class TestTdeEsle:
+    def _esle(self, konu, tema_no, kazanim="TDE2.1. okuma"):
+        r = ksh.tde_esle(konu, kazanim, tema_no, _tde_yapi())
+        return (r[0]["etiket"], r[1], r[0]["ilk_sayfa"], r[0]["son_sayfa"], r[2]) if r else None
+
+    def test_tirnakli_ad(self):
+        assert self._esle("Metin Tahlili Okuma: 📖 Deneme • bir deneme “Picasso’nun Hatları”", 1) == (
+            "OKUMA: DENEME", "Picasso’nun Hatları", 39, 51, "tirnak")
+
+    def test_tema_kisiti_ayni_adli_metin_diger_temada(self):
+        # “San’at” 2. temada da var (OKUMA: HİKÂYE); 1. tema planı oraya gitmez
+        assert self._esle("Okuma: 📖 Şiir “San’at”", 1)[:3] == ("OKUMA: ŞİİR", "San’at", 16)
+        assert self._esle("Okuma: 📖 Şiir “San’at”", 2)[:3] == ("OKUMA: HİKÂYE", "San’at", 76)
+
+    def test_tirnaksiz_ad(self):
+        b = ksh.tde_bolumleri(ksh.tde_icindekiler(TDE11_TOC), 1, 84, [
+            {"no": 1, "ad": "Bir Diyeceğim Var!", "ilk_sayfa": 13, "son_sayfa": 84}])
+        r = ksh.tde_esle("Metin Tahlili Okuma: 📖 KARAGÖZ • Tema içeriğine uygun bir Karagöz oyunu",
+                         "TDE2.1. x", 1, {"bolumler": b})
+        assert (r[0]["ilk_sayfa"], r[1], r[2]) == (16, "Karagöz Oyunu (Yazıcı)", "ad")
+
+    def test_ad_yoksa_tur_bolumu_ve_birlesik_aralik(self):
+        assert self._esle("Edebiyat Atölyesi : YAZMA • bir etkinlik", 1)[::4] == (
+            "EDEBİYAT ATÖLYESİ: YAZMA", "tur")
+        # konu yok → beceri kodu TDE2 = okuma; 1. temada iki okuma bölümü → birleşik aralık
+        assert self._esle("", 1)[2:] == (16, 51, "tur")
+        assert self._esle("Tema Ölçme ve Değerlendirme", 1)[0] == "Tema Ölçme ve Değerlendirme"
+
+    def test_tema_yoksa_eslenmez(self):
+        assert self._esle("Okuma: “San’at”", None) is None
+
+
+def test_tde_plan_temasi_ve_turu():
+    assert ksh.tde_plan_temasi("2. TEMA: ANLAM ARAYIŞI", "", TDE_TEMALAR) == 2
+    assert ksh.tde_plan_temasi("", "TDE2.1. “Sözün İnceliği” temasında …", TDE_TEMALAR) == 1
+    assert ksh.tde_plan_temasi("", "TDE3.1. Belirli bir tema", TDE_TEMALAR) is None
+    assert ksh.tde_plan_turu("Metin Tahlili Dinleme/İzleme: Mülakat", "TDE2.1.") == "dinleme"
+    assert ksh.tde_plan_turu("", "TDE4.2. Yazısını") == "yazma"
+
+
+def test_harita_uret_tde_tema_tasinir_ve_sema():
+    plan = {"kazanimlar": {"9": {"türk dili ve edebiyatı": {
+                "1": "TDE2.1. “Sözün İnceliği” temasında okuma",
+                "2": "TDE4.1. Paragraf yazma"}}},  # tema yok → 1. hafta teması taşınır
+            "konular": {}}
+    kayitlar, oran, eslenemeyen, _s, _a = ksh.harita_uret(
+        plan, [TDE_KITAP], {}, {"turk_dili_ve_edebiyati_9.pdf": _tde_yapi()})
+    assert oran[("9", "türk dili ve edebiyatı")][:2] == [2, 2] and eslenemeyen == []
+    assert [(k["bolum_no"], k["ilk_sayfa"], k["yontem"]) for k in kayitlar] == [
+        ("TEMA1/OKUMA:ŞİİR(+1bölüm)", 16, "metin_adi"), ("TEMA1/EDEBİYATATÖLYESİ:YAZMA", 52, "metin_adi")]
+    assert set(kayitlar[0]) == {"sinif", "ders", "hafta", "kazanim_kodu", "kazanim", "plan_konu",
+                                "plan_tema", "kitap", "bolum_no", "baslik", "ilk_sayfa", "son_sayfa",
+                                "yontem"}
+
+
+# ---------------------------------------------------------------- numarasız ünite İçindekiler (felsefe-11)
+FEL_TOC7 = (
+    "İÇİNDEKİLER\nKEZABLN” ANDILAR neimiş RAK 9\n"
+    "1. ÜNİTE: ÇEVRE SORUNLARI VE FELSEFE 13\nGİRİŞ 14\nHATIRLAMA 14\nÖN DEĞERLENDİRME 14\n"
+    "DÜŞÜNME KÖPRÜSÜ 15\nNDE ALIN AN LL a inse 1\nÇEVRE ETİĞİ 25\n"
+    "1. ÜNİTE ÖLÇME VE DEĞERLENDİRME 41\n"
+    "2. ÜNİTE: TEKNOLOJİ VE HAYAT 45\nGİRİŞ 46\nDÜŞÜNME KÖPRÜSÜ 47\n"
+    "TEKNOLOJİ VE İNSAN HAYATI........ 48\nTEKNOLOJİ BAĞLAMINDA ONTOLOJİK PROBLEMLER smear mrs 58\n"
+    "2. ÜNİTE ÖLÇME VE DEĞERLENDİRME 73\n"
+)
+FEL_TOC8 = ("105\n106\n107\n"  # 3. ünite satırları OCR'da kayıp, yalnız numaralar
+            "4. ÜNİTE: HUKUK VE FELSEFE 89\nGİRİŞ 90\nDÜŞÜNME KÖPRÜSÜ 91\nHUKUK VE İNSAN 92\n"
+            "Hukukun Kaynağı 94\n4. ÜNİTE ÖLÇME VE DEĞERLENDİRME 98\nSÖZLÜK 102\n")
+
+
+def _fel_sayfalar():
+    s = {str(p): {"metin": f"{p}\nmetin"} for p in range(9, 111)}
+    s["7"], s["8"] = {"metin": FEL_TOC7}, {"metin": FEL_TOC8}
+    s["13"] = {"metin": "1. ÜNİTE\nANAHTAR ÜNİTE KONULARI\nÇEVRE VE İNSAN İLİŞKİSİ\nÇEVRE ETİĞİ"}  # kapak
+    s["16"] = {"metin": "ÇEVRE VE İNSAN\nİLİŞKİSİ\nÇevre, insanı kuşatan…"}  # iki satıra bölünmüş başlık
+    s["76"] = {"metin": "GİRİŞ"}
+    s["77"] = {"metin": "DÜŞÜNME KÖPRÜSÜ"}
+    s["84"] = {"metin": "AKIL VE İNANÇ PROBLEMLERİ\nmetin"}
+    return s
+
+
+def test_uniteli_icindekiler_kalip_ve_bozuk_satir():
+    g = ksh.uniteli_icindekiler(FEL_TOC7)
+    assert [(x["tur"], x["baslik"], x["sayfa"]) for x in g if x["tur"] != "kalip"] == [
+        ("unite", "ÇEVRE SORUNLARI VE FELSEFE", 13), ("baslik", "ÇEVRE ETİĞİ", 25),
+        ("unite", "TEKNOLOJİ VE HAYAT", 45), ("baslik", "TEKNOLOJİ VE İNSAN HAYATI", 48),
+        ("baslik", "TEKNOLOJİ BAĞLAMINDA ONTOLOJİK PROBLEMLER", 58)]  # OCR çöpü atıldı, s.1 satırı yok
+    assert {x["baslik"] for x in g if x["tur"] == "kalip"} >= {
+        "GİRİŞ", "HATIRLAMA", "ÖN DEĞERLENDİRME", "DÜŞÜNME KÖPRÜSÜ", "1. ÜNİTE ÖLÇME VE DEĞERLENDİRME"}
+    # küçük harfli alt-alt başlık ne bölüm ne sınır
+    assert all(x["baslik"] != "Hukukun Kaynağı" for x in ksh.uniteli_icindekiler(FEL_TOC8))
+
+
+def test_uniteli_bolumler_iki_sayfa_govde_aramasi_ve_acilis_cikarimi():
+    aranacak = [(1, "ÇEVRE VE İNSAN İLİŞKİSİ"), (1, "ÇEVRE ETİĞİ"), (2, "TEKNOLOJİ VE İNSAN HAYATI"),
+                (3, "AKIL VE İNANÇ İLİŞKİSİ"), (3, "AKIL VE İNANÇ PROBLEMLERİ"), (4, "HUKUK VE İNSAN")]
+    b = {x["no"]: (x["baslik"], x["ilk_sayfa"], x["son_sayfa"])
+         for x in ksh.uniteli_bolumler(_fel_sayfalar(), 7, 110, 0, aranacak)}
+    assert b["1.1"] == ("ÇEVRE VE İNSAN İLİŞKİSİ", 16, 24)   # bozuk satır → gövde, kapak (s.13) atlandı
+    assert b["1.2"] == ("ÇEVRE ETİĞİ", 25, 40)               # ölçme sınırı 41
+    assert b["2.1"] == ("TEKNOLOJİ VE İNSAN HAYATI", 48, 57)
+    assert b["2.2"][1:] == (58, 72)
+    # 3. ünite İçindekiler'de yok: açılış sayfaları gövdeden (s.76-77), ilk konu s.78'de başlar
+    assert b["3.1"] == ("AKIL VE İNANÇ İLİŞKİSİ", 78, 83)
+    assert b["3.2"] == ("AKIL VE İNANÇ PROBLEMLERİ", 84, 88)  # s.8'e taşan 4. ünite s.89
+    assert b["4.1"] == ("HUKUK VE İNSAN", 92, 97)
+
+
+def test_uniteli_yol_yalniz_numarali_bolum_yoksa(tmp_path):
+    s = _fel_sayfalar()
+    (tmp_path / "fel.json").write_text(json.dumps({"sayfalar": s}), encoding="utf-8")
+    kb = ksh.kitap_bolumleri({"dosya": "fel.pdf", "sayfa_sayisi": 110}, metin_dizini=tmp_path,
+                             aranacak=[(1, "ÇEVRE ETİĞİ")])
+    assert [b["baslik"] for b in kb["bolumler"]][:2] == ["ÇEVRE ETİĞİ", "TEKNOLOJİ VE İNSAN HAYATI"]
+    s["7"] = {"metin": "İçindekiler\n1.1. Kimya Hayattır ......\t17\n1.2. Atom ......\t30\n"}
+    (tmp_path / "fel.json").write_text(json.dumps({"sayfalar": s}), encoding="utf-8")
+    kb = ksh.kitap_bolumleri({"dosya": "fel.pdf", "sayfa_sayisi": 110}, metin_dizini=tmp_path)
+    assert [b["no"] for b in kb["bolumler"]] == ["1.1", "1.2"]
