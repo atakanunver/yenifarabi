@@ -1,5 +1,4 @@
-# CLAUDE.md
-
+# Atos / AnythingLLM (anythingllm/)
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 (`CLAUDE.md` → `AGENTS.md` sembolik bağı; düzenlemeyi AGENTS.md'de yap. Kök `../CLAUDE.md` ortak kurallar + "Atos veri erişimi" akışını anlatır; burada tekrarlanmaz.)

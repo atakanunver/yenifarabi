@@ -1,35 +1,56 @@
-# CLAUDE.md
+# Yoklama Dashboard (`tahtayoklama/dashboard/`)
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Merkezi okul yoklama panosu, tahta uzaktan yönetimi, okul veri merkezi, acil durum siren/anons ve sistem durumu izleme servisi.
 
-Bu dizin `farabi-yoklama-dashboard` servisidir (FastAPI + Jinja2 + SQLite, port 80). Üst dizindeki `../CLAUDE.md` (§4 dashboard, §5 uzaktan yönetim, tasarım standartları) ve kök `/home/ata/farabi/CLAUDE.md` da yüklenir; burada yalnızca onlarda olmayan, kod okuyarak çıkması zor olanlar var.
+- Servis: `farabi-yoklama-dashboard.service` (systemd, port 80, `tahtayoklama/dashboard/` dizini)
+  - Not: Systemd birimi 8010 portu tanımlasa da `port80.conf` drop-in'i ile port **80** üzerinden sunulur.
+- Framework: **FastAPI** + Uvicorn + Jinja2 + vanilla JS / React (`arayuz/` Vite + TypeScript)
+- Veritabanı: SQLite WAL (`veri/yoklama_pano.db`) + doğrudan `okul_ana` (PostgreSQL) entegrasyonu
+- Bağımsızlık: Farabi'nin `server/main.py` servisinden bağımsızdır; kendi venv ve veritabanına sahiptir.
 
-## Komutlar (bu dizinden)
+## Komutlar
 ```bash
-venv/bin/python -m unittest discover -p 'test_*.py'          # pytest YOK
-venv/bin/python -m unittest test_menu                        # tek dosya (modül adı, .py'siz)
-venv/bin/python -m unittest test_menu.TestMenu.<test_adi>    # tek test
-/home/ata/farabi/.venv-tools/bin/ruff check <dosya>          # F821/F811/F632 sıfır kalmalı
-sudo systemctl restart farabi-yoklama-dashboard              # yalnız 08:00-17:00 TR DIŞINDA
+venv/bin/uvicorn app:app --reload --port 8099          # yerel geliştirme (DİKKAT: lifespan polling çift çalışır)
+venv/bin/python -m unittest discover -p 'test_*.py'    # TÜM TESTLER (696 test, pytest YOKTUR)
+venv/bin/python -m unittest test_uzaktan_ekran -v      # tek modül testi
+venv/bin/python -m unittest test_uzaktan_ekran.TestUzaktanEkran.test_route_gecersiz_tahta  # tek test
+venv/bin/python scripts/sifre_belirle.py               # ortak pano şifresi → config/gizli.json
+sudo systemctl restart farabi-yoklama-dashboard.service   # YALNIZCA 08:00-17:00 TR DIŞINDA!
+journalctl -u farabi-yoklama-dashboard.service -f      # servis logları
 ```
-`uvicorn app:app --reload` elle başlatılırsa lifespan polling'i de başlatır → canlıyla çift polling. Şablon/CSS/JS değişikliği restart istemez (anında yansır), `.py` ister.
+- ⚠️ Şablonlar (`templates/`) ve statik dosyalar değişiklikte canlıya anında yansır; `.py` dosyaları restart ister.
+- Venv'de `httpx` veya `pytest` yoktur. Testlerde `fastapi.testclient.TestClient` yerine `Request` elle kurgulanarak doğrudan korutinler çağrılır.
 
-## Mimari (birkaç dosyayı okuyarak çıkan resim)
-- `app.py` yalnız giriş noktasıdır; özellikler `APIRouter` modülleri olarak `include_router` ile bağlanır (`admin`, `uzaktan_yonetim`, `ajan_api`, `tahta_api`, `okul_ana_panel`, `acil`, `guvenlik`, `kameralar`, `sunucular`, `servis_yonetimi`, `zamanlanmis_gorevler`, `yakinda`…). Yeni sayfa: router + `menu.py::MENU` girişi + her `Jinja2Templates` örneğine `templates.env.globals["menu_agaci"]` (aksi halde `test_menu` kırılır).
-- **Üç ayrı kimlik alanı, karıştırma:** (1) ortak yönetici şifresi → `auth.dogrula` oturum çerezi (`admin`, `uzaktan`, `okul_ana_panel`…); (2) `/guvenlik` kendi şifresi + çerezi (`config/guvenlik.json`), `/acil`/`/admin` onu tanımaz; (3) makine API'leri yalnız yerel IP + anahtar başlığı: `/api/ajan` (`X-Farabi-Ajan-Key`), `/api/v1/tahta/*` (tahta başına token, SHA-256), `/api/okul/sql` (`X-Farabi-Okul-Key`).
-- **Veri akışı — okul verisi:** tek kaynak `okul_ana` (PostgreSQL). `okul_ana_veri` (psycopg 3, tek transaction + denetim) → `okul_ana_yayin` eski depolara yansıtır (`yoklama_pano.db`, `okul.db`, `smssistemi.db`; okul_no ile eşler, kuru çalıştırma varsayılan, `--uygula` yazar) → `okul_ana_goruntu` tahta JSON'larını (`zil.json`, `ders_programi.json`, baytı baytına aynı biçim) üretir. Yayın başarısız olsa veri DB'de güvende kalır; panel "Yayınla" ile tekrar dener.
-- **Yoklama akışı:** tahta `yoklama.py` → `tahta_istemci.py` → `tahta_api.py` (push) ve/veya `yoklayici.py` (SSH polling, hafta içi ders penceresi). İkisi de `yoklayici.onbellege_yaz` ile `yoklama_onbellek`'e yazar; 'alindi' üstüne yalnız daha yeni `kaydedilme_saati` yazar. Kulüp yoklaması `kulup_yoklama` tablosunda ayrı tutulur.
-- **Tahta duyuru (`duyuru.py`):** panel `/admin/uzaktan#duyuru` → `duyuru` tablosu (hedef `tum-okul`|tahta|sınıf; idare/acil için ses debian EMA TTS'ten wav, `veri/duyuru_ses/`) → tahta `tahta_istemci.py` ~5 sn'de `GET /api/v1/tahta/duyuru` çeker → `../announcement_agent.py` (PyQt6 popup) ayrı süreç. Tahtaya itme/Socket.IO YOK; "kapat" = tablodaki `iptal=1`, istemci pencereyi sonlandırır. PyQt6 sunucuda kurulu değil: popup yalnız tahtada (`tahta-ssh.sh`) denenir.
-- **Diğer servislerle bağ yalnızca HTTP** (DB paylaşılmaz): `veli_mesajlari` → smssistemi (`config/sms_panel.json`), `devamsizlik_bildirim` → okul (`config/devamsizlik_bildirim.json`). Servis kapalıysa sessizce atlanır; dashboard dersi/yoklamayı bozmaz. İstisnalar (salt-okunur): `sistem_durumu` Farabi PG'sine, `aylik_ozet` `okul.db`'ye, `okul_sql` birkaç kaynağa.
-- **Ayrıcalıklı işler sudo betiği üzerinden, kabuksuz argüman listesiyle:** `servis_yonetimi` → `sudo -n /usr/local/sbin/farabi-servis`, `zamanlanmis_gorevler` → `farabi-zamanlayici` (kaynaklar `scripts/`). Birim listeleri betik ile modülde birebir aynı olmalı (`test_farabi_servis`, `test_farabi_zamanlayici` denetler); yetki denetimi betikten ÖNCE Python'da yapılır.
-- **Acil durum (`acil.py`)**: bir düğme üç bağımsız kanalı (zil anonsu, SMS, tahta kiosk ekranı) tetikler; biri düşse diğerleri çalışır. `guvenlik._baslat` aynı yolu kullanır. Olaylar `veri/acil_olaylar.jsonl`. Tatbikat/gerçek ayrımı SMS alıcı kümesini değiştirir — test dışında gerçek modda tetikleme.
-- Çoğu uzak makine işi (`sunucular`, `ssh_istemci`) paramiko'suz düz `ssh` alt sürecidir; yeni ağır bağımlılık ekleme (`requirements.txt` 4 paket).
+## Mimari ve Önemli Modüller
+- `app.py`: FastAPI giriş noktası ve router montajı (`include_router`).
+- **Önemli Router ve Mantık Modülleri:**
+  | Modül | Sorumluluk |
+  |---|---|
+  | `tahta_api.py` | Tahta istemcileri için `/api/v1/tahta/*` uçları (kayıt push, nabız, yapılandırma pull) |
+  | `yoklayici.py` | Yoklama önbelleği (`yoklama_onbellek`) ve hafta içi ders saatlerinde SSH polling döngüsü |
+  | `admin.py` | Yönetici paneli, sınıf/öğrenci/roster yönetimi |
+  | `okul_ana_panel.py` | PostgreSQL `okul_ana` yönetim ekranı ve JSON yayınlama motoru |
+  | `okul_sql.py` & `okul_bilgisi.py` | Atos (AnythingLLM) `/api/okul/sql` salt-okunur güvenli sorgu motoru |
+  | `uzaktan_yonetim.py` & `uzaktan_baslat.py` | Tahtalarda uzaktan ekran izleme, kilitleme, uygulama açma ve reboot |
+  | `acil.py` | Acil durum alarmı (zil sireni, acil SMS, tahta kiosk karartma/uyarı) |
+  | `duyurular_panel.py` & `duyuru.py` | Tahtalara anlık görsel/sesli duyuru gönderme |
+  | `sistem_durumu.py` & `sunucular.py` | Küme sunucuları ve tahtaların donanım/ağ sağlık izlemesi |
+  | `servis_yonetimi.py` | `/usr/local/sbin/farabi-servis` üzerinden izinli systemd servislerini yönetme |
+  | `zamanlanmis_gorevler.py` | Sistem cron/timer işlerinin yönetimi (`farabi-zamanlayici`) |
+  | `gorsel_panel.py` | Haftalık ders görseli ve sınıf afişi yönetimi |
+  | `kulup_yoklama.py` & `dyk_yoklama.py` | Sosyal kulüp ve DYK hafta sonu kurs yoklama yönetimi |
+  | `veli_mesajlari.py` | SMS sistemi entegrasyonu (`smssistemi` HTTP API) |
 
-## Tuzaklar
-- Venv'de `httpx` yok → `fastapi.testclient.TestClient` import edilemez; uçlar `Request` elle kurulup korutin doğrudan çağrılarak test edilir (örnek `test_tahta_api.py`, `test_duyuru.py`). Testlerde `db.DB_YOLU`'nu geçici dosyaya yönlendir, canlı DB'ye yazma.
-- `tahta_istemci.SURUM` bir testle sabitlenmiş (`test_kulup.py`); sürümü artırınca testi de güncelle. Menü sırası da `test_menu.py`'de sabit.
-- `config/` gizli dosyalar içerir (gitignore'lu); `*.bak-*` / `*.yedek-*` dosyaları eski yedeklerdir, kod tabanı değil — okuma/düzenleme.
-- Systemd birimindeki 8010 `port80.conf` drop-in'i ile 80'e ezilir; `curl` ile test ederken gerçek port 80.
-- `okul_sql.py` ve `okul_bilgisi.py` değişince kök `CLAUDE.md`'deki "Atos veri erişimi" kurallarına (yeni tablo = sabit + `IZINLI_TABLOLAR` + şema açıklaması) uy.
+## Kimlik Doğrulama ve Yetkilendirme Katmanları
+1. **Yönetici Oturumu (`auth.dogrula`):** Ortak yönetici şifresi doğrulaması (`config/gizli.json` scrypt hash), çerez tabanlı oturum.
+2. **Güvenlik Paneli (`/guvenlik`):** Kendi özel şifresi ve oturum çerezi (`config/guvenlik.json`). `/admin` oturumundan tamamen ayrıdır.
+3. **Makine API Anahtarları (Yerel Ağ / LAN Zorunlu):**
+   - `/api/ajan/*` → `X-Farabi-Ajan-Key`
+   - `/api/v1/tahta/*` → Tahta başına token (SHA-256 doğrulaması)
+   - `/api/okul/sql` → `X-Farabi-Okul-Key` + `X-Farabi-Rol: admin`
 
-- `/gorsel`: AI yalnız arka plan üretir; öğrenci listesi ve önizleme yerelde işlenir, arşive kayıt açık kullanıcı eylemidir. Haftalık otomasyon ayrıdır. Test: `venv/bin/python -m unittest test_gorsel test_gorsel_panel -v`.
+## Dikkat Edilecek Kurallar ve Tuzaklar
+1. **Menü Ağacı:** Yeni bir sayfa router'ı eklendiğinde `menu.py::MENU` yapısına eklenmeli ve ilgili Jinja şablonuna `templates.env.globals["menu_agaci"]` tanımlanmalıdır (aksi halde `test_menu` testi düşer).
+2. **Tahta İstemci Sürümü:** `tahta_istemci.SURUM` sabiti `test_kulup.py` ile kilitlenmiştir. Sürüm yükseltmelerinde test de güncellenmelidir.
+3. **Atos Veri Erişimi:** `okul_sql.py` veya `okul_bilgisi.py` üzerinde yeni bir tablo eklenirken izinli tablo listesine (`IZINLI_TABLOLAR`) eklenmeli, şema metni (`sema_aciklamasi.txt`) güncellenmeli ve `anythingllm/kur_yetenekler.sh` yeniden çalıştırılmalıdır.
+4. **Acil Durum Tetikleme:** `acil.py` içindeki tatbikat ve gerçek alarm ayrımına dikkat edilmeli, geliştirme/test ortamında gerçek acil SMS ve siren tetiklenmemelidir.

@@ -1,112 +1,173 @@
-# Farabi
+# Farabi Projesi Genel Teknik Rehberi (`AGENTS.md`)
 
-Sınıf akıllı tahtalarında sesli ders asistanı + aynı sunucuda okul operasyon servisleri (yoklama panosu, SMS, okul portalı).
-Monorepo. Bu dosya ortak kurallar + servisler arası resim; alt projelerin kendi `AGENTS.md`'si var (`CLAUDE.md` → `AGENTS.md` sembolik bağı; düzenlemeyi AGENTS.md'de yap).
+Bu belge, Farabi monoreposunun genel teknik mimarisini, servis haritasını, teknoloji yığınını ve geliştirici ajanlar için operasyonel standartları tanımlar.
 
-- ⚠️ `/home/ata/farabi` CANLI ÜRETİM: servisler buradan koşar. Master'a commit = deploy kaynağı; üretime almak = servisi restart.
-  Çalışma dizini tek: hangi dal checkout'taysa servisler onu koşar; dal değiştirmek canlı kodu değiştirir. Üretim venv'lerine pip kurma.
-- ⚠️ `git sparse-checkout set/reapply` ÇALIŞTIRMA: git'te izlenmeyen canlı dizinleri (`kelebek/`, `kameralar/`,
-  `tahtaatlasfarabi/` + `var/atlas.db`, `tahtamasaustuduzeni/`) silebilir. `kiosk/` sparse-checkout dışında.
-- Ayrı depolar: `okul3d/` (özel), `progmatik/` (özel, ders programı planlayıcı), `tahtaatlasfarabi/` (PUBLIC `atakanunver/farabi-atlas`). Ana depo da PUBLIC: izlenmeyen
-  dosyalardan veya `/home/ata/llm-cluster-wiki`'den (şifre içerir) ayrıntı taşıma.
-- Kaynaklar: kararlar `DECISIONS.md` (tek satır `tarih | karar | neden`), mimari `docs/mimari.md` (2026-09-13'te donmuş; çelişkide
-  bu dosya esas), ağ/dağıtım/SSH/zamanlayıcılar `docs/runbook.md`, sürüm notları `CHANGELOG.md`. `README.md` yalnız Atakan isterse
-  güncellenir. `_arsiv/` yalnız okuma.
-- `docs/` altındaki 2026-10-29 toplu belge seti (`ARCHITECTURE`, `DATA_FLOW`, `DEPENDENCY_MAP`, `TECHNICAL_DEBT`, `TEST_STRATEGY`,
-  `API_AND_INTEGRATIONS`, `CODE_QUALITY_AUDIT`) DOĞRULANMAMIŞ LLM üretimi, var olmayan dosya/teknolojilere atıf yapar: kaynak sayma.
-- AGENTS.md'si olmayanlar: `kelebek/` (sınav salon dağıtımı), `osym/` (ÖSYM/YKS rapor yükleyici, `osym` DB), `arenasinif/`
-  (tahta yarışma oyunları; kendi `DECISIONS.md`'si), `anythingllm/` (Atos kurulum + yetenekler), `tahtagoruntuyakala/` (notlar).
-- Ders görsel arşivi: `client/ders_gorsel_servis.py` + `client/core/ders_gorsel.py` (tahta, `systemd --user farabi-ders-gorsel`,
-  bayrak `ders_gorsel.enabled`, pilot 10-A) → `server/ders_gorsel.py` (`POST /api/ders-gorsel`, `/mnt/farabi-data/farabi/ders_gorselleri/`).
-- Ortak cam teması (2026-11-15): `ortak/cam-tema/` (Tailwind 4, `npm run build` → `dist/cam-tema.css`; sparse-checkout DIŞINDA, eklemek için `git add --sparse`). Servisler dist'i kendi `static/`'ine KOPYALAR (dashboard 5 sayfa, okul, arenasinif, smssistemi, kelebek, progmatik); dist değişince her kopyayı ve `?v=` sürümünü, okulda `sw.js` SURUM'unu güncelle. Kapsam dışı: `acil_ekran.html`, okul3d, Atlas, Atos.
+---
 
-## Canlı durum
-- KALICI İPTAL, açıkça istenmeden geri açma/önerme: RAG ve gömme servisi `farabi-embed` (`server/main.py::RAG_AKTIF = False`;
-  `kitap_sorusu` aracı kalıntı), otomatik soru üretimi (`soru-havuzu-uret.timer` disabled, 2026-11-07), kazanım testi
-  (birimler `_arsiv/kazanimtest-systemd/`), yerel STT/TTS/Pipecat (ses tek yol: client'ta Gemini Live), `farabi-idari-yukle.timer`.
-- Soru havuzu hazır soru + görsel arşividir; öğretmen katkısı `soru-katki.timer` (2 dk) LLM ile soru üretmez.
-- NAS yedeği `farabi-yedek.timer` pazar 03:30 TR (`~/farabi-yedek/farabi-yedek.py` → `server/yedek/farabi_yedek.py`).
-  2026-11-04..07 bağlantı eksikti; 2026-11-08 koşusu journal'da "yedek tamam" verdi, NAS'taki içerik doğrulanmadı.
-- 9-11 çalışmaları Maarif modeline göre.
-- Planlanan: tahtada "Soruyu çöz" (mevcut `actions/ekrandaki_soruyu_oku.py`'yi tetikler).
-- Okul ağı SSL-inceleme yapar: yeni venv'de certifi'ye MEB sertifikası ekle; `HF_HUB_OFFLINE=1`.
-- Tahta kimliği avahi hostname (`vestel9b.local` sınıfı belirler); IP/MAC değişir. Önce `getent hosts <hostname>.local`.
-  Değişince: `server/tahtalar.json`, dashboard SQLite `tahtalar`, `docs/runbook.md` tablosu. 10-A CMOS pili bitik (yanlış tarih).
-- Ders programı/zil TEK kaynak `okul_ana` (PostgreSQL, panel `/admin/okul-verisi`) → `tahtayoklama/data/{ders_programi,zil}.json`;
-  okul portalı ve `server/config_dagit.sh` (tahtalara dağıtım, önce `--kuru`) bunu okur. `mudur/ders_programi.json` ESKİ.
+## 1. Projenin Amacı
+Farabi, Şehit Murat Ustaoğlu Anadolu Lisesi akıllı tahtalarında çalışan yapay zekâ destekli sesli ders asistanı ile aynı sunucu altyapısında barındırılan okul operasyon servislerini (yoklama panosu, SMS otomasyonu, dijital okul portalı, ortak sınav kelebek dağıtımı, interaktif tahta oyunları, 3D dijital ikiz ve kamera izleme) tek bir çatı altında birleştiren entegre okul ekosistemidir.
 
-## LLM (Ollama, 11434)
-- TEK model `qwen3.8:27b`, istemciler **`farabi` takma adıyla** ister (`server/saglayicilar.py`, `smssistemi/app.py`, soruhavuzu,
-  Atos `/opt/anythingllm/app/server/.env`, Müdür PC EBYS botu). qwen/codewhale CLI'leri `qwen3.8:27b` adını kullanır (aynı digest).
-- Model değişimi = `ollama cp <yeni> farabi`; kod değişmez. Başka adla istek ikinci modeli yükletip `farabi`'yi boşaltır (~50 sn).
-  Yeni model kurmak onay ister. Sunucu `OLLAMA_CONTEXT_LENGTH=49152`, `OLLAMA_KEEP_ALIVE=-1`; farklı `num_ctx` yeniden yükletir.
-- Çağıran kod `think:false` gönderir (qwen3.x'te düşünme varsayılan açık). `CUDA_DEVICE_ORDER=PCI_BUS_ID` şart. İki RTX 3060'ı da kullanır.
-- Açılışta `/usr/local/bin/farabi-ollama-onyukle.sh` yükler; 2026-11-07 sabahı bellekte değildi (nedeni bilinmiyor).
-- Ajanlar qwen'i yoğun kullanırken `saglayicilar.py` (30 sn) ve SMS çağrıları kuyrukta bekleyip bulut yedeğine düşebilir.
+---
 
-## Servisler (ayrı systemd birimi + ayrı venv; BİRLEŞTİRME)
-| Servis | Dizin | Port | Not |
-|---|---|---|---|
-| farabi-api | server/ | 8000 | kitap/PDF, YKS, LLM proxy, tahta auth, ders görsel arşivi |
-| farabi-yoklama-dashboard | tahtayoklama/dashboard/ | 80 | yoklama, uzaktan yönetim, servisler |
-| farabi-smssistemi | smssistemi/ | 8020 | SMS, rehber, doğum günleri |
-| farabi-okul | okul/ | 9090 | dijital okul portalı, smual.app (Cloudflare Tunnel) |
-| farabi-kelebek | kelebek/ | 8050 | sınav salon dağıtımı |
-| farabi-kameralar / farabi-hareket | kameralar/ | 8889 | mediamtx WebRTC (RTSP/API yalnız 127.0.0.1); hareket algılama |
-| farabi-okul3d | okul3d/ | 8095, 8096 | 3D dijital ikiz + oda adları API'si |
-| sinif-arena | arenasinif/ | 8030 | Sınıf Arenası, Düello, HexaFetih |
-| farabi-atlas | tahtaatlasfarabi/ | 8099 | harita/küre oyunları, kendi `var/atlas.db`'si |
-| progmatik | progmatik/ | 8060 | ders programı planlayıcı (aSc yerine, OR-Tools CP-SAT); çıktısı ders_programi/ogretmenler JSON |
-| pm2-anythingllm | /opt/anythingllm | 8010 | Atos (AnythingLLM, PM2, Docker'sız; collector 8888) |
-- Servisler arası bağ = HTTP + HMAC/paylaşılan anahtar. Tek DB istisnası: smssistemi `yoklama_pano.db`'yi salt-okunur okur. Docker yok.
-- Client = ince arayüz; server = beyin, ham LLM metni döndürmez: `{status, answer, sources[], latency_ms, request_id}`.
-- Tahta dağıtımı: GitHub (`atakanunver/yenifarabi`, PUBLIC) tek kaynak, tahtalar doğrudan çeker; client kodu SSH ile kopyalanmaz.
-- Tahta auth: `/api/egitim/*` `X-Farabi-Board-Key` ile, üretimde ZORUNLU.
+## 2. Gerçek Mimari ve Servis Haritası
+Farabi, mikroservis benzeri bağımsız çalışan systemd servislerinden oluşur. Her servisin kendi izole Python sanal ortamı (`venv/`), portu ve veritabanı bulunur. Docker kullanılmaz; servisler doğrudan sunucu işletim sistemi üzerinde koşar.
 
-## Atos veri erişimi (dashboard `POST /api/okul/sql`)
-- Akış: `anythingllm/skills/` (`sql-sorgu`, `tablo-dosyasi`, ortak `_ortak/okul.js`) → `tahtayoklama/dashboard/okul_bilgisi.py::sql`
-  → `okul_sql.py`. Dağıtım `anythingllm/kur_yetenekler.sh` (`__SEMA__` ← `sema_aciklamasi.txt`, `__ANAHTAR__` ←
-  `config/okul.json::anahtar`, depoya yazılmaz). Şema değişince `sema_aciklamasi.txt`'yi güncelle, betiği yeniden çalıştır.
-- Güvenlik sunucuda: yerel IP + `X-Farabi-Okul-Key` + `X-Farabi-Rol: admin`. Her çağrıda kaynaklar bellek içi SQLite'a kopyalanır;
-  tek ifade, `set_authorizer` (yalnız SELECT + `IZINLI_TABLOLAR`), 200 satır (`azami_satir` ≤ 2000), 3 sn. Parola/oturum/anahtar
-  tabloları kopyalanmaz; hata metni DSN/yol sızdırmaz (`SqlHatasi`); SMS/osym kaynağı yoksa sessizce atlanır.
-- Kaynaklar: `okul_ana` (`atos_ro`), `yoklama_pano.db`, `smssistemi.db`, `mudur/SINIF/tcler`, `osym` DB (`osym_ro`), `okul_ana.dosya`/
-  `dosya_satir` (yükleyici `tahtayoklama/dashboard/scripts/okul_dosya_yukle.py`), türetilmiş görünümler.
-  Yeni tablo = `okul_sql.py` sabiti + `IZINLI_TABLOLAR` + `okul_bilgisi.py::sql` birleşimi + şema açıklaması.
-- SMS yeteneği `anythingllm/skills/sms-gonder/`: taslak → AnythingLLM kullanıcı onayı → gönderim; otomatik onay/zamanlama yok, toplu
-  gönderim SMS arayüzündeki sayı onayına yönlenir. Onay `User approved the tool execution.` yanıtına bağlı: AnythingLLM güncellenince
-  kontrol et. `__SMS_ANAHTAR__` ← `smssistemi/config/arac.json::anahtar`. Test: `node --test anythingllm/tests/sms-gonder.test.js`.
+| Servis Adı | Dizin | Port | Protokol / Framework | Görev Özeti |
+|---|---|---|---|---|
+| `farabi-api` | `server/` | 8000 | FastAPI / Uvicorn | Merkezi eğitsel beyin, MEB müfredat/kitap içerikleri, YKS arama, LLM proxy, ders görseli arşivi |
+| `farabi-yoklama-dashboard` | `tahtayoklama/dashboard/` | 80 | FastAPI + React / Jinja2 | Akıllı tahta yoklama panosu, uzaktan tahta yönetimi, acil durum siren/anons, okul veri merkezi |
+| `farabi-smssistemi` | `smssistemi/` | 8020 | FastAPI + Uvicorn | Toplu/bireysel SMS, devamsızlık ve doğum günü SMS otomasyonu (Müdür PC GSM modem köprüsü) |
+| `farabi-okul` | `okul/` | 9090 | FastAPI / smual.app | Mobil öncelikli dijital okul portalı (Cloudflare Tunnel ile dışa açık), Soru Maratonu, Bilgi Arenası |
+| `farabi-kelebek` | `kelebek/` | 8050 | FastAPI / ReportLab | Kelebek ortak sınav salon ve oturma düzeni dağıtımı, PDF yoklama listesi üretimi |
+| `sinif-arena` | `arenasinif/` | 8030 | FastAPI / Uvicorn | Akıllı tahtalarda oynanan çok oyunculu ders yarışmaları (Sınıf Arenası, Düello, HexaFetih) |
+| `farabi-atlas` | `tahtaatlasfarabi/` | 8099 | FastAPI + D3 / MapLibre | Yerel çevrimdışı Türkiye/Dünya harita laboratuvarı ve 3D küre oyunları |
+| `progmatik` | `progmatik/` | 8060 | FastAPI + React + CP-SAT | Google OR-Tools CP-SAT çözücülü kısıt bazlı ders programı planlayıcı |
+| `farabi-kameralar` / `hareket` | `kameralar/` | 8889 | MediaMTX / WebRTC | RTSP kamera akışlarının WebRTC'ye dönüştürülmesi ve harekete/yangına duyarlı kayıt |
+| `farabi-okul3d` | `okul3d/` | 8095, 8096 | Stdlib HTTP / Three.js | Okul binası ve yerleşkesinin WebGL 3D dijital ikizi ve ortak mimari/oda adları API'si |
+| `pm2-anythingllm` | `/opt/anythingllm` | 8010 | Node.js / AnythingLLM | Atos: Okul idari asistanı ve yerel veritabanı sorgulayıcı agent yetenekleri |
+| *(Tahta İstemcisi)* | `client/` | — | PyQt6 + Gemini Live | Sınıf akıllı tahtalarında koşan sesli asistan arayüzü ve araç yürütücüsü |
 
-## Komutlar (proje dizininden; client tahtada)
-| Proje | Test | Üretime alma |
-|---|---|---|
-| server | `venv/bin/python -m pytest tests/ -q` | `sudo systemctl restart farabi-api` |
-| tahtayoklama/dashboard | `venv/bin/python -m unittest discover -p 'test_*.py'` (pytest YOK) | `... restart farabi-yoklama-dashboard` (08:00-17:00 TR dışında) |
-| smssistemi | `venv/bin/python -m pytest -q` | `... restart farabi-smssistemi` |
-| okul | `venv/bin/python -m pytest -q` | `... restart farabi-okul` |
-| client | `server/tahta-ssh.sh <derslik> "cd ~/farabi/client && venv/bin/python -m pytest tests/ -q"` | GitHub push |
-- Diğer: kelebek `venv/bin/python -m pytest tests -q`; osym `venv/bin/python -m unittest`; arenasinif `venv/bin/python -m pytest -q`;
-  soruhavuzu (kökten) `server/venv/bin/python -m pytest soruhavuzu/tests -q`; tahtaayar `python3 -m unittest test_tahta_fix_uygula -v`;
-  benchmark ve kameralar: kendi AGENTS.md'si; kiosk `kiosk/tests/test_okul_panel.py` (sparse-checkout dışı).
-- Tek test: `venv/bin/python -m pytest tests/test_x.py::test_adi -q` (smssistemi: `test_x.py::test_adi`); dashboard:
-  `venv/bin/python -m unittest test_uzaktan_ekran.TestUzaktanEkran.test_route_gecersiz_tahta`.
-- Lint: `.venv-tools/bin/ruff check <dokunduğun dosya>`; F821/F811/F632 sıfır, toplam artmamalı. Büyük `--fix`/`format` yok. `mudur/` kapsam dışı.
-- CRLF: `okul/` altında bazı dosyalar CRLF (`git ls-files --eol`); Python ile yeniden yazarken `newline=''` ya da Edit aracı.
-- Tahta SSH: `server/tahta-ssh.sh [--admin] <derslik> "<komut>"`. Server logu yalnız `journalctl -u farabi-api.service`.
+---
 
-## Temel kurallar
-1. Client ince; ağır iş sunucuda. 2. Farabi asla dersi bozmaz (servis çökerse tahta çalışır). 3. Tek seferde tek modül.
-4. Önce oku, varsayma. 5. Geriye dönük uyumu koru. 6. Büyük refactor: önce plan, onay. 7. Testi atlama/gizleme.
-8. Yeni teknoloji/servis/kütüphane/LLM/bulut API için önce onay. 9. `.env`/API anahtarı commit'lenmez, koda yazılmaz.
-10. Ölçmeden optimizasyon yok. 11. Client+server bağlı değişiklikte ikisi birlikte; son kabul fiziksel tahtada Atakan.
-- Dil Türkçe; kod ve teknik terimler orijinal. Kod değişikliğini anlatırken yalnız değişen bloğu göster.
-- Frontend: dashboard görsel dili uzamsal cam (visionOS; Progmatik kimliği 2026-11-14'te iptal), ayrıntı `tahtayoklama/AGENTS.md` tasarım bölümü.
-  smssistemi ve kelebek şimdilik Tailwind 3.4.16 `tasarim/` → `static/stil.css` (derlenmiş, commit'lenir); CDN/yeni kütüphane yok.
+## 3. Teknoloji Yığını
+- **Backend:** Python 3.14 / 3.11, FastAPI, Starlette, Uvicorn, Jinja2, Pydantic v2.
+- **Frontend:** React 19 / Vite, TypeScript, Tailwind CSS (Ortak cam tema `cam-tema.css`), Framer Motion, vanilla HTML5/ES modülleri, Three.js (r128 & r187), D3.js.
+- **Veritabanları:**
+  - PostgreSQL: `okul_ana` (ana okul verisi), `soru_havuzu` (merkezi soru arşivi), `farabi` (temel sistem DB).
+  - SQLite (WAL modu): `yoklama_pano.db`, `smssistemi.db`, `okul.db`, `sonuclar.db` (arena), `kelebek.db`, `progmatik.db`, `atlas.db`.
+- **Yapay Zekâ & LLM:**
+  - Akıllı Tahta Sesi: Google Gemini Live WebSocket API (`google.genai`).
+  - Yerel LLM: Ollama (`qwen3.8:27b`, servisler tarafından `farabi` takma adıyla çağrılır, `127.0.0.1:11434`, `think:false`).
+- **Görüntü / PDF / Çözücü:** PyMuPDF (fitz), Pillow, ReportLab, Google OR-Tools CP-SAT.
+- **Medya & Donanım:** MediaMTX (WebRTC), FFmpeg (H.264 transcoding), Huawei HiLink LTE Modem, ALSA / PulseAudio.
 
-## Gizlilik ve okuma yasakları
-- Öğrenci/veli verisi (yoklama, roster, SMS rehberi) ASLA buluta gitmez. Ses Gemini Live'a gider (bilinçli); kitap metni gidebilir.
-- Öğrenci kimliği tutulmaz; ham ses diske yazılmaz. `soru_log` süresiz, silme yok; `metrik`'te içerik yok. Veri: `/mnt/farabi-data/farabi/`.
-- Okuma: `data/`, `models/`, `*.onnx`, `venv/`, `__pycache__/`, `**/api_keys.json*`, `*.env`, `network.txt`, `apikeys.env`, `gizli.json`,
-  `analizatakanekim2026.txt`, `mudur/SINIF/`, e-Okul/yoklama/SMS dışa aktarımları (kişisel veri). Kitap/YKS PDF'leri sayfa aralığıyla.
-- Log >1000 satır/>200 KB ise boyutu bildir, tamamını okumadan sor (grep/tail serbest; ör. `soruhavuzu_uret_12.log`). Hata avında log
-  birincil kanıttır; varsayımla debug etme.
+---
+
+## 4. Ana Klasörlerin Görevleri
+- `server/`: Merkezi FastAPI backend servisi. Kitap, YKS, kazanım ve Atos veri uçları.
+- `tahtayoklama/`: Tahtalarda koşan dokunmatik PyQt6 `yoklama.py` arayüzü, `tahta_istemci.py` senkronizasyon servisi ve `dashboard/` yönetim paneli.
+- `smssistemi/`: Toplu SMS gönderimi, devamsızlık/doğum günü otomasyonları ve modem proxy entegrasyonu.
+- `okul/`: smual.app üzerinden öğrencilere, velilere ve öğretmenlere açık olan dijital portal.
+- `client/`: Tahtada çalışan ince PyQt6 sesli asistan istemcisi, Gemini Live döngüsü ve yerel eylemler (`actions/`).
+- `arenasinif/`: Tahtalarda interaktif oynanan Sınıf Arenası, Düello ve HexaFetih oyun motoru.
+- `kelebek/`: Kelebek sınav salonu dağıtım motoru ve PDF yoklama çizelgesi oluşturucu.
+- `progmatik/`: Okul ders programı planlama aracı (Google OR-Tools CP-SAT çözücüsü).
+- `tahtaatlasfarabi/`: Çevrimdışı coğrafya/tarih harita oyunları servisi.
+- `kameralar/`: Güvenlik kameraları WebRTC yayınları ve hareket algılama motoru.
+- `okul3d/`: Üç boyutlu okul modeli, bahçe mimarı ve kat/tahliye planı üreticisi.
+- `soruhavuzu/`: PostgreSQL tabanlı onaylı soru ve görsel arşivi, öğretmen PDF katkı işleyicisi.
+- `anythingllm/`: Atos AnythingLLM kurulum scriptleri ve özel SQL/SMS ajan yetenekleri.
+- `tahtaayar/`: Yeni kurulan tahtaların işletim sistemi/oturum ayarlarını tek tıkla yapılandıran provizyon aracı.
+- `tahtamasaustuduzeni/`: Gece tahta masaüstü kısayollarını ve HGM Küre yazılımını eşitleyen bakım aracı.
+- `benchmark/`: Eski RAG ve LLM ölçüm harness'ları.
+- `mudur/`: İdari kaynak ve çalışma dosyaları.
+- `kazanimtest/`: Arşivlenmiş kazanım test modülü (kalıcı kapalı).
+
+---
+
+## 5. Servisler Arası İletişim
+Servisler arası iletişimde temel kural **gevşek bağlılık (loose coupling)** ve **HTTP/JSON API** kullanımıdır:
+1. **İstisna Salt-Okunur DB:** `smssistemi`, panonun `yoklama_pano.db` SQLite veritabanını salt-okunur (`mode=ro`) okuyarak devamsız öğrencileri tespit eder.
+2. **Pano → SMS:** `tahtayoklama/dashboard/veli_mesajlari.py`, SMS göndermek için `smssistemi` HTTP API'sini (`config/sms_panel.json`) çağırır.
+3. **Pano → Okul İzinleri:** Dashboard, Dijital Okul'dan veli izinlerini almak için `GET /api/izinler` (`X-Izin-Anahtar`) çağrısı yapar.
+4. **Tahta İstemcisi → Pano:** `tahta_istemci.py`, yoklama kayıtlarını ve nabzını `POST /api/v1/tahta/*` uçlarına token doğrulamalı gönderir.
+5. **Tahta İstemcisi → Server:** `client`, eğitsel sorular ve ders içeriği için `server/` uçlarına `X-Farabi-Board-Key` ile istek atar.
+6. **Atos → Dashboard:** Atos SQL yeteneği, panonun `/api/okul/sql` ucuna `X-Farabi-Okul-Key` ile bağlanarak bellek içi geçici SQLite üzerinden salt-okunur sorgu çalıştırır.
+
+---
+
+## 6. Kurulum, Çalıştırma ve Test Komutları
+
+### Test Komutları Tablosu
+```bash
+# Server testleri (pytest)
+cd /home/ata/farabi/server && venv/bin/python -m pytest tests/ -q
+
+# Yoklama panosu testleri (unittest - DİKKAT: pytest YOKTUR)
+cd /home/ata/farabi/tahtayoklama/dashboard && venv/bin/python -m unittest discover -p 'test_*.py'
+
+# SMS sistemi testleri (pytest)
+cd /home/ata/farabi/smssistemi && venv/bin/python -m pytest -q
+
+# Dijital okul portalı testleri (pytest)
+cd /home/ata/farabi/okul && venv/bin/python -m pytest -q
+
+# Tahta istemcisi testleri (pytest)
+cd /home/ata/farabi/client && venv/bin/python -m pytest tests/ -q
+
+# Sınıf arenası testleri (pytest)
+cd /home/ata/farabi/arenasinif && venv/bin/python -m pytest -q
+
+# Kelebek sınav sistemi testleri (pytest)
+cd /home/ata/farabi/kelebek && venv/bin/python -m pytest tests -q
+
+# Progmatik ders programı testleri (pytest + npm)
+cd /home/ata/farabi/progmatik && venv/bin/python -m pytest tests -q && cd frontend && npm test
+
+# Atlas harita oyunları testleri (pytest)
+cd /home/ata/farabi/tahtaatlasfarabi && .venv/bin/python -m pytest tests/test_atlas.py -q
+```
+
+### Servis Yönetimi (Üretime Alma)
+Canlı kod dizini tek olduğundan master dalına commit sonrası ilgili servisin systemd birimi yeniden başlatılır:
+```bash
+sudo systemctl restart farabi-api.service
+sudo systemctl restart farabi-yoklama-dashboard.service   # YALNIZCA 08:00-17:00 TR DIŞINDA!
+sudo systemctl restart farabi-smssistemi.service
+sudo systemctl restart farabi-okul.service
+sudo systemctl restart farabi-kelebek.service
+sudo systemctl restart sinif-arena.service
+sudo systemctl restart farabi-atlas.service
+sudo systemctl restart progmatik.service
+sudo systemctl restart farabi-kameralar.service
+sudo systemctl restart farabi-okul3d.service
+```
+
+---
+
+## 7. Kodlama Standartları
+1. **Cerrahi Değişiklik:** Yalnızca görevin gerektirdiği kod satırlarına dokunun. Komşu kodları "düzeltmeye" veya refactor etmeye kalkışmayın.
+2. **Önce Oku, Varsayma:** Kodu değiştirmeden önce ilgili fonksiyonun gerçek uygulamasını, tip dönüşümlerini ve çağıran yerleri okuyun.
+3. **Statik Denetim (Lint):** Dokunulan her dosya `.venv-tools/bin/ruff check <dosya>` ile taranmalı; F821/F811/F632 hataları sıfır olmalıdır.
+4. **Ortak Cam Teması (Tailwind 4):** Arayüzlerde ortak stil `ortak/cam-tema/` altındaki derlenmiş `cam-tema.css` dosyasından beslenir. Servislerin kendi `static/` klasöründeki kopyalar korunmalı ve `?v=` önbellek parametreleri güncellenmelidir.
+5. **CRLF Satır Sonları:** `okul/` altındaki dosyalarda satır sonu formatına dikkat edilmeli, gereksiz diff oluşturulmamalıdır.
+
+---
+
+## 8. Güvenlik Kuralları
+1. ⚠️ **Repo PUBLIC'tir:** GitHub deposu açık olduğundan kişisel veriler (öğrenci/veli isimleri, TC kimlik no, telefon numaraları, devamsızlık ayrıntıları) kesinlikle depoya aktarılamaz.
+2. **Kimlik Bilgileri ve Anahtarlar:** `.env`, `gizli.json`, modem şifreleri, API keyleri veya tokenlar commit edilemez.
+3. **Öğrenci Verisi Buluta Gitmez:** Öğrenci listeleri ve veli telefonları harici bulut API'lerine veya kapalı LLM'lere gönderilmez. Yerel işler yerel Ollama (`farabi`) ile çözülür.
+4. **Git Sparse-Checkout Kısıtı:** `git sparse-checkout set/reapply` komutunu ASLA çalıştırmayın (izlenmeyen canlı dizinleri silebilir).
+
+---
+
+## 9. Değişiklik Sonrası Doğrulama Adımları
+1. **Statik İnceleme:** Dokunulan dosyanın import ve sözdizimi doğruluğunu `ruff` veya `py_compile` ile test edin.
+2. **Birim Testleri:** İlgili modülün yukarıda belirtilen test komutunu çalıştırın ve tüm testlerin eksiksiz geçtiğini (`passed` / `OK`) teyit edin.
+3. **Diff Kontrolü:** `git diff` çıktısını inceleyerek yalnızca amaçlanan satırların değiştiğini kontrol edin.
+4. **Servis Logları:** Servis yeniden başlatıldıysa `journalctl -u <servis> -n 30` ile çalışma başlangıcını ve port dinlemesini doğrulayın.
+
+---
+
+## 10. Alt Klasörlerdeki Özel Talimatlara Yönlendirmeler
+Her alt servisin kendine özgü mimarisi ve geliştirme kuralları ilgili klasördeki teknik belgelerde yer alır:
+- **Server:** [server/AGENTS.md](file:///home/ata/farabi/server/AGENTS.md)
+- **Yoklama Tahta Katmanı:** [tahtayoklama/AGENTS.md](file:///home/ata/farabi/tahtayoklama/AGENTS.md)
+- **Yoklama Dashboard:** [tahtayoklama/dashboard/CLAUDE.md](file:///home/ata/farabi/tahtayoklama/dashboard/CLAUDE.md)
+- **SMS Sistemi:** [smssistemi/AGENTS.md](file:///home/ata/farabi/smssistemi/AGENTS.md)
+- **Dijital Okul Portalı:** [okul/AGENTS.md](file:///home/ata/farabi/okul/AGENTS.md)
+- **Tahta İstemcisi:** [client/AGENTS.md](file:///home/ata/farabi/client/AGENTS.md)
+- **Sınıf Arenası:** [arenasinif/AGENTS.md](file:///home/ata/farabi/arenasinif/AGENTS.md)
+- **Kelebek Sınav Sistemi:** [kelebek/AGENTS.md](file:///home/ata/farabi/kelebek/AGENTS.md)
+- **Progmatik Ders Programı:** [progmatik/AGENTS.md](file:///home/ata/farabi/progmatik/AGENTS.md)
+- **Farabi Atlas:** [tahtaatlasfarabi/AGENTS.md](file:///home/ata/farabi/tahtaatlasfarabi/AGENTS.md)
+- **Kameralar:** [kameralar/AGENTS.md](file:///home/ata/farabi/kameralar/AGENTS.md)
+- **Okul 3D:** [okul3d/AGENTS.md](file:///home/ata/farabi/okul3d/AGENTS.md) & [okul3d/yeni-mimari/AGENTS.md](file:///home/ata/farabi/okul3d/yeni-mimari/AGENTS.md)
+- **Soru Havuzu:** [soruhavuzu/AGENTS.md](file:///home/ata/farabi/soruhavuzu/AGENTS.md)
+- **Atos Yetenekleri:** [anythingllm/AGENTS.md](file:///home/ata/farabi/anythingllm/AGENTS.md)
+- **Tahta Ayar / Provizyon:** [tahtaayar/AGENTS.md](file:///home/ata/farabi/tahtaayar/AGENTS.md)
+- **Tahta Masaüstü Düzeni:** [tahtamasaustuduzeni/AGENTS.md](file:///home/ata/farabi/tahtamasaustuduzeni/AGENTS.md)
+- **Benchmark:** [benchmark/AGENTS.md](file:///home/ata/farabi/benchmark/AGENTS.md)
+- **Müdür Dosyaları:** [mudur/AGENTS.md](file:///home/ata/farabi/mudur/AGENTS.md)
+- **Kazanım Testi (Arşiv):** [kazanimtest/AGENTS.md](file:///home/ata/farabi/kazanimtest/AGENTS.md)
