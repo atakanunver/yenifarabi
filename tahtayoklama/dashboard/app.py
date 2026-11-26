@@ -200,10 +200,12 @@ async def giris_formu(request: Request):
 
 
 @app.post("/giris")
-async def giris_gonder(request: Request, sifre: str = Form(...)):
-    if not auth.giris_dene(sifre):
+async def giris_gonder(
+    request: Request, sifre: str = Form(...), kullanici: str = Form("")
+):
+    if not auth.giris_dene(sifre, kullanici):
         return templates.TemplateResponse(
-            request, "giris.html", {"hata": "Şifre yanlış."}, status_code=401
+            request, "giris.html", {"hata": "Kullanıcı adı veya şifre yanlış."}, status_code=401
         )
     conn = db.baglanti()
     try:
@@ -212,7 +214,7 @@ async def giris_gonder(request: Request, sifre: str = Form(...)):
         conn.close()
     yanit = RedirectResponse("/", status_code=303)
     yanit.set_cookie(
-        auth.COOKIE_ADI, token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 30
+        auth.COOKIE_ADI, token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 365
     )
     return yanit
 

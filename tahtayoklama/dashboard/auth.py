@@ -43,9 +43,15 @@ def _gizli_yukle() -> dict:
     return json.loads(GIZLI_YOLU.read_text(encoding="utf-8"))
 
 
-def giris_dene(sifre: str) -> bool:
+def giris_dene(sifre: str, kullanici: str = "") -> bool:
     gizli = _gizli_yukle()
-    return sifre_dogrula(sifre, gizli["sifre_hash"])
+    # Şifre kontrolü her koşulda koşar (kullanıcı adı yanlışken de süre aynı kalır).
+    sifre_dogru = sifre_dogrula(sifre, gizli["sifre_hash"])
+    beklenen = gizli.get("kullanici")
+    kullanici_dogru = beklenen is None or hmac.compare_digest(
+        kullanici.encode("utf-8"), beklenen.encode("utf-8")
+    )
+    return sifre_dogru and kullanici_dogru
 
 
 def oturum_olustur(conn) -> str:

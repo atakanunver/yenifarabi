@@ -27,7 +27,8 @@ window.FARABI_DUVAR = {{ menu_agaci('/giris').duvar_kagitlari | tojson }};
   <div class="giris-simge"><svg class="ikon ikon-buyuk"><use href="#ik-kilit"/></svg></div>
   <h1>Yoklama ve Yönetim Paneli</h1>
   {% if hata %}<div class="giris-hata">{{ hata }}</div>{% endif %}
-  <input type="password" name="sifre" placeholder="Şifre" autofocus required>
+  <input type="text" name="kullanici" placeholder="Kullanıcı adı" autocomplete="username" autofocus required>
+  <input type="password" name="sifre" placeholder="Şifre" autocomplete="current-password" required>
   <button type="submit">Giriş yap</button>
 </form>
 <script src="/static/tema.js?v={{ menu_agaci('/giris').surum }}"></script>
