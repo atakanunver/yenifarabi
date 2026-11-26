@@ -31,5 +31,10 @@
   <p class="soluk kucuk">Onayda veliye SMS ve bildirim gider; ret durumunda yalnız bildirim.</p>
 </form>
 {% endif %}
+<form class="kart tuslar" method="post" action="/yonetici/izinler/{{ t.id }}/sil" onsubmit="return confirm('Bu izin talebi kalıcı silinsin mi?{% if t.durum == 'onaylandi' %} {{ t.gun }} gün özürlü hakka geri eklenir.{% endif %}')">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <button class="tus tehlike">🗑 Sil</button>
+  <p class="soluk kucuk">Mükerrer ya da hatalı talep için. Kayıt, dilekçe PDF'i ve ek kalıcı silinir; veliye bildirim gitmez.</p>
+</form>
 <p class="kucuk"><a href="/yonetici/izinler">← Veli izin talepleri</a></p>
 {% endblock %}

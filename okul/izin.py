@@ -249,6 +249,18 @@ def karar_ver(conn: sqlite3.Connection, talep_id: int, yonetici_id: int, onay: b
     return detay(conn, talep_id)
 
 
+def sil(conn: sqlite3.Connection, talep_id: int) -> dict:
+    """Yönetici kaydı kalıcı siler (ör. mükerrer talep; onaylıysa 20 gün hakkından düşer). Ek ve PDF de silinir."""
+    d = detay(conn, talep_id)
+    if d is None:
+        raise IzinHatasi("Bulunamadı.", 404)
+    conn.execute("DELETE FROM izin_talep WHERE id = ?", (talep_id,))
+    conn.commit()
+    dosyalar.sil(EK_KLASOR, d["ek_depo"])
+    dosyalar.sil(EK_KLASOR, d["pdf_depo"])
+    return d
+
+
 def onayli_siniflar(conn: sqlite3.Connection, tarih: str) -> dict[str, list[str]]:
     """O gün onaylı izinli öğrencilerin okul numaraları, sınıfa göre."""
     sonuc: dict[str, list[str]] = {}

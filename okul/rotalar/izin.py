@@ -194,6 +194,18 @@ def yonetici_izin_karar(
     return RedirectResponse(f"/yonetici/izinler/{talep_id}", status_code=303)
 
 
+@router.post("/yonetici/izinler/{talep_id}/sil")
+def yonetici_izin_sil(
+    talep_id: int, request: Request, k=Depends(YONETICI_POST), conn: sqlite3.Connection = Depends(db_conn)
+):
+    try:
+        d = izin.sil(conn, talep_id)
+    except izin.IzinHatasi:
+        raise HTTPException(404) from None
+    yetki.erisim_kaydet(conn, k, f"izin_sil:{talep_id}", d["ogrenci_id"], istemci_ip(request))
+    return RedirectResponse("/yonetici/izinler", status_code=303)
+
+
 # --- LAN-only: tahtayoklama dashboard'u onaylı izinleri çeker ---
 
 

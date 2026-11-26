@@ -4,6 +4,7 @@ import json
 from datetime import date, datetime
 
 import auth
+import dosyalar
 import izin
 import izin_pdf
 import push
@@ -294,3 +295,21 @@ def test_bildirim_sms_istemcisi(monkeypatch):
     assert cagri["url"].endswith("/api/arac/bildirim-sms")
     assert cagri["headers"] == {"X-Sms-Arac-Key": AYAR.sms_anahtar}
     assert len(cagri["json"]["metin"]) == 320
+
+
+def test_yonetici_mukerrer_talebi_siler(istemci, conn, ornek, bildirimler):
+    t = _yeni_talep(istemci, conn, ornek)
+    _oturum(istemci, conn, ornek["yonetici"])
+    yol = f"/yonetici/izinler/{t['id']}"
+    istemci.post(yol + "/karar", data={"csrf": _csrf(istemci, yol), "karar": "onayla"})
+    assert izin.kullanilan_gun(conn, ornek["ogr1"], date(2026, 11, 23)) == t["gun"]
+    pdf = dosyalar.yol(izin.EK_KLASOR, t["pdf_depo"])
+    assert pdf.exists()
+    assert istemci.post(yol + "/sil", data={}).status_code == 400  # CSRF yok
+    r = istemci.post(yol + "/sil", data={"csrf": _csrf(istemci, yol)}, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/yonetici/izinler"
+    assert conn.execute("SELECT COUNT(*) FROM izin_talep WHERE id = ?", (t["id"],)).fetchone()[0] == 0
+    assert izin.kullanilan_gun(conn, ornek["ogr1"], date(2026, 11, 23)) == 0
+    assert not pdf.exists()
+    assert istemci.get(yol).status_code == 404
+
