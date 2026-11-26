@@ -1,5 +1,6 @@
 import React from 'react';
-import { Hap, Kapsul, Kart } from './Kart';
+import { motion } from 'framer-motion';
+import { Hap, Kapsul, Kart, YAY } from './Kart';
 import { dersListesi } from '../turet';
 import type { DersSaati, Satir } from '../tipler';
 
@@ -20,8 +21,15 @@ export const DersListesi: React.FC<DersListesiProps> = ({ saatler, satirlar, sim
         <p className="text-[13px] text-white/45">Bu tarih için başlamış ders kaydı bulunmuyor.</p>
       ) : (
         <ul className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1">
-          {dersler.map((d) => (
-            <li key={d.no} className="rounded-[18px] border border-white/10 bg-white/[0.04] px-3.5 py-3">
+          {dersler.map((d, i) => (
+            <motion.li
+              key={d.no}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              whileHover={{ y: -2 }}
+              transition={{ ...YAY, delay: Math.min(i * 0.04, 0.28) }}
+              className="rounded-[18px] border border-white/10 bg-white/[0.04] px-3.5 py-3 transition-colors duration-200 hover:border-white/25 hover:bg-white/[0.08]"
+            >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[14px] font-medium text-white">
                   {d.no}. ders <span className="font-normal text-white/45">{d.baslangic}–{d.bitis}</span>
@@ -35,7 +43,7 @@ export const DersListesi: React.FC<DersListesiProps> = ({ saatler, satirlar, sim
                 </div>
                 <span className="text-[12px] text-white/45">{d.alinan}/{d.beklenen}</span>
               </div>
-            </li>
+            </motion.li>
           ))}
         </ul>
       )}

@@ -456,17 +456,17 @@ ADLAR_24 = [
 
 class TestGenelListe(unittest.TestCase):
     def test_ayristirma_ve_sinirlar(self):
-        self.assertEqual(gorsel.ogrencileri_ayristir(' \r\n Ayşe Örnek ; 9-A \r\n\nÖzgür Örnek\t 10-B\r\n'),
-                         [{'ad_soyad': 'Ayşe Örnek', 'sinif': '9-A'},
-                          {'ad_soyad': 'Özgür Örnek', 'sinif': '10-B'}])
+        # Ayırıcı yok: her satır bir kayıt, boşluklar tek boşluğa iner, satır olduğu gibi basılır
+        self.assertEqual(gorsel.ogrencileri_ayristir(' \r\n Ayşe  Örnek 9-A \r\n\nÖzgür Örnek\t 10-B\r\nCan; 11-A\n'),
+                         [{'ad_soyad': 'Ayşe Örnek 9-A', 'sinif': ''},
+                          {'ad_soyad': 'Özgür Örnek 10-B', 'sinif': ''},
+                          {'ad_soyad': 'Can; 11-A', 'sinif': ''}])
         self.assertEqual(gorsel.ogrencileri_ayristir(' \n'), [])
-        self.assertEqual(len(gorsel.ogrencileri_ayristir('\n'.join(['Örnek;9-A'] * 24))), 24)
-        self.assertEqual(len(gorsel.ogrencileri_ayristir('A;' + 'B' * 7998)), 1)
+        self.assertEqual(len(gorsel.ogrencileri_ayristir('\n'.join(['Örnek 9-A'] * 24))), 24)
+        self.assertEqual(len(gorsel.ogrencileri_ayristir('A ' + 'B' * 7998)), 1)
 
     def test_ayristirma_hatalari_kisisel_metin_icermez(self):
-        for metin in ('ÖzelAd', 'ÖzelAd;', ';ÖzelAd', 'ÖzelAd;9-A;X',
-                      'ÖzelAd\t9-A\tX', 'ÖzelAd;9-A\tX',
-                      '\n'.join(['ÖzelAd;9-A'] * 25), 'ÖzelAd' + 'x' * 7995):
+        for metin in ('\n'.join(['ÖzelAd 9-A'] * 25), 'ÖzelAd' + 'x' * 7995):
             with self.subTest(uzunluk=len(metin)), self.assertRaises(gorsel.GorselHatasi) as hata:
                 gorsel.ogrencileri_ayristir(metin)
             self.assertNotIn('ÖzelAd', str(hata.exception))

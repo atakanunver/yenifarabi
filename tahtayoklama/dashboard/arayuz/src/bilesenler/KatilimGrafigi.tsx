@@ -51,7 +51,7 @@ export const KatilimGrafigi: React.FC<KatilimGrafigiProps> = ({ tarih, bugun, sa
   const ortalama = oranlar.length ? oranlar.reduce((a, b) => a + b, 0) / oranlar.length : null;
 
   return (
-    <Kart baslik="Haftalık katılım" ikon="grafik" vurgu="#6366F1" sira={2}
+    <Kart baslik="Haftalık katılım" ikon="grafik" vurgu="#6366F1" sira={3}
           sag={<Hap renk="#38BDF8">Ort. {ortalama === null ? '—' : `%${Math.round(ortalama * 100)}`}</Hap>}>
       <p className="text-[40px] font-semibold leading-none tracking-tight text-white">
         {secili?.oran == null ? '—' : `%${Math.round(secili.oran * 100)}`}

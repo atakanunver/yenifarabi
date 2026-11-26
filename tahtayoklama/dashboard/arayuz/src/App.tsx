@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { MotionConfig, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'framer-motion';
 import { KatilimGrafigi } from './bilesenler/KatilimGrafigi';
 import { KatilimHalkasi } from './bilesenler/KatilimHalkasi';
 import { SuAn } from './bilesenler/Metrikler';
@@ -21,6 +21,19 @@ export const App: React.FC<{ veri: PanoVeri }> = ({ veri }) => {
   const [acil, setAcil] = useState<AcilDurum | null>(null);
   const bekleyen = useRef(false);
   const reduced = useReducedMotion();
+  const [animMod, setAnimMod] = useState<string>(() =>
+    (typeof document !== 'undefined' ? document.documentElement.dataset.animasyon : undefined) || 'acik'
+  );
+  useEffect(() => {
+    const dinle = (e: Event) => {
+      const d = (e as CustomEvent<string>).detail;
+      setAnimMod(d || document.documentElement.dataset.animasyon || 'acik');
+    };
+    window.addEventListener('farabi-animasyon', dinle);
+    return () => window.removeEventListener('farabi-animasyon', dinle);
+  }, []);
+  const motionMod = animMod === 'kapali' ? 'always' : animMod === 'oto' ? 'user' : 'never';
+  const motionKapali = animMod === 'kapali' || (animMod === 'oto' && !!reduced);
   const bugunMu = veri.tarih === veri.bugun;
   const satirlar = durum.satirlar;
   const dersVar = satirlar.some((s) => s.durum !== 'ders_yok_o_gun');
@@ -90,16 +103,26 @@ export const App: React.FC<{ veri: PanoVeri }> = ({ veri }) => {
   };
 
   return (
-    <MotionConfig reducedMotion="user" transition={reduced ? { duration: 0 } : YAY}>
+    <MotionConfig reducedMotion={motionMod} transition={motionKapali ? { duration: 0 } : YAY}>
       <UstSerit tarih={veri.tarih} bugun={veri.bugun}
                 sonGuncelleme={sonGuncelleme} yenileniyor={yenileniyor} acil={acil}
                 onTarih={onTarih} onYenile={() => { void onYenile(); }} />
-      {hata && (
-        <div role="status" className="mb-4 flex flex-wrap items-center gap-3 rounded-[20px] border border-white/15 bg-white/[0.06] px-4 py-3 text-[13px] text-white/75">
-          Yoklama verisi yenilenemedi; son başarılı kayıt gösteriliyor.
-          <button type="button" className="underline" onClick={() => { void guncelle(); }}>Tekrar dene</button>
-        </div>
-      )}
+      <AnimatePresence>
+        {hata && (
+          <motion.div
+            key="hata-bant"
+            role="status"
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            transition={YAY}
+            className="mb-4 flex flex-wrap items-center gap-3 rounded-[20px] border border-white/15 bg-white/[0.06] px-4 py-3 text-[13px] text-white/75"
+          >
+            Yoklama verisi yenilenemedi; son başarılı kayıt gösteriliyor.
+            <button type="button" className="underline transition-opacity hover:opacity-80" onClick={() => { void guncelle(); }}>Tekrar dene</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Izgara her genişlikte önce gelir; KPI ve grafikler alt sıradadır. */}
       <div className="flex flex-col gap-4">
         <DersIzgarasi siniflar={veri.siniflar} saatler={veri.ders_saatleri} satirlar={satirlar}

@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import type { DersSaati, Satir, Sinif } from '../tipler';
 import { hucreDurumu, sorunluUste, tiklanabilir } from '../turet';
-import { Kart } from './Kart';
+import { Kart, YAY } from './Kart';
 
 interface DersIzgarasiProps {
   siniflar: Sinif[];
@@ -34,7 +35,7 @@ export function DersIzgarasi({ siniflar, saatler, satirlar, sinifTahta, tahtaAci
   }
 
   return (
-    <Kart baslik="Ders ızgarası" ikon="takvim" vurgu="#38BDF8" className="w-full min-w-0">
+    <Kart baslik="Ders ızgarası" ikon="takvim" vurgu="#38BDF8" sira={0} className="w-full min-w-0">
       {siniflar.length === 0 ? (
         <p className="text-sm text-white/70">Panoda gösterilecek aktif sınıf yok.</p>
       ) : (
@@ -53,13 +54,19 @@ export function DersIzgarasi({ siniflar, saatler, satirlar, sinifTahta, tahtaAci
               </tr>
             </thead>
             <tbody>
-              {sorunluUste(siniflar, satirlar).map((sinif) => {
+              {sorunluUste(siniflar, satirlar).map((sinif, satirIndeks) => {
                 const tahtaDurumu = tahtaAcik[sinif.ad];
                 const tahtaMetni = tahtaDurumu === undefined ? 'Tahta durumu bilinmiyor' : tahtaDurumu ? 'Tahta açık' : 'Tahta kapalı';
                 return (
-                  <tr key={sinif.id}>
+                  <motion.tr
+                    key={sinif.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ ...YAY, delay: Math.min(satirIndeks * 0.03, 0.24) }}
+                    className="transition-colors duration-200 hover:bg-white/[0.035]"
+                  >
                     <th scope="row" className="sticky left-0 z-10 border-b border-white/10 bg-[rgba(20,25,44,0.92)] px-3 py-3 text-white">
-                      <span role="img" aria-label={tahtaMetni} title={tahtaMetni} className={`mr-2 inline-block h-2 w-2 rounded-full ${tahtaDurumu === undefined ? 'bg-gray-400' : tahtaDurumu ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                      <span role="img" aria-label={tahtaMetni} title={tahtaMetni} className={`mr-2 inline-block h-2 w-2 rounded-full transition-shadow duration-300 ${tahtaDurumu === undefined ? 'bg-gray-400' : tahtaDurumu ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.65)]' : 'bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.5)]'}`} />
                       {sinif.ad}
                     </th>
                     {saatler.map((ders) => {
@@ -75,12 +82,12 @@ export function DersIzgarasi({ siniflar, saatler, satirlar, sinifTahta, tahtaAci
                           {hucre.izinli.length > 0 && <span className="block break-words text-sky-200">İzinli: {hucre.izinli.join(', ')}</span>}
                         </>
                       ) : hucre.tur === 'bos' ? (satir && !['henuz_baslamadi', 'ders_yok_o_gun'].includes(satir.durum) ? satir.durum : null) : (
-                        <span className={`inline-block rounded-full px-2 py-1 text-xs ${hucre.tur === 'tam' ? 'bg-emerald-400/20 text-emerald-200' : hucre.tur === 'alinmadi' ? 'bg-amber-400/20 text-amber-200' : 'bg-white/10 text-white/75'}`}>
+                        <span className={`inline-block rounded-full px-2 py-1 text-xs transition-transform duration-200 group-hover/hucre:scale-105 ${hucre.tur === 'tam' ? 'bg-emerald-400/20 text-emerald-200' : hucre.tur === 'alinmadi' ? 'bg-amber-400/20 text-amber-200' : 'bg-white/10 text-white/75'}`}>
                           {hucre.tur === 'tam' ? 'Tam' : hucre.tur === 'alinmadi' ? 'Alınmadı' : hucre.tur === 'ulasilamaz' ? 'Tahta ulaşılamaz' : 'Tahta atanmadı'}
                         </span>
                       );
                       return (
-                        <td key={ders.no} className={`border-b border-white/10 px-3 py-3 align-top text-white/75 ${aktifDersNo === ders.no ? 'bg-white/10' : ''} ${etkin ? 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300' : ''}`}
+                        <td key={ders.no} className={`group/hucre border-b border-white/10 px-3 py-3 align-top text-white/75 transition-all duration-200 ${aktifDersNo === ders.no ? 'bg-white/10' : ''} ${etkin ? 'cursor-pointer hover:bg-amber-400/10 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300' : ''}`}
                           role={etkin ? 'button' : undefined} tabIndex={etkin ? 0 : undefined}
                           aria-label={etkin ? `${sinif.ad}, ${ders.no}. ders: yoklama alınmadı. Tahtada yoklama ekranını başlat` : undefined}
                           aria-disabled={etkin && bekliyor ? true : undefined} aria-busy={bekliyor || undefined}
@@ -92,7 +99,7 @@ export function DersIzgarasi({ siniflar, saatler, satirlar, sinifTahta, tahtaAci
                         </td>
                       );
                     })}
-                  </tr>
+                  </motion.tr>
                 );
               })}
             </tbody>

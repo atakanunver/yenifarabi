@@ -108,6 +108,10 @@
       if (window.farabiDuvarUygula) window.farabiDuvarUygula(ad.slice(6));
       return; // duvar kağıtları arasında gezinirken de menü açık kalsın
     }
+    if (ad.indexOf('animasyon:') === 0) {
+      if (window.farabiAnimasyonUygula) window.farabiAnimasyonUygula(ad.slice(10));
+      return;
+    }
     if (EYLEMLER[ad]) { acilirKapat(false); EYLEMLER[ad](); }
   });
 

@@ -3,6 +3,8 @@
 (function () {
   var ANAHTAR = "farabi_yoklama_tema";
   var DUVAR_ANAHTAR = "farabi_duvar_kagidi";
+  var ANIMASYON_ANAHTAR = "farabi_animasyon";
+  var ANIMASYONLAR = ["acik", "oto", "kapali"];
   // Tek kaynak menu.TEMALAR: taban.html listeyi window.FARABI_TEMALAR ile verir; yoksa bu yedek liste.
   var TEMALAR = window.FARABI_TEMALAR || ["cam", "sade-koyu", "kurumsal", "lacivert", "argon", "argon-koyu", "material", "material-koyu", "black", "koyu"];
   var VARSAYILAN = "cam";
@@ -65,9 +67,26 @@
   }
   window.farabiDuvarUygula = duvarUygula;
 
+  function aktifAnimasyonGetir() {
+    var kayitli = null;
+    try { kayitli = localStorage.getItem(ANIMASYON_ANAHTAR); } catch (e) { /* kapalı depolama */ }
+    return ANIMASYONLAR.indexOf(kayitli) !== -1 ? kayitli : "acik";
+  }
+  function animasyonUygula(mod) {
+    if (ANIMASYONLAR.indexOf(mod) === -1) mod = "acik";
+    document.documentElement.dataset.animasyon = mod;
+    try { localStorage.setItem(ANIMASYON_ANAHTAR, mod); } catch (e) { /* kapalı depolama */ }
+    document.querySelectorAll('[data-eylem^="animasyon:"]').forEach(function (buton) {
+      buton.setAttribute("aria-checked", buton.dataset.eylem === "animasyon:" + mod ? "true" : "false");
+    });
+    try { window.dispatchEvent(new CustomEvent("farabi-animasyon", { detail: mod })); } catch (e) { /* eski tarayıcı */ }
+  }
+  window.farabiAnimasyonUygula = animasyonUygula;
+
   document.addEventListener("DOMContentLoaded", function () {
     temaUygula(aktifTemaGetir());
     duvarUygula(aktifDuvarGetir());
+    animasyonUygula(aktifAnimasyonGetir());
     document.querySelectorAll(".tema-secici button").forEach(function (buton) {
       buton.addEventListener("click", function () { temaUygula(buton.dataset.tema); });
     });

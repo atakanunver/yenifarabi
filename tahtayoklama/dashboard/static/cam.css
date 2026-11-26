@@ -221,7 +221,13 @@ body { background: #070914; min-height: 100vh; font-variant-numeric: tabular-num
 .ust-okul:focus-visible { outline: 2px solid rgba(255,255,255,.7); outline-offset: 2px; }
 @media (max-width: 1300px) { .ust-okul-yazi { display: none; } .ust-okul { padding: 0 3px; } }
 @media (max-width: 480px) { .ust-okul { width: 38px; padding: 0; } .ust-okul-maket { width: 36px; height: 32px; } }
-@media (prefers-reduced-motion: reduce) { .ust-okul, .ust-okul-maket, .ust-okul-camlar { transition: none; } .ust-okul:hover .ust-okul-maket, .ust-okul:focus-visible .ust-okul-maket { transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  :root[data-animasyon="oto"] .ust-okul,
+  :root[data-animasyon="oto"] .ust-okul-maket,
+  :root[data-animasyon="oto"] .ust-okul-camlar { transition: none; }
+  :root[data-animasyon="oto"] .ust-okul:hover .ust-okul-maket,
+  :root[data-animasyon="oto"] .ust-okul:focus-visible .ust-okul-maket { transform: none; }
+}
 
 /* Ayarlar paneli: temalar + duvar kağıdı */
 .ayar-panel {
@@ -251,6 +257,16 @@ body { background: #070914; min-height: 100vh; font-variant-numeric: tabular-num
 .duvar-oge[aria-checked="true"] { outline: 2px solid var(--cam-metin); outline-offset: 2px; box-shadow: var(--cam-parilti); }
 .duvar-oge:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.7); outline-offset: 2px; }
 .duvar-yok { background-image: linear-gradient(135deg, #5a2a3a, #2a2660 50%, #0f3a5e); }
+.animasyon-liste { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 0 0.4rem 0.25rem; }
+.animasyon-oge {
+  justify-content: center; text-align: center; padding: 0.4rem 0.5rem; font-size: 0.8rem;
+  border: 1px solid var(--cam-kenar-ince); background: rgba(255, 255, 255, 0.05);
+  transition: background 0.25s, color 0.25s, border-color 0.25s, transform 0.25s var(--cam-yay);
+}
+.animasyon-oge[aria-checked="true"] {
+  background: var(--cam-aktif); color: var(--cam-metin); border-color: var(--cam-kenar-parlak);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 0 12px rgba(255, 255, 255, 0.14);
+}
 
 /* ---------- Pencere gövdesi: etkin alanın sayfaları + içerik ---------- */
 .cam-govde { display: flex; align-items: flex-start; gap: 1.75rem; }
@@ -455,12 +471,118 @@ body { background: #070914; min-height: 100vh; font-variant-numeric: tabular-num
   .alan-sekmeler::before, .cam-pencere::before { background: rgba(16, 18, 36, 0.92); }
   .alan-acilir-panel, .ayar-panel, .toast, .pencere { background: rgba(18, 20, 38, 0.97); }
 }
+/* ---------- Motion Design & Micro-Interactions (2026-11-22) ---------- */
+@view-transition { navigation: auto; }
+.cam-ortam { view-transition-name: cam-ortam; }
+.gezinme { view-transition-name: cam-ray; }
+.ust-cubuk { view-transition-name: cam-ust; }
+.sol-menu { view-transition-name: cam-sol; }
+#icerik { view-transition-name: cam-icerik; }
+
+@keyframes cam-sayfa-cikis {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.985); }
+}
+@keyframes cam-sayfa-giris {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+/* Ardışık fade-out → fade-in: eski katman kartı yeni sayfanın arkasında çakışmaz */
+::view-transition-old(cam-icerik) {
+  animation: cam-sayfa-cikis 0.22s ease-in both;
+}
+::view-transition-new(cam-icerik) {
+  animation: cam-sayfa-giris 0.42s cubic-bezier(0.22, 1, 0.36, 1) 0.14s both;
+}
+::view-transition-group(cam-ortam),
+::view-transition-group(cam-ray),
+::view-transition-group(cam-ust),
+::view-transition-group(cam-sol) {
+  animation-duration: 0.25s;
+}
+
+/* Sayfa açılışında içerik blokları için yumuşak fade-in (React #kok kendi framer-motion akışını kullanır) */
+@keyframes cam-blok-giris {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+#icerik > :not(#kok) {
+  animation: cam-blok-giris 0.46s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+#icerik > :not(#kok):nth-child(2) { animation-delay: 55ms; }
+#icerik > :not(#kok):nth-child(3) { animation-delay: 110ms; }
+#icerik > :not(#kok):nth-child(4) { animation-delay: 165ms; }
+#icerik > :not(#kok):nth-child(5) { animation-delay: 220ms; }
+
+/* Basma (press) ve ikon tepkileri */
+.alan-sekme .ikon, .sol-oge .ikon, .ust-dugme .ikon, .ust-atos .ikon, .ust-acil .ikon {
+  transition: transform 0.28s var(--cam-yay), color 0.25s;
+}
+.alan-sekme:hover .ikon, .ust-dugme:hover .ikon { transform: scale(1.1); }
+.sol-oge:hover .ikon { transform: scale(1.08); }
+.alan-sekme:active, .ust-marka:active, .ust-atos:active, .ust-dugme:active,
+.ust-acil:active, .ust-yz:active, .ust-okul:active, .duvar-oge:active, .animasyon-oge:active {
+  transform: scale(0.95) !important;
+}
+.sol-oge:active, .alan-acilir-oge:active, .ayar-oge:active {
+  transform: scale(0.98);
+}
+:root[data-tema="cam"] .dugme {
+  transition: transform 0.28s var(--cam-yay), background 0.25s, border-color 0.25s, box-shadow 0.25s, filter 0.25s;
+}
+:root[data-tema="cam"] .dugme:hover { transform: translateY(-1px); filter: brightness(1.06); }
+:root[data-tema="cam"] .dugme:active { transform: scale(0.96); }
+:root[data-tema="cam"] .tablo-kutu, :root[data-tema="cam"] .panel,
+:root[data-tema="cam"] .ayrinti-panel, :root[data-tema="cam"] .ozet-kutu {
+  transition: border-color 0.3s, background 0.3s, box-shadow 0.3s, transform 0.3s var(--cam-yay);
+}
+:root[data-tema="cam"] .ozet-kutu:hover, :root[data-tema="cam"] .panel:hover {
+  border-top-color: var(--cam-kenar-parlak);
+}
+
+/* Dialog ve toast yaylı açılış */
+@keyframes cam-dialog-giris {
+  from { opacity: 0; transform: translateY(12px) scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cam-ortu-giris { from { opacity: 0; } to { opacity: 1; } }
+dialog.pencere[open] { animation: cam-dialog-giris 0.32s var(--cam-yay) both; }
+dialog.pencere[open]::backdrop { animation: cam-ortu-giris 0.22s ease-out both; }
+.toast {
+  transition: opacity 0.25s ease, transform 0.35s var(--cam-yay);
+}
+.toast.gizli { opacity: 0; transform: translateY(12px) scale(0.96); pointer-events: none; }
+
+/* Animasyon kapalı modu veya sistem ayarı (oto + prefers-reduced-motion) */
+:root[data-animasyon="kapali"] *,
+:root[data-animasyon="kapali"] *::before,
+:root[data-animasyon="kapali"] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+:root[data-animasyon="kapali"] .cam-ortam,
+:root[data-animasyon="kapali"] .gezinme,
+:root[data-animasyon="kapali"] .ust-cubuk,
+:root[data-animasyon="kapali"] .sol-menu,
+:root[data-animasyon="kapali"] #icerik { view-transition-name: none; }
+
 @media (prefers-reduced-motion: reduce) {
-  .alan-sekme, .alan-ad, .alan-acilir-panel, .ust-marka, .ust-atos, .ust-dugme, .ust-acil, .ust-yz, .ust-yz i, .ayar-panel,
-  .duvar-oge, .sol-oge, .cam-tutamac-cubuk, .gezinme {
+  :root[data-animasyon="oto"] .alan-sekme, :root[data-animasyon="oto"] .alan-ad,
+  :root[data-animasyon="oto"] .alan-acilir-panel, :root[data-animasyon="oto"] .ust-marka,
+  :root[data-animasyon="oto"] .ust-atos, :root[data-animasyon="oto"] .ust-dugme,
+  :root[data-animasyon="oto"] .ust-acil, :root[data-animasyon="oto"] .ust-yz,
+  :root[data-animasyon="oto"] .ust-yz i, :root[data-animasyon="oto"] .ayar-panel,
+  :root[data-animasyon="oto"] .duvar-oge, :root[data-animasyon="oto"] .sol-oge,
+  :root[data-animasyon="oto"] .cam-tutamac-cubuk, :root[data-animasyon="oto"] .gezinme,
+  :root[data-animasyon="oto"] #icerik > :not(#kok), :root[data-animasyon="oto"] dialog.pencere[open],
+  :root[data-animasyon="oto"] .toast {
     transition: none !important; animation: none !important;
   }
-  .alan-sekme:hover, .ust-marka:hover, .ust-atos:hover, .ust-dugme:hover, .ust-acil:hover, .duvar-oge:hover, .sol-oge:hover { transform: none; }
+  :root[data-animasyon="oto"] .alan-sekme:hover, :root[data-animasyon="oto"] .ust-marka:hover,
+  :root[data-animasyon="oto"] .ust-atos:hover, :root[data-animasyon="oto"] .ust-dugme:hover,
+  :root[data-animasyon="oto"] .ust-acil:hover, :root[data-animasyon="oto"] .duvar-oge:hover,
+  :root[data-animasyon="oto"] .sol-oge:hover { transform: none; }
+  :root[data-animasyon="oto"] #icerik { view-transition-name: none; }
 }
 @media print {
   :root[data-tema="cam"] {

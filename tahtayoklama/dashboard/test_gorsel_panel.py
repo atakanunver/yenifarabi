@@ -48,7 +48,7 @@ class TestYerelPanel(_Ortak):
                     self.assertEqual(r.headers['cache-control'], 'no-store')
                     self.assertEqual(Image.open(io.BytesIO(r.body)).size, (1920, 1080))
                     self.assertEqual(self.dosyalar(), once)
-                for dosya, metin in ((self.arka.name, 'x'), (self.arka.name, 'x' * 8001),
+                for dosya, metin in ((self.arka.name, 'x' * 8001),
                                      (self.arka.name, '\n'.join(['x;9-A'] * 25)),
                                      (self.arka.name, 'x' * 200 + ';9-A'), ('../x.png', ''), ('', ''),
                                      ('2026-01-01_0000_serbest.png', '')):

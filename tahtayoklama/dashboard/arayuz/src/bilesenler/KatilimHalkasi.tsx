@@ -15,7 +15,7 @@ export const KatilimHalkasi: React.FC<{ satirlar: Satir[]; tahtaAcik: Record<str
     { ad: 'Açık tahta', r: 30, renk: '#BF5AF2', oran: o.acik },
   ];
   return (
-    <Kart baslik="Katılım" ikon="hedef" vurgu="#32D74B" sira={1}>
+    <Kart baslik="Katılım" ikon="hedef" vurgu="#32D74B" sira={2}>
       <p className="text-[40px] font-semibold leading-none tracking-tight text-white">{yuzde(o.alinan)}</p>
       <p className="mt-2 text-[13px] text-white/45">Başlamış derslerde alınan yoklama</p>
       <div className="mt-4 flex items-center gap-5">

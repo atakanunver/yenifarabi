@@ -17,9 +17,9 @@ interface KartProps {
 // Bento kart: nötr cam; üzerine gelince hafif kalkar, üst kenarı parlar, vurgu renginde arka ışık verir.
 export const Kart: React.FC<KartProps> = ({ baslik, ikon, vurgu, sag, sira = 0, className = '', children }) => (
   <motion.section
-    initial={{ opacity: 0, y: 14, scale: 0.98 }}
-    animate={{ opacity: 1, y: 0, scale: 1 }}
-    transition={{ ...YAY, delay: sira * 0.05 }}
+    initial={{ opacity: 0, y: 14 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ opacity: { duration: 0.42, ease: [0.22, 1, 0.36, 1], delay: sira * 0.07 }, y: { ...YAY, delay: sira * 0.07 } }}
     className={`group relative min-w-0 ${className}`}
     aria-label={baslik}
   >
@@ -31,11 +31,11 @@ export const Kart: React.FC<KartProps> = ({ baslik, ikon, vurgu, sag, sira = 0, 
                     group-hover:-translate-y-0.5 group-hover:border-t-white/35 group-hover:bg-white/[0.04]">
       <header className="mb-4 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full"
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full transition-transform duration-300 group-hover:scale-110"
                 style={{ background: `${vurgu}26`, color: vurgu, boxShadow: `0 0 14px ${vurgu}40` }}>
             <Ikon ad={ikon} className="h-4 w-4" />
           </span>
-          <h2 className="truncate text-[15px] font-medium text-white/75">{baslik}</h2>
+          <h2 className="truncate text-[15px] font-medium text-white/75 transition-colors duration-200 group-hover:text-white">{baslik}</h2>
         </div>
         {sag}
       </header>
@@ -45,7 +45,7 @@ export const Kart: React.FC<KartProps> = ({ baslik, ikon, vurgu, sag, sira = 0, 
 );
 
 export const Hap: React.FC<{ renk?: string; children: React.ReactNode }> = ({ renk, children }) => (
-  <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[12px] font-medium text-white/75">
+  <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[12px] font-medium text-white/75 transition-all duration-200">
     {renk && <span className="h-1.5 w-1.5 rounded-full" style={{ background: renk, boxShadow: `0 0 8px ${renk}` }} />}
     {children}
   </span>

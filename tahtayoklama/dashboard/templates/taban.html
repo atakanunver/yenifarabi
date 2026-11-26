@@ -17,7 +17,7 @@
    Duvar kağıtları panel_duvar.liste() (ilki varsayılan, "yok" = yalnız renk geçişi). Sayfa boyanmadan önce uygulanır. #}
 <script>window.FARABI_TEMALAR = {{ agac.temalar | map(attribute=0) | list | tojson }};
 window.FARABI_DUVAR = {{ agac.duvar_kagitlari | tojson }};
-(function(){var k=document.documentElement,t=null,d=null;try{t=localStorage.getItem('farabi_yoklama_tema');d=localStorage.getItem('farabi_duvar_kagidi');if(localStorage.getItem('farabi_cam_gecis')!=='1'){t='cam';localStorage.setItem('farabi_yoklama_tema',t);localStorage.setItem('farabi_cam_gecis','1')}}catch(e){}if(t==='klasik'||t==='yumusak')t='argon';if(window.FARABI_TEMALAR.indexOf(t)<0)t='cam';k.dataset.tema=t;var L=window.FARABI_DUVAR,s=null;for(var i=0;i<L.length;i++)if(L[i].ad===d)s=L[i];if(!s&&d!=='yok'&&L.length)s=L[0];k.dataset.duvar=s?s.ad:'yok';if(s)k.style.setProperty('--duvar-resmi','url("'+s.url+'")');})();</script>
+(function(){var k=document.documentElement,t=null,d=null,a=null;try{t=localStorage.getItem('farabi_yoklama_tema');d=localStorage.getItem('farabi_duvar_kagidi');a=localStorage.getItem('farabi_animasyon');if(localStorage.getItem('farabi_cam_gecis')!=='1'){t='cam';localStorage.setItem('farabi_yoklama_tema',t);localStorage.setItem('farabi_cam_gecis','1')}}catch(e){}if(t==='klasik'||t==='yumusak')t='argon';if(window.FARABI_TEMALAR.indexOf(t)<0)t='cam';k.dataset.tema=t;k.dataset.animasyon=(a==='oto'||a==='kapali')?a:'acik';var L=window.FARABI_DUVAR,s=null;for(var i=0;i<L.length;i++)if(L[i].ad===d)s=L[i];if(!s&&d!=='yok'&&L.length)s=L[0];k.dataset.duvar=s?s.ad:'yok';if(s)k.style.setProperty('--duvar-resmi','url("'+s.url+'")');})();</script>
 </head>
 <body>
 {% include "_ikon_sprite.html" %}
@@ -128,6 +128,12 @@ window.FARABI_DUVAR = {{ agac.duvar_kagitlari | tojson }};
                 {% endfor %}
                 <button type="button" class="duvar-oge duvar-yok" role="radio" aria-checked="false" data-eylem="duvar:yok"
                         title="Resimsiz (renk geçişi)" aria-label="Resimsiz"></button>
+              </div>
+              <div class="ayar-baslik" id="animasyon-baslik">Animasyonlar</div>
+              <div class="animasyon-liste" role="radiogroup" aria-labelledby="animasyon-baslik">
+                <button type="button" class="ayar-oge animasyon-oge" role="radio" aria-checked="false" data-eylem="animasyon:acik" title="Uzak masaüstünde de açık">Açık</button>
+                <button type="button" class="ayar-oge animasyon-oge" role="radio" aria-checked="false" data-eylem="animasyon:oto" title="Sistem hareket ayarına uy">Sistem</button>
+                <button type="button" class="ayar-oge animasyon-oge" role="radio" aria-checked="false" data-eylem="animasyon:kapali" title="Animasyonları kapat">Kapalı</button>
               </div>
             </div>
           </details>

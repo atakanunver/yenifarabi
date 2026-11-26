@@ -25,7 +25,7 @@ export const SuAn: React.FC<SuAnProps> = ({ saatler, satirlar, tahtaAcik, sinifS
   const alt = aktif ? `${aktif.baslangic} – ${aktif.bitis}` : bugunMu ? 'Şu an ders yok' : 'Gün sonu durumu';
 
   return (
-    <Kart baslik="Şu an" ikon="saat" vurgu="#38BDF8" sira={0}
+    <Kart baslik="Şu an" ikon="saat" vurgu="#38BDF8" sira={1}
           sag={<Hap renk={aktif ? '#32D74B' : 'rgba(255,255,255,0.45)'}>{aktif ? 'Devam ediyor' : bugunMu ? 'Ders dışı' : 'Kapandı'}</Hap>}>
       <p className="text-[40px] font-semibold leading-none tracking-tight text-white">{buyuk}</p>
       <p className="mt-2 text-[13px] text-white/45">{alt}</p>
