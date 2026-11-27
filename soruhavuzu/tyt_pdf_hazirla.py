@@ -62,12 +62,16 @@ def _pix(sayfa, rect):
     return image
 
 
-def hazirla(pdf, hedef):
+def hazirla(pdf, hedef, siniflar=None, etiket="MEBİ TYT 2. Deneme"):
     pdf = Path(pdf)
     belge = fitz.open(pdf)
     if not len(belge):
         raise ValueError("PDF boş")
-    cevap = _cevaplar(belge[-1])
+    # Cevap anahtarı 2. denemede son sayfada, 3. denemede sondan ikincide (son sayfa boş).
+    anahtar = [s for s in belge if "CEVAP ANAHTARI" in s.get_text()]
+    if len(anahtar) != 1:
+        raise ValueError(f"Cevap anahtarı sayfası bulunamadı: {len(anahtar)}")
+    cevap = _cevaplar(anahtar[0])
     sha = hashlib.sha256(pdf.read_bytes()).hexdigest()
     sira = dict.fromkeys(TESTLER, 1)
     satirlar = []
@@ -91,23 +95,31 @@ def hazirla(pdf, hedef):
             if no == sira[test]:
                 secilen.append((col, y, no))
                 sira[test] += 1
-        ortak = None
+        # Ortak parçalı soru çiftleri: {ilk_no: parça_üstü, ikinci_no: parça_kutusu}; sütun başına bir çift olabilir.
+        ortak_ilk, ortak_ikinci = {}, {}
         for b in bloklar:
             m = re.search(r"(\d+)\s*[-–]\s*(\d+)\.\s*sorular[ıi].*?parçaya", b[4], re.I | re.S)
             if m and int(m.group(2)) == int(m.group(1)) + 1:
-                bas = next((y for col, y, n in secilen if col == 0 and n == int(m.group(1))), None)
-                if bas:
-                    ortak = (int(m.group(1)), int(m.group(2)), (30, 73, 275, bas - 5))
+                ilk = next(((col, y) for col, y, n in secilen if n == int(m.group(1))), None)
+                if ilk and (b[0] < 280) == (ilk[0] == 0):
+                    px1, px2 = (30, 275) if ilk[0] == 0 else (282, 525)
+                    pust = max(73, b[1] - 5)
+                    ortak_ilk[int(m.group(1))] = pust
+                    ortak_ikinci[int(m.group(2))] = (px1, pust, px2, ilk[1] - 5)
         for col, y, no in secilen:
             ayni = [yy for cc, yy, _ in secilen if cc == col and yy > y]
             alt = min(ayni) - 5 if ayni else 720
             ust = max(73, y - 5)
-            if ortak and no == ortak[0]:
-                ust = 73
+            if no in ortak_ilk:
+                ust = ortak_ilk[no]
+            # Sosyal 16-20 / 21-25 yönerge kutusu sorunun hemen üstünde: kutu çizgisini kırpıma alma.
+            for bb in bloklar:
+                if re.match(r"\s*\d+\s*-\s*\d+\.\s*sorular[ıi]\s+din", bb[4]) and (bb[0] < 280) == (col == 0) and ust < bb[3] < y + 2:
+                    ust = bb[3] + 3
             x1, x2 = (30, 275) if col == 0 else (282, 525)
             gor = _pix(sayfa, (x1, ust, x2, alt))
-            if ortak and no == ortak[1]:
-                metin = _pix(sayfa, ortak[2])
+            if no in ortak_ikinci:
+                metin = _pix(sayfa, ortak_ikinci[no])
                 birlesik = Image.new("RGB", (max(metin.width, gor.width), metin.height + gor.height + 24), "white")
                 birlesik.paste(metin, (0, 0))
                 birlesik.paste(gor, (0, metin.height + 24))
@@ -115,7 +127,7 @@ def hazirla(pdf, hedef):
             ad = f"{test}-{no:02d}.png"
             hedef.mkdir(parents=True, exist_ok=True)
             gor.save(hedef / ad, optimize=True)
-            satirlar.append({"test": test, "no": no, "ders": _ders(test, no), "sinif": 12,
+            satirlar.append({"test": test, "no": no, "ders": _ders(test, no), "sinif": siniflar[f"{test}-{no:02d}"] if siniflar else 12,
                             "dogru_index": cevap[test][no], "sayfa": sayfa_no + 1, "gorsel": ad,
                             "kaynak_kimligi": f"yks:{sha}:{test}:{no}",
                             "secenek_tespit": sorted(set(re.findall(r"\b([A-E])\s*\)", sayfa.get_text(clip=fitz.Rect(x1, ust, x2, alt)))) )})
@@ -125,7 +137,7 @@ def hazirla(pdf, hedef):
     eksikler = [f"{s['test']}-{s['no']}" for s in satirlar if s['secenek_tespit'] != list("ABCDE")]
     if eksikler:
         raise ValueError("Beş seçenek doğrulanamadı: " + ", ".join(eksikler))
-    (hedef / "manifest.json").write_text(json.dumps({"pdf_sha256": sha, "sorular": satirlar}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (hedef / "manifest.json").write_text(json.dumps({"pdf_sha256": sha, "etiket": etiket, "sorular": satirlar}, ensure_ascii=False, indent=2), encoding="utf-8")
     return satirlar
 
 
@@ -133,10 +145,15 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("pdf", type=Path)
     p.add_argument("--cikti", type=Path, required=True)
+    p.add_argument("--sinif-dosyasi", type=Path, help='JSON {"turkce-01": 9, ...}; yoksa hepsi 12')
+    p.add_argument("--etiket", default="MEBİ TYT 2. Deneme")
     args = p.parse_args()
+    siniflar = json.loads(args.sinif_dosyasi.read_text(encoding="utf-8")) if args.sinif_dosyasi else None
+    if siniflar and (len(siniflar) != sum(ADETLER.values()) or set(siniflar.values()) - {9, 10, 11, 12}):
+        p.error("Sınıf dosyası 125 soru ve 9-12 değerleri içermeli")
     if args.cikti.exists() and any(args.cikti.iterdir()):
         p.error("Çıktı dizini boş olmalı")
-    satirlar = hazirla(args.pdf, args.cikti)
+    satirlar = hazirla(args.pdf, args.cikti, siniflar, args.etiket)
     print(f"{len(satirlar)} soru hazırlandı; veritabanına yazılmadı.")
 
 

@@ -27,7 +27,7 @@ def _oku(klasor):
         uniq.add((test, no))
         if r["kaynak_kimligi"] != f"yks:{sha}:{test}:{no}" or r["secenek_tespit"] != list("ABCDE"):
             raise ValueError("Soru kimliği veya beş seçenek doğrulanamadı")
-        if not 0 <= r["dogru_index"] <= 4 or r["sinif"] != 12 or r["ders"] not in {"turkce", "matematik", "tarih", "cografya", "felsefe", "din", "fizik", "kimya", "biyoloji"}:
+        if not 0 <= r["dogru_index"] <= 4 or r["sinif"] not in (9, 10, 11, 12) or r["ders"] not in {"turkce", "matematik", "tarih", "cografya", "felsefe", "din", "fizik", "kimya", "biyoloji"}:
             raise ValueError("Cevap, sınıf veya ders geçersiz")
         name = r["gorsel"]
         if Path(name).name != name or not name.endswith(".png"):
@@ -36,6 +36,8 @@ def _oku(klasor):
         if not image.startswith(b"\x89PNG\r\n\x1a\n"):
             raise ValueError("Görsel PNG değil")
         r["_gorsel"] = image
+    for r in rows:
+        r["_etiket"] = v.get("etiket", "MEBİ TYT 2. Deneme")
     return sha, rows
 
 
@@ -56,11 +58,11 @@ def aktar(conn, sha, rows):
                         raise ValueError(f"Önceki kayıt uyuşmuyor: {r['test']} {r['no']}")
                     var += 1
                     continue
-                kaynak = f"MEBİ TYT 2. Deneme, {r['test']} {r['no']}. soru"
-                cur.execute("INSERT INTO kaynak_birim(tur,anahtar,ders,sinif,etiket,metin,durum) VALUES ('yks',%s,%s,12,%s,'PDF arşiv sorusu','islendi') RETURNING id", (kimlik, r["ders"], kaynak))
+                kaynak = f"{r['_etiket']}, {r['test']} {r['no']}. soru"
+                cur.execute("INSERT INTO kaynak_birim(tur,anahtar,ders,sinif,etiket,metin,durum) VALUES ('yks',%s,%s,%s,%s,'PDF arşiv sorusu','islendi') RETURNING id", (kimlik, r["ders"], r["sinif"], kaynak))
                 bid = cur.fetchone()[0]
                 secenekler = [f"{x} seçeneği" for x in "ABCDE"]
-                cur.execute("INSERT INTO soru(birim_id,ders,sinif,konu,soru,kisa_cevap,secenekler,dogru_index,zorluk,kaynak,durum) VALUES (%s,%s,12,%s,%s,%s,%s,%s,2,%s,'onayli') RETURNING id", (bid, r["ders"], "YKS TYT denemesi", "Soruyu görselden inceleyiniz.", "ABCDE"[r["dogru_index"]], Json(secenekler), r["dogru_index"], kaynak))
+                cur.execute("INSERT INTO soru(birim_id,ders,sinif,konu,soru,kisa_cevap,secenekler,dogru_index,zorluk,kaynak,durum) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,2,%s,'onayli') RETURNING id", (bid, r["ders"], r["sinif"], "YKS TYT denemesi", "Soruyu görselden inceleyiniz.", "ABCDE"[r["dogru_index"]], Json(secenekler), r["dogru_index"], kaynak))
                 sid = cur.fetchone()[0]
                 cur.execute("INSERT INTO soru_gorsel(soru_id,icerik,mime,kaynak_sha256,kaynak_sayfa) VALUES (%s,%s,'image/png',%s,%s)", (sid, psycopg2.Binary(r["_gorsel"]), sha, r["sayfa"]))
                 eklenen += 1
