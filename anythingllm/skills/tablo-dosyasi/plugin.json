@@ -4,7 +4,7 @@
   "name": "SQL sonucundan Excel/PDF dosyası",
   "schema": "skill-1.0.0",
   "version": "1.0.0",
-  "description": "Okul kayıtlarında bir SELECT sorgusu çalıştırır ve SONUCU DOĞRUDAN Excel (.xlsx) veya PDF dosyasına çevirir; satırları sen yazmazsın. Sınıf listeleri, öğretmen/öğrenci/veli telefon listeleri, yoklama ve devamsızlık raporları gibi tablo çıktıları için BUNU kullan (yerleşik create-excel-file/create-pdf-file yerine; onlar satırları senin yazmanı ister ve uzun listelerde hata yapar). En fazla 2000 satır. Tablolar ve sütunlar için sql-sorgu aracının açıklamasındaki şemayı kullan (ara(kolon,'metin') Türkçe-duyarsız arama, sinif_atama/sinif ile sınıf listesi, json_each ile devamsız adları). Dosya sohbette indirme kartı olarak görünür.",
+  "description": "okul-liste'nin kapsamadığı tablo çıktıları için kullan: devamsızlık veya yoklama raporu, veli telefon listesi, ÖSYM sonuçları. SELECT sonucunu Excel veya PDF indirme kartına dönüştürür (en fazla 2000 satır). Tablo ve sütunlar için sql-sorgu açıklamasındaki şemayı kullan.",
   "author": "Farabi",
   "author_url": "",
   "license": "MIT",
@@ -34,8 +34,8 @@
   },
   "examples": [
     {
-      "prompt": "9-A sınıf listesini Excel yap",
-      "call": "{\"sorgu\": \"SELECT o.okul_no AS \\\"Okul No\\\", o.ad_soyad AS \\\"Ad Soyad\\\" FROM ogrenci o JOIN sinif_atama a ON a.okul_no=o.okul_no JOIN sinif s ON s.id=a.sinif_id WHERE s.ad='9-A' ORDER BY o.ad_soyad\", \"dosya_adi\": \"9-A sınıf listesi\", \"bicim\": \"xlsx\", \"baslik\": \"9-A Sınıf Listesi\"}"
+      "prompt": "9-A veli telefon listesini Excel yap",
+      "call": "{\"sorgu\": \"SELECT o.ad_soyad AS \\\"Öğrenci\\\", v.ad_soyad AS \\\"Veli\\\", v.telefon AS \\\"Telefon\\\" FROM ogrenci o JOIN veli_ogrenci vo ON vo.okul_no=o.okul_no JOIN veli v ON v.id=vo.veli_id JOIN sinif_atama a ON a.okul_no=o.okul_no JOIN sinif s ON s.id=a.sinif_id WHERE s.ad='9-A' AND a.yil_id IN (SELECT id FROM ogretim_yili WHERE aktif=1) ORDER BY o.ad_soyad, v.ad_soyad\", \"dosya_adi\": \"9-A Veli Telefon Listesi\", \"bicim\": \"xlsx\", \"baslik\": \"9-A Veli Telefon Listesi\"}"
     },
     {
       "prompt": "Son yoklama gününün devamsızlık raporunu PDF yap",

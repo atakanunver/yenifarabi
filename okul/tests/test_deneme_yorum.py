@@ -107,3 +107,29 @@ def test_anahtarlar_ortam_oncelikli_sonra_dosya_bozuksa_bos(tmp_path):
 def test_ogrenci_istemi_gayret_cesaretlendirmesi_ister():
     t = y.ogrenci_istemi(VERI).lower()
     assert "gayret" in t
+
+
+def test_gemini_gecersiz_anahtarda_siradakine_gecer(tmp_path, monkeypatch):
+    import io
+    import urllib.error
+
+    f = tmp_path / "k.json"
+    f.write_text(json.dumps({"gemini_api_keys": ["bozuk", "yetkisiz", "iyi"]}), encoding="utf-8")
+    monkeypatch.setattr(y, "TAHTA_ANAHTARLARI", f)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setattr(y.time, "sleep", lambda s: None)
+    denenen = []
+
+    def sahte_urlopen(istek, timeout):
+        anahtar = istek.get_header("X-goog-api-key")
+        denenen.append(anahtar)
+        if anahtar == "bozuk":
+            raise urllib.error.HTTPError(istek.full_url, 400, "", {}, io.BytesIO(b'{"reason": "API_KEY_INVALID"}'))
+        if anahtar == "yetkisiz":
+            raise urllib.error.HTTPError(istek.full_url, 401, "", {}, io.BytesIO(b"{}"))
+        metin = json.dumps({"yorum": "tamam"})
+        return io.BytesIO(json.dumps({"candidates": [{"content": {"parts": [{"text": metin}]}}]}).encode())
+
+    monkeypatch.setattr(y.urllib.request, "urlopen", sahte_urlopen)
+    assert y.gemini("istem") == {"yorum": "tamam"}
+    assert denenen == ["bozuk", "yetkisiz", "iyi"]

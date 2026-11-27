@@ -130,7 +130,8 @@ def gemini(istem: str) -> dict | None:
             },
         }
     ).encode()
-    for deneme in range(3):
+    deneme = 0
+    while anahtar_listesi and deneme < 3:
         anahtar = anahtar_listesi[deneme % len(anahtar_listesi)]
         try:
             istek = urllib.request.Request(
@@ -140,12 +141,16 @@ def gemini(istem: str) -> dict | None:
                 metin = json.load(r)["candidates"][0]["content"]["parts"][0]["text"]
             return yanit_ayristir(metin)
         except urllib.error.HTTPError as e:
+            if e.code in (401, 403) or (e.code == 400 and b"API_KEY_INVALID" in e.read()):
+                anahtar_listesi.remove(anahtar)  # geçersiz anahtar: beklemeden sıradakine geç
+                continue
             if e.code not in (429, 500, 503):
                 print(f"Gemini HTTP {e.code}", file=sys.stderr)
                 return None
         except (urllib.error.URLError, TimeoutError, KeyError, IndexError, ValueError):
             pass
         time.sleep(2 * (deneme + 1))
+        deneme += 1
     print("Gemini yanıt vermedi", file=sys.stderr)
     return None
 

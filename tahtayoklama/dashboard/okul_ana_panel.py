@@ -278,6 +278,7 @@ async def personel_kaydet(request: Request):
             f.get("brans"),
             f.get("tc_kimlik"),
             f.get("eposta"),
+            f.get("adres"),
         ),
         "Personel kaydedildi.",
         hatada=None if pid else {"yeni": "1"},

@@ -63,6 +63,7 @@ KISALTMALAR = {
     "hedef tarih": "HDF TAR",
     "inkılap tarihi ve atatürkçülük": "İTA",
     "çağdaş türk ve dünya tarihi": "ÇTDT",
+    "temel dini bilgiler": "TDB",
 }
 
 

@@ -1,5 +1,6 @@
+Sınıf/DYK/kulüp/öğretmen listesi ve öğrenci özeti için ÖNCE okul-liste aracını kullan; sql-sorgu yalnız onun kapsamadığı sorular için.
 Okul kayıtlarında SQL (yalnızca SELECT) çalıştırır. Öğrenci, veli, öğretmen, sınıf, ders programı ve
-yoklama sorularının HEPSİ için bunu kullan; tahmin etme, önce sorgula. Telefon ve veli bilgisi dahil
+yoklama sorularında okul-liste kapsamı dışındaki veriler için bunu kullan. Telefon ve veli bilgisi dahil
 her kayıt erişilebilir. Hata gelirse mesajı oku, sorguyu düzeltip yeniden dene.
 Ad ararken LIKE yerine `ara(ad_soyad, 'ayşe')` kullan: Türkçe harf ve büyük/küçük harf duyarsızdır
 (kayıtlar BÜYÜK harfli; ayşe, AYSE, Ayşe aynı eşleşir). Aynı ada birden çok kişi çıkarsa hepsini göster.
@@ -21,6 +22,9 @@ ogretim_yili(id, ad, baslangic, bitis, aktif)     -- geçerli yıl: aktif = 1 (y
 derslik(id, ad, sinif_ad, tahta_host)
 yoklama_onbellek(tarih 'YYYY-AA-GG', sinif, ders_no, durum 'alindi'|'alinmadi'|'tahta_ulasilamaz'|'ders_yok_o_gun',
                  yok_isimleri, izinli_isimleri, yok_nolari, izinli_nolari)  -- *_isimleri / *_nolari JSON listesi
+kulup(kod, ad, danisman, sinif)
+kulup_uye(kod, kulup_ad, okul_no, ad_soyad, sinif, rol)
+Görünümler: v_sinif_listesi, v_dyk_listesi, v_kulup_uyeleri, v_ogretmen_listesi
 kulup_yoklama(yoklama_onbellek ile aynı kolonlar; sinif = kulüp kodu)
 dyk_yoklama(yoklama_onbellek ile aynı kolonlar; sinif = DYK kodu, örn. 'DYK-11-COGRAFYA'; ders_no 1 ya da 3)
 dyk_program(sinif_grubu '11'|'12', derslik '10-A'|'12-B', gun 1..6 (6=Cumartesi), gun_adi, baslangic, bitis, kod, ders, ogretmen, ders_no)  -- DYK kursunun haftalık programı; ders_programi'nda YOKTUR (hafta içi 16:00-17:30, cumartesi 09:00-12:10)

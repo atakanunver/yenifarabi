@@ -189,6 +189,7 @@
     {% call alan('Telefon', 'p-tel', eksik_isaret and not d.telefon) %}<input form="pf" id="p-tel" type="tel" name="telefon" value="{{ d.telefon or '' if d }}">{% endcall %}
     {% call alan('TC kimlik no', 'p-tc', eksik_isaret and not d.tc_kimlik) %}<input form="pf" id="p-tc" type="text" name="tc_kimlik" inputmode="numeric" pattern="[0-9]{11}" maxlength="11" value="{{ d.tc_kimlik or '' if d }}">{% endcall %}
     {% call alan('E-posta', 'p-eposta', eksik_isaret and not d.eposta) %}<input form="pf" id="p-eposta" type="email" name="eposta" maxlength="100" value="{{ d.eposta or '' if d }}">{% endcall %}
+    {% call alan('Adres', 'p-adres') %}<input form="pf" id="p-adres" type="text" name="adres" maxlength="500" value="{{ d.adres or '' if d }}">{% endcall %}
     {% call alan('Doğum tarihi', 'p-dogum') %}<input form="pf" id="p-dogum" type="date" name="dogum_tarihi" value="{{ d.dogum_tarihi or '' if d }}">{% endcall %}
     <div class="ayrinti-eylem">
       <button type="submit" form="pf" class="dugme">{{ 'Kaydet' if d else 'Personel ekle' }}</button>

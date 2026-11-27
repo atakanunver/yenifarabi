@@ -300,24 +300,29 @@ def personel(c, pasifler=False):
     ).fetchall()
 
 
-def personel_kaydet(c, pid, ad, telefon, gorev, dogum, brans=None, tc=None, eposta=None):
+def personel_kaydet(c, pid, ad, telefon, gorev, dogum, brans=None, tc=None, eposta=None, adres=None):
     ad, telefon, dogum = _ad(ad), _tel(telefon), _tarih(dogum)
     tc, eposta = _tc(tc), _eposta(eposta)
+    adres_verildi = adres is not None
+    adres = " ".join((adres or "").split()) or None
+    if adres and len(adres) > 500:
+        raise ValueError("Adres en fazla 500 karakter olmalı.")
     brans = " ".join((brans or "").split())[:60] or None
     if gorev not in ("ogretmen", "yonetici", "diger"):
         raise ValueError("Görev ogretmen, yonetici veya diger olmalı.")
     if pid:
         n = c.execute(
-            "UPDATE personel SET ad_soyad=%s,telefon=%s,gorev=%s,dogum_tarihi=%s,brans=%s,tc_kimlik=%s,eposta=%s,aktif=true WHERE id=%s",
-            (ad, telefon, gorev, dogum, brans, tc, eposta, pid),
+            "UPDATE personel SET ad_soyad=%s,telefon=%s,gorev=%s,dogum_tarihi=%s,brans=%s,tc_kimlik=%s,eposta=%s,"
+            "adres=CASE WHEN %s THEN %s ELSE adres END,aktif=true WHERE id=%s",
+            (ad, telefon, gorev, dogum, brans, tc, eposta, adres_verildi, adres, pid),
         ).rowcount
         if not n:
             raise ValueError("Personel bulunamadı.")
         denetim(c, "personel_guncelle", str(pid))
     else:
         r = c.execute(
-            "INSERT INTO personel(ad_soyad,telefon,gorev,dogum_tarihi,brans,tc_kimlik,eposta) VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING id",
-            (ad, telefon, gorev, dogum, brans, tc, eposta),
+            "INSERT INTO personel(ad_soyad,telefon,gorev,dogum_tarihi,brans,tc_kimlik,eposta,adres) VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            (ad, telefon, gorev, dogum, brans, tc, eposta, adres),
         ).fetchone()
         denetim(c, "personel_ekle", str(r["id"]))
 

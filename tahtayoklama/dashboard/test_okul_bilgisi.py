@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import db
 import okul_bilgisi as ob
@@ -423,6 +423,58 @@ class TestOgretmenSimdiVeOkulda(Taban):
         s = v["siniflar"][0]
         self.assertEqual((s["yoklama"], s["toplam"], s["mevcut"], s["yok"]), ("alindi", 2, 1, ["Mehmet Demir"]))
         self.assertEqual(v["dersi_olan_ogretmenler"], [{"ad_soyad": "ÇİÇEK AYŞE", "sinif": "11-A"}])
+
+
+class TestOkulListe(unittest.TestCase):
+    def setUp(self):
+        self.ayar = {"anahtar": ANAHTAR}
+        self.enterContext(patch.object(ob, "_ayar", return_value=self.ayar))
+
+    def istek(self, govde, basliklar=None):
+        if basliklar is None:
+            basliklar = _b(**{"X-Farabi-Rol": "admin"})
+        istek = _istek(basliklar=basliklar)
+        istek.json = AsyncMock(return_value=govde)
+        return asyncio.run(ob.liste(istek))
+
+    def test_yetki(self):
+        for basliklar, kod in [({}, 401), (_b(**{"X-Farabi-Rol": "user"}), 403)]:
+            with self.subTest(kod=kod), self.assertRaises(HTTPException) as c:
+                self.istek({"tur": "ogretmen"}, basliklar)
+            self.assertEqual(c.exception.status_code, kod)
+
+    def test_gecersiz_istek(self):
+        for govde in [{"tur": "diger"}, {"tur": "sinif"}, {"tur": "ogrenci", "aranan": " "}]:
+            with self.subTest(govde=govde), self.assertRaises(HTTPException) as c:
+                self.istek(govde)
+            self.assertEqual(c.exception.status_code, 400)
+
+    def test_sabit_sorgular(self):
+        veri = {"baslik": "Test", "kolonlar": ["No"], "satirlar": [["001"]], "satir_sayisi": 1}
+        for tur, ad, param in [
+            ("sinif", "get_sinif_listesi", {"sinif": "9", "sube": "A"}),
+            ("dyk", "get_dyk_listesi", {"ders": "test", "ogretmen_adi": "test"}),
+            ("kulup", "get_kulup_bilgisi", {"kulup_adi": "test", "ogretmen_adi": "test"}),
+            ("ogretmen", "get_ogretmen_listesi", {"brans": "test"}),
+            ("ogrenci", "get_ogrenci_ozet", {"aranan": "001"}),
+        ]:
+            with self.subTest(tur=tur), patch.object(ob.okul_sorgu, ad, return_value=veri) as sorgu:
+                if tur == "sinif":
+                    self.ayar.update(okul_adi="Test Kurumu", mudur_adi="Test Yöneticisi")
+                yanit = self.istek({"tur": tur, **param})
+                sorgu.assert_called_once_with(*param.values())
+                self.assertEqual(yanit.status_code, 200)
+                self.assertEqual(json.loads(yanit.body), {
+                    **veri, "okul_adi": self.ayar.get("okul_adi", ""), "mudur_adi": self.ayar.get("mudur_adi", ""),
+                })
+                self.ayar.pop("okul_adi", None)
+                self.ayar.pop("mudur_adi", None)
+
+    def test_sql_hatasi(self):
+        with patch.object(ob.okul_sorgu, "get_ogretmen_listesi", side_effect=ob.okul_sql.SqlHatasi("Sorgu hatası")):
+            yanit = self.istek({"tur": "ogretmen"})
+        self.assertEqual(yanit.status_code, 400)
+        self.assertEqual(json.loads(yanit.body), {"hata": "Sorgu hatası"})
 
 
 if __name__ == "__main__":

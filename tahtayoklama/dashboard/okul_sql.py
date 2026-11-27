@@ -19,12 +19,13 @@ import time
 import xml.etree.ElementTree as ET
 import zipfile
 from contextlib import closing
+from functools import partial
 from pathlib import Path
 
-PG_TABLOLARI = (
-    "ogrenci", "veli", "veli_ogrenci", "personel", "sinif", "sinif_atama",
-    "ders_programi", "zil", "ogretim_yili", "derslik", "dosya", "dosya_satir", "yonetici_el_kitabi",
-)
+import kulupler
+
+_YASAK_PG_TABLOLARI = {"ayar", "denetim", "goruntu_surum"}
+_YASAK_PG_SUTUN = re.compile("sifre|parola|token|jeton|hash|anahtar")
 YOKLAMA_TABLOLARI = ("yoklama_onbellek", "kulup_yoklama", "dyk_yoklama")
 SMS_TABLOLARI = ("kisiler", "siniflar", "gonderimler")  # smssistemi.db (rehber + gönderim kayıtları)
 TC_TABLOLARI = ("tc_kimlik",)
@@ -80,7 +81,15 @@ def _ek_ad(onek: str, tablo: str) -> str:
 
 
 EK_TABLOLAR = tuple(_ek_ad(o, t) for o, (_, ts, _) in {**SQLITE_EK, **PG_EK}.items() for t in ts)
-IZINLI_TABLOLAR = frozenset(PG_TABLOLARI + YOKLAMA_TABLOLARI + SMS_TABLOLARI + TC_TABLOLARI + tuple(OSYM_KAYNAKLARI) + TURETILMIS_TABLOLAR + DOSYA_TABLOLARI + DYK_TABLOLARI + EK_TABLOLAR)
+GORUNUMLER = {
+    "v_sinif_listesi": "SELECT okul_no, ad_soyad, sinif FROM ogrenci_genis",
+    "v_dyk_listesi": "SELECT ders, ogretmen, sinif_grubu, okul_no, ad_soyad FROM dyk_ogrenci",
+    "v_kulup_uyeleri": """SELECT k.ad AS kulup_ad, k.danisman, u.okul_no, u.ad_soyad, u.sinif, u.rol
+                          FROM kulup k LEFT JOIN kulup_uye u ON k.kod=u.kod""",
+    "v_ogretmen_listesi": "SELECT ad_soyad, brans, gorev, telefon FROM ogretmen",
+}
+_SABIT_TABLOLAR = frozenset(("kulup", "kulup_uye") + tuple(GORUNUMLER) + YOKLAMA_TABLOLARI + SMS_TABLOLARI + TC_TABLOLARI + tuple(OSYM_KAYNAKLARI) + TURETILMIS_TABLOLAR + DOSYA_TABLOLARI + DYK_TABLOLARI + EK_TABLOLAR)
+IZINLI_TABLOLAR = _SABIT_TABLOLAR
 TABLO_FONKSIYONLARI = frozenset({"json_each", "json_tree"})
 YASAK_FONKSIYONLAR = frozenset({"load_extension", "readfile", "writefile", "edit", "fts3_tokenizer"})
 AZAMI_SATIR = 200
@@ -105,6 +114,27 @@ def _deger(v):
     return v
 
 
+def _tanitici(ad):
+    return '"' + ad.replace('"', '""') + '"'
+
+
+def _pg_kolonlari(c):
+    satirlar = c.execute("""
+        SELECT s.table_name, s.column_name
+        FROM information_schema.columns s
+        JOIN information_schema.tables t USING (table_schema, table_name)
+        JOIN pg_catalog.pg_namespace n ON n.nspname=s.table_schema
+        JOIN pg_catalog.pg_class p ON p.relnamespace=n.oid AND p.relname=s.table_name
+        WHERE s.table_schema='okul_ana' AND t.table_type='BASE TABLE'
+          AND has_column_privilege(p.oid, s.column_name, 'SELECT')
+        ORDER BY s.table_name, s.ordinal_position""")
+    kolonlar = {}
+    for tablo, kolon in satirlar:
+        if _sade(tablo) not in _YASAK_PG_TABLOLARI and not _YASAK_PG_SUTUN.search(_sade(kolon)):
+            kolonlar.setdefault(tablo, []).append(kolon)
+    return kolonlar
+
+
 def pg_tablolari(dsn: str) -> dict[str, tuple[list[str], list[tuple]]]:
     """okul_ana tabloları: {ad: (kolonlar, satırlar)}. Hata → SqlHatasi (ayrıntı sızdırmaz)."""
     try:
@@ -112,9 +142,10 @@ def pg_tablolari(dsn: str) -> dict[str, tuple[list[str], list[tuple]]]:
 
         sonuc = {}
         with psycopg.connect(dsn, connect_timeout=3) as c:
-            for t in PG_TABLOLARI:
-                cur = c.execute(f'SELECT * FROM "{t}"')
-                sonuc[t] = ([d.name for d in cur.description], [tuple(_deger(v) for v in r) for r in cur.fetchall()])
+            for t, kolonlar in _pg_kolonlari(c).items():
+                sutunlar = ", ".join(map(_tanitici, kolonlar))
+                cur = c.execute(f"SELECT {sutunlar} FROM okul_ana.{_tanitici(t)}")
+                sonuc[t] = (kolonlar, [tuple(_deger(v) for v in r) for r in cur.fetchall()])
         return sonuc
     except Exception:  # noqa: BLE001 — DSN/parola hata metnine sızmasın
         raise SqlHatasi("Okul veri tabanına ulaşılamadı.") from None
@@ -148,6 +179,8 @@ def _gecenler(onek: str, tablolar, sorgu: str) -> list[tuple[str, str]]:
 def ek_sqlite_tablolari(sorgu: str, kok=_KOK) -> dict[str, tuple[list[str], list[tuple]]]:
     """SQLITE_EK kaynaklarından yalnızca sorguda adı geçen tablolar (salt-okunur). Hata → SqlHatasi."""
     sonuc = {}
+    if re.search(r"\b(kulup|kulup_uye|v_kulup_uyeleri)\b", sorgu or "", re.IGNORECASE):
+        sonuc.update(kulup_tablolari(kulupler.yukle()))
     for onek, (yol, tablolar, yasak) in SQLITE_EK.items():
         secili = _gecenler(onek, tablolar, sorgu)
         if not secili:
@@ -436,6 +469,17 @@ def dyk_tablolari(veri: dict) -> dict:
             "dyk_program": (["sinif_grubu", "derslik", "gun", "gun_adi", "baslangic", "bitis", "kod", "ders", "ogretmen", "ders_no"], program)}
 
 
+def kulup_tablolari(veri):
+    kulupler_satir, uyeler = [], []
+    for k in veri:
+        kulupler_satir.append((k["kod"], k.get("ad"), k.get("danisman"), k.get("sinif")))
+        for u in k.get("uyeler") or []:
+            if isinstance(u, dict) and "no" in u and "ad_soyad" in u:
+                uyeler.append((k["kod"], k.get("ad"), u["no"], u["ad_soyad"], u.get("sinif"), "üye"))
+    return {"kulup": (["kod", "ad", "danisman", "sinif"], kulupler_satir),
+            "kulup_uye": (["kod", "kulup_ad", "okul_no", "ad_soyad", "sinif", "rol"], uyeler)}
+
+
 def kazanim_tablosu(veri: dict) -> dict:
     """kazanimlar.json ({kazanimlar: {seviye: {ders: {hafta: metin}}}, haftalar: {hafta: başlangıç}}) → kazanim tablosu."""
     haftalar = (veri or {}).get("haftalar") or {}
@@ -474,43 +518,46 @@ def _kopya(tablolar: dict) -> sqlite3.Connection:
     bellek.create_function("like", 2, _like, deterministic=True)
     bellek.create_function("like", 3, _like, deterministic=True)
     for ad, (kolonlar, satirlar) in tablolar.items():
-        sutun = ", ".join(f'"{k}"' for k in kolonlar)
-        bellek.execute(f'CREATE TABLE "{ad}" ({sutun})')
-        bellek.executemany(f'INSERT INTO "{ad}" VALUES ({",".join("?" * len(kolonlar))})', satirlar)
+        sutun = ", ".join(map(_tanitici, kolonlar))
+        bellek.execute(f'CREATE TABLE {_tanitici(ad)} ({sutun})')
+        bellek.executemany(f'INSERT INTO {_tanitici(ad)} VALUES ({",".join("?" * len(kolonlar))})', satirlar)
+    for ad, sorgu in GORUNUMLER.items():
+        bellek.execute(f"CREATE VIEW {ad} AS {sorgu}")
     bellek.commit()
     return bellek
 
 
-def _yetki(eylem, a1, a2, db_adi, kaynak):
+def _yetki(eylem, a1, a2, db_adi, kaynak, *, izinli):
     if eylem in (sqlite3.SQLITE_SELECT, sqlite3.SQLITE_RECURSIVE):
         return sqlite3.SQLITE_OK
     if eylem == sqlite3.SQLITE_READ:
         if db_adi not in ("main", "temp"):  # özyinelemeli CTE adı gibi gerçek tablo olmayan okumalar
             return sqlite3.SQLITE_OK
-        return sqlite3.SQLITE_OK if a1 in IZINLI_TABLOLAR or a1 in TABLO_FONKSIYONLARI else sqlite3.SQLITE_DENY
+        return sqlite3.SQLITE_OK if a1 in izinli or a1 in TABLO_FONKSIYONLARI else sqlite3.SQLITE_DENY
     if eylem == sqlite3.SQLITE_FUNCTION:
         return sqlite3.SQLITE_DENY if (a2 or "").lower() in YASAK_FONKSIYONLAR else sqlite3.SQLITE_OK
     return sqlite3.SQLITE_DENY
 
 
-def calistir(sorgu: str, tablolar: dict, azami_satir: int = AZAMI_SATIR, sure_sn: float = ZAMAN_ASIMI_SN) -> dict:
+def calistir(sorgu: str, tablolar: dict, azami_satir: int | None = AZAMI_SATIR, sure_sn: float = ZAMAN_ASIMI_SN, *, parametreler=()) -> dict:
     """SELECT çalıştırır → {kolonlar, satirlar, kesildi}. Hata → SqlHatasi."""
     sorgu = (sorgu or "").strip().rstrip(";").strip()
     if not sorgu:
         raise SqlHatasi("Sorgu boş.")
     bellek = _kopya(tablolar)
     try:
-        bellek.set_authorizer(_yetki)
+        izinli = _SABIT_TABLOLAR | set(tablolar)
+        bellek.set_authorizer(partial(_yetki, izinli=izinli))
         son = time.monotonic() + sure_sn
         bellek.set_progress_handler(lambda: 1 if time.monotonic() > son else 0, 10000)
         try:
-            cur = bellek.execute(sorgu)
-            satirlar = cur.fetchmany(azami_satir + 1)
+            cur = bellek.execute(sorgu, parametreler)
+            satirlar = cur.fetchall() if azami_satir is None else cur.fetchmany(azami_satir + 1)
         except sqlite3.DatabaseError as e:
             ileti = str(e)
             if "not authorized" in ileti or "prohibited" in ileti:
                 raise SqlHatasi("İzin yok: yalnızca şu tablolarda SELECT yapılabilir: "
-                                + ", ".join(sorted(IZINLI_TABLOLAR))) from None
+                                + ", ".join(sorted(izinli))) from None
             if "interrupted" in ileti:
                 raise SqlHatasi(f"Sorgu {sure_sn:g} sn içinde bitmedi; daha dar bir sorgu yazın.") from None
             raise SqlHatasi(f"SQL hatası: {ileti}") from None
@@ -519,6 +566,8 @@ def calistir(sorgu: str, tablolar: dict, azami_satir: int = AZAMI_SATIR, sure_sn
         kolonlar = [d[0] for d in cur.description or []]
     finally:
         bellek.close()
+    if azami_satir is None:  # Sabit raporlar tüm satır ve hücreleri döndürür.
+        return {"kolonlar": kolonlar, "satirlar": [list(r) for r in satirlar], "kesildi": False}
     kesildi = len(satirlar) > azami_satir
     cikti = [[(v[:AZAMI_HUCRE] + "…") if isinstance(v, str) and len(v) > AZAMI_HUCRE else v for v in r]
              for r in satirlar[:azami_satir]]

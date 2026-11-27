@@ -28,6 +28,7 @@ from pathlib import Path
 import db
 import ders_programi
 import dyk
+import okul_sorgu
 import okul_sql
 import zil
 from fastapi import APIRouter, HTTPException, Request
@@ -467,3 +468,44 @@ async def sql(request: Request):
         return JSONResponse({"hata": str(e)}, status_code=400)
     log.info("okul/sql: %d satır (kullanıcı %s)", len(sonuc["satirlar"]), request.headers.get("X-Farabi-Kullanici", "?"))
     return JSONResponse(sonuc)
+
+
+@router.post("/liste")
+async def liste(request: Request):
+    ayar = _dogrula(request)
+    if (request.headers.get("X-Farabi-Rol") or "").strip().lower() != "admin":
+        raise HTTPException(403, "Liste yalnızca yönetici hesabıyla alınabilir.")
+    try:
+        govde = await request.json()
+    except ValueError:
+        govde = None
+    if not isinstance(govde, dict):
+        raise HTTPException(400, "Gövde bir JSON nesnesi olmalı.")
+    tur = govde.get("tur")
+    sorgular = {
+        "sinif": (okul_sorgu.get_sinif_listesi, ("sinif", "sube")),
+        "dyk": (okul_sorgu.get_dyk_listesi, ("ders", "ogretmen_adi")),
+        "kulup": (okul_sorgu.get_kulup_bilgisi, ("kulup_adi", "ogretmen_adi")),
+        "ogretmen": (okul_sorgu.get_ogretmen_listesi, ("brans",)),
+        "ogrenci": (okul_sorgu.get_ogrenci_ozet, ("aranan",)),
+    }
+    if not isinstance(tur, str) or tur not in sorgular:
+        raise HTTPException(400, "Liste türü sinif, dyk, kulup, ogretmen veya ogrenci olmalı.")
+    sorgu, alanlar = sorgular[tur]
+    parametreler = []
+    for alan in alanlar:
+        deger = govde.get(alan)
+        if type(deger) is int and alan in ("sinif", "aranan"):
+            deger = str(deger)
+        if deger is not None and not isinstance(deger, str):
+            raise HTTPException(400, f"{alan} alanı metin olmalı.")
+        deger = (deger or "").strip() or None
+        if alan in ("sinif", "aranan") and deger is None:
+            raise HTTPException(400, f"{alan} alanı zorunludur.")
+        parametreler.append(deger)
+    try:
+        sonuc = await asyncio.to_thread(sorgu, *parametreler)
+    except okul_sql.SqlHatasi as e:
+        return JSONResponse({"hata": str(e)}, status_code=400)
+    log.info("okul/liste: %s, %d satır", tur, sonuc["satir_sayisi"])
+    return JSONResponse({**sonuc, "okul_adi": ayar.get("okul_adi") or "", "mudur_adi": ayar.get("mudur_adi") or ""})

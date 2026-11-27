@@ -1,0 +1,98 @@
+{
+  "active": true,
+  "hubId": "okul-liste",
+  "name": "Okul listeleri ve öğrenci özeti",
+  "schema": "skill-1.0.0",
+  "version": "1.0.0",
+  "description": "Sınıf, DYK, kulüp ve öğretmen listeleri ile öğrenci özeti için önce bu aracı kullan. Metin, Excel, Word veya PDF döndürür. Örnekler: 9-A listesini Excel yap, DYK matematik listesini göster, satranç kulübünü Word yap, 123 numaralı öğrencinin özetini getir.",
+  "author": "Farabi",
+  "author_url": "",
+  "license": "MIT",
+  "setup_args": {
+    "OKUL_API_KEY": {
+      "type": "string",
+      "required": true,
+      "input": {
+        "type": "text",
+        "default": "",
+        "placeholder": "",
+        "hint": "Dashboard /api/okul anahtarı (dağıtımda otomatik yazılır)"
+      },
+      "value": "__ANAHTAR__"
+    },
+    "OKUL_API_URL": {
+      "type": "string",
+      "required": false,
+      "input": {
+        "type": "text",
+        "default": "http://127.0.0.1/api/okul/liste",
+        "placeholder": "",
+        "hint": "Dashboard liste ucu"
+      },
+      "value": "http://127.0.0.1/api/okul/liste"
+    }
+  },
+  "examples": [
+    {
+      "prompt": "9-A listesini Excel yap",
+      "call": "{\"tur\": \"sinif\", \"sinif\": \"9-A\", \"cikti_formati\": \"xlsx\"}"
+    },
+    {
+      "prompt": "DYK matematik listesini göster",
+      "call": "{\"tur\": \"dyk\", \"ders\": \"matematik\"}"
+    },
+    {
+      "prompt": "Satranç kulübünü Word yap",
+      "call": "{\"tur\": \"kulup\", \"kulup_adi\": \"satranç\", \"cikti_formati\": \"docx\"}"
+    },
+    {
+      "prompt": "123 numaralı öğrencinin özetini getir",
+      "call": "{\"tur\": \"ogrenci\", \"aranan\": \"123\"}"
+    }
+  ],
+  "entrypoint": {
+    "file": "handler.js",
+    "params": {
+      "tur": {
+        "type": "string",
+        "description": "sinif|dyk|kulup|ogretmen|ogrenci. sinif(sinif, sube), dyk(ders, ogretmen_adi), kulup(kulup_adi, ogretmen_adi), ogretmen(brans), ogrenci(aranan)."
+      },
+      "sinif": {
+        "type": "string",
+        "description": "Sınıf türünde zorunlu. Örn. 9 veya 9-A."
+      },
+      "sube": {
+        "type": "string",
+        "description": "Ayrı verilen şube."
+      },
+      "ders": {
+        "type": "string",
+        "description": "DYK dersi."
+      },
+      "ogretmen_adi": {
+        "type": "string",
+        "description": "DYK öğretmeni veya kulüp danışmanı."
+      },
+      "kulup_adi": {
+        "type": "string",
+        "description": "Kulüp adı."
+      },
+      "brans": {
+        "type": "string",
+        "description": "Öğretmen branşı."
+      },
+      "aranan": {
+        "type": "string",
+        "description": "Öğrenci türünde zorunlu. Okul numarası veya ad."
+      },
+      "cikti_formati": {
+        "type": "string",
+        "description": "metin|xlsx|docx|pdf (varsayılan metin)."
+      },
+      "dosya_adi": {
+        "type": "string",
+        "description": "İsteğe bağlı dosya adı."
+      }
+    }
+  }
+}

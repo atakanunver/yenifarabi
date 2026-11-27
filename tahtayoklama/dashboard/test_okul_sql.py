@@ -3,7 +3,7 @@
 import asyncio
 import json
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
 
@@ -24,6 +24,18 @@ def cal(sorgu, **kw):
 
 
 class TestCalistir(unittest.TestCase):
+    def test_pg_izni_tablo_sozlugune_ozeldir(self):
+        veri = (["id"], [(1,)])
+        ilk = {"ilk_pg": veri}
+        ikinci = {"ikinci_pg": veri}
+        self.assertEqual(os_.calistir("SELECT id FROM ilk_pg", ilk)["satirlar"], [[1]])
+        with self.assertRaises(os_.SqlHatasi):
+            os_.calistir("SELECT id FROM ilk_pg", ikinci)
+        with self.assertRaisesRegex(os_.SqlHatasi, "İzin yok") as hata:
+            os_.calistir("SELECT name FROM sqlite_master", ikinci)
+        self.assertIn("ikinci_pg", str(hata.exception))
+        self.assertNotIn("ilk_pg", str(hata.exception))
+
     def test_join_ve_telefon(self):
         r = cal("SELECT o.ad_soyad, v.ad_soyad AS veli, v.telefon FROM ogrenci o "
                 "JOIN veli_ogrenci vo ON vo.okul_no=o.okul_no JOIN veli v ON v.id=vo.veli_id")
@@ -90,6 +102,32 @@ class TestCalistir(unittest.TestCase):
     def test_bos_sorgu(self):
         with self.assertRaises(os_.SqlHatasi):
             cal("   ")
+
+
+class TestPgKesif(unittest.TestCase):
+    def test_yetkili_sutunlar_ve_grant_degisikligi(self):
+        c = MagicMock()
+        baglan = self.enterContext(patch("psycopg.connect"))
+        baglan.return_value.__enter__.return_value = c
+        ad = 'yeni"tablo'
+        kolonlar = [(ad, "ad")] + [(ad, "eski_" + k) for k in
+                                   ("ŞİFRE", "parola", "Token", "jeton", "hash", "anahtar")]
+        kolonlar += [(t, "ad") for t in ("ayar", "denetim", "goruntu_surum")]
+        c.execute.side_effect = [kolonlar, MagicMock(fetchall=lambda: [("örnek",)]), []]
+        tablolar = os_.pg_tablolari("test")
+        self.assertEqual(tablolar, {ad: (["ad"], [("örnek",)])})
+        kesif, secim = [call.args[0] for call in c.execute.call_args_list]
+        self.assertIn("s.table_schema='okul_ana'", kesif)
+        self.assertIn("has_column_privilege(p.oid, s.column_name, 'SELECT')", kesif)
+        self.assertEqual(secim, 'SELECT "ad" FROM okul_ana."yeni""tablo"')
+        self.assertEqual(os_.calistir('SELECT ad FROM "yeni""tablo"', tablolar)["satirlar"], [["örnek"]])
+        self.assertEqual(os_.pg_tablolari("test"), {})
+        self.assertNotIn(ad, os_.IZINLI_TABLOLAR)
+
+    def test_kesif_hatasi_ayrinti_sizdirmaz(self):
+        with patch("psycopg.connect", side_effect=RuntimeError("sahte ayrıntı")), self.assertRaises(os_.SqlHatasi) as ctx:
+            os_.pg_tablolari("test")
+        self.assertEqual(str(ctx.exception), "Okul veri tabanına ulaşılamadı.")
 
 
 class TestDosyaTablolari(unittest.TestCase):
