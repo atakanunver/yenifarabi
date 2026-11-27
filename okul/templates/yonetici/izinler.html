@@ -1,14 +1,20 @@
 {% extends "base.html" %}
 {% block baslik %}Veli izin talepleri — Dijital Okul{% endblock %}
 {% block icerik %}
-<h1>Veli izin talepleri</h1>
+<h1>Veli izin talepleri <a class="tus kucuk" href="/yonetici/izinler/ekle">➕ Manuel izin ekle</a></h1>
 <p class="soluk">{{ bekleyen }} bekleyen talep. Bekleyenler önce listelenir.</p>
 {% for t in talepler %}
-<a class="kart satir" href="/yonetici/izinler/{{ t.id }}" style="display:block">
-  <p class="soluk kucuk">{{ t.olusturma[:16] }} · <span class="etiket{{ ' yesil' if t.durum == 'onaylandi' else (' kirmizi' if t.durum == 'reddedildi' else ' sari') }}">{{ t.durum_ad }}</span></p>
-  <p><b>{{ t.ogrenci_ad }}</b> ({{ t.sinif }}, no {{ t.okul_no }}) · veli {{ t.veli_ad }}</p>
-  <p class="kucuk">{{ t.baslangic_g }} – {{ t.bitis_g }} · {{ t.gun }} gün · {{ t.neden_ad }}{% if t.ek_depo %} · 📎 ek var{% endif %}</p>
-</a>
+<div class="kart satir">
+  <a href="/yonetici/izinler/{{ t.id }}" style="display:block">
+    <p class="soluk kucuk">{{ t.olusturma[:16] }} · <span class="etiket{{ ' yesil' if t.durum == 'onaylandi' else (' kirmizi' if t.durum == 'reddedildi' else ' sari') }}">{{ t.durum_ad }}</span></p>
+    <p><b>{{ t.ogrenci_ad }}</b> ({{ t.sinif }}, no {{ t.okul_no }}) · {% if t.idare_girisi %}İdare girişi{% else %}veli {{ t.veli_ad }}{% endif %}</p>
+    <p class="kucuk">{{ t.baslangic_g }} – {{ t.bitis_g }} · {{ t.gun }} gün · {{ t.neden_ad }}{% if t.ek_depo %} · 📎 ek var{% endif %}</p>
+  </a>
+  <form method="post" action="/yonetici/izinler/{{ t.id }}/sil" onsubmit="return confirm('Bu izin kaydı kalıcı silinsin mi?{% if t.durum == 'onaylandi' %} {{ t.gun }} gün özürlü hakka geri eklenir.{% endif %}')">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="tus tehlike kucuk">🗑 İptal</button>
+  </form>
+</div>
 {% else %}
 <div class="kart"><p class="bos">Talep yok.</p></div>
 {% endfor %}

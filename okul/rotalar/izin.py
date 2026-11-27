@@ -30,6 +30,9 @@ VELI = rol("veli")
 VELI_POST = rol("veli", post=True)
 YONETICI = rol("yonetici")
 YONETICI_POST = rol("yonetici", post=True)
+_YONETICI = Depends(YONETICI)
+_YONETICI_POST = Depends(YONETICI_POST)
+_DB = Depends(db_conn)
 
 
 def _form_bagi(conn: sqlite3.Connection, k, c, **ek):
@@ -143,6 +146,42 @@ def yonetici_izinler(request: Request, k=Depends(YONETICI), conn: sqlite3.Connec
     return render(
         request, "yonetici/izinler.html", talepler=izin.liste(conn), bekleyen=izin.bekleyen_sayisi(conn)
     )
+
+
+def _ekle_formu(request: Request, conn: sqlite3.Connection, girdi: dict, hata: str = "", durum: int = 200):
+    ogrenciler: dict[str, list[dict]] = {}
+    for r in conn.execute("SELECT id, okul_no, ad_soyad, sinif FROM ogrenci ORDER BY sinif, okul_no"):
+        ogrenciler.setdefault(r["sinif"], []).append({"id": r["id"], "ad": f"{r['okul_no']} - {r['ad_soyad']}"})
+    return render(
+        request, "yonetici/izinler_ekle.html", durum, ogrenciler=ogrenciler, nedenler=izin.NEDENLER,
+        bugun=zaman.simdi().strftime("%Y-%m-%d"), metin_azami=izin.METIN_AZAMI, girdi=girdi, hata=hata,
+    )
+
+
+@router.get("/yonetici/izinler/ekle")
+def yonetici_izin_ekle_formu(request: Request, k=_YONETICI, conn: sqlite3.Connection = _DB):
+    return _ekle_formu(request, conn, {})
+
+
+@router.post("/yonetici/izinler/ekle")
+def yonetici_izin_ekle(
+    request: Request,
+    ogrenci: int = Form(0),
+    baslangic: str = Form(""),
+    bitis: str = Form(""),
+    neden_tur: str = Form(""),
+    neden_metin: str = Form(""),
+    k=_YONETICI_POST,
+    conn: sqlite3.Connection = _DB,
+):
+    try:
+        talep_id = izin.yonetici_ekle(conn, k["id"], ogrenci, baslangic, bitis, neden_tur, neden_metin)
+    except izin.IzinHatasi as e:
+        girdi = {"ogrenci": ogrenci, "baslangic": baslangic, "bitis": bitis, "neden_tur": neden_tur, "neden_metin": neden_metin}
+        mesaj = "Öğrenci seçin." if e.kod == 404 else e.mesaj
+        return _ekle_formu(request, conn, girdi, mesaj, 422)
+    yetki.erisim_kaydet(conn, k, f"izin_ekle:{talep_id}", ogrenci, istemci_ip(request))
+    return RedirectResponse("/yonetici/izinler", status_code=303)
 
 
 def _yonetici_talep(conn: sqlite3.Connection, talep_id: int) -> dict:

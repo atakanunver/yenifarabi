@@ -313,3 +313,81 @@ def test_yonetici_mukerrer_talebi_siler(istemci, conn, ornek, bildirimler):
     assert not pdf.exists()
     assert istemci.get(yol).status_code == 404
 
+
+
+def _ekle(c, ogr, baslangic="2026-11-23", bitis="2026-11-24", neden_tur="saglik", neden_metin="", csrf=None):
+    veri = {
+        "csrf": csrf if csrf is not None else _csrf(c, "/yonetici/izinler/ekle"),
+        "ogrenci": str(ogr), "baslangic": baslangic, "bitis": bitis, "neden_tur": neden_tur, "neden_metin": neden_metin,
+    }
+    return c.post("/yonetici/izinler/ekle", data=veri, follow_redirects=False)
+
+
+def test_yonetici_manuel_izin_onayli_olusur(istemci, conn, ornek, bildirimler):
+    _oturum(istemci, conn, ornek["yonetici"])
+    assert istemci.get("/yonetici/izinler/ekle").status_code == 200  # {talep_id} rotasıyla çakışmaz
+    r = _ekle(istemci, ornek["ogr2"], neden_metin="Telefonla bildirildi")
+    assert r.status_code == 303 and r.headers["location"] == "/yonetici/izinler"
+    t = izin.detay(conn, conn.execute("SELECT id FROM izin_talep").fetchone()[0])
+    assert t["durum"] == "onaylandi" and t["gun"] == 2 and t["idare_girisi"] is True
+    assert t["veli_id"] == t["karar_veren"] == ornek["yonetici"]
+    assert t["karar_zamani"] == t["olusturma"] and t["pdf_depo"] is None
+    assert izin.onayli_siniflar(conn, "2026-11-23") == {"9-B": ["201"]}
+    assert izin.kullanilan_gun(conn, ornek["ogr2"], date(2026, 11, 23)) == 2
+    assert conn.execute("SELECT COUNT(*) FROM erisim_log WHERE eylem = ?", (f"izin_ekle:{t['id']}",)).fetchone()[0] == 1
+    assert bildirimler == {"sms": [], "push": [], "push_sonuc": [], "telegram": []}
+    liste = istemci.get("/yonetici/izinler").text
+    assert "İdare girişi" in liste and "🗑 İptal" in liste and "veli Müdür Bey" not in liste
+
+
+def test_veli_talebi_idare_girisi_degil(istemci, conn, ornek, bildirimler):
+    t = _yeni_talep(istemci, conn, ornek)
+    assert izin.detay(conn, t["id"])["idare_girisi"] is False
+
+
+def test_manuel_izin_csrf_ve_rol(istemci, conn, ornek, bildirimler):
+    _oturum(istemci, conn, ornek["yonetici"])
+    assert _ekle(istemci, ornek["ogr1"], csrf="").status_code == 400
+    assert conn.execute("SELECT COUNT(*) FROM izin_talep").fetchone()[0] == 0
+    for anahtar in ("veli1", "ogretmen", "ogr1_k"):
+        _oturum(istemci, conn, ornek[anahtar])
+        assert istemci.get("/yonetici/izinler/ekle").status_code == 404
+        veri = {"ogrenci": str(ornek["ogr1"]), "baslangic": "2026-11-23", "bitis": "2026-11-23", "neden_tur": "saglik"}
+        assert istemci.post("/yonetici/izinler/ekle", data=veri).status_code == 404
+    assert conn.execute("SELECT COUNT(*) FROM izin_talep").fetchone()[0] == 0
+
+
+def test_manuel_izin_gecersiz_girdi_formu_tekrar_gosterir(istemci, conn, ornek, bildirimler):
+    _oturum(istemci, conn, ornek["yonetici"])
+    o = ornek["ogr1"]
+    assert _ekle(istemci, o, baslangic="2026-11-28", bitis="2026-11-29").status_code == 422  # hafta sonu
+    assert _ekle(istemci, o, baslangic="2026-11-25", bitis="2026-11-24").status_code == 422
+    assert _ekle(istemci, o, neden_tur="diger").status_code == 422
+    r = _ekle(istemci, 99999)
+    assert r.status_code == 422 and "Öğrenci seçin" in r.text
+    assert _ekle(istemci, 0).status_code == 422
+    assert conn.execute("SELECT COUNT(*) FROM izin_talep").fetchone()[0] == 0
+    # saatte 3 sınırı idare girişine uygulanmaz
+    for _ in range(4):
+        assert _ekle(istemci, o).status_code == 303
+
+
+def test_idare_izin_listeden_iptal_edilir(istemci, conn, ornek, bildirimler):
+    _oturum(istemci, conn, ornek["yonetici"])
+    _ekle(istemci, ornek["ogr1"])
+    tid = conn.execute("SELECT id FROM izin_talep").fetchone()[0]
+    assert izin.kullanilan_gun(conn, ornek["ogr1"], date(2026, 11, 23)) == 2
+    assert istemci.post(f"/yonetici/izinler/{tid}/sil", data={}).status_code == 400
+    r = istemci.post(
+        f"/yonetici/izinler/{tid}/sil", data={"csrf": _csrf(istemci, "/yonetici/izinler")}, follow_redirects=False
+    )
+    assert r.status_code == 303 and r.headers["location"] == "/yonetici/izinler"
+    assert conn.execute("SELECT COUNT(*) FROM izin_talep").fetchone()[0] == 0
+    assert izin.kullanilan_gun(conn, ornek["ogr1"], date(2026, 11, 23)) == 0
+
+
+def test_yonetici_ana_izin_bolumu(istemci, conn, ornek):
+    _oturum(istemci, conn, ornek["yonetici"])
+    h = istemci.get("/yonetici").text
+    assert "<h2>İZİN</h2>" in h and 'href="/yonetici/izinler/ekle"' in h and "Veli izin talepleri" in h
+    assert h.count('href="/yonetici/izinler"') == 1

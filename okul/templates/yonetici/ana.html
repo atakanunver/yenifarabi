@@ -17,7 +17,6 @@
   <a class="tus ikincil" href="/yonetici/duyurular">📢 Duyuru okuma durumu</a>
   <a class="tus ikincil" href="/yonetici/analitik">📊 Kullanım analitiği</a>
   <a class="tus ikincil" href="/yonetici/sms">💬 SMS gönder / kayıtlar</a>
-  <a class="tus ikincil" href="/yonetici/izinler">📝 Veli izin talepleri{% if izin_bekleyen|default(0) %} <span class="sayi-rozet">{{ izin_bekleyen }} bekleyen</span>{% endif %}</a>
   <a class="tus ikincil" href="/ogretmen/onay">📋 Veli onay istekleri</a>
   <a class="tus ikincil" href="/yonetici/soru-bildirimleri">🚩 Soru bildirimleri</a>
   <a class="tus ikincil" href="/yonetici/bilmeceler">🧩 Günün Bilmecesi</a>
@@ -29,6 +28,13 @@
   <a class="tus ikincil" href="/yonetici/anketler">📝 Anketler</a>
   <a class="tus ikincil" href="/yonetici/oduller">🏆 Haftalık ödüller</a>{% endif %}
 </div>
+<section class="kart">
+  <h2>İZİN</h2>
+  <div class="kisayollar">
+    <a class="tus ikincil" href="/yonetici/izinler">📝 Veli izin talepleri{% if izin_bekleyen|default(0) %} <span class="sayi-rozet">{{ izin_bekleyen }} bekleyen</span>{% endif %}</a>
+    <a class="tus ikincil" href="/yonetici/izinler/ekle">➕ Manuel izin ekle</a>
+  </div>
+</section>
 <section class="kart{{ ' uyari' if degismemis }}">
   <h2>Dikkat edilecekler</h2>
   <ul class="liste">

@@ -123,21 +123,8 @@ def _pdf_alanlari(t: dict) -> dict:
     }
 
 
-def olustur(
-    conn: sqlite3.Connection,
-    veli_id: int,
-    ogrenci_id: int,
-    baslangic: str,
-    bitis: str,
-    neden_tur: str,
-    neden_metin: str,
-    ek_veri: bytes | None = None,
-) -> int:
-    """Sahiplik (veli_ogrenci) çağıranda doğrulanmış olmalı; yine de burada tekrar bakılır (404)."""
-    if not conn.execute(
-        "SELECT 1 FROM veli_ogrenci WHERE veli_id = ? AND ogrenci_id = ?", (veli_id, ogrenci_id)
-    ).fetchone():
-        raise IzinHatasi("Bulunamadı.", 404)
+def _dogrula(baslangic: str, bitis: str, neden_tur: str, neden_metin: str) -> tuple[date, date, str, int]:
+    """Tarih aralığı, mazeret ve okul günü doğrulaması; (başlangıç, bitiş, temiz metin, gün) döner."""
     bas, bit = tarih_coz(baslangic), tarih_coz(bitis)
     if bas > bit:
         raise IzinHatasi("Başlangıç tarihi bitiş tarihinden sonra olamaz.")
@@ -153,6 +140,25 @@ def olustur(
     gun = is_gunu(bas, bit)
     if gun == 0:
         raise IzinHatasi("Seçilen tarihlerde okul günü yok (hafta sonu ya da tatil).")
+    return bas, bit, metin, gun
+
+
+def olustur(
+    conn: sqlite3.Connection,
+    veli_id: int,
+    ogrenci_id: int,
+    baslangic: str,
+    bitis: str,
+    neden_tur: str,
+    neden_metin: str,
+    ek_veri: bytes | None = None,
+) -> int:
+    """Sahiplik (veli_ogrenci) çağıranda doğrulanmış olmalı; yine de burada tekrar bakılır (404)."""
+    if not conn.execute(
+        "SELECT 1 FROM veli_ogrenci WHERE veli_id = ? AND ogrenci_id = ?", (veli_id, ogrenci_id)
+    ).fetchone():
+        raise IzinHatasi("Bulunamadı.", 404)
+    bas, bit, metin, gun = _dogrula(baslangic, bitis, neden_tur, neden_metin)
     saat_once = (zaman.simdi() - timedelta(hours=1)).strftime(zaman.BICIM)
     if conn.execute(
         "SELECT COUNT(*) FROM izin_talep WHERE veli_id = ? AND olusturma >= ?", (veli_id, saat_once)
@@ -185,8 +191,31 @@ def olustur(
     return talep_id
 
 
+def yonetici_ekle(
+    conn: sqlite3.Connection,
+    yonetici_id: int,
+    ogrenci_id: int,
+    baslangic: str,
+    bitis: str,
+    neden_tur: str,
+    neden_metin: str,
+) -> int:
+    """İdarenin elle girdiği izin: doğrudan onaylı kayıt (veli/PDF/bildirim yok, saat sınırı yok)."""
+    if not conn.execute("SELECT 1 FROM ogrenci WHERE id = ?", (ogrenci_id,)).fetchone():
+        raise IzinHatasi("Bulunamadı.", 404)
+    bas, bit, metin, gun = _dogrula(baslangic, bitis, neden_tur, neden_metin)
+    simdi = zaman.simdi_str()
+    cur = conn.execute(
+        "INSERT INTO izin_talep (veli_id, ogrenci_id, baslangic, bitis, gun, neden_tur, neden_metin, durum,"
+        " karar_veren, karar_zamani, olusturma) VALUES (?, ?, ?, ?, ?, ?, ?, 'onaylandi', ?, ?, ?)",
+        (yonetici_id, ogrenci_id, bas.isoformat(), bit.isoformat(), gun, neden_tur, metin, yonetici_id, simdi, simdi),
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
 _SECIM = (
-    "SELECT t.*, o.ad_soyad AS ogrenci_ad, o.sinif, o.okul_no, v.ad_soyad AS veli_ad, v.telefon AS veli_telefon,"
+    "SELECT t.*, o.ad_soyad AS ogrenci_ad, o.sinif, o.okul_no, v.ad_soyad AS veli_ad, v.telefon AS veli_telefon, v.rol AS veli_rol,"
     " y.ad_soyad AS karar_veren_ad"
     " FROM izin_talep t JOIN ogrenci o ON o.id = t.ogrenci_id JOIN kullanici v ON v.id = t.veli_id"
     " LEFT JOIN kullanici y ON y.id = t.karar_veren"
@@ -199,6 +228,7 @@ def _kayit(r: sqlite3.Row) -> dict:
     d["mazeret"] = mazeret_metni(d["neden_tur"], d["neden_metin"])
     d["durum_ad"] = DURUMLAR[d["durum"]]
     d["baslangic_g"], d["bitis_g"] = _gs(d["baslangic"]), _gs(d["bitis"])
+    d["idare_girisi"] = d["veli_id"] == d["karar_veren"] and d["veli_rol"] == "yonetici"
     return d
 
 

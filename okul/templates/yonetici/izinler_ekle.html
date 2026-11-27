@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block baslik %}Manuel izin ekle — Dijital Okul{% endblock %}
+{% block icerik %}
+{% set g = girdi|default({}) %}
+<h1>➕ Manuel izin ekle</h1>
+<p class="soluk">İdare girişi: kayıt doğrudan <b>onaylı</b> oluşturulur; veliye bildirim ya da dilekçe PDF'i gitmez. Onaylı izin özürlü devamsızlık hakkından düşer.</p>
+{% if hata is defined and hata %}<div class="hata" role="alert">{{ hata }}</div>{% endif %}
+<form class="kart" method="post" action="/yonetici/izinler/ekle" id="izin-ekle-form">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="sinif">Sınıf</label>
+  <select id="sinif" required>
+    <option value="">Sınıf seçin</option>
+    {% for s in ogrenciler %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+  </select>
+  <label for="ogrenci">Öğrenci</label>
+  <select id="ogrenci" name="ogrenci" required><option value="">Önce sınıf seçin</option></select>
+  <label for="baslangic">Başlangıç tarihi</label>
+  <input type="date" id="baslangic" name="baslangic" required value="{{ g.baslangic|default(bugun) }}">
+  <label for="bitis">Bitiş tarihi</label>
+  <input type="date" id="bitis" name="bitis" required value="{{ g.bitis|default(bugun) }}">
+  <p class="soluk kucuk">Gün sayısı hafta sonu ve tatiller hariç okul günü olarak otomatik hesaplanır.</p>
+  <label for="neden_tur">Mazeret</label>
+  <select id="neden_tur" name="neden_tur" required>
+    {% for kod, ad in nedenler.items() %}<option value="{{ kod }}"{% if kod == g.neden_tur %} selected{% endif %}>{{ ad[0] }}</option>{% endfor %}
+  </select>
+  <label for="neden_metin">Açıklama (Diğer seçildiyse zorunlu, en çok {{ metin_azami }} karakter)</label>
+  <textarea id="neden_metin" name="neden_metin" maxlength="{{ metin_azami }}">{{ g.neden_metin|default('') }}</textarea>
+  <div class="tuslar"><button class="tus tam">İzni ekle</button></div>
+</form>
+<p class="kucuk"><a href="/yonetici/izinler">← Veli izin talepleri</a></p>
+<script id="ogrenci-veri" type="application/json">{{ ogrenciler|tojson }}</script>
+<script>
+(function () {
+  var veri = JSON.parse(document.getElementById("ogrenci-veri").textContent);
+  var sinif = document.getElementById("sinif"), ogr = document.getElementById("ogrenci");
+  var secili = {{ (g.ogrenci|default(0))|int }};
+  function doldur() {
+    ogr.innerHTML = "";
+    var liste = veri[sinif.value] || [];
+    var ilk = document.createElement("option");
+    ilk.value = ""; ilk.textContent = liste.length ? "Öğrenci seçin" : "Önce sınıf seçin";
+    ogr.appendChild(ilk);
+    liste.forEach(function (o) {
+      var op = document.createElement("option");
+      op.value = o.id; op.textContent = o.ad; if (o.id === secili) op.selected = true;
+      ogr.appendChild(op);
+    });
+  }
+  Object.keys(veri).forEach(function (s) {
+    if (veri[s].some(function (o) { return o.id === secili; })) sinif.value = s;
+  });
+  sinif.addEventListener("change", function () { secili = 0; doldur(); });
+  doldur();
+})();
+</script>
+{% endblock %}
