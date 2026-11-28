@@ -63,6 +63,7 @@ MAKINELER = {
         "rol": "Ses düğümü: Whisper STT + Trendyol TTS",
         "host": "bilgehan.local",
         "proxy_dugmesi": True,
+        "kontroller": (("Zil paneli", 8090),),
     },
     "debian": {
         "ad": "Debian",
@@ -71,14 +72,6 @@ MAKINELER = {
         "proxy_dugmesi": False,
     },
     # Hostname esas (IP DHCP ile değişir). "kontroller" = ek TCP port denetimi.
-    "zil": {
-        "ad": "Zil PC",
-        "rol": "Zil/anons Telegram botu + web paneli",
-        "host": "zil.local",
-        "kullanici": "atakan",
-        "proxy_dugmesi": False,
-        "kontroller": (("Zil paneli", 8090),),
-    },
     "kiosk": {
         "ad": "Kiosk PC",
         "rol": "Giriş kapısı yüz tanıma + dijital pano web servisi",

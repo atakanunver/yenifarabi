@@ -78,8 +78,8 @@ UZAK_SERVISLER = [
      "host": "bilgehan.local", "port": 8060, "yol": "/saglik", "beklenen": (200,)},
     {"anahtar": "tts", "ad": "TTS Sunucusu (EMA Lightning)", "makine": "debian",
      "host": "debian.local", "port": 5002, "yol": "/saglik", "beklenen": (200,)},
-    {"anahtar": "zil", "ad": "Zil Paneli", "makine": "zil",
-     "host": "zil.local", "port": 8090, "yol": "/", "beklenen": (200, 401)},
+    {"anahtar": "zil", "ad": "Zil Paneli", "makine": "bilgehan",
+     "host": "bilgehan.local", "port": 8090, "yol": "/", "beklenen": (200, 401)},
     {"anahtar": "sms_kopru", "ad": "SMS Köprüsü (Müdür PC proxy → modem)", "makine": "mudur-pc",
      "host": "mudur.local", "port": 8080, "yol": None, "beklenen": ()},
 ]

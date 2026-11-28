@@ -28,7 +28,7 @@ def statik_surum() -> str:
     return _surum_onbellek["v"]
 
 
-ZIL_PANELI = "http://zil.local:8090/"  # kimlik gömülmez; tarayıcı Basic Auth sorar
+ZIL_PANELI = "http://bilgehan.local:8090/"  # kimlik gömülmez; tarayıcı Basic Auth sorar
 BILGEHAN_PANELI = "http://bilgehan.local:9100/"  # okul-panel, Basic Auth
 KIOSK_PANELI = "http://kiosk.local:9100/"
 PANO_PANELI = "http://kiosk.local:9100/pano"  # pano içeriği: nöbetçi, slayt, bilgiler, YKS (okul-panel, Basic Auth)

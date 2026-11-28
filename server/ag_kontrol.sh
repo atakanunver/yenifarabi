@@ -16,6 +16,6 @@ chk dvr_kamera      192.168.23.99 554
 chk debian_tts      debian.local  5002
 chk bilgehan_embed  bilgehan.local 8040
 chk bilgehan_ses    bilgehan.local 8060
-chk zil_paneli      zil.local     8090
+chk zil_paneli      bilgehan.local 8090
 echo "{\"zaman\":\"$(date -Is)\",\"sorun\":$fail,\"kontroller\":{${out%,}}}" > "$H"
 exit 0

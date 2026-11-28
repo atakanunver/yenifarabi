@@ -25,7 +25,7 @@ window.FARABI_DUVAR = {{ agac.duvar_kagitlari | tojson }};
    cam pencere (üst çubuk + etkin alanın sayfaları + içerik), altında tutamaç. Ağacın tek kaynağı menu.py::menu_agaci;
    öğe burada elle yazılmaz. <=720px: ray (#gezinme) soldan çekmece, sayfa menüsü pencerede yatay şerit. #}
 {% macro baglanti(o) -%}
-  {%- if o.href == 'atos' -%}http://{{ request.url.hostname }}:8010/{%- elif o.href == '/panel-git/zil' -%}http://zil.local:8090/{%- else -%}{{ o.href }}{%- endif -%}
+  {%- if o.href == 'atos' -%}http://{{ request.url.hostname }}:8010/{%- elif o.href == '/panel-git/zil' -%}http://bilgehan.local:8090/{%- else -%}{{ o.href }}{%- endif -%}
 {%- endmacro %}
 {% macro dis_ikon(o) %}{% if o.yeni_sekme %}<svg class="ikon ikon-kucuk ikon-disa" aria-label="yeni sekmede açılır"><use href="#ik-dis"/></svg>{% endif %}{% endmacro %}
 <div class="cam-ortam" aria-hidden="true"></div>
@@ -94,7 +94,7 @@ window.FARABI_DUVAR = {{ agac.duvar_kagitlari | tojson }};
               <path d="M40 42 49 41l4 2-10 1Z" fill="#fff6e6"/>
               <path d="M7 56 91 49 105 52" fill="none" stroke="#f5e6cb" stroke-width="1"/>
             </svg><span class="ust-okul-yazi">3D Okul</span></a>
-          <a class="ust-atos ust-zil" href="http://zil.local:8090/" data-menu="{{ agac.zil.href }}" data-kisayol="{{ agac.zil.kisayol }}" title="{{ agac.zil.ad }} (yeni sekmede açılır)" target="_blank" rel="noopener">
+          <a class="ust-atos ust-zil" href="http://bilgehan.local:8090/" data-menu="{{ agac.zil.href }}" data-kisayol="{{ agac.zil.kisayol }}" title="{{ agac.zil.ad }} (yeni sekmede açılır)" target="_blank" rel="noopener">
             <svg class="ikon"><use href="#ik-{{ agac.zil.ikon }}"/></svg><span>Zil</span></a>
           <a class="ust-atos ust-progmatik" href="http://farabi.local:8060/" title="Progmatik ders programı (yeni sekmede açılır)" target="_blank" rel="noopener">
             <svg class="ikon"><use href="#ik-takvim"/></svg><span>Progmatik</span></a>
