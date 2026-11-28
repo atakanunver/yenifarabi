@@ -186,6 +186,7 @@ function makineKarti(m) {
     for (const s of m.servisler) {
       const r = el('span', 'sunucu-servis');
       r.append(nokta(s.durum === 'active' ? 'nokta-yesil' : 'nokta-kirmizi'), document.createTextNode(s.ad));
+      if (s.aciklama) r.title = s.aciklama;
       if (s.durum !== 'active') r.append(el('span', 'soluk', ' ' + s.durum));
       sl.append(r);
     }

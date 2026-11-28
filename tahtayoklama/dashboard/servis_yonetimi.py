@@ -18,6 +18,7 @@ from fastapi.templating import Jinja2Templates
 
 import menu
 import auth
+import sunucular
 import db
 import tahta_yeniden_baslat
 import uzaktan_yonetim
@@ -230,6 +231,13 @@ async def api_servisler(request: Request):
     return JSONResponse({"birimler": await durumlar(),
                          "ders_saati": tahta_yeniden_baslat.ders_saatinde_mi(),
                          "kapsam": _kapsam_ozeti()})
+
+
+@router.get("/api/servisler/uzak")
+async def api_servisler_uzak(request: Request, yenile: int = 0):
+    """Diğer sunucuların servisleri — salt-okunur, eylem yok."""
+    _oturum_kontrol(request)
+    return JSONResponse({"makineler": await sunucular.uzak_ozet(bool(yenile))})
 
 
 @router.get("/api/servisler/log/{birim}")

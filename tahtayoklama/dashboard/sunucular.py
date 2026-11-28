@@ -54,13 +54,13 @@ _ISTANBUL = ZoneInfo("Europe/Istanbul")
 MAKINELER = {
     "farabi": {
         "ad": "Farabi",
-        "rol": "RAG + LLM + Embed & Rerank sunucusu",
+        "rol": "Ollama LLM, Atos, okul panoları, SMS, kameralar, smual.app",
         "yerel": True,
         "proxy_dugmesi": True,
     },
     "bilgehan": {
         "ad": "Bilgehan",
-        "rol": "Ses düğümü: Whisper STT + Trendyol TTS",
+        "rol": "Ses düğümü (Whisper STT + Trendyol TTS) + zil/anons botu ve paneli :8090",
         "host": "bilgehan.local",
         "proxy_dugmesi": True,
         "kontroller": (("Zil paneli", 8090),),
@@ -212,6 +212,16 @@ async def _topla() -> dict:
         "makineler": makineler,
         "chatterbox": chatterbox,
     }
+
+
+async def uzak_ozet(yenile: bool = False) -> list[dict]:
+    """Farabi dışındaki makinelerin servis + zamanlayıcı listesi (salt-okunur; /servisler ve
+    /zamanlanmis-gorevler kullanır). Aynı 60 sn önbellek — ek SSH turu açmaz."""
+    veri = await durum_al(yenile)
+    return [{"anahtar": m["anahtar"], "ad": m["ad"], "rol": m["rol"],
+             "ulasilabilir": m.get("ulasilabilir", False), "hata": m.get("hata"),
+             "servisler": m.get("servisler", []), "zamanlayicilar": m.get("zamanlayicilar", [])}
+            for m in veri["makineler"] if not MAKINELER[m["anahtar"]].get("yerel")]
 
 
 async def durum_al(yenile: bool = False) -> dict:

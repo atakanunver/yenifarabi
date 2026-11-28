@@ -63,13 +63,22 @@ SERVISLER = [
     # smual.app'in dış yolu (2026-10-23): HTTP sağlık yok, yalnız systemd durumu
     ("cloudflared", "Cloudflare tüneli (smual.app)", None),
     ("cf-edge-relay", "Tünel aktarıcısı (Müdür PC proxy)", None),
+    # 2026-11-28: çalışan diğer Farabi servisleri (yalnız systemd durumu)
+    ("telegrambot", "Telegram acil botu", None),
+    ("farabi-ozel", "DersPilot özel ders", None),
+    ("farabi-kelebek", "Kelebek sınav dağıtımı", None),
+    ("farabi-okul3d", "okul3d dijital ikiz", None),
+    ("farabi-kameralar", "Kamera ızgarası", None),
+    ("farabi-hareket", "Kamera hareket algılayıcı", None),
+    ("farabi-atlas", "Farabi Atlas", None),
+    ("atos-tts-shim", "Atos TTS köprüsü", None),
 ]
 VARSAYILAN_PORTLAR = {"ollama": 11434, "pm2-anythingllm": 8010}  # AnythingLLM portu birimde değil, server/.env SERVER_PORT'ta
 POSTGRES_CONF = "/etc/postgresql/18/main/postgresql.conf"
 
 # Dış makineler — adresler llm-cluster-wiki'den (nodes/omv-debian.md,
-# nodes/bilgehan.md, nodes/zil.md, nodes/mudur-pc.md). `beklenen`: "ayakta" sayılan HTTP kodları
-# (zil paneli Basic Auth'lu → 401 = ayakta).
+# nodes/bilgehan.md, nodes/mudur-pc.md). `beklenen`: "ayakta" sayılan HTTP kodları
+# (zil paneli Basic Auth'lu → 401 = ayakta). Zil paneli 2026-11-28'de bilgehan'a taşındı.
 UZAK_SERVISLER = [
     {"anahtar": "bilgehan_embed", "ad": "RAG Embed & Rerank", "makine": "farabi",
      "host": "127.0.0.1", "port": 8040, "yol": "/saglik", "beklenen": (200,)},
@@ -80,6 +89,10 @@ UZAK_SERVISLER = [
      "host": "debian.local", "port": 5002, "yol": "/saglik", "beklenen": (200,)},
     {"anahtar": "zil", "ad": "Zil Paneli", "makine": "bilgehan",
      "host": "bilgehan.local", "port": 8090, "yol": "/", "beklenen": (200, 401)},
+    {"anahtar": "dersnotu", "ad": "Ders notları (dersnotu-web)", "makine": "bilgehan",
+     "host": "bilgehan.local", "port": 8071, "yol": "/", "beklenen": (200, 401)},
+    {"anahtar": "bilgehan_panel", "ad": "Bilgehan yönetim paneli", "makine": "bilgehan",
+     "host": "bilgehan.local", "port": 9100, "yol": "/", "beklenen": (200, 401)},
     {"anahtar": "sms_kopru", "ad": "SMS Köprüsü (Müdür PC proxy → modem)", "makine": "mudur-pc",
      "host": "mudur.local", "port": 8080, "yol": None, "beklenen": ()},
 ]

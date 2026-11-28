@@ -20,6 +20,7 @@ from fastapi.templating import Jinja2Templates
 import menu
 import servis_yonetimi
 import ssh_istemci
+import sunucular
 import tahta_kaydi
 import tahta_yeniden_baslat
 import uzaktan_yonetim
@@ -266,6 +267,13 @@ async def api_liste(request: Request):
     _oturum_kontrol(request)
     return JSONResponse({"gorevler": await liste(), "ders_saati": tahta_yeniden_baslat.ders_saatinde_mi(),
                          "tahta_adlari": tahta_adlari(), "eylem_etiketleri": EYLEM_ETIKETLERI})
+
+
+@router.get("/zamanlanmis-gorevler/api/sunucular")
+async def api_sunucular(request: Request, taze: int = 0):
+    """Diğer sunucuların systemd zamanlayıcıları — salt-okunur."""
+    _oturum_kontrol(request)
+    return JSONResponse({"makineler": await sunucular.uzak_ozet(bool(taze))})
 
 
 @router.get("/zamanlanmis-gorevler/api/tahtalar")

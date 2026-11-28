@@ -32,6 +32,13 @@
   <tbody><tr><td colspan="2"><div class="iskelet iskelet-satir"></div></td></tr></tbody>
 </table></div>
 
+<h2 class="bolum-basligi" id="sunucu-baslik">Diğer sunucular (salt-okunur)</h2>
+<p class="ipucu">Bilgehan, Debian vb. makinelerdeki systemd zamanlayıcıları. Yalnızca gösterilir.</p>
+<div class="tablo-kutu"><table class="tablo" id="sunucu-tablo" aria-labelledby="sunucu-baslik">
+  <thead><tr><th>Sunucu</th><th>Zamanlayıcı</th><th>Sonraki</th><th>Son çalışma</th></tr></thead>
+  <tbody><tr><td colspan="4"><div class="iskelet iskelet-satir"></div></td></tr></tbody>
+</table></div>
+
 <details class="sistem-zamanlayicilar">
   <summary class="bolum-basligi" id="sistem-baslik">Sistem (salt-okunur)</summary>
   <div class="tablo-kutu"><table class="tablo" id="sistem-tablo" aria-labelledby="sistem-baslik">
@@ -155,6 +162,33 @@
           tr.appendChild(td); return tr; }), 'Tahta bulunamadı.', 2);
       }).catch(function () { sarTablo('tahta-tablo', [], 'Tahta bilgisi alınamadı.', 2); });
   }
+  function uzakZaman(t) { if (!t) return '—'; var d = new Date(t); return isNaN(d) ? t :
+    d.toLocaleString('tr-TR', {weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}); }
+  function uzakSatirlar(makineler, hucre) {
+    var satirlar = [];
+    makineler.forEach(function (m) {
+      var liste = hucre.liste(m);
+      if (!m.ulasilabilir || !liste.length) {
+        var tr = el('tr'), a = el('td'); a.appendChild(el('strong', null, m.ad)); tr.appendChild(a);
+        var td = el('td', 'soluk', m.ulasilabilir ? 'Kayıt yok' : 'Ulaşılamadı' + (m.hata ? ' — ' + m.hata : ''));
+        td.colSpan = hucre.sutun - 1; tr.appendChild(td); satirlar.push(tr); return;
+      }
+      liste.forEach(function (x, i) {
+        var tr = el('tr'), a = el('td');
+        if (i === 0) { a.appendChild(el('strong', null, m.ad)); a.appendChild(el('div', 'soluk kucuk', m.rol)); }
+        tr.appendChild(a); hucre.ciz(x).forEach(function (td) { tr.appendChild(td); }); satirlar.push(tr);
+      });
+    });
+    return satirlar;
+  }
+  function sunuculariYukle(taze) {
+    fetch('/zamanlanmis-gorevler/api/sunucular' + (taze ? '?taze=1' : '')).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (j) {
+        sarTablo('sunucu-tablo', uzakSatirlar(j.makineler, {sutun: 4, liste: function (m) { return m.zamanlayicilar; }, ciz: function (z) {
+          var ad = el('td'); ad.appendChild(el('span', null, z.birim)); if (z.servis) ad.appendChild(el('div', 'soluk kucuk', z.servis));
+          return [ad, el('td', null, uzakZaman(z.sonraki)), el('td', null, uzakZaman(z.onceki))]; }}), 'Sunucu bulunamadı.', 4);
+      }).catch(function () { sarTablo('sunucu-tablo', [], 'Sunucu bilgisi alınamadı.', 4); });
+  }
   function onayAc(metin, uyari, evetMetni, sonra) {
     var p = document.getElementById('onay-penceresi'), u = document.getElementById('onay-uyari');
     document.getElementById('onay-metin').textContent = metin;
@@ -227,8 +261,8 @@
     gonder(govde, function () { fp.close(); });
   });
 
-  document.getElementById('yenile').addEventListener('click', function () { yukle(); tahtalariYukle(true); });
-  yukle(); tahtalariYukle(false);
+  document.getElementById('yenile').addEventListener('click', function () { yukle(); tahtalariYukle(true); sunuculariYukle(true); });
+  yukle(); tahtalariYukle(false); sunuculariYukle(false);
   setInterval(function () { if (!document.hidden && !document.getElementById('onay-penceresi').open && !fp.open) yukle(); }, 30000);
 })();
 </script>

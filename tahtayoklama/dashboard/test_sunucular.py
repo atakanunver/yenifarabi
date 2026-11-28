@@ -189,3 +189,19 @@ class TestHafif(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestUzakOzet(unittest.TestCase):
+    def test_yerel_makine_haric_servis_ve_zamanlayici_gecer(self):
+        sahte = {"makineler": [
+            {"anahtar": "farabi", "ad": "Farabi", "rol": "r", "ulasilabilir": True, "servisler": [{"ad": "ollama"}]},
+            {"anahtar": "bilgehan", "ad": "Bilgehan", "rol": "r", "ulasilabilir": True,
+             "servisler": [{"ad": "ses_bot", "durum": "active"}], "zamanlayicilar": [{"birim": "x.timer"}]},
+            {"anahtar": "kiosk", "ad": "Kiosk PC", "rol": "r", "ulasilabilir": False, "hata": "yok"},
+        ]}
+        with patch.object(sunucular, "durum_al", AsyncMock(return_value=sahte)):
+            sonuc = asyncio.run(sunucular.uzak_ozet())
+        self.assertEqual([m["anahtar"] for m in sonuc], ["bilgehan", "kiosk"])
+        self.assertEqual(sonuc[0]["servisler"][0]["ad"], "ses_bot")
+        self.assertEqual(sonuc[0]["zamanlayicilar"][0]["birim"], "x.timer")
+        self.assertEqual(sonuc[1]["servisler"], [])

@@ -43,11 +43,14 @@ ERTELEME_SAATI = "17:05:00"
 # makinede yalnızca ssh. "ollama" kurulu değilse raporda atlanır.
 SERVISLER = {
     "farabi": ["ollama", "farabi-api", "pm2-anythingllm", "postgresql@18-main",
-               "farabi-yoklama-dashboard", "farabi-smssistemi", "sinif-arena", "chrony"],
-    "debian": ["ema-tts", "ollama", "ssh"],
-    "bilgehan": ["ssh", "nvidia-persistenced", "farabi-embed", "chatterbox-tts", "chrony"],
-    "zil": ["ses_bot", "ses_dashboard", "ssh"],
-    "kiosk": ["ssh"],
+               "farabi-yoklama-dashboard", "farabi-smssistemi", "sinif-arena", "telegrambot",
+               "farabi-okul", "farabi-ozel", "farabi-kelebek", "farabi-okul3d", "farabi-atlas",
+               "farabi-kameralar", "farabi-hareket", "farabi-audit-watcher", "atos-tts-shim",
+               "ollama-ctx-kilit", "cf-edge-relay", "cliproxyapi", "progmatik", "chrony"],
+    "debian": ["ema-tts", "ollama", "openmediavault-engined", "nginx", "smbd", "ssh"],
+    "bilgehan": ["farabi2-ses", "ses_bot", "ses_dashboard", "dersnotu-topla", "dersnotu-web",
+                 "okul-panel", "nvidia-persistenced", "ssh", "chrony"],
+    "kiosk": ["tekhtml", "yuzpanel", "okul-panel", "veyon", "ssh"],
 }
 
 
@@ -203,9 +206,26 @@ def _servisler(makine: str) -> list[dict]:
     for birim in SERVISLER.get(makine, ["ssh"]):
         if not _birim_var(birim):
             continue
-        _, durum = _calistir("systemctl", "is-active", f"{birim}.service")
-        sonuc.append({"ad": birim, "durum": durum.strip() or "bilinmiyor"})
+        _, cikti = _calistir("systemctl", "show", "-p", "ActiveState,Description", f"{birim}.service")
+        alanlar = dict(s.split("=", 1) for s in cikti.splitlines() if "=" in s)
+        sonuc.append({"ad": birim, "durum": alanlar.get("ActiveState") or "bilinmiyor",
+                      "aciklama": alanlar.get("Description", "")})
     return sonuc
+
+
+def _zamanlayicilar() -> list[dict]:
+    """systemd zamanlayıcıları (salt-okunur). Zamanlar ISO metin; hiç çalışmadıysa None."""
+    _, cikti = _calistir("systemctl", "list-timers", "--all", "--output=json", "--no-pager")
+    try:
+        ham = json.loads(cikti or "[]")
+    except ValueError:
+        return []
+
+    def _iso(us):
+        return datetime.datetime.fromtimestamp(us / 1e6, TZ).isoformat(timespec="seconds") if us else None
+
+    return [{"birim": t.get("unit"), "servis": t.get("activates"),
+             "sonraki": _iso(t.get("next")), "onceki": _iso(t.get("last"))} for t in ham]
 
 
 def _proxy_durumu() -> dict:
@@ -240,6 +260,7 @@ def durum() -> dict:
         "gpu": _gpular(),
         "ntp": _ntp(),
         "servisler": _servisler(makine),
+        "zamanlayicilar": _zamanlayicilar(),
         "proxy": _proxy_durumu(),
     }
 

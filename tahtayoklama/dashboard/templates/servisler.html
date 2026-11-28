@@ -16,6 +16,13 @@
   <div class="servis-kart iskelet"></div><div class="servis-kart iskelet"></div><div class="servis-kart iskelet"></div>
 </div>
 
+<h2 class="bolum-basligi" id="uzak-baslik">Diğer sunucular (salt-okunur)</h2>
+<p class="ipucu">Bilgehan, Debian vb. makinelerde çalışan servisler. Yalnızca gösterilir; buradan başlatılıp durdurulamaz.</p>
+<div class="tablo-kutu"><table class="tablo" id="uzak-tablo" aria-labelledby="uzak-baslik">
+  <thead><tr><th>Sunucu</th><th>Servis</th><th>Durum</th></tr></thead>
+  <tbody><tr><td colspan="3"><div class="iskelet iskelet-satir"></div></td></tr></tbody>
+</table></div>
+
 <h2 class="bolum-basligi" id="zamanlayicilar-baslik">Zamanlayıcılar</h2>
 <div class="tablo-kutu"><table class="tablo" id="zamanlayicilar" aria-labelledby="zamanlayicilar-baslik">
   <thead><tr><th>Zamanlayıcı</th><th>Sonraki</th><th>Son çalışma</th><th>Etkin</th><th><span class="gorsel-gizli">Eylemler</span></th></tr></thead>
@@ -152,6 +159,36 @@
       .then(function (j) { veri = j; ciz(); })
       .catch(function () { document.getElementById('servis-kartlari').textContent = 'Servis durumu alınamadı. Sayfayı yenileyin.'; });
   }
+  function uzakZaman(t) { if (!t) return '—'; var d = new Date(t); return isNaN(d) ? t :
+    d.toLocaleString('tr-TR', {weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}); }
+  function uzakSatirlar(makineler, hucre) {
+    var satirlar = [];
+    makineler.forEach(function (m) {
+      var liste = hucre.liste(m);
+      if (!m.ulasilabilir || !liste.length) {
+        var tr = el('tr'), a = el('td'); a.appendChild(el('strong', null, m.ad)); tr.appendChild(a);
+        var td = el('td', 'soluk', m.ulasilabilir ? 'Kayıt yok' : 'Ulaşılamadı' + (m.hata ? ' — ' + m.hata : ''));
+        td.colSpan = hucre.sutun - 1; tr.appendChild(td); satirlar.push(tr); return;
+      }
+      liste.forEach(function (x, i) {
+        var tr = el('tr'), a = el('td');
+        if (i === 0) { a.appendChild(el('strong', null, m.ad)); a.appendChild(el('div', 'soluk kucuk', m.rol)); }
+        tr.appendChild(a); hucre.ciz(x).forEach(function (td) { tr.appendChild(td); }); satirlar.push(tr);
+      });
+    });
+    return satirlar;
+  }
+  function uzakYukle(yenile) {
+    var tb = document.querySelector('#uzak-tablo tbody');
+    return fetch('/api/servisler/uzak' + (yenile ? '?yenile=1' : '')).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (j) {
+        tb.textContent = '';
+        uzakSatirlar(j.makineler, {sutun: 3, liste: function (m) { return m.servisler; }, ciz: function (s) {
+          var ad = el('td'); ad.appendChild(el('span', null, s.ad)); if (s.aciklama) ad.appendChild(el('div', 'soluk kucuk', s.aciklama));
+          var d = el('td'); d.appendChild(el('span', 'rozet ' + (s.durum === 'active' ? 'rozet-yesil' : 'rozet-kirmizi'),
+            s.durum === 'active' ? 'Çalışıyor' : s.durum)); return [ad, d]; }}).forEach(function (tr) { tb.appendChild(tr); });
+      }).catch(function () { tb.textContent = ''; var tr = el('tr'), td = el('td', 'soluk', 'Sunucu bilgisi alınamadı.'); td.colSpan = 3; tr.appendChild(td); tb.appendChild(tr); });
+  }
   function onayAc(metin, uyari, evetMetni, sonra) {
     var p = document.getElementById('onay-penceresi'), u = document.getElementById('onay-uyari');
     document.getElementById('onay-metin').textContent = metin;
@@ -207,7 +244,9 @@
     if (navigator.clipboard) navigator.clipboard.writeText(document.getElementById('log-icerik').textContent)
       .then(function () { window.farabiToast('Log kopyalandı.'); }, function () { window.farabiToast('Kopyalanamadı.'); }); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') document.getElementById('log-paneli').hidden = true; });
-  document.getElementById('yenile').addEventListener('click', yukle);
+  document.getElementById('yenile').addEventListener('click', function () { yukle(); uzakYukle(true); });
+  uzakYukle(false);
+  setInterval(function () { if (!document.hidden) uzakYukle(false); }, 60000);
   yukle().then(function () { if (location.hash === '#zamanlayicilar') document.getElementById('zamanlayicilar-baslik').scrollIntoView(); });
   setInterval(function () { if (!document.hidden && !document.getElementById('onay-penceresi').open) yukle(); }, 30000);
 })();
